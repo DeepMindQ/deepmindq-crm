@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { apiError, apiSuccess, safeInt } from '@/lib/apiHelpers'
 import { randomUUID } from 'crypto'
 import { sdkWebSearch, type WebSearchResult } from '@/lib/llm-client'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
@@ -116,19 +116,19 @@ async function webSearch(query: string, num = 5): Promise<RawSearchResult[]> {
   return results.map((r, i) => toRawSearchResult(r, i))
 }
 
-async function callLLM(
+async function callLLMGoverned(
   systemPrompt: string,
   userPrompt: string,
 ): Promise<string> {
-  const result = await ModelRouter.complete({
+  const result = await governedAICallAggregate({
+    generationType: 'signal_detection',
     systemPrompt,
     userPrompt,
     tier: 'smart',
-    genType: 'signal_scanning',
     maxTokens: 4096,
     temperature: 0.5,
   })
-  return result.success ? result.text : ''
+  return result.success ? result.response ?? '' : ''
 }
 
 // ---------------------------------------------------------------------------
@@ -325,7 +325,7 @@ async function scanCompany(company: CompanyRow): Promise<ScanCompanyResult> {
   // Ask LLM to analyze
   try {
     const userPrompt = buildAnalysisPrompt(company.normalizedName, allResults)
-    const llmResponse = await callLLM(SIGNAL_SYSTEM_PROMPT, userPrompt)
+    const llmResponse = await callLLMGoverned(SIGNAL_SYSTEM_PROMPT, userPrompt)
     const rawSignals = parseLLMSignals(llmResponse)
 
     return {

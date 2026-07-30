@@ -3,7 +3,7 @@ import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { createInsight } from '@/lib/ai-insight-service'
 import { sdkWebSearch } from '@/lib/llm-client'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICall } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
@@ -113,7 +113,7 @@ const CACHE_TTL_MS = 2 * 60 * 60 * 1000
 const briefCache = new Map<string, { data: CachedBrief; expiresAt: number }>()
 
 // ---------------------------------------------------------------------------
-// SDK helpers — delegate to unified llm-client (Phase 2 consolidation)
+// Web search helper
 // ---------------------------------------------------------------------------
 
 async function webSearch(query: string): Promise<Array<{ title: string; url: string; snippet: string }>> {
@@ -121,17 +121,24 @@ async function webSearch(query: string): Promise<Array<{ title: string; url: str
   return results.map(r => ({ title: r.title || r.name || '', url: r.url, snippet: r.snippet }))
 }
 
-async function callLLM(systemPrompt: string, userPrompt: string): Promise<{ raw: string; quality?: import('@/lib/ai-copilot/quality-gates').QualityReport }> {
-  const result = await ModelRouter.complete({
+// ---------------------------------------------------------------------------
+// LLM call — through governance layer (Ticket 3)
+// ---------------------------------------------------------------------------
+
+async function callLLMGoverned(systemPrompt: string, userPrompt: string, companyId: string): Promise<{ raw: string }> {
+  const result = await governedAICall({
+    generationType: 'account_brief',
+    companyId,
     systemPrompt,
     userPrompt,
+    enforceGovernance: false, // No pre-loaded research context; advisory mode
     tier: 'deep',
-    genType: 'account_brief',
     maxTokens: 8192,
     temperature: 0.7,
+    inputParams: { companyId },
   })
-  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed')
-  return { raw: result.text }
+  if (!result.success || !result.response) throw new Error(result.rejectionReason ?? 'Governed LLM call failed')
+  return { raw: result.response }
 }
 
 // ---------------------------------------------------------------------------
@@ -409,8 +416,8 @@ export async function GET(request: NextRequest) {
   let brief: AccountBrief
   let qualityReport: import('@/lib/ai-copilot/quality-gates').QualityReport | undefined
   try {
-    const { raw, quality } = await callLLM(SYSTEM_PROMPT, userPrompt)
-    qualityReport = quality
+    const { raw } = await callLLMGoverned(SYSTEM_PROMPT, userPrompt, company.id)
+    qualityReport = undefined // Quality gates handled by governance layer
     const parsed = parseBriefJson(raw)
     brief = parsed ?? (() => { logger.error('[account-brief] Unparseable LLM JSON'); return buildFallbackBrief('LLM response was not valid JSON') })()
   } catch (err: unknown) {

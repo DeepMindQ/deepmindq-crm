@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { ModelRouter } from '@/lib/engines/model-router';
+import { governedAICallAggregate } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════════
@@ -27,19 +27,19 @@ interface QueryResult {
   aiProcessed?: boolean;
 }
 
-// ── LLM helper — routed through ModelRouter (Phase 2.2) ─────────────
+// ── LLM helper — governed aggregate call ─────────────
 
 async function llmChat(systemPrompt: string, userPrompt: string): Promise<string | null> {
   try {
-    const result = await ModelRouter.complete({
+    const result = await governedAICallAggregate({
+      generationType: 'command_center_query',
       systemPrompt,
       userPrompt,
       tier: 'smart',
-      genType: 'command_center_query',
       maxTokens: 4096,
       temperature: 0.7,
     });
-    return result.success ? result.text : null;
+    return result.success ? result.response : null;
   } catch (err) {
     logger.error('[CommandCenter LLM]', { error: err });
     return null;

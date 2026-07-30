@@ -39,6 +39,12 @@ export interface IntelligenceMeta {
   includes: string[];       // which ?include= params were fulfilled
   confidence: number;         // 0-1 aggregate confidence of the response
   freshness: FreshnessInfo;
+  /** Ticket 3: Governance metadata — present when AI generation was involved */
+  governance?: {
+    passed: boolean;
+    generationType?: string;
+    checks?: Record<string, { passed: boolean; message: string }>;
+  };
 }
 
 export type IntelligenceEndpoint =

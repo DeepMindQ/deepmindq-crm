@@ -2,7 +2,7 @@ import { db } from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
 import { createInsights } from '@/lib/ai-insight-service'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
@@ -337,16 +337,16 @@ function parseAIResponse(raw: string, originals: Recommendation[]): Recommendati
 async function enhanceWithAI(recs: Recommendation[]): Promise<Recommendation[]> {
   if (recs.length === 0) return recs
 
-  const result = await ModelRouter.complete({
+  const governed = await governedAICallAggregate({
+    generationType: 'recommendations',
     systemPrompt: RECOMMENDATION_SYSTEM_PROMPT,
     userPrompt: buildAIUserPrompt(recs),
     tier: 'smart',
-    genType: 'recommendation_enhancement',
     maxTokens: 4096,
     temperature: 0.5,
   })
 
-  const raw = result.success ? result.text : ''
+  const raw = governed.success ? (governed.response ?? '') : ''
 
   if (!raw || raw.length < 10) {
     logger.warn('[ai/recommendations] AI returned empty or too-short response, using rule-based fallback')

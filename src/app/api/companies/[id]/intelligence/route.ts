@@ -85,11 +85,20 @@ async function webSearch(query: string, num = 5) {
   return search(query, num);
 }
 
-async function aiChat(systemPrompt: string, userPrompt: string): Promise<{ raw: string; quality?: import('@/lib/ai-copilot/quality-gates').QualityReport }> {
-  const { ModelRouter } = await import('@/lib/engines/model-router');
-  const result = await ModelRouter.complete({ systemPrompt, userPrompt, tier: 'smart', genType: 'company_intelligence', maxTokens: 4096, temperature: 0.7 });
-  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed');
-  return { raw: result.text };
+async function aiChat(systemPrompt: string, userPrompt: string, companyId: string): Promise<{ raw: string; quality?: import('@/lib/ai-copilot/quality-gates').QualityReport }> {
+  const { governedAICall } = await import('@/lib/ai-governance');
+  const result = await governedAICall({
+    generationType: 'company_intelligence',
+    companyId,
+    enforceGovernance: false,
+    systemPrompt,
+    userPrompt,
+    tier: 'smart',
+    maxTokens: 4096,
+    temperature: 0.7,
+  });
+  if (!result.success) throw new Error(result.rejectionReason ?? 'AI call failed');
+  return { raw: result.response! };
 }
 
 /**
@@ -248,6 +257,7 @@ function normalizeInsights(obj: Record<string, unknown>): EnhancedAiInsights {
  * Enhanced with Evidence Framework — every output is explainable and actionable
  */
 async function generateIntelligence(
+  companyId: string,
   companyName: string,
   industry: string | null,
   domain: string | null,
@@ -409,7 +419,7 @@ Generate evidence-backed intelligence. Return valid JSON:
 
 Be SPECIFIC. Reference real information from web results. Every signal needs evidence.`;
 
-    const { raw, quality } = await aiChat(systemPrompt, userPrompt);
+    const { raw, quality } = await aiChat(systemPrompt, userPrompt, companyId);
     const insights = parseAiResponse(raw);
 
     if (insights) {
@@ -509,6 +519,7 @@ export async function GET(
 
     // Generate enhanced intelligence with Evidence Framework
     const aiInsights = await generateIntelligence(
+      companyId,
       company.rawName,
       company.industry,
       company.domain,

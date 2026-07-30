@@ -1,29 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
-// LLM helper — routed through ModelRouter (Phase 2.2)
+// Types
 // ---------------------------------------------------------------------------
 
 interface ChatMessage {
   role: 'user' | 'assistant'
   content: string
-}
-
-async function callAI(systemPrompt: string, messages: ChatMessage[]): Promise<string> {
-  const result = await ModelRouter.complete({
-    systemPrompt,
-    userPrompt: messages.map(m => `${m.role}: ${m.content}`).join('\n'),
-    tier: 'smart',
-    genType: 'ai_chat',
-    maxTokens: 4096,
-    temperature: 0.7,
-  })
-  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed')
-  return result.text
 }
 
 // ---------------------------------------------------------------------------
@@ -222,10 +209,17 @@ ${
 
     // 4. Try LLM call
     try {
-      const response = await callAI(systemPrompt, messages)
+      const governed = await governedAICallAggregate({
+        generationType: 'chat',
+        systemPrompt,
+        userPrompt: messages.map(m => `${m.role}: ${m.content}`).join('\n'),
+        tier: 'smart',
+        maxTokens: 4096,
+        temperature: 0.7,
+      })
 
-      if (response) {
-        return apiSuccess({ message: response, sources: sources.length > 0 ? sources : undefined })
+      if (governed.success && governed.response) {
+        return apiSuccess({ message: governed.response, sources: sources.length > 0 ? sources : undefined })
       }
     } catch (llmErr: unknown) {
       const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)

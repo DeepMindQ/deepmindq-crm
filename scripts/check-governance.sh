@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
-# Phase 4 A2: Governance enforcement validation
+# Ticket 3: Governance enforcement validation
 # Exit 1 if any violation found
 
 set -e
-echo "=== Phase 4 A2: Governance Enforcement Check ==="
+echo "=== Ticket 3: Governance Enforcement Check ==="
 
-# Check 1: No callLLM imports outside ai-governance.ts
+# Check 1: No callLLM imports outside governance layer
 echo "Check 1: callLLM imports..."
-VIOLATIONS=$(rg "import.*callLLM.*from.*zai-helpers" src/ --type ts -l | grep -v -E "(ai-governance\.ts|model-router\.ts)" || true)
+VIOLATIONS=$(rg "import.*callLLM.*from.*zai-helpers" src/ --type ts -l | grep -v -E "(ai-governance\.ts|model-router\.ts|zai-helpers\.ts)" || true)
 if [ -n "$VIOLATIONS" ]; then
   echo "FAIL: callLLM imported outside governance layer:"
   echo "$VIOLATIONS"
@@ -16,15 +16,12 @@ fi
 echo "PASS"
 
 # Check 2: No callChatLLM references (removed function)
-# Allow comment-only references in zai-helpers.ts (removal documentation)
 echo "Check 2: callChatLLM references..."
 CHAT_FILES=$(rg "callChatLLM" src/ --type ts -l 2>/dev/null || true)
 if [ -n "$CHAT_FILES" ]; then
-  # Filter out files where callChatLLM only appears in comments
   REAL_VIOLATION=""
   for f in $CHAT_FILES; do
-    # Check if there are any non-comment lines containing callChatLLM
-    NON_COMMENT=$(rg "callChatLLM" "$f" --type ts -n | grep -E -v "^[[:space:]]*[0-9]+:[[:space:]]*//" || true)
+    NON_COMMENT=$(rg "callChatLLM" "$f" --type ts -n | grep -E -v "^[[:space:]]*[0-9]+:[[:space:]]*(//|\*)" || true)
     if [ -n "$NON_COMMENT" ]; then
       REAL_VIOLATION="$f"
       break
@@ -49,23 +46,16 @@ if rg "from ['\"]openai['\"]" src/ --type ts -l -q 2>/dev/null; then
 fi
 echo "PASS"
 
-# Check 4: callLLM should only be in code in ai-governance.ts / zai-helpers.ts / model-router.ts
-# Comment-only references are allowed anywhere (governance docs, reminders, etc.)
+# Check 4: callLLM should only be in code in governance layer files
 echo "Check 4: callLLM usage locations..."
 CALLLLM_FILES=$(rg "\bcallLLM\b" src/ --type ts -l 2>/dev/null || true)
 for f in $CALLLLM_FILES; do
   case "$f" in
-    *ai-governance.ts|*zai-helpers.ts|*model-router.ts|*llm-client.ts|*account-brief/route.ts|*signals/route.ts)
-      # These files may have actual code usage — always allowed
-      # - ai-governance.ts / zai-helpers.ts: core governance + LLM helper
-      # - model-router.ts: engine layer, legitimate callLLM consumer
-      # - llm-client.ts: direct provider chain (from zai-helpers.ts)
-      # - account-brief/route.ts / signals/route.ts: local wrapper functions
-      #   that delegate to governed callAI (not direct zai-helpers import)
+    *ai-governance.ts|*zai-helpers.ts|*model-router.ts|*llm-client.ts)
+      # Governance layer files — always allowed
       ;;
     *)
       # All other files: callLLM must only appear in comments
-      # rg output format: "filename:linenum:content"
       if rg "\bcallLLM\b" "$f" --type ts -n 2>/dev/null | grep -E -v ":[[:space:]]*(\*|//)" > /dev/null 2>&1; then
         echo "FAIL: callLLM found in code (not comment) in $f"
         exit 1
@@ -73,6 +63,27 @@ for f in $CALLLLM_FILES; do
       ;;
   esac
 done
+echo "PASS"
+
+# Check 5: Ticket 3 — No getZAI imports outside governance layer
+echo "Check 5: getZAI imports..."
+GETZAI_FILES=$(rg "import.*getZAI.*from" src/ --type ts -l | grep -v -E "(ai-governance\.ts|model-router\.ts|llm-client\.ts)" || true)
+if [ -n "$GETZAI_FILES" ]; then
+  echo "FAIL: getZAI imported outside governance layer:"
+  echo "$GETZAI_FILES"
+  exit 1
+fi
+echo "PASS"
+
+# Check 6: Ticket 3 — No ModelRouter imports outside governance layer
+# Allow: engines/* routes (they ARE the engine layer), and health check usage
+echo "Check 6: ModelRouter imports..."
+MODELR_FILES=$(rg "import.*ModelRouter.*from" src/ --type ts -l | grep -v -E "(ai-governance\.ts|model-router\.ts|/engines/)" || true)
+if [ -n "$MODELR_FILES" ]; then
+  echo "FAIL: ModelRouter imported outside governance/engines layer:"
+  echo "$MODELR_FILES"
+  exit 1
+fi
 echo "PASS"
 
 echo ""

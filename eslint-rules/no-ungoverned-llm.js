@@ -1,20 +1,27 @@
 /**
  * ESLint custom rule: no-ungoverned-llm
  *
- * Enforces the AI governance architecture:
- * - Only ai-governance.ts (legacy) OR engines/model-router.ts (Phase B) may
- *   import callLLM from zai-helpers. Both ARE governance layers —
- *   model-router.ts is the new tiered router that logs every call via
- *   logAIUsage and tracks cost.
+ * Enforces the AI governance architecture (Ticket 3 hardened):
+ * - Only ai-governance.ts OR engines/model-router.ts may import callLLM
+ *   from zai-helpers. Both ARE governance layers.
+ * - No file may import getZAI from llm-client — raw Z.ai SDK access
+ *   bypasses governance. Only ai-governance.ts and model-router.ts
+ *   are allowed (they ARE the governance layer).
  * - No file may import callChatLLM (removed function)
  * - No file may import from AI SDK ('ai') or OpenAI SDK directly
- * - Other imports from zai-helpers (webSearch, extractJSON, tavilyAIAnswer, etc.) are fine
+ * - No file may import ModelRouter from engines/model-router outside
+ *   of ai-governance.ts (all route files must use governedAICall /
+ *   governedAICallAggregate instead)
+ * - Other imports from zai-helpers (webSearch, extractJSON, tavilyAIAnswer,
+ *   sdkWebSearch, etc.) are fine
  */
 
-// Files allowed to import callLLM directly — they ARE the governance layer
+// Files allowed to import callLLM, getZAI, or ModelRouter directly —
+// they ARE the governance/routing layer
 const ALLOWED_GOVERNANCE_FILES = new Set([
-  "ai-governance.ts", // legacy governance (used by /api/ai/* routes)
-  "model-router.ts",  // Phase B governance (used by /api/engines/* routes)
+  "ai-governance.ts", // Central governance (governedAICall, governedAICallAggregate)
+  "model-router.ts",  // Tiered router (ModelRouter.complete)
+  "llm-client.ts",    // Base LLM client (exports getZAI for governance layer use)
 ]);
 
 module.exports = {
@@ -28,15 +35,19 @@ module.exports = {
     },
     messages: {
       ungovernedCallLLM:
-        "Direct import of 'callLLM' is only allowed in governance layer files (ai-governance.ts or engines/model-router.ts). Use 'governedAICall()' from '@/lib/ai-governance' or 'ModelRouter.complete()' from '@/lib/engines' instead.",
+        "Direct import of 'callLLM' is only allowed in governance layer files. Use 'governedAICall()' from '@/lib/ai-governance' instead.",
+      ungovernedGetZAI:
+        "Direct import of 'getZAI' is only allowed in governance layer files (ai-governance.ts, model-router.ts, llm-client.ts). Use 'governedAICall()' or 'governedAICallAggregate()' from '@/lib/ai-governance' instead.",
+      ungovernedModelRouter:
+        "Direct import of 'ModelRouter' is only allowed in governance layer files. Route handlers must use 'governedAICall()' or 'governedAICallAggregate()' from '@/lib/ai-governance' instead.",
       removedCallChatLLM:
         "'callChatLLM' was removed in Phase 3 and must not be imported or used.",
       directAiSdk:
-        "Direct import from 'ai' SDK is forbidden. All AI calls must go through the governance layer (ai-governance.ts or engines/model-router.ts).",
+        "Direct import from 'ai' SDK is forbidden. All AI calls must go through the governance layer.",
       directOpenAiSdk:
-        "Direct import from 'openai' SDK is forbidden. All AI calls must go through the governance layer (ai-governance.ts or engines/model-router.ts).",
+        "Direct import from 'openai' SDK is forbidden. All AI calls must go through the governance layer.",
       directAiSdkOpenai:
-        "Direct import from '@ai-sdk/openai' is forbidden. All AI calls must go through the governance layer (ai-governance.ts or engines/model-router.ts).",
+        "Direct import from '@ai-sdk/openai' is forbidden. All AI calls must go through the governance layer.",
     },
     schema: [],
   },
@@ -94,8 +105,6 @@ module.exports = {
 
         // ── Banned import: from 'openai' ──
         if (source === "openai") {
-          // Could be default import: import OpenAI from 'openai'
-          // Or named imports from openai
           context.report({
             node,
             messageId: "directOpenAiSdk",
@@ -113,7 +122,7 @@ module.exports = {
         }
 
         // ── Restricted import: callLLM from zai-helpers ──
-        // Only allowed in ai-governance.ts
+        // Only allowed in governance layer files
         if (
           source.includes("zai-helpers") &&
           hasNamedImport(node.specifiers, "callLLM")
@@ -124,7 +133,39 @@ module.exports = {
               messageId: "ungovernedCallLLM",
             });
           }
-          // If it IS the governance file, allow it silently
+        }
+
+        // ── Restricted import: getZAI from llm-client ──
+        // Ticket 3: getZAI bypasses all governance. Only allowed in
+        // ai-governance.ts (governance layer), model-router.ts (router),
+        // and llm-client.ts (where it's defined).
+        if (
+          source.includes("llm-client") &&
+          hasNamedImport(node.specifiers, "getZAI")
+        ) {
+          if (!isGovernanceFile()) {
+            context.report({
+              node,
+              messageId: "ungovernedGetZAI",
+            });
+          }
+        }
+
+        // ── Restricted import: ModelRouter from engines/model-router ──
+        // Ticket 3: Route handlers must use governedAICall /
+        // governedAICallAggregate instead of ModelRouter directly.
+        // Only allowed in ai-governance.ts (which wraps it) and
+        // engines/* routes (they ARE the engine layer).
+        if (
+          source.includes("engines/model-router") &&
+          hasNamedImport(node.specifiers, "ModelRouter")
+        ) {
+          if (!isGovernanceFile() && !filename.includes("engines/")) {
+            context.report({
+              node,
+              messageId: "ungovernedModelRouter",
+            });
+          }
         }
       },
     };

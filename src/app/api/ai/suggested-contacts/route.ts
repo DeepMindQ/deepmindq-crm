@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
-import { getZAI, sdkWebSearch, extractJSON } from '@/lib/llm-client';
+import { sdkWebSearch } from '@/lib/llm-client';
+import { governedAICall } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
 
 // ── Types ──
@@ -39,18 +40,6 @@ function setCache(companyId: string, data: Record<string, unknown>) {
 async function webSearch(query: string, num = 10): Promise<WebResult[]> {
   const results = await sdkWebSearch(query, num)
   return results.map(r => ({ title: r.title || r.name || '', url: r.url, snippet: r.snippet }))
-}
-
-async function aiChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const zai = await getZAI()
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  });
-  return completion.choices?.[0]?.message?.content ?? '';
 }
 
 // ── JSON parsing with regex fallback ──
@@ -154,8 +143,21 @@ export async function GET(request: NextRequest) {
 
     const userPrompt = `Based on the search results about ${companyName}, identify the key stakeholders who would be relevant for a technology/AI consulting engagement.\n\nFor each stakeholder, determine:\n- Name (if found in search results, otherwise use role only)\n- Role/Title\n- Why they're relevant\n- Influence level: Decision Maker / Technical Influencer / Business Sponsor / Champion / Blocker\n- Priority (1-5 stars)\n- Recommended action to engage them\n\nExisting contacts in CRM:\n${existingContactSummary}\n\nSearch results:\n${webContext || 'No web results found.'}\n\nReturn ONLY valid JSON array:\n[\n  {\n    "name": "Name or null if not found",\n    "role": "Chief Information Officer",\n    "whyRelevant": "Leads technology strategy...",\n    "influence": "Decision Maker",\n    "priority": 5,\n    "recommendedAction": "Direct executive introduction"\n  }\n]\n\nIdentify 5-8 stakeholders. Focus on C-suite, VPs, and Directors relevant to technology, digital transformation, and operations.`;
 
-    const raw = await aiChat(systemPrompt, userPrompt);
-    const contacts = parseContacts(raw);
+    // Call LLM through governance layer
+    const governed = await governedAICall({
+      generationType: 'suggested_contacts',
+      companyId,
+      systemPrompt,
+      userPrompt,
+      enforceGovernance: false, // No pre-loaded research context; advisory mode
+      tier: 'smart',
+      maxTokens: 4096,
+      temperature: 0.5,
+      inputParams: { companyId, companyName },
+    });
+
+    const raw = governed.success ? governed.response : '';
+    const contacts = parseContacts(raw || '[]');
 
     const response: Record<string, unknown> = {
       companyId,

@@ -1,7 +1,8 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
-import { getZAI, sdkWebSearch } from '@/lib/llm-client';
+import { sdkWebSearch } from '@/lib/llm-client';
+import { governedAICall } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
@@ -60,18 +61,6 @@ interface ConversationPlan {
 async function webSearch(query: string): Promise<WebSearchResult[]> {
   const results = await sdkWebSearch(query, 5)
   return results.map(r => ({ title: r.title || r.name || '', url: r.url, snippet: r.snippet }))
-}
-
-async function aiChat(systemPrompt: string, userPrompt: string): Promise<string> {
-  const zai = await getZAI()
-  const completion = await zai.chat.completions.create({
-    messages: [
-      { role: 'assistant', content: systemPrompt },
-      { role: 'user', content: userPrompt },
-    ],
-    thinking: { type: 'disabled' },
-  });
-  return completion.choices?.[0]?.message?.content ?? '';
 }
 
 // ---------------------------------------------------------------------------
@@ -188,9 +177,23 @@ ${webContext}
 
 Generate a highly specific, actionable conversation plan. Use the web research to make the plan current and relevant. Reference real developments when available.`;
 
-  // Step 3: Call LLM
-  const raw = await aiChat(SYSTEM_PROMPT, userPrompt);
-  const plan = parseConversationPlan(raw);
+  // Step 3: Call LLM through governance layer
+  const governed = await governedAICall({
+    generationType: 'conversation_plan',
+    systemPrompt: SYSTEM_PROMPT,
+    userPrompt,
+    enforceGovernance: false, // No pre-loaded research context; advisory mode
+    tier: 'smart',
+    maxTokens: 4096,
+    temperature: 0.7,
+    inputParams: { companyName, executiveRole, industry },
+  });
+
+  if (!governed.success || !governed.response) {
+    throw new Error(governed.rejectionReason ?? 'Governed LLM call failed');
+  }
+
+  const plan = parseConversationPlan(governed.response);
 
   if (!plan) {
     throw new Error('Failed to parse AI response into a valid conversation plan');

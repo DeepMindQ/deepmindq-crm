@@ -3,6 +3,8 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { createInsight } from '@/lib/ai-insight-service'
+import { governedAICallAggregate } from '@/lib/ai-governance'
+import { logger } from '@/lib/logger'
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -37,28 +39,13 @@ const CONTACT_FIELDS = [
 ] as const
 
 // ---------------------------------------------------------------------------
-// LLM helper — uses ModelRouter (correct engine path)
+// Types
 // ---------------------------------------------------------------------------
-
-import { ModelRouter } from '@/lib/engines/model-router';
-import { logger } from '@/lib/logger';
 
 interface EnrichmentSuggestion {
   field: string
   suggestedValue: string
   confidence: number
-}
-
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const result = await ModelRouter.complete({
-    systemPrompt,
-    userPrompt,
-    tier: 'smart',
-    maxTokens: 2048,
-    genType: 'ai_enrich',
-  });
-  if (!result.success) throw new Error(result.error || 'LLM call failed');
-  return result.text;
 }
 
 function parseEnrichmentResponse(text: string): EnrichmentSuggestion[] {
@@ -153,10 +140,19 @@ For each field, provide a suggested value and confidence (0-1). Only suggest val
 Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0 }]`
 
     try {
-      const text = await callAI(systemPrompt, 'Suggest values for the missing fields.')
-      suggestions = parseEnrichmentResponse(text)
-      // Filter to only suggest for actually missing fields
-      suggestions = suggestions.filter((s) => missingFields.includes(s.field))
+      const governed = await governedAICallAggregate({
+        generationType: 'enrichment',
+        systemPrompt,
+        userPrompt: 'Suggest values for the missing fields.',
+        tier: 'smart',
+        maxTokens: 2048,
+        temperature: 0.7,
+      })
+      if (governed.success && governed.response) {
+        suggestions = parseEnrichmentResponse(governed.response)
+        // Filter to only suggest for actually missing fields
+        suggestions = suggestions.filter((s) => missingFields.includes(s.field))
+      }
     } catch (llmErr: unknown) {
       const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
       logger.error('[ai/enrich] LLM call failed:', { detail: msg })
@@ -281,10 +277,19 @@ For each field, provide a suggested value and confidence (0-1). Only suggest val
 Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence": 0.0-1.0 }]`
 
     try {
-      const text = await callAI(systemPrompt, 'Suggest values for the missing fields.')
-      suggestions = parseEnrichmentResponse(text)
-      // Filter to only suggest for actually missing fields
-      suggestions = suggestions.filter((s) => missingFields.includes(s.field))
+      const governed = await governedAICallAggregate({
+        generationType: 'enrichment',
+        systemPrompt,
+        userPrompt: 'Suggest values for the missing fields.',
+        tier: 'smart',
+        maxTokens: 2048,
+        temperature: 0.7,
+      })
+      if (governed.success && governed.response) {
+        suggestions = parseEnrichmentResponse(governed.response)
+        // Filter to only suggest for actually missing fields
+        suggestions = suggestions.filter((s) => missingFields.includes(s.field))
+      }
     } catch (llmErr: unknown) {
       const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
       logger.error('[ai/enrich] LLM call failed:', { detail: msg })

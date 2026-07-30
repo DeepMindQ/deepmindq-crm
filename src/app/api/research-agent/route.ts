@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { sdkWebSearch } from '@/lib/llm-client';
-import { ModelRouter } from '@/lib/engines/model-router';
+import { governedAICallAggregate } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
 
 // POST /api/research-agent — Deep research on company or person
@@ -17,7 +17,7 @@ export async function POST(req: NextRequest) {
 
     let aiResult: string;
     try {
-      // First do web search via llm-client, then LLM synthesis via ModelRouter
+      // First do web search via llm-client, then LLM synthesis via governance layer
       const searchResults = await sdkWebSearch(query, 10);
       const searchContext = searchResults.map(r => `${r.title}: ${r.snippet}`).join('\n');
 
@@ -75,15 +75,21 @@ ICON OPTIONS for sections: "Building2" "DollarSign" "Cpu" "Users" "Newspaper" "T
 
 Include 4-6 sections. Match the icon to the section topic.`;
 
-      const result = await ModelRouter.complete({
+      const result = await governedAICallAggregate({
+        generationType: 'research_extraction',
         systemPrompt: `You have access to the following web search results for context:\n\n${searchContext}\n\nUse this context to provide specific, verifiable information. If the search results don't contain enough detail, say so explicitly.`,
         userPrompt: prompt,
         tier: 'deep',
-        genType: 'deep_research',
         maxTokens: 8192,
         temperature: 0.5,
       });
-      aiResult = result.success ? result.text : '';
+      if (!result.success) {
+        return NextResponse.json(
+          { error: 'AI research service unavailable. Please try again.' },
+          { status: 503 }
+        );
+      }
+      aiResult = result.response!;
     } catch (sdkError) {
       logger.error('AI SDK error:', { error: sdkError });
       return NextResponse.json(

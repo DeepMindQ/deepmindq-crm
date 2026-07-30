@@ -52,7 +52,7 @@ interface PipelineStats {
    ══════════════════════════════════════════════════════════════════════════ */
 
 import { sdkWebSearch } from '@/lib/llm-client'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 
 /**
@@ -163,16 +163,20 @@ async function buildAIInsights(stats: PipelineStats, trendContext: string): Prom
     instructionsBlock,
   ].join('\n')
 
-  const completion = await ModelRouter.complete({
+  const governed = await governedAICallAggregate({
+    generationType: 'insights',
     systemPrompt: 'You are a sales intelligence analyst. You respond ONLY with valid JSON matching the requested schema. No markdown, no commentary.',
     userPrompt,
     tier: 'deep',
-    genType: 'pipeline_insights',
     maxTokens: 4096,
     temperature: 0.5,
   })
 
-  const raw = completion.success ? completion.text : ''
+  if (!governed.success) {
+    throw new Error(governed.rejectionReason ?? 'Governance call failed')
+  }
+
+  const raw = governed.response ?? ''
 
   // Extract JSON — handle potential markdown fences or leading/trailing whitespace
   const jsonMatch = raw.match(/\{[\s\S]*\}/)

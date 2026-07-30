@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICallAggregate } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
 
 /* ── In-memory cache (5 minutes) ── */
@@ -72,17 +72,17 @@ function pct(numerator: number, denominator: number): number {
   return Math.round((numerator / denominator) * 100)
 }
 
-/* ── AI helper — routed through ModelRouter (Phase 2.2) ── */
+/* ── AI helper — governed aggregate call ── */
 async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const result = await ModelRouter.complete({
+  const result = await governedAICallAggregate({
+    generationType: 'data_health_analysis',
     systemPrompt,
     userPrompt,
     tier: 'smart',
-    genType: 'data_health_analysis',
     maxTokens: 4096,
     temperature: 0.3,
   })
-  return result.success ? result.text : ''
+  return result.success ? result.response! : ''
 }
 
 /* ── Parse a JSON array from LLM output, with fallback ── */

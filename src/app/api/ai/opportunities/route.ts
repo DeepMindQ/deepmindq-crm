@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { sdkWebSearch } from '@/lib/llm-client'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 
 /* ── In-memory cache (1 hour TTL) ── */
@@ -265,17 +265,17 @@ Return ONLY valid JSON array:
 
 Only include companies with matchScore >= 40. Sort by matchScore descending.`
 
-    // 4. Single LLM call via ModelRouter
-    const completion = await ModelRouter.complete({
+    // 4. Single LLM call via governance layer
+    const governed = await governedAICallAggregate({
+      generationType: 'opportunities',
       systemPrompt,
       userPrompt,
       tier: 'deep',
-      genType: 'opportunity_scoring',
       maxTokens: 8192,
       temperature: 0.5,
     })
 
-    const raw = completion.success ? completion.text : ''
+    const raw = governed.success ? (governed.response ?? '') : ''
     const opportunities = parseLLMJson(raw)
     const distribution = buildDistribution(opportunities)
 

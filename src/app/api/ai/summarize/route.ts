@@ -3,7 +3,7 @@ import { z } from 'zod'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
@@ -16,25 +16,12 @@ const summarizeSchema = z.object({
 })
 
 // ---------------------------------------------------------------------------
-// LLM helper — delegates to unified llm-client (Phase 2 consolidation)
+// Types
 // ---------------------------------------------------------------------------
 
 interface SummaryResult {
   summary: string
   keyPoints: string[]
-}
-
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const result = await ModelRouter.complete({
-    systemPrompt,
-    userPrompt,
-    tier: 'smart',
-    genType: 'summarize',
-    maxTokens: 4096,
-    temperature: 0.5,
-  })
-  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed')
-  return result.text
 }
 
 function parseSummaryResponse(text: string): SummaryResult | null {
@@ -249,9 +236,18 @@ Company data:
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
         try {
-          const text = await callAI(systemPrompt, 'Generate the summary now.')
-          result = parseSummaryResponse(text)
-          if (result) usedLlm = true
+          const governed = await governedAICallAggregate({
+            generationType: 'summarize',
+            systemPrompt,
+            userPrompt: 'Generate the summary now.',
+            tier: 'smart',
+            maxTokens: 4096,
+            temperature: 0.5,
+          })
+          if (governed.success && governed.response) {
+            result = parseSummaryResponse(governed.response)
+            if (result) usedLlm = true
+          }
         } catch (llmErr: unknown) {
           const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
           logger.error('[ai/summarize] LLM call failed:', { detail: msg })
@@ -311,9 +307,18 @@ Contact data:
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
         try {
-          const text = await callAI(systemPrompt, 'Generate the summary now.')
-          result = parseSummaryResponse(text)
-          if (result) usedLlm = true
+          const governed = await governedAICallAggregate({
+            generationType: 'summarize',
+            systemPrompt,
+            userPrompt: 'Generate the summary now.',
+            tier: 'smart',
+            maxTokens: 4096,
+            temperature: 0.5,
+          })
+          if (governed.success && governed.response) {
+            result = parseSummaryResponse(governed.response)
+            if (result) usedLlm = true
+          }
         } catch (llmErr: unknown) {
           const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
           logger.error('[ai/summarize] LLM call failed:', { detail: msg })
@@ -369,9 +374,18 @@ Opportunity data:
 Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
         try {
-          const text = await callAI(systemPrompt, 'Generate the summary now.')
-          result = parseSummaryResponse(text)
-          if (result) usedLlm = true
+          const governed = await governedAICallAggregate({
+            generationType: 'summarize',
+            systemPrompt,
+            userPrompt: 'Generate the summary now.',
+            tier: 'smart',
+            maxTokens: 4096,
+            temperature: 0.5,
+          })
+          if (governed.success && governed.response) {
+            result = parseSummaryResponse(governed.response)
+            if (result) usedLlm = true
+          }
         } catch (llmErr: unknown) {
           const msg = llmErr instanceof Error ? llmErr.message : String(llmErr)
           logger.error('[ai/summarize] LLM call failed:', { detail: msg })

@@ -1,7 +1,7 @@
 import { db } from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { format } from 'date-fns'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
@@ -103,22 +103,6 @@ function eventTypeToDisplay(eventType: string): InteractionType {
   return map[eventType] ?? 'Note'
 }
 
-// ---------------------------------------------------------------------------
-// LLM helper — routed through ModelRouter (Phase 2.2)
-// ---------------------------------------------------------------------------
-
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const result = await ModelRouter.complete({
-    systemPrompt,
-    userPrompt,
-    tier: 'smart',
-    genType: 'relationship_memory',
-    maxTokens: 4096,
-    temperature: 0.7,
-  })
-  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed')
-  return result.text
-}
 
 // ---------------------------------------------------------------------------
 // 1. Stats
@@ -395,7 +379,16 @@ Do NOT include any text outside the JSON array.`
       )
       .join('\n')}\n\nSuggest 3-5 specific next-best-actions for re-engagement.`
 
-    const raw = await callAI(systemPrompt, userPrompt)
+    const governed = await governedAICallAggregate({
+      generationType: 'relationship_memory',
+      systemPrompt,
+      userPrompt,
+      tier: 'smart',
+      maxTokens: 4096,
+      temperature: 0.7,
+    })
+    if (!governed.success) throw new Error(governed.rejectionReason ?? 'Governance call failed')
+    const raw = governed.response!
 
     // Parse JSON with fallback
     let parsed: RecommendedAction[]
@@ -635,7 +628,16 @@ Respond with ONLY a JSON array of objects. No text before or after the array.`
 
     const userPrompt = `Analyze these company relationships:\n\n${JSON.stringify(companiesData, null, 1)}`
 
-    const raw = await callAI(systemPrompt, userPrompt)
+    const governed = await governedAICallAggregate({
+      generationType: 'relationship_memory',
+      systemPrompt,
+      userPrompt,
+      tier: 'smart',
+      maxTokens: 4096,
+      temperature: 0.7,
+    })
+    if (!governed.success) throw new Error(governed.rejectionReason ?? 'Governance call failed')
+    const raw = governed.response!
 
     let parsed: AICompanyAnalysisResult[]
     try {
@@ -712,7 +714,16 @@ Respond with ONLY a JSON array. No text outside the array.`
 
     const userPrompt = `Portfolio overview:\n\n${JSON.stringify(portfolioData, null, 1)}\n\nGenerate 5-8 strategic recommendations covering cross-sell, contact sequencing, timing, and risk alert categories.`
 
-    const raw = await callAI(systemPrompt, userPrompt)
+    const governed = await governedAICallAggregate({
+      generationType: 'relationship_memory',
+      systemPrompt,
+      userPrompt,
+      tier: 'smart',
+      maxTokens: 4096,
+      temperature: 0.7,
+    })
+    if (!governed.success) throw new Error(governed.rejectionReason ?? 'Governance call failed')
+    const raw = governed.response!
 
     let parsed: RecommendedAction[]
     try {
@@ -769,7 +780,16 @@ No text outside the JSON object.`
 
     const userPrompt = `This week's activity: ${JSON.stringify(thisWeek)}\nLast week's activity: ${JSON.stringify(lastWeek)}`
 
-    const raw = await callAI(systemPrompt, userPrompt)
+    const governed = await governedAICallAggregate({
+      generationType: 'relationship_memory',
+      systemPrompt,
+      userPrompt,
+      tier: 'smart',
+      maxTokens: 4096,
+      temperature: 0.7,
+    })
+    if (!governed.success) throw new Error(governed.rejectionReason ?? 'Governance call failed')
+    const raw = governed.response!
 
     let parsed: { trendAnalysis: string }
     try {
@@ -813,7 +833,16 @@ No text outside the JSON object.`
 
     const userPrompt = `Portfolio stats: ${JSON.stringify(stats)}\n\nTop companies:\n${companyLines.join('\n')}`
 
-    const raw = await callAI(systemPrompt, userPrompt)
+    const governed = await governedAICallAggregate({
+      generationType: 'relationship_memory',
+      systemPrompt,
+      userPrompt,
+      tier: 'smart',
+      maxTokens: 4096,
+      temperature: 0.7,
+    })
+    if (!governed.success) throw new Error(governed.rejectionReason ?? 'Governance call failed')
+    const raw = governed.response!
 
     let parsed: { summary: string }
     try {

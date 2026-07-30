@@ -20,7 +20,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
-import { ModelRouter } from '@/lib/engines/model-router';
+import { governedAICall } from '@/lib/ai-governance';
 import { CapabilityIntelligenceEngine } from '@/lib/capability-intelligence-engine';
 import { FusionEngine } from '@/lib/fusion-engine';
 import { createInsight } from '@/lib/ai-insight-service';
@@ -65,7 +65,7 @@ async function runStage(
   }
 }
 
-// ── Helper: safe AI call ──
+// ── Helper: safe AI call (governed) ──
 
 async function aiCall(
   systemPrompt: string,
@@ -73,15 +73,16 @@ async function aiCall(
   tier: 'deep' | 'smart' | 'fast' = 'smart',
   companyId?: string,
 ): Promise<string> {
-  const result = await ModelRouter.complete({
+  const result = await governedAICall({
+    generationType: 'full_pipeline',
+    companyId,
+    enforceGovernance: false,
     systemPrompt,
     userPrompt,
     tier,
-    genType: 'full_pipeline',
-    companyId,
   });
-  if (!result.success) throw new Error(result.error || 'AI call failed');
-  return result.text;
+  if (!result.success) throw new Error(result.rejectionReason || 'AI call failed');
+  return result.response!;
 }
 
 // ═══════════════════════════════════════════════════════════════════════

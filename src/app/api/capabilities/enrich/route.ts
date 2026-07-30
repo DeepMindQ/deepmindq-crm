@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { ModelRouter } from '@/lib/engines/model-router';
+import { governedAICallAggregate } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
@@ -76,10 +76,11 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Website content too short to extract meaningful knowledge' }, { status: 400 });
     }
 
-    // Step 2: Use AI (ModelRouter) to extract structured capability assets
+    // Step 2: Use AI (governance layer) to extract structured capability assets
 
     try {
-      const result = await ModelRouter.complete({
+      const result = await governedAICallAggregate({
+        generationType: 'enrichment',
         systemPrompt: `You are a knowledge extraction engine for a B2B technology services company. Analyze the following website content and extract structured knowledge assets.
 
 ${suggestedServiceLine ? `The suggested service line is: "${suggestedServiceLine}"` : ''}
@@ -106,12 +107,11 @@ CRITICAL: Respond with valid JSON only. Format:
 {"pageTitle":"...","overallSummary":"...","assets":[{"title":"...","summary":"...","content":"...","category":"service_line","serviceLine":"...","targetIndustries":"...","targetRoles":"...","problems":"...","evidence":"..."}]}`,
         userPrompt: `Extract knowledge assets from this website:\n\nURL: ${url}\nPage Title: ${pageTitle}\n\nContent:\n${pageContent}`,
         tier: 'smart',
-        genType: 'capability_enrichment',
         maxTokens: 4096,
         temperature: 0.3,
       });
 
-      let aiResponse = result.success ? result.text : '';
+      let aiResponse = result.success ? result.response! : '';
       aiResponse = aiResponse.trim();
       if (aiResponse.startsWith('```')) {
         aiResponse = aiResponse.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '');

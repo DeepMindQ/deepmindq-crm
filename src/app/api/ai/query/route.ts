@@ -2,25 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { extractJSON } from '@/lib/llm-client'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
-
-// ---------------------------------------------------------------------------
-// LLM helper — routed through ModelRouter (Phase 2.2)
-// ---------------------------------------------------------------------------
-
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const result = await ModelRouter.complete({
-    systemPrompt,
-    userPrompt,
-    tier: 'smart',
-    genType: 'ai_query',
-    maxTokens: 4096,
-    temperature: 0.7,
-  })
-  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed')
-  return result.text
-}
 
 // ---------------------------------------------------------------------------
 // Safe Prisma query builder
@@ -122,7 +105,18 @@ export async function POST(request: NextRequest) {
 
     // 1. Try AI-powered query parsing
     try {
-      const rawResponse = await callAI(QUERY_SYSTEM_PROMPT, query)
+      const governed = await governedAICallAggregate({
+        generationType: 'query_parsing',
+        systemPrompt: QUERY_SYSTEM_PROMPT,
+        userPrompt: query,
+        tier: 'smart',
+        maxTokens: 4096,
+        temperature: 0.7,
+      })
+      if (!governed.success) {
+        throw new Error(governed.rejectionReason ?? 'Governance call failed')
+      }
+      const rawResponse = governed.response!
 
       const parsed = extractJSON(rawResponse)
       if (parsed && typeof parsed === 'object' && 'entityType' in parsed) {

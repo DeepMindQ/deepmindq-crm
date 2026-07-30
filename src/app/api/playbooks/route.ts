@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { ModelRouter } from '@/lib/engines/model-router';
+import { governedAICallAggregate } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
 
 function safeJsonParse(str: string | null | undefined, fallback: any) {
@@ -65,15 +65,15 @@ Return a JSON object with this exact structure (no markdown, no code fences, raw
 
 Provide 4-6 detailed steps with actionable tips. Make the content specific and practical, not generic.`;
 
-        const completion = await ModelRouter.complete({
+        const completion = await governedAICallAggregate({
+          generationType: 'playbook_generation',
           systemPrompt: 'You are a sales playbook expert. Return valid JSON only, no markdown fences.',
           userPrompt: prompt,
           tier: 'smart',
-          genType: 'playbook_generation',
           maxTokens: 4096,
           temperature: 0.7,
         });
-        const content = completion.success ? completion.text : '';
+        const content = completion.success ? completion.response ?? '' : '';
 
         // Try to parse the JSON from the response
         let jsonStr = content;
@@ -81,7 +81,7 @@ Provide 4-6 detailed steps with actionable tips. Make the content specific and p
         if (jsonMatch) jsonStr = jsonMatch[0];
 
         try {
-          const parsed = JSON.parse(jsonStr);
+          const parsed = JSON.parse(jsonStr ?? '{}');
           finalSteps = parsed.steps || [];
           finalAiTips = parsed.aiTips || null;
         } catch {

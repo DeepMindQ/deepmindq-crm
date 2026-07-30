@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { ModelRouter } from '@/lib/engines/model-router';
+import { governedAICall } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
@@ -48,7 +48,7 @@ export async function POST(request: Request) {
     }
 
     // Use AI to estimate company data
-    const enrichmentData = await aiEnrichCompany(company.rawName, company.domain, company.industry);
+    const enrichmentData = await aiEnrichCompany(company.id, company.rawName, company.domain, company.industry);
 
     // Upsert research card with enrichment data
     const researchCard = await db.companyResearchCard.upsert({
@@ -81,6 +81,7 @@ export async function POST(request: Request) {
 
 /* ── AI-powered enrichment ── */
 async function aiEnrichCompany(
+  companyId: string,
   companyName: string,
   domain: string | null,
   existingIndustry: string | null,
@@ -109,15 +110,17 @@ Return ONLY valid JSON (no markdown, no code fences) with these fields:
 }`;
 
   try {
-    const result = await ModelRouter.complete({
+    const result = await governedAICall({
+      generationType: 'enrichment',
+      companyId,
+      enforceGovernance: false,
       systemPrompt: 'You are a business intelligence assistant. Return valid JSON only, no markdown, no code fences.',
       userPrompt: prompt,
       tier: 'smart',
-      genType: 'company_enrichment',
       maxTokens: 4096,
       temperature: 0.3,
     });
-    const response = result.success ? result.text : '';
+    const response = result.success ? result.response ?? '' : '';
 
     // Parse the AI response
     const jsonMatch = response.match(/\{[\s\S]*\}/);

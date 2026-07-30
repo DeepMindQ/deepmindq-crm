@@ -1,26 +1,29 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { ModelRouter } from '@/lib/engines/model-router'
+import { governedAICall } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
-// LLM helper — routed through ModelRouter (Phase 2.2)
+// LLM helper — governed call (high-stakes: email generation)
 // ---------------------------------------------------------------------------
 
 type LLMResult = { subject: string; body: string } | null
 
-async function callAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const result = await ModelRouter.complete({
+async function callAI(systemPrompt: string, userPrompt: string, companyId: string, contactId: string): Promise<string> {
+  const result = await governedAICall({
+    generationType: 'email_draft',
+    companyId,
+    contactId,
+    enforceGovernance: true,
     systemPrompt,
     userPrompt,
     tier: 'smart',
-    genType: 'contact_email_generation',
     maxTokens: 2048,
     temperature: 0.7,
   })
-  if (!result.success) throw new Error(result.error ?? 'ModelRouter failed')
-  return result.text
+  if (!result.success) throw new Error(result.rejectionReason ?? 'Governance blocked email generation')
+  return result.response!
 }
 
 // ---------------------------------------------------------------------------
@@ -235,7 +238,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ id:
 ${researchContext ? `${researchContext}\n` : ''}${knowledgeContext ? `${knowledgeContext}\n` : ''}Respond in JSON format: { "subject": "...", "body": "..." }`
 
       try {
-        const text = await callAI(systemPrompt, 'Generate the email now.')
+        const text = await callAI(systemPrompt, 'Generate the email now.', contact.companyId || '', id)
         const result = parseLlmJson(text)
         if (result) {
           subject = result.subject

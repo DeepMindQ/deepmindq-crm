@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { ModelRouter } from '@/lib/engines/model-router';
+import { governedAICallAggregate } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -61,18 +61,18 @@ interface MorningBriefAI {
   };
 }
 
-// ── LLM helper ──
+// ── LLM helper — governed aggregate call ──
 async function callBriefAI(systemPrompt: string, userPrompt: string): Promise<string> {
-  const result = await ModelRouter.complete({
+  const result = await governedAICallAggregate({
+    generationType: 'command_center_analysis',
     systemPrompt,
     userPrompt,
     tier: 'smart',
     maxTokens: 4096,
     temperature: 0.5,
-    genType: 'command_center_morning_brief',
   });
-  if (!result.success) throw new Error(result.error || 'AI brief failed');
-  return result.text;
+  if (!result.success) throw new Error(result.rejectionReason || 'AI brief failed');
+  return result.response!;
 }
 
 // ── Fetch data for the morning brief ──

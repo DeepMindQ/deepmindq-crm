@@ -87,6 +87,12 @@ export function createResponse<T>(
     freshness?: FreshnessInfo;
     requestedAt?: Date;
     respondedAt?: Date;
+    /** Ticket 3: Governance metadata from governedAICall */
+    governance?: {
+      passed: boolean;
+      generationType?: string;
+      checks?: Record<string, { passed: boolean; message: string }>;
+    };
   },
 ): IntelligenceResponse<T> {
   return {
@@ -103,6 +109,7 @@ export function createResponse<T>(
       includes: Array.from(meta.includes),
       confidence: meta.confidence,
       freshness: meta.freshness || { level: 'unknown', lastEnriched: null, lastSignal: null, score: 0 },
+      ...(meta.governance ? { governance: meta.governance } : {}),
     },
   };
 }

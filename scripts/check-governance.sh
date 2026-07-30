@@ -78,7 +78,7 @@ echo "PASS"
 # Check 6: Ticket 3 — No ModelRouter imports outside governance layer
 # Allow: engines/* routes (they ARE the engine layer), and health check usage
 echo "Check 6: ModelRouter imports..."
-MODELR_FILES=$(rg "import.*ModelRouter.*from" src/ --type ts -l | grep -v -E "(ai-governance\.ts|model-router\.ts|/engines/)" || true)
+MODELR_FILES=$(rg "import.*ModelRouter.*from" src/ --type ts -l | grep -v -E "(ai-governance\.ts|model-router\.ts|/engines/|/governance/)" || true)
 if [ -n "$MODELR_FILES" ]; then
   echo "FAIL: ModelRouter imported outside governance/engines layer:"
   echo "$MODELR_FILES"

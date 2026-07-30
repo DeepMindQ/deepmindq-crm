@@ -20,6 +20,8 @@ import { EnterpriseReasoningEngine } from '@/lib/enterprise-reasoning-engine';
 import type { ReasoningResult } from '@/lib/enterprise-reasoning-engine';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import {
+  shouldInclude,
+  shouldIncludeAny,
   createResponse,
   createErrorResponse,
   computeFreshness,
@@ -41,7 +43,7 @@ export async function GET(
   const { companyId, correlationId, responseHeaders } = guardResult;
 
   // Parse include params — "steps" is included by default when no include is specified
-  const includeSteps = guardResult.includes.size === 0 || guardResult.includes.has('steps');
+  const includeSteps = guardResult.includes.size === 0 || shouldInclude(guardResult.includes, 'steps');
 
   logger.info('[intelligence/reasoning] Processing', {
     companyId,
@@ -76,7 +78,48 @@ export async function GET(
     );
   }
 
-  // ── Step 2: Run the reasoning engine ─────────────────────────────────────
+  // ── Step 2: Gate — only run engine when includes demand it ─────────────
+  // Default (empty includes) runs the engine. If specific includes are
+  // requested, only run when they overlap with engine-produced data.
+  const shouldRunEngine =
+    guardResult.includes.size === 0 ||
+    shouldIncludeAny(guardResult.includes, 'steps', 'impact', 'recommendations');
+
+  if (!shouldRunEngine) {
+    // No engine-produced data requested → return minimal response immediately
+    const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
+    const durationMs = Date.now() - startedAt;
+    const minimalData: IntelligenceReasoningOutput = {
+      companyId,
+      reasoningContextId: '',
+      overallConfidence: 0,
+      winProbability: 0,
+      totalSteps: 0,
+      completedSteps: 0,
+      failedSteps: 0,
+      totalAIcalls: 0,
+      totalTokensUsed: 0,
+      totalCostUsd: 0,
+      durationMs,
+      summary: null,
+      steps: [],
+    };
+    logger.info('[intelligence/reasoning] Skipped engine — no matching includes', { companyId, includes: Array.from(guardResult.includes) });
+    return Response.json(
+      createResponse('reasoning', companyId, minimalData, {
+        durationMs,
+        includes: guardResult.includes,
+        cached: false,
+        confidence: 0,
+        freshness,
+        requestedAt,
+        respondedAt: new Date(),
+      }),
+      { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
+    );
+  }
+
+  // ── Step 3: Run the reasoning engine ─────────────────────────────────────
   let result: ReasoningResult;
   try {
     result = await EnterpriseReasoningEngine.build(companyId);
@@ -84,7 +127,7 @@ export async function GET(
     const rawMessage = err instanceof Error ? err.message : String(err);
     logger.error('[intelligence/reasoning] Engine build threw', { companyId, error: rawMessage });
     return Response.json(
-      createErrorResponse('reasoning', companyId, scrubError(rawMessage), 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('reasoning', companyId, scrubError(rawMessage), 'ENGINE_FAILED', Date.now() - startedAt, guardResult.includes),
       { status: 502, headers: responseHeaders },
     );
   }
@@ -109,7 +152,7 @@ export async function GET(
     );
   }
 
-  // ── Step 3: Fetch reasoning steps ────────────────────────────────────────
+  // ── Step 4: Fetch reasoning steps ────────────────────────────────────────
   let steps: ReasoningStep[] = [];
 
   if (includeSteps) {
@@ -133,7 +176,7 @@ export async function GET(
       steps = dbSteps.map((step) => ({
         stepNumber: step.stepNumber,
         stepName: step.stepName,
-        status: step.confidence > 0.15 ? 'completed' as const : 'failed' as const,
+        status: (step.output !== null && step.aiCalls > 0) ? 'completed' as const : 'failed' as const,
         output: typeof step.output === 'string' ? step.output : JSON.stringify(step.output),
         summary: step.summary,
         confidence: step.confidence,
@@ -151,7 +194,7 @@ export async function GET(
     }
   }
 
-  // ── Step 4: Build response data ─────────────────────────────────────────
+  // ── Step 5: Build response data ─────────────────────────────────────────
   const data: IntelligenceReasoningOutput = {
     companyId: result.companyId,
     reasoningContextId: result.reasoningContextId,

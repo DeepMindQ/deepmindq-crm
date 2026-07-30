@@ -10,17 +10,17 @@
  */
 
 import { NextRequest } from 'next/server';
-import { IntelligenceResponse, IntelligenceMeta, IntelligenceInclude, FreshnessInfo, IntelligenceErrors } from './types';
+import { IntelligenceResponse, IntelligenceMeta, IntelligenceInclude, FreshnessInfo, IntelligenceErrors, IntelligenceEndpoint } from './types';
 
 // ── Include Parameter Parsing ───────────────────────────────────────────────────
 
 // Single source of truth for valid include keys — mirrors IntelligenceInclude union type.
 // NOTE: If you add a new IntelligenceInclude variant in types.ts, add it here too.
-const VALID_INCLUDES: Set<string> = new Set<string>([
+// Exported so validators.ts can import instead of duplicating.
+export const VALID_INCLUDES: Set<string> = new Set<string>([
   // Company endpoint includes
   'signals', 'scores', 'contacts', 'timeline', 'actions', 'brief',
-  'knowledge', 'mindmap', 'data_health', 'people_changes',
-  'reasoning', 'opportunities', 'learning',
+  'knowledge', 'mindmap', 'learning',
   // Reasoning endpoint includes
   'steps', 'impact', 'recommendations',
   // Opportunity endpoint includes
@@ -67,7 +67,10 @@ export function shouldIncludeAny(includes: Set<IntelligenceInclude>, ...keys: In
 
 // ── Response Builders ────────────────────────────────────────────────────────────
 
-type EndpointName = 'company' | 'reasoning' | 'opportunity' | 'action' | 'conversation' | 'mindmap' | 'brief' | 'grounding' | 'retrieval' | 'knowledge';
+import type { IntelligenceErrorCode } from './types';
+
+// Re-export EndpointName as a type alias for convenience
+type EndpointName = IntelligenceEndpoint;
 
 /**
  * Create a successful IntelligenceResponse envelope.
@@ -120,10 +123,10 @@ export interface IntelligenceErrorResponse {
  * Used by all Intelligence API error paths (400, 429, 500).
  */
 export function createErrorResponse(
-  _endpoint: EndpointName,
+  _endpoint: IntelligenceEndpoint | string,
   companyId: string,
   error: string,
-  errorCode: string = IntelligenceErrors.INTELLIGENCE_UNAVAILABLE,
+  errorCode: IntelligenceErrorCode = IntelligenceErrors.INTELLIGENCE_UNAVAILABLE,
   durationMs?: number,
   includes?: Set<IntelligenceInclude>,
 ): IntelligenceErrorResponse {

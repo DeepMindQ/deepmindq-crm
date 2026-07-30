@@ -159,13 +159,15 @@ export async function GET(
     companyId,
     conversation: conversationResult,
     brief,
-    pastLearnings: learningEvents.map((e) => ({
-      id: e.id,
-      insight: e.learnedInsight,
-      sourceCompany: e.companyId || 'unknown',
-      applicableContext: e.applicableContext || '',
-      createdAt: e.createdAt.toISOString(),
-    })),
+    ...(shouldInclude(guardResult.includes, 'talkingPoints') && {
+      talkingPoints: keyThemes.map(t => ({ topic: t, context: '', confidence: brief.confidence })),
+    }),
+    ...(shouldInclude(guardResult.includes, 'objections') && {
+      objections: risks.map(r => ({ objection: r, rebuttal: '', confidence: brief.confidence })),
+    }),
+    ...(shouldInclude(guardResult.includes, 'buyerProfiles') && {
+      buyerProfiles: [],
+    }),
   };
 
   const confidence = brief.confidence;

@@ -63,10 +63,6 @@ export type IntelligenceInclude =
   | 'brief'
   | 'knowledge'
   | 'mindmap'
-  | 'data_health'
-  | 'people_changes'
-  | 'reasoning'
-  | 'opportunities'
   | 'learning'
   // Reasoning endpoint includes
   | 'steps'
@@ -104,7 +100,7 @@ export interface FreshnessInfo {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export interface IntelligenceCompanyContext {
-  // Core company profile
+  // Core company profile (always present)
   company: {
     id: string;
     rawName: string;
@@ -125,10 +121,10 @@ export interface IntelligenceCompanyContext {
     updatedAt: string;
   };
 
-  // Research card (from intelligence-contract)
+  // Research card (always present — lightweight DB lookup)
   researchCard: Record<string, unknown> | null;
 
-  // Key people extracted from research
+  // Key people extracted from research (always present — part of researchCard)
   keyPeople: Array<{
     name: string;
     title: string;
@@ -171,15 +167,7 @@ export interface IntelligenceCompanyContext {
   // Mind map summary (?include=mindmap)
   mindmap?: IntelligenceMindmapSummary;
 
-  // Data health metrics (?include=data_health)
-  dataHealth?: {
-    completenessScore: number;
-    qualityScore: number;
-    staleFields: string[];
-    lastEnrichedAt: string | null;
-  };
-
-  // Freshness
+  // Freshness (always present)
   freshness: FreshnessInfo;
 }
 
@@ -313,13 +301,16 @@ export interface ReasoningStep {
 
 export interface IntelligenceOpportunity {
   companyId: string;
-  scores: RevenueScore;
-  reasoning: {
+  // ?include=scores
+  scores?: RevenueScore;
+  // ?include=fusion — implied via scores/reasoning/actions composition
+  reasoning?: {
     summary: string | null;
     overallConfidence: number;
     winProbability: number;
   };
-  fusion: Array<{
+  // ?include=fusion
+  fusion?: Array<{
     externalSignal: string;
     internalCapability: string;
     fusionScore: number;
@@ -329,7 +320,9 @@ export interface IntelligenceOpportunity {
     proofPoints: string[];
     confidenceScore: number;
   }>;
-  actions: ActionResult;
+  // ?include=capabilities — not yet implemented, placeholder
+  capabilities?: Array<Record<string, unknown>>;
+  actions?: ActionResult;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -338,14 +331,20 @@ export interface IntelligenceOpportunity {
 
 export interface IntelligenceActionOutput {
   companyId: string;
-  actions: ActionResult;
-  learningInsights: Array<{
+  // Present when engine succeeds; absent when engine skipped
+  actions?: ActionResult;
+  // ?include=learning
+  learningInsights?: Array<{
     id: string;
     insight: string;
     sourceCompany: string;
     applicableContext: string;
     createdAt: string;
   }>;
+  // ?include=sequences — not yet implemented
+  sequences?: Array<Record<string, unknown>>;
+  // ?include=recommendations — not yet implemented
+  recommendations?: Array<Record<string, unknown>>;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -354,14 +353,28 @@ export interface IntelligenceActionOutput {
 
 export interface IntelligenceConversationOutput {
   companyId: string;
-  conversation: ConversationResult;
-  brief: IntelligenceBrief;
-  pastLearnings: Array<{
-    id: string;
-    insight: string;
-    sourceCompany: string;
-    applicableContext: string;
-    createdAt: string;
+  // Core conversation result — always present when engine succeeds
+  conversation?: ConversationResult;
+  // Brief derived from conversation — always present when engine succeeds
+  brief?: IntelligenceBrief;
+  // ?include=talkingPoints — extracted from conversation result
+  talkingPoints?: Array<{
+    topic: string;
+    context: string;
+    confidence: number;
+  }>;
+  // ?include=objections — extracted from conversation result
+  objections?: Array<{
+    objection: string;
+    rebuttal: string;
+    confidence: number;
+  }>;
+  // ?include=buyerProfiles — extracted from conversation result
+  buyerProfiles?: Array<{
+    role: string;
+    concerns: string[];
+    motivation: string;
+    confidence: number;
   }>;
 }
 
@@ -371,14 +384,25 @@ export interface IntelligenceConversationOutput {
 
 export interface IntelligenceMindmap {
   companyId: string;
-  nodes: MindmapNode[];
-  edges: MindmapEdge[];
+  // ?include=nodes
+  nodes?: MindmapNode[];
+  // ?include=edges
+  edges?: MindmapEdge[];
+  // Always present
   metadata: {
     totalNodes: number;
     totalEdges: number;
     centerNode: string;
     lastGenerated: string | null;
   };
+  // ?include=knowledgeConnections
+  knowledgeConnections?: Array<{
+    sourceNode: string;
+    targetNode: string;
+    type: string;
+    description: string;
+    confidence: number;
+  }>;
 }
 
 export interface MindmapNode {
@@ -483,8 +507,8 @@ export interface IntelligenceKnowledgeOutput {
   topCategories: Array<{ category: string; count: number }>;
   /** Average confidence across entries */
   averageConfidence: number;
-  /** Ingestion pipeline stats (from KnowledgeIngestionPipeline) */
-  ingestionStats: IntelligenceKnowledgeIngestionStats | null;
+  /** Ingestion pipeline stats (?include=ingestion) */
+  ingestionStats?: IntelligenceKnowledgeIngestionStats;
 }
 
 // ═════════════════════════════════════════════════════════════════════════════════
@@ -496,8 +520,10 @@ export const IntelligenceErrors = {
   MISSING_COMPANY_ID: 'MISSING_COMPANY_ID',
   INTELLIGENCE_UNAVAILABLE: 'INTELLIGENCE_UNAVAILABLE',
   ENGINE_TIMEOUT: 'ENGINE_TIMEOUT',
+  ENGINE_FAILED: 'ENGINE_FAILED',
   GOVERNANCE_BLOCKED: 'GOVERNANCE_BLOCKED',
   INVALID_INCLUDE: 'INVALID_INCLUDE',
+  VALIDATION_FAILED: 'VALIDATION_FAILED',
   RATE_LIMITED: 'RATE_LIMITED',
 } as const;
 

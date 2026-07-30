@@ -7,7 +7,10 @@
  * Composes ActionEngine + ContinuousLearningLoop data.
  *
  * Query params:
- *   ?include=learning — include learning insights (optional)
+ *   ?include=recommendations — include action recommendations (placeholder, not yet implemented)
+ *   ?include=sequences      — include action sequences (placeholder, not yet implemented)
+ *   ?include=learning       — include learning insights (optional)
+ *   Multiple includes via comma-separation: ?include=recommendations,sequences,learning
  *
  * Non-throwing: always returns IntelligenceResponse envelope.
  * Follows the same pattern as the company route (reference implementation).
@@ -71,14 +74,27 @@ export async function GET(
     );
   }
 
-  // ── Step 2: Run engine + load learning insights in parallel ────────
-  let actionResult: ActionResult;
+  // ── Step 2: Determine which includes are active ──────────────────────────
+  const wantsActions = guardResult.includes.size === 0
+    || shouldInclude(guardResult.includes, 'recommendations')
+    || shouldInclude(guardResult.includes, 'sequences');
+  const wantsLearning = guardResult.includes.size === 0
+    || shouldInclude(guardResult.includes, 'learning');
+
+  // TODO (A7): Add selective loading for `recommendations` include when engine supports it
+  // TODO (A8): Add selective loading for `sequences` include when engine supports it
+
+  // ── Step 3: Run engine + load learning insights in parallel ────────
+  let actionResult: ActionResult | null = null;
   let learningEvents: Array<{ id: string; learnedInsight: string; companyId: string | null; applicableContext: string; createdAt: Date }> = [];
 
   try {
     const results = await Promise.all([
-      ActionEngine.recommend({ companyId, skipNarrative: true }),
-      shouldInclude(guardResult.includes, 'learning')
+      // N13: Only run ActionEngine when includes requested or empty (default)
+      wantsActions
+        ? ActionEngine.recommend({ companyId, skipNarrative: true })
+        : Promise.resolve(null as ActionResult | null),
+      wantsLearning
         ? db.learningEvent.findMany({
             where: { companyId },
             orderBy: { createdAt: 'desc' },
@@ -110,7 +126,7 @@ export async function GET(
     );
   }
 
-  if (!actionResult.success) {
+  if (actionResult && !actionResult.success) {
     logger.warn('[intelligence/action] ActionEngine failed', {
       companyId,
       error: actionResult.error,
@@ -124,17 +140,22 @@ export async function GET(
   // ── Step 4: Compose response data ────────────────────────────────────────
   const data: IntelligenceActionOutput = {
     companyId,
-    actions: actionResult,
-    learningInsights: learningEvents.map((e) => ({
-      id: e.id,
-      insight: e.learnedInsight,
-      sourceCompany: e.companyId || 'unknown',
-      applicableContext: e.applicableContext || '',
-      createdAt: e.createdAt.toISOString(),
-    })),
+    ...(actionResult ? { actions: actionResult } : {}),
+    ...(wantsLearning ? {
+      learningInsights: learningEvents.map((e) => ({
+        id: e.id,
+        insight: e.learnedInsight,
+        sourceCompany: e.companyId || 'unknown',
+        applicableContext: e.applicableContext || '',
+        createdAt: e.createdAt.toISOString(),
+      })),
+    } : {}),
   };
 
-  const confidence = (actionResult as unknown as Record<string, unknown>).confidence as number ?? 0;
+  // H11: Safe confidence extraction — avoid unsafe cast through unknown
+  const confidence = actionResult && 'confidence' in actionResult
+    ? Number((actionResult as Record<string, unknown>).confidence ?? 0)
+    : 0;
   const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
   const durationMs = Date.now() - startedAt;
 

@@ -31,7 +31,6 @@ import {
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import type {
   IntelligenceCompanyContext,
-  IntelligenceResponse,
 } from '@/lib/intelligence-api/types';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
@@ -47,13 +46,10 @@ export async function GET(
   const startedAt = Date.now();
   const requestedAt = new Date();
 
-  // ── Extract companyId from dynamic route ───────────────────────────────
-  const { id: companyId } = await params;
-
   // ── Intelligence Guard: validation + rate limiting + correlation-id ─────
   const guardResult = await intelligenceGuard(request, params, 'company');
   if (guardResult instanceof Response) return guardResult;
-  const { correlationId, responseHeaders } = guardResult;
+  const { companyId, correlationId, responseHeaders } = guardResult;
 
   logger.info('[intelligence/company] Processing', {
     companyId,
@@ -404,17 +400,17 @@ export async function GET(
       continue;
     }
 
-    const { key, result } = settled.value as { key: string; result: RevenueScore | ActionResult | ConversationResult };
+    const { key, result } = settled.value;
 
-    if (key === 'scores') {
+    if (key === 'scores' && result) {
       const sr = result as RevenueScore;
-      if (sr.success) {
+      if ('success' in sr && sr.success) {
         scores = {
           revenue: sr,
           accountPriority: company.accountPriorityScore
-            ? { score: company.accountPriorityScore as number, tier: (company.priorityTier as string) ?? 'medium' }
+            ? { score: company.accountPriorityScore, tier: company.priorityTier ?? 'medium' }
             : undefined,
-          intelConfidence: sr.confidence / 100,
+          intelConfidence: Number(sr.confidence ?? 0) / 100,
         };
         confidences.push(sr.confidence / 100);
       } else {
@@ -425,7 +421,7 @@ export async function GET(
       }
     }
 
-    if (key === 'actions') {
+    if (key === 'actions' && result) {
       const ar = result as ActionResult;
       if (ar.success) {
         actions = ar;
@@ -440,13 +436,13 @@ export async function GET(
       }
     }
 
-    if (key === 'brief') {
-      const cr = result as unknown as Record<string, unknown>;
-      if (cr.success as boolean) {
-        const summary = (cr.meetingObjective as string) || (cr.companyContext as string) || '';
-        const keyThemes = Array.isArray(cr.signalContext) ? (cr.signalContext as string[]) : [];
-        const recommendations = Array.isArray(cr.postMeetingActions) ? (cr.postMeetingActions as string[]) : [];
-        const briefConfidence = ((cr.confidenceScore as number) ?? 0) / 100;
+    if (key === 'brief' && result) {
+      const cr = result as Record<string, unknown>;
+      if (cr.success === true) {
+        const summary = String(cr.meetingObjective || cr.companyContext || '');
+        const keyThemes = Array.isArray(cr.signalContext) ? cr.signalContext.map(String) : [];
+        const recommendations = Array.isArray(cr.postMeetingActions) ? cr.postMeetingActions.map(String) : [];
+        const briefConfidence = Number(cr.confidenceScore ?? 0) / 100;
 
         brief = {
           briefType: 'conversation_brief',
@@ -471,7 +467,7 @@ export async function GET(
       } else {
         logger.warn('[intelligence/company] ConversationEngine.brief returned failure', {
           companyId,
-          error: cr.error as string,
+          error: String(cr.error ?? ''),
         });
       }
     }
@@ -542,6 +538,6 @@ export async function GET(
       requestedAt,
       respondedAt: new Date(),
     }),
-    { headers: responseHeaders },
+    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );
 }

@@ -17,6 +17,7 @@ import {
   createResponse,
   createErrorResponse,
   computeFreshness,
+  shouldInclude,
 } from '@/lib/intelligence-api/middleware';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import type { IntelligenceMindmap, MindmapNode } from '@/lib/intelligence-api/types';
@@ -68,87 +69,101 @@ export async function GET(
     );
   }
 
-  // ── Step 2: Load entities in parallel (non-throwing) ──────────────────────
-  const [contacts, capabilities, signals] = await Promise.all([
-    db.contact.findMany({
-      where: { companyId },
-      select: { id: true, rawName: true, title: true, role: true, leadScore: true },
-      take: 30,
-    }).catch(() => []),
-    db.capabilityAsset.findMany({
-      where: { isActive: true },
-      select: { id: true, title: true, category: true },
-      take: 30,
-    }).catch(() => []),
-    db.companySignal.findMany({
-      where: { companyId },
-      select: { id: true, signalType: true, title: true, confidence: true },
-      take: 20,
-    }).catch(() => []),
-  ]);
+  // ── Step 2: Determine selective loading flags ─────────────────────────
+  const loadNodes = guardResult.includes.size === 0 || shouldInclude(guardResult.includes, 'nodes');
+  const loadEdges = guardResult.includes.size === 0 || shouldInclude(guardResult.includes, 'edges');
+  const loadKnowledgeConnections = shouldInclude(guardResult.includes, 'knowledgeConnections');
 
-  // ── Step 3: Build nodes (hub-and-spoke: company center + entity nodes) ──
+  // ── Step 3: Load entities in parallel (only when nodes are requested) ─────
   const centerLabel = (company.normalizedName as string) || (company.rawName as string) || 'Company';
   const centerNodeId = 'company-center';
 
-  const nodes: MindmapNode[] = [
-    // Company center node
-    {
-      id: centerNodeId,
-      label: centerLabel,
-      type: 'company',
-      confidence: 1.0,
-    },
-    // Person nodes
-    ...contacts.map((c) => ({
-      id: c.id,
-      label: c.rawName,
-      type: 'person' as const,
-      confidence: c.leadScore / 100,
-      metadata: { title: c.title, role: c.role },
-    })),
-    // Knowledge/capability nodes
-    ...capabilities.map((cap) => ({
-      id: cap.id,
-      label: cap.title,
-      type: 'knowledge' as const,
-      confidence: 0.7,
-      metadata: { category: cap.category },
-    })),
-    // Signal nodes
-    ...signals.map((s) => ({
-      id: s.id,
-      label: s.title,
-      type: 'signal' as const,
-      confidence: s.confidence,
-      metadata: { signalType: s.signalType },
-    })),
-  ];
+  let nodes: MindmapNode[] = [];
+
+  if (loadNodes) {
+    const [contacts, capabilities, signals] = await Promise.all([
+      db.contact.findMany({
+        where: { companyId },
+        select: { id: true, rawName: true, title: true, role: true, leadScore: true },
+        take: 30,
+      }).catch(() => []),
+      db.capabilityAsset.findMany({
+        where: { isActive: true },
+        select: { id: true, title: true, category: true },
+        take: 30,
+      }).catch(() => []),
+      db.companySignal.findMany({
+        where: { companyId },
+        select: { id: true, signalType: true, title: true, confidence: true },
+        take: 20,
+      }).catch(() => []),
+    ]);
+
+    // Build nodes (hub-and-spoke: company center + entity nodes)
+    nodes = [
+      // Company center node
+      {
+        id: centerNodeId,
+        label: centerLabel,
+        type: 'company',
+        confidence: 1.0,
+      },
+      // Person nodes
+      ...contacts.map((c) => ({
+        id: c.id,
+        label: c.rawName,
+        type: 'person' as const,
+        confidence: c.leadScore / 100,
+        metadata: { title: c.title, role: c.role },
+      })),
+      // Knowledge/capability nodes
+      ...capabilities.map((cap) => ({
+        id: cap.id,
+        label: cap.title,
+        type: 'knowledge' as const,
+        confidence: 0.7,
+        metadata: { category: cap.category },
+      })),
+      // Signal nodes
+      ...signals.map((s) => ({
+        id: s.id,
+        label: s.title,
+        type: 'signal' as const,
+        confidence: s.confidence,
+        metadata: { signalType: s.signalType },
+      })),
+    ];
+  }
 
   // ── Step 4: Build edges (hub-and-spoke from center — O(n), not O(n²)) ────
   const edges: IntelligenceMindmap['edges'] = [];
 
-  for (const node of nodes) {
-    if (node.id === centerNodeId) continue;
-    // Weight: use node confidence (closer to 1 = stronger edge)
-    edges.push({
-      source: centerNodeId,
-      target: node.id,
-      weight: Math.max(0.1, node.confidence),
-    });
+  if (loadEdges) {
+    for (const node of nodes) {
+      if (node.id === centerNodeId) continue;
+      // Weight: use node confidence (closer to 1 = stronger edge)
+      edges.push({
+        source: centerNodeId,
+        target: node.id,
+        weight: Math.max(0.1, node.confidence),
+      });
+    }
   }
 
   // ── Step 5: Compose response ─────────────────────────────────────────────
   const data: IntelligenceMindmap = {
     companyId,
-    nodes,
-    edges,
+    ...(loadNodes ? { nodes } : {}),
+    ...(loadEdges ? { edges } : {}),
+    // Always present — lightweight summary
     metadata: {
       totalNodes: nodes.length,
       totalEdges: edges.length,
       centerNode: centerLabel,
       lastGenerated: new Date().toISOString(),
     },
+    // Placeholder — not yet fully implemented
+    ...(loadKnowledgeConnections ? { knowledgeConnections: [] } : {}),
   };
 
   const confidence = nodes.length > 0 ? Math.min(0.9, 0.5 + nodes.length * 0.02) : 0.1;
@@ -158,8 +173,9 @@ export async function GET(
   logger.info('[intelligence/mindmap] Response assembled', {
     companyId,
     durationMs,
-    nodeCount: nodes.length,
-    edgeCount: edges.length,
+    includes: Array.from(guardResult.includes),
+    nodeCount: loadNodes ? nodes.length : 0,
+    edgeCount: loadEdges ? edges.length : 0,
     confidence,
     freshnessLevel: freshness.level,
   });

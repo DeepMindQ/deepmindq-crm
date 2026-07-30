@@ -12,6 +12,7 @@
  */
 
 import { z } from 'zod';
+import { VALID_INCLUDES } from './middleware';
 
 // ── Shared building blocks ──────────────────────────────────────────────────
 
@@ -25,25 +26,10 @@ export const companyIdSchema = z
     'Company ID contains invalid characters'
   );
 
-// Valid include keys — imported from middleware to maintain single source of truth.
-// We do a runtime import to avoid circular deps (middleware doesn't import from validators).
-let _validIncludeKeys: Set<string> | null = null;
+// Valid include keys — imported from middleware (single source of truth).
+// Do NOT duplicate this set here.
 function getValidIncludeKeys(): Set<string> {
-  if (!_validIncludeKeys) {
-    // Inline the set here (must stay in sync with middleware.ts VALID_INCLUDES)
-    _validIncludeKeys = new Set([
-      'signals', 'scores', 'contacts', 'timeline', 'actions', 'brief',
-      'knowledge', 'mindmap', 'data_health', 'people_changes',
-      'reasoning', 'opportunities', 'learning',
-      'steps', 'impact', 'recommendations',
-      'fusion', 'capabilities',
-      'sequences',
-      'talkingPoints', 'objections', 'buyerProfiles',
-      'nodes', 'edges', 'knowledgeConnections',
-      'ingestion',
-    ]);
-  }
-  return _validIncludeKeys;
+  return VALID_INCLUDES;
 }
 
 /** Include parameter: comma-separated list of valid keys */

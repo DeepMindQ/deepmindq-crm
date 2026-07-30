@@ -603,15 +603,15 @@ describe('Intelligence API — Include Selective Loading', () => {
     expect((data.learningInsights as unknown[]).length).toBe(0);
   });
 
-  it('conversation with ?include=learning returns pastLearnings', async () => {
+  it('conversation with ?include=talkingPoints returns talkingPoints', async () => {
     (db.learningEvent.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([mockLearningEvent]);
-    const request = mockRequest(`/api/intelligence/conversation/${COMPANY_ID}?include=learning`);
+    const request = mockRequest(`/api/intelligence/conversation/${COMPANY_ID}?include=talkingPoints`);
     const response = await conversationGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
     const result = await parseResponse(response);
     expect(result.status).toBe(200);
     const data = (result.body as Record<string, unknown>).data as Record<string, unknown>;
-    expect(Array.isArray(data.pastLearnings)).toBe(true);
-    expect((data.pastLearnings as unknown[]).length).toBe(1);
+    expect(Array.isArray(data.talkingPoints)).toBe(true);
+    expect((data.talkingPoints as unknown[]).length).toBeGreaterThanOrEqual(1);
   });
 
   it('mindmap returns nodes and edges structure', async () => {
@@ -641,9 +641,8 @@ describe('Intelligence API — Cache-Control Headers', () => {
     const request = mockRequest(`/api/intelligence/company/${COMPANY_ID}`);
     const response = await companyGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
     const cacheControl = response.headers.get('cache-control');
-    // Company endpoint currently does NOT set Cache-Control (other endpoints do)
-    // This test verifies the actual behavior
-    expect(cacheControl).toBeNull();
+    // Company endpoint sets Cache-Control like all other intelligence endpoints
+    expect(cacheControl).toBe('public, s-maxage=60, stale-while-revalidate=30');
   });
 
   it('reasoning endpoint sets Cache-Control header on success', async () => {

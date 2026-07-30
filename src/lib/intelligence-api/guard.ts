@@ -21,7 +21,7 @@ import {
   parseIncludeParams,
   createErrorResponse,
 } from './middleware';
-import type { IntelligenceInclude } from './types';
+import type { IntelligenceInclude, IntelligenceEndpoint } from './types';
 import type { IntelligenceErrorResponse } from './middleware';
 import { IntelligenceErrors } from './types';
 import { companyIdSchema, includeSchema } from './validators';
@@ -48,7 +48,7 @@ export interface IntelligenceGuardResult {
 export async function intelligenceGuard(
   request: NextRequest,
   paramsPromise: Promise<{ id: string }>,
-  endpoint: string,
+  endpoint: IntelligenceEndpoint,
 ): Promise<Response | IntelligenceGuardResult> {
   const startedAt = Date.now();
   const correlationId = getCorrelationId(request);
@@ -62,7 +62,7 @@ export async function intelligenceGuard(
   } catch {
     logger.error('[intelligence-guard] Failed to extract route params', { correlationId });
     return new Response(
-      JSON.stringify(createErrorResponse(endpoint as 'company', '', 'Invalid route parameters', IntelligenceErrors.MISSING_COMPANY_ID, Date.now() - startedAt)),
+      JSON.stringify(createErrorResponse(endpoint, '', 'Invalid route parameters', IntelligenceErrors.MISSING_COMPANY_ID, Date.now() - startedAt)),
       { status: 400, headers: responseHeaders },
     );
   }
@@ -73,7 +73,7 @@ export async function intelligenceGuard(
     const message = companyIdResult.error.issues[0]?.message || 'Invalid company ID';
     logger.warn('[intelligence-guard] Company ID validation failed', { correlationId, endpoint, companyId, message });
     return new Response(
-      JSON.stringify(createErrorResponse(endpoint as 'company', companyId, message, IntelligenceErrors.MISSING_COMPANY_ID, Date.now() - startedAt)),
+      JSON.stringify(createErrorResponse(endpoint, companyId, message, IntelligenceErrors.MISSING_COMPANY_ID, Date.now() - startedAt)),
       { status: 400, headers: responseHeaders },
     );
   }
@@ -86,7 +86,7 @@ export async function intelligenceGuard(
       const message = includeResult.error.issues[0]?.message || 'Invalid include parameter';
       logger.warn('[intelligence-guard] Include validation failed', { correlationId, endpoint, companyId, message });
       return new Response(
-        JSON.stringify(createErrorResponse(endpoint as 'company', companyId, message, IntelligenceErrors.INVALID_INCLUDE, Date.now() - startedAt)),
+        JSON.stringify(createErrorResponse(endpoint, companyId, message, IntelligenceErrors.INVALID_INCLUDE, Date.now() - startedAt)),
         { status: 400, headers: responseHeaders },
       );
     }
@@ -108,7 +108,7 @@ export async function intelligenceGuard(
   if (!rl.success) {
     logger.warn('[intelligence-guard] Rate limited', { correlationId, endpoint, clientIp });
     return new Response(
-      JSON.stringify(createErrorResponse(endpoint as 'company', companyId, 'Rate limit exceeded', IntelligenceErrors.RATE_LIMITED, Date.now() - startedAt)),
+      JSON.stringify(createErrorResponse(endpoint, companyId, 'Rate limit exceeded', IntelligenceErrors.RATE_LIMITED, Date.now() - startedAt)),
       {
         status: 429,
         headers: {
@@ -160,7 +160,7 @@ export function utilityGuard(
   if (!rl.success) {
     logger.warn('[intelligence-utility] Rate limited', { correlationId, endpoint, clientIp });
     throw new RateLimitedError(
-      createErrorResponse(endpoint as 'company', '', 'Rate limit exceeded', IntelligenceErrors.RATE_LIMITED, 0),
+      createErrorResponse(endpoint, '', 'Rate limit exceeded', IntelligenceErrors.RATE_LIMITED, 0),
       responseHeaders,
     );
   }

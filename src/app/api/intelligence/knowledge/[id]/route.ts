@@ -131,10 +131,10 @@ export async function GET(
       : 0;
 
     // Ingestion stats (optional — ?include=ingestion)
-    let ingestionStats: IntelligenceKnowledgeIngestionStats | null = null;
+    let ingestionStats: IntelligenceKnowledgeIngestionStats | undefined = undefined;
     if (includes.has('ingestion')) {
       try {
-        ingestionStats = await KnowledgeIngestionPipeline.getStats();
+        ingestionStats = await KnowledgeIngestionPipeline.getStats() ?? undefined;
       } catch (err) {
         logger.warn('[intelligence/knowledge] failed to fetch ingestion stats', {
           correlationId,

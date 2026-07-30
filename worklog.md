@@ -403,3 +403,23 @@ Stage Summary:
 - 15 realistic milestones defined (M1-M15) with verifiable exit criteria
 - Priority order: M1 (Fix tests) -> M2 (Break SPA) -> M3-M5 (UI polish) -> M6-M15 (quality/infra)
 - Tracking board saved: /home/z/my-project/download/DeepMindQ_Development_Tracking_Board.xlsx
+---
+Task ID: Ticket1-Phase5
+Agent: main
+Task: Fix all 4 gaps in Ticket 1 and re-verify to 100%
+
+Work Log:
+- Phase 1: Decomposed Ticket 1 spec into 13 checkable items
+- Phase 2: Enumerated 29 intelligence routes, 76 screen files, 8 intel-os files, 11 test files
+- Phase 3: Collected evidence for all 13 items — found 4 gaps (F2, B4, T2, S1) plus 1 bonus gap (G5: routes bypassing guard)
+- G1: Added withScreenErrorBoundary HOC to src/lib/screen-map.tsx, wrapping all 77 SCREEN_MAP entries
+- G2: Added typed select: to fusionResult in opportunity route, learningEvent in action and conversation routes
+- G4: Imported scrubError in conversation and mindmap routes, scrubbed all err.message paths. Also scrubbed engine .error in reasoning, action, conversation routes.
+- G5: Removed redundant pre-guard early returns in reasoning, opportunity, action, conversation, mindmap routes — all paths now go through intelligenceGuard
+- G3: Created tests/ticket1-intelligence-integration.test.ts with 16 integration tests that call actual route handlers
+- Phase 5 re-verify: all 13 items pass with fresh evidence, 99/99 tests pass, tsc exit=0
+
+Stage Summary:
+- Ticket 1: COMPLETE — 13/13 spec items verified, 4 exit criteria pass, 99/99 tests pass
+- Files modified: screen-map.tsx, 6 route files, 1 new test file, PROJECT_STATUS.md
+- PROJECT_STATUS.md updated with full evidence table

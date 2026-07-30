@@ -30,6 +30,7 @@ import type {
   IntelligenceOpportunity,
   IntelligenceResponse,
 } from '@/lib/intelligence-api/types';
+import { scrubError } from '@/lib/intelligence-api/handler';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
 
@@ -41,13 +42,6 @@ export async function GET(
   const requestedAt = new Date();
 
   const { id: companyId } = await params;
-
-  if (!companyId) {
-    return Response.json(
-      createErrorResponse('opportunity', '', 'Company ID is required', 'MISSING_COMPANY_ID'),
-      { status: 400 },
-    );
-  }
 
   const guardResult = await intelligenceGuard(request, params, 'opportunity');
   if (guardResult instanceof Response) return guardResult;
@@ -72,10 +66,10 @@ export async function GET(
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    logger.error('[intelligence/opportunity] DB lookup failed', { companyId, error: message });
+    const rawMessage = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('[intelligence/opportunity] DB lookup failed', { companyId, error: rawMessage });
     return Response.json(
-      createErrorResponse('opportunity', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('opportunity', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
       { status: 500, headers: responseHeaders },
     );
   }
@@ -125,6 +119,16 @@ export async function GET(
       where: { companyId },
       orderBy: { fusionScore: 'desc' },
       take: 10,
+      select: {
+        signalIds: true,
+        capabilityIds: true,
+        fusionScore: true,
+        businessProblem: true,
+        recommendedCapability: true,
+        relevantCaseStudy: true,
+        proofPoints: true,
+        confidenceScore: true,
+      },
     });
 
     fusionData = fusionResults.map((fr) => ({

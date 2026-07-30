@@ -33,6 +33,7 @@ import type {
   IntelligenceCompanyContext,
   IntelligenceResponse,
 } from '@/lib/intelligence-api/types';
+import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
 
 // ── Engine references (static object exports, not classes) ──────────────────────
@@ -97,13 +98,13 @@ export async function GET(
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    logger.error('[intelligence/company] DB lookup failed', { companyId, error: message });
+    const rawMessage = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('[intelligence/company] DB lookup failed', { companyId, error: rawMessage });
     return Response.json(
       createErrorResponse(
         'company',
         companyId,
-        `Company lookup failed: ${message}`,
+        `Company lookup failed: ${scrubError(rawMessage)}`,
         'INTELLIGENCE_UNAVAILABLE',
         Date.now() - startedAt,
         guardResult.includes,

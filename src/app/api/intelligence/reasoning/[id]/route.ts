@@ -25,6 +25,7 @@ import {
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
 import type { IntelligenceReasoningOutput, ReasoningStep } from '@/lib/intelligence-api/types';
+import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
 
 export async function GET(
@@ -35,13 +36,6 @@ export async function GET(
   const requestedAt = new Date();
 
   const { id: companyId } = await params;
-
-  if (!companyId) {
-    return Response.json(
-      createErrorResponse('reasoning', '', 'Company ID is required', 'MISSING_COMPANY_ID'),
-      { status: 400 },
-    );
-  }
 
   // ── Intelligence Guard: validation + rate limiting + correlation-id ─────
   const guardResult = await intelligenceGuard(request, params, 'reasoning');
@@ -70,10 +64,10 @@ export async function GET(
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    logger.error('[intelligence/reasoning] DB lookup failed', { companyId, error: message });
+    const rawMessage = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('[intelligence/reasoning] DB lookup failed', { companyId, error: rawMessage });
     return Response.json(
-      createErrorResponse('reasoning', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('reasoning', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
       { status: 500, headers: responseHeaders },
     );
   }
@@ -90,10 +84,10 @@ export async function GET(
   try {
     result = await EnterpriseReasoningEngine.build(companyId);
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    logger.error('[intelligence/reasoning] Engine build threw', { companyId, error: message });
+    const rawMessage = err instanceof Error ? err.message : String(err);
+    logger.error('[intelligence/reasoning] Engine build threw', { companyId, error: rawMessage });
     return Response.json(
-      createErrorResponse('reasoning', companyId, message, 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('reasoning', companyId, scrubError(rawMessage), 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
       { status: 502, headers: responseHeaders },
     );
   }
@@ -109,7 +103,7 @@ export async function GET(
       createErrorResponse(
         'reasoning',
         companyId,
-        result.error || 'Reasoning engine failed',
+        scrubError(result.error || 'Reasoning engine failed'),
         'ENGINE_TIMEOUT',
         Date.now() - startedAt,
         guardResult.includes,

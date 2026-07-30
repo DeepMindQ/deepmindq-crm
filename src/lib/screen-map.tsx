@@ -6,9 +6,42 @@
    Legacy screens remain accessible via internal navigation.
    ═══════════════════════════════════════════════════ */
 
-import { lazy } from 'react';
+import { lazy, Suspense } from 'react';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 type ScreenComponent = React.LazyExoticComponent<React.ComponentType<any>> | React.FC<any>;
+
+/* ── Per-screen ErrorBoundary wrapper ──
+ *  Wraps each lazy screen so that an unhandled error in one screen
+ *  only crashes THAT screen — not the entire app.
+ *  Ticket 1 spec: "Add error boundaries to all 76 screens"
+ */
+function withScreenErrorBoundary(
+  LazyComponent: ScreenComponent,
+  screenName: string,
+): React.FC<{ fallback?: React.ReactNode }> {
+  return function ScreenWithErrorBoundary({ fallback }: { fallback?: React.ReactNode } = {}) {
+    return (
+      <ErrorBoundary fallback={fallback}>
+        <Suspense fallback={<ScreenLoadingFallback name={screenName} />}>
+          <LazyComponent />
+        </Suspense>
+      </ErrorBoundary>
+    );
+  };
+}
+
+/** Shared loading indicator for lazy screens */
+function ScreenLoadingFallback({ name }: { name: string }) {
+  return (
+    <div className="flex items-center justify-center py-20">
+      <div className="text-center">
+        <div className="w-8 h-8 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-3" />
+        <p className="text-xs text-gray-500">Loading {name.replace(/-/g, ' ')}…</p>
+      </div>
+    </div>
+  );
+}
 
 /* ── Intelligence OS Screens (new layer) ── */
 const CommandCenterScreen = lazy(() => import('@/components/intelligence-os/command-center').then(m => ({ default: m.CommandCenter })));
@@ -102,88 +135,88 @@ export function ContactDetailBridge({ contactId }: { contactId: string }) {
    ═══════════════════════════════════════════════════ */
 
 export const SCREEN_MAP: Record<string, ScreenComponent> = {
-  // ── Intelligence OS (new) ──
-  'command-center': CommandCenterScreen,
-  'activation-workspace': ActivationWorkspaceScreen,
-  'company-workspace': CompanyWorkspaceScreen,
-  'knowledge-workspace': KnowledgeWorkspaceScreen,
-  'capability-workspace': CapabilityWorkspaceScreen,
-  'intelligence-briefing': IntelligenceBriefingScreen,
-  'intelligence-search': IntelligenceSearchScreen,
+  // ── Intelligence OS (new) — each wrapped with per-screen ErrorBoundary ──
+  'command-center': withScreenErrorBoundary(CommandCenterScreen, 'command-center'),
+  'activation-workspace': withScreenErrorBoundary(ActivationWorkspaceScreen, 'activation-workspace'),
+  'company-workspace': withScreenErrorBoundary(CompanyWorkspaceScreen, 'company-workspace'),
+  'knowledge-workspace': withScreenErrorBoundary(KnowledgeWorkspaceScreen, 'knowledge-workspace'),
+  'capability-workspace': withScreenErrorBoundary(CapabilityWorkspaceScreen, 'capability-workspace'),
+  'intelligence-briefing': withScreenErrorBoundary(IntelligenceBriefingScreen, 'intelligence-briefing'),
+  'intelligence-search': withScreenErrorBoundary(IntelligenceSearchScreen, 'intelligence-search'),
 
   // ── INTELLIGENCE nav ──
-  accounts: CompaniesScreen,
+  accounts: withScreenErrorBoundary(CompaniesScreen, 'accounts'),
   // ── ADMINISTRATION nav ──
-  import: ImportScreen,
-  analytics: AnalyticsScreen,
-  settings: SettingsScreen,
-  'data-health': DataHealthScreen,
-  'ai-health': AIHealthScreen,
-  audit: AuditScreen,
+  import: withScreenErrorBoundary(ImportScreen, 'import'),
+  analytics: withScreenErrorBoundary(AnalyticsScreen, 'analytics'),
+  settings: withScreenErrorBoundary(SettingsScreen, 'settings'),
+  'data-health': withScreenErrorBoundary(DataHealthScreen, 'data-health'),
+  'ai-health': withScreenErrorBoundary(AIHealthScreen, 'ai-health'),
+  audit: withScreenErrorBoundary(AuditScreen, 'audit'),
 
   // ── Detail views ──
-  'company-detail': CompanyDetailScreen,
-  'contact-detail': ContactDetailBridge,
+  'company-detail': withScreenErrorBoundary(CompanyDetailScreen, 'company-detail'),
+  'contact-detail': withScreenErrorBoundary(ContactDetailBridge, 'contact-detail'),
 
   // ── Legacy screens (backward compat via internal navigation) ──
-  dashboard: DashboardScreen,
-  'ai-command-center': AICommandCenterScreen,
-  'revenue-intelligence': RevenueIntelligenceScreen,
-  'signal-intelligence': SignalIntelligenceScreen,
-  'account-intelligence': AccountIntelligenceScreen,
-  'internal-intelligence': InternalIntelligenceScreen,
-  'conversation-planner': ConversationPlannerScreen,
-  companies: CompaniesScreen,
-  contacts: ContactsScreen,
-  opportunities: OpportunitiesScreen,
-  segments: SegmentsScreen,
-  pipeline: PipelineScreen,
-  sequences: SequencesScreen,
-  'email-studio': DraftsScreen,
-  inbox: RepliesScreen,
-  knowledge: KnowledgeLibraryScreen,
-  leads: LeadsScreen,
-  'email-generation': EmailGenerationScreen,
-  'contact-profile': ContactDetailScreen,
-  'company-profile': CompanyProfileScreen,
-  drafts: DraftsScreen,
-  queue: QueueScreen,
-  templates: TemplatesScreen,
-  bounces: BouncesScreen,
-  replies: RepliesScreen,
-  capabilities: CapabilityScreen,
-  'capability-library': CapabilityScreen,
-  'mind-map': MindMapScreen,
-  'prompt-templates': PromptTemplatesScreen,
-  'command-center-old': CommandCenterOldScreen,
-  playbooks: PlaybooksScreen,
-  'opportunity-radar': OpportunityRadarScreen,
-  'conversation-studio': ConversationStudioScreen,
-  'strategy-room': StrategyRoomScreen,
-  'relationship-memory': RelationshipMemoryScreen,
-  'revenue-intelligence-brief': RevenueIntelligenceBriefScreen,
-  'revenue-intelligence-opportunities': RevenueIntelligenceOpportunitiesScreen,
-  'revenue-intelligence-recommendations': RevenueIntelligenceRecommendationsScreen,
-  'intelligence-reasoning': IntelligenceReasoningScreen,
-  'intelligence-report': IntelligenceReportScreen,
-  'account-ranking': AccountRankingScreen,
-  'opportunity-workspace': OpportunityWorkspaceScreen,
-  'pursuit-workspace': PursuitWorkspaceScreen,
-  'intelligence-health': IntelligenceHealthScreen,
-  'icp-settings': ICPSettingsScreen,
-  'pipeline-health': PipelineHealthScreen,
-  'deal-coaching': DealCoachingScreen,
-  'pipeline-forecast': PipelineForecastScreen,
-  'contact-intelligence': ContactIntelligenceScreen,
-  'sales-execution': SalesExecutionScreen,
-  revops: RevOpsScreen,
-  enterprise: EnterpriseScreen,
-  reports: ReportsScreen,
-  tasks: TasksScreen,
-  'intelligence-sources': IntelligenceSourcesScreen,
-  'intelligence-knowledge': IntelligenceKnowledgeScreen,
-  'ai-strategy': AIStrategyScreen,
-  'demo-experience': DemoExperienceScreen,
-  duplicates: DuplicatesScreen,
-  builder: IntelligenceReportScreen,
+  dashboard: withScreenErrorBoundary(DashboardScreen, 'dashboard'),
+  'ai-command-center': withScreenErrorBoundary(AICommandCenterScreen, 'ai-command-center'),
+  'revenue-intelligence': withScreenErrorBoundary(RevenueIntelligenceScreen, 'revenue-intelligence'),
+  'signal-intelligence': withScreenErrorBoundary(SignalIntelligenceScreen, 'signal-intelligence'),
+  'account-intelligence': withScreenErrorBoundary(AccountIntelligenceScreen, 'account-intelligence'),
+  'internal-intelligence': withScreenErrorBoundary(InternalIntelligenceScreen, 'internal-intelligence'),
+  'conversation-planner': withScreenErrorBoundary(ConversationPlannerScreen, 'conversation-planner'),
+  companies: withScreenErrorBoundary(CompaniesScreen, 'companies'),
+  contacts: withScreenErrorBoundary(ContactsScreen, 'contacts'),
+  opportunities: withScreenErrorBoundary(OpportunitiesScreen, 'opportunities'),
+  segments: withScreenErrorBoundary(SegmentsScreen, 'segments'),
+  pipeline: withScreenErrorBoundary(PipelineScreen, 'pipeline'),
+  sequences: withScreenErrorBoundary(SequencesScreen, 'sequences'),
+  'email-studio': withScreenErrorBoundary(DraftsScreen, 'email-studio'),
+  inbox: withScreenErrorBoundary(RepliesScreen, 'inbox'),
+  knowledge: withScreenErrorBoundary(KnowledgeLibraryScreen, 'knowledge'),
+  leads: withScreenErrorBoundary(LeadsScreen, 'leads'),
+  'email-generation': withScreenErrorBoundary(EmailGenerationScreen, 'email-generation'),
+  'contact-profile': withScreenErrorBoundary(ContactDetailScreen, 'contact-profile'),
+  'company-profile': withScreenErrorBoundary(CompanyProfileScreen, 'company-profile'),
+  drafts: withScreenErrorBoundary(DraftsScreen, 'drafts'),
+  queue: withScreenErrorBoundary(QueueScreen, 'queue'),
+  templates: withScreenErrorBoundary(TemplatesScreen, 'templates'),
+  bounces: withScreenErrorBoundary(BouncesScreen, 'bounces'),
+  replies: withScreenErrorBoundary(RepliesScreen, 'replies'),
+  capabilities: withScreenErrorBoundary(CapabilityScreen, 'capabilities'),
+  'capability-library': withScreenErrorBoundary(CapabilityScreen, 'capability-library'),
+  'mind-map': withScreenErrorBoundary(MindMapScreen, 'mind-map'),
+  'prompt-templates': withScreenErrorBoundary(PromptTemplatesScreen, 'prompt-templates'),
+  'command-center-old': withScreenErrorBoundary(CommandCenterOldScreen, 'command-center-old'),
+  playbooks: withScreenErrorBoundary(PlaybooksScreen, 'playbooks'),
+  'opportunity-radar': withScreenErrorBoundary(OpportunityRadarScreen, 'opportunity-radar'),
+  'conversation-studio': withScreenErrorBoundary(ConversationStudioScreen, 'conversation-studio'),
+  'strategy-room': withScreenErrorBoundary(StrategyRoomScreen, 'strategy-room'),
+  'relationship-memory': withScreenErrorBoundary(RelationshipMemoryScreen, 'relationship-memory'),
+  'revenue-intelligence-brief': withScreenErrorBoundary(RevenueIntelligenceBriefScreen, 'revenue-intelligence-brief'),
+  'revenue-intelligence-opportunities': withScreenErrorBoundary(RevenueIntelligenceOpportunitiesScreen, 'revenue-intelligence-opportunities'),
+  'revenue-intelligence-recommendations': withScreenErrorBoundary(RevenueIntelligenceRecommendationsScreen, 'revenue-intelligence-recommendations'),
+  'intelligence-reasoning': withScreenErrorBoundary(IntelligenceReasoningScreen, 'intelligence-reasoning'),
+  'intelligence-report': withScreenErrorBoundary(IntelligenceReportScreen, 'intelligence-report'),
+  'account-ranking': withScreenErrorBoundary(AccountRankingScreen, 'account-ranking'),
+  'opportunity-workspace': withScreenErrorBoundary(OpportunityWorkspaceScreen, 'opportunity-workspace'),
+  'pursuit-workspace': withScreenErrorBoundary(PursuitWorkspaceScreen, 'pursuit-workspace'),
+  'intelligence-health': withScreenErrorBoundary(IntelligenceHealthScreen, 'intelligence-health'),
+  'icp-settings': withScreenErrorBoundary(ICPSettingsScreen, 'icp-settings'),
+  'pipeline-health': withScreenErrorBoundary(PipelineHealthScreen, 'pipeline-health'),
+  'deal-coaching': withScreenErrorBoundary(DealCoachingScreen, 'deal-coaching'),
+  'pipeline-forecast': withScreenErrorBoundary(PipelineForecastScreen, 'pipeline-forecast'),
+  'contact-intelligence': withScreenErrorBoundary(ContactIntelligenceScreen, 'contact-intelligence'),
+  'sales-execution': withScreenErrorBoundary(SalesExecutionScreen, 'sales-execution'),
+  revops: withScreenErrorBoundary(RevOpsScreen, 'revops'),
+  enterprise: withScreenErrorBoundary(EnterpriseScreen, 'enterprise'),
+  reports: withScreenErrorBoundary(ReportsScreen, 'reports'),
+  tasks: withScreenErrorBoundary(TasksScreen, 'tasks'),
+  'intelligence-sources': withScreenErrorBoundary(IntelligenceSourcesScreen, 'intelligence-sources'),
+  'intelligence-knowledge': withScreenErrorBoundary(IntelligenceKnowledgeScreen, 'intelligence-knowledge'),
+  'ai-strategy': withScreenErrorBoundary(AIStrategyScreen, 'ai-strategy'),
+  'demo-experience': withScreenErrorBoundary(DemoExperienceScreen, 'demo-experience'),
+  duplicates: withScreenErrorBoundary(DuplicatesScreen, 'duplicates'),
+  builder: withScreenErrorBoundary(IntelligenceReportScreen, 'builder'),
 };

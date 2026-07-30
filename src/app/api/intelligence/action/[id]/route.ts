@@ -24,6 +24,7 @@ import {
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
 import type { IntelligenceActionOutput } from '@/lib/intelligence-api/types';
+import { scrubError } from '@/lib/intelligence-api/handler';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
 
@@ -35,13 +36,6 @@ export async function GET(
   const requestedAt = new Date();
 
   const { id: companyId } = await params;
-
-  if (!companyId) {
-    return Response.json(
-      createErrorResponse('action', '', 'Company ID is required', 'MISSING_COMPANY_ID'),
-      { status: 400 },
-    );
-  }
 
   const guardResult = await intelligenceGuard(request, params, 'action');
   if (guardResult instanceof Response) return guardResult;
@@ -64,10 +58,10 @@ export async function GET(
       },
     });
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    logger.error('[intelligence/action] DB lookup failed', { companyId, error: message });
+    const rawMessage = err instanceof Error ? err.message : 'Unknown error';
+    logger.error('[intelligence/action] DB lookup failed', { companyId, error: rawMessage });
     return Response.json(
-      createErrorResponse('action', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('action', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
       { status: 500, headers: responseHeaders },
     );
   }
@@ -84,10 +78,10 @@ export async function GET(
   try {
     actionResult = await ActionEngine.recommend({ companyId, skipNarrative: true });
   } catch (err) {
-    const message = err instanceof Error ? err.message : String(err);
-    logger.warn('[intelligence/action] ActionEngine threw', { companyId, error: message });
+    const rawMessage = err instanceof Error ? err.message : String(err);
+    logger.warn('[intelligence/action] ActionEngine threw', { companyId, error: rawMessage });
     return Response.json(
-      createErrorResponse('action', companyId, message, 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('action', companyId, scrubError(rawMessage), 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
       { status: 502, headers: responseHeaders },
     );
   }
@@ -98,7 +92,7 @@ export async function GET(
       error: actionResult.error,
     });
     return Response.json(
-      createErrorResponse('action', companyId, actionResult.error || 'Action engine failed', 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
+      createErrorResponse('action', companyId, scrubError(actionResult.error || 'Action engine failed'), 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
       { status: 502, headers: responseHeaders },
     );
   }
@@ -111,6 +105,13 @@ export async function GET(
         where: { companyId },
         orderBy: { createdAt: 'desc' },
         take: 10,
+        select: {
+          id: true,
+          learnedInsight: true,
+          companyId: true,
+          applicableContext: true,
+          createdAt: true,
+        },
       });
     } catch (err) {
       logger.warn('[intelligence/action] Failed to load learning insights', {

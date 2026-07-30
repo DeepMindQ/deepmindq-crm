@@ -194,7 +194,7 @@ export async function GET(request: NextRequest) {
       })),
     };
 
-    return NextResponse.json({ success: true, summary });
+    return NextResponse.json({ success: true, summary }, { headers: ctx.responseHeaders });
   } catch (err) {
     return utilityCatchError(ctx, err, 500, 'INTELLIGENCE_UNAVAILABLE', 'Pipeline stage failed');
   }
@@ -983,7 +983,7 @@ ${capabilities.map(c => `- ${c.title} (match: ${Math.round(c.score * 100)}%)`).j
       winProbability: winResult || {},
       intelligenceFusion: fusionStageResult || {},
     },
-  });
+  }, { headers: ctx.responseHeaders });
   } catch (err) {
     return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Pipeline execution failed');
   }

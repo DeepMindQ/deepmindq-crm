@@ -11,6 +11,7 @@ import { db } from '@/lib/db';
 import { detectCorrelations } from '@/lib/intelligence-sources/cross-signal-correlation';
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { companyIdSchema } from '@/lib/intelligence-api/validators';
 
 export async function GET(request: NextRequest) {
   let ctx: Awaited<ReturnType<typeof utilityGuard>>;
@@ -26,10 +27,12 @@ export async function GET(request: NextRequest) {
   const startedAt = Date.now();
 
   try {
-    const companyId = request.nextUrl.searchParams.get('companyId');
-    if (!companyId) {
-      return utilityError(ctx, 400, 'companyId is required', 'INVALID_REQUEST', Date.now() - startedAt);
+    const rawCompanyId = request.nextUrl.searchParams.get('companyId');
+    const parsed = companyIdSchema.safeParse(rawCompanyId);
+    if (!parsed.success) {
+      return utilityError(ctx, 400, 'Invalid companyId format', 'INVALID_REQUEST', Date.now() - startedAt);
     }
+    const companyId = parsed.data;
 
     const signals = await db.companySignal.findMany({
       where: { companyId, status: { notIn: ['archived', 'expired'] } },

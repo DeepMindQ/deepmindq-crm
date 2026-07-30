@@ -480,3 +480,36 @@ Stage Summary:
 - No `as any` type assertions in routes (PASS)
 - 24 files modified total
 - Evidence report saved to /home/z/my-project/download/TICKET1_EVIDENCE_REPORT.md
+
+---
+Task ID: ticket1-final-gap-fix
+Agent: main
+Task: Fix all remaining gaps from TICKET1_GAP_ANALYSIS.md (186 gaps total — verify + fix survivors)
+
+Work Log:
+- Re-audited entire TICKET1_GAP_ANALYSIS.md (186 gaps, 10 categories A-J) against current codebase
+- Discovered that prior rounds (5, 7) already fixed the vast majority: error format, responseHeaders, scrubError, Zod validation, rate limiting
+- Found 5 genuine remaining gaps:
+  G1: full-pipeline/route.ts GET — NextResponse.json success missing responseHeaders (line 197)
+  G2: full-pipeline/route.ts POST — NextResponse.json success missing responseHeaders (line 970)
+  G3: correlations/route.ts — manual searchParams.get('companyId') without Zod validation
+  G4: handler.ts — 200+ lines of dead code (withIntelligenceHandler, 5 dead types, 3 dead imports)
+  G5: company/[id]/route.ts — raw error.message in nested Promise.allSettled catch (line 394) without scrubError
+- Analyzed Category D+E (Prisma selects): All 29 production read queries have typed selects; inline selects are intentional per-endpoint optimizations (not reuse of db.ts constants)
+- Fixed G1: Added `{ headers: ctx.responseHeaders }` to full-pipeline GET success response
+- Fixed G2: Added `{ headers: ctx.responseHeaders }` to full-pipeline POST success response
+- Fixed G3: Added companyIdSchema.safeParse() to correlations route with proper error handling
+- Fixed G4: Rewrote handler.ts from 247 lines to 42 lines — kept only scrubError + SENSITIVE_PATTERNS (used by 12 routes + 1 test), removed dead withIntelligenceHandler, IntelligenceEndpointName, ValidatedParams, HandlerResult, IntelligenceSchema, IntelligenceHandler types, and dead imports (CORRELATION_HEADER, computeFreshness, IntelligenceResponse, RateLimitResult)
+- Fixed G5: Wrapped err.message with scrubError() in company route Promise.allSettled catch block
+- Final verification: tsc --noEmit = 0 errors, 806 tests pass (14 skipped), ESLint clean
+
+Stage Summary:
+- 5 gaps fixed (all that remained from the original 186)
+- handler.ts reduced from 247 → 42 lines (205 lines of dead code removed)
+- All 29 intelligence API routes now fully compliant:
+  - Structured error format { error, code, details }
+  - Correlation-id headers on ALL responses (including success)
+  - Zod validation on all routes that accept params
+  - Rate limiting on all routes (intelligenceGuard 60/min, utilityGuard 120/min)
+  - scrubError on all error paths
+  - No dead code in handler.ts

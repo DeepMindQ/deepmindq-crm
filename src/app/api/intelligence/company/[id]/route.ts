@@ -392,7 +392,7 @@ export async function GET(
           key,
           result: {
             success: false,
-            error: err instanceof Error ? err.message : String(err),
+            error: scrubError(err instanceof Error ? err.message : String(err)),
           },
         };
       }

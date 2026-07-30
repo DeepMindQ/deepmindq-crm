@@ -2,7 +2,7 @@
 // Usage: const limited = rateLimit({ key: 'api-companies', limit: 100, windowMs: 60000 })
 // Returns { success: boolean, remaining: number, resetAt: number }
 
-interface RateLimitResult {
+export interface RateLimitResult {
   success: boolean
   remaining: number
   resetAt: number

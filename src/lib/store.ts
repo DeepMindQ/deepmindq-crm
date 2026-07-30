@@ -109,7 +109,7 @@ export const useAppStore = create<AppState>((set) => ({
   companyStatusFilter: 'all',
   intelligenceActivated: false,
   setActiveView: (view) => set({ activeView: view }),
-  setSidebarCollapsed: (collapsed) => set({ sidebarCollapsed: collapsed }),
+  setSidebarCollapsed: (collapsed: boolean) => set({ sidebarCollapsed: collapsed }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
   setSelectedContactId: (id) => set({ selectedContactId: id }),
   setSelectedCompanyId: (id) => set({ selectedCompanyId: id }),

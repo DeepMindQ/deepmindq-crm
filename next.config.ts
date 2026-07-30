@@ -6,7 +6,7 @@ const nextConfig: NextConfig = {
     // Type-checking enforced — Phase 1 complete: 0 errors
     ignoreBuildErrors: false,
   },
-  reactStrictMode: false,
+  reactStrictMode: true,
   poweredByHeader: false,
   images: {
     unoptimized: true,

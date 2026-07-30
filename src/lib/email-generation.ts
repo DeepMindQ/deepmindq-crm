@@ -528,7 +528,7 @@ export async function generateEmailDraft(params: {
       companyId: companyId || researchCtxForAudit?.companyId,
       contactId: contactId || undefined,
       researchContext: researchCtxForAudit,
-      capabilityAssetIds: retrievedCapabilities.map(c => c.id),
+      capabilityAssetIds: retrievedCapabilities.map((c: { id: string }) => c.id),
       governanceResult: governanceResult!,
       outputSummary: `${result.subject} — ${result.body.substring(0, 100)}...`,
       inputParams: { company, industry, tone, hasResearchContext: !!researchContext },

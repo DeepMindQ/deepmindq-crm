@@ -18,9 +18,8 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { EnterpriseReasoningEngine } from '@/lib/enterprise-reasoning-engine';
 import type { ReasoningResult } from '@/lib/enterprise-reasoning-engine';
+import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import {
-  parseIncludeParams,
-  shouldInclude,
   createResponse,
   createErrorResponse,
   computeFreshness,
@@ -44,14 +43,19 @@ export async function GET(
     );
   }
 
+  // ── Intelligence Guard: validation + rate limiting + correlation-id ─────
+  const guardResult = await intelligenceGuard(request, params, 'reasoning');
+  if (guardResult instanceof Response) return guardResult;
+  const { correlationId, responseHeaders } = guardResult;
+
   // Parse include params — "steps" is included by default when no include is specified
-  const { includes, raw } = parseIncludeParams(request);
-  const includeSteps = raw === null || shouldInclude(includes, 'steps');
+  const raw = request.nextUrl.searchParams.get('include');
+  const includeSteps = raw === null || guardResult.includes.has('steps');
 
   logger.info('[intelligence/reasoning] Processing', {
     companyId,
     includeSteps,
-    includes: Array.from(includes),
+    includes: Array.from(guardResult.includes),
   });
 
   // ── Step 1: Load company from DB (for freshness) ────────────────────────
@@ -69,15 +73,15 @@ export async function GET(
     const message = err instanceof Error ? err.message : 'Unknown error';
     logger.error('[intelligence/reasoning] DB lookup failed', { companyId, error: message });
     return Response.json(
-      createErrorResponse('reasoning', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, includes),
-      { status: 500 },
+      createErrorResponse('reasoning', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
+      { status: 500, headers: responseHeaders },
     );
   }
 
   if (!company) {
     return Response.json(
-      createErrorResponse('reasoning', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, includes),
-      { status: 404 },
+      createErrorResponse('reasoning', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, guardResult.includes),
+      { status: 404, headers: responseHeaders },
     );
   }
 
@@ -89,8 +93,8 @@ export async function GET(
     const message = err instanceof Error ? err.message : String(err);
     logger.error('[intelligence/reasoning] Engine build threw', { companyId, error: message });
     return Response.json(
-      createErrorResponse('reasoning', companyId, message, 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
-      { status: 502 },
+      createErrorResponse('reasoning', companyId, message, 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
+      { status: 502, headers: responseHeaders },
     );
   }
 
@@ -108,9 +112,9 @@ export async function GET(
         result.error || 'Reasoning engine failed',
         'ENGINE_TIMEOUT',
         Date.now() - startedAt,
-        includes,
+        guardResult.includes,
       ),
-      { status: 502 },
+      { status: 502, headers: responseHeaders },
     );
   }
 
@@ -189,12 +193,13 @@ export async function GET(
   return Response.json(
     createResponse('reasoning', companyId, data, {
       durationMs,
-      includes,
+      includes: guardResult.includes,
       cached: result.durationMs === 0, // engine skipped rebuild → cached
       confidence: result.overallConfidence,
       freshness,
       requestedAt,
       respondedAt: new Date(),
     }),
+    { headers: responseHeaders },
   );
 }

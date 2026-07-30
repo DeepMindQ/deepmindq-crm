@@ -18,13 +18,13 @@ import { db } from '@/lib/db';
 import { ConversationEngine } from '@/lib/engines/conversation-engine';
 import type { ConversationResult } from '@/lib/engines/conversation-engine';
 import {
-  parseIncludeParams,
   shouldInclude,
   createResponse,
   createErrorResponse,
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
 import type { IntelligenceConversationOutput, IntelligenceBrief } from '@/lib/intelligence-api/types';
+import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
 
 export async function GET(
@@ -43,11 +43,13 @@ export async function GET(
     );
   }
 
-  const { includes } = parseIncludeParams(request);
+  const guardResult = await intelligenceGuard(request, params, 'conversation');
+  if (guardResult instanceof Response) return guardResult;
+  const { correlationId, responseHeaders } = guardResult;
 
   logger.info('[intelligence/conversation] Processing', {
     companyId,
-    includes: Array.from(includes),
+    includes: Array.from(guardResult.includes),
   });
 
   // ── Step 1: Load company from DB (for freshness) ────────────────────────
@@ -65,15 +67,15 @@ export async function GET(
     const message = err instanceof Error ? err.message : 'Unknown error';
     logger.error('[intelligence/conversation] DB lookup failed', { companyId, error: message });
     return Response.json(
-      createErrorResponse('conversation', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, includes),
-      { status: 500 },
+      createErrorResponse('conversation', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
+      { status: 500, headers: responseHeaders },
     );
   }
 
   if (!company) {
     return Response.json(
-      createErrorResponse('conversation', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, includes),
-      { status: 404 },
+      createErrorResponse('conversation', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, guardResult.includes),
+      { status: 404, headers: responseHeaders },
     );
   }
 
@@ -85,8 +87,8 @@ export async function GET(
     const message = err instanceof Error ? err.message : String(err);
     logger.warn('[intelligence/conversation] ConversationEngine threw', { companyId, error: message });
     return Response.json(
-      createErrorResponse('conversation', companyId, message, 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
-      { status: 502 },
+      createErrorResponse('conversation', companyId, message, 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
+      { status: 502, headers: responseHeaders },
     );
   }
 
@@ -96,14 +98,14 @@ export async function GET(
       error: conversationResult.error,
     });
     return Response.json(
-      createErrorResponse('conversation', companyId, conversationResult.error || 'Conversation engine failed', 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
-      { status: 502 },
+      createErrorResponse('conversation', companyId, conversationResult.error || 'Conversation engine failed', 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
+      { status: 502, headers: responseHeaders },
     );
   }
 
   // ── Step 3: Load learning insights (best-effort, parallel-safe) ──────────
   let learningEvents: Array<{ id: string; learnedInsight: string; companyId: string | null; applicableContext: string; createdAt: Date }> = [];
-  if (shouldInclude(includes, 'learning')) {
+  if (shouldInclude(guardResult.includes, 'learning')) {
     try {
       learningEvents = await db.learningEvent.findMany({
         where: { companyId },
@@ -180,12 +182,13 @@ export async function GET(
   return Response.json(
     createResponse('conversation', companyId, data, {
       durationMs,
-      includes,
+      includes: guardResult.includes,
       cached: false,
       confidence,
       freshness,
       requestedAt,
       respondedAt: new Date(),
     }),
+    { headers: responseHeaders },
   );
 }

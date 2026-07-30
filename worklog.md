@@ -1,6 +1,37 @@
 # DeepMindQ Worklog
 
 ---
+Task ID: ticket-1-foundation-hardening
+Agent: main
+Task: Ticket 1 — Foundation Hardening (P0, no dependencies)
+
+Work Log:
+- Enabled `noImplicitAny: true` in tsconfig.json (was false)
+- Enabled `reactStrictMode: true` in next.config.ts (was false)
+- Fixed 26 TypeScript errors from noImplicitAny: alignment/route.ts (2), analytics-screen.tsx (5), companies-screen.tsx (7), company-detail-screen.tsx (1), data-health-screen.tsx (6), email-generation.ts (1), store.ts (1), email-provider.ts (1 via nodemailer.d.ts)
+- Created `src/lib/intelligence-api/validators.ts` — Zod validation schemas for all 6 Intelligence API endpoints (companyId + include params)
+- Created `src/lib/intelligence-api/handler.ts` — Unified handler wrapper with Zod validation, rate limiting, correlation-id, sensitive data scrubbing
+- Created `src/lib/intelligence-api/guard.ts` — Route middleware guard combining validation + rate limiting + correlation-id
+- Wired `intelligenceGuard()` into all 6 Intelligence API route handlers: company, reasoning, opportunity, action, conversation, mindmap
+- Each route now: validates companyId with Zod, validates include params, applies rate limiting (60 req/min/IP), propagates x-correlation-id header, returns structured error responses with headers
+- Exported `RateLimitResult` type from `src/lib/rate-limit.ts`
+- Created `src/types/nodemailer.d.ts` for nodemailer type declaration
+- Created `tests/ticket1-intelligence-validation.test.ts` — 45 tests covering all 6 endpoint schemas + shared schemas
+- Created `tests/ticket1-intelligence-errors.test.ts` — 19 tests covering error envelope format, sensitive data scrubbing, correlation ID propagation, error codes
+
+Stage Summary:
+- EXIT CRITERIA ALL PASS:
+  [x] tsc --noEmit passes with zero errors
+  [x] All 6 Intelligence API endpoints have Zod validation
+  [x] Error responses follow { error: string, code: string, details?: object } format
+  [x] 64/64 tests pass (45 validation + 19 integration/error tests)
+- Files created: validators.ts, handler.ts, guard.ts, nodemailer.d.ts, 2 test files
+- Files modified: tsconfig.json, next.config.ts, 6 route handlers, rate-limit.ts, index.ts, 8 existing files for noImplicitAny fixes
+- Ready for Ticket 2: Intelligence API Layer Refactor
+
+---
+
+---
 Task ID: architecture-v2-complete
 Agent: main
 Task: Write complete ARCHITECTURE.md (12 sections, user-approved) + generate 5 architecture diagrams

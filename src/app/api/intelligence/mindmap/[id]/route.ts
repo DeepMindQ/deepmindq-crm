@@ -14,12 +14,12 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import {
-  parseIncludeParams,
   createResponse,
   createErrorResponse,
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
 import type { IntelligenceMindmap, MindmapNode } from '@/lib/intelligence-api/types';
+import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
 
 export async function GET(
@@ -38,11 +38,13 @@ export async function GET(
     );
   }
 
-  const { includes } = parseIncludeParams(request);
+  const guardResult = await intelligenceGuard(request, params, 'mindmap');
+  if (guardResult instanceof Response) return guardResult;
+  const { correlationId, responseHeaders } = guardResult;
 
   logger.info('[intelligence/mindmap] Processing', {
     companyId,
-    includes: Array.from(includes),
+    includes: Array.from(guardResult.includes),
   });
 
   // ── Step 1: Load company from DB (for freshness + center node label) ─────
@@ -62,15 +64,15 @@ export async function GET(
     const message = err instanceof Error ? err.message : 'Unknown error';
     logger.error('[intelligence/mindmap] DB lookup failed', { companyId, error: message });
     return Response.json(
-      createErrorResponse('mindmap', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, includes),
-      { status: 500 },
+      createErrorResponse('mindmap', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
+      { status: 500, headers: responseHeaders },
     );
   }
 
   if (!company) {
     return Response.json(
-      createErrorResponse('mindmap', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, includes),
-      { status: 404 },
+      createErrorResponse('mindmap', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, guardResult.includes),
+      { status: 404, headers: responseHeaders },
     );
   }
 
@@ -173,12 +175,13 @@ export async function GET(
   return Response.json(
     createResponse('mindmap', companyId, data, {
       durationMs,
-      includes,
+      includes: guardResult.includes,
       cached: false,
       confidence,
       freshness,
       requestedAt,
       respondedAt: new Date(),
     }),
+    { headers: responseHeaders },
   );
 }

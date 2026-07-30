@@ -23,12 +23,12 @@ import type { ActionResult } from '@/lib/engines/action-engine';
 import { ConversationEngine } from '@/lib/engines/conversation-engine';
 import type { ConversationResult } from '@/lib/engines/conversation-engine';
 import {
-  parseIncludeParams,
   shouldInclude,
   createResponse,
   createErrorResponse,
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
+import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import type {
   IntelligenceCompanyContext,
   IntelligenceResponse,
@@ -49,20 +49,15 @@ export async function GET(
   // ── Extract companyId from dynamic route ───────────────────────────────
   const { id: companyId } = await params;
 
-  if (!companyId) {
-    logger.warn('[intelligence/company] Missing companyId in route params');
-    return Response.json(
-      createErrorResponse('company', '', 'Company ID is required', 'MISSING_COMPANY_ID'),
-      { status: 400 },
-    );
-  }
-
-  // ── Parse ?include= query parameter ─────────────────────────────────────
-  const { includes } = parseIncludeParams(request);
+  // ── Intelligence Guard: validation + rate limiting + correlation-id ─────
+  const guardResult = await intelligenceGuard(request, params, 'company');
+  if (guardResult instanceof Response) return guardResult;
+  const { correlationId, responseHeaders } = guardResult;
 
   logger.info('[intelligence/company] Processing', {
     companyId,
-    includes: Array.from(includes),
+    correlationId,
+    includes: Array.from(guardResult.includes),
   });
 
   // ── Step 1: Load company from DB ───────────────────────────────────────
@@ -111,9 +106,9 @@ export async function GET(
         `Company lookup failed: ${message}`,
         'INTELLIGENCE_UNAVAILABLE',
         Date.now() - startedAt,
-        includes,
+        guardResult.includes,
       ),
-      { status: 500 },
+      { status: 500, headers: responseHeaders },
     );
   }
 
@@ -126,9 +121,9 @@ export async function GET(
         'Company not found',
         'COMPANY_NOT_FOUND',
         Date.now() - startedAt,
-        includes,
+        guardResult.includes,
       ),
-      { status: 404 },
+      { status: 404, headers: responseHeaders },
     );
   }
 
@@ -136,7 +131,7 @@ export async function GET(
 
   // --- Signals ---
   let signals: IntelligenceCompanyContext['signals'] = undefined;
-  if (shouldInclude(includes, 'signals')) {
+  if (shouldInclude(guardResult.includes, 'signals')) {
     try {
       const signalRecords = await db.companySignal.findMany({
         where: { companyId },
@@ -179,7 +174,7 @@ export async function GET(
 
   // --- Contacts ---
   let contacts: IntelligenceCompanyContext['contacts'] = undefined;
-  if (shouldInclude(includes, 'contacts')) {
+  if (shouldInclude(guardResult.includes, 'contacts')) {
     try {
       const contactRecords = await db.contact.findMany({
         where: { companyId },
@@ -227,7 +222,7 @@ export async function GET(
 
   // --- Timeline ---
   let timeline: IntelligenceCompanyContext['timeline'] = undefined;
-  if (shouldInclude(includes, 'timeline')) {
+  if (shouldInclude(guardResult.includes, 'timeline')) {
     try {
       const timelineRecords = await db.companyTimelineEvent.findMany({
         where: { companyId },
@@ -262,7 +257,7 @@ export async function GET(
 
   // --- Knowledge (CapabilityAssets linked via FusionResult) ---
   let knowledge: IntelligenceCompanyContext['knowledge'] = undefined;
-  if (shouldInclude(includes, 'knowledge')) {
+  if (shouldInclude(guardResult.includes, 'knowledge')) {
     try {
       // Load fusion results to find capability IDs linked to this company
       const fusionResults = await db.fusionResult.findMany({
@@ -345,7 +340,7 @@ export async function GET(
 
   // --- Mindmap summary ---
   let mindmap: IntelligenceCompanyContext['mindmap'] = undefined;
-  if (shouldInclude(includes, 'mindmap')) {
+  if (shouldInclude(guardResult.includes, 'mindmap')) {
     try {
       // Mindmap tables (mindmapNode/mindmapEdge) don't exist in Prisma schema yet.
       // Derive summary from contacts, signals, and capability counts.
@@ -373,15 +368,15 @@ export async function GET(
   // ── Step 3: Run engines in parallel (scores, actions, brief) ──────────
   const enginePromises: Record<string, Promise<unknown>> = {};
 
-  if (shouldInclude(includes, 'scores')) {
+  if (shouldInclude(guardResult.includes, 'scores')) {
     enginePromises.scores = ScoringEngine.score({ companyId, skipNarrative: true });
   }
 
-  if (shouldInclude(includes, 'actions')) {
+  if (shouldInclude(guardResult.includes, 'actions')) {
     enginePromises.actions = ActionEngine.recommend({ companyId, skipNarrative: true });
   }
 
-  if (shouldInclude(includes, 'brief')) {
+  if (shouldInclude(guardResult.includes, 'brief')) {
     enginePromises.brief = ConversationEngine.brief({ companyId, skipNarrative: true });
   }
 
@@ -586,8 +581,9 @@ export async function GET(
 
   logger.info('[intelligence/company] Response assembled', {
     companyId,
+    correlationId,
     durationMs,
-    includes: Array.from(includes),
+    includes: Array.from(guardResult.includes),
     confidence: aggregateConfidence,
     freshnessLevel: freshness.level,
   });
@@ -595,12 +591,13 @@ export async function GET(
   return Response.json(
     createResponse('company', companyId, data, {
       durationMs,
-      includes,
+      includes: guardResult.includes,
       cached: false,
       confidence: aggregateConfidence,
       freshness,
       requestedAt,
       respondedAt: new Date(),
     }),
+    { headers: responseHeaders },
   );
 }

@@ -585,7 +585,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
               <SectionHeader title="AI Enrichment Strategy" subtitle="AI-ranked actions to improve data quality" />
             </div>
             <StaggerGrid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" stagger={0.06}>
-              {data.aiEnrichmentStrategy.map((item, idx) => (
+              {data.aiEnrichmentStrategy.map((item: NonNullable<DataHealthResponse['aiEnrichmentStrategy']>[number], idx: number) => (
                 <StaggerItem key={idx}>
                   <motion.div
                     initial={{ opacity: 0, y: 8 }}
@@ -662,7 +662,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
           </div>
           <GlassPanel className="overflow-hidden">
             <div className="divide-y divide-gray-100">
-              {data.enrichmentQueue.map((item, idx) => (
+              {data.enrichmentQueue.map((item: DataHealthResponse['enrichmentQueue'][number], idx: number) => (
                 <motion.div
                   key={item.id}
                   initial={{ opacity: 0, x: -8 }}
@@ -740,7 +740,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
           <SectionHeader title="Data Freshness" subtitle="How recently data was updated across account groups" />
           <GlassPanel className="p-5">
             <div className="space-y-5">
-              {data.dataFreshness.map((item, idx) => {
+              {data.dataFreshness.map((item: DataHealthResponse['dataFreshness'][number], idx: number) => {
                 const freshnessPct =
                   item.lastUpdated.includes('hour') ? 95
                     : item.lastUpdated.includes('day') && !item.lastUpdated.includes('week') ? 70

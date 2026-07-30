@@ -18,13 +18,13 @@ import { db } from '@/lib/db';
 import { ActionEngine } from '@/lib/engines/action-engine';
 import type { ActionResult } from '@/lib/engines/action-engine';
 import {
-  parseIncludeParams,
   shouldInclude,
   createResponse,
   createErrorResponse,
   computeFreshness,
 } from '@/lib/intelligence-api/middleware';
 import type { IntelligenceActionOutput } from '@/lib/intelligence-api/types';
+import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
 
 export async function GET(
@@ -43,11 +43,13 @@ export async function GET(
     );
   }
 
-  const { includes } = parseIncludeParams(request);
+  const guardResult = await intelligenceGuard(request, params, 'action');
+  if (guardResult instanceof Response) return guardResult;
+  const { correlationId, responseHeaders } = guardResult;
 
   logger.info('[intelligence/action] Processing', {
     companyId,
-    includes: Array.from(includes),
+    includes: Array.from(guardResult.includes),
   });
 
   // ── Step 1: Load company from DB (for freshness) ────────────────────────
@@ -65,15 +67,15 @@ export async function GET(
     const message = err instanceof Error ? err.message : 'Unknown error';
     logger.error('[intelligence/action] DB lookup failed', { companyId, error: message });
     return Response.json(
-      createErrorResponse('action', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, includes),
-      { status: 500 },
+      createErrorResponse('action', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
+      { status: 500, headers: responseHeaders },
     );
   }
 
   if (!company) {
     return Response.json(
-      createErrorResponse('action', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, includes),
-      { status: 404 },
+      createErrorResponse('action', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, guardResult.includes),
+      { status: 404, headers: responseHeaders },
     );
   }
 
@@ -85,8 +87,8 @@ export async function GET(
     const message = err instanceof Error ? err.message : String(err);
     logger.warn('[intelligence/action] ActionEngine threw', { companyId, error: message });
     return Response.json(
-      createErrorResponse('action', companyId, message, 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
-      { status: 502 },
+      createErrorResponse('action', companyId, message, 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
+      { status: 502, headers: responseHeaders },
     );
   }
 
@@ -96,14 +98,14 @@ export async function GET(
       error: actionResult.error,
     });
     return Response.json(
-      createErrorResponse('action', companyId, actionResult.error || 'Action engine failed', 'ENGINE_TIMEOUT', Date.now() - startedAt, includes),
-      { status: 502 },
+      createErrorResponse('action', companyId, actionResult.error || 'Action engine failed', 'ENGINE_TIMEOUT', Date.now() - startedAt, guardResult.includes),
+      { status: 502, headers: responseHeaders },
     );
   }
 
   // ── Step 3: Load learning insights (best-effort, parallel-safe) ──────────
   let learningEvents: Array<{ id: string; learnedInsight: string; companyId: string | null; applicableContext: string; createdAt: Date }> = [];
-  if (shouldInclude(includes, 'learning')) {
+  if (shouldInclude(guardResult.includes, 'learning')) {
     try {
       learningEvents = await db.learningEvent.findMany({
         where: { companyId },
@@ -146,12 +148,13 @@ export async function GET(
   return Response.json(
     createResponse('action', companyId, data, {
       durationMs,
-      includes,
+      includes: guardResult.includes,
       cached: false,
       confidence,
       freshness,
       requestedAt,
       respondedAt: new Date(),
     }),
+    { headers: responseHeaders },
   );
 }

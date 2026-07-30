@@ -136,7 +136,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
   const replyRate = totalSent > 0 ? (totalReplies / totalSent) * 100 : 0;
 
   /* ── Pipeline Funnel Data ── */
-  const funnelData = [
+  const funnelData: Array<{ key: string; label: string; count?: number; conversionPct?: string | number }> = [
     { key: 'imported', label: 'Imported' },
     { key: 'cleaned', label: 'Cleaned' },
     { key: 'drafted', label: 'Drafted' },
@@ -255,7 +255,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
               <YAxis type="category" dataKey="label" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} width={75} />
               <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(212,175,55,0.04)' }} />
               <Bar dataKey="count" fill="url(#funnelGrad)" radius={[0, 6, 6, 0]} barSize={28} name="Count">
-                {funnelData.map((entry, idx) => (
+                {funnelData.map((entry: { key: string; label: string; count?: number; conversionPct?: string | number }, idx: number) => (
                   <Cell key={idx} fill="url(#funnelGrad)" opacity={1 - idx * 0.08} />
                 ))}
               </Bar>

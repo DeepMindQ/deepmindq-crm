@@ -532,7 +532,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
 
   // Edit state
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState<any>({});
+  const [editForm, setEditForm] = useState<Record<string, string>>({});
   const [noteDialogOpen, setNoteDialogOpen] = useState(false);
   const [noteForm, setNoteForm] = useState({ title: '', body: '', category: 'general' });
   const [savingNote, setSavingNote] = useState(false);

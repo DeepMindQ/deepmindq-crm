@@ -779,10 +779,10 @@ function composeTechnologyProfile(
   const rc = company.researchCard;
   if (rc?.techStack) {
     const ts = typeof rc.techStack === 'string' ? rc.techStack : JSON.stringify(rc.techStack);
-    techStack.push(...ts.split(',').map(t => t.trim()).filter(Boolean));
+    techStack.push(...ts.split(',').map((t: string) => t.trim()).filter(Boolean));
   }
   if (rc?.techLandscape && typeof rc.techLandscape === 'string') {
-    techStack.push(...rc.techLandscape.split(',').map(t => t.trim()).filter(Boolean));
+    techStack.push(...rc.techLandscape.split(',').map((t: string) => t.trim()).filter(Boolean));
   }
 
   const maturity = (rc?.digitalMaturity as string) || (

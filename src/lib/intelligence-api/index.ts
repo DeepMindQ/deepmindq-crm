@@ -52,6 +52,34 @@ export {
   computeFreshness,
 } from './middleware';
 
+// ── Validators (Zod schemas for request validation) ──
+export {
+  companyIdSchema,
+  includeSchema,
+  pageSchema,
+  limitSchema,
+  companyIntelligenceSchema,
+  reasoningIntelligenceSchema,
+  opportunityIntelligenceSchema,
+  actionIntelligenceSchema,
+  conversationIntelligenceSchema,
+  mindmapIntelligenceSchema,
+  intelligenceValidators,
+} from './validators';
+
+// ── Handler wrapper (validation + rate limit + correlation-id + error handling) ──
+export { withIntelligenceHandler, scrubError } from './handler';
+
+// ── Types from validators ──
+export type {
+  CompanyIntelligenceInput,
+  ReasoningIntelligenceInput,
+  OpportunityIntelligenceInput,
+  ActionIntelligenceInput,
+  ConversationIntelligenceInput,
+  MindmapIntelligenceInput,
+} from './validators';
+
 // ── Foundation Engines (internal composition use, re-exported for Intelligence API routes) ──
 export { GroundingEngine } from '@/lib/engines/grounding-engine';
 export type {

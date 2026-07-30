@@ -295,7 +295,7 @@ export default function CompaniesScreen() {
       return d!;
     },
   });
-  const companies = data?.companies ?? [];
+  const companies: CompanyRow[] = data?.companies ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / 20));
 

@@ -22,7 +22,6 @@ import { ActionEngine } from '@/lib/engines/action-engine';
 import type { ActionResult } from '@/lib/engines/action-engine';
 import { EnterpriseReasoningEngine } from '@/lib/enterprise-reasoning-engine';
 import {
-  parseIncludeParams,
   createResponse,
   createErrorResponse,
   computeFreshness,
@@ -31,6 +30,7 @@ import type {
   IntelligenceOpportunity,
   IntelligenceResponse,
 } from '@/lib/intelligence-api/types';
+import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
 
 export async function GET(
@@ -49,11 +49,13 @@ export async function GET(
     );
   }
 
-  const { includes } = parseIncludeParams(request);
+  const guardResult = await intelligenceGuard(request, params, 'opportunity');
+  if (guardResult instanceof Response) return guardResult;
+  const { correlationId, responseHeaders } = guardResult;
 
   logger.info('[intelligence/opportunity] Processing', {
     companyId,
-    includes: Array.from(includes),
+    includes: Array.from(guardResult.includes),
   });
 
   // ── Step 1: Load company from DB (for freshness) ────────────────────────
@@ -73,15 +75,15 @@ export async function GET(
     const message = err instanceof Error ? err.message : 'Unknown error';
     logger.error('[intelligence/opportunity] DB lookup failed', { companyId, error: message });
     return Response.json(
-      createErrorResponse('opportunity', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, includes),
-      { status: 500 },
+      createErrorResponse('opportunity', companyId, `Company lookup failed: ${message}`, 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt, guardResult.includes),
+      { status: 500, headers: responseHeaders },
     );
   }
 
   if (!company) {
     return Response.json(
-      createErrorResponse('opportunity', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, includes),
-      { status: 404 },
+      createErrorResponse('opportunity', companyId, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt, guardResult.includes),
+      { status: 404, headers: responseHeaders },
     );
   }
 
@@ -182,12 +184,13 @@ export async function GET(
   return Response.json(
     createResponse('opportunity', companyId, data, {
       durationMs,
-      includes,
+      includes: guardResult.includes,
       cached: false,
       confidence,
       freshness,
       requestedAt,
       respondedAt: new Date(),
     }),
+    { headers: responseHeaders },
   );
 }

@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>DeepMindQ — API Architecture</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0a0c10;
+  color: #e2e8f0;
+  padding: 40px;
+  min-height: 100vh;
+}
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 32px;
+  font-weight: 400;
+}
+.subtitle {
+  color: #64748b;
+  font-size: 14px;
+  margin-bottom: 40px;
+}
+.diagram-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.layer {
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 2px;
+  position: relative;
+  background: rgba(15, 18, 25, 0.8);
+  transition: all 0.3s ease;
+}
+.layer:hover {
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(15, 18, 25, 1);
+}
+.layer-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.layer-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.layer-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+.layer-desc {
+  font-size: 12px;
+  color: #64748b;
+  margin-left: auto;
+}
+.boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.box {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+.box-sm { padding: 6px 10px; font-size: 11px; }
+
+/* Colors */
+.c-blue { background: rgba(59, 130, 246, 0.12); border-color: rgba(59, 130, 246, 0.25); color: #93c5fd; }
+.c-green { background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.25); color: #86efac; }
+.c-purple { background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.25); color: #d8b4fe; }
+.c-amber { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.25); color: #fcd34d; }
+.c-red { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.25); color: #fca5a5; }
+.c-cyan { background: rgba(6, 182, 212, 0.12); border-color: rgba(6, 182, 212, 0.25); color: #67e8f9; }
+.c-pink { background: rgba(236, 72, 153, 0.12); border-color: rgba(236, 72, 153, 0.25); color: #f9a8d4; }
+.c-indigo { background: rgba(99, 102, 241, 0.12); border-color: rgba(99, 102, 241, 0.25); color: #a5b4fc; }
+
+/* Arrow between layers */
+.arrow-down {
+  text-align: center;
+  color: #475569;
+  font-size: 18px;
+  padding: 4px 0;
+  line-height: 1;
+}
+.flow-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.flow-arrow {
+  color: #475569;
+  font-size: 16px;
+}
+.connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0;
+}
+.connector-line {
+  width: 2px;
+  height: 24px;
+  background: linear-gradient(to bottom, #334155, #475569);
+}
+
+/* Grid layout for data model */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+.domain-card {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 12px;
+  padding: 16px;
+  background: rgba(15, 18, 25, 0.6);
+}
+.domain-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.domain-count {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+}
+.model-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin: 2px;
+  background: rgba(148, 163, 184, 0.08);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.06);
+}
+
+/* Timeline */
+.timeline-item {
+  position: relative;
+  padding-left: 32px;
+  padding-bottom: 24px;
+  border-left: 2px solid rgba(148, 163, 184, 0.15);
+  margin-left: 8px;
+}
+.timeline-item:last-child { border-left-color: transparent; }
+.timeline-dot {
+  position: absolute;
+  left: -7px;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid;
+}
+.timeline-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin-bottom: 4px;
+}
+.timeline-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+.timeline-meta {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* Roadmap */
+.ticket-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 80px 80px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  border-radius: 8px;
+  margin-bottom: 4px;
+  background: rgba(15, 18, 25, 0.4);
+  font-size: 12px;
+}
+.ticket-row:hover {
+  background: rgba(15, 18, 25, 0.8);
+  border-color: rgba(148, 163, 184, 0.15);
+}
+.ticket-num {
+  font-weight: 700;
+  font-size: 14px;
+}
+.ticket-deps {
+  font-size: 11px;
+  color: #64748b;
+}
+.ticket-priority {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
+.p-p0 { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+.p-p1 { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+.p-p2 { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+.p-p3 { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+
+.footer {
+  text-align: center;
+  color: #334155;
+  font-size: 11px;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(148, 163, 184, 0.06);
+}
+
+/* Mindmap */
+.center-node {
+  width: 160px;
+  height: 80px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+.branch {
+  position: absolute;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 140px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* API table */
+.api-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.api-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+.api-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.06);
+  vertical-align: top;
+}
+.api-table tr:hover td {
+  background: rgba(15, 18, 25, 0.6);
+}
+.method-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.api-section {
+  margin-bottom: 32px;
+}
+.api-section-title {
+  font-size: 16px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.api-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 6px;
+}
+.endpoint-card {
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 10px;
+  padding: 14px 18px;
+  margin-bottom: 6px;
+  background: rgba(15, 18, 25, 0.4);
+  display: grid;
+  grid-template-columns: 280px 1fr 100px;
+  gap: 16px;
+  align-items: center;
+}
+.endpoint-card:hover {
+  background: rgba(15, 18, 25, 0.8);
+  border-color: rgba(148, 163, 184, 0.2);
+}
+.ep-path {
+  font-family: 'SF Mono', 'Fira Code', monospace;
+  font-size: 12px;
+  color: #93c5fd;
+}
+.ep-desc {
+  font-size: 12px;
+  color: #94a3b8;
+}
+.ep-engine {
+  font-size: 11px;
+  color: #64748b;
+  text-align: right;
+}
+.route-group {
+  margin-top: 24px;
+}
+.route-group-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: #cbd5e1;
+  margin-bottom: 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.route-count {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 8px;
+  background: rgba(148, 163, 184, 0.08);
+  color: #64748b;
+}
+.middleware-flow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin: 16px 0 32px 0;
+  padding: 14px;
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 10px;
+  background: rgba(15, 18, 25, 0.4);
+}
+.mw-box {
+  font-size: 11px;
+  padding: 5px 10px;
+  border-radius: 6px;
+  background: rgba(148, 163, 184, 0.08);
+  color: #94a3b8;
+}
+.mw-arrow {
+  color: #334155;
+  font-size: 12px;
+}
+</style></head><body>
+<div class="diagram-container">
+  <h1>DeepMindQ &mdash; API Architecture</h1>
+  <h2>6 Intelligence Endpoints &middot; 208 Internal Routes &middot; Full Middleware Stack</h2>
+
+  <!-- Middleware -->
+  <div class="middleware-flow">
+    <span style="font-size:11px;color:#64748b;margin-right:4px;">Request Flow:</span>
+    <div class="mw-box">Auth Check</div><div class="mw-arrow">&rarr;</div>
+    <div class="mw-box">Rate Limit</div><div class="mw-arrow">&rarr;</div>
+    <div class="mw-box">CSRF Protection</div><div class="mw-arrow">&rarr;</div>
+    <div class="mw-box" style="color:#fcd34d;">Zod Validation</div><div class="mw-arrow">&rarr;</div>
+    <div class="mw-box">Business Logic</div><div class="mw-arrow">&rarr;</div>
+    <div class="mw-box">Response</div>
+    <div style="margin-left:12px;"></div>
+    <div class="mw-box" style="color:#fca5a5;">Audit Log</div>
+    <div class="mw-box" style="color:#fca5a5;">AI Governance</div>
+  </div>
+
+  <!-- 6 Product Endpoints -->
+  <div class="api-section">
+    <div class="api-section-title">
+      <span class="api-badge" style="background:rgba(34,197,94,0.2);color:#86efac;">PRODUCT</span>
+      6 Intelligence API Endpoints &mdash; The ONLY frontend contract
+    </div>
+
+    <div class="endpoint-card">
+      <div class="ep-path">GET /api/intelligence/company/<b>{id}</b></div>
+      <div class="ep-desc">Company 360 intelligence view &mdash; signals, scores, contacts, timeline, brief, knowledge</div>
+      <div class="ep-engine">All Engines</div>
+    </div>
+    <div class="endpoint-card">
+      <div class="ep-path">GET /api/intelligence/reasoning/<b>{id}</b></div>
+      <div class="ep-desc">Enterprise reasoning &mdash; 30-step chain, impact analysis, strategic recommendations</div>
+      <div class="ep-engine">Reasoning</div>
+    </div>
+    <div class="endpoint-card">
+      <div class="ep-path">GET /api/intelligence/opportunity/<b>{id}</b></div>
+      <div class="ep-desc">Opportunity intelligence &mdash; scores, fusion data, win probability, capability matches</div>
+      <div class="ep-engine">Fusion+Score</div>
+    </div>
+    <div class="endpoint-card">
+      <div class="ep-path">GET /api/intelligence/action/<b>{id}</b></div>
+      <div class="ep-desc">Next best actions &mdash; recommendations, sequences, learning insights, priorities</div>
+      <div class="ep-engine">Action</div>
+    </div>
+    <div class="endpoint-card">
+      <div class="ep-path">GET /api/intelligence/conversation/<b>{id}</b></div>
+      <div class="ep-desc">Conversation preparation &mdash; talking points, objection handling, buyer profiles</div>
+      <div class="ep-engine">Conversation</div>
+    </div>
+    <div class="endpoint-card">
+      <div class="ep-path">GET /api/intelligence/mindmap/<b>{id}</b></div>
+      <div class="ep-desc">Knowledge graph &mdash; org chart, knowledge connections, signal relationships</div>
+      <div class="ep-engine">Retrieval</div>
+    </div>
+    <div style="font-size:11px;color:#64748b;padding:8px 0;">All endpoints support <code style="color:#93c5fd;">?include=signals,scores,contacts</code> for selective data loading</div>
+  </div>
+
+  <!-- Internal Routes -->
+  <div class="api-section">
+    <div class="api-section-title">
+      <span class="api-badge" style="background:rgba(148,163,184,0.15);color:#94a3b8;">INTERNAL</span>
+      208 API Routes &mdash; CRUD, Testing, Engine Access
+    </div>
+
+    <div class="route-group">
+      <div class="route-group-title">Companies <span class="route-count">18 routes</span></div>
+      <div style="font-size:11px;color:#64748b;line-height:1.6;">
+        /api/companies &middot; /api/companies/[id] &middot; /api/companies/bulk &middot; /api/companies/enrich &middot;
+        /api/companies/compare &middot; /api/companies/[id]/intelligence &middot; /api/companies/[id]/signals &middot;
+        /api/companies/[id]/timeline &middot; /api/companies/[id]/brief &middot; /api/companies/[id]/score &middot;
+        /api/companies/[id]/actions &middot; /api/companies/[id]/alignment &middot; /api/companies/[id]/contacts &middot;
+        /api/companies/[id]/notes &middot; /api/companies/[id]/feedback &middot; /api/companies/stats &middot;
+        /api/companies/meta &middot; /api/companies/mind-map
+      </div>
+    </div>
+
+    <div class="route-group">
+      <div class="route-group-title">Intelligence <span class="route-count">25 routes</span></div>
+      <div style="font-size:11px;color:#64748b;line-height:1.6;">
+        /api/intelligence/unified &middot; /api/intelligence/full-pipeline &middot; /api/intelligence/sprint3 &middot;
+        /api/intelligence/enrich &middot; /api/intelligence/enrich-batch &middot; /api/intelligence/refresh &middot;
+        /api/intelligence/stats &middot; /api/intelligence/monitor &middot; /api/intelligence/predictions &middot;
+        /api/intelligence/cross-account &middot; /api/intelligence/competitive &middot;
+        /api/intelligence/capability-pipeline &middot; /api/intelligence/correlations &middot;
+        /api/intelligence/knowledge/[id] &middot; /api/intelligence/grounding/[id] &middot;
+        /api/intelligence/retrieval/[id] &middot; /api/intelligence/collect-external &middot;
+        /api/intelligence/website-monitor &middot; /api/intelligence/internal-memory &middot;
+        /api/intelligence/action-history &middot; /api/intelligence/feedback &middot;
+        /api/intelligence/people-enrich &middot; /api/intelligence/company/[id] &middot;
+        /api/intelligence/reasoning/[id] &middot; /api/intelligence/opportunity/[id]
+      </div>
+    </div>
+
+    <div class="route-group">
+      <div class="route-group-title">AI <span class="route-count">22 routes</span></div>
+      <div style="font-size:11px;color:#64748b;line-height:1.6;">
+        /api/ai/insights &middot; /api/ai/chat &middot; /api/ai/generate &middot; /api/ai/health &middot;
+        /api/ai/recommendations &middot; /api/ai/score-leads &middot; /api/ai/score-contacts &middot;
+        /api/ai/score-opportunities &middot; /api/ai/enrich &middot; /api/ai/opportunities &middot;
+        /api/ai/contact-intelligence &middot; /api/ai/signals &middot; /api/ai/buying-intent &middot;
+        /api/ai/deal-coaching &middot; /api/ai/deal-risk &middot; /api/ai/revenue-score &middot;
+        /api/ai/account-brief &middot; /api/ai/summarize &middot; /api/ai/usage &middot;
+        /api/ai/conversation-plan &middot; /api/ai/relationship-memory &middot; /api/ai/reliability
+      </div>
+    </div>
+
+    <div class="route-group">
+      <div class="route-group-title">Auth <span class="route-count">10 routes</span></div>
+      <div style="font-size:11px;color:#64748b;line-height:1.6;">
+        /api/auth/login &middot; /api/auth/logout &middot; /api/auth/register &middot; /api/auth/request-otp &middot;
+        /api/auth/verify-otp &middot; /api/auth/me &middot; /api/auth/update-profile &middot;
+        /api/auth/set-password &middot; /api/auth/change-password &middot; /api/auth/reset-password
+      </div>
+    </div>
+
+    <div style="margin-top:16px;">
+      <div class="route-group-title">Other Route Groups</div>
+      <div style="display:flex;flex-wrap:wrap;gap:8px;">
+        <span class="box box-sm" style="background:rgba(148,163,184,0.06);color:#64748b;">Contacts (8)</span>
+        <span class="box box-sm" style="background:rgba(148,163,184,0.06);color:#64748b;">Leads (10)</span>
+        <span class="box box-sm" style="background:rgba(148,163,184,0.06);color:#64748b;">Drafts (2)</span>
+        <span class="box box-sm" style="background:rgba(148,163,184,0.06);color:#64748b;">Sequences (5)</span>
+        <span class="box box-sm" style="background:rgba(148,163,184,0.06);color:#64748b;">Emails (4)</span>
+        <span class="box box-sm" style="background:rgba(148,163,184,0.06);color:#64748b;">Knowledge (4)</span>
+        <span class="box box-sm" style="background:rgba(148,163,184,0.06);color:#64748b;">Capabilities (5)</span>
+        <span class="box box-sm" style="background:rgba(148,163,184,0.06);color:#64748b;">Reports (4)</span>
+        <span class="box box-sm" style="background:rgba(148,163,184,0.06);color:#64748b;">Engines (6)</span>
+        <span class="box box-sm" style="background:rgba(148,163,184,0.06);color:#64748b;">Settings (1)</span>
+        <span class="box box-sm" style="background:rgba(148,163,184,0.06);color:#64748b;">Segments (2)</span>
+        <span class="box box-sm" style="background:rgba(148,163,184,0.06);color:#64748b;">+83 more</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">DeepMindQ API Architecture &mdash; 214 Total Routes &mdash; v2.0 Approved</div>
+</div>
+</body></html>

@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>DeepMindQ — System Architecture</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0a0c10;
+  color: #e2e8f0;
+  padding: 40px;
+  min-height: 100vh;
+}
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 32px;
+  font-weight: 400;
+}
+.subtitle {
+  color: #64748b;
+  font-size: 14px;
+  margin-bottom: 40px;
+}
+.diagram-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.layer {
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 2px;
+  position: relative;
+  background: rgba(15, 18, 25, 0.8);
+  transition: all 0.3s ease;
+}
+.layer:hover {
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(15, 18, 25, 1);
+}
+.layer-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.layer-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.layer-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+.layer-desc {
+  font-size: 12px;
+  color: #64748b;
+  margin-left: auto;
+}
+.boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.box {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+.box-sm { padding: 6px 10px; font-size: 11px; }
+
+/* Colors */
+.c-blue { background: rgba(59, 130, 246, 0.12); border-color: rgba(59, 130, 246, 0.25); color: #93c5fd; }
+.c-green { background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.25); color: #86efac; }
+.c-purple { background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.25); color: #d8b4fe; }
+.c-amber { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.25); color: #fcd34d; }
+.c-red { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.25); color: #fca5a5; }
+.c-cyan { background: rgba(6, 182, 212, 0.12); border-color: rgba(6, 182, 212, 0.25); color: #67e8f9; }
+.c-pink { background: rgba(236, 72, 153, 0.12); border-color: rgba(236, 72, 153, 0.25); color: #f9a8d4; }
+.c-indigo { background: rgba(99, 102, 241, 0.12); border-color: rgba(99, 102, 241, 0.25); color: #a5b4fc; }
+
+/* Arrow between layers */
+.arrow-down {
+  text-align: center;
+  color: #475569;
+  font-size: 18px;
+  padding: 4px 0;
+  line-height: 1;
+}
+.flow-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.flow-arrow {
+  color: #475569;
+  font-size: 16px;
+}
+.connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0;
+}
+.connector-line {
+  width: 2px;
+  height: 24px;
+  background: linear-gradient(to bottom, #334155, #475569);
+}
+
+/* Grid layout for data model */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+.domain-card {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 12px;
+  padding: 16px;
+  background: rgba(15, 18, 25, 0.6);
+}
+.domain-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.domain-count {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+}
+.model-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin: 2px;
+  background: rgba(148, 163, 184, 0.08);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.06);
+}
+
+/* Timeline */
+.timeline-item {
+  position: relative;
+  padding-left: 32px;
+  padding-bottom: 24px;
+  border-left: 2px solid rgba(148, 163, 184, 0.15);
+  margin-left: 8px;
+}
+.timeline-item:last-child { border-left-color: transparent; }
+.timeline-dot {
+  position: absolute;
+  left: -7px;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid;
+}
+.timeline-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin-bottom: 4px;
+}
+.timeline-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+.timeline-meta {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* Roadmap */
+.ticket-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 80px 80px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  border-radius: 8px;
+  margin-bottom: 4px;
+  background: rgba(15, 18, 25, 0.4);
+  font-size: 12px;
+}
+.ticket-row:hover {
+  background: rgba(15, 18, 25, 0.8);
+  border-color: rgba(148, 163, 184, 0.15);
+}
+.ticket-num {
+  font-weight: 700;
+  font-size: 14px;
+}
+.ticket-deps {
+  font-size: 11px;
+  color: #64748b;
+}
+.ticket-priority {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
+.p-p0 { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+.p-p1 { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+.p-p2 { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+.p-p3 { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+
+.footer {
+  text-align: center;
+  color: #334155;
+  font-size: 11px;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(148, 163, 184, 0.06);
+}
+
+/* Mindmap */
+.center-node {
+  width: 160px;
+  height: 80px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+.branch {
+  position: absolute;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 140px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* API table */
+.api-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.api-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+.api-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.06);
+  vertical-align: top;
+}
+.api-table tr:hover td {
+  background: rgba(15, 18, 25, 0.6);
+}
+.method-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.layer-l1 .layer-badge { background: rgba(59,130,246,0.2); color: #93c5fd; }
+.layer-l2 .layer-badge { background: rgba(34,197,94,0.2); color: #86efac; }
+.layer-l3 .layer-badge { background: rgba(168,85,247,0.2); color: #d8b4fe; }
+.layer-l4 .layer-badge { background: rgba(245,158,11,0.2); color: #fcd34d; }
+.layer-l5 .layer-badge { background: rgba(239,68,68,0.2); color: #fca5a5; }
+.layer-l6 .layer-badge { background: rgba(6,182,212,0.2); color: #67e8f9; }
+.rule-box {
+  border: 1px dashed rgba(239, 68, 68, 0.25);
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin-top: 32px;
+  background: rgba(239, 68, 68, 0.04);
+}
+.rule-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: #fca5a5;
+  margin-bottom: 12px;
+}
+.rule-item {
+  font-size: 12px;
+  color: #cbd5e1;
+  padding: 4px 0;
+  padding-left: 16px;
+  position: relative;
+}
+.rule-item::before {
+  content: '\25B6';
+  position: absolute;
+  left: 0;
+  color: #ef4444;
+  font-size: 8px;
+  top: 7px;
+}
+.tech-row {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 8px;
+  margin-top: 32px;
+}
+.tech-card {
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  background: rgba(15, 18, 25, 0.4);
+}
+.tech-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 4px;
+}
+.tech-detail {
+  font-size: 10px;
+  color: #64748b;
+}
+</style></head><body>
+<div class="diagram-container">
+  <h1>DeepMindQ — System Architecture</h1>
+  <h2>6-Layer Intelligence Stack &mdash; 90 Models &middot; 14 Engines &middot; 208 API Routes &middot; 76 Screens</h2>
+
+  <!-- LAYER 1: Frontend -->
+  <div class="layer layer-l1">
+    <div class="layer-header">
+      <span class="layer-badge">Layer 1</span>
+      <span class="layer-title">Frontend</span>
+      <span class="layer-desc">76 Screens &middot; Next.js 16 App Router &middot; React 19</span>
+    </div>
+    <div class="boxes">
+      <div class="box c-blue">Command Center</div>
+      <div class="box c-blue">5Q Workspace</div>
+      <div class="box c-blue">Opportunity Radar</div>
+      <div class="box c-blue">Signal Intelligence</div>
+      <div class="box c-blue">Intelligence Inbox</div>
+      <div class="box c-blue">Knowledge Library</div>
+      <div class="box c-blue">Account Ranking</div>
+      <div class="box c-blue">Pipeline Forecast</div>
+      <div class="box c-blue">Conversation Prep</div>
+      <div class="box c-blue">+67 more screens</div>
+      <div class="box c-indigo box-sm">Zustand</div>
+      <div class="box c-indigo box-sm">React Query</div>
+      <div class="box c-indigo box-sm">shadcn/ui</div>
+      <div class="box c-indigo box-sm">Cmd+K Palette</div>
+    </div>
+  </div>
+
+  <div class="arrow-down">&#9660;</div>
+
+  <!-- LAYER 2: Intelligence API -->
+  <div class="layer layer-l2">
+    <div class="layer-header">
+      <span class="layer-badge">Layer 2</span>
+      <span class="layer-title">Intelligence API Layer</span>
+      <span class="layer-desc">6 Product Endpoints &mdash; The ONLY frontend contract</span>
+    </div>
+    <div class="boxes">
+      <div class="box c-green">GET /intelligence/company/{id}</div>
+      <div class="box c-green">GET /intelligence/reasoning/{id}</div>
+      <div class="box c-green">GET /intelligence/opportunity/{id}</div>
+      <div class="box c-green">GET /intelligence/action/{id}</div>
+      <div class="box c-green">GET /intelligence/conversation/{id}</div>
+      <div class="box c-green">GET /intelligence/mindmap/{id}</div>
+      <div class="box box-sm c-green" style="opacity:0.6">All support ?include= selective loading</div>
+    </div>
+  </div>
+
+  <div class="arrow-down">&#9660;</div>
+
+  <!-- LAYER 3: Orchestration -->
+  <div class="layer layer-l3">
+    <div class="layer-header">
+      <span class="layer-badge">Layer 3</span>
+      <span class="layer-title">Intelligence Orchestration</span>
+      <span class="layer-desc">Reasoning &middot; Multi-Agent &middot; Fusion &middot; Learning</span>
+    </div>
+    <div class="boxes">
+      <div class="box c-purple">Enterprise Reasoning (30-step)</div>
+      <div class="box c-purple">Multi-Agent Orchestrator (10 specialists)</div>
+      <div class="box c-purple">Fusion Engine (External + Internal)</div>
+      <div class="box c-purple">Continuous Learning Loop</div>
+      <div class="box c-purple">Knowledge Ingestion Pipeline</div>
+    </div>
+  </div>
+
+  <div class="arrow-down">&#9660;</div>
+
+  <!-- LAYER 4: Governed AI Engines -->
+  <div class="layer layer-l4">
+    <div class="layer-header">
+      <span class="layer-badge">Layer 4</span>
+      <span class="layer-title">Governed AI Engines (7 Composable)</span>
+      <span class="layer-desc">Foundation + Composition pattern</span>
+    </div>
+    <div class="flow-row">
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div class="box c-amber box-sm" style="width:120px;text-align:center;font-weight:700;">Foundation</div>
+        <div class="box c-amber box-sm" style="width:120px">ModelRouter</div>
+        <div class="box c-amber box-sm" style="width:120px">GroundingEngine</div>
+        <div class="box c-amber box-sm" style="width:120px">RetrievalEngine</div>
+      </div>
+      <div class="flow-arrow">&#10132;</div>
+      <div style="display:flex;flex-direction:column;gap:6px;">
+        <div class="box c-amber box-sm" style="width:120px;text-align:center;font-weight:700;">Composition</div>
+        <div class="box c-amber box-sm" style="width:120px">SynthesisEngine</div>
+        <div class="box c-amber box-sm" style="width:120px">ScoringEngine</div>
+        <div class="box c-amber box-sm" style="width:120px">ActionEngine</div>
+        <div class="box c-amber box-sm" style="width:120px">ConversationEngine</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrow-down">&#9660;</div>
+
+  <!-- LAYER 5: AI Foundation -->
+  <div class="layer layer-l5">
+    <div class="layer-header">
+      <span class="layer-badge">Layer 5</span>
+      <span class="layer-title">AI Foundation</span>
+      <span class="layer-desc">Model Routing &middot; Governance &middot; Evidence &middot; Cost</span>
+    </div>
+    <div class="boxes">
+      <div class="box c-red">Model Router (Deep/Smart/Fast)</div>
+      <div class="box c-red">AI Governance (governedAI wrapper)</div>
+      <div class="box c-red">Evidence Framework</div>
+      <div class="box c-red">Hallucination Detection</div>
+      <div class="box c-red">AI Cost Tracking</div>
+      <div class="box c-red">ESLint: no-ungoverned-llm</div>
+    </div>
+  </div>
+
+  <div class="arrow-down">&#9660;</div>
+
+  <!-- LAYER 6: Data Layer -->
+  <div class="layer layer-l6">
+    <div class="layer-header">
+      <span class="layer-badge">Layer 6</span>
+      <span class="layer-title">Data Layer</span>
+      <span class="layer-desc">PostgreSQL + pgvector &middot; 90 Prisma Models &middot; @xenova/transformers</span>
+    </div>
+    <div class="boxes">
+      <div class="box c-cyan">PostgreSQL + pgvector</div>
+      <div class="box c-cyan">Prisma ORM (90 models)</div>
+      <div class="box c-cyan">@xenova/transformers</div>
+      <div class="box c-cyan">Embedding Index</div>
+      <div class="box c-cyan">Job Queue (Prisma Jobs)</div>
+      <div class="box c-cyan">Cron Processor</div>
+    </div>
+  </div>
+
+  <!-- Strict Rules -->
+  <div class="rule-box">
+    <div class="rule-title">Strict Architecture Rules</div>
+    <div class="rule-item">Frontend NEVER calls engines directly &mdash; all intelligence flows through Layer 2</div>
+    <div class="rule-item">All LLM calls go through governedAI() &mdash; ESLint rule blocks ungoverned calls</div>
+    <div class="rule-item">Every AI output includes evidence citations &mdash; no hallucinated claims</div>
+    <div class="rule-item">Every generation is audited &mdash; AIGenerationAudit record for every AI output</div>
+    <div class="rule-item">Model Router handles all LLM routing &mdash; tiered fallback (Deep &rarr; Smart &rarr; Fast)</div>
+  </div>
+
+  <!-- Tech Stack -->
+  <div class="tech-row">
+    <div class="tech-card"><div class="tech-name">Next.js 16</div><div class="tech-detail">App Router</div></div>
+    <div class="tech-card"><div class="tech-name">React 19</div><div class="tech-detail">+ Tailwind 4</div></div>
+    <div class="tech-card"><div class="tech-name">Prisma 6</div><div class="tech-detail">90 Models</div></div>
+    <div class="tech-card"><div class="tech-name">PostgreSQL</div><div class="tech-detail">+ pgvector</div></div>
+    <div class="tech-card"><div class="tech-name">Vitest</div><div class="tech-detail">Testing</div></div>
+    <div class="tech-card"><div class="tech-name">Sentry</div><div class="tech-detail">Monitoring</div></div>
+  </div>
+
+  <div class="footer">DeepMindQ System Architecture &mdash; v2.0 Approved &mdash; Generated July 30, 2026</div>
+</div>
+</body></html>

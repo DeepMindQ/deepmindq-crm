@@ -1,0 +1,604 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>DeepMindQ — Data Model</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #0a0c10;
+  color: #e2e8f0;
+  padding: 40px;
+  min-height: 100vh;
+}
+h1 {
+  font-size: 28px;
+  font-weight: 700;
+  color: #f8fafc;
+  margin-bottom: 8px;
+  letter-spacing: -0.5px;
+}
+h2 {
+  font-size: 18px;
+  font-weight: 600;
+  color: #94a3b8;
+  margin-bottom: 32px;
+  font-weight: 400;
+}
+.subtitle {
+  color: #64748b;
+  font-size: 14px;
+  margin-bottom: 40px;
+}
+.diagram-container {
+  max-width: 1200px;
+  margin: 0 auto;
+}
+.layer {
+  border: 1px solid rgba(148, 163, 184, 0.15);
+  border-radius: 12px;
+  padding: 20px 24px;
+  margin-bottom: 2px;
+  position: relative;
+  background: rgba(15, 18, 25, 0.8);
+  transition: all 0.3s ease;
+}
+.layer:hover {
+  border-color: rgba(148, 163, 184, 0.3);
+  background: rgba(15, 18, 25, 1);
+}
+.layer-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+.layer-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.layer-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: #f1f5f9;
+}
+.layer-desc {
+  font-size: 12px;
+  color: #64748b;
+  margin-left: auto;
+}
+.boxes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.box {
+  padding: 8px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid transparent;
+}
+.box-sm { padding: 6px 10px; font-size: 11px; }
+
+/* Colors */
+.c-blue { background: rgba(59, 130, 246, 0.12); border-color: rgba(59, 130, 246, 0.25); color: #93c5fd; }
+.c-green { background: rgba(34, 197, 94, 0.12); border-color: rgba(34, 197, 94, 0.25); color: #86efac; }
+.c-purple { background: rgba(168, 85, 247, 0.12); border-color: rgba(168, 85, 247, 0.25); color: #d8b4fe; }
+.c-amber { background: rgba(245, 158, 11, 0.12); border-color: rgba(245, 158, 11, 0.25); color: #fcd34d; }
+.c-red { background: rgba(239, 68, 68, 0.12); border-color: rgba(239, 68, 68, 0.25); color: #fca5a5; }
+.c-cyan { background: rgba(6, 182, 212, 0.12); border-color: rgba(6, 182, 212, 0.25); color: #67e8f9; }
+.c-pink { background: rgba(236, 72, 153, 0.12); border-color: rgba(236, 72, 153, 0.25); color: #f9a8d4; }
+.c-indigo { background: rgba(99, 102, 241, 0.12); border-color: rgba(99, 102, 241, 0.25); color: #a5b4fc; }
+
+/* Arrow between layers */
+.arrow-down {
+  text-align: center;
+  color: #475569;
+  font-size: 18px;
+  padding: 4px 0;
+  line-height: 1;
+}
+.flow-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.flow-arrow {
+  color: #475569;
+  font-size: 16px;
+}
+.connector {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 0;
+}
+.connector-line {
+  width: 2px;
+  height: 24px;
+  background: linear-gradient(to bottom, #334155, #475569);
+}
+
+/* Grid layout for data model */
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+
+.domain-card {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 12px;
+  padding: 16px;
+  background: rgba(15, 18, 25, 0.6);
+}
+.domain-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.domain-count {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+}
+.model-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin: 2px;
+  background: rgba(148, 163, 184, 0.08);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.06);
+}
+
+/* Timeline */
+.timeline-item {
+  position: relative;
+  padding-left: 32px;
+  padding-bottom: 24px;
+  border-left: 2px solid rgba(148, 163, 184, 0.15);
+  margin-left: 8px;
+}
+.timeline-item:last-child { border-left-color: transparent; }
+.timeline-dot {
+  position: absolute;
+  left: -7px;
+  top: 0;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid;
+}
+.timeline-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: #f1f5f9;
+  margin-bottom: 4px;
+}
+.timeline-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  line-height: 1.5;
+}
+.timeline-meta {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
+}
+
+/* Roadmap */
+.ticket-row {
+  display: grid;
+  grid-template-columns: 50px 1fr 80px 80px 1fr;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 16px;
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  border-radius: 8px;
+  margin-bottom: 4px;
+  background: rgba(15, 18, 25, 0.4);
+  font-size: 12px;
+}
+.ticket-row:hover {
+  background: rgba(15, 18, 25, 0.8);
+  border-color: rgba(148, 163, 184, 0.15);
+}
+.ticket-num {
+  font-weight: 700;
+  font-size: 14px;
+}
+.ticket-deps {
+  font-size: 11px;
+  color: #64748b;
+}
+.ticket-priority {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-align: center;
+}
+.p-p0 { background: rgba(239, 68, 68, 0.15); color: #fca5a5; }
+.p-p1 { background: rgba(245, 158, 11, 0.15); color: #fcd34d; }
+.p-p2 { background: rgba(59, 130, 246, 0.15); color: #93c5fd; }
+.p-p3 { background: rgba(148, 163, 184, 0.15); color: #94a3b8; }
+
+.footer {
+  text-align: center;
+  color: #334155;
+  font-size: 11px;
+  margin-top: 48px;
+  padding-top: 24px;
+  border-top: 1px solid rgba(148, 163, 184, 0.06);
+}
+
+/* Mindmap */
+.center-node {
+  width: 160px;
+  height: 80px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 14px;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 10;
+}
+.branch {
+  position: absolute;
+  padding: 10px 16px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  max-width: 140px;
+  text-align: center;
+  line-height: 1.3;
+}
+
+/* API table */
+.api-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.api-table th {
+  text-align: left;
+  padding: 10px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.15);
+}
+.api-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid rgba(148, 163, 184, 0.06);
+  vertical-align: top;
+}
+.api-table tr:hover td {
+  background: rgba(15, 18, 25, 0.6);
+}
+.method-badge {
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 4px;
+  display: inline-block;
+}
+
+.domain-card {
+  border: 1px solid rgba(148, 163, 184, 0.12);
+  border-radius: 12px;
+  padding: 16px;
+  background: rgba(15, 18, 25, 0.6);
+}
+.domain-title {
+  font-size: 13px;
+  font-weight: 700;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.domain-count {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  background: rgba(148, 163, 184, 0.1);
+  color: #94a3b8;
+}
+.model-tag {
+  display: inline-block;
+  font-size: 11px;
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin: 2px;
+  background: rgba(148, 163, 184, 0.08);
+  color: #94a3b8;
+  border: 1px solid rgba(148, 163, 184, 0.06);
+}
+.key-model {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: rgba(59, 130, 246, 0.2);
+  color: #93c5fd;
+}
+.summary-bar {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 32px;
+}
+.stat-card {
+  border: 1px solid rgba(148, 163, 184, 0.1);
+  border-radius: 10px;
+  padding: 16px;
+  text-align: center;
+  background: rgba(15, 18, 25, 0.4);
+}
+.stat-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #f8fafc;
+}
+.stat-label {
+  font-size: 11px;
+  color: #64748b;
+  margin-top: 4px;
+}
+.enum-section {
+  margin-top: 32px;
+}
+.enum-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f1f5f9;
+  margin-bottom: 16px;
+}
+.enum-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.enum-card {
+  border: 1px solid rgba(148, 163, 184, 0.08);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(15, 18, 25, 0.3);
+}
+.enum-name {
+  font-size: 11px;
+  font-weight: 700;
+  color: #cbd5e1;
+  margin-bottom: 4px;
+}
+.enum-values {
+  font-size: 10px;
+  color: #64748b;
+  line-height: 1.4;
+}
+</style></head><body>
+<div class="diagram-container">
+  <h1>DeepMindQ — Data Model</h1>
+  <h2>90 Prisma Models &middot; 10 Domains &middot; 18 Enums &middot; PostgreSQL + pgvector</h2>
+
+  <div class="summary-bar">
+    <div class="stat-card"><div class="stat-value">90</div><div class="stat-label">Prisma Models</div></div>
+    <div class="stat-card"><div class="stat-value">10</div><div class="stat-label">Data Domains</div></div>
+    <div class="stat-card"><div class="stat-value">18</div><div class="stat-label">Enums</div></div>
+    <div class="stat-card"><div class="stat-value">90+</div><div class="stat-label">DB Indexes</div></div>
+  </div>
+
+  <div class="grid-2" style="margin-bottom:16px;">
+
+    <!-- Core Entity (3) -->
+    <div class="domain-card">
+      <div class="domain-title" style="color:#93c5fd">
+        Core Entity <span class="domain-count">3</span>
+      </div>
+      <div>
+        <span class="model-tag key-model">Company</span>
+        <span class="model-tag key-model">Contact</span>
+        <span class="model-tag">ImportBatch</span>
+      </div>
+    </div>
+
+    <!-- Research & Intelligence (6) -->
+    <div class="domain-card">
+      <div class="domain-title" style="color:#86efac">
+        Research &amp; Intelligence <span class="domain-count">6</span>
+      </div>
+      <div>
+        <span class="model-tag key-model">CompanyResearchCard</span>
+        <span class="model-tag key-model">CompanySignal</span>
+        <span class="model-tag key-model">Evidence</span>
+        <span class="model-tag">CompanyTimelineEvent</span>
+        <span class="model-tag">CompanyNote</span>
+        <span class="model-tag">ContactNote</span>
+      </div>
+    </div>
+
+    <!-- Knowledge (5) -->
+    <div class="domain-card">
+      <div class="domain-title" style="color:#d8b4fe">
+        Knowledge <span class="domain-count">5</span>
+      </div>
+      <div>
+        <span class="model-tag key-model">CapabilityAsset</span>
+        <span class="model-tag">KnowledgeDocument</span>
+        <span class="model-tag">KnowledgeChunk</span>
+        <span class="model-tag">KnowledgeEntry</span>
+        <span class="model-tag">KnowledgeVersion</span>
+      </div>
+    </div>
+
+    <!-- Email & Outreach (14) -->
+    <div class="domain-card">
+      <div class="domain-title" style="color:#fcd34d">
+        Email &amp; Outreach <span class="domain-count">14</span>
+      </div>
+      <div>
+        <span class="model-tag">EmailTemplate</span>
+        <span class="model-tag">CustomEmailTemplate</span>
+        <span class="model-tag key-model">EmailSequence</span>
+        <span class="model-tag">SequenceStep</span>
+        <span class="model-tag">SequenceEnrollment</span>
+        <span class="model-tag key-model">Draft</span>
+        <span class="model-tag">SendQueue</span>
+        <span class="model-tag">EmailEvent</span>
+        <span class="model-tag">ABTest</span>
+        <span class="model-tag">Reply</span>
+        <span class="model-tag">Bounce</span>
+        <span class="model-tag">Suppression</span>
+        <span class="model-tag">ConversationPlan</span>
+        <span class="model-tag">Playbook</span>
+      </div>
+    </div>
+
+    <!-- Scoring & Prioritization (6) -->
+    <div class="domain-card">
+      <div class="domain-title" style="color:#fca5a5">
+        Scoring &amp; Prioritization <span class="domain-count">6</span>
+      </div>
+      <div>
+        <span class="model-tag key-model">ScoringWeight</span>
+        <span class="model-tag">PriorityScoreHistory</span>
+        <span class="model-tag key-model">AccountScore</span>
+        <span class="model-tag">SignalValidation</span>
+        <span class="model-tag">CompanyIntelligenceHealth</span>
+        <span class="model-tag">IntelligenceConflict</span>
+      </div>
+    </div>
+
+    <!-- Opportunity & Pursuit (6) -->
+    <div class="domain-card">
+      <div class="domain-title" style="color:#67e8f9">
+        Opportunity &amp; Pursuit <span class="domain-count">6</span>
+      </div>
+      <div>
+        <span class="model-tag key-model">SignalCapabilityMatch</span>
+        <span class="model-tag key-model">OpportunityRecommendation</span>
+        <span class="model-tag key-model">Pursuit</span>
+        <span class="model-tag">OpportunitySignal</span>
+        <span class="model-tag">ActionArtifact</span>
+        <span class="model-tag">StrategicInsight</span>
+      </div>
+    </div>
+
+    <!-- Intelligence Acquisition (6) -->
+    <div class="domain-card">
+      <div class="domain-title" style="color:#f9a8d4">
+        Intelligence Acquisition <span class="domain-count">6</span>
+      </div>
+      <div>
+        <span class="model-tag key-model">IntelligenceObject</span>
+        <span class="model-tag">CompanyAlias</span>
+        <span class="model-tag">IntelligenceAssociation</span>
+        <span class="model-tag">IntelligenceTimeline</span>
+        <span class="model-tag">IntelligenceAlert</span>
+        <span class="model-tag">HumanIntelligenceInbox</span>
+      </div>
+    </div>
+
+    <!-- AI & Governance (15) -->
+    <div class="domain-card">
+      <div class="domain-title" style="color:#ef4444">
+        AI &amp; Governance <span class="domain-count">15</span>
+      </div>
+      <div>
+        <span class="model-tag key-model">AIGenerationAudit</span>
+        <span class="model-tag">AICallLog</span>
+        <span class="model-tag">AIUsageLog</span>
+        <span class="model-tag">AIInsight</span>
+        <span class="model-tag">AIEngagementStrategy</span>
+        <span class="model-tag">AICache</span>
+        <span class="model-tag">EngineRun</span>
+        <span class="model-tag">ReasoningContext</span>
+        <span class="model-tag">ReasoningStep</span>
+        <span class="model-tag">AgentOrchestration</span>
+        <span class="model-tag">AgentRun</span>
+        <span class="model-tag">LearningEvent</span>
+        <span class="model-tag">IntelligenceValidation</span>
+        <span class="model-tag">RecommendationFeedback</span>
+        <span class="model-tag">IntelligenceActionHistory</span>
+      </div>
+    </div>
+
+    <!-- Data Pipeline (8) -->
+    <div class="domain-card">
+      <div class="domain-title" style="color:#a5b4fc">
+        Data Pipeline <span class="domain-count">8</span>
+      </div>
+      <div>
+        <span class="model-tag">DataUpload</span>
+        <span class="model-tag">UploadRow</span>
+        <span class="model-tag">ColumnMappingRule</span>
+        <span class="model-tag">FieldValidationRule</span>
+        <span class="model-tag">NormalizationMapping</span>
+        <span class="model-tag">NormalizationLog</span>
+        <span class="model-tag">DataQualityScore</span>
+        <span class="model-tag">EvidenceSourceReliability</span>
+      </div>
+    </div>
+
+    <!-- System (15) -->
+    <div class="domain-card">
+      <div class="domain-title" style="color:#94a3b8">
+        System <span class="domain-count">15</span>
+      </div>
+      <div>
+        <span class="model-tag key-model">User</span>
+        <span class="model-tag">OtpCode</span>
+        <span class="model-tag">Session</span>
+        <span class="model-tag">AuditLog</span>
+        <span class="model-tag">SystemSetting</span>
+        <span class="model-tag">Job</span>
+        <span class="model-tag">JobLog</span>
+        <span class="model-tag">Connector</span>
+        <span class="model-tag">ConnectorRun</span>
+        <span class="model-tag">SourceHealth</span>
+        <span class="model-tag">PipelineRun</span>
+        <span class="model-tag">FusionResult</span>
+        <span class="model-tag">Segment</span>
+        <span class="model-tag">SegmentContact</span>
+        <span class="model-tag">AccountStrategy</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Key Enums -->
+  <div class="enum-section">
+    <div class="enum-title">18 Key Enums</div>
+    <div class="enum-grid">
+      <div class="enum-card"><div class="enum-name">CompanyStatus</div><div class="enum-values">new, prospect, researching, active, engaged, paused, archived, closed_won, closed_lost</div></div>
+      <div class="enum-card"><div class="enum-name">CompanyLifecycleStage</div><div class="enum-values">discovery, qualification, proposal, negotiation, closed</div></div>
+      <div class="enum-card"><div class="enum-name">CompanyPriorityTier</div><div class="enum-values">HOT, ACTIVE, NURTURE, LOW</div></div>
+      <div class="enum-card"><div class="enum-name">ContactStatus</div><div class="enum-values">active, engaged, imported, cleaned, duplicate, drafted, queued, sent, replied, bounced, suppressed, archived</div></div>
+      <div class="enum-card"><div class="enum-name">SignalType</div><div class="enum-values">funding, hiring, leadership_change, leadership, tech_change, technology, news, mention, partnership, expansion, people_change, internal_memory</div></div>
+      <div class="enum-card"><div class="enum-name">SignalSeverity</div><div class="enum-values">low, medium, high, critical</div></div>
+      <div class="enum-card"><div class="enum-name">SignalStatus</div><div class="enum-values">detected, validated, active, aging, expired, archived</div></div>
+      <div class="enum-card"><div class="enum-name">SignalMeaningCategory</div><div class="enum-values">budget_available, leadership_openness, tech_dissatisfaction, growth_pressure, compliance_requirement, vendor_evaluation, unknown</div></div>
+      <div class="enum-card"><div class="enum-name">JobType</div><div class="enum-values">enrichment, research, scoring, signal_detection, email_generation</div></div>
+      <div class="enum-card"><div class="enum-name">JobStatus</div><div class="enum-values">pending, queued, running, completed, failed, cancelled</div></div>
+      <div class="enum-card"><div class="enum-name">DraftStatus</div><div class="enum-values">draft, pending_review, approved, rejected, sent</div></div>
+      <div class="enum-card"><div class="enum-name">ImportBatchStatus</div><div class="enum-values">staged, processing, completed, archived, cancelled, failed</div></div>
+    </div>
+  </div>
+
+  <div class="footer">DeepMindQ Data Model &mdash; 90 Models across 10 Domains &mdash; v2.0 Approved</div>
+</div>
+</body></html>

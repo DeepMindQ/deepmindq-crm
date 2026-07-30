@@ -24,6 +24,8 @@ import { scrubError } from '@/lib/intelligence-api/handler';
 import type { IntelligenceMindmap, MindmapNode } from '@/lib/intelligence-api/types';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
+import { runGovernanceChecks } from '@/lib/ai-governance';
+import { getResearchContext } from '@/lib/intelligence-contract';
 
 export async function GET(
   request: NextRequest,
@@ -40,6 +42,22 @@ export async function GET(
     companyId,
     includes: Array.from(guardResult.includes),
   });
+
+  // Ticket 3: Run real governance check for response metadata (requires DB)
+  let governanceMeta: { passed: boolean; generationType: string; checks: Record<string, { passed: boolean; message: string }> } | undefined;
+  try {
+    if (process.env.DATABASE_URL?.startsWith('postgres')) {
+      const researchCtx = await getResearchContext(companyId);
+      const govResult = await runGovernanceChecks({ companyId, generationType: 'mindmap', researchContext: researchCtx });
+      governanceMeta = {
+        passed: govResult.passed,
+        generationType: 'mindmap',
+        checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
+      };
+    }
+  } catch {
+    // Governance metadata is optional — degrade gracefully
+  }
 
   // ── Step 1: Load company from DB (for freshness + center node label) ─────
   let company: Record<string, unknown> | null = null;
@@ -112,15 +130,15 @@ export async function GET(
       // Person nodes
       ...contacts.map((c) => ({
         id: c.id,
-        label: c.rawName,
+        label: (c.rawName || '').slice(0, 100),
         type: 'person' as const,
-        confidence: c.leadScore / 100,
+        confidence: Math.max(0, Math.min(1, (c.leadScore || 0) / 100)),
         metadata: { title: c.title, role: c.role },
       })),
       // Knowledge/capability nodes
       ...capabilities.map((cap) => ({
         id: cap.id,
-        label: cap.title,
+        label: (cap.title || '').slice(0, 100),
         type: 'knowledge' as const,
         confidence: 0.7,
         metadata: { category: cap.category },
@@ -128,9 +146,9 @@ export async function GET(
       // Signal nodes
       ...signals.map((s) => ({
         id: s.id,
-        label: s.title,
+        label: (s.title || '').slice(0, 100),
         type: 'signal' as const,
-        confidence: s.confidence,
+        confidence: Math.max(0, Math.min(1, s.confidence)),
         metadata: { signalType: s.signalType },
       })),
     ];
@@ -190,6 +208,7 @@ export async function GET(
       freshness,
       requestedAt,
       respondedAt: new Date(),
+      ...(governanceMeta && { governance: governanceMeta }),
     }),
     { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );

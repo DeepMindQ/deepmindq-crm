@@ -28,6 +28,8 @@ import type { IntelligenceRetrievalOutput } from '@/lib/intelligence-api/types';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
+import { runGovernanceChecks } from '@/lib/ai-governance';
+import { getResearchContext } from '@/lib/intelligence-contract';
 
 const VALID_FILTER_TYPES = new Set<EmbeddableEntityType>([
   'capability_asset',
@@ -52,9 +54,18 @@ export async function GET(
   if (guardResult instanceof Response) return guardResult;
   const { companyId, correlationId, responseHeaders, includes } = guardResult;
 
-  // Parse retrieval-specific query params
+  // Parse retrieval-specific query params with validation
   const query = request.nextUrl.searchParams.get('q');
-  const topK = parseInt(request.nextUrl.searchParams.get('topK') || '5', 10);
+  // Output validation: sanitize query (max 500 chars, strip control chars)
+  const sanitizedQuery = query ? query.slice(0, 500).replace(/[\x00-\x1F\x7F]/g, '').trim() : null;
+  if (!sanitizedQuery || !sanitizedQuery.trim()) {
+    return Response.json(
+      createErrorResponse('retrieval', companyId, 'Query parameter ?q= is required', IntelligenceErrors.VALIDATION_FAILED, Date.now() - startedAt, includes),
+      { status: 400, headers: responseHeaders },
+    );
+  }
+  const topKRaw = parseInt(request.nextUrl.searchParams.get('topK') || '5', 10) || 5;
+  const topK = Math.min(Math.max(topKRaw, 1), 50);
   const filterRaw = request.nextUrl.searchParams.get('filter');
   const filter = filterRaw && VALID_FILTER_TYPES.has(filterRaw as EmbeddableEntityType)
     ? { type: filterRaw as EmbeddableEntityType }
@@ -67,10 +78,26 @@ export async function GET(
     );
   }
 
+  // Ticket 3: Run real governance check for response metadata (requires DB)
+  let governanceMeta: { passed: boolean; generationType: string; checks: Record<string, { passed: boolean; message: string }> } | undefined;
+  try {
+    if (process.env.DATABASE_URL?.startsWith('postgres')) {
+      const researchCtx = await getResearchContext(companyId);
+      const govResult = await runGovernanceChecks({ companyId, generationType: 'retrieval', researchContext: researchCtx });
+      governanceMeta = {
+        passed: govResult.passed,
+        generationType: 'retrieval',
+        checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
+      };
+    }
+  } catch {
+    // Governance metadata is optional — degrade gracefully
+  }
+
   logger.info('[intelligence/retrieval] Processing', {
     companyId,
     correlationId,
-    query: query.slice(0, 100),
+    query: sanitizedQuery.slice(0, 100),
     topK,
     filter: filter?.type,
     includes: Array.from(includes),
@@ -109,7 +136,7 @@ export async function GET(
   let stats: Awaited<ReturnType<typeof RetrievalEngine.getStats>>;
   try {
     const [searchResult, statsResult] = await Promise.all([
-      RetrievalEngine.search(query, topK, filter),
+      RetrievalEngine.search(sanitizedQuery, topK, filter),
       RetrievalEngine.getStats().catch(() => ({ totalEmbeddings: 0, uniqueEntities: 0, byType: {}, backend: 'empty' as const, indexSizeBytes: 0 })),
     ]);
     results = searchResult;
@@ -123,11 +150,17 @@ export async function GET(
     );
   }
 
+  // ── Step 3: Output validation — clamp scores to valid range ──────
+  const validatedResults = results.map(r => ({
+    ...r,
+    score: Math.max(0, Math.min(1, r.score)),
+  }));
+
   // ── Step 4: Compose response ─────────────────────────────────────────────
   const data: IntelligenceRetrievalOutput = {
     companyId,
-    results,
-    query,
+    results: validatedResults,
+    query: sanitizedQuery,
     resultCount: results.length,
     stats: {
       totalEmbeddings: stats.totalEmbeddings,
@@ -140,12 +173,12 @@ export async function GET(
   const durationMs = Date.now() - startedAt;
 
   // Confidence = best result's score, or 0 if no results
-  const confidence = results.length > 0 ? results[0].score : 0;
+  const confidence = validatedResults.length > 0 ? validatedResults[0].score : 0;
 
   logger.info('[intelligence/retrieval] Search complete', {
     companyId,
-    query: query.slice(0, 100),
-    resultCount: results.length,
+    query: sanitizedQuery.slice(0, 100),
+    resultCount: validatedResults.length,
     topScore: confidence,
     backend: stats.backend,
     durationMs,
@@ -160,6 +193,7 @@ export async function GET(
       freshness,
       requestedAt,
       respondedAt: new Date(),
+      ...(governanceMeta && { governance: governanceMeta }),
     }),
     { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );

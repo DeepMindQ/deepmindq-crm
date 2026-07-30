@@ -30,6 +30,8 @@ import type {
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { KnowledgeIngestionPipeline } from '@/lib/knowledge-ingestion-pipeline';
+import { runGovernanceChecks } from '@/lib/ai-governance';
+import { getResearchContext } from '@/lib/intelligence-contract';
 
 // ── GET ─────────────────────────────────────────────────────────────────────
 
@@ -46,6 +48,22 @@ export async function GET(
   const { companyId, correlationId, responseHeaders, includes } = guardResult;
 
   logger.info('[intelligence/knowledge] Processing', { companyId, correlationId });
+
+  // Ticket 3: Run real governance check for response metadata (requires DB)
+  let governanceMeta: { passed: boolean; generationType: string; checks: Record<string, { passed: boolean; message: string }> } | undefined;
+  try {
+    if (process.env.DATABASE_URL?.startsWith('postgres')) {
+      const researchCtx = await getResearchContext(companyId);
+      const govResult = await runGovernanceChecks({ companyId, generationType: 'knowledge_retrieval', researchContext: researchCtx });
+      governanceMeta = {
+        passed: govResult.passed,
+        generationType: 'knowledge_retrieval',
+        checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
+      };
+    }
+  } catch {
+    // Governance metadata is optional — degrade gracefully
+  }
 
   // ── Step 1: Load company from DB (for freshness) ────────────────────────
   let company: Record<string, unknown> | null = null;
@@ -165,6 +183,7 @@ export async function GET(
         freshness,
         requestedAt,
         respondedAt: new Date(),
+        ...(governanceMeta && { governance: governanceMeta }),
       }),
       { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
     );

@@ -26,6 +26,8 @@ import type { IntelligenceGroundingOutput } from '@/lib/intelligence-api/types';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
+import { runGovernanceChecks } from '@/lib/ai-governance';
+import { getResearchContext } from '@/lib/intelligence-contract';
 
 export async function GET(
   request: NextRequest,
@@ -39,8 +41,25 @@ export async function GET(
   if (guardResult instanceof Response) return guardResult;
   const { companyId, correlationId, responseHeaders, includes } = guardResult;
 
-  const maxEvidence = parseInt(request.nextUrl.searchParams.get('maxEvidence') || '50', 10);
+  const maxEvidenceRaw = parseInt(request.nextUrl.searchParams.get('maxEvidence') || '50', 10) || 50;
+  const maxEvidence = Math.min(Math.max(maxEvidenceRaw, 1), 200);
   const includeStale = request.nextUrl.searchParams.get('includeStale') === 'true';
+
+  // Ticket 3: Run real governance check for response metadata (requires DB)
+  let governanceMeta: { passed: boolean; generationType: string; checks: Record<string, { passed: boolean; message: string }> } | undefined;
+  try {
+    if (process.env.DATABASE_URL?.startsWith('postgres')) {
+      const researchCtx = await getResearchContext(companyId);
+      const govResult = await runGovernanceChecks({ companyId, generationType: 'grounding', researchContext: researchCtx });
+      governanceMeta = {
+        passed: govResult.passed,
+        generationType: 'grounding',
+        checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
+      };
+    }
+  } catch {
+    // Governance metadata is optional — degrade gracefully
+  }
 
   logger.info('[intelligence/grounding] Processing', {
     companyId,
@@ -107,6 +126,9 @@ export async function GET(
     gapCount: evidenceChain.gaps.length,
   };
 
+  // Output validation: clamp confidence to valid range
+  const validatedConfidence = Math.max(0, Math.min(1, evidenceChain.aggregateConfidence));
+
   const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
   const durationMs = Date.now() - startedAt;
 
@@ -115,7 +137,7 @@ export async function GET(
     evidenceCount: evidenceChain.evidences.length,
     gapCount: evidenceChain.gaps.length,
     coverage: evidenceChain.coverage,
-    confidence: evidenceChain.aggregateConfidence,
+    confidence: validatedConfidence,
     durationMs,
     freshnessLevel: freshness.level,
   });
@@ -125,10 +147,11 @@ export async function GET(
       durationMs,
       includes,
       cached: false,
-      confidence: evidenceChain.aggregateConfidence,
+      confidence: validatedConfidence,
       freshness,
       requestedAt,
       respondedAt: new Date(),
+      ...(governanceMeta && { governance: governanceMeta }),
     }),
     { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );

@@ -505,6 +505,35 @@ const GOVERNANCE_CONFIGS: Record<string, GovernanceConfig> = {
     requireRecentIntelligence: false,
     maxStalenessDays: 180,
   },
+  // Intelligence API route types (knowledge + mindmap)
+  knowledge_retrieval: {
+    minResearchConfidence: 0,
+    minFreshnessScore: 0,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 9999,
+  },
+  mindmap: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  grounding: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  retrieval: {
+    minResearchConfidence: 0,
+    minFreshnessScore: 0,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 9999,
+  },
   // Enterprise reasoning engine (dynamic step names — base type)
   reasoning_default: {
     minResearchConfidence: 0.2,

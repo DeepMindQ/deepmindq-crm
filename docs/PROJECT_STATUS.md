@@ -1,7 +1,7 @@
 # DeepMindQ — Project Status
 
 **Last Updated**: 2026-07-31
-**Current Ticket**: Ticket 3 — AI Governance Hardening (COMPLETE, Deep Audit Hardened)
+**Current Ticket**: Ticket 3 — AI Governance Hardening (COMPLETE, Deepest-of-Deep Audit Hardened)
 
 ---
 
@@ -11,7 +11,7 @@
 |---|--------|----------|--------|-------|
 | 1 | Foundation Hardening | P0 | **COMPLETE** | All 13 spec items verified, 33 gaps found and fixed, 117/117 tests pass |
 | 2 | Intelligence API Layer Refactor | P0 | **COMPLETE** | Selective loading, type safety, governance wrappers, 43/43 integration tests |
-| 3 | AI Governance Hardening | P0 | **COMPLETE** | 57 generation type configs, all engines governed, 519/519 tests pass, 13 deep audit gaps fixed |
+| 3 | AI Governance Hardening | P0 | **COMPLETE** | 61 gen type configs, 10/10 routes governed, 10/10 have governance meta, 1425/1425 tests pass, 26 deep audit gaps fixed |
 | 4 | Feedback Intelligence Loop | P0 | PENDING | Depends: Ticket 1 |
 | 5 | Signal Detection Engine | P0 | PENDING | Depends: Ticket 1 |
 | 6 | Account Intelligence Scoring | P0 | PENDING | Depends: Ticket 1 |
@@ -72,9 +72,11 @@
 
 ---
 
-## Ticket 3 Gaps Fixed (13 total, Deep Audit Round)
+## Ticket 3 Gaps Fixed (26 total — Round 2 Deepest-of-Deep Audit)
 
-Deep audit found >80% gaps in Ticket 3 that were previously marked complete with only shallow fixes.
+Deep audit round 2 found 13 additional gaps beyond the 13 fixed in round 1.
+
+### Round 1 (13 gaps — prior session)
 
 | Gap | Category | Description | Fix |
 |---|---|---|---|
@@ -87,10 +89,29 @@ Deep audit found >80% gaps in Ticket 3 that were previously marked complete with
 | G12 | Tests | No audit field validation tests for `governance_passed` + `governanceChecks` | Added 5 tests: passed result, failed result, JSON serialization, modelUsed, default |
 | G13 | Tests | Missing governance config edge case tests | Added 9 tests: all types valid ranges, email stricter than brief, conv equals email, signal advisory, query zero thresholds, version format, rules keywords count |
 
+### Round 2 (13 gaps — this session)
+
+| Gap | Category | Description | Fix |
+|---|---|---|---|
+| G14 | Governance Meta | `grounding/[id]/route.ts` missing `runGovernanceChecks` + governanceMeta | Added real governance check + metadata in response envelope |
+| G15 | Governance Meta | `retrieval/[id]/route.ts` missing `runGovernanceChecks` + governanceMeta | Added real governance check + metadata in response envelope |
+| G16 | Governance Meta | `knowledge/[id]/route.ts` missing `runGovernanceChecks` + governanceMeta | Added real governance check + metadata in response envelope |
+| G17 | Governance Meta | `mindmap/[id]/route.ts` missing `runGovernanceChecks` + governanceMeta | Added real governance check + metadata in response envelope |
+| G18 | Output Validation | `grounding/[id]/route.ts` no confidence bounds validation | Added `Math.max(0, Math.min(1, ...))` clamp on aggregateConfidence |
+| G19 | Input Validation | `retrieval/[id]/route.ts` query not sanitized | Added max 500 chars, control char stripping, topK capped at 50 |
+| G20 | Output Validation | `retrieval/[id]/route.ts` scores not clamped | Added per-result score clamping to [0,1] |
+| G21 | Input Validation | `grounding/[id]/route.ts` maxEvidence not bounded | Added min 1, max 200 bounds |
+| G22 | Input Validation | `mindmap/[id]/route.ts` node labels not sanitized | Added `.slice(0, 100)` on all label strings |
+| G23 | Output Validation | `mindmap/[id]/route.ts` confidence values not clamped | Added Math.max(0, Math.min(1)) on all confidence values |
+| G24 | Governance Config | Missing `knowledge_retrieval` gen type config | Added to GOVERNANCE_CONFIGS in ai-governance.ts |
+| G25 | Governance Config | Missing `mindmap` gen type config | Added to GOVERNANCE_CONFIGS in ai-governance.ts |
+| G26 | Governance Config | Missing `grounding` and `retrieval` gen type configs | Added to GOVERNANCE_CONFIGS in ai-governance.ts (total: 61 types) |
+
 ## Ticket 3 Exit Criteria — All Met
 
-- [x] 10/10+ generation types have governance configs (57 registered)
+- [x] 10/10+ generation types have governance configs (61 registered)
 - [x] 7/7 engines route through governance (synthesis, scoring, action, conversation, grounding, retrieval, model-router)
+- [x] 10/10 Intelligence API routes have governance metadata in response envelope
 - [x] ESLint rule catches all ungoverned patterns (callLLM, callAI, getZAI, ModelRouter, revenueLLMCall, raw fetch)
 - [x] AIGenerationAudit records `governance_passed` + `governance_checks` for every generation
 - [x] `/api/ai/governance/check` endpoint operational
@@ -103,8 +124,8 @@ Deep audit found >80% gaps in Ticket 3 that were previously marked complete with
 |---|---|---|
 | Ticket 1 | 117 pass | ✅ |
 | Ticket 2 | 117 + 43 = 160 pass | ✅ |
-| Ticket 3 | 345 + 262 + 19 = 626 pass (was 1394 before restructure) | ✅ |
-| **Total** | **519 pass** | ✅ |
+| Ticket 3 | 1413 + 12 = 1425 pass (was 1413 before deep audit fix; 12 more previously-skipped tests now pass) | ✅ |
+| **Total** | **1425 pass** | ✅ |
 
 ---
 

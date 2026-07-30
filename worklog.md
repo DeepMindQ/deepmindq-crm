@@ -674,3 +674,42 @@ Stage Summary:
 - tsc --noEmit: 0 errors
 - ESLint: 0 errors
 - Governance check: 7/7 PASS
+
+---
+Task ID: t3-deep-audit-round2
+Agent: main
+Task: Ticket 3 Deepest-of-Deep Audit — Fix remaining 80% gaps
+
+Work Log:
+- Read full Ticket 3 spec from ARCHITECTURE.md (lines 768-791)
+- Read ALL intelligence-api layer files line-by-line: types.ts, middleware.ts, guard.ts, validators.ts, index.ts, handler.ts
+- Read ALL 10 intelligence route files line-by-line: company, reasoning, opportunity, action, conversation, mindmap, brief, grounding, retrieval, knowledge
+- Read full ai-governance.ts (1401 lines) — all governance configs, runGovernanceChecks, governedAICall, governedAICallAggregate, recordGeneration
+- Read eslint-rules/no-ungoverned-llm.js (292 lines) and scripts/check-governance.sh (142 lines)
+- Read model-router.ts (429 lines) and engines/index.ts barrel exports
+- Verified all 4 composition engines (synthesis, scoring, action, conversation) use governedAICall
+- Ran tsc --noEmit: PASS (0 errors)
+- Ran bash scripts/check-governance.sh: 9/9 checks PASS
+- Ran npx vitest run: 1425 pass, 14 skipped (35 test files)
+
+Gaps Found and Fixed (13 total):
+- G14: grounding route missing governanceMeta → Added runGovernanceChecks + governanceMeta
+- G15: retrieval route missing governanceMeta → Added runGovernanceChecks + governanceMeta
+- G16: knowledge route missing governanceMeta → Added runGovernanceChecks + governanceMeta
+- G17: mindmap route missing governanceMeta → Added runGovernanceChecks + governanceMeta
+- G18: grounding confidence not validated → Added Math.max/min clamp
+- G19: retrieval query not sanitized → Added 500 char limit + control char stripping + topK cap
+- G20: retrieval scores not clamped → Added per-result score clamping
+- G21: grounding maxEvidence not bounded → Added min 1, max 200
+- G22: mindmap labels not sanitized → Added .slice(0, 100) on all labels
+- G23: mindmap confidence not clamped → Added Math.max/min on all confidence values
+- G24-G26: Missing governance configs for knowledge_retrieval, mindmap, grounding, retrieval → Added 4 new configs (total now 61)
+
+Stage Summary:
+- 13 gaps found and fixed in deepest-of-deep audit
+- Total Ticket 3 gaps fixed: 26 (13 from round 1 + 13 from round 2)
+- All 10/10 intelligence API routes now have governance metadata
+- All input/output validation gaps closed
+- tsc --noEmit: 0 errors
+- vitest: 1425 pass, 14 skipped
+- governance shell check: 9/9 PASS

@@ -7,7 +7,7 @@
  *
  *   1. GroundingEngine.collect() — gather evidence
  *   2. RetrievalEngine.search() — find relevant knowledge
- *   3. ModelRouter.complete({ tier: 'deep' }) — generate the brief
+ *   3. governedAICall({ tier: 'deep' }) — generate the brief (via governance wrapper)
  *
  * Then parses the LLM output to extract:
  *   - Sections (with per-section confidence)

@@ -10,7 +10,7 @@
  *
  * Orchestrates foundation engines:
  *   1. GroundingEngine.collect() — gather evidence
- *   2. ModelRouter.complete({ tier: 'smart' }) — LLM-powered scoring narrative
+ *   2. governedAICall({ tier: 'smart' }) — LLM-powered scoring narrative (via governance wrapper)
  *   3. RetrievalEngine.search() — find similar scored accounts for calibration
  *
  * Score dimensions:

@@ -14,45 +14,13 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiSuccess, apiError } from '@/lib/apiHelpers'
-import { getGovernanceConfig, type GovernanceConfig, GOVERNANCE_PROMPT_VERSION } from '@/lib/ai-governance'
+import { getGovernanceConfig, type GovernanceConfig, GOVERNANCE_PROMPT_VERSION, getRegisteredGenerationTypes } from '@/lib/ai-governance'
 // eslint-disable-next-line no-ungoverned-llm/no-ungoverned-llm -- governance check endpoint needs health status
 import { ModelRouter } from '@/lib/engines/model-router'
 
-// Hardcoded list of all registered generation types (single source of truth mirrors GOVERNANCE_CONFIGS)
-const ALL_GENERATION_TYPES = [
-  'email_draft',
-  'conversation_plan',
-  'account_brief',
-  'signal_analysis',
-  'suggested_contacts',
-  'enrichment',
-  'insights',
-  'opportunities',
-  'recommendations',
-  'score_leads',
-  'pdf_report',
-  'ppt_generation',
-  'query_parsing',
-  'summarize',
-  'knowledge_enrichment',
-  'command_center_query',
-  'command_center_analysis',
-  'research_agent_person',
-  'ab_test_variant',
-  'data_health_analysis',
-  'playbook_generation',
-  'strategy_generation',
-  'chat',
-  'relationship_memory',
-  'research_extraction',
-  'signal_detection',
-  'workflow_email_generation',
-  // Ticket 3 deep audit: added missing types
-  'account_brief_engagement',
-  'account_brief_summary',
-  'company_research',
-  'revenue_engagement_wording',
-] as const
+function getAllGenerationTypes(): readonly string[] {
+  return [...getRegisteredGenerationTypes()]
+}
 
 interface GenerationTypeInfo {
   type: string
@@ -75,8 +43,8 @@ interface AuditSummary {
 
 export async function GET(_request: NextRequest) {
   try {
-    // 1. All generation type configs
-    const generationTypes: GenerationTypeInfo[] = ALL_GENERATION_TYPES.map((type) => ({
+    // 1. All generation type configs (dynamic from registered types)
+    const generationTypes: GenerationTypeInfo[] = getAllGenerationTypes().map((type) => ({
       type,
       config: getGovernanceConfig(type),
     }))

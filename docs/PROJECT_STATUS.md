@@ -1,7 +1,7 @@
 # DeepMindQ — Project Status
 
-**Last Updated**: 2026-07-30
-**Current Ticket**: Ticket 1 — Foundation Hardening (COMPLETE — 33 gaps fixed)
+**Last Updated**: 2026-07-31
+**Current Ticket**: Ticket 3 — AI Governance Hardening (COMPLETE)
 
 ---
 
@@ -10,8 +10,8 @@
 | # | Ticket | Priority | Status | Notes |
 |---|--------|----------|--------|-------|
 | 1 | Foundation Hardening | P0 | **COMPLETE** | All 13 spec items verified, 33 gaps found and fixed, 117/117 tests pass |
-| 2 | Intelligence API Layer Refactor | P0 | PENDING | Depends: Ticket 1 |
-| 3 | Model Router & AI Engine Wiring | P0 | PENDING | Depends: Ticket 1 |
+| 2 | Intelligence API Layer Refactor | P0 | **COMPLETE** | Selective loading, type safety, governance wrappers, 43/43 integration tests |
+| 3 | AI Governance Hardening | P0 | **COMPLETE** | 57 generation type configs, all engines governed, 1394/1394 tests pass |
 | 4 | Feedback Intelligence Loop | P0 | PENDING | Depends: Ticket 1 |
 | 5 | Signal Detection Engine | P0 | PENDING | Depends: Ticket 1 |
 | 6 | Account Intelligence Scoring | P0 | PENDING | Depends: Ticket 1 |

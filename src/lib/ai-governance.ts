@@ -307,6 +307,212 @@ const GOVERNANCE_CONFIGS: Record<string, GovernanceConfig> = {
     requireRecentIntelligence: false,
     maxStalenessDays: 365,
   },
+  // ── Engine-level generation types (Ticket 3 deep audit) ──────────────
+  // Synthesis engine brief types (registered via synthesis_${briefType})
+  synthesis_account_brief: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  synthesis_deal_strategy: {
+    minResearchConfidence: 0.3,
+    minFreshnessScore: 15,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: true,
+    maxStalenessDays: 120,
+  },
+  synthesis_exec_summary: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  synthesis_contact_brief: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  synthesis_opportunity_brief: {
+    minResearchConfidence: 0.3,
+    minFreshnessScore: 15,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: true,
+    maxStalenessDays: 120,
+  },
+  // Scoring engine
+  scoring_narrative: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Action engine
+  action_strategy: {
+    minResearchConfidence: 0.3,
+    minFreshnessScore: 15,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: true,
+    maxStalenessDays: 120,
+  },
+  // Conversation engine
+  conversation_briefing: {
+    minResearchConfidence: 0.3,
+    minFreshnessScore: 15,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: true,
+    maxStalenessDays: 120,
+  },
+  // Opportunity recommendation engine
+  opportunity_recommendation: {
+    minResearchConfidence: 0.4,
+    minFreshnessScore: 15,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: true,
+    maxStalenessDays: 120,
+  },
+  // Capability intelligence engine
+  capability_matching: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  opportunity_generation: {
+    minResearchConfidence: 0.4,
+    minFreshnessScore: 15,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: true,
+    maxStalenessDays: 120,
+  },
+  win_probability: {
+    minResearchConfidence: 0.3,
+    minFreshnessScore: 15,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: true,
+    maxStalenessDays: 120,
+  },
+  // Intelligence pipeline
+  company_intelligence: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  company_enrichment: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Signal sequence engine
+  sequence_generation: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Multi-agent orchestrator
+  agent_scorer: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  agent_strategist: {
+    minResearchConfidence: 0.3,
+    minFreshnessScore: 15,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  agent_executive_brief: {
+    minResearchConfidence: 0.3,
+    minFreshnessScore: 15,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: true,
+    maxStalenessDays: 120,
+  },
+  // Knowledge ingestion pipeline
+  knowledge_classify: {
+    minResearchConfidence: 0,
+    minFreshnessScore: 0,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 9999,
+  },
+  // Website monitoring engine
+  website_change_analysis: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Competitive intelligence engine
+  competitive_intel_collection: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  competitive_impact_analysis: {
+    minResearchConfidence: 0.3,
+    minFreshnessScore: 15,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // AI evidence engine
+  evidence_classification: {
+    minResearchConfidence: 0,
+    minFreshnessScore: 0,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 9999,
+  },
+  // People enrichment engine
+  people_enrichment: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Intelligence API route types
+  reasoning: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  full_pipeline: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
+  // Enterprise reasoning engine (dynamic step names — base type)
+  reasoning_default: {
+    minResearchConfidence: 0.2,
+    minFreshnessScore: 10,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 180,
+  },
 };
 
 // Track which generation types have been registered
@@ -435,7 +641,7 @@ EVIDENCE GROUNDING RULES (Mandatory):
 // ── Current prompt version hash (bump when rules change) ──
 // Bumped whenever HALLUCINATION_PREVENTION_RULES or governance configs change.
 // This is a content-hash prefix to detect drift between deployments.
-export const GOVERNANCE_PROMPT_VERSION = 'v3-t3-deep-audit';
+export const GOVERNANCE_PROMPT_VERSION = 'v3-t3-deep-audit-complete';
 
 // ── Public Functions ─────────────────────────────────────────────────────────
 

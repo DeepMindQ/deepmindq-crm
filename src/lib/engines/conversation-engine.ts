@@ -14,7 +14,7 @@
  *
  * Orchestrates foundation engines:
  *   1. GroundingEngine.collect() — gather evidence about company + contact
- *   2. ModelRouter.complete({ tier: 'smart' }) — LLM-powered briefing
+ *   2. governedAICall({ tier: 'smart' }) — LLM-powered briefing (via governance wrapper)
  *   3. RetrievalEngine.search() — find similar conversation patterns
  *
  * Briefing Types:

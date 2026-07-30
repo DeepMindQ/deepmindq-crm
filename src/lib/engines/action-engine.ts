@@ -9,7 +9,7 @@
  * Orchestrates foundation engines:
  *   1. GroundingEngine.collect() — gather evidence
  *   2. ScoringEngine.score() — get current revenue score
- *   3. ModelRouter.complete({ tier: 'smart' }) — LLM-powered action reasoning
+ *   3. governedAICall({ tier: 'smart' }) — LLM-powered action reasoning (via governance wrapper)
  *   4. RetrievalEngine.search() — find similar accounts for pattern matching
  *
  * Action Types:

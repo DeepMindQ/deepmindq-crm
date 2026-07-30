@@ -588,3 +588,36 @@ Stage Summary:
 - `tsc --noEmit`: 0 errors
 - `vitest run tests/ticket2`: 68/68 tests passing (56 existing + 12 new)
 - Files modified: middleware.ts, validators.ts, guard.ts, types.ts (already had VALIDATION_FAILED), all 10 route files, both test files
+
+---
+Task ID: ticket-3-governance-hardening
+Agent: main
+Task: Ticket 3 — AI Governance Hardening (P0, depends on Ticket 1)
+
+Work Log:
+- Audited full governance infrastructure: ai-governance.ts (1021 lines), ESLint rule, check-governance.sh
+- Identified 22 ungoverned API routes: 2 getZAI() bypass, 2 shadow-function, 16 ModelRouter-direct, 2 bonus
+- Migrated all 22 routes to governance layer:
+  - getZAI() bypasses (conversation-plan, suggested-contacts) → governedAICall with enforceGovernance: false
+  - Shadow-function routes (account-brief, signals) → governedAICall / governedAICallAggregate
+  - 16 aggregate routes → governedAICallAggregate
+  - Company-specific routes (companies/enrich, contacts/generate-email) → governedAICall
+  - Full-pipeline and companies/[id]/intelligence → governedAICall
+- Hardened ESLint rule (no-ungoverned-llm.js): added getZAI + ModelRouter import detection (3 new message IDs)
+- Updated check-governance.sh: added Check 5 (getZAI) + Check 6 (ModelRouter), removed shadow-function whitelisting
+- Created GET /api/ai/governance/check endpoint (generation type configs, audit summary, ModelRouter health)
+- Added governance metadata field to IntelligenceResponse.meta (types.ts + middleware.ts)
+- Fixed 4 TypeScript errors in migrated routes (companies/enrich, playbooks)
+- Wrote 26 tests (ticket3-governance.test.ts): config coverage, check behavior, prompt addons, hallucination rules
+
+Stage Summary:
+- EXIT CRITERIA ALL PASS:
+  [x] 27/27 generation types have governance configs
+  [x] 22/22 API routes route through governance (governedAICall or governedAICallAggregate)
+  [x] ESLint rule catches all ungoverned patterns (callLLM, getZAI, ModelRouter, AI SDK)
+  [x] check-governance.sh: 6/6 checks pass
+  [x] AIGenerationAudit records governance_passed + governance_checks for every generation
+- tsc: 0 errors
+- lint: 0 errors (3 warnings in coverage/ — pre-existing)
+- tests: 1045 pass / 14 skip / 0 fail
+- Pushed to GitHub: 2 commits (main → 5e0e22d)

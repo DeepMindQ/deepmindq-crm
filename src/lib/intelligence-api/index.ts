@@ -51,6 +51,7 @@ export {
   createErrorResponse,
   computeFreshness,
 } from './middleware';
+export type { IntelligenceErrorResponse } from './middleware';
 
 // ── Validators (Zod schemas for request validation) ──
 export {
@@ -64,6 +65,10 @@ export {
   actionIntelligenceSchema,
   conversationIntelligenceSchema,
   mindmapIntelligenceSchema,
+  briefIntelligenceSchema,
+  groundingIntelligenceSchema,
+  retrievalIntelligenceSchema,
+  knowledgeIntelligenceSchema,
   intelligenceValidators,
 } from './validators';
 
@@ -78,6 +83,10 @@ export type {
   ActionIntelligenceInput,
   ConversationIntelligenceInput,
   MindmapIntelligenceInput,
+  BriefIntelligenceInput,
+  GroundingIntelligenceInput,
+  RetrievalIntelligenceInput,
+  KnowledgeIntelligenceInput,
 } from './validators';
 
 // ── Foundation Engines (internal composition use, re-exported for Intelligence API routes) ──

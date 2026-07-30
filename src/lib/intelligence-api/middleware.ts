@@ -92,30 +92,32 @@ export function createResponse<T>(
 /**
  * Create an error IntelligenceResponse envelope.
  */
+export interface IntelligenceErrorResponse {
+  error: string;
+  code: string;
+  details?: Record<string, unknown>;
+}
+
+/**
+ * Create an error response following the Ticket 1 exit-criteria format:
+ * `{ error: string, code: string, details?: object }`
+ *
+ * Used by all Intelligence API error paths (400, 429, 500).
+ */
 export function createErrorResponse(
-  endpoint: EndpointName,
+  _endpoint: EndpointName,
   companyId: string,
   error: string,
   errorCode: string = IntelligenceErrors.INTELLIGENCE_UNAVAILABLE,
-  durationMs: number = 0,
-  includes: Set<IntelligenceInclude> = new Set(),
-): IntelligenceResponse<never> {
-  return {
-    success: false,
-    data: null,
-    error,
-    meta: {
-      endpoint,
-      companyId,
-      requestedAt: new Date().toISOString(),
-      respondedAt: new Date().toISOString(),
-      durationMs,
-      cached: false,
-      includes: Array.from(includes),
-      confidence: 0,
-      freshness: { level: 'unknown', lastEnriched: null, lastSignal: null, score: 0 },
-    },
-  };
+  durationMs?: number,
+  includes?: Set<IntelligenceInclude>,
+): IntelligenceErrorResponse {
+  const details: Record<string, unknown> = {};
+  if (companyId) details.companyId = companyId;
+  if (durationMs !== undefined && durationMs > 0) details.durationMs = durationMs;
+  if (includes && includes.size > 0) details.requestedIncludes = Array.from(includes);
+  const detailKeys = Object.keys(details);
+  return { error, code: errorCode, details: detailKeys.length > 0 ? details : undefined };
 }
 
 // ── Freshness Computation ─────────────────────────────────────────────────────────

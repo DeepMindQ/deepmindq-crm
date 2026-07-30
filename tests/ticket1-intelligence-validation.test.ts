@@ -1,7 +1,7 @@
 /**
  * Ticket 1 — Unit Tests: Intelligence API Zod Validation Schemas
  *
- * Tests all 6 Intelligence API endpoint validation schemas.
+ * Tests all 10 Intelligence API endpoint validation schemas.
  * Each endpoint gets 2+ test cases:
  *   - Valid params pass validation
  *   - Invalid companyId rejected
@@ -19,6 +19,10 @@ import {
   actionIntelligenceSchema,
   conversationIntelligenceSchema,
   mindmapIntelligenceSchema,
+  briefIntelligenceSchema,
+  groundingIntelligenceSchema,
+  retrievalIntelligenceSchema,
+  knowledgeIntelligenceSchema,
   pageSchema,
   limitSchema,
 } from '@/lib/intelligence-api/validators';
@@ -356,6 +360,126 @@ describe('mindmapIntelligenceSchema', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
+//  Endpoint-specific: briefIntelligenceSchema (2+ tests)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('briefIntelligenceSchema', () => {
+  it('accepts valid params with signals include', () => {
+    const result = briefIntelligenceSchema.safeParse({
+      companyId: 'brief-301',
+      include: 'signals,scores',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects empty companyId', () => {
+    const result = briefIntelligenceSchema.safeParse({
+      companyId: '',
+      include: undefined,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects path traversal in companyId', () => {
+    const result = briefIntelligenceSchema.safeParse({
+      companyId: '../../../etc/passwd',
+      include: undefined,
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Endpoint-specific: groundingIntelligenceSchema (2+ tests)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('groundingIntelligenceSchema', () => {
+  it('accepts valid params with no include', () => {
+    const result = groundingIntelligenceSchema.safeParse({
+      companyId: 'ground-401',
+      include: undefined,
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects null companyId', () => {
+    const result = groundingIntelligenceSchema.safeParse({
+      companyId: null as any,
+      include: undefined,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts valid params with knowledge include', () => {
+    const result = groundingIntelligenceSchema.safeParse({
+      companyId: 'ground-402',
+      include: 'knowledge',
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Endpoint-specific: retrievalIntelligenceSchema (2+ tests)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('retrievalIntelligenceSchema', () => {
+  it('accepts valid params with knowledge include', () => {
+    const result = retrievalIntelligenceSchema.safeParse({
+      companyId: 'retrieval-501',
+      include: 'knowledge',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects companyId exceeding max length', () => {
+    const result = retrievalIntelligenceSchema.safeParse({
+      companyId: 'a'.repeat(200),
+      include: undefined,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('rejects invalid include value', () => {
+    const result = retrievalIntelligenceSchema.safeParse({
+      companyId: 'retrieval-502',
+      include: 'INVALID_INCLUDE',
+    });
+    expect(result.success).toBe(false);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+//  Endpoint-specific: knowledgeIntelligenceSchema (2+ tests)
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('knowledgeIntelligenceSchema', () => {
+  it('accepts valid params with multiple includes', () => {
+    const result = knowledgeIntelligenceSchema.safeParse({
+      companyId: 'knowledge-601',
+      include: 'signals,knowledge,brief',
+    });
+    expect(result.success).toBe(true);
+  });
+
+  it('rejects companyId with special characters', () => {
+    const result = knowledgeIntelligenceSchema.safeParse({
+      companyId: 'id<script>alert(1)</script>',
+      include: undefined,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('accepts valid params without include', () => {
+    const result = knowledgeIntelligenceSchema.safeParse({
+      companyId: 'knowledge-602',
+      include: undefined,
+    });
+    expect(result.success).toBe(true);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
 //  Cross-cutting: All schemas share the same shape
 // ═══════════════════════════════════════════════════════════════════════════
 
@@ -367,6 +491,10 @@ describe('Intelligence schema consistency', () => {
     { name: 'action', schema: actionIntelligenceSchema },
     { name: 'conversation', schema: conversationIntelligenceSchema },
     { name: 'mindmap', schema: mindmapIntelligenceSchema },
+    { name: 'brief', schema: briefIntelligenceSchema },
+    { name: 'grounding', schema: groundingIntelligenceSchema },
+    { name: 'retrieval', schema: retrievalIntelligenceSchema },
+    { name: 'knowledge', schema: knowledgeIntelligenceSchema },
   ];
 
   it('all schemas reject empty companyId', () => {

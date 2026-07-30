@@ -39,6 +39,7 @@ import type {
   IntelligenceInclude,
   FreshnessInfo,
 } from './types';
+import type { IntelligenceErrorResponse } from './middleware';
 import { IntelligenceErrors } from './types';
 
 // ── Rate limit config ───────────────────────────────────────────────────────
@@ -185,21 +186,10 @@ export function withIntelligenceHandler<T>(
       });
       return NextResponse.json(
         {
-          success: false,
-          data: null,
           error: firstError?.message || 'Invalid request parameters',
-          meta: {
-            endpoint,
-            companyId: companyId || '',
-            requestedAt: new Date().toISOString(),
-            respondedAt: new Date().toISOString(),
-            durationMs: Date.now() - startedAt,
-            cached: false,
-            includes: [],
-            confidence: 0,
-            freshness: { level: 'unknown', lastEnriched: null, lastSignal: null, score: 0 },
-          },
-        },
+          code: IntelligenceErrors.INVALID_INCLUDE,
+          details: { endpoint, companyId: companyId || '', durationMs: Date.now() - startedAt, validationErrors: validationResult.error.issues.map((e: z.ZodIssue) => e.message) },
+        } satisfies IntelligenceErrorResponse,
         { status: 400, headers: responseHeaders },
       );
     }

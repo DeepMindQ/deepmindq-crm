@@ -135,6 +135,54 @@ export const mindmapIntelligenceSchema = z.object({
   include: includeSchema,
 });
 
+/**
+ * GET /api/intelligence/brief/{id}?include=steps
+ *
+ * Validates:
+ *   - companyId (path param)
+ *   - include (optional query param)
+ */
+export const briefIntelligenceSchema = z.object({
+  companyId: companyIdSchema,
+  include: includeSchema,
+});
+
+/**
+ * GET /api/intelligence/grounding/{id}?include=evidence
+ *
+ * Validates:
+ *   - companyId (path param)
+ *   - include (optional query param)
+ */
+export const groundingIntelligenceSchema = z.object({
+  companyId: companyIdSchema,
+  include: includeSchema,
+});
+
+/**
+ * GET /api/intelligence/retrieval/{id}?include=knowledge
+ *
+ * Validates:
+ *   - companyId (path param)
+ *   - include (optional query param)
+ */
+export const retrievalIntelligenceSchema = z.object({
+  companyId: companyIdSchema,
+  include: includeSchema,
+});
+
+/**
+ * GET /api/intelligence/knowledge/{id}
+ *
+ * Validates:
+ *   - companyId (path param)
+ *   - include (optional query param)
+ */
+export const knowledgeIntelligenceSchema = z.object({
+  companyId: companyIdSchema,
+  include: includeSchema,
+});
+
 // ── Map: endpoint name → schema for lookup ──────────────────────────────────
 
 export const intelligenceValidators: Record<string, z.ZodObject<{
@@ -147,6 +195,10 @@ export const intelligenceValidators: Record<string, z.ZodObject<{
   action: actionIntelligenceSchema,
   conversation: conversationIntelligenceSchema,
   mindmap: mindmapIntelligenceSchema,
+  brief: briefIntelligenceSchema,
+  grounding: groundingIntelligenceSchema,
+  retrieval: retrievalIntelligenceSchema,
+  knowledge: knowledgeIntelligenceSchema,
 };
 
 // ── Inferred input types ────────────────────────────────────────────────────
@@ -157,3 +209,24 @@ export type OpportunityIntelligenceInput = z.infer<typeof opportunityIntelligenc
 export type ActionIntelligenceInput = z.infer<typeof actionIntelligenceSchema>;
 export type ConversationIntelligenceInput = z.infer<typeof conversationIntelligenceSchema>;
 export type MindmapIntelligenceInput = z.infer<typeof mindmapIntelligenceSchema>;
+export type BriefIntelligenceInput = z.infer<typeof briefIntelligenceSchema>;
+export type GroundingIntelligenceInput = z.infer<typeof groundingIntelligenceSchema>;
+export type RetrievalIntelligenceInput = z.infer<typeof retrievalIntelligenceSchema>;
+export type KnowledgeIntelligenceInput = z.infer<typeof knowledgeIntelligenceSchema>;
+
+// ── Consistency check: all validators share the same shape ──────────────────
+
+const ALL_VALIDATOR_KEYS = [
+  'company', 'reasoning', 'opportunity', 'action', 'conversation', 'mindmap',
+  'brief', 'grounding', 'retrieval', 'knowledge',
+] as const;
+
+/**
+ * Runtime assertion: every key in ALL_VALIDATOR_KEYS exists in intelligenceValidators.
+ * Will throw at module load time if a schema is missing.
+ */
+for (const key of ALL_VALIDATOR_KEYS) {
+  if (!intelligenceValidators[key]) {
+    throw new Error(`Intelligence API validator missing for endpoint: ${key}`);
+  }
+}

@@ -26,6 +26,7 @@ import { FusionEngine } from '@/lib/fusion-engine';
 import { createInsight } from '@/lib/ai-insight-service';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';
+import { companyIdSchema } from '@/lib/intelligence-api/validators';
 
 // ── Types ──
 
@@ -98,10 +99,12 @@ export async function GET(request: NextRequest) {
     throw rlErr;
   }
 
-  const companyId = new URL(request.url).searchParams.get('companyId');
-  if (!companyId) {
-    return utilityError(ctx, 400, 'companyId query parameter required', 'INVALID_REQUEST');
+  const rawCompanyId = new URL(request.url).searchParams.get('companyId');
+  const parsed = companyIdSchema.safeParse(rawCompanyId);
+  if (!parsed.success) {
+    return utilityError(ctx, 400, 'Invalid companyId format', 'INVALID_REQUEST');
   }
+  const companyId = parsed.data;
 
   try {
     // Load company
@@ -217,11 +220,11 @@ export async function POST(request: NextRequest) {
 
   try {
   const body = await request.json();
-  const { companyId } = body;
-
-  if (!companyId) {
-    return utilityError(ctx, 400, 'companyId is required', 'INVALID_REQUEST');
+  const parsed = companyIdSchema.safeParse(body.companyId);
+  if (!parsed.success) {
+    return utilityError(ctx, 400, 'Invalid companyId format', 'INVALID_REQUEST');
   }
+  const companyId = parsed.data;
 
   const pipelineId = `pl_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const pipelineStart = Date.now();

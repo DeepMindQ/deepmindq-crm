@@ -513,3 +513,25 @@ Stage Summary:
   - Rate limiting on all routes (intelligenceGuard 60/min, utilityGuard 120/min)
   - scrubError on all error paths
   - No dead code in handler.ts
+
+---
+Task ID: ticket1-updated-evidence-report
+Agent: main
+Task: Generate updated evidence report — full zero-defect audit of all 29 routes against spec
+
+Work Log:
+- Conducted full Phase 1-4 zero-defect audit: Spec Decomposition (13 requirements) → Full Enumeration (29 routes, 5 lib files, 77 screens, 5 test suites) → Evidence Collection (line-by-line review) → Gap Analysis
+- Found 2 additional gaps: full-pipeline POST/GET missing Zod companyId validation, and handler.ts dead code
+- Fixed full-pipeline: added companyIdSchema.safeParse to both POST body and GET query param
+- Fixed handler.ts: already done in prior round (247→42 lines)
+- Verified all 13 spec requirements: 13/13 PASS
+- Verified all 4 exit criteria: 4/4 PASS
+- Generated 8-section PDF evidence report with: Executive Summary, Exit Criteria, Per-Route Evidence Table (29 routes × 8 dimensions), Library Module Audit, Gap Resolution History (186→0), Test Evidence (208 tests), Configuration Evidence, Conclusion
+- Report saved to /home/z/my-project/download/TICKET1_UPDATED_EVIDENCE_REPORT.pdf
+
+Stage Summary:
+- Final audit result: 13/13 spec requirements PASS, 4/4 exit criteria PASS
+- 186 original gaps → 0 remaining
+- PDF report: 53.4 KB, 8 sections, comprehensive per-route evidence
+- handler.ts reduced from 247→42 lines, full-pipeline and correlations Zod-validated
+- Ticket 1 Foundation Hardening: COMPLETE

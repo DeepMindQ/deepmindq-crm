@@ -120,20 +120,35 @@ export async function GET(
 
   // ── Step 4: Build brief from conversation result ────────────────────────
   const cr = conversationResult as unknown as Record<string, unknown>;
+  const summary = (cr.summary as string) || (cr.overallNarrative as string) || '';
+  const keyThemes = Array.isArray(cr.talkingPoints)
+    ? ((cr.talkingPoints as Array<{ topic?: string }>).map((tp) => tp.topic || '').filter(Boolean))
+    : [];
+  const recommendations = Array.isArray(cr.keyRecommendations)
+    ? ((cr.keyRecommendations as Array<{ recommendation?: string }>).map((r) => r.recommendation || '').filter(Boolean))
+    : [];
+  const risks = Array.isArray(cr.risks)
+    ? ((cr.risks as Array<{ risk?: string }>).map((r) => r.risk || '').filter(Boolean))
+    : [];
+
   const brief: IntelligenceBrief = {
-    summary: (cr.summary as string) || (cr.overallNarrative as string) || '',
-    keyThemes: Array.isArray(cr.talkingPoints)
-      ? ((cr.talkingPoints as Array<{ topic?: string }>).map((tp) => tp.topic || '').filter(Boolean))
-      : [],
-    recommendations: Array.isArray(cr.keyRecommendations)
-      ? ((cr.keyRecommendations as Array<{ recommendation?: string }>).map((r) => r.recommendation || '').filter(Boolean))
-      : [],
-    risks: Array.isArray(cr.risks)
-      ? ((cr.risks as Array<{ risk?: string }>).map((r) => r.risk || '').filter(Boolean))
-      : [],
+    briefType: 'conversation_brief',
+    content: [summary, ...keyThemes.map(t => `- ${t}`), ...recommendations.map(r => `- ${r}`)].join('\n'),
+    sections: [{
+      heading: 'Conversation Brief',
+      body: summary || 'No summary available.',
+      confidence: (cr.confidenceScore as number) ?? (cr.confidence as number) ?? 0,
+      citations: [],
+    }],
+    citations: [],
+    evidenceChain: { evidences: [], aggregateConfidence: 0, coverage: 0, gaps: [], freshnessScore: 0 },
+    wordCount: summary.split(/\s+/).filter(Boolean).length,
+    modelUsed: 'conversation-engine',
     confidence: (cr.confidenceScore as number) ?? (cr.confidence as number) ?? 0,
-    generatedAt: (cr.generatedAt as string) || new Date().toISOString(),
-    source: 'conversation-engine',
+    durationMs: 0,
+    tokensUsed: 0,
+    costUsd: 0,
+    warnings: risks.length > 0 ? risks.map(r => `Risk: ${r}`) : [],
   };
 
   // ── Step 5: Compose response data ────────────────────────────────────────

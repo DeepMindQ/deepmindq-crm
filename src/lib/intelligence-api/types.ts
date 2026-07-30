@@ -14,6 +14,9 @@ import type { RevenueScore } from '@/lib/engines/scoring-engine';
 import type { ActionResult } from '@/lib/engines/action-engine';
 import type { ConversationResult } from '@/lib/engines/conversation-engine';
 import type { ReasoningResult } from '@/lib/enterprise-reasoning-engine';
+import type { Brief, BriefSection, BriefCitation } from '@/lib/engines/synthesis-engine';
+import type { Evidence, EvidenceType, EvidenceChain, EvidenceGap, GroundingContext } from '@/lib/engines/grounding-engine';
+import type { RetrievalResult, RetrievalStats, EmbeddableEntityType } from '@/lib/engines/retrieval-engine';
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  GENERIC WRAPPER — Every Intelligence API response uses this envelope
@@ -44,7 +47,10 @@ export type IntelligenceEndpoint =
   | 'opportunity'
   | 'action'
   | 'conversation'
-  | 'mindmap';
+  | 'mindmap'
+  | 'brief'
+  | 'grounding'
+  | 'retrieval';
 
 export type IntelligenceInclude =
   | 'signals'
@@ -198,13 +204,46 @@ export interface IntelligenceTimelineEvent {
 }
 
 export interface IntelligenceBrief {
-  summary: string;
-  keyThemes: string[];
-  recommendations: string[];
-  risks: string[];
+  /** Brief type (account_brief, deal_strategy, etc.) */
+  briefType: string;
+  /** Full Markdown content */
+  content: string;
+  /** Parsed sections with per-section confidence */
+  sections: Array<{
+    heading: string;
+    body: string;
+    confidence: number;
+    citations: string[];
+  }>;
+  /** Citation index mapping markers to evidence */
+  citations: Array<{
+    marker: string;
+    evidenceId: string;
+    snippet: string;
+    url: string | null;
+  }>;
+  /** Evidence chain used to ground this brief */
+  evidenceChain: {
+    evidences: Evidence[];
+    aggregateConfidence: number;
+    coverage: number;
+    gaps: EvidenceGap[];
+    freshnessScore: number;
+  };
+  /** Word count */
+  wordCount: number;
+  /** Model used */
+  modelUsed: string;
+  /** Overall confidence 0-1 */
   confidence: number;
-  generatedAt: string;
-  source: string;
+  /** Generation time in ms */
+  durationMs: number;
+  /** Token usage */
+  tokensUsed: number;
+  /** Estimated cost */
+  costUsd: number;
+  /** Warnings (hallucinated citations, low evidence, etc.) */
+  warnings: string[];
 }
 
 export interface IntelligenceMindmapSummary {
@@ -338,6 +377,46 @@ export type MindmapEdge = {
   weight: number;
   label?: string;
 };
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  BRIEF — GET /api/intelligence/brief/{id}
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface IntelligenceBriefOutput {
+  companyId: string;
+  brief: IntelligenceBrief;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  GROUNDING — GET /api/intelligence/grounding/{id}
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface IntelligenceGroundingOutput {
+  companyId: string;
+  evidences: Evidence[];
+  aggregateConfidence: number;
+  coverage: number;
+  gaps: EvidenceGap[];
+  freshnessScore: number;
+  evidenceCount: number;
+  gapCount: number;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  RETRIEVAL — GET /api/intelligence/retrieval/{id}
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface IntelligenceRetrievalOutput {
+  companyId: string;
+  results: RetrievalResult[];
+  query: string;
+  resultCount: number;
+  stats: {
+    totalEmbeddings: number;
+    uniqueEntities: number;
+    backend: string;
+  };
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  ERROR TYPES

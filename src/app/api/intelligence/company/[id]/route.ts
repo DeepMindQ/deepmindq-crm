@@ -459,20 +459,31 @@ export async function GET(
     if (key === 'brief') {
       const cr = result as unknown as Record<string, unknown>;
       if (cr.success as boolean) {
+        const summary = (cr.meetingObjective as string) || (cr.companyContext as string) || '';
+        const keyThemes = Array.isArray(cr.signalContext) ? (cr.signalContext as string[]) : [];
+        const recommendations = Array.isArray(cr.postMeetingActions) ? (cr.postMeetingActions as string[]) : [];
+        const briefConfidence = ((cr.confidenceScore as number) ?? 0) / 100;
+
         brief = {
-          summary: (cr.meetingObjective as string) || (cr.companyContext as string) || '',
-          keyThemes: Array.isArray(cr.signalContext)
-            ? (cr.signalContext as string[])
-            : [],
-          recommendations: Array.isArray(cr.postMeetingActions)
-            ? (cr.postMeetingActions as string[])
-            : [],
-          risks: [], // Extracted from objections if available
-          confidence: ((cr.confidenceScore as number) ?? 0) / 100,
-          generatedAt: (cr.generatedAt as string) || new Date().toISOString(),
-          source: 'conversation-engine',
+          briefType: 'conversation_brief',
+          content: [summary, ...keyThemes.map(t => `- ${t}`), ...recommendations.map(r => `- ${r}`)].join('\n'),
+          sections: [{
+            heading: 'Company Brief',
+            body: summary || 'No summary available.',
+            confidence: briefConfidence,
+            citations: [],
+          }],
+          citations: [],
+          evidenceChain: { evidences: [], aggregateConfidence: 0, coverage: 0, gaps: [], freshnessScore: 0 },
+          wordCount: summary.split(/\s+/).filter(Boolean).length,
+          modelUsed: 'conversation-engine',
+          confidence: briefConfidence,
+          durationMs: 0,
+          tokensUsed: 0,
+          costUsd: 0,
+          warnings: [],
         };
-        confidences.push(((cr.confidenceScore as number) ?? 0) / 100);
+        confidences.push(briefConfidence);
       } else {
         logger.warn('[intelligence/company] ConversationEngine.brief returned failure', {
           companyId,

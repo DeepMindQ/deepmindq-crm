@@ -13,7 +13,8 @@ const nextConfig: NextConfig = {
   },
   // Standalone output — enables Docker deployment (server.js entry point).
   // Compatible with Render, Railway, Fly.io, and self-hosted Docker.
-  output: 'standalone',
+  // Vercel overrides this to its own output; standalone is only used for non-Vercel deploys.
+  output: process.env.VERCEL ? undefined : 'standalone',
   serverExternalPackages: ['nodemailer'],
 
   // Security headers for all routes (API and pages)

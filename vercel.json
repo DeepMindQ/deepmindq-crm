@@ -1,5 +1,8 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": "nextjs",
+  "buildCommand": "npm run build:vercel",
+  "installCommand": "npm install",
   "regions": ["bom1"],
   "env": {
     "NEXT_TELEMETRY_DISABLED": "1"
@@ -13,22 +16,6 @@
     {
       "path": "/api/cron/job-processor",
       "schedule": "0 6 * * *"
-    }
-  ],
-  "services": {
-    "deepmindq-crm": {
-      "root": ".",
-      "framework": "nextjs",
-      "buildCommand": "npm install && npm run build:vercel"
-    }
-  },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": {
-        "type": "service",
-        "service": "deepmindq-crm"
-      }
     }
   ]
 }

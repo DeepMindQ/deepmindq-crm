@@ -1,0 +1,1383 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DeepMindQ — Complete Architecture Diagrams</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+            background: #0a0e1a;
+            color: #e2e8f0;
+            line-height: 1.6;
+        }
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            z-index: 1000;
+            background: rgba(10, 14, 26, 0.95);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid rgba(99, 102, 241, 0.2);
+            padding: 16px 32px;
+        }
+        .header h1 {
+            font-size: 18px;
+            font-weight: 700;
+            background: linear-gradient(135deg, #818cf8, #6366f1, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .header p {
+            font-size: 13px;
+            color: #94a3b8;
+            margin-top: 2px;
+        }
+        .nav {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+        .nav button {
+            background: rgba(99, 102, 241, 0.1);
+            border: 1px solid rgba(99, 102, 241, 0.3);
+            color: #a5b4fc;
+            padding: 6px 14px;
+            border-radius: 6px;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .nav button:hover, .nav button.active {
+            background: rgba(99, 102, 241, 0.3);
+            border-color: #6366f1;
+            color: #fff;
+        }
+        .content {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 120px 32px 80px;
+        }
+        .diagram-section {
+            display: none;
+            animation: fadeIn 0.3s ease;
+        }
+        .diagram-section.active {
+            display: block;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .diagram-title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #f1f5f9;
+            margin-bottom: 8px;
+        }
+        .diagram-desc {
+            font-size: 14px;
+            color: #94a3b8;
+            margin-bottom: 24px;
+            max-width: 800px;
+        }
+        .diagram-container {
+            background: #111827;
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            border-radius: 12px;
+            padding: 32px;
+            overflow-x: auto;
+            margin-bottom: 40px;
+        }
+        .mermaid {
+            display: flex;
+            justify-content: center;
+            min-width: fit-content;
+        }
+        .mermaid svg {
+            max-width: none;
+            height: auto;
+        }
+        .toc {
+            background: rgba(99, 102, 241, 0.05);
+            border: 1px solid rgba(99, 102, 241, 0.15);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 48px;
+        }
+        .toc h2 {
+            font-size: 16px;
+            color: #a5b4fc;
+            margin-bottom: 16px;
+        }
+        .toc-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+            gap: 12px;
+        }
+        .toc-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            padding: 12px;
+            background: rgba(17, 24, 39, 0.6);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: 1px solid transparent;
+        }
+        .toc-item:hover {
+            background: rgba(99, 102, 241, 0.1);
+            border-color: rgba(99, 102, 241, 0.3);
+        }
+        .toc-num {
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            color: #fff;
+            font-size: 12px;
+            font-weight: 700;
+            padding: 4px 10px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+        .toc-text {
+            font-size: 13px;
+            color: #cbd5e1;
+        }
+        .toc-text small {
+            display: block;
+            color: #64748b;
+            font-size: 11px;
+            margin-top: 2px;
+        }
+        .badge {
+            display: inline-block;
+            font-size: 10px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .badge-blue { background: rgba(59, 130, 246, 0.2); color: #93c5fd; }
+        .badge-green { background: rgba(34, 197, 94, 0.2); color: #86efac; }
+        .badge-purple { background: rgba(168, 85, 247, 0.2); color: #d8b4fe; }
+        .badge-amber { background: rgba(245, 158, 11, 0.2); color: #fde68a; }
+        .badge-red { background: rgba(239, 68, 68, 0.2); color: #fca5a5; }
+        .badge-cyan { background: rgba(6, 182, 212, 0.2); color: #67e8f9; }
+        @media (max-width: 768px) {
+            .content { padding: 100px 16px 60px; }
+            .header { padding: 12px 16px; }
+            .diagram-container { padding: 16px; }
+            .toc-grid { grid-template-columns: 1fr; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="header">
+    <h1>DeepMindQ — Enterprise Intelligence Operating System</h1>
+    <p>Complete Reference Architecture — 9 Detailed Diagrams</p>
+    <div class="nav" id="nav">
+        <button class="active" onclick="showSection('toc')">📋 All Diagrams</button>
+        <button onclick="showSection('d1')">1. System Architecture</button>
+        <button onclick="showSection('d2')">2. Intelligence Flow</button>
+        <button onclick="showSection('d3')">3. Data Flow</button>
+        <button onclick="showSection('d4')">4. Signal Pipeline</button>
+        <button onclick="showSection('d5')">5. Knowledge/RAG</button>
+        <button onclick="showSection('d6')">6. Actions</button>
+        <button onclick="showSection('d7')">7. Learning Loop</button>
+        <button onclick="showSection('d8')">8. User Journeys</button>
+        <button onclick="showSection('d9')">9. Entity Relations</button>
+    </div>
+</div>
+
+<div class="content">
+
+<!-- TABLE OF CONTENTS -->
+<div class="diagram-section active" id="toc">
+    <div class="toc">
+        <h2>Architecture Diagram Index</h2>
+        <div class="toc-grid">
+            <div class="toc-item" onclick="showSection('d1')">
+                <span class="toc-num">01</span>
+                <div class="toc-text">
+                    Complete System Architecture
+                    <small>Solution Architecture — All layers from UI to Data</small>
+                </div>
+            </div>
+            <div class="toc-item" onclick="showSection('d2')">
+                <span class="toc-num">02</span>
+                <div class="toc-text">
+                    Intelligence Architecture (5Q Framework)
+                    <small>How intelligence flows through the system</small>
+                </div>
+            </div>
+            <div class="toc-item" onclick="showSection('d3')">
+                <span class="toc-num">03</span>
+                <div class="toc-text">
+                    Data Flow Architecture
+                    <small>How data moves between all system components</small>
+                </div>
+            </div>
+            <div class="toc-item" onclick="showSection('d4')">
+                <span class="toc-num">04</span>
+                <div class="toc-text">
+                    Signal-to-Insight Pipeline
+                    <small>From external sources to actionable intelligence</small>
+                </div>
+            </div>
+            <div class="toc-item" onclick="showSection('d5')">
+                <span class="toc-num">05</span>
+                <div class="toc-text">
+                    Knowledge / RAG Pipeline
+                    <small>Document ingestion, embedding, retrieval, grounded generation</small>
+                </div>
+            </div>
+            <div class="toc-item" onclick="showSection('d6')">
+                <span class="toc-num">06</span>
+                <div class="toc-text">
+                    Recommendation & Action Workflow
+                    <small>From intelligence to user action to execution</small>
+                </div>
+            </div>
+            <div class="toc-item" onclick="showSection('d7')">
+                <span class="toc-num">07</span>
+                <div class="toc-text">
+                    Feedback & Learning Loop
+                    <small>How outcomes improve future recommendations</small>
+                </div>
+            </div>
+            <div class="toc-item" onclick="showSection('d8')">
+                <span class="toc-num">08</span>
+                <div class="toc-text">
+                    User Journey Flows (3 Personas)
+                    <small>Sales Rep, Intelligence Analyst, Sales Manager</small>
+                </div>
+            </div>
+            <div class="toc-item" onclick="showSection('d9')">
+                <span class="toc-num">09</span>
+                <div class="toc-text">
+                    Database Entity Relationships
+                    <small>Core data models and their relationships</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- DIAGRAM 1: Complete System Architecture -->
+<div class="diagram-section" id="d1">
+    <div class="diagram-title">Diagram 1: Complete System Architecture <span class="badge badge-blue">Solution Architecture</span></div>
+    <div class="diagram-desc">Full stack from Enterprise Experience Layer through Intelligence API, Governed AI Engines, AI Foundation, down to Knowledge + Enterprise Data Layer. Shows all 76 screens organized by priority tier, API endpoint groups, middleware, orchestration, all 14+ AI engines, governance layer, model router fallback chain, service layer, and 87 Prisma data models.</div>
+    <div class="diagram-container">
+        <div class="mermaid">
+flowchart TB
+    subgraph UserLayer["Enterprise Experience Layer"]
+        Browser["Web Browser"]
+        App["Next.js App Router"]
+        subgraph Shell["Application Shell"]
+            Sidebar["Left Sidebar"]
+            CmdPalette["Command Palette Cmd+K"]
+            ContextPanel["Context Panel"]
+            NotifBar["Notification Bar"]
+        end
+        subgraph P0["P0 Core Intelligence ~25 screens"]
+            CC["Command Center"]
+            C360["Company 360"]
+            SI["Signal Intelligence"]
+            RE["Reasoning"]
+            AC["Action Center"]
+            CI["Contact Intelligence"]
+            OI["Opportunity Intel"]
+            KI["Knowledge Intel"]
+            MM["Mind Map"]
+            RS["Research Agent"]
+            IT["Intel Timeline"]
+            IH["Intel Health"]
+            IS["Intel Sources"]
+            IA["Intel Analytics"]
+            IIB["Intel Inbox"]
+            ISch["Intel Scheduler"]
+            IAs["Intel Associations"]
+            IB["Intel Brief"]
+            RB["Revenue Brief"]
+            REC["Recommendations"]
+            PU["Pursuit Workspace"]
+            SR["Strategy Room"]
+            DE["Demo Experience"]
+        end
+        subgraph P1["P1 Intelligence Operations ~15 screens"]
+            RI["Revenue Intel"]
+            PH["Pipeline Health"]
+            PF["Pipeline Forecast"]
+            DC["Deal Coaching"]
+            SE["Sales Execution"]
+            RO["RevOps Dashboard"]
+            PB["Playbooks"]
+            DI["Data Intelligence"]
+            IMP["Import Intel"]
+            AN["Analytics"]
+            AR["Account Ranking"]
+            OW["Opp Workspace"]
+            SG["Segments"]
+            CP["Company Profile"]
+            CL["Capability Library"]
+        end
+        subgraph P2["P2 Communication ~10 screens"]
+            SQ["Sequences"]
+            DR["Drafts"]
+            TM["Templates"]
+            EG["Email Generation"]
+            QU["Send Queue"]
+            BO["Bounces"]
+            RP["Replies"]
+            SP["Suppressions"]
+            EX["Export Center"]
+            CO["Compliance"]
+        end
+        subgraph P3["P3 Administration ~16 screens"]
+            ST["Settings"]
+            SDR["Data Rules"]
+            ICP["ICP Settings"]
+            AU["Audit Log"]
+            SH["System Health"]
+            AIH["AI Health"]
+            ENT["Enterprise"]
+            REP["Reports"]
+            TA["Tasks"]
+            DASH["Dashboard"]
+            DH["Data Health"]
+            DUP["Duplicates"]
+            ONB["Onboarding"]
+            AL["Audit Logs Detail"]
+            CRM["Company Resolution"]
+            TM2["Tag Manager"]
+        end
+    end
+
+    subgraph StateLayer["Client State Layer"]
+        ZS["Zustand Store"]
+        RQ["React Query Cache"]
+        SS["Session Context"]
+    end
+
+    subgraph INTAPI["Intelligence API Layer"]
+        subgraph IntE["Unified Intelligence Endpoints"]
+            IC["/api/intelligence/company/:id"]
+            ISG["/api/intelligence/signals"]
+            IRE["/api/intelligence/reasoning"]
+            IAC["/api/intelligence/actions"]
+            ICO["/api/intelligence/contacts"]
+            IOP["/api/intelligence/opportunities"]
+            IRV["/api/intelligence/revenue"]
+            IK["/api/intelligence/knowledge"]
+            IRS["/api/intelligence/research"]
+            IBR["/api/intelligence/brief"]
+            IMM["/api/intelligence/mindmap"]
+            IHE["/api/intelligence/health"]
+        end
+        subgraph DataE["Data Endpoints"]
+            DIMP["/api/data/import"]
+            DEXP["/api/data/export"]
+            DUPL["/api/data/upload"]
+            DMAP["/api/data/map-columns"]
+            DQU["/api/data/quality"]
+            DDED["/api/data/dedup"]
+            DRES["/api/data/resolve"]
+        end
+        subgraph CommsE["Communication Endpoints"]
+            CGEN["/api/communication/generate"]
+            CDRA["/api/communication/drafts"]
+            CSEQ["/api/communication/sequences"]
+            CSEND["/api/communication/send"]
+            CTRK["/api/communication/track"]
+            CTMP["/api/communication/templates"]
+        end
+        subgraph AdminE["Admin Endpoints"]
+            AAuth["/api/auth/*"]
+            AAud["/api/audit/*"]
+            ASet["/api/settings/*"]
+            ASys["/api/admin/*"]
+            AUsr["/api/users/*"]
+        end
+    end
+
+    subgraph APMW["API Middleware"]
+        AuthMW["Authentication"]
+        CSRFMW["CSRF Protection"]
+        RateMW["Rate Limiter"]
+        AuditMW["Audit Logger"]
+        ValMW["Zod Validation"]
+        ErrMW["Error Handler"]
+        CorrMW["Request Tracing"]
+    end
+
+    subgraph Orch["Orchestration Layer"]
+        ReqParse["Request Parser"]
+        CtxLoad["Context Loader"]
+        EngPlan["Engine Planner"]
+        PipeBuild["Pipeline Builder"]
+        ResultComp["Result Composer"]
+        CacheChk["Cache Check"]
+        CacheSt["Cache Store"]
+    end
+
+    subgraph Engines["Governed AI Engines"]
+        subgraph CoreE["Core Engines"]
+            SE["Scoring Engine"]
+            RSE["Reasoning Engine"]
+            SYE["Synthesis Engine"]
+            AE["Action Engine"]
+        end
+        subgraph SpecE["Specialized Engines"]
+            ResE["Research Engine"]
+            RetE["Retrieval Engine"]
+            GrE["Grounding Engine"]
+            ConvE["Conversation Engine"]
+            RevE["Revenue Engine"]
+            PerE["Person Engine"]
+            RelE["Relationship Engine"]
+            EngE["Engagement Engine"]
+            CapE["Capability Engine"]
+            SigE["Signal Engine"]
+            EmE["Email Intel Engine"]
+        end
+        subgraph PipeE["Pipeline Engines"]
+            IP["17-Stage Intel Pipeline"]
+            MAO["Multi-Agent Orchestrator"]
+            CLL["Continuous Learning"]
+            FE["Fusion Engine"]
+        end
+    end
+
+    subgraph AIGov["AI Governance Layer"]
+        ConfGate["Confidence Gate"]
+        HallPrev["Hallucination Prevention"]
+        ContrDet["Contradiction Detection"]
+        FreshChk["Freshness Check"]
+        QualGate["Quality Gate"]
+        EvFramework["Evidence Framework"]
+        CostGov["AI Cost Governance"]
+        UsageTrk["Usage Tracker"]
+        ESLint["no-ungoverned-llm Rule"]
+    end
+
+    subgraph AIFound["AI Foundation Layer"]
+        NV["Tier 1: NVIDIA NIM"]
+        FW["Tier 2: Fireworks AI"]
+        GQ["Tier 3: Groq"]
+        GEM["Tier 4: Gemini"]
+        SDK["z-ai-web-dev-sdk"]
+        EmbSvc["Embedding Service"]
+        WebSrch["Tavily Web Search"]
+        LLMCl["Unified LLM Client"]
+    end
+
+    subgraph Services["Service Layer"]
+        JobW["Job Worker"]
+        CronS["Cron Scheduler"]
+        EvBus["Event Bus"]
+        EmailS["Email Sender"]
+        EmailT["Email Tracker"]
+        EmailV["Email Verifier"]
+        FileP["Document Parser"]
+        CSVP["CSV/Excel Parser"]
+        VecProv["Vector Provider"]
+        CacheS["Cache Service"]
+        OTPS["OTP Service"]
+    end
+
+    subgraph DataLayer["Knowledge + Data Layer"]
+        Prisma["Prisma ORM"]
+        PG["PostgreSQL"]
+        pgv["pgvector"]
+    end
+
+    subgraph External["External World"]
+        WebSrc["Web Sources"]
+        FileUp["File Uploads"]
+        Manual["Manual Input"]
+        EmailP["Email Providers"]
+        FutCRM["Future: CRM"]
+        FutCal["Future: Calendar"]
+    end
+
+    Browser --> App --> Shell
+    Shell --> P0
+    Shell --> P1
+    Shell --> P2
+    Shell --> P3
+    P0 --> StateLayer
+    P1 --> StateLayer
+    P2 --> StateLayer
+    P3 --> StateLayer
+    StateLayer --> INTAPI
+    INTAPI --> APMW --> Orch --> Engines
+    Engines --> AIGov --> AIFound
+    Orch --> Services --> DataLayer
+    External --> FileP
+    External --> CronS
+    External --> EvBus
+    DataLayer --> PG --> pgv
+        </div>
+    </div>
+</div>
+
+<!-- DIAGRAM 2: Intelligence Architecture -->
+<div class="diagram-section" id="d2">
+    <div class="diagram-title">Diagram 2: Intelligence Architecture — 5-Question Framework <span class="badge badge-green">Process Flow</span></div>
+    <div class="diagram-desc">The complete intelligence flow from trigger to output. Shows all trigger types, context assembly, cache checking, freshness assessment, and the 5 core questions: What Changed (signal collection, classification, scoring, timeline), Why Does It Matter (cross-correlation, LLM reasoning, impact assessment, evidence), Who Should We Engage (contact analysis, ranking, champion/blocker detection), What Should We Say (conversation context, tone analysis, draft generation, governance), What Should We Do Next (action generation, priority scoring, task creation).</div>
+    <div class="diagram-container">
+        <div class="mermaid">
+flowchart TD
+    subgraph Triggers["Intelligence Triggers"]
+        T1["User selects Company"]
+        T2["User opens Command Center"]
+        T3["Cron: Scheduled refresh"]
+        T4["New signal detected"]
+        T5["New data uploaded"]
+        T6["External source update"]
+        T7["Command Palette query"]
+        T8["Opportunity detail opened"]
+        T9["Manual intelligence note"]
+        T10["Learning loop re-evaluation"]
+    end
+
+    subgraph Entry["Intelligence API Entry"]
+        Parse["Parse Intelligence Request"]
+        CheckCache{"Fresh Cache?"}
+        ReturnCache["Return Cached Response"]
+    end
+
+    subgraph Context["Context Assembly"]
+        LoadProfile["Load Company Profile"]
+        LoadSignals["Load All Signals"]
+        LoadContacts["Load Contacts"]
+        LoadHistory["Load Historical Intel"]
+        LoadKnowledge["Load Knowledge"]
+        LoadPipeline["Load Pipeline Data"]
+        FreshEnough{"Data Fresh?"}
+        TriggerRefresh["Trigger Refresh"]
+    end
+
+    subgraph Q1["Q1: What Changed?"]
+        CollectSignals["Collect Signals from All Sources"]
+        SignalTypes["Types: funding, exec_change, product_launch, partnership, acquisition, layoff, expansion, regulatory, financial, hiring, competitive, technology"]
+        Classify["Classify Each Signal"]
+        ScoreSignal["Score Signal Relevance"]
+        BuildTimeline["Build Intelligence Timeline"]
+    end
+
+    subgraph Q2["Q2: Why Does It Matter?"]
+        CrossCorr["Cross-Signal Correlation"]
+        BizContext["Business Context Analysis"]
+        LLMReason["LLM Reasoning"]
+        ImpactLevel["Impact: CRITICAL / HIGH / MEDIUM / LOW"]
+        Explanation["Generate Human Explanation"]
+        Confidence["Confidence Score + Evidence Chain"]
+    end
+
+    subgraph Q3["Q3: Who Should We Engage?"]
+        AnalyzeContacts["Analyze All Contacts"]
+        DMScore["Decision-Maker Score"]
+        InfScore["Influence Score"]
+        EngProb["Engagement Probability"]
+        RelStrength["Relationship Strength"]
+        ChampionBlocker["Identify Champions vs Blockers"]
+        EnrichPerson["Person Enrichment"]
+        RankContacts["Rank by Priority"]
+        RecommendPrimary["Recommend Primary Contact"]
+    end
+
+    subgraph Q4["Q4: What Should We Say?"]
+        ConvContext["Build Conversation Context"]
+        ToneAnalysis["Optimal Tone Analysis"]
+        PainPoints["Pain Point Analysis"]
+        ValueProp["Value Proposition"]
+        GenerateDraft["Generate Communication Draft"]
+        AltAngles["2-3 Alternative Angles"]
+        ObjHandling["Objection Handling"]
+        GovCheck["AI Governance Check"]
+    end
+
+    subgraph Q5["Q5: What Should We Do Next?"]
+        GenActions["Generate Recommendations"]
+        ActionTypes["Types: prioritize, contact, prepare meeting, follow up, create task, enroll sequence, update pipeline, alert team"]
+        PriorityScore["Score by: revenue_impact x time_sensitivity x effort x success_probability"]
+        TimelineSuggest["Suggest Timeline"]
+        CreateTasks["Create Actionable Tasks"]
+    end
+
+    subgraph Composition["Response Composition"]
+        MergeAll["Merge All Q Outputs"]
+        BuildResponse["Build IntelligenceResponse"]
+    end
+
+    subgraph Output["Output"]
+        StoreIntel["Store Updated Intelligence"]
+        CacheResult["Cache Result"]
+        LogUsage["Log AI Usage"]
+        ReturnToScreen["Return to Screen"]
+    end
+
+    Triggers --> Entry
+    Entry --> Parse --> CheckCache
+    CheckCache -->|Yes| ReturnCache
+    CheckCache -->|No| Context
+    Context --> LoadProfile
+    Context --> LoadSignals
+    Context --> LoadContacts
+    Context --> LoadHistory
+    Context --> LoadKnowledge
+    Context --> LoadPipeline
+    LoadProfile --> FreshEnough
+    FreshEnough -->|Stale| TriggerRefresh --> Context
+    FreshEnough -->|Fresh| Q1
+    Q1 --> Q2 --> Q3 --> Q4 --> Q5 --> Composition --> Output
+        </div>
+    </div>
+</div>
+
+<!-- DIAGRAM 3: Data Flow Architecture -->
+<div class="diagram-section" id="d3">
+    <div class="diagram-title">Diagram 3: Data Flow Architecture <span class="badge badge-purple">Data Flow Diagram</span></div>
+    <div class="diagram-desc">How data moves through the entire system. Shows all input sources (human, file, digital, system), ingestion and processing, primary storage (PostgreSQL, pgvector, file storage), processing engine (job queue, workers, engine orchestration, LLM calls), derived data stores (intelligence objects, scores, timelines, graph data), API response layer, client cache, and the feedback data path.</div>
+    <div class="diagram-container">
+        <div class="mermaid">
+flowchart LR
+    subgraph Inputs["External Data Inputs"]
+        subgraph Human["Human Inputs"]
+            MF["Manual Form Entry"]
+            MS["Manual Signal Report"]
+            FB["Feedback Entry"]
+        end
+        subgraph Files["File Inputs"]
+            CSV["CSV Upload"]
+            XLS["Excel Upload"]
+            PDF["PDF Upload"]
+            DOC["DOCX Upload"]
+            PPT["PPT Upload"]
+        end
+        subgraph Digital["Digital Inputs"]
+            RSS["RSS Feeds"]
+            WEB["Web Monitor"]
+            URL["URL Submission"]
+            WH["Webhooks"]
+        end
+        subgraph System["System Inputs"]
+            CRON["Cron Jobs"]
+            EVT["Internal Events"]
+            LL["Learning Loop"]
+        end
+    end
+
+    subgraph Ingest["Ingestion & Processing"]
+        FV["File Validation"]
+        TE["Text Extraction"]
+        ED["Encoding Detection"]
+        DD["Delimiter Detection"]
+        EE["Entity Extraction"]
+        AI["AI Processing"]
+    end
+
+    subgraph Storage["Primary Storage"]
+        RDB["PostgreSQL\nRelational Data"]
+        VDB["pgvector\nEmbeddings"]
+        FS["File Storage"]
+    end
+
+    subgraph Process["Processing & Intelligence"]
+        JQ["Job Queue"]
+        WP["Worker Pool"]
+        EO["Engine Orchestration"]
+        LLM["LLM API Calls"]
+        EMB["Embedding Gen"]
+        SRCH["Web Search"]
+    end
+
+    subgraph Derived["Derived Data"]
+        IS2["Intelligence Objects"]
+        SC["Score Tables"]
+        TL["Timeline Data"]
+        GR["Graph Data"]
+    end
+
+    subgraph API["API Response Layer"]
+        IAPI["Intelligence API"]
+        DAPI["Data API"]
+        AAPI["Admin API"]
+        STREAM["Streaming Updates"]
+    end
+
+    subgraph Client["Client Data"]
+        RQC["React Query Cache"]
+        ZST["Zustand Store"]
+        SES["Session State"]
+        LS["Browser Storage"]
+    end
+
+    subgraph Feedback["Feedback Path"]
+        UA["User Action"]
+        OC["Outcome Capture"]
+        FS2["Feedback Store"]
+        MU["Model Updates"]
+    end
+
+    CSV --> FV
+    XLS --> FV
+    PDF --> FV
+    DOC --> FV
+    PPT --> FV
+    MF --> RDB
+    MS --> RDB
+    FB --> Feedback
+    RSS --> TE
+    WEB --> TE
+    URL --> TE
+    WH --> RDB
+    CRON --> JQ
+    EVT --> JQ
+    LL --> JQ
+
+    FV --> TE --> ED --> EE --> AI
+    DD --> AI
+    AI --> JQ --> WP --> RDB
+    WP --> EMB --> VDB
+    WP --> LLM
+    WP --> SRCH
+
+    EO --> IS2
+    EO --> SC
+    EO --> TL
+    EO --> GR
+
+    RDB --> IAPI
+    VDB --> IAPI
+    IS2 --> IAPI
+    SC --> IAPI
+    TL --> IAPI
+    GR --> IAPI
+    RDB --> AAPI
+    IAPI --> STREAM
+
+    IAPI --> RQC
+    DAPI --> RQC
+    AAPI --> RQC
+    STREAM --> RQC
+    RQC --> ZST --> SES --> LS
+
+    UA --> OC --> FS2 --> MU --> Process
+        </div>
+    </div>
+</div>
+
+<!-- DIAGRAM 4: Signal-to-Insight Pipeline -->
+<div class="diagram-section" id="d4">
+    <div class="diagram-title">Diagram 4: Signal-to-Insight Pipeline <span class="badge badge-amber">Pipeline Diagram</span></div>
+    <div class="diagram-desc">Detailed pipeline from external signal sources through collection, entity extraction, classification, meaning analysis, validation, cross-signal correlation, and alerting. Shows all signal types (news, website, job postings, SEC filings, social, manual, competitive), severity assessment, impact scoring, timing windows, LLM meaning analysis, source reliability validation, pattern detection, fusion, and alert rule matching.</div>
+    <div class="diagram-container">
+        <div class="mermaid">
+flowchart TD
+    subgraph Sources["Signal Sources"]
+        S1["News RSS Feeds"]
+        S2["Website Monitor"]
+        S3["Job Postings"]
+        S4["SEC Filings"]
+        S5["Social Media"]
+        S6["Manual Reports"]
+        S7["Competitive Intel"]
+    end
+
+    subgraph Collection["Collection"]
+        Cron["Cron every 6h"]
+        Fetch["Fetch + Diff"]
+        Raw["Raw Signal Object"]
+    end
+
+    subgraph Extraction["Entity Extraction"]
+        ExtractCo["Extract Companies"]
+        ExtractPe["Extract People"]
+        ExtractAmt["Extract Amounts"]
+        ExtractDt["Extract Dates"]
+        Match{"Known Company?"}
+        NewCo["Create New Company"]
+        Attach["Attach to Company"]
+    end
+
+    subgraph Classify["Classification"]
+        Types["Types: funding, executive, product, corporate, technology, regulatory, market, hiring"]
+        Severity{"Severity"}
+        SevC["CRITICAL"]
+        SevH["HIGH"]
+        SevM["MEDIUM"]
+        SevL["LOW"]
+        Impact{"Revenue Impact"}
+        ImpD["DIRECT"]
+        ImpI["INDIRECT"]
+        ImpN["NONE"]
+        Timing{"Timing Window"}
+        TWI["IMMEDIATE 24-48h"]
+        TWS["SHORT 1-4 weeks"]
+        TWM["MEDIUM 1-3 months"]
+        TWL["LONG 3+ months"]
+    end
+
+    subgraph Meaning["Meaning Engine"]
+        LLM["LLM Analysis"]
+        Summary["Summary + Category"]
+        Category["buying_signal / risk / opportunity / threat / insight"]
+    end
+
+    subgraph Validation["Validation"]
+        RelCheck{"Source Reliability"}
+        RelH["HIGH"]
+        RelM["MEDIUM"]
+        RelL["LOW"]
+        CrossRef{"Corroborated?"}
+        Confirmed["CONFIRMED"]
+        Unverified["UNVERIFIED"]
+    end
+
+    subgraph Correlation["Correlation"]
+        FindRel["Find Related Signals"]
+        Patterns["Pattern Detection"]
+        Fusion["Fusion Result"]
+        UpdateTL["Update Timeline"]
+        Rescore["Trigger Rescoring"]
+    end
+
+    subgraph Alert["Alerting"]
+        Rules{"Alert Rules?"}
+        CreateAlert["IntelligenceAlert"]
+        Notify["In-app + Email"]
+        ActionItem["Suggested Action"]
+    end
+
+    Sources --> Collection --> Raw --> Extraction
+    Extraction --> Match
+    Match -->|No| NewCo --> Attach
+    Match -->|Yes| Attach
+    Attach --> Classify --> Meaning --> Validation --> Correlation --> Alert
+        </div>
+    </div>
+</div>
+
+<!-- DIAGRAM 5: Knowledge / RAG Pipeline -->
+<div class="diagram-section" id="d5">
+    <div class="diagram-title">Diagram 5: Knowledge / RAG Pipeline <span class="badge badge-cyan">Pipeline Diagram</span></div>
+    <div class="diagram-desc">Document ingestion through AI retrieval. Shows upload sources (PDF, DOCX, PPT, XLSX, URL, manual), file validation, text extraction per format, intelligent chunking (hybrid: semantic + size + overlap), embedding generation and pgvector storage, knowledge graph construction (entity + relation extraction), AI retrieval (query embedding, vector search, reranking, context building), and grounded generation with citations and governance checks.</div>
+    <div class="diagram-container">
+        <div class="mermaid">
+flowchart TD
+    subgraph Inputs["Knowledge Inputs"]
+        PDF2["PDF"]
+        DOCX2["DOCX"]
+        PPT2["PPT"]
+        XLSX2["XLSX"]
+        URL2["URL"]
+        TXT["Manual Text"]
+    end
+
+    subgraph Ingest["Document Ingestion"]
+        Job["Create Job Record"]
+        Valid{"File Valid?"}
+        Store["Store Original Document"]
+        Extract["Extract Text"]
+        Clean["Clean + Normalize"]
+    end
+
+    subgraph Chunk["Intelligent Chunking"]
+        Strategy["Hybrid Strategy:\n- Semantic boundaries\n- Max 512 tokens\n- 50 token overlap\n- Metadata preserved"]
+        Split["Split into Chunks"]
+        ChunkObj["KnowledgeChunk Objects"]
+        StoreChunks["Store in DB"]
+    end
+
+    subgraph Embed["Embedding Generation"]
+        GenEmbed["Generate Embeddings"]
+        VecOut["Vector Array"]
+        StoreVec["Store in pgvector"]
+        Index["Build IVFFlat Index"]
+    end
+
+    subgraph Graph["Knowledge Graph"]
+        ExtractEnt["Extract Entities"]
+        ExtractRel["Extract Relations"]
+        LinkDB["Link to Existing Records"]
+        StoreGraph["Store Graph Relations"]
+    end
+
+    subgraph Retrieval["AI Retrieval RAG"]
+        Query["User Query"]
+        QueryEmb["Embed Query"]
+        VecSearch["Vector Similarity Search"]
+        Rerank["Rerank Candidates"]
+        BuildCtx["Build RAG Context"]
+    end
+
+    subgraph Generate["Grounded Generation"]
+        LLMCall["LLM + RAG Context"]
+        Citations["Response with Citations"]
+        GovCheck["Governance Check"]
+        Return["Return Grounded Response"]
+    end
+
+    subgraph Version["Versioning"]
+        Updated{"Document Updated?"}
+        NewVer["New Version"]
+        ArchiveOld["Archive Old Chunks"]
+        ProcessNew["Process New Content"]
+    end
+
+    Inputs --> Ingest --> Chunk --> Embed --> Graph --> Retrieval --> Generate
+    Store --> Updated
+    Updated -->|Yes| NewVer --> ArchiveOld --> ProcessNew --> Chunk
+    Updated -->|No| Chunk
+        </div>
+    </div>
+</div>
+
+<!-- DIAGRAM 6: Recommendation & Action Workflow -->
+<div class="diagram-section" id="d6">
+    <div class="diagram-title">Diagram 6: Recommendation & Action Workflow <span class="badge badge-green">Process Flow</span></div>
+    <div class="diagram-desc">From intelligence analysis completion through action generation, detail generation, presentation, user decision, execution, and feedback capture. Shows action types (outreach, research, pipeline, internal, sequence), priority scoring formula, outreach detail generation (draft, subject, body, CTA, compliance), user decision points (accept, modify, dismiss, defer), and execution paths (email send, pipeline update, research queue).</div>
+    <div class="diagram-container">
+        <div class="mermaid">
+flowchart TD
+    subgraph Input2["Input"]
+        IntelComplete["Intelligence Q1-Q4 Complete"]
+        CoCtx["Company Context"]
+        UsCtx["User Context"]
+        Hist["Historical Actions"]
+    end
+
+    subgraph Generate["Action Generation"]
+        IdentifyType["Action Types:\n- Outreach\n- Research\n- Pipeline Update\n- Internal Alert\n- Sequence Enrollment"]
+        ScoreAction["Score: revenue_impact x time_sensitivity x success_prob x effort x capability"]
+        Rank["Rank Top 5"]
+    end
+
+    subgraph Detail["Detail Generation"]
+        ForOutreach["Outreach Actions:"]
+        GenDraft["Generate Email Draft"]
+        GenSubject["Subject Lines"]
+        GenBody["Personalized Body"]
+        GenCTA["Call to Action"]
+        AttachCtx["Attach Intelligence Context"]
+        Compliance["Compliance Check"]
+        ForResearch["Research: Define Scope"]
+        ForPipeline["Pipeline: Suggest Stage"]
+    end
+
+    subgraph Present["Presentation"]
+        Card["Action Card UI:\n- Priority badge\n- Confidence indicator\n- Revenue impact\n- Why now explanation\n- Accept/Dismiss/Modify"]
+        Panel["Action Panel"]
+    end
+
+    subgraph Decision["User Decision"]
+        Review["User Reviews"]
+        Choice{"Decision"}
+        Accept2["ACCEPT"]
+        Modify2["MODIFY"]
+        Dismiss2["DISMISS"]
+        Defer["DEFER"]
+    end
+
+    subgraph Execute["Execution"]
+        CreateTask["Create Task"]
+        IfEmail["Email Path"]
+        ReviewDraft["Final Review"]
+        Queue["Queue Send"]
+        SendResend["Send via Resend"]
+        Track["Track Open/Click/Reply"]
+        IfPipe["Pipeline Path"]
+        UpdateStage["Update Stage"]
+    end
+
+    subgraph Feedback2["Feedback"]
+        RecordAction["Record IntelligenceActionHistory"]
+        RecordFB["Record RecommendationFeedback"]
+        QueueLearn["Queue Learning Event"]
+    end
+
+    Input2 --> Generate --> Detail --> Present --> Decision --> Execute
+    Accept2 --> Execute
+    Modify2 --> Execute
+    Dismiss2 --> Feedback2
+    Defer --> Feedback2
+    Accept2 --> Feedback2
+    Modify2 --> Feedback2
+        </div>
+    </div>
+</div>
+
+<!-- DIAGRAM 7: Feedback & Learning Loop -->
+<div class="diagram-section" id="d7">
+    <div class="diagram-title">Diagram 7: Feedback & Learning Loop <span class="badge badge-purple">Process Flow</span></div>
+    <div class="diagram-desc">How recommendation outcomes feed back to improve future intelligence. Shows the full cycle from AI recommendation through user interaction (accept/modify/dismiss/defer/ignore), execution outcome tracking (email opened/clicked/replied/bounced, meeting booked, deal progressed), outcome recording, pattern analysis (acceptance rates, success rates, modification patterns, confidence calibration), model weight updates, and loop-back to improved future recommendations.</div>
+    <div class="diagram-container">
+        <div class="mermaid">
+flowchart TD
+    subgraph Rec["Recommendation Made"]
+        OrigRec["Original Recommendation\nwith confidence + evidence"]
+        RecID["Recommendation ID"]
+    end
+
+    subgraph UserInt["User Interaction"]
+        Sees["User Sees Recommendation"]
+        Decision2{"Decision"}
+        Acc["ACCEPTED"]
+        Mod["MODIFIED"]
+        Dis["DISMISSED"]
+        Def["DEFERRED"]
+        Ign["IGNORED 7 days"]
+    end
+
+    subgraph Outcome["Execution Outcome"]
+        IfEmail2["Email Actions"]
+        Opened{"Opened?"}
+        Clicked{"Clicked?"}
+        Replied{"Replied?"}
+        Bounced{"Bounced?"}
+        Meeting["Meeting Booked"]
+        IfResearch2["Research: Useful?"]
+        IfPipeline2["Deal: Progressed?"]
+    end
+
+    subgraph Record["Outcome Recording"]
+        RecOutcome["Record Outcome"]
+        UpdateHist["Update ActionHistory"]
+        UpdateFB2["Update Feedback"]
+        CreateLearn["Create LearningEvent"]
+    end
+
+    subgraph Analysis2["Learning Analysis"]
+        Patterns["Pattern Analysis:\n- Acceptance rate by type\n- Success rate\n- Modification patterns\n- Dismissal patterns\n- Confidence calibration"]
+        Calibrate["Confidence Calibration"]
+        UpdateWeights["Update Model Weights"]
+        StoreWeights["Store in PriorityScoreHistory"]
+    end
+
+    subgraph LoopBack["Loop Back"]
+        NextReq["Next Intelligence Request"]
+        UseUpdated["Use Updated Weights"]
+        Improved["Improved Recommendation"]
+    end
+
+    Rec --> UserInt --> Outcome --> Record --> Analysis2 --> LoopBack
+    Acc --> IfEmail2
+    Mod --> IfEmail2
+    IfEmail2 --> Opened
+    IfEmail2 --> Clicked
+    IfEmail2 --> Replied
+    IfEmail2 --> Bounced
+    Replied --> Meeting
+    Meeting --> RecOutcome
+    Opened --> RecOutcome
+    Clicked --> RecOutcome
+    Bounced --> RecOutcome
+    Dis --> RecOutcome
+    Def --> RecOutcome
+    Ign --> RecOutcome
+    IfResearch2 --> RecOutcome
+    IfPipeline2 --> RecOutcome
+    RecOutcome --> UpdateHist --> UpdateFB2 --> CreateLearn
+    CreateLearn --> Patterns --> Calibrate --> UpdateWeights --> StoreWeights
+    StoreWeights --> NextReq --> UseUpdated --> Improved
+        </div>
+    </div>
+</div>
+
+<!-- DIAGRAM 8: User Journeys -->
+<div class="diagram-section" id="d8">
+    <div class="diagram-title">Diagram 8: User Journey Flows <span class="badge badge-amber">Business Process</span></div>
+    <div class="diagram-desc">Three detailed user journeys: (A) Sales Rep morning intelligence review — login, dashboard, signal review, reasoning, contact identification, draft generation, email send, outcome tracking; (B) Intelligence Analyst data ingestion — CSV upload, AI column mapping, processing, import results, knowledge document upload, document processing; (C) Sales Manager pipeline intelligence — pipeline view, AI risk/opportunity insights, deal analysis, action assignment, outcome tracking.</div>
+    <div class="diagram-container">
+        <div class="mermaid">
+flowchart TD
+    subgraph JourneyA["Journey A: Sales Rep — Morning Intelligence Review"]
+        A1["1. Login\nSession restored"]
+        A2["2. Dashboard\n5 priority accounts\n3 new signals\n2 pending actions"]
+        A3["3. Click Signal\nCompany ABC raised $50M\nCRITICAL, DIRECT, IMMEDIATE"]
+        A4["4. Why It Matters\nSeries C = scaling phase\nBudget $2-5M, Timeline 3-6mo\nConfidence 85%"]
+        A5["5. Who to Engage\n#1 VP Engineering score 92\n#2 CTO score 78\n#3 Director IT score 65"]
+        A6["6. What to Say\nPersonalized email\n2 alt angles\n5 talking points"]
+        A7["7. Accept + Send\nReview draft\nSend via Resend"]
+        A8["8. Track Outcome\nOpened in 2h\nReplied next day\nMeeting scheduled"]
+        A9["9. Learning\nConfidence calibrated up"]
+    end
+
+    subgraph JourneyB["Journey B: Intelligence Analyst — Data Ingestion"]
+        B1["1. Import Screen\nDrag CSV 500 records"]
+        B2["2. AI Column Mapping\n12 columns identified\n92-99% confidence"]
+        B3["3. User Confirms\nAdjusts 2 mappings"]
+        B4["4. Processing\nValidation, Dedup, Email Verify\nCompany Resolution, Quality Score"]
+        B5["5. Results\n450 created, 50 updated\n23 dupes, 12 invalid\n2847 contacts created"]
+        B6["6. Knowledge Upload\nPDF Product Guide 45 pages"]
+        B7["7. Doc Processing\n48 chunks, 48 embeddings\n23 entities extracted\nKnowledge graph updated"]
+    end
+
+    subgraph JourneyC["Journey C: Sales Manager — Pipeline Intelligence"]
+        C1["1. Pipeline View\n24 opps, $4.2M total"]
+        C2["2. AI Insights\n3 deals at risk\n2 positive signals"]
+        C3["3. Risk: Champion Left\nVP Sales departed\nHIGH impact\nRe-engage within 48h"]
+        C4["4. Actions\nP0: Contact new VP\nP1: Re-validate budget\nP2: Find backup champion"]
+        C5["5. Assign Task\nP0 to rep with context"]
+        C6["6. Track Outcome\nNew VP interested\nDeal re-validated\nLearning: recoverable"]
+    end
+
+    A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7 --> A8 --> A9
+    B1 --> B2 --> B3 --> B4 --> B5 --> B6 --> B7
+    C1 --> C2 --> C3 --> C4 --> C5 --> C6
+        </div>
+    </div>
+</div>
+
+<!-- DIAGRAM 9: Entity Relationships -->
+<div class="diagram-section" id="d9">
+    <div class="diagram-title">Diagram 9: Database Entity Relationships <span class="badge badge-blue">ERD</span></div>
+    <div class="diagram-desc">Core entity-relationship diagram showing the primary data models and their relationships. Covers User (with Session, OTP), Company (with Alias, Resolution, Signal, Contact, IntelligenceObject, Opportunity), Signal (with Validation, Evidence), IntelligenceObject (with ReasoningContext), Contact (with Opportunity, ActionHistory), ActionHistory (with Feedback, LearningEvent), KnowledgeDocument (with Chunk, Version, Entry), DataUpload (with Job), Job, AuditLog, and AIUsageLog.</div>
+    <div class="diagram-container">
+        <div class="mermaid">
+erDiagram
+    User {
+        string id PK
+        string email UK
+        string name
+        string password_hash
+        string role
+        string status
+        datetime created_at
+    }
+
+    Session {
+        string id PK
+        string user_id FK
+        string token UK
+        datetime expires_at
+    }
+
+    Company {
+        string id PK
+        string name
+        string domain UK
+        string industry
+        string lifecycle_stage
+        string priority_tier
+        float icp_fit_score
+        float account_score
+        float intel_freshness
+        datetime last_refresh
+    }
+
+    Contact {
+        string id PK
+        string company_id FK
+        string email
+        string first_name
+        string last_name
+        string job_title
+        string seniority
+        float engagement_score
+        float decision_maker_score
+        float influence_score
+        boolean is_champion
+        boolean is_blocker
+    }
+
+    CompanySignal {
+        string id PK
+        string company_id FK
+        string signal_type
+        string title
+        string severity
+        string impact
+        string timing_window
+        float relevance_score
+        text meaning_summary
+        string meaning_category
+        datetime signal_date
+    }
+
+    Evidence {
+        string id PK
+        string signal_id FK
+        string evidence_type
+        text content
+        string source_url
+        float reliability_score
+    }
+
+    IntelligenceObject {
+        string id PK
+        string company_id FK
+        string contact_id FK
+        string intel_type
+        float confidence_score
+        jsonb evidence_chain
+        jsonb reasoning_steps
+    }
+
+    Opportunity {
+        string id PK
+        string company_id FK
+        string contact_id FK
+        string user_id FK
+        string name
+        string stage
+        float amount
+        float probability
+        float intel_score
+    }
+
+    IntelligenceActionHistory {
+        string id PK
+        string company_id FK
+        string contact_id FK
+        string user_id FK
+        string action_type
+        string user_decision
+        string execution_status
+        float revenue_impact
+    }
+
+    RecommendationFeedback {
+        string id PK
+        string action_history_id FK
+        boolean was_useful
+        integer user_rating
+        string outcome
+    }
+
+    LearningEvent {
+        string id PK
+        string event_type
+        string entity_type
+        jsonb event_data
+        float old_weight
+        float new_weight
+    }
+
+    KnowledgeDocument {
+        string id PK
+        string title
+        string filename
+        string mime_type
+        integer version_number
+        string status
+    }
+
+    KnowledgeChunk {
+        string id PK
+        string document_id FK
+        string content
+        vector embedding
+        integer chunk_index
+        integer token_count
+        boolean is_current
+    }
+
+    DataUpload {
+        string id PK
+        string user_id FK
+        string filename
+        integer total_rows
+        float quality_score
+        string status
+    }
+
+    Job {
+        string id PK
+        string type
+        string status
+        integer retry_count
+        datetime started_at
+    }
+
+    AuditLog {
+        string id PK
+        string user_id FK
+        string action
+        string entity_type
+        datetime created_at
+    }
+
+    AIUsageLog {
+        string id PK
+        string user_id FK
+        string engine_type
+        string provider
+        integer input_tokens
+        integer output_tokens
+        float cost_usd
+    }
+
+    User ||--o{ Session : "has"
+    User ||--o{ IntelligenceActionHistory : "executes"
+    User ||--o{ AuditLog : "generates"
+    User ||--o{ AIUsageLog : "triggers"
+    Company ||--o{ Contact : "employs"
+    Company ||--o{ CompanySignal : "has"
+    Company ||--o{ IntelligenceObject : "analyzed"
+    Company ||--o{ Opportunity : "has"
+    CompanySignal ||--o{ Evidence : "supported by"
+    IntelligenceObject ||--o{ ReasoningContext : "contains"
+    Contact ||--o{ Opportunity : "associated with"
+    Contact ||--o{ IntelligenceActionHistory : "targeted"
+    IntelligenceActionHistory ||--o| RecommendationFeedback : "evaluated"
+    KnowledgeDocument ||--o{ KnowledgeChunk : "split into"
+    KnowledgeDocument ||--o{ KnowledgeVersion : "versioned"
+    DataUpload ||--o{ Job : "tracked by"
+        </div>
+    </div>
+</div>
+
+</div>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+            primaryColor: '#312e81',
+            primaryTextColor: '#e0e7ff',
+            primaryBorderColor: '#6366f1',
+            lineColor: '#6366f1',
+            secondaryColor: '#1e1b4b',
+            tertiaryColor: '#111827',
+            background: '#111827',
+            mainBkg: '#1e1b4b',
+            nodeBorder: '#6366f1',
+            clusterBkg: '#1e1b4b',
+            titleColor: '#a5b4fc',
+            edgeLabelBackground: '#111827',
+            fontFamily: 'system-ui, -apple-system, sans-serif',
+            fontSize: '13px'
+        },
+        flowchart: {
+            htmlLabels: true,
+            curve: 'basis',
+            padding: 15,
+            nodePadding: 10,
+            rankSpacing: 50,
+            nodeSpacing: 30
+        },
+        er: {
+            htmlLabels: true,
+            useMaxWidth: false
+        }
+    });
+
+    function showSection(id) {
+        document.querySelectorAll('.diagram-section').forEach(s => s.classList.remove('active'));
+        document.getElementById(id).classList.add('active');
+        document.querySelectorAll('.nav button').forEach(b => b.classList.remove('active'));
+        event.target.classList.add('active');
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+</script>
+</body>
+</html>

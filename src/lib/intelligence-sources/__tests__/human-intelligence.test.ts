@@ -152,7 +152,7 @@ describe('Human Intelligence Inbox', () => {
       expect(mockInboxUpdate).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { id: 'inbox-1' },
-          data: expect.objectContaining({ status: 'approve', reviewedBy: 'reviewer-1' }),
+          data: expect.objectContaining({ status: 'approved', reviewedBy: 'reviewer-1' }),
         }),
       )
     })
@@ -242,7 +242,7 @@ describe('Human Intelligence Inbox', () => {
   // ─── getInboxItems ────────────────────────────────────────
 
   describe('getInboxItems', () => {
-    it('returns paginated results ordered by createdAt desc', async () => {
+    it('returns paginated results after priority sort (no skip/take in DB query)', async () => {
       const items = [{ id: 'inbox-1' }, { id: 'inbox-2' }]
       mockInboxFindMany.mockResolvedValue(items)
       mockInboxCount.mockResolvedValue(2)
@@ -251,11 +251,10 @@ describe('Human Intelligence Inbox', () => {
 
       expect(result.items).toHaveLength(2)
       expect(result.total).toBe(2)
+      // DB query fetches ALL items (no skip/take) — priority sort + in-memory pagination
       expect(mockInboxFindMany).toHaveBeenCalledWith(
         expect.objectContaining({
           orderBy: { createdAt: 'desc' },
-          skip: 0,
-          take: 10,
         }),
       )
     })

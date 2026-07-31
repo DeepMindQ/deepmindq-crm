@@ -109,6 +109,7 @@ const EnterpriseScreen = lazy(() => import('@/components/screens/enterprise-scre
 const ReportsScreen = lazy(() => import('@/components/screens/reports-screen'));
 const TasksScreen = lazy(() => import('@/components/screens/tasks-screen'));
 const IntelligenceSourcesScreen = lazy(() => import('@/components/screens/intelligence-sources-screen'));
+const IntelligenceInboxScreen = lazy(() => import('@/components/screens/intelligence-inbox-screen'));
 const IntelligenceKnowledgeScreen = lazy(() => import('@/components/screens/intelligence-knowledge-screen'));
 const AIStrategyScreen = lazy(() => import('@/components/screens/ai-strategy-screen'));
 const DemoExperienceScreen = lazy(() => import('@/components/screens/demo-experience-screen'));
@@ -212,6 +213,7 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   reports: withScreenErrorBoundary(ReportsScreen, 'reports'),
   tasks: withScreenErrorBoundary(TasksScreen, 'tasks'),
   'intelligence-sources': withScreenErrorBoundary(IntelligenceSourcesScreen, 'intelligence-sources'),
+  'intelligence-inbox': withScreenErrorBoundary(IntelligenceInboxScreen, 'intelligence-inbox'),
   'intelligence-knowledge': withScreenErrorBoundary(IntelligenceKnowledgeScreen, 'intelligence-knowledge'),
   'ai-strategy': withScreenErrorBoundary(AIStrategyScreen, 'ai-strategy'),
   'demo-experience': withScreenErrorBoundary(DemoExperienceScreen, 'demo-experience'),

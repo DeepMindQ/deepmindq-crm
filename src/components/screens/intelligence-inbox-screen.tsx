@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import {
-  Inbox, Send, CheckCircle, XCircle, ArrowRight,
-  ChevronDown, AlertTriangle, Tag, Loader2,
-  Search, CheckCheck, Trash2, Filter, Clock,
+  Inbox, CheckCircle, XCircle, ArrowRight,
+  AlertTriangle, Tag, Loader2,
+  Search, CheckCheck, Trash2, Clock, Eye,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -14,14 +14,13 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { LoadingState } from '@/components/enterprise/LoadingState';
-import { ErrorState } from '@/components/enterprise/ErrorState';
 import { EmptyState } from '@/components/shared/design-system';
 import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
 import { toast } from 'sonner';
-import { ALL_CATEGORIES } from '@/lib/intelligence-sources/types';
+import { useAppStore } from '@/lib/store';
 
 /* ═══════════════════════════════════════════════════════════════
-   Types
+   Types — aligned with HumanIntelligenceInbox schema + T10 API contract
    ═══════════════════════════════════════════════════════════════ */
 type InboxStatus = 'pending' | 'approved' | 'rejected' | 'converted';
 type InboxPriority = 'low' | 'normal' | 'high' | 'critical';
@@ -49,6 +48,8 @@ interface InboxItem {
   convertedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  /** Joined from company relation */
+  company?: { id: string; rawName: string } | null;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -92,13 +93,15 @@ function parseTags(tags: string | null | undefined): string[] {
    Inbox Item Card
    ═══════════════════════════════════════════════════════════════ */
 function InboxItemCard({
-  item, busy, onReview, onConvert, onExpand, expanded, selected,
+  item, busy, onReview, onConvert, onDismiss, onInvestigate, onExpand, expanded, selected,
   onSelect,
 }: {
   item: InboxItem;
   busy: boolean;
   onReview: (id: string, action: 'approve' | 'reject') => void;
   onConvert: (id: string) => void;
+  onDismiss: (id: string) => void;
+  onInvestigate: (companyId: string) => void;
   onExpand: (id: string) => void;
   expanded: boolean;
   selected: boolean;
@@ -133,6 +136,11 @@ function InboxItemCard({
               <Badge variant="outline" className={cn('text-[11px]', statusCfg.color)}>
                 {item.status}
               </Badge>
+              {item.company?.rawName && (
+                <Badge variant="outline" className="text-[11px] text-indigo-600 border-indigo-200 bg-indigo-50">
+                  {item.company.rawName}
+                </Badge>
+              )}
               <span className="text-[11px] text-slate-400">by {item.submittedBy}</span>
               <span className="ml-auto text-[11px] text-slate-400">{relativeTime(item.createdAt)}</span>
             </div>
@@ -178,8 +186,8 @@ function InboxItemCard({
               </p>
             )}
 
-            {/* Actions */}
-            <div className="mt-3 flex items-center gap-2 pt-2 border-t border-slate-100">
+            {/* Actions — per T10 spec: Dismiss, Investigate, Create Opportunity */}
+            <div className="mt-3 flex flex-wrap items-center gap-2 pt-2 border-t border-slate-100">
               {item.status === 'pending' && (
                 <>
                   <Button size="sm" variant="outline"
@@ -193,6 +201,18 @@ function InboxItemCard({
                     disabled={busy} onClick={() => onReview(item.id, 'reject')}>
                     {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
                     Reject
+                  </Button>
+                  <Button size="sm" variant="outline"
+                    className="h-7 text-xs text-slate-600 border-slate-200 hover:bg-slate-50 gap-1"
+                    disabled={busy} onClick={() => onDismiss(item.id)}>
+                    <Trash2 className="h-3 w-3" />
+                    Dismiss
+                  </Button>
+                  <Button size="sm" variant="outline"
+                    className="h-7 text-xs text-blue-600 border-blue-200 hover:bg-blue-50 gap-1"
+                    disabled={busy} onClick={() => onInvestigate(item.companyId)}>
+                    <Eye className="h-3 w-3" />
+                    Investigate
                   </Button>
                 </>
               )}
@@ -220,7 +240,7 @@ function InboxItemCard({
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Main Component
+   Main Component — Intelligence Inbox (Ticket 10)
    ═══════════════════════════════════════════════════════════════ */
 export default function IntelligenceInboxScreen() {
   const [stats, setStats] = useState<InboxStats | null>(null);
@@ -235,11 +255,16 @@ export default function IntelligenceInboxScreen() {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [actionInProgress, setActionInProgress] = useState<Set<string>>(new Set());
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const { setActiveView, setSelectedCompanyId } = useAppStore();
 
   const fetchStats = useCallback(async () => {
     try {
       const res = await fetch('/api/g-intel-acquisition/inbox/stats');
-      if (res.ok) setStats(await res.json());
+      if (res.ok) {
+        const envelope = await res.json();
+        // Unwrap apiSuccess envelope: { success, data, timestamp }
+        setStats(envelope.data ?? envelope);
+      }
     } catch { toast.error('Failed to load inbox stats'); }
   }, []);
 
@@ -254,7 +279,9 @@ export default function IntelligenceInboxScreen() {
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       const res = await fetch(`/api/g-intel-acquisition/inbox?${params}`);
       if (!res.ok) throw new Error('Failed');
-      const data = await res.json();
+      const envelope = await res.json();
+      // Unwrap apiSuccess envelope: { success, data: { items, stats, pagination }, timestamp }
+      const data = envelope.data ?? envelope;
       const newItems: InboxItem[] = data.items ?? data ?? [];
       setItems(prev => append ? [...prev, ...newItems] : newItems);
       setHasMore(newItems.length >= 20);
@@ -290,10 +317,45 @@ export default function IntelligenceInboxScreen() {
     finally { setActionInProgress(prev => { const n = new Set(prev); n.delete(id); return n; }); }
   };
 
+  const handleDismiss = async (id: string) => {
+    setActionInProgress(prev => new Set(prev).add(id));
+    try {
+      const res = await fetch(`/api/g-intel-acquisition/inbox/${id}/dismiss`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reviewerId: 'current-user' }),
+      });
+      if (!res.ok) throw new Error();
+      toast.success('Item dismissed');
+      fetchItems(1, false); fetchStats();
+    } catch { toast.error('Failed to dismiss'); }
+    finally { setActionInProgress(prev => { const n = new Set(prev); n.delete(id); return n; }); }
+  };
+
   const handleBatchApprove = async () => {
     const pendingSelected = items.filter(i => selectedIds.has(i.id) && i.status === 'pending');
     for (const item of pendingSelected) await handleReview(item.id, 'approve');
     setSelectedIds(new Set());
+  };
+
+  const handleBatchDismiss = async () => {
+    const pendingSelected = items.filter(i => selectedIds.has(i.id) && i.status === 'pending');
+    for (const item of pendingSelected) await handleDismiss(item.id);
+    setSelectedIds(new Set());
+  };
+
+  const handleDismissAllLowSeverity = async () => {
+    const lowPendingItems = items.filter(i => i.status === 'pending' && i.priority === 'low');
+    if (lowPendingItems.length === 0) {
+      toast.info('No low-severity pending items to dismiss');
+      return;
+    }
+    for (const item of lowPendingItems) await handleDismiss(item.id);
+    toast.success(`Dismissed ${lowPendingItems.length} low-severity items`);
+  };
+
+  const handleInvestigate = (companyId: string) => {
+    setSelectedCompanyId(companyId);
+    setActiveView('company-workspace');
   };
 
   const toggleExpand = (id: string) => {
@@ -313,7 +375,7 @@ export default function IntelligenceInboxScreen() {
             <Inbox className="h-5 w-5 text-blue-600" />
           </div>
           <div>
-            <h2 className="text-xl font-bold tracking-tight text-slate-900">Review Queue</h2>
+            <h2 className="text-xl font-bold tracking-tight text-slate-900">Intelligence Inbox</h2>
             <p className="text-sm text-slate-500">Prioritized intelligence review with confidence thresholds</p>
           </div>
         </div>
@@ -325,6 +387,7 @@ export default function IntelligenceInboxScreen() {
               { label: 'Pending', value: stats.byStatus?.pending ?? 0, cls: 'bg-amber-100 text-amber-700 border-amber-200' },
               { label: 'Approved', value: stats.byStatus?.approved ?? 0, cls: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
               { label: 'Rejected', value: stats.byStatus?.rejected ?? 0, cls: 'bg-red-100 text-red-700 border-red-200' },
+              { label: 'Converted', value: stats.byStatus?.converted ?? 0, cls: 'bg-blue-100 text-blue-700 border-blue-200' },
             ].map(s => (
               <Badge key={s.label} variant="outline" className={cn('text-[11px] px-2.5 py-1', s.cls)}>
                 {s.label}: {s.value}
@@ -368,7 +431,7 @@ export default function IntelligenceInboxScreen() {
           </Select>
         </div>
 
-        {/* Batch actions */}
+        {/* Batch actions — per T10 spec: "Batch actions (dismiss all low-severity)" */}
         {selectedIds.size > 0 && (
           <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
             <span className="text-xs text-slate-500">{selectedIds.size} selected</span>
@@ -377,6 +440,11 @@ export default function IntelligenceInboxScreen() {
               onClick={handleBatchApprove}>
               <CheckCheck className="h-3 w-3" /> Batch Approve
             </Button>
+            <Button size="sm" variant="outline"
+              className="h-7 text-xs text-slate-600 border-slate-200 hover:bg-slate-50 gap-1"
+              onClick={handleBatchDismiss}>
+              <Trash2 className="h-3 w-3" /> Batch Dismiss
+            </Button>
             <Button size="sm" variant="ghost"
               className="h-7 text-xs text-slate-500 gap-1"
               onClick={() => setSelectedIds(new Set())}>
@@ -384,16 +452,25 @@ export default function IntelligenceInboxScreen() {
             </Button>
           </div>
         )}
+        {selectedIds.size === 0 && (
+          <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
+            <Button size="sm" variant="outline"
+              className="h-7 text-xs text-orange-600 border-orange-200 hover:bg-orange-50 gap-1"
+              onClick={handleDismissAllLowSeverity}>
+              <Trash2 className="h-3 w-3" /> Dismiss All Low-Severity
+            </Button>
+          </div>
+        )}
       </div>
 
       {/* ── Items List ── */}
       {loading ? (
-        <LoadingState message="Loading review queue..." lines={4} />
+        <LoadingState message="Loading intelligence inbox..." lines={4} />
       ) : items.length === 0 ? (
         <EmptyState
           icon={Inbox}
-          title="No items in review queue"
-          description="Intelligence submissions will appear here for review and approval."
+          title="No items in intelligence inbox"
+          description="Human intelligence submissions will appear here for review and approval."
         />
       ) : (
         <div className="space-y-3">
@@ -404,6 +481,8 @@ export default function IntelligenceInboxScreen() {
               busy={actionInProgress.has(item.id)}
               onReview={handleReview}
               onConvert={handleConvert}
+              onDismiss={handleDismiss}
+              onInvestigate={handleInvestigate}
               onExpand={toggleExpand}
               expanded={expandedIds.has(item.id)}
               selected={selectedIds.has(item.id)}

@@ -134,10 +134,14 @@ export async function reviewInboxItem(
     );
   }
 
+  // Map action to the correct schema status values
+  const statusMap: Record<string, string> = { approve: 'approved', reject: 'rejected' };
+  const mappedStatus = statusMap[action] ?? action;
+
   return db.humanIntelligenceInbox.update({
     where: { id },
     data: {
-      status: action,
+      status: mappedStatus,
       reviewedBy: reviewerId,
       reviewedAt: new Date(),
       reviewNotes: notes ?? null,
@@ -231,7 +235,6 @@ export async function getInboxItems(
 ): Promise<{ items: any[]; total: number }> {
   const page = filters.page ?? 1;
   const limit = filters.limit ?? 20;
-  const skip = (page - 1) * limit;
 
   const where: Record<string, unknown> = {};
 
@@ -243,15 +246,34 @@ export async function getInboxItems(
     where.content = { contains: filters.search, mode: 'insensitive' };
   }
 
-  const [items, total] = await Promise.all([
+  // Priority sort order: critical > high > normal > low (per ARCHITECTURE.md T10 spec)
+  const PRIORITY_ORDER: Record<string, number> = { critical: 0, high: 1, normal: 2, low: 3 };
+
+  // Fetch ALL matching items, sort in-memory by priority, then paginate.
+  // This ensures critical items from "page 2" bubble up to "page 1".
+  // For large datasets, a numeric priority column + DB-level sort would be more efficient.
+  const [allItems, total] = await Promise.all([
     db.humanIntelligenceInbox.findMany({
       where,
+      include: {
+        company: { select: { id: true, rawName: true } },
+      },
       orderBy: { createdAt: 'desc' },
-      skip,
-      take: limit,
     }),
     db.humanIntelligenceInbox.count({ where }),
   ]);
+
+  // Sort by priority first (critical>high>normal>low), then by createdAt desc within same priority
+  allItems.sort((a, b) => {
+    const pa = PRIORITY_ORDER[a.priority] ?? 99;
+    const pb = PRIORITY_ORDER[b.priority] ?? 99;
+    if (pa !== pb) return pa - pb;
+    return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+  });
+
+  // Paginate the sorted results
+  const skip = (page - 1) * limit;
+  const items = allItems.slice(skip, skip + limit);
 
   return { items, total };
 }
@@ -284,6 +306,71 @@ export async function getInboxItem(
 }
 
 /**
+ * Dismiss (soft-reject) an inbox item by setting its status to `rejected`.
+ *
+ * Unlike `reviewInboxItem` which requires the item to be `pending`,
+ * dismiss can also handle items that are already `pending`.
+ * This is a convenience alias used by the "Dismiss" quick action.
+ *
+ * @param id - The inbox item id.
+ * @param reviewerId - The id of the user performing the dismiss.
+ * @returns The updated HumanIntelligenceInbox record.
+ * @throws Error if the item is not found.
+ */
+export async function dismissInboxItem(
+  id: string,
+  reviewerId: string,
+): Promise<import('@prisma/client').HumanIntelligenceInbox> {
+  const item = await db.humanIntelligenceInbox.findUnique({ where: { id } });
+  if (!item) {
+    throw new Error(`HumanIntelligenceInbox item with id "${id}" not found.`);
+  }
+  if (item.status !== 'pending') {
+    throw new Error(
+      `Cannot dismiss item with status "${item.status}". Only pending items can be dismissed.`
+    );
+  }
+
+  return db.humanIntelligenceInbox.update({
+    where: { id },
+    data: {
+      status: 'rejected',
+      reviewedBy: reviewerId,
+      reviewedAt: new Date(),
+      reviewNotes: 'Dismissed by reviewer',
+    },
+  });
+}
+
+/**
+ * Batch dismiss multiple inbox items (e.g., all low-severity pending items).
+ *
+ * @param ids - Array of inbox item ids to dismiss.
+ * @param reviewerId - The id of the user performing the batch dismiss.
+ * @returns Object with counts of dismissed and failed items.
+ */
+export async function batchDismissInboxItems(
+  ids: string[],
+  reviewerId: string,
+): Promise<{ dismissed: number; failed: number; errors: string[] }> {
+  let dismissed = 0;
+  let failed = 0;
+  const errors: string[] = [];
+
+  for (const id of ids) {
+    try {
+      await dismissInboxItem(id, reviewerId);
+      dismissed++;
+    } catch (err) {
+      failed++;
+      errors.push(err instanceof Error ? err.message : `Failed to dismiss ${id}`);
+    }
+  }
+
+  return { dismissed, failed, errors };
+}
+
+/**
  * Get aggregated statistics about the intelligence inbox.
  *
  * Returns counts grouped by status and by priority, plus a grand total.
@@ -305,7 +392,6 @@ export async function getInboxStats(): Promise<InboxStats> {
 
   const byStatus: Record<string, number> = {
     pending: 0,
-    reviewed: 0,
     approved: 0,
     rejected: 0,
     converted: 0,

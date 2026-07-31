@@ -77,6 +77,7 @@ export type ViewId =
   | 'reports'
   | 'tasks'
   | 'intelligence-sources'
+  | 'intelligence-inbox'
   | 'intelligence-knowledge'
   | 'ai-strategy'
   | 'demo-experience'

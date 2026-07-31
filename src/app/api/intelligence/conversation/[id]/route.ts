@@ -39,43 +39,38 @@ function extractBuyerProfiles(
 
   const cr = conversationResult as unknown as Record<string, unknown>;
 
-  // Try buyerPersonas field first
-  if (Array.isArray(cr.buyerPersonas)) {
-    return (cr.buyerPersonas as Array<Record<string, unknown>>).slice(0, 5).map(bp => ({
-      role: String(bp.role || bp.title || bp.persona || 'Unknown'),
-      concerns: Array.isArray(bp.concerns) ? (bp.concerns as string[]).map(String) : [],
-      motivation: String(bp.motivation || bp.goal || bp.driver || ''),
-      confidence: Number(bp.confidence ?? cr.confidenceScore ?? cr.confidence ?? 0),
-    }));
+  // Try buyerProfile field (singular object — ConversationResult.buyerProfile)
+  if (cr.buyerProfile && typeof cr.buyerProfile === 'object') {
+    const bp = cr.buyerProfile as Record<string, unknown>;
+    return [{
+      role: String(bp.role || bp.name || 'Unknown'),
+      concerns: Array.isArray(bp.detectedPriorities) ? (bp.detectedPriorities as string[]).map(String) : [],
+      motivation: String(bp.buyerRole || ''),
+      confidence: Number(bp.influenceScore ?? cr.confidenceScore ?? cr.confidence ?? 0) / 100,
+    }];
   }
 
-  // Try stakeholders field
-  if (Array.isArray(cr.stakeholders)) {
-    return (cr.stakeholders as Array<Record<string, unknown>>).slice(0, 5).map(s => ({
-      role: String(s.role || s.title || 'Unknown'),
-      concerns: Array.isArray(s.concerns) ? (s.concerns as string[]).map(String)
-        : Array.isArray(s.objections) ? (s.objections as string[]).map(String)
-        : [],
-      motivation: String(s.motivation || s.goal || s.interest || ''),
-      confidence: Number(s.confidence ?? cr.confidenceScore ?? cr.confidence ?? 0),
-    }));
-  }
-
-  // Fallback: derive from key contacts and talking points
-  const talkingPoints = Array.isArray(cr.talkingPoints)
-    ? (cr.talkingPoints as Array<{ topic?: string; persona?: string }>)
-    : [];
-  const uniquePersonas = [...new Set(talkingPoints.map(tp => tp.persona).filter(Boolean))];
-  if (uniquePersonas.length > 0) {
-    return uniquePersonas.slice(0, 5).map(persona => ({
-      role: String(persona),
-      concerns: talkingPoints
-        .filter(tp => tp.persona === persona)
-        .map(tp => tp.topic || '')
-        .filter(Boolean),
+  // Try keyStakeholders (string[] of stakeholder names)
+  if (Array.isArray(cr.keyStakeholders)) {
+    return (cr.keyStakeholders as string[]).slice(0, 5).map(s => ({
+      role: String(s),
+      concerns: [],
       motivation: '',
-      confidence: Number(cr.confidenceScore ?? cr.confidence ?? 0) * 0.8,
+      confidence: Number(cr.confidenceScore ?? cr.confidence ?? 0) / 100,
     }));
+  }
+
+  // Fallback: derive from talking points (TalkingPoint has `point` field, not `topic`)
+  const talkingPoints = Array.isArray(cr.talkingPoints)
+    ? (cr.talkingPoints as Array<Record<string, unknown>>)
+    : [];
+  if (talkingPoints.length > 0) {
+    return [{
+      role: 'General Contact',
+      concerns: talkingPoints.map(tp => String(tp.point || '')).filter(Boolean),
+      motivation: '',
+      confidence: Number(cr.confidenceScore ?? cr.confidence ?? 0) / 100 * 0.8,
+    }];
   }
 
   return [];
@@ -208,15 +203,15 @@ export async function GET(
 
   if (conversationResult && conversationResult.success) {
     const cr = conversationResult as unknown as Record<string, unknown>;
-    const summary = (cr.summary as string) || (cr.overallNarrative as string) || '';
+    const summary = (cr.briefingNarrative as string) || (cr.companyContext as string) || (cr.meetingObjective as string) || '';
     keyThemes = Array.isArray(cr.talkingPoints)
-      ? ((cr.talkingPoints as Array<{ topic?: string }>).map((tp) => tp.topic || '').filter(Boolean))
+      ? ((cr.talkingPoints as Array<{ point?: string }>).map((tp) => tp.point || '').filter(Boolean))
       : [];
-    recommendations = Array.isArray(cr.keyRecommendations)
-      ? ((cr.keyRecommendations as Array<{ recommendation?: string }>).map((r) => r.recommendation || '').filter(Boolean))
+    recommendations = Array.isArray(cr.postMeetingActions)
+      ? ((cr.postMeetingActions as string[]).map(String).filter(Boolean))
       : [];
-    risks = Array.isArray(cr.risks)
-      ? ((cr.risks as Array<{ risk?: string }>).map((r) => r.risk || '').filter(Boolean))
+    risks = Array.isArray(cr.objectionsToPrepare)
+      ? ((cr.objectionsToPrepare as Array<{ objection?: string }>).map((o) => o.objection || '').filter(Boolean))
       : [];
 
     brief = {
@@ -248,9 +243,18 @@ export async function GET(
     ...(shouldInclude(guardResult.includes, 'talkingPoints') && {
       talkingPoints: keyThemes.map(t => ({ topic: t, context: '', confidence: brief?.confidence ?? 0 })),
     }),
-    ...(shouldInclude(guardResult.includes, 'objections') && {
-      objections: risks.map(r => ({ objection: r, rebuttal: '', confidence: brief?.confidence ?? 0 })),
-    }),
+    ...(shouldInclude(guardResult.includes, 'objections') && conversationResult && typeof conversationResult === 'object' ? {
+      objections: ((conversationResult as unknown as Record<string, unknown>).objectionsToPrepare as Array<Record<string, unknown>> || []).map((o) => ({
+        objection: String(o.objection || ''),
+        rebuttal: String(o.preparedResponse || ''),
+        confidence: Number(
+          o.probability === 'high' ? 0.9 :
+          o.probability === 'medium' ? 0.6 :
+          o.probability === 'low' ? 0.3 :
+          brief?.confidence ?? 0
+        ),
+      })),
+    } : {}),
     ...(shouldInclude(guardResult.includes, 'buyerProfiles') && {
       buyerProfiles: extractBuyerProfiles(conversationResult),
     }),

@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 import {
   Building2, Globe, MapPin, Users, Search, Download,
   ChevronLeft, ChevronRight, MoreHorizontal, Sparkles, Loader2,
-  Plus, LayoutGrid, List, Trash2, Check, X, Eye, Pencil,
+  Plus, LayoutGrid, List, Trash2, Check, X, Eye, Pencil, Flame, Zap, Sprout, Minus,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,8 +45,14 @@ import { cn } from '@/lib/utils';
 interface CompanyRow {
   id: string; rawName: string; domain: string | null; industry: string | null;
   sizeRange: string | null; country: string | null; status: string;
-  intelligenceScore: number | null; contactCount: number; signalCount: number;
-  isEnriched: boolean; topSignal: any; updatedAt: string | null;
+  priorityTier: string | null;
+  accountPriorityScore: number | null;
+  intelligenceScore: number | null;
+  accountScore: number | null;
+  accountCategory: string | null;
+  contactCount: number; signalCount: number;
+  isEnriched: boolean; topSignal: any;
+  lastActivityAt: string | null; updatedAt: string | null;
 }
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -58,6 +64,14 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   closed_won: { bg: 'rgba(34,197,94,0.12)', text: '#16A34A' },
   closed_lost: { bg: 'rgba(239,68,68,0.12)', text: '#DC2626' },
 };
+
+const TIER_BADGE: Record<string, { bg: string; text: string; icon: typeof Flame; label: string }> = {
+  HOT: { bg: 'rgba(239,68,68,0.12)', text: '#DC2626', icon: Flame, label: 'HOT' },
+  ACTIVE: { bg: 'rgba(16,185,129,0.12)', text: '#059669', icon: Zap, label: 'ACTIVE' },
+  NURTURE: { bg: 'rgba(245,158,11,0.12)', text: '#D97706', icon: Sprout, label: 'NURTURE' },
+  LOW: { bg: 'rgba(161,161,170,0.12)', text: '#52525B', icon: Minus, label: 'LOW' },
+};
+const TIER_OPTIONS = ['HOT', 'ACTIVE', 'NURTURE', 'LOW'];
 const SIZE_RANGES = ['1-10', '11-50', '51-200', '201-1000', '1001-5000', '5001+'];
 const STATUS_OPTIONS = ['prospect', 'researching', 'active', 'engaged', 'paused', 'closed_won', 'closed_lost'];
 
@@ -120,6 +134,17 @@ function StatusBadge({ status }: { status: string }) {
   return <span className="inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: c.bg, color: c.text }}>{statusLabel(status)}</span>;
 }
 
+function TierBadge({ tier }: { tier: string | null }) {
+  if (!tier) return <span className="text-[11px] text-gray-300">—</span>;
+  const t = TIER_BADGE[tier] ?? { bg: 'rgba(100,100,100,.12)', text: '#52525B', icon: Minus, label: tier };
+  const Icon = t.icon;
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: t.bg, color: t.text }}>
+      <Icon size={10} />{t.label}
+    </span>
+  );
+}
+
 function ScoreCircle({ score }: { score: number | null }) {
   const v = score ?? 0, col = scoreColor(score), r = 20, circ = 2 * Math.PI * r;
   return (
@@ -152,13 +177,14 @@ function TableSkeleton() {
       <TableCell><Skeleton className="h-4 w-4" /></TableCell>
       <TableCell><Skeleton className="h-4 w-36" /></TableCell>
       <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-28" /></TableCell>
-      <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
-      <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-16" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-14" /></TableCell>
-      <TableCell><Skeleton className="h-4 w-10" /></TableCell>
-      <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
       <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+      <TableCell><Skeleton className="h-4 w-20" /></TableCell>
+      <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+      <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
       <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-14" /></TableCell>
+      <TableCell><Skeleton className="h-4 w-14" /></TableCell>
+      <TableCell><Skeleton className="h-4 w-16" /></TableCell>
+      <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-14" /></TableCell>
       <TableCell><Skeleton className="h-4 w-4 ml-auto" /></TableCell>
     </TableRow>
   ));
@@ -178,14 +204,17 @@ function CompanyCard({ c, onClick }: { c: CompanyRow; onClick: () => void }) {
       </div>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 flex-wrap">
+          <TierBadge tier={c.priorityTier} />
           {c.industry && <Badge variant="secondary" className="text-[11px]">{c.industry}</Badge>}
-          {c.country && <span className="text-[11px] text-gray-400 flex items-center gap-0.5"><MapPin size={10} />{c.country}</span>}
         </div>
         <StatusBadge status={c.status} />
       </div>
       <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-        <span className="text-[11px] text-gray-500 flex items-center gap-1"><Users size={12} /><span className="font-medium">{c.contactCount}</span> contacts</span>
-        <ScoreCircle score={c.intelligenceScore} />
+        <div className="flex items-center gap-3">
+          <span className="text-[11px] text-gray-500 flex items-center gap-1"><Users size={12} /><span className="font-medium">{c.contactCount}</span></span>
+          {c.signalCount > 0 && <span className="text-[11px] font-medium text-purple-600">{c.signalCount} signals</span>}
+        </div>
+        <ScoreCircle score={c.accountPriorityScore ?? c.intelligenceScore} />
       </div>
     </motion.div>
   );
@@ -265,8 +294,9 @@ export default function CompaniesScreen() {
   const [industry, setIndustry] = useState('');
   const [status, setStatus] = useState('');
   const [sizeRange, setSizeRange] = useState('');
-  const [sortBy, setSortBy] = useState('name');
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const [tier, setTier] = useState('');
+  const [sortBy, setSortBy] = useState('accountPriorityScore');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [page, setPage] = useState(1);
   const [view, setView] = useState<'table' | 'grid'>('table');
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -281,15 +311,16 @@ export default function CompaniesScreen() {
     timerRef.current = setTimeout(() => setDebounced(v), 300);
   }, []);
   useEffect(() => () => clearTimeout(timerRef.current), []);
-  useEffect(() => setPage(1), [industry, status, sizeRange]);
+  useEffect(() => setPage(1), [industry, status, sizeRange, tier]);
 
   /* ── Queries ── */
   const { data, isLoading } = useQuery({
-    queryKey: ['companies', page, debounced, industry, status, sizeRange, sortBy, sortDir],
+    queryKey: ['companies', page, debounced, industry, status, sizeRange, tier, sortBy, sortDir],
     queryFn: async () => {
       const { data: d, error } = await fetchApi('/api/companies', { params: {
         page, limit: 20, search: debounced || undefined, industry: industry || undefined,
-        status: status || undefined, sizeRange: sizeRange || undefined, sortBy, sortDir,
+        status: status || undefined, sizeRange: sizeRange || undefined, tier: tier || undefined,
+        sortBy, sortDir,
       }});
       if (error) throw new Error(error);
       return d!;
@@ -345,7 +376,10 @@ export default function CompaniesScreen() {
     setPage(1);
   }, [sortBy]);
 
-  const goTo = useCallback((id: string) => useAppStore.getState().setSelectedCompanyId(id), []);
+  const goTo = useCallback((id: string) => {
+    useAppStore.getState().setSelectedCompanyId(id);
+    useAppStore.getState().setActiveView('company-profile');
+  }, []);
 
   /* ── Bulk ── */
   const allSel = companies.length > 0 && companies.every(c => selected.has(c.id));
@@ -369,7 +403,7 @@ export default function CompaniesScreen() {
     setSelected(new Set());
   };
 
-  const activeFilters = [search, industry, status, sizeRange].filter(Boolean).length;
+  const activeFilters = [search, industry, status, sizeRange, tier].filter(Boolean).length;
   const showEmpty = !isLoading && companies.length === 0;
 
   /* ═══════════════════════════════════════════════════════════════
@@ -415,8 +449,9 @@ export default function CompaniesScreen() {
           <FilterSelect value={industry} onChange={v => setIndustry(v)} placeholder="All Industries" items={industries.slice(0, 20)} />
           <FilterSelect value={status} onChange={v => setStatus(v)} placeholder="All Statuses" items={STATUS_OPTIONS.map(statusLabel)} keys={STATUS_OPTIONS} />
           <FilterSelect value={sizeRange} onChange={v => setSizeRange(v)} placeholder="All Sizes" items={SIZE_RANGES} />
+          <FilterSelect value={tier} onChange={v => setTier(v)} placeholder="All Tiers" items={TIER_OPTIONS} />
           {activeFilters > 0 && (
-            <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-500" onClick={() => { setSearch(''); setDebounced(''); setIndustry(''); setStatus(''); setSizeRange(''); setPage(1); }}>Clear all</Button>
+            <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-500" onClick={() => { setSearch(''); setDebounced(''); setIndustry(''); setStatus(''); setSizeRange(''); setTier(''); setPage(1); }}>Clear all</Button>
           )}
         </div>
       </div>
@@ -458,13 +493,14 @@ export default function CompaniesScreen() {
                     <TableHead className="w-10"><Checkbox checked={allSel} ref={el => { if (el) el.dataset.state = allSel ? 'checked' : someSel ? 'mixed' : 'unchecked'; }} onCheckedChange={toggleAll} /></TableHead>
                     <SortHead label="Company" field="name" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="min-w-[200px]" />
                     <TableHead className="hidden lg:table-cell text-muted-foreground">Domain</TableHead>
-                    <TableHead className="hidden md:table-cell text-muted-foreground">Industry</TableHead>
-                    <SortHead label="Size" field="sizeRange" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="hidden md:table-cell" />
-                    <TableHead className="text-muted-foreground">Country</TableHead>
+                    <TableHead className="text-muted-foreground">Tier</TableHead>
+                    <SortHead label="ICP Score" field="accountPriorityScore" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
+                    <SortHead label="Intel" field="score" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="hidden md:table-cell" />
+                    <SortHead label="Acct Score" field="accountScore" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="hidden lg:table-cell" />
+                    <SortHead label="Signals" field="signals" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="hidden sm:table-cell" />
                     <SortHead label="Contacts" field="contacts" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
-                    <SortHead label="Score" field="score" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="hidden sm:table-cell" />
                     <TableHead className="text-muted-foreground">Status</TableHead>
-                    <SortHead label="Updated" field="updatedAt" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="hidden sm:table-cell" />
+                    <SortHead label="Updated" field="lastActivityAt" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="hidden md:table-cell" />
                     <TableHead className="w-10" />
                   </TableRow>
                 </TableHeader>
@@ -483,15 +519,17 @@ export default function CompaniesScreen() {
                               <span className="text-sm font-semibold text-gray-900 truncate max-w-[180px]">{c.rawName}</span>
                               {c.isEnriched && <Badge variant="outline" className="text-[8px] font-bold uppercase tracking-wider shrink-0 border-emerald-300 text-emerald-700 bg-emerald-50 px-1 py-px">AI</Badge>}
                             </div>
+                            {c.industry ? <p className="text-[10px] text-gray-400 truncate mt-0.5">{c.industry}{c.country ? ` · ${c.country}` : ''}</p> : c.country ? <p className="text-[10px] text-gray-400 truncate mt-0.5">{c.country}</p> : null}
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">{c.domain ? <span className="text-xs text-gray-500 truncate">{c.domain}</span> : <span className="text-xs text-gray-300">—</span>}</TableCell>
-                          <TableCell className="hidden md:table-cell">{c.industry ? <Badge variant="secondary" className="text-[11px]">{c.industry}</Badge> : <span className="text-xs text-gray-300">—</span>}</TableCell>
-                          <TableCell className="hidden md:table-cell">{c.sizeRange ? <Badge variant="secondary" className="text-[11px]">{c.sizeRange}</Badge> : <span className="text-xs text-gray-300">—</span>}</TableCell>
-                          <TableCell>{c.country ? <span className="text-xs text-gray-500">{c.country}</span> : <span className="text-xs text-gray-300">—</span>}</TableCell>
+                          <TableCell><TierBadge tier={c.priorityTier} /></TableCell>
+                          <TableCell><ScoreBar score={c.accountPriorityScore} /></TableCell>
+                          <TableCell className="hidden md:table-cell"><ScoreBar score={c.intelligenceScore} /></TableCell>
+                          <TableCell className="hidden lg:table-cell"><ScoreBar score={c.accountScore != null ? Math.round(c.accountScore) : null} /></TableCell>
+                          <TableCell className="hidden sm:table-cell">{c.signalCount > 0 ? <span className="text-[11px] font-semibold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full">{c.signalCount}</span> : <span className="text-xs text-gray-300">0</span>}</TableCell>
                           <TableCell>{c.contactCount > 0 ? <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">{c.contactCount}</span> : <span className="text-xs text-gray-300">0</span>}</TableCell>
-                          <TableCell className="hidden sm:table-cell"><ScoreBar score={c.intelligenceScore} /></TableCell>
                           <TableCell><StatusBadge status={c.status} /></TableCell>
-                          <TableCell className="hidden sm:table-cell"><span className="text-[11px] text-gray-400">{relativeTime(c.updatedAt)}</span></TableCell>
+                          <TableCell className="hidden md:table-cell"><span className="text-[11px] text-gray-400">{relativeTime(c.lastActivityAt || c.updatedAt)}</span></TableCell>
                           <TableCell onClick={e => e.stopPropagation()}>
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-7 w-7 p-0"><MoreHorizontal size={14} className="text-gray-400" /></Button></DropdownMenuTrigger>

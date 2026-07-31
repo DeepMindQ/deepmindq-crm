@@ -1,6 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
-import { Prisma, CompanyStatus } from '@prisma/client';
+import { Prisma, CompanyStatus, CompanyPriorityTier } from '@prisma/client';
 import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
@@ -13,6 +13,7 @@ export async function GET(request: Request) {
     const industry = searchParams.get('industry');
     const status = searchParams.get('status');
     const sizeRange = searchParams.get('sizeRange');
+    const tier = searchParams.get('tier');
     const sortBy = searchParams.get('sortBy') || 'name';
     const sortDir = searchParams.get('sortDir') === 'desc' ? 'desc' : 'asc';
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
@@ -44,7 +45,11 @@ export async function GET(request: Request) {
       where.sizeRange = sizeRange;
     }
 
-    // Build orderBy
+    if (tier && Object.values(CompanyPriorityTier).includes(tier as CompanyPriorityTier)) {
+      where.priorityTier = tier as CompanyPriorityTier;
+    }
+
+    // Build orderBy — T6: support priority, intelligence, opportunity score sorting
     let orderBy: Prisma.CompanyOrderByWithRelationInput;
     switch (sortBy) {
       case 'contacts':
@@ -53,11 +58,20 @@ export async function GET(request: Request) {
       case 'score':
         orderBy = { intelligenceScore: sortDir };
         break;
+      case 'accountPriorityScore':
+        orderBy = { accountPriorityScore: { sort: sortDir, nulls: 'last' } };
+        break;
+      case 'accountScore':
+        orderBy = { accountScore: { score: sortDir } };
+        break;
       case 'signals':
         orderBy = { signals: { _count: sortDir } };
         break;
       case 'updatedAt':
         orderBy = { updatedAt: sortDir };
+        break;
+      case 'lastActivityAt':
+        orderBy = { lastActivityAt: { sort: sortDir, nulls: 'last' } };
         break;
       default:
         orderBy = { rawName: sortDir };
@@ -69,6 +83,7 @@ export async function GET(request: Request) {
         include: {
           _count: { select: { contacts: true, signals: true } },
           researchCard: { select: { id: true } },
+          accountScore: { select: { score: true, category: true } },
           signals: {
             where: { status: { in: ['detected', 'validated', 'active'] } },
             orderBy: { createdAt: 'desc' },
@@ -103,11 +118,16 @@ export async function GET(request: Request) {
       sizeRange: c.sizeRange,
       country: c.country,
       status: c.status,
+      priorityTier: c.priorityTier ?? null,
+      accountPriorityScore: c.accountPriorityScore ?? null,
       intelligenceScore: c.intelligenceScore,
+      accountScore: c.accountScore?.score ?? null,
+      accountCategory: c.accountScore?.category ?? null,
       contactCount: c._count.contacts,
       signalCount: c._count.signals,
       isEnriched: !!c.researchCard,
       topSignal: c.signals[0] ?? null,
+      lastActivityAt: c.lastActivityAt?.toISOString() ?? null,
       updatedAt: c.updatedAt?.toISOString() ?? null,
     }));
 

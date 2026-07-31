@@ -90,6 +90,8 @@ async function fetchInsightsData() {
     topOpportunities,
     intelligenceFeed,
     recentEnrichedCount,
+    engineRuns,
+    recentAIGenerations,
   ] = await Promise.all([
     // KPI 1: totalAccounts
     db.company.count({ where: { status: { not: 'archived' } } }),
@@ -135,7 +137,66 @@ async function fetchInsightsData() {
     }),
     // For AI brief context: enriched company count
     db.company.count({ where: { lastEnrichedAt: { not: null } } }),
+    // System health: last 20 runs per engine
+    db.engineRun.findMany({
+      orderBy: { createdAt: 'desc' },
+      take: 120, // 6 engines × 20 each
+    }),
+    // AI status: recent generations in last 24h
+    db.aIGenerationAudit.findMany({
+      where: { createdAt: { gte: new Date(Date.now() - 24 * 60 * 60 * 1000) } },
+      orderBy: { createdAt: 'desc' },
+      take: 50,
+    }),
   ]);
+
+  // ── Compute engine health from real EngineRun data ──
+  const ENGINE_DISPLAY: Record<string, string> = {
+    grounding: 'Grounding Engine',
+    scoring: 'Scoring Engine',
+    action: 'Action Engine',
+    conversation: 'Conversation Engine',
+    synthesis: 'Synthesis Engine',
+    retrieval: 'Retrieval Engine',
+  };
+  type EngineStatus = 'healthy' | 'degraded' | 'unhealthy';
+
+  // Group runs by engine, take last 20 per engine
+  const runsByEngine = new Map<string, typeof engineRuns>();
+  for (const run of engineRuns) {
+    const existing = runsByEngine.get(run.engine) ?? [];
+    if (existing.length < 20) {
+      existing.push(run);
+      runsByEngine.set(run.engine, existing);
+    }
+  }
+
+  const engines: { name: string; status: EngineStatus }[] = [];
+  for (const [engineKey, displayName] of Object.entries(ENGINE_DISPLAY)) {
+    const runs = runsByEngine.get(engineKey);
+    if (!runs || runs.length === 0) {
+      engines.push({ name: displayName, status: 'unhealthy' });
+      continue;
+    }
+    const successRate = runs.filter(r => r.success).length / runs.length * 100;
+    const status: EngineStatus =
+      successRate >= 95 ? 'healthy' :
+      successRate >= 80 ? 'degraded' :
+      'unhealthy';
+    engines.push({ name: displayName, status });
+  }
+
+  // ── Compute aiStatus from AIGenerationAudit ──
+  let aiStatus: 'available' | 'degraded' | 'unavailable';
+  if (recentAIGenerations.length === 0) {
+    aiStatus = 'unavailable';
+  } else {
+    const passRate = recentAIGenerations.filter(g => g.governancePassed).length / recentAIGenerations.length;
+    aiStatus =
+      passRate >= 0.8 ? 'available' :
+      passRate >= 0.5 ? 'degraded' :
+      'unavailable';
+  }
 
   return {
     kpis: {
@@ -176,13 +237,8 @@ async function fetchInsightsData() {
       createdAt: e.createdAt.toISOString(),
     })),
     systemHealth: {
-      engines: [
-        { name: 'Grounding Engine', status: 'healthy' as const },
-        { name: 'Scoring Engine', status: 'healthy' as const },
-        { name: 'Action Engine', status: 'healthy' as const },
-        { name: 'Conversation Engine', status: 'healthy' as const },
-      ],
-      aiStatus: 'available',
+      engines,
+      aiStatus,
     },
     briefContext: { totalAccounts, recentEnrichedCount },
   };

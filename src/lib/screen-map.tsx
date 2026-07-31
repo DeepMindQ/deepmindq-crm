@@ -91,7 +91,6 @@ const TemplatesScreen = lazy(() => import('@/components/screens/templates-screen
 const BouncesScreen = lazy(() => import('@/components/screens/bounces-screen'));
 const MindMapScreen = lazy(() => import('@/components/screens/mind-map-screen'));
 const PromptTemplatesScreen = lazy(() => import('@/components/screens/prompt-templates-screen'));
-const CommandCenterOldScreen = lazy(() => import('@/components/screens/command-center-screen'));
 const PlaybooksScreen = lazy(() => import('@/components/screens/playbooks-screen'));
 const OpportunityRadarScreen = lazy(() => import('@/components/screens/opportunity-radar-screen'));
 const ConversationStudioScreen = lazy(() => import('@/components/screens/conversation-studio-screen'));
@@ -188,7 +187,6 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'capability-library': withScreenErrorBoundary(CapabilityScreen, 'capability-library'),
   'mind-map': withScreenErrorBoundary(MindMapScreen, 'mind-map'),
   'prompt-templates': withScreenErrorBoundary(PromptTemplatesScreen, 'prompt-templates'),
-  'command-center-old': withScreenErrorBoundary(CommandCenterOldScreen, 'command-center-old'),
   playbooks: withScreenErrorBoundary(PlaybooksScreen, 'playbooks'),
   'opportunity-radar': withScreenErrorBoundary(OpportunityRadarScreen, 'opportunity-radar'),
   'conversation-studio': withScreenErrorBoundary(ConversationStudioScreen, 'conversation-studio'),

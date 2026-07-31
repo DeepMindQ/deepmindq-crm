@@ -11,7 +11,7 @@ import {
   Sparkles, Brain, RefreshCw, Layers,
   Upload, GitBranch, MailPlus, Radar, Activity, Shield,
 } from 'lucide-react';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, type ViewId } from '@/lib/store';
 
 /* ═══════════════════════════════════════════════════
    Design Tokens
@@ -30,7 +30,6 @@ interface DashboardData {
   repliesThisWeek: number;
   bouncesCount?: number;
   emailHealthDistribution?: Record<string, number>;
-  [k: string]: any;
 }
 
 interface AuditEntry {
@@ -44,6 +43,33 @@ interface TopCompany {
 }
 
 interface Segment { id: string; name: string; _count: { contacts: number } }
+
+/** Raw company shape returned by /api/companies */
+interface RawCompany {
+  id: string;
+  name?: string;
+  rawName?: string;
+  normalizedName?: string;
+  industry?: string | null;
+  country?: string | null;
+  contactCount?: number;
+  _count?: { contacts?: number };
+  domain?: string | null;
+}
+
+/** Raw segment shape returned by /api/segments */
+interface RawSegment {
+  id: string;
+  name: string;
+  _count?: { contacts: number };
+}
+
+/** AI briefing shape returned by /api/ai/insights */
+interface AIBriefing {
+  summary?: string;
+  keyInsights?: Array<{ title: string; description: string }>;
+  predictions?: Array<{ trend: string; metric: string; current: string; predicted: string }>;
+}
 
 /* ═══════════════════════════════════════════════════
    Activity Config
@@ -165,7 +191,7 @@ const glassPanel = { background: card, backdropFilter: 'blur(20px)', border: `1p
    Dashboard Screen
    ═══════════════════════════════════════════════════ */
 export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: string, companyId?: string) => void }) {
-  const nav = navigateTo || ((screen: string) => useAppStore.getState().setActiveView(screen as any));
+  const nav = navigateTo || ((screen: string) => useAppStore.getState().setActiveView(screen as ViewId));
 
   /* ── Data queries ── */
   const { data: dashData, isLoading } = useQuery<DashboardData>({
@@ -180,19 +206,19 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     staleTime: 30000,
   });
 
-  const { data: rawCompanies } = useQuery<any>({
+  const { data: rawCompanies } = useQuery<{ companies?: RawCompany[]; data?: RawCompany[] } | undefined>({
     queryKey: ['dashboard-companies'],
     queryFn: () => fetch('/api/companies?limit=8&sortBy=contacts&sortDir=desc').then(r => r.json()),
     staleTime: 60000,
   });
 
-  const { data: rawSegments } = useQuery<any>({
+  const { data: rawSegments } = useQuery<RawSegment[] | { data: RawSegment[] } | undefined>({
     queryKey: ['dashboard-segments'],
     queryFn: () => fetch('/api/segments?limit=6').then(r => r.json()),
     staleTime: 60000,
   });
 
-  const { data: aiBriefing, isLoading: briefingLoading, isError: briefingError, refetch: refetchBriefing } = useQuery<any>({
+  const { data: aiBriefing, isLoading: briefingLoading, isError: briefingError, refetch: refetchBriefing } = useQuery<AIBriefing>({
     queryKey: ['dashboard-briefing'],
     queryFn: () => fetch('/api/ai/insights').then(r => r.json()).then(d => d?.data || d),
     staleTime: 120000,
@@ -202,16 +228,16 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   /* ── Derived data ── */
   const topCompanies: TopCompany[] = useMemo(() => {
     const list = rawCompanies?.companies || rawCompanies?.data || [];
-    return list.slice(0, 8).map((c: any) => ({
-      id: c.id, name: c.rawName || c.normalizedName || c.name,
-      industry: c.industry, country: c.country,
-      contactCount: c.contactCount || c._count?.contacts || 0, domain: c.domain,
+    return list.slice(0, 8).map((c: RawCompany) => ({
+      id: c.id, name: c.rawName || c.normalizedName || c.name || '',
+      industry: c.industry ?? null, country: c.country ?? null,
+      contactCount: c.contactCount || c._count?.contacts || 0, domain: c.domain ?? null,
     }));
   }, [rawCompanies]);
 
   const segments: Segment[] = useMemo(() => {
     const list = Array.isArray(rawSegments) ? rawSegments : rawSegments?.data || [];
-    return list.slice(0, 6).map((s: any) => ({
+    return list.slice(0, 6).map((s: RawSegment) => ({
       id: s.id, name: s.name, _count: s._count || { contacts: 0 },
     }));
   }, [rawSegments]);
@@ -320,10 +346,10 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             </div>
             <p className="text-[13px] text-foreground/85 leading-relaxed">{aiBriefing.summary}</p>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-0.5">
-              {aiBriefing.keyInsights?.length > 0 && (
+              {(aiBriefing.keyInsights?.length ?? 0) > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Key Insights</p>
-                  {aiBriefing.keyInsights.slice(0, 3).map((ins: any, i: number) => (
+                  {aiBriefing.keyInsights!.slice(0, 3).map((ins, i: number) => (
                     <div key={i} className="flex items-start gap-1.5">
                       <ChevronRight className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: gold }} />
                       <div className="min-w-0">
@@ -334,11 +360,11 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                   ))}
                 </div>
               )}
-              {aiBriefing.predictions?.length > 0 && (
+              {(aiBriefing.predictions?.length ?? 0) > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Predictions</p>
                   <div className="flex flex-wrap gap-1.5">
-                    {aiBriefing.predictions.slice(0, 3).map((p: any, i: number) => {
+                    {aiBriefing.predictions!.slice(0, 3).map((p, i: number) => {
                       const arrow = p.trend === 'up' ? '\u2191' : p.trend === 'down' ? '\u2193' : '\u2192';
                       const tc = p.trend === 'up' ? '#10B981' : p.trend === 'down' ? '#EF4444' : '#71717A';
                       return (

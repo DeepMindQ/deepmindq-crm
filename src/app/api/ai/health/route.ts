@@ -1,12 +1,32 @@
-import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { logger } from '@/lib/logger';
+import {
+  utilityGuard,
+  utilityCatchError,
+  utilitySuccess,
+  RateLimitedError,
+} from '@/lib/intelligence-api/guard';
 
 /**
  * AI Health Center API (Wave 8.3)
  * Returns metrics about AI quality across the platform.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const startedAt = Date.now();
+
+  let ctx: ReturnType<typeof utilityGuard>;
+  try {
+    ctx = utilityGuard(request, 'ai-health');
+  } catch (err) {
+    if (err instanceof RateLimitedError) {
+      return new Response(JSON.stringify(err.errorBody), {
+        status: 429,
+        headers: err.headers,
+      });
+    }
+    throw err;
+  }
+
   try {
     const now = new Date();
 
@@ -69,7 +89,7 @@ export async function GET() {
       where: { createdAt: { gte: weekAgo } },
     });
 
-    return NextResponse.json({
+    return utilitySuccess(ctx, {
       overview: {
         totalInsights,
         activeInsights,
@@ -93,9 +113,8 @@ export async function GET() {
         route: g.sourceRoute,
         count: g._count.sourceRoute,
       })),
-    });
-  } catch (error) {
-    logger.error('[AI Health] Error:', { error: error });
-    return NextResponse.json({ error: 'Failed to load AI health metrics' }, { status: 500 });
+    }, 'ai-health', Date.now() - startedAt);
+  } catch (err) {
+    return utilityCatchError(ctx, err, 502, 'ENGINE_ERROR', 'AI health check failed', Date.now() - startedAt);
   }
 }

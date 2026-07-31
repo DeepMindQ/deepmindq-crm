@@ -139,7 +139,7 @@ export const SIGNAL_LIST_SELECT = {
   companyId: true,
   signalType: true,
   title: true,
-  summary: true,
+  description: true,
   severity: true,
   impact: true,
   status: true,
@@ -148,7 +148,7 @@ export const SIGNAL_LIST_SELECT = {
   confidence: true,
   source: true,
   sourceUrl: true,
-  detectedAt: true,
+  extractedAt: true,
   createdAt: true,
 } as const;
 

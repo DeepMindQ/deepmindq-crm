@@ -4,10 +4,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Brain, TrendingUp, AlertTriangle, Zap,
-  ArrowRight, Loader2, RefreshCw, Target, Users, FileText,
-  ChevronRight, Plus, Sparkles, Search, BarChart3, Clock,
-  Shield, Layers, Play, Eye, Wrench, ArrowUpRight,
-  CheckCircle2, Lightbulb,
+  ArrowRight, Loader2, RefreshCw, Target, Users,
+  ChevronRight, Plus, Sparkles, Search, Clock,
+  Layers, Lightbulb,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -149,6 +148,7 @@ export function CommandCenter() {
   const [loading, setLoading] = useState(true);
   const [briefingLoading, setBriefingLoading] = useState(true);
   const [insights, setInsights] = useState<CommandCenterInsights | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   const fetchIntelligence = useCallback(async () => {
     setLoading(true);
@@ -174,6 +174,7 @@ export function CommandCenter() {
         contacts: companies.reduce((sum: number, c: Record<string, unknown>) => sum + ((c._count as Record<string, number>)?.contacts ?? 0), 0),
       };
       setStats(newStats);
+      setError(null);
 
       // Rank accounts by intelligence score + signal count
       const ranked = companies
@@ -230,6 +231,7 @@ export function CommandCenter() {
       setActionItems(actions);
     } catch (err) {
       logger.error('Command Center fetch error:', { error: err });
+      setError('Failed to load intelligence data. Tap to retry.');
     } finally {
       setLoading(false);
     }
@@ -327,6 +329,7 @@ export function CommandCenter() {
       }
     } catch (err) {
       logger.error('Command Center unified insights fetch error:', { error: err });
+      setError('Failed to load intelligence data. Tap to retry.');
     }
   }, [stats.capabilities, stats.contacts]);
 
@@ -334,6 +337,10 @@ export function CommandCenter() {
     if (intelligenceActivated) {
       fetchIntelligence();
       fetchUnifiedInsights();
+      const pollInterval = setInterval(() => {
+        fetchUnifiedInsights();
+      }, 30000);
+      return () => clearInterval(pollInterval);
     } else {
       setLoading(false);
     }
@@ -348,6 +355,19 @@ export function CommandCenter() {
   const navigateToCompany = (companyId: string) => {
     setSelectedCompanyId(companyId);
     setActiveView('company-workspace');
+  };
+
+  const getRelativeTime = (dateStr: string): string => {
+    const now = Date.now();
+    const then = new Date(dateStr).getTime();
+    const diffMs = now - then;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'just now';
+    if (diffMin < 60) return `${diffMin}m ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay}d ago`;
   };
 
   const priorityConfig = {
@@ -441,7 +461,7 @@ export function CommandCenter() {
                 {insights.morningBrief.greeting}
               </p>
               {insights.morningBrief.executiveSummary && (
-                <p className="text-sm text-gray-400 mt-1 leading-relaxed">{insights.morningBrief.executiveSummary}</p>
+                <p className="text-sm text-muted-foreground mt-1 leading-relaxed">{insights.morningBrief.executiveSummary}</p>
               )}
             </motion.div>
           )}
@@ -453,7 +473,7 @@ export function CommandCenter() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => { fetchIntelligence(); fetchBriefings(); }}
+            onClick={() => { fetchIntelligence(); fetchBriefings(); fetchUnifiedInsights(); }}
             className="gap-1.5 text-xs"
           >
             <RefreshCw className="w-3.5 h-3.5" />
@@ -471,41 +491,17 @@ export function CommandCenter() {
         </div>
       </div>
 
-      {/* Intelligence Stats Row */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { label: 'Accounts', value: stats.companies, icon: Building2, color: '#2563EB' },
-          { label: 'Capabilities', value: stats.capabilities, icon: Sparkles, color: '#8B5CF6' },
-          { label: 'Signals', value: stats.signals, icon: Zap, color: '#F59E0B' },
-          { label: 'Contacts', value: stats.contacts, icon: Users, color: '#06B6D4' },
-        ].map((stat, i) => (
-          <motion.div
-            key={stat.label}
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.05 }}
-            className="stat-card"
-          >
-            <div className="flex items-center gap-3 mb-3">
-              <div
-                className="w-9 h-9 rounded-lg flex items-center justify-center"
-                style={{ background: `${stat.color}12` }}
-              >
-                <stat.icon className="w-4 h-4" style={{ color: stat.color }} />
-              </div>
-              <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
-                {stat.label}
-              </span>
-            </div>
-            <p className="text-2xl font-bold tabular-nums tracking-tight text-foreground">
-              {stat.value.toLocaleString()}
-            </p>
-          </motion.div>
-        ))}
-      </div>
+      {/* Error Banner */}
+      {error && (
+        <div className="flex items-center gap-3 rounded-xl bg-red-50 border border-red-200 p-4">
+          <AlertTriangle className="w-4 h-4 text-red-500 shrink-0" />
+          <p className="text-sm text-red-700 flex-1">{error}</p>
+          <Button variant="outline" size="sm" onClick={() => { setError(null); fetchIntelligence(); fetchUnifiedInsights(); }} className="text-xs">Retry</Button>
+        </div>
+      )}
 
       {/* Ticket 5: Spec KPI Cards */}
-      {insights?.kpis && (
+      {insights?.kpis ? (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
             { label: 'Total Accounts', value: insights.kpis.totalAccounts, icon: Building2, color: 'text-blue-600 bg-blue-50' },
@@ -513,15 +509,27 @@ export function CommandCenter() {
             { label: 'Avg Intel Score', value: insights.kpis.avgIntelligenceScore, icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50' },
             { label: 'Pending Actions', value: insights.kpis.pendingActions, icon: Target, color: 'text-violet-600 bg-violet-50' },
           ].map(kpi => (
-            <div key={kpi.label} className="rounded-xl bg-gray-900/50 border border-gray-700/50 p-4">
+            <div key={kpi.label} className="rounded-xl bg-white border border-gray-200 p-4">
               <div className="flex items-center gap-3">
                 <div className={`size-9 rounded-lg ${kpi.color} flex items-center justify-center`}>
                   <kpi.icon className="size-4" />
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-white tabular-nums">{kpi.value}</p>
-                  <p className="text-xs text-gray-400">{kpi.label}</p>
+                  <p className="text-2xl font-bold tabular-nums text-foreground">{kpi.value}</p>
+                  <p className="text-xs text-muted-foreground">{kpi.label}</p>
                 </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <div key={i} className="h-[76px] rounded-xl bg-white border border-gray-200 p-4 space-y-3">
+              <div className="h-9 w-9 rounded-lg bg-gray-100 animate-pulse" />
+              <div className="space-y-2">
+                <div className="h-6 w-12 rounded bg-gray-100 animate-pulse" />
+                <div className="h-3 w-20 rounded bg-gray-100 animate-pulse" />
               </div>
             </div>
           ))}
@@ -530,21 +538,72 @@ export function CommandCenter() {
 
       {/* Ticket 5: System Health */}
       {insights?.systemHealth && (
-        <div className="rounded-xl bg-gray-900/50 border border-gray-700/50 p-4">
+        <div className="rounded-xl bg-white border border-gray-200 p-4">
           <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-300">System Health</h3>
+            <h3 className="text-sm font-semibold text-foreground">System Health</h3>
             <div className="flex items-center gap-2">
               <div className={`size-2 rounded-full ${insights.systemHealth.aiStatus === 'available' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-              <span className="text-xs text-gray-400">{insights.systemHealth.aiStatus}</span>
+              <span className="text-xs text-muted-foreground">{insights.systemHealth.aiStatus}</span>
             </div>
           </div>
           <div className="flex gap-4 mt-3">
             {insights.systemHealth.engines.map(eng => (
               <div key={eng.name} className="flex items-center gap-1.5">
                 <div className={`size-1.5 rounded-full ${eng.status === 'healthy' ? 'bg-emerald-500' : 'bg-red-500'}`} />
-                <span className="text-[11px] text-gray-500">{eng.name.replace(' Engine', '')}</span>
+                <span className="text-[11px] text-muted-foreground/60">{eng.name.replace(' Engine', '')}</span>
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {/* Ticket 5: Recent Signals Feed */}
+      {insights?.recentSignals && insights.recentSignals.length > 0 && (
+        <div className="section-container">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+            <div className="flex items-center gap-2">
+              <Zap className="w-4 h-4 text-amber-500" />
+              <h2 className="text-sm font-semibold text-foreground">Recent Signals</h2>
+            </div>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 bg-amber-50 text-amber-700 border-0">
+              {insights.recentSignals.length}
+            </Badge>
+          </div>
+          <div className="max-h-80 overflow-y-auto divide-y divide-gray-50">
+            {insights.recentSignals.slice(0, 10).map(signal => {
+              const severityColor = signal.severity === 'high' ? 'text-red-700 bg-red-50 border-red-200'
+                : signal.severity === 'medium' ? 'text-amber-700 bg-amber-50 border-amber-200'
+                : 'text-blue-700 bg-blue-50 border-blue-200';
+              const relativeTime = getRelativeTime(signal.createdAt);
+              return (
+                <div
+                  key={signal.id}
+                  className="flex items-start gap-3 px-5 py-3 hover:bg-gray-50/50 transition-colors"
+                >
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-sm font-medium text-foreground truncate">{signal.title}</p>
+                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 border shrink-0 ${severityColor}`}>
+                        {signal.severity}
+                      </Badge>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1">
+                      <span className="text-[11px] text-muted-foreground">{signal.companyName}</span>
+                      <span className="text-[11px] text-muted-foreground/40">·</span>
+                      <span className="text-[11px] text-muted-foreground/60">{signal.signalType}</span>
+                      <span className="text-[11px] text-muted-foreground/40">·</span>
+                      <span className="text-[11px] text-muted-foreground/60">{relativeTime}</span>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => navigateToCompany(signal.companyId)}
+                    className="shrink-0 mt-0.5"
+                  >
+                    <ChevronRight className="w-4 h-4 text-muted-foreground/30 hover:text-primary transition-colors" />
+                  </button>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -760,28 +819,28 @@ export function CommandCenter() {
 
       {/* Ticket 5: Top Opportunities Table */}
       {insights?.topOpportunities && insights.topOpportunities.length > 0 && (
-        <div className="rounded-xl bg-gray-900/50 border border-gray-700/50 p-5">
+        <div className="rounded-xl bg-white border border-gray-200 p-5">
           <div className="flex items-center justify-between mb-4">
-            <h3 className="text-sm font-semibold text-gray-300">Top Opportunities</h3>
+            <h3 className="text-sm font-semibold text-foreground">Top Opportunities</h3>
             <Badge variant="secondary" className="text-[10px]">{insights.topOpportunities.length}</Badge>
           </div>
           <div className="space-y-2">
             {insights.topOpportunities.slice(0, 5).map(opp => (
               <div
                 key={opp.id}
-                className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors cursor-pointer"
+                className="flex items-center justify-between p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors cursor-pointer"
                 onClick={() => { setSelectedCompanyId(opp.companyId); setActiveView('companies'); }}
               >
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-200 truncate">{opp.companyName}</p>
-                  <p className="text-xs text-gray-500 truncate">{opp.title || opp.industry || '—'}</p>
+                  <p className="text-sm font-medium text-foreground truncate">{opp.companyName}</p>
+                  <p className="text-xs text-muted-foreground truncate">{opp.title || opp.industry || '—'}</p>
                 </div>
                 <div className="flex items-center gap-3 shrink-0">
                   <div className="text-right">
-                    <p className="text-sm font-bold text-white tabular-nums">{opp.score}</p>
-                    <p className="text-[10px] text-gray-500 uppercase">{opp.priority}</p>
+                    <p className="text-sm font-bold text-foreground tabular-nums">{opp.score}</p>
+                    <p className="text-[10px] text-muted-foreground/60 uppercase">{opp.priority}</p>
                   </div>
-                  <ChevronRight className="size-4 text-gray-600" />
+                  <ChevronRight className="size-4 text-muted-foreground/40" />
                 </div>
               </div>
             ))}
@@ -791,15 +850,15 @@ export function CommandCenter() {
 
       {/* Ticket 5: Intelligence Feed */}
       {insights?.intelligenceFeed && insights.intelligenceFeed.length > 0 && (
-        <div className="rounded-xl bg-gray-900/50 border border-gray-700/50 p-5">
-          <h3 className="text-sm font-semibold text-gray-300 mb-4">Intelligence Feed</h3>
+        <div className="rounded-xl bg-white border border-gray-200 p-5">
+          <h3 className="text-sm font-semibold text-foreground mb-4">Intelligence Feed</h3>
           <div className="space-y-2">
             {insights.intelligenceFeed.slice(0, 8).map(item => (
-              <div key={item.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-800/30 transition-colors">
-                <Clock className="size-3.5 text-gray-600 mt-0.5 shrink-0" />
+              <div key={item.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-50 transition-colors">
+                <Clock className="size-3.5 text-muted-foreground/60 mt-0.5 shrink-0" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-gray-300 truncate">{item.title}</p>
-                  <p className="text-[10px] text-gray-600 mt-0.5">{item.eventType} · {new Date(item.createdAt).toLocaleDateString()}</p>
+                  <p className="text-xs text-foreground truncate">{item.title}</p>
+                  <p className="text-[10px] text-muted-foreground/60 mt-0.5">{item.eventType} · {new Date(item.createdAt).toLocaleDateString()}</p>
                 </div>
               </div>
             ))}

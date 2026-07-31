@@ -1,6 +1,11 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { logger } from '@/lib/logger';
+import {
+  utilityGuard,
+  utilityCatchError,
+  utilitySuccess,
+  RateLimitedError,
+} from '@/lib/intelligence-api/guard';
 
 /* ═══════════════════════════════════════════════════════════════
    Types
@@ -25,6 +30,21 @@ const dismissedIds = new Set<string>();
    GET /api/signals — Detect signals from lead data
    ═══════════════════════════════════════════════════════════════ */
 export async function GET(request: NextRequest) {
+  const startedAt = Date.now();
+
+  let ctx: ReturnType<typeof utilityGuard>;
+  try {
+    ctx = utilityGuard(request, 'signals');
+  } catch (err) {
+    if (err instanceof RateLimitedError) {
+      return new Response(JSON.stringify(err.errorBody), {
+        status: 429,
+        headers: err.headers,
+      });
+    }
+    throw err;
+  }
+
   try {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 50);
@@ -335,18 +355,14 @@ export async function GET(request: NextRequest) {
       return new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime();
     });
 
-    return NextResponse.json({
+    return utilitySuccess(ctx, {
       signals: active.slice(0, limit),
       summary: typeCounts,
       total: active.length,
       dismissed: dismissedIds.size,
-    });
-  } catch (error) {
-    logger.error('[Signals API] Error:', { error: error });
-    return NextResponse.json(
-      { error: 'Failed to detect signals', signals: [], summary: {}, total: 0 },
-      { status: 500 }
-    );
+    }, 'signals', Date.now() - startedAt);
+  } catch (err) {
+    return utilityCatchError(ctx, err, 502, 'ENGINE_ERROR', 'Signal detection failed', Date.now() - startedAt);
   }
 }
 
@@ -359,11 +375,11 @@ export async function POST(request: NextRequest) {
 
     if (body.action === 'dismiss' && body.id) {
       dismissedIds.add(body.id);
-      return NextResponse.json({ success: true, dismissed: body.id });
+      return Response.json({ success: true, dismissed: body.id });
     }
 
-    return NextResponse.json({ error: 'Invalid action. Use { id, action: "dismiss" }' }, { status: 400 });
+    return Response.json({ error: 'Invalid action. Use { id, action: "dismiss" }' }, { status: 400 });
   } catch {
-    return NextResponse.json({ error: 'Invalid request body' }, { status: 400 });
+    return Response.json({ error: 'Invalid request body' }, { status: 400 });
   }
 }

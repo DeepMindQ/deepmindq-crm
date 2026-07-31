@@ -252,8 +252,9 @@ async function executeFetch(fetch: DataFetch): Promise<{ source: string; data: R
     if (orderBy) args.orderBy = orderBy;
     if (Object.keys(include).length > 0) args.include = include;
 
-    let result: any[] = [];
-    const modelMap: Record<string, any> = {
+    let result: Record<string, unknown>[] = [];
+    // Each Prisma model delegate shares a findMany method; we only need that.
+    const modelMap: Record<string, { findMany: (args: any) => Promise<any> }> = {
       companies: db.company,
       contacts: db.contact,
       drafts: db.draft,
@@ -277,27 +278,29 @@ async function executeFetch(fetch: DataFetch): Promise<{ source: string; data: R
     result = asSafeArray(await model.findMany(args));
 
     // Flatten for JSON serialization (strip circular refs from relations)
-    const serialized = result.map((row: any) => {
-      const flat: any = { ...row };
+    const serialized = result.map((row) => {
+      const flat: Record<string, unknown> = { ...row };
       // Serialize researchCard from company includes
       if (flat.researchCard) {
-        flat.researchCard = { ...flat.researchCard };
-        delete flat.researchCard.company;
+        const rc = flat.researchCard as Record<string, unknown>;
+        flat.researchCard = { ...rc };
+        delete (flat.researchCard as Record<string, unknown>).company;
       }
       if (flat.signals) {
-        flat.signals = flat.signals.map((s: any) => {
+        flat.signals = (flat.signals as Record<string, unknown>[]).map((s) => {
           const { company, ...rest } = s;
           return rest;
         });
       }
       if (flat.contacts) {
-        flat.contacts = flat.contacts.map((c: any) => {
+        flat.contacts = (flat.contacts as Record<string, unknown>[]).map((c) => {
           const { company, drafts, replies, bounces, ...rest } = c;
           return rest;
         });
       }
       if (flat.company) {
-        const { contacts, signals, timeline, notes, researchCard, ...rest } = flat.company;
+        const co = flat.company as Record<string, unknown>;
+        const { contacts, signals, timeline, notes, researchCard, ...rest } = co;
         flat.company = rest;
       }
       return flat;
@@ -316,8 +319,8 @@ function buildAnalystPrompt(
   query: string,
   interpretation: string,
   engine: string,
-  fetchedData: Record<string, any[]>,
-  webResults: any[]
+  fetchedData: Record<string, Record<string, unknown>[]>,
+  webResults: Array<{ title: string; snippet: string; url: string }>
 ): { system: string; user: string } {
   const dataSummary = Object.entries(fetchedData)
     .map(([source, rows]) => {
@@ -588,13 +591,13 @@ export async function POST(req: NextRequest) {
 
       // Execute all data fetches in parallel
       const fetchResults = await Promise.all(plan.dataFetches.map(executeFetch));
-      const fetchedData: Record<string, any[]> = {};
+      const fetchedData: Record<string, Record<string, unknown>[]> = {};
       for (const r of fetchResults) {
         fetchedData[r.source] = r.data;
       }
 
       // Web search if the planner requested it
-      let webResults: any[] = [];
+      let webResults: Array<{ title: string; snippet: string; url: string }> = [];
       if (plan.needsWebSearch && plan.webSearchQuery) {
         webResults = await webSearch(plan.webSearchQuery);
       }
@@ -651,8 +654,8 @@ export async function POST(req: NextRequest) {
 
 function buildBasicSummary(
   plan: QueryPlan,
-  fetchedData: Record<string, any[]>,
-  webResults: any[]
+  fetchedData: Record<string, Record<string, unknown>[]>,
+  webResults: Array<{ title: string; snippet: string; url: string }>
 ): string {
   const parts: string[] = [];
   for (const [source, rows] of Object.entries(fetchedData)) {
@@ -661,7 +664,7 @@ function buildBasicSummary(
     } else {
       parts.push(`Found **${rows.length}** records in **${source}**.`);
       // Show top 3 items
-      rows.slice(0, 3).forEach((row: any) => {
+      rows.slice(0, 3).forEach((row) => {
         const name = row.rawName || row.normalizedName || row.title || row.subject || row.signalType || 'item';
         const score = row.intelligenceScore ?? row.leadScore ?? row.confidenceScore ?? row.upvotes;
         const detail = score !== undefined ? ` (score: ${score})` : '';

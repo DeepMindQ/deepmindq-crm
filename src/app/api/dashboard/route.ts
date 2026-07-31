@@ -1,8 +1,28 @@
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
-import { logger } from '@/lib/logger';
+import {
+  utilityGuard,
+  utilityCatchError,
+  utilitySuccess,
+  RateLimitedError,
+} from '@/lib/intelligence-api/guard';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const startedAt = Date.now();
+
+  let ctx: ReturnType<typeof utilityGuard>;
+  try {
+    ctx = utilityGuard(request, 'dashboard');
+  } catch (err) {
+    if (err instanceof RateLimitedError) {
+      return new Response(JSON.stringify(err.errorBody), {
+        status: 429,
+        headers: err.headers,
+      });
+    }
+    throw err;
+  }
+
   try {
     const [
       contactsByStatus,
@@ -55,7 +75,7 @@ export async function GET() {
       healthCounts[group.emailHealth as string] = group._count.emailHealth;
     }
 
-    return NextResponse.json({
+    return utilitySuccess(ctx, {
       contactsByStatus: statusCounts,
       totalCompanies,
       recentBatches,
@@ -65,19 +85,8 @@ export async function GET() {
       bouncesCount,
       suppressionsCount,
       emailHealthDistribution: healthCounts,
-    });
-  } catch (error) {
-    logger.error('Dashboard error:', { error: error });
-    return NextResponse.json({
-      contactsByStatus: {},
-      totalCompanies: 0,
-      recentBatches: [],
-      draftsPendingReview: 0,
-      queuePending: 0,
-      repliesThisWeek: 0,
-      bouncesCount: 0,
-      suppressionsCount: 0,
-      emailHealthDistribution: {},
-    });
+    }, 'dashboard', Date.now() - startedAt);
+  } catch (err) {
+    return utilityCatchError(ctx, err, 500, 'ENGINE_ERROR', 'Dashboard fetch failed', Date.now() - startedAt);
   }
 }

@@ -568,7 +568,7 @@ export default function RevenueIntelligenceScreen({
         ].map((item) => (
           <button
             key={item.view}
-            onClick={() => !item.active && navigateTo?.(item.view as any)}
+            onClick={() => !item.active && navigateTo?.(item.view)}
             disabled={item.active}
             className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
               item.active
@@ -658,8 +658,8 @@ export default function RevenueIntelligenceScreen({
                 key={account.id}
                 rank={idx + 1}
                 account={account}
-                signalCount={idx < latestSignals.filter(s => s.companyId === account.id).length + 1 ? Math.max(1, Math.min(unreadSignalCount, 3) - idx) : Math.max(0, 3 - idx)}
-                onView={(id) => navigateTo?.('revenue-intelligence-brief' as any, id)}
+                signalCount={latestSignals.filter(s => s.companyId === account.id).length}
+                onView={(id) => navigateTo?.('revenue-intelligence-brief', id)}
               />
             ))}
           </div>
@@ -677,7 +677,7 @@ export default function RevenueIntelligenceScreen({
           </div>
           {latestSignals.length > 0 && (
             <button
-              onClick={() => navigateTo?.('revenue-intelligence-opportunities' as any)}
+              onClick={() => navigateTo?.('revenue-intelligence-opportunities')}
               className="inline-flex items-center gap-1 text-sm font-medium text-gold hover:text-gold-bright transition-colors"
             >
               View All Signals <ChevronRight className="w-4 h-4" />
@@ -709,7 +709,7 @@ export default function RevenueIntelligenceScreen({
           </div>
           {aiInsights.length > 0 && (
             <button
-              onClick={() => navigateTo?.('revenue-intelligence-recommendations' as any)}
+              onClick={() => navigateTo?.('revenue-intelligence-recommendations')}
               className="inline-flex items-center gap-1 text-sm font-medium text-gold hover:text-gold-bright transition-colors"
             >
               All Recommendations <ChevronRight className="w-4 h-4" />

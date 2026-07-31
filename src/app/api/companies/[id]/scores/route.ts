@@ -25,6 +25,8 @@ import {
   RateLimitedError,
 } from '@/lib/intelligence-api/guard';
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
+import { classifyIntelligenceTier, parseRevenueBreakdown } from '@/lib/intelligence-api/middleware';
+import { normalizeTierForDisplay } from '@/lib/intelligence-api/types';
 
 // ── Canonical Response Types (single source of truth) ──
 // These types are also consumed by the frontend ScoreTriple component.
@@ -103,15 +105,7 @@ export interface UnifiedScoresResponse {
 
 // ── Helpers ──
 
-/** Classify intelligence tier from numeric score (NaN-safe) */
-function classifyIntelligenceTier(score: number): string {
-  // Guard against NaN from null DB values
-  const s = Number.isFinite(score) ? score : 0;
-  if (s >= 70) return 'hot';
-  if (s >= 40) return 'warm';
-  if (s >= 15) return 'cold';
-  return 'unknown';
-}
+// E4: classifyIntelligenceTier imported from middleware.ts (shared)
 
 /** Clamp a number to [min, max], returning fallback for NaN/Infinity */
 function clampNumber(value: unknown, fallback: number, min: number, max: number): number {
@@ -119,73 +113,12 @@ function clampNumber(value: unknown, fallback: number, min: number, max: number)
   return Math.max(min, Math.min(max, n));
 }
 
-/**
- * Normalize a revenue category (HOT_ACCOUNT/WARM_ACCOUNT/NURTURE/AT_RISK)
- * into a human-readable display tier for the ScoreTriple badge.
- */
-export function normalizeRevenueCategory(category: string): string {
-  const map: Record<string, string> = {
-    HOT_ACCOUNT: 'High',
-    WARM_ACCOUNT: 'Medium',
-    NURTURE: 'Medium',
-    AT_RISK: 'At Risk',
-  };
-  return map[category] ?? category;
-}
+// E5: Use normalizeTierForDisplay from types.ts (single source of truth)
+// Kept as re-export for backward compat
+const normalizeRevenueCategory = (category: string) => normalizeTierForDisplay(category, 'revenue');
 
-/**
- * Parse revenue opportunity scoreBreakdown from AccountScore.
- * Detects legacy format (from deprecated account-scorer.ts) vs new format.
- *
- * Legacy keys: { signalStrength, engagement, opportunityFit, timing }
- * New keys:    { intelligenceCoverage, signalStrength, freshness, strategicFit, engagementHistory }
- */
-export function parseRevenueBreakdown(scoreBreakdown: unknown): {
-  breakdown: RevenueOpportunityDetail['breakdown'];
-  isLegacy: boolean;
-} {
-  if (!scoreBreakdown || typeof scoreBreakdown !== 'object') {
-    return { breakdown: null, isLegacy: false };
-  }
-
-  const parsed =
-    typeof scoreBreakdown === 'string'
-      ? (() => { try { return JSON.parse(scoreBreakdown); } catch { return null; } })()
-      : scoreBreakdown;
-
-  if (!parsed || typeof parsed !== 'object') {
-    return { breakdown: null, isLegacy: false };
-  }
-
-  // Detect legacy format: has "engagement" or "opportunityFit" keys (deprecated scorer)
-  const isLegacy = 'engagement' in parsed || 'opportunityFit' in parsed;
-
-  if (isLegacy) {
-    // Map legacy keys to new keys as best-effort
-    return {
-      breakdown: {
-        intelligenceCoverage: 0,
-        signalStrength: Number(parsed.signalStrength) || 0,
-        freshness: Number(parsed.timing) || 0,
-        strategicFit: Number(parsed.opportunityFit) || 0,
-        engagementHistory: Number(parsed.engagement) || 0,
-      },
-      isLegacy: true,
-    };
-  }
-
-  // New format: expected keys from account-scoring.ts
-  return {
-    breakdown: {
-      intelligenceCoverage: Number(parsed.intelligenceCoverage) || 0,
-      signalStrength: Number(parsed.signalStrength) || 0,
-      freshness: Number(parsed.freshness) || 0,
-      strategicFit: Number(parsed.strategicFit) || 0,
-      engagementHistory: Number(parsed.engagementHistory) || 0,
-    },
-    isLegacy: false,
-  };
-}
+// E6: parseRevenueBreakdown imported from middleware.ts (shared)
+// Kept as re-export for backward compat
 
 // ── GET Handler ──
 
@@ -262,6 +195,9 @@ export async function GET(
     }
 
     // Fetch AccountScore + PriorityScoreHistory in parallel
+    // F12: History pagination via page/limit query params
+    const historyPage = Math.max(1, parseInt(request.nextUrl.searchParams.get('historyPage') || '1', 10) || 1);
+    const historyLimit = Math.min(100, Math.max(1, parseInt(request.nextUrl.searchParams.get('historyLimit') || '10', 10) || 10));
     const [accountScore, historyEntries] = await Promise.all([
       db.accountScore.findUnique({
         where: { companyId: id },
@@ -272,8 +208,8 @@ export async function GET(
       db.priorityScoreHistory.findMany({
         where: { companyId: id },
         orderBy: { computedAt: 'desc' },
-        // F12: Support pagination via page/limit query params
-        take: 10,
+        skip: (historyPage - 1) * historyLimit,
+        take: historyLimit,
         select: {
           id: true,
           accountPriorityScore: true,

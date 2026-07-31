@@ -76,6 +76,16 @@ const DEFAULT_ICP: ICPProfile = {
 let icpCache: { profile: ICPProfile; fetchedAt: number } | null = null;
 const ICP_CACHE_TTL_MS = 5 * 60 * 1000;
 
+// F9: Supporting data cache (2-minute TTL) to avoid 9 repeated DB queries per request
+const _supportingDataCache = new Map<string, { data: unknown[]; fetchedAt: number }>();
+const SUPPORTING_DATA_CACHE_TTL = 2 * 60 * 1000;
+
+/** Invalidate supporting data cache (call after data mutations) */
+export function invalidateSupportingDataCache(companyId?: string): void {
+  if (companyId) _supportingDataCache.delete(companyId);
+  else _supportingDataCache.clear();
+}
+
 export async function getICPProfile(): Promise<ICPProfile> {
   // Return cached profile if still valid
   if (icpCache && Date.now() - icpCache.fetchedAt < ICP_CACHE_TTL_MS) {
@@ -290,63 +300,87 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
   });
 
   if (!company) {
-    // B10: Return structured result instead of throwing — callers can handle gracefully
+    // B10: Return structured zero-result instead of throwing — callers can handle gracefully
     logger.error('[account-priority] Company not found', { companyId });
-    throw new Error(`Company ${companyId} not found`);
+    return {
+      companyId,
+      priority: {
+        staticFit: { score: 0, industry: 0, size: 0, geography: 0, techAlignment: 0 },
+        dynamicIntelligence: { score: 0, evidenceQuality: 0, signalStrength: 0, capabilityMatch: 0, contactCoverage: 0 },
+        timingUrgency: { score: 0, signalRecency: 0, opportunityWindow: 0, engagementVelocity: 0 },
+        composite: 0,
+        tier: 'LOW',
+      },
+      computedAt: new Date().toISOString(),
+    };
   }
 
   const icp = await getICPProfile();
 
-  // Load supporting data in parallel
-  const [
-    researchCard,
-    signals,
-    evidence,
-    contacts,
-    capabilityMatches,
-    opportunities,
-    recentEvents,
-    revenueScoreData,
-  ] = await Promise.all([
-    db.companyResearchCard.findUnique({
-      where: { companyId },
-      select: {
-        techStack: true,
-        structuredTechLandscape: true,
-      },
-    }),
-    db.companySignal.findMany({
-      where: { companyId, status: { in: ['detected', 'validated', 'active'] } },
-      select: { impact: true, signalDate: true, createdAt: true },
-      orderBy: { createdAt: 'desc' },
-    }),
-    db.evidence.aggregate({
-      where: { companyId, status: 'active' },
-      _count: true,
-      _avg: { confidence: true },
-    }),
-    db.contact.count({ where: { companyId, isSuppressed: false } }),
-    db.signalCapabilityMatch.aggregate({
-      where: { companyId },
-      _count: true,
-      _avg: { matchScore: true },
-    }),
-    db.opportunityRecommendation.count({
-      where: { companyId, status: { in: ['pending_review', 'accepted', 'monitored'] } },
-    }),
-    db.companyTimelineEvent.count({
-      where: {
-        companyId,
-        eventType: { in: ['email_replied', 'email_opened', 'email_sent'] },
-        createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-      },
-    }),
-    // Ticket 4: Revenue Opportunity Score for unified 3-score history
-    db.accountScore.findUnique({
-      where: { companyId },
-      select: { score: true, category: true },
-    }).catch(() => null),
-  ]);
+  // F9: Check supporting data cache (2-min TTL) before hitting DB
+  const cachedSupporting = _supportingDataCache.get(companyId);
+  const cacheHit = cachedSupporting && Date.now() - cachedSupporting.fetchedAt < SUPPORTING_DATA_CACHE_TTL;
+
+  // Load supporting data in parallel (skip if cache hit)
+  type ResearchCardRow = { techStack: unknown; structuredTechLandscape: unknown } | null;
+  type SignalRow = { impact: string; signalDate: Date | null; createdAt: Date }[];
+  type EvidenceAgg = { _count: number; _avg: { confidence: number | null } | null };
+  type CapMatchAgg = { _count: number; _avg: { matchScore: number | null } | null };
+  type RevenueScoreRow = { score: number; category: string } | null;
+
+  let researchCard: ResearchCardRow;
+  let signals: SignalRow;
+  let evidence: EvidenceAgg;
+  let contacts: number;
+  let capabilityMatches: CapMatchAgg;
+  let opportunities: number;
+  let recentEvents: number;
+  let revenueScoreData: RevenueScoreRow;
+
+  if (cacheHit) {
+    [researchCard, signals, evidence, contacts, capabilityMatches, opportunities, recentEvents, revenueScoreData] =
+      cachedSupporting.data as [ResearchCardRow, SignalRow, EvidenceAgg, number, CapMatchAgg, number, number, RevenueScoreRow];
+  } else {
+    [researchCard, signals, evidence, contacts, capabilityMatches, opportunities, recentEvents, revenueScoreData] =
+      await Promise.all([
+        db.companyResearchCard.findUnique({
+          where: { companyId },
+          select: { techStack: true, structuredTechLandscape: true },
+        }),
+        db.companySignal.findMany({
+          where: { companyId, status: { in: ['detected', 'validated', 'active'] } },
+          select: { impact: true, signalDate: true, createdAt: true },
+          orderBy: { createdAt: 'desc' },
+        }),
+        db.evidence.aggregate({
+          where: { companyId, status: 'active' },
+          _count: true,
+          _avg: { confidence: true },
+        }),
+        db.contact.count({ where: { companyId, isSuppressed: false } }),
+        db.signalCapabilityMatch.aggregate({
+          where: { companyId },
+          _count: true,
+          _avg: { matchScore: true },
+        }),
+        db.opportunityRecommendation.count({
+          where: { companyId, status: { in: ['pending_review', 'accepted', 'monitored'] } },
+        }),
+        db.companyTimelineEvent.count({
+          where: {
+            companyId,
+            eventType: { in: ['email_replied', 'email_opened', 'email_sent'] },
+            createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
+          },
+        }),
+        db.accountScore.findUnique({
+          where: { companyId },
+          select: { score: true, category: true },
+        }).catch(() => null),
+      ]);
+    // F9: Store in cache
+    _supportingDataCache.set(companyId, { data: [researchCard, signals, evidence, contacts, capabilityMatches, opportunities, recentEvents, revenueScoreData], fetchedAt: Date.now() });
+  }
 
   // Parse tech stack
   let techStack: string[] = [];

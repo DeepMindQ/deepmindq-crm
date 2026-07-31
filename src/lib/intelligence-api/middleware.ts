@@ -248,3 +248,74 @@ export function computeFreshness(company: {
     score,
   };
 }
+
+// ── Shared Score Helpers (E4/E6: single source of truth) ─────────────────────
+
+/**
+ * Classify intelligence tier from numeric score (NaN-safe).
+ * Shared by company/route.ts and scores/route.ts — E4.
+ */
+export function classifyIntelligenceTier(score: number): string {
+  const s = Number.isFinite(score) ? score : 0;
+  if (s >= 70) return 'hot';
+  if (s >= 40) return 'warm';
+  if (s >= 15) return 'cold';
+  return 'unknown';
+}
+
+/**
+ * Parse revenue opportunity scoreBreakdown from AccountScore.
+ * Detects legacy format (from deprecated account-scorer.ts) vs new format.
+ * Shared by company/route.ts and scores/route.ts — E6.
+ */
+export function parseRevenueBreakdown(scoreBreakdown: unknown): {
+  breakdown: {
+    intelligenceCoverage: number;
+    signalStrength: number;
+    freshness: number;
+    strategicFit: number;
+    engagementHistory: number;
+  } | null;
+  isLegacy: boolean;
+} {
+  if (!scoreBreakdown || typeof scoreBreakdown !== 'object') {
+    return { breakdown: null, isLegacy: false };
+  }
+
+  const parsed =
+    typeof scoreBreakdown === 'string'
+      ? (() => { try { return JSON.parse(scoreBreakdown); } catch { return null; } })()
+      : scoreBreakdown;
+
+  if (!parsed || typeof parsed !== 'object') {
+    return { breakdown: null, isLegacy: false };
+  }
+
+  // Detect legacy format: has "engagement" or "opportunityFit" keys (deprecated scorer)
+  const isLegacy = 'engagement' in parsed || 'opportunityFit' in parsed;
+
+  if (isLegacy) {
+    return {
+      breakdown: {
+        intelligenceCoverage: 0,
+        signalStrength: Number(parsed.signalStrength) || 0,
+        freshness: Number(parsed.timing) || 0,
+        strategicFit: Number(parsed.opportunityFit) || 0,
+        engagementHistory: Number(parsed.engagement) || 0,
+      },
+      isLegacy: true,
+    };
+  }
+
+  // New format: expected keys from account-scoring.ts
+  return {
+    breakdown: {
+      intelligenceCoverage: Number(parsed.intelligenceCoverage) || 0,
+      signalStrength: Number(parsed.signalStrength) || 0,
+      freshness: Number(parsed.freshness) || 0,
+      strategicFit: Number(parsed.strategicFit) || 0,
+      engagementHistory: Number(parsed.engagementHistory) || 0,
+    },
+    isLegacy: false,
+  };
+}

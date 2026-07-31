@@ -218,6 +218,9 @@ export async function GET(
   }
 
   // ── Step 4b: Load capabilities (only when ?include=capabilities) ──
+  // F13: Capability pagination via capPage/capLimit query params
+  const capPage = Math.max(1, parseInt(request.nextUrl.searchParams.get('capPage') || '1', 10) || 1);
+  const capLimit = Math.min(100, Math.max(1, parseInt(request.nextUrl.searchParams.get('capLimit') || '20', 10) || 20));
   let capabilitiesData: IntelligenceOpportunity['capabilities'] = undefined;
   if (runCapabilities) {
     try {
@@ -238,7 +241,8 @@ export async function GET(
         const assets = await db.capabilityAsset.findMany({
           where: { id: { in: Array.from(capIds) }, isActive: true },
           select: { id: true, title: true, summary: true, category: true, serviceLine: true },
-          take: 20,
+          skip: (capPage - 1) * capLimit,
+          take: capLimit,
         });
         capabilitiesData = assets.map(a => ({
           id: a.id, title: a.title, summary: a.summary,

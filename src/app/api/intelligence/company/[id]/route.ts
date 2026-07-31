@@ -34,6 +34,8 @@ import {
   runGovernanceMetadata,
   safeNumber,
   SECURITY_HEADERS,
+  classifyIntelligenceTier,
+  parseRevenueBreakdown,
 } from '@/lib/intelligence-api/middleware';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
@@ -48,15 +50,6 @@ import { logger } from '@/lib/logger';
 /** A8: Safe type guard for Record<string, unknown> conversion */
 function asRecord(obj: unknown): Record<string, unknown> {
   return (obj && typeof obj === 'object' ? obj : {}) as Record<string, unknown>;
-}
-
-/** E3: Shared intelligence tier classification — mirrors scores/route.ts classifyIntelligenceTier */
-function classifyIntelligenceTier(score: number): string {
-  const s = Number.isFinite(score) ? score : 0;
-  if (s >= 70) return 'hot';
-  if (s >= 40) return 'warm';
-  if (s >= 15) return 'cold';
-  return 'unknown';
 }
 
 // ── Engine references (static object exports, not classes) ──────────────────────
@@ -489,34 +482,20 @@ export async function GET(
           });
         }
 
-        // Parse revenue opportunity breakdown (detects legacy vs new format)
+        // E6: Use shared parseRevenueBreakdown (single source of truth)
         let revenueOpportunity: IntelligenceCompanyContext['scores'] extends undefined ? never : NonNullable<NonNullable<IntelligenceCompanyContext['scores']>>['revenueOpportunity'];
         if (accountScoreRecord) {
           try {
-            const parsed = typeof accountScoreRecord.scoreBreakdown === 'string'
-              ? JSON.parse(accountScoreRecord.scoreBreakdown)
-              : accountScoreRecord.scoreBreakdown;
-            if (parsed && typeof parsed === 'object') {
-              const isLegacy = 'engagement' in parsed || 'opportunityFit' in parsed;
+            const { breakdown, isLegacy } = parseRevenueBreakdown(accountScoreRecord.scoreBreakdown);
+            if (breakdown) {
               revenueOpportunity = {
                 score: accountScoreRecord.score,
                 category: accountScoreRecord.category,
-                breakdown: isLegacy
-                  ? {
-                      intelligenceCoverage: 0,
-                      signalStrength: Number(parsed.signalStrength) || 0,
-                      freshness: Number(parsed.timing) || 0,
-                      strategicFit: Number(parsed.opportunityFit) || 0,
-                      engagementHistory: Number(parsed.engagement) || 0,
-                    }
-                  : {
-                      intelligenceCoverage: Number(parsed.intelligenceCoverage) || 0,
-                      signalStrength: Number(parsed.signalStrength) || 0,
-                      freshness: Number(parsed.freshness) || 0,
-                      strategicFit: Number(parsed.strategicFit) || 0,
-                      engagementHistory: Number(parsed.engagementHistory) || 0,
-                    },
+                breakdown,
               };
+              if (isLegacy) {
+                logger.debug('[intelligence/company] Legacy scoreBreakdown detected', { companyId });
+              }
             }
           } catch {
             // B3: Log parse failure

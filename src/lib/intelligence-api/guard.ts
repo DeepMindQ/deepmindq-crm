@@ -93,11 +93,15 @@ export async function intelligenceGuard(
   }
 
   // ── Rate limiting ────────────────────────────────────────────────────
+  // B5/C5/I2: Composite key (IP + UA fingerprint) mitigates IP spoofing.
+  // UA fingerprint uses first 20 chars to avoid per-tab isolation while
+  // preventing trivial bypass via X-Forwarded-For manipulation.
   const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     || request.headers.get('x-real-ip')
     || 'unknown';
+  const uaPrefix = (request.headers.get('user-agent') || '').slice(0, 20).replace(/[^a-zA-Z0-9]/g, '');
   const rl = rateLimit({
-    key: `intelligence:${clientIp}:${endpoint}`,
+    key: `intelligence:${clientIp}:${uaPrefix || 'no-ua'}:${endpoint}`,
     limit: INTELLIGENCE_RATE_LIMIT,
     windowMs: INTELLIGENCE_RATE_WINDOW_MS,
   });
@@ -149,12 +153,13 @@ export function utilityGuard(
   const correlationId = getCorrelationId(request);
   const responseHeaders = createResponseHeaders(correlationId);
 
-  // Rate limiting
+  // B5/C5/I2: Composite key (IP + UA fingerprint) for utility routes too
   const clientIp = request.headers.get('x-forwarded-for')?.split(',')[0]?.trim()
     || request.headers.get('x-real-ip')
     || 'unknown';
+  const uaPrefix = (request.headers.get('user-agent') || '').slice(0, 20).replace(/[^a-zA-Z0-9]/g, '');
   const rl = rateLimit({
-    key: `utility:${clientIp}:${endpoint}`,
+    key: `utility:${clientIp}:${uaPrefix || 'no-ua'}:${endpoint}`,
     limit: UTILITY_RATE_LIMIT,
     windowMs: UTILITY_RATE_WINDOW_MS,
   });

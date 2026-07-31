@@ -27,7 +27,11 @@ import type { IntelligenceMindmap, MindmapNode } from '@/lib/intelligence-api/ty
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
 
-/** Default confidence for knowledge/capability nodes lacking a score (D9) */
+/** D9: Default confidence for knowledge/capability nodes.
+ * CapabilityAsset schema has no confidence field — 0.7 is a reasonable
+ * estimate for linked capabilities (already filtered by isActive=true and
+ * fusion match score). This is intentionally a named constant rather
+ * than magic number, but cannot be derived from actual data. */
 const DEFAULT_CAPABILITY_CONFIDENCE = 0.7;
 
 export async function GET(
@@ -87,6 +91,12 @@ export async function GET(
   }
 
   // ── Step 2: Determine selective loading flags ─────────────────────────
+  // F4/F5: Pagination params for nodes and edges
+  const nodePage = Math.max(1, parseInt(request.nextUrl.searchParams.get('nodePage') || '1', 10) || 1);
+  const nodeLimit = Math.min(100, Math.max(1, parseInt(request.nextUrl.searchParams.get('nodeLimit') || '50', 10) || 50));
+  const edgePage = Math.max(1, parseInt(request.nextUrl.searchParams.get('edgePage') || '1', 10) || 1);
+  const edgeLimit = Math.min(100, Math.max(1, parseInt(request.nextUrl.searchParams.get('edgeLimit') || '50', 10) || 50));
+
   const loadNodes = guardResult.includes.size === 0 || shouldInclude(guardResult.includes, 'nodes');
   const loadEdges = guardResult.includes.size === 0 || shouldInclude(guardResult.includes, 'edges');
   const loadKnowledgeConnections = shouldInclude(guardResult.includes, 'knowledgeConnections');
@@ -103,7 +113,7 @@ export async function GET(
       db.contact.findMany({
         where: { companyId },
         select: { id: true, rawName: true, title: true, role: true, leadScore: true },
-        take: 30,
+        take: Math.min(nodeLimit, 50), // F4: Respect node pagination limit
       }).catch((err: unknown) => {
         logger.warn('[intelligence/mindmap] Failed to load contacts', { companyId, correlationId, error: err instanceof Error ? err.message : String(err) });
         return [];
@@ -119,7 +129,7 @@ export async function GET(
       db.companySignal.findMany({
         where: { companyId },
         select: { id: true, signalType: true, title: true, confidence: true },
-        take: 20,
+        take: Math.min(nodeLimit, 30), // F4: Respect node pagination limit
       }).catch((err: unknown) => {
         logger.warn('[intelligence/mindmap] Failed to load signals', { companyId, correlationId, error: err instanceof Error ? err.message : String(err) });
         return [];
@@ -136,14 +146,14 @@ export async function GET(
       }
     }
 
-    // Load only company-linked capability assets
-    const capabilities = companyCapabilityIds.size > 0
-      ? await db.capabilityAsset.findMany({
-          where: { id: { in: Array.from(companyCapabilityIds) }, isActive: true },
-          select: { id: true, title: true, category: true },
-          take: 30,
-        }).catch(() => [])
-      : [];
+      // Load only company-linked capability assets
+      const allCaps = companyCapabilityIds.size > 0
+        ? await db.capabilityAsset.findMany({
+            where: { id: { in: Array.from(companyCapabilityIds) }, isActive: true },
+            select: { id: true, title: true, category: true },
+            take: nodeLimit, // F4: Respect limit for total nodes
+          }).catch(() => [])
+        : [];
 
     // Build nodes (hub-and-spoke: company center + entity nodes)
     nodes = [
@@ -164,7 +174,7 @@ export async function GET(
         metadata: { title: c.title, role: c.role },
       })),
       // Knowledge/capability nodes (company-linked only)
-      ...capabilities.map((cap) => ({
+      ...allCaps.map((cap) => ({
         id: cap.id,
         label: (cap.title || '').slice(0, 100),
         type: 'knowledge' as const,
@@ -183,10 +193,14 @@ export async function GET(
   }
 
   // ── Step 4: Build edges (hub-and-spoke from center — O(n), not O(n²)) ────
+  // F5: Paginate edges based on paginated nodes
   const edges: IntelligenceMindmap['edges'] = [];
 
   if (loadEdges) {
-    for (const node of nodes) {
+    const paginatedNodes = nodes.slice(1); // exclude center node
+    const edgeStart = (edgePage - 1) * edgeLimit;
+    const edgeSlice = paginatedNodes.slice(edgeStart, edgeStart + edgeLimit);
+    for (const node of edgeSlice) {
       if (node.id === centerNodeId) continue;
       // Weight: use node confidence (closer to 1 = stronger edge)
       edges.push({

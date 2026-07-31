@@ -62,6 +62,8 @@ export {
   loadCompanyForFreshness,
   runGovernanceMetadata,
   SECURITY_HEADERS,
+  classifyIntelligenceTier,
+  parseRevenueBreakdown,
 } from './middleware';
 export type { IntelligenceErrorResponse } from './middleware';
 

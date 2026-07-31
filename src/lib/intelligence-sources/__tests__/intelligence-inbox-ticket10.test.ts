@@ -290,6 +290,48 @@ describe('Intelligence Inbox — Review Updates Signal Status', () => {
 // Integration Tests — Stats no longer include dead "reviewed" bucket
 // ═══════════════════════════════════════════════════════════════
 
+// ═══════════════════════════════════════════════════════════════
+// Unit Tests — Search Scope
+// ═══════════════════════════════════════════════════════════════
+
+describe('Intelligence Inbox — Search Scope', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('searches across content, summary, submittedBy, and company name', async () => {
+    mockInboxFindMany.mockResolvedValue([])
+    mockInboxCount.mockResolvedValue(0)
+
+    await getInboxItems({ search: 'Acme' })
+
+    // Verify the where clause includes all four search fields
+    const whereArg = mockInboxFindMany.mock.calls[0][0].where
+    expect(whereArg.OR).toEqual(
+      expect.arrayContaining([
+        { content: { contains: 'Acme', mode: 'insensitive' } },
+        { summary: { contains: 'Acme', mode: 'insensitive' } },
+        { submittedBy: { contains: 'Acme', mode: 'insensitive' } },
+        { company: { rawName: { contains: 'Acme', mode: 'insensitive' } } },
+      ]),
+    )
+  })
+
+  it('does not add OR clause when search is empty', async () => {
+    mockInboxFindMany.mockResolvedValue([])
+    mockInboxCount.mockResolvedValue(0)
+
+    await getInboxItems({})
+
+    const whereArg = mockInboxFindMany.mock.calls[0][0].where
+    expect(whereArg.OR).toBeUndefined()
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════
+// Integration Tests — Stats Cleanup
+// ═══════════════════════════════════════════════════════════════
+
 describe('Intelligence Inbox — Stats Cleanup', () => {
   beforeEach(() => {
     vi.clearAllMocks()

@@ -248,6 +248,8 @@ export async function getInboxItems(
     where.OR = [
       { content: { contains: filters.search, mode: 'insensitive' } },
       { summary: { contains: filters.search, mode: 'insensitive' } },
+      { submittedBy: { contains: filters.search, mode: 'insensitive' } },
+      { company: { rawName: { contains: filters.search, mode: 'insensitive' } } },
     ];
   }
 

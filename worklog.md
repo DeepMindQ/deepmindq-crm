@@ -966,3 +966,27 @@ Stage Summary:
 - Updated component: EvidenceDetailPanel with real evidence fetching
 - Committed: f83e3f8
 - Pushed to main
+
+---
+Task ID: ticket-8-deep-gap-fix
+Agent: main
+Task: Ticket 8 — Deep gap analysis and critical integration fixes
+
+Work Log:
+- User rejected previous T8 completion (4th time across T6/T7/T8)
+- Performed deep third-party audit checking: app build, navigation wiring, seed data, screen rendering
+- FOUND: Signal Intelligence NOT in sidebar navigation (nav-config.ts) — only accessible via command palette
+- FOUND: Seed data creates Evidence records but never links them to CompanySignal.evidenceIds (all signals had evidenceIds = '[]')
+- FOUND: Without evidence linking, the Evidence Detail Panel always showed "No evidence records linked"
+- FIX 1: Added 'signal-intelligence' to INTELLIGENCE section of nav-config.ts with Radar icon
+- FIX 2: Restructured gold-standard seed to capture evidence record IDs and link them to signals via evidenceIds JSON
+- 8 of 11 signals now have linked evidence records (matching by sourceUrl)
+- Build: passes
+- TypeScript: 0 errors
+- Tests: 36/36 passing
+
+Stage Summary:
+- Signal Intelligence now accessible from sidebar navigation
+- Evidence records properly linked to signals — Evidence Detail Panel will show actual evidence
+- Committed: e30de20
+- Pushed to main

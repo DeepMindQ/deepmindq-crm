@@ -1,12 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   ArrowLeft, Building2, Globe, MapPin, Users, Plus, Target, StickyNote, FileText,
   Sparkles, Mail, Phone, ExternalLink, Linkedin, DollarSign, Calendar,
   CheckCircle2, Clock, BarChart3, Loader2, X, AlertTriangle, Trash2, Shield,
-  ChevronRight, Cpu, Pencil,
+  ChevronRight, Cpu, Pencil, Zap, Brain, MessageSquare, Megaphone,
+  TrendingUp, UserCheck, Crosshair, Lightbulb,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
 import { formatDistanceToNow } from 'date-fns'
@@ -14,7 +15,6 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Skeleton } from '@/components/ui/skeleton'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Textarea } from '@/components/ui/textarea'
@@ -25,13 +25,14 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from '@/components/ui/alert-dialog'
-import { ScoreGauge, ScoreTriple, type ScoreItem, getActivityIcon, StatusDot, EmptyState } from '@/components/shared/design-system'
+import { ScoreTriple, type ScoreItem, getActivityIcon, StatusDot, EmptyState } from '@/components/shared/design-system'
 import {
   getHealthVariant, getStatusBorder, getOppStatusVariant, getCompanyStatusVariant,
   DEFAULT_INDUSTRIES, EMPLOYEE_SIZES, ROLE_BUCKETS,
 } from '@/lib/constants'
 import { fetchApi } from '@/lib/fetchApi'
 import { normalizeTierForDisplay, getTierColor } from '@/lib/intelligence-api/types'
+import type { IntelligenceCompanyContext, IntelligenceSignal, IntelligenceContact, IntelligenceBrief } from '@/lib/intelligence-api/types'
 import Image from 'next/image'
 import type { Company, Contact, Opportunity, CompanyNote, CompanyResearchCard, TimelineEntry, CompanyStatus } from '@/lib/types'
 
@@ -73,8 +74,669 @@ const handleLogoError = (e: React.SyntheticEvent<HTMLImageElement>, name: string
   }
 }
 
+/** Severity color mapping for signals */
+const getSeverityVariant = (severity: string) => {
+  switch (severity) {
+    case 'critical': return 'bg-red-100 text-red-700 border-red-200'
+    case 'high': return 'bg-orange-100 text-orange-700 border-orange-200'
+    case 'medium': return 'bg-amber-100 text-amber-700 border-amber-200'
+    case 'low': return 'bg-blue-100 text-blue-700 border-blue-200'
+    default: return 'bg-gray-100 text-gray-600 border-gray-200'
+  }
+}
+
+/** Urgency color mapping for actions */
+const getUrgencyVariant = (urgency: string) => {
+  switch (urgency) {
+    case 'immediate': return 'bg-red-100 text-red-700 border-red-200'
+    case 'high': return 'bg-orange-100 text-orange-700 border-orange-200'
+    case 'medium': return 'bg-amber-100 text-amber-700 border-amber-200'
+    case 'low': return 'bg-emerald-100 text-emerald-700 border-emerald-200'
+    default: return 'bg-gray-100 text-gray-600 border-gray-200'
+  }
+}
+
 /* ═══════════════════════════════════════════════════════════════
-   Phase 6: Intelligence Health Tab
+   Progressive Disclosure Hook — lazy-loads section when visible
+   ═══════════════════════════════════════════════════════════════ */
+
+function useSectionVisible(sectionId: string) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) { setVisible(true); observer.disconnect() } },
+      { rootMargin: '200px 0px' }
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [sectionId])
+
+  return { ref, visible }
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Q1: What Changed? — Signal Timeline + People Changes + News
+   ═══════════════════════════════════════════════════════════════ */
+
+function Q1WhatChanged({ companyId }: { companyId: string }) {
+  const { ref, visible } = useSectionVisible('q1')
+
+  const { data: signals, isLoading } = useQuery({
+    queryKey: ['intel-signals', companyId],
+    queryFn: () => fetchApi(`/api/intelligence/company/${companyId}?include=signals`),
+    enabled: visible,
+    staleTime: 120_000,
+  })
+
+  const signalRaw = signals as Record<string, unknown> | undefined
+  const signalData = signalRaw && typeof signalRaw === 'object' && 'data' in signalRaw
+    ? ((signalRaw.data as Record<string, unknown>)?.signals as IntelligenceSignal[] | undefined)
+    : undefined
+  const signalList = Array.isArray(signalData) ? signalData : []
+
+  return (
+    <div ref={ref} id="q1-what-changed" className="space-y-5">
+      {/* Section Header */}
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 rounded-xl bg-blue-50 items-center justify-center">
+          <Zap className="size-5 text-blue-600" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-gray-900">Q1: What Changed?</h3>
+          <p className="text-xs text-gray-500">Latest signals, news, and people movements</p>
+        </div>
+        <div className="ml-auto">
+          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-blue-50 text-blue-700">
+            {signalList.length} signal{signalList.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+        </div>
+      ) : signalList.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-200 p-8 text-center">
+          <Zap className="size-8 text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No active signals detected yet</p>
+          <p className="text-xs text-gray-400 mt-1">Signals will appear here as the intelligence engine detects changes</p>
+        </div>
+      ) : (
+        <div className="relative pl-6">
+          <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-blue-200" />
+          <div className="space-y-3">
+            {signalList.map((signal, idx) => (
+              <div key={signal.id} className="relative flex items-start gap-4 slide-up" style={{ animationDelay: `${idx * 40}ms` }}>
+                <div className="absolute -left-6 top-2 size-3 rounded-full bg-white ring-4 ring-white border-2 border-blue-400" />
+                <div className="flex-1 rounded-xl bg-white border border-gray-100 p-4 card-rest min-w-0">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <p className="text-sm font-semibold text-gray-900">{signal.title}</p>
+                        <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase border ${getSeverityVariant(signal.severity)}`}>
+                          {signal.severity}
+                        </span>
+                      </div>
+                      {signal.summary && (
+                        <p className="text-xs text-gray-500 mt-1.5 line-clamp-2">{signal.summary}</p>
+                      )}
+                    </div>
+                    <div className="text-right shrink-0">
+                      <p className="text-[11px] text-gray-400">{formatDistanceToNow(new Date(signal.createdAt), { addSuffix: true })}</p>
+                      {signal.confidence > 0 && (
+                        <p className="text-[11px] text-gray-500 mt-0.5">{Math.round(signal.confidence * 100)}% confidence</p>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-3 mt-2">
+                    {signal.signalType && (
+                      <Badge className="bg-gray-50 text-gray-600 hover:bg-gray-50 text-[10px] font-medium border-0 rounded-md">
+                        {signal.signalType.replace(/_/g, ' ')}
+                      </Badge>
+                    )}
+                    {signal.evidenceCount > 0 && (
+                      <span className="text-[11px] text-gray-400">{signal.evidenceCount} evidence items</span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Q2: Why Does It Matter? — Enterprise Reasoning + Impact
+   ═══════════════════════════════════════════════════════════════ */
+
+function Q2WhyMatters({ companyId }: { companyId: string }) {
+  const { ref, visible } = useSectionVisible('q2')
+
+  const { data: briefData, isLoading } = useQuery({
+    queryKey: ['intel-brief', companyId],
+    queryFn: () => fetchApi(`/api/intelligence/company/${companyId}?include=brief`),
+    enabled: visible,
+    staleTime: 120_000,
+  })
+
+  const briefRaw = briefData as Record<string, unknown> | undefined
+  const brief = briefRaw && typeof briefRaw === 'object' && 'data' in briefRaw
+    ? (briefRaw.data as IntelligenceBrief)
+    : undefined
+  const { data: actionsData } = useQuery({
+    queryKey: ['intel-actions-strategy', companyId],
+    queryFn: () => fetchApi(`/api/intelligence/company/${companyId}?include=actions`),
+    enabled: visible,
+    staleTime: 120_000,
+  })
+  const actionsRaw = actionsData as Record<string, unknown> | undefined
+  const actions = actionsRaw && typeof actionsRaw === 'object' && 'data' in actionsRaw
+    ? (actionsRaw.data as { accountStrategy?: string | null; detectedSalesMotion?: string | null } | undefined)
+    : undefined
+
+  return (
+    <div ref={ref} id="q2-why-matters" className="space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 rounded-xl bg-violet-50 items-center justify-center">
+          <Brain className="size-5 text-violet-600" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-gray-900">Q2: Why Does It Matter?</h3>
+          <p className="text-xs text-gray-500">Enterprise reasoning, impact assessment, and strategic context</p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <Skeleton className="h-48 w-full rounded-xl" />
+      ) : !brief && !actions?.accountStrategy ? (
+        <div className="rounded-xl border border-dashed border-gray-200 p-8 text-center">
+          <Brain className="size-8 text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No AI reasoning generated yet</p>
+          <p className="text-xs text-gray-400 mt-1">Run intelligence analysis to see strategic insights</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Detected Sales Motion */}
+          {actions?.detectedSalesMotion && (
+            <div className="rounded-xl bg-violet-50 border border-violet-100 p-4">
+              <div className="flex items-center gap-2 mb-2">
+                <Megaphone className="size-3.5 text-violet-600" />
+                <p className="text-xs font-bold text-violet-800 uppercase tracking-wider">Detected Sales Motion</p>
+              </div>
+              <p className="text-sm text-violet-900 font-medium capitalize">{String(actions.detectedSalesMotion).replace(/_/g, ' ')}</p>
+            </div>
+          )}
+
+          {/* Account Strategy */}
+          {actions?.accountStrategy && (
+            <div className="rounded-xl bg-white border border-gray-100 p-5">
+              <div className="flex items-center gap-2 mb-2">
+                <TrendingUp className="size-3.5 text-gray-600" />
+                <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">Account Strategy</p>
+              </div>
+              <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{String(actions.accountStrategy)}</p>
+            </div>
+          )}
+
+          {/* Brief Sections */}
+          {brief?.sections && brief.sections.length > 0 && (
+            <div className="space-y-3">
+              {brief.sections.map((section, idx) => (
+                <div key={idx} className="rounded-xl bg-white border border-gray-100 p-5">
+                  <div className="flex items-center justify-between mb-2">
+                    <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">{section.heading}</p>
+                    {section.confidence > 0 && (
+                      <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                        section.confidence >= 0.7 ? 'bg-emerald-50 text-emerald-700' :
+                        section.confidence >= 0.4 ? 'bg-amber-50 text-amber-700' :
+                        'bg-red-50 text-red-700'
+                      }`}>
+                        {Math.round(section.confidence * 100)}% confidence
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{section.body}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Q3: Who Should We Engage? — Contacts + Buying Committee + Influence
+   ═══════════════════════════════════════════════════════════════ */
+
+function Q3WhoEngage({ companyId, onViewContact, onGenerateEmail }: {
+  companyId: string
+  onViewContact: (id: string) => void
+  onGenerateEmail: (id: string) => void
+}) {
+  const { ref, visible } = useSectionVisible('q3')
+
+  const { data: intelData, isLoading } = useQuery({
+    queryKey: ['intel-contacts', companyId],
+    queryFn: () => fetchApi(`/api/intelligence/company/${companyId}?include=contacts`),
+    enabled: visible,
+    staleTime: 120_000,
+  })
+
+  const intelRaw = intelData as Record<string, unknown> | undefined
+  const intel = intelRaw && typeof intelRaw === 'object' && 'data' in intelRaw
+    ? (intelRaw.data as { contacts?: IntelligenceContact[]; keyPeople?: Array<{ name: string; title: string; department?: string }> } | undefined)
+    : undefined
+  const contactList = Array.isArray(intel?.contacts) ? intel.contacts : []
+  const keyPeople = Array.isArray(intel?.keyPeople) ? intel.keyPeople : []
+
+  // Merge intelligence contacts with key people from research
+  const buyingCommittee = contactList.length > 0 ? contactList.map(c => ({
+    id: c.id,
+    name: c.rawName,
+    title: c.title || 'Unknown Role',
+    role: c.role,
+    email: c.email,
+    phone: c.phone,
+    leadScore: c.leadScore,
+    confidence: c.confidence,
+    status: c.status,
+  })) : keyPeople.map((p, i) => ({
+    id: `kp-${i}`,
+    name: p.name,
+    title: p.title,
+    role: p.department,
+    email: null,
+    phone: null,
+    leadScore: 0,
+    confidence: 0,
+    status: 'research',
+  }))
+
+  const sortedCommittee = [...buyingCommittee].sort((a, b) => b.leadScore - a.leadScore)
+
+  return (
+    <div ref={ref} id="q3-who-engage" className="space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 rounded-xl bg-emerald-50 items-center justify-center">
+          <UserCheck className="size-5 text-emerald-600" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-gray-900">Q3: Who Should We Engage?</h3>
+          <p className="text-xs text-gray-500">Buying committee, contacts, and influence mapping</p>
+        </div>
+        <div className="ml-auto">
+          <span className="text-[11px] font-medium px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+            {sortedCommittee.length} contact{sortedCommittee.length !== 1 ? 's' : ''}
+          </span>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+        </div>
+      ) : sortedCommittee.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-200 p-8 text-center">
+          <UserCheck className="size-8 text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No contacts identified yet</p>
+          <p className="text-xs text-gray-400 mt-1">Add contacts or run research to identify the buying committee</p>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {/* Buying Committee Header */}
+          <div className="flex items-center gap-2 px-1">
+            <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider">Buying Committee</p>
+            <p className="text-[11px] text-gray-400">(sorted by lead score)</p>
+          </div>
+          {sortedCommittee.map((person, idx) => (
+            <div
+              key={person.id}
+              className={`flex items-center gap-4 rounded-xl bg-white border border-gray-100 p-4 card-rest cursor-pointer group slide-up ${
+                idx === 0 ? 'ring-1 ring-amber-200 border-amber-100' : ''
+              }`}
+              style={{ animationDelay: `${idx * 30}ms` }}
+              onClick={() => { if (person.email) onViewContact(person.id) }}
+            >
+              {/* Rank Badge */}
+              <div className={`flex size-8 rounded-lg items-center justify-center text-xs font-bold shrink-0 ${
+                idx === 0 ? 'bg-amber-100 text-amber-700' : idx === 1 ? 'bg-gray-100 text-gray-600' : 'bg-gray-50 text-gray-400'
+              }`}>
+                {idx + 1}
+              </div>
+
+              {/* Avatar */}
+              <div className="flex size-9 rounded-full bg-gray-100 items-center justify-center shrink-0 text-xs font-semibold text-gray-600">
+                {person.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
+              </div>
+
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-gray-900 group-hover:text-amber-700 transition-colors truncate">{person.name}</p>
+                  {idx === 0 && (
+                    <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 text-[10px] font-bold border-0 rounded-md">PRIMARY</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 truncate">{person.title}{person.role && person.title !== person.role ? ` · ${person.role}` : ''}</p>
+              </div>
+
+              {/* Lead Score */}
+              <div className="shrink-0 text-right">
+                <div className={`text-sm font-bold tabular-nums ${
+                  person.leadScore >= 70 ? 'text-emerald-600' : person.leadScore >= 40 ? 'text-amber-600' : 'text-gray-400'
+                }`}>
+                  {person.leadScore > 0 ? person.leadScore : '—'}
+                </div>
+                <p className="text-[10px] text-gray-400 uppercase">score</p>
+              </div>
+
+              {/* Action */}
+              {person.email && (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  className="h-7 text-xs text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-md shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                  onClick={(e) => { e.stopPropagation(); onGenerateEmail(person.id) }}
+                >
+                  <Mail className="size-3.5 mr-1" /> Email
+                </Button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Q4: What Should We Say? — Conversation Prep + Talking Points
+   ═══════════════════════════════════════════════════════════════ */
+
+function Q4WhatSay({ companyId, onGenerateEmail }: { companyId: string; onGenerateEmail: (contactId: string) => void }) {
+  const { ref, visible } = useSectionVisible('q4')
+
+  const { data: briefData, isLoading } = useQuery({
+    queryKey: ['intel-brief-q4', companyId],
+    queryFn: () => fetchApi(`/api/intelligence/company/${companyId}?include=brief`),
+    enabled: visible,
+    staleTime: 120_000,
+  })
+
+  const { data: knowledgeData } = useQuery({
+    queryKey: ['intel-knowledge', companyId],
+    queryFn: () => fetchApi(`/api/intelligence/company/${companyId}?include=knowledge`),
+    enabled: visible,
+    staleTime: 300_000,
+  })
+
+  const briefRaw = briefData as Record<string, unknown> | undefined
+  const brief = briefRaw && typeof briefRaw === 'object' && 'data' in briefRaw ? briefRaw.data as IntelligenceBrief : undefined
+  const knowledgeRaw = knowledgeData as Record<string, unknown> | undefined
+  const knowledge = knowledgeRaw && typeof knowledgeRaw === 'object' && 'data' in knowledgeRaw ? knowledgeRaw.data as { capabilities?: Array<{ id: string; title: string; summary?: string; category?: string; serviceLine?: string; problems?: string[] }> } | undefined : undefined
+  const capabilities = Array.isArray(knowledge?.capabilities) ? knowledge.capabilities : []
+
+  // Extract talking points from brief content
+  const talkingPoints: string[] = []
+  if (brief?.content) {
+    const lines = brief.content.split('\n').filter(l => l.trim().startsWith('- '))
+    for (const line of lines.slice(0, 6)) {
+      talkingPoints.push(line.replace(/^-\s*/, '').trim())
+    }
+  }
+
+  return (
+    <div ref={ref} id="q4-what-say" className="space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 rounded-xl bg-amber-50 items-center justify-center">
+          <MessageSquare className="size-5 text-amber-600" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-gray-900">Q4: What Should We Say?</h3>
+          <p className="text-xs text-gray-500">Conversation prep, talking points, and capability matches</p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <Skeleton className="h-48 w-full rounded-xl" />
+      ) : !brief && capabilities.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-200 p-8 text-center">
+          <MessageSquare className="size-8 text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No conversation prep generated yet</p>
+          <p className="text-xs text-gray-400 mt-1">The AI conversation engine will create talking points based on intelligence data</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Conversation Brief Summary */}
+          {brief && (
+            <div className="rounded-xl bg-white border border-gray-100 p-5">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <Lightbulb className="size-3.5 text-amber-500" />
+                  <p className="text-xs font-bold text-gray-700 uppercase tracking-wider">AI Conversation Brief</p>
+                </div>
+                {brief.confidence > 0 && (
+                  <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${
+                    brief.confidence >= 0.7 ? 'bg-emerald-50 text-emerald-700' : 'bg-amber-50 text-amber-700'
+                  }`}>
+                    {Math.round(brief.confidence * 100)}% confidence
+                  </span>
+                )}
+              </div>
+              {/* Brief body (first section) */}
+              {brief.sections?.[0]?.body && (
+                <p className="text-sm text-gray-700 leading-relaxed">{brief.sections[0].body}</p>
+              )}
+            </div>
+          )}
+
+          {/* Talking Points */}
+          {talkingPoints.length > 0 && (
+            <div className="rounded-xl bg-gradient-to-br from-amber-50/80 to-orange-50/40 border border-amber-100/60 p-5">
+              <p className="text-xs font-bold text-amber-800 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Crosshair className="size-3.5" />
+                Talking Points
+              </p>
+              <div className="space-y-2">
+                {talkingPoints.map((point, idx) => (
+                  <div key={idx} className="flex items-start gap-2.5">
+                    <div className="flex size-5 rounded-full bg-amber-100 items-center justify-center shrink-0 mt-0.5">
+                      <span className="text-[10px] font-bold text-amber-700">{idx + 1}</span>
+                    </div>
+                    <p className="text-sm text-gray-800 leading-relaxed">{point}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Capability Matches */}
+          {capabilities.length > 0 && (
+            <div className="rounded-xl bg-white border border-gray-100 p-5">
+              <p className="text-xs font-bold text-gray-700 uppercase tracking-wider mb-3 flex items-center gap-2">
+                <Sparkles className="size-3.5 text-amber-500" />
+                Capability Matches
+                <span className="text-[10px] font-normal text-gray-400 normal-case">{capabilities.length} match{capabilities.length !== 1 ? 'es' : ''}</span>
+              </p>
+              <div className="grid gap-2 md:grid-cols-2">
+                {capabilities.slice(0, 6).map((cap) => (
+                  <div key={cap.id} className="rounded-lg border border-gray-100 p-3 bg-gray-50/50">
+                    <p className="text-sm font-medium text-gray-900">{cap.title}</p>
+                    {cap.summary && <p className="text-xs text-gray-500 mt-1 line-clamp-2">{cap.summary}</p>}
+                    {cap.serviceLine && (
+                      <Badge className="mt-1.5 bg-blue-50 text-blue-600 hover:bg-blue-50 text-[10px] font-medium border-0 rounded-md">{cap.serviceLine}</Badge>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Q5: What Should We Do? — Actions + Opportunities + Sequences
+   ═══════════════════════════════════════════════════════════════ */
+
+function Q5WhatDo({ companyId }: { companyId: string }) {
+  const { ref, visible } = useSectionVisible('q5')
+
+  const { data: actionsData, isLoading } = useQuery({
+    queryKey: ['intel-actions-q5', companyId],
+    queryFn: () => fetchApi(`/api/intelligence/company/${companyId}?include=actions`),
+    enabled: visible,
+    staleTime: 120_000,
+  })
+
+  const actionsRaw = actionsData as Record<string, unknown> | undefined
+  type ActionItem = { id: string; type: string; title: string; reason: string; concreteStep: string; suggestedMessage: string | null; targetContact: string | null; targetContactId: string | null; salesMotion: string; urgency: string }
+  const actions = actionsRaw && typeof actionsRaw === 'object' && 'data' in actionsRaw
+    ? (actionsRaw.data as { actions?: ActionItem[] } | undefined)
+    : undefined
+  const actionList = Array.isArray(actions?.actions) ? actions.actions : []
+
+  // Also fetch opportunities for this company (from basic CRUD endpoint)
+  const { data: companyData } = useQuery({
+    queryKey: ['company-opp-q5', companyId],
+    queryFn: () => fetch(`/api/companies/${companyId}`).then(r => r.ok ? r.json() : null),
+    enabled: visible,
+    staleTime: 60_000,
+  })
+  const opportunities: Opportunity[] = companyData?.opportunities || []
+
+  return (
+    <div ref={ref} id="q5-what-do" className="space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="flex size-10 rounded-xl bg-rose-50 items-center justify-center">
+          <Crosshair className="size-5 text-rose-600" />
+        </div>
+        <div>
+          <h3 className="text-base font-bold text-gray-900">Q5: What Should We Do?</h3>
+          <p className="text-xs text-gray-500">Next best actions, opportunities, and recommended sequences</p>
+        </div>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}
+        </div>
+      ) : actionList.length === 0 && opportunities.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-gray-200 p-8 text-center">
+          <Crosshair className="size-8 text-gray-300 mx-auto mb-2" />
+          <p className="text-sm text-gray-500">No actions recommended yet</p>
+          <p className="text-xs text-gray-400 mt-1">The AI action engine will analyze signals and contacts to recommend next steps</p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {/* Recommended Actions */}
+          {actionList.length > 0 && (
+            <div>
+              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 px-1">Recommended Actions</p>
+              <div className="space-y-2">
+                {actionList.map((action, idx) => (
+                  <div
+                    key={action.id}
+                    className={`rounded-xl bg-white border border-gray-100 p-4 card-rest slide-up ${
+                      idx === 0 ? 'ring-1 ring-amber-200 border-amber-100' : ''
+                    }`}
+                    style={{ animationDelay: `${idx * 30}ms` }}
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          {idx === 0 && (
+                            <Badge className="bg-amber-50 text-amber-700 hover:bg-amber-50 text-[10px] font-bold border-0 rounded-md">BEST ACTION</Badge>
+                          )}
+                          <p className="text-sm font-semibold text-gray-900">{action.title}</p>
+                          <span className={`inline-flex items-center rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase border ${getUrgencyVariant(action.urgency)}`}>
+                            {action.urgency}
+                          </span>
+                        </div>
+                        {action.reason && (
+                          <p className="text-xs text-gray-500 mt-1">{action.reason}</p>
+                        )}
+                        {action.concreteStep && (
+                          <div className="mt-2 flex items-start gap-2 bg-gray-50 rounded-lg p-2.5">
+                            <ChevronRight className="size-3 text-amber-500 mt-0.5 shrink-0" />
+                            <p className="text-xs text-gray-700">{action.concreteStep}</p>
+                          </div>
+                        )}
+                        {action.suggestedMessage && (
+                          <div className="mt-2 bg-blue-50/50 border border-blue-100 rounded-lg p-2.5">
+                            <p className="text-[10px] font-bold text-blue-600 uppercase tracking-wider mb-1">Suggested Message</p>
+                            <p className="text-xs text-blue-900 leading-relaxed line-clamp-3">{action.suggestedMessage}</p>
+                          </div>
+                        )}
+                        <div className="flex items-center gap-3 mt-2">
+                          {action.targetContact && (
+                            <span className="text-[11px] text-gray-400 flex items-center gap-1">
+                              <Users className="size-3" /> {action.targetContact}
+                            </span>
+                          )}
+                          {action.salesMotion && (
+                            <Badge className="bg-gray-50 text-gray-500 hover:bg-gray-50 text-[10px] font-medium border-0 rounded-md">
+                              {String(action.salesMotion).replace(/_/g, ' ')}
+                            </Badge>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Active Opportunities */}
+          {opportunities.length > 0 && (
+            <div>
+              <p className="text-[11px] font-bold text-gray-500 uppercase tracking-wider mb-2 px-1">
+                Active Opportunities
+                <span className="text-gray-400 font-normal normal-case ml-1">({opportunities.length})</span>
+              </p>
+              <div className="space-y-2">
+                {opportunities.map((o) => (
+                  <div
+                    key={o.id}
+                    className={`rounded-xl bg-white card-interactive border-l-[3px] ${getStatusBorder(o.status)} p-4 flex items-center justify-between gap-3`}
+                  >
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-semibold text-gray-900">{o.title}</p>
+                      {o.nextAction && (
+                        <p className="text-xs text-gray-500 mt-0.5 flex items-center gap-1">
+                          <ChevronRight className="size-3 text-amber-600" /> {o.nextAction}
+                        </p>
+                      )}
+                    </div>
+                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border ${getOppStatusVariant(o.status)}`}>
+                      {o.status}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Intelligence Health Tab (preserved from Phase 6)
    ═══════════════════════════════════════════════════════════════ */
 
 function IntelligenceTab({ companyId }: { companyId: string }) {
@@ -109,14 +771,13 @@ function IntelligenceTab({ companyId }: { companyId: string }) {
   }
 
   const getTierLabel = (score: number) => score >= 90 ? 'EXCELLENT' : score >= 70 ? 'GOOD' : score >= 50 ? 'FAIR' : 'POOR'
-  const getTierColor = (score: number) => score >= 90 ? 'text-emerald-600 bg-emerald-50' : score >= 70 ? 'text-blue-600 bg-blue-50' : score >= 50 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50'
+  const getTierColorLocal = (score: number) => score >= 90 ? 'text-emerald-600 bg-emerald-50' : score >= 70 ? 'text-blue-600 bg-blue-50' : score >= 50 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50'
 
   const fieldCoverage = health?.fieldCoverage as Record<string, boolean> | null
   const FIELD_LABELS: Record<string, string> = { industry: 'Industry', revenue: 'Revenue', employeeCount: 'Employees', techStack: 'Tech Stack', fundingStage: 'Funding', businessOverview: 'Overview', website: 'Website', location: 'Location', country: 'Country', contacts: 'Contacts', signals: 'Signals', evidence: 'Evidence' }
 
   return (
     <div className="space-y-6">
-      {/* Run Validation Button */}
       <div className="flex justify-end">
         <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale" onClick={handleValidate} disabled={validating}>
           {validating ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Sparkles className="size-3.5 mr-1.5" />}
@@ -131,11 +792,10 @@ function IntelligenceTab({ companyId }: { companyId: string }) {
         </div>
       ) : (
         <>
-          {/* Overall Health Score */}
           <div className="bg-white rounded-xl border border-gray-100 p-5">
             <div className="flex items-center justify-between mb-4">
               <span className="text-sm font-semibold text-gray-800">Overall Intelligence Health</span>
-              <span className={`px-3 py-1 rounded-full text-xs font-bold ${getTierColor(health.overallHealthScore)}`}>
+              <span className={`px-3 py-1 rounded-full text-xs font-bold ${getTierColorLocal(health.overallHealthScore)}`}>
                 {health.overallHealthScore}% — {getTierLabel(health.overallHealthScore)}
               </span>
             </div>
@@ -144,7 +804,6 @@ function IntelligenceTab({ companyId }: { companyId: string }) {
             </div>
           </div>
 
-          {/* Sub-scores Grid */}
           <div className="grid grid-cols-2 gap-4">
             {[
               { label: 'Data Completeness', score: health.dataCompletenessScore, detail: `${health.filledFields}/${health.totalTrackedFields} fields` },
@@ -165,7 +824,6 @@ function IntelligenceTab({ companyId }: { companyId: string }) {
             ))}
           </div>
 
-          {/* Field Coverage */}
           {fieldCoverage && (
             <div className="bg-white rounded-xl border border-gray-100 p-5">
               <h3 className="text-sm font-semibold text-gray-800 mb-3">Field Coverage</h3>
@@ -180,7 +838,6 @@ function IntelligenceTab({ companyId }: { companyId: string }) {
             </div>
           )}
 
-          {/* Signal Validation Summary & Conflicts */}
           {report && (
             <div className="grid grid-cols-2 gap-4">
               <div className="bg-white rounded-xl border border-gray-100 p-5">
@@ -229,12 +886,15 @@ function IntelligenceTab({ companyId }: { companyId: string }) {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Company Profile Screen
+   Company Profile Screen — 5Q Workspace
    ═══════════════════════════════════════════════════════════════ */
 
 export default function CompanyProfileScreen() {
   const { selectedCompanyId, setSelectedContactId, setActiveView } = useAppStore()
   const qc = useQueryClient()
+
+  // ── View mode: '5q' (default) or 'intelligence' ──
+  const [viewMode, setViewMode] = useState<'5q' | 'intelligence'>('5q')
 
   // ── Dialog states ──
   const [noteOpen, setNoteOpen] = useState(false)
@@ -273,9 +933,6 @@ export default function CompanyProfileScreen() {
   }
   const [emailContactId, setEmailContactId] = useState('')
 
-  // ── Active tab ──
-  const [activeTab, setActiveTab] = useState('overview')
-
   // ── Fetch company (includes contacts, notes, research, opportunities, timeline) ──
   const { data, isLoading, error } = useQuery({
     queryKey: ['company', selectedCompanyId],
@@ -307,8 +964,6 @@ export default function CompanyProfileScreen() {
     staleTime: 30_000,
   })
 
-  // Default email contact: use emailContactId if set, otherwise fall back to first contact
-  // (contacts is defined below in a query hook; this line is safe because it runs inside a callback that executes after render)
   const getResolvedEmailContactId = () => emailContactId || (contacts && contacts[0]?.id) || ''
 
   // ── Fetch industries for edit form ──
@@ -539,7 +1194,7 @@ export default function CompanyProfileScreen() {
       <div className="space-y-6">
         <Skeleton className="h-40 w-full rounded-xl" />
         <div className="flex gap-2">
-          {Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-9 w-24 rounded-lg" />)}
+          {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-9 w-24 rounded-lg" />)}
         </div>
         <Skeleton className="h-64 w-full rounded-xl" />
         <Skeleton className="h-48 w-full rounded-xl" />
@@ -616,18 +1271,6 @@ export default function CompanyProfileScreen() {
       }
     : null
 
-  const segments = scoresData?.intelligence?.breakdown
-    ? [
-        { label: 'Data Quality', value: Math.min(100, scoresData.intelligence.breakdown.dataCompleteness), color: '#2563EB' },
-        { label: 'Evidence', value: Math.min(100, scoresData.intelligence.breakdown.evidenceQuality), color: '#059669' },
-        { label: 'Signals', value: Math.min(100, scoresData.intelligence.breakdown.signalStrength), color: '#D97706' },
-      ]
-    : [
-        { label: 'Data Completeness', value: Math.min(100, Math.round((score * 0.4) + 20)), color: '#2563EB' },
-        { label: 'Contact Quality', value: Math.min(100, Math.round((score * 0.35) + 15)), color: '#059669' },
-        { label: 'Research Depth', value: researchCard ? Math.min(100, Math.round((score * 0.25) + 10)) : 0, color: '#D97706' },
-      ]
-
   // Resolve target contact names for opportunities
   const contactMap: Record<string, string> = {}
   for (const c of contacts) { contactMap[c.id] = c.name }
@@ -700,13 +1343,7 @@ export default function CompanyProfileScreen() {
               {data.domain && (
                 <span className="flex items-center gap-1.5">
                   <Globe className="size-3.5 text-gray-600" />
-                  <a
-                    href={`https://${data.domain}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="hover:text-gray-900 transition-colors"
-                    onClick={e => e.stopPropagation()}
-                  >
+                  <a href={`https://${data.domain}`} target="_blank" rel="noopener noreferrer" className="hover:text-gray-900 transition-colors" onClick={e => e.stopPropagation()}>
                     {data.domain}
                   </a>
                 </span>
@@ -730,33 +1367,18 @@ export default function CompanyProfileScreen() {
                 </span>
               )}
               {data.website && (
-                <a
-                  href={data.website.startsWith('http') ? data.website : `https://${data.website}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-amber-600 hover:text-amber-700 transition-colors"
-                  onClick={e => e.stopPropagation()}
-                >
+                <a href={data.website.startsWith('http') ? data.website : `https://${data.website}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-amber-600 hover:text-amber-700 transition-colors" onClick={e => e.stopPropagation()}>
                   <ExternalLink className="size-3.5" />Website
                 </a>
               )}
               {data.linkedinUrl && (
-                <a
-                  href={data.linkedinUrl.startsWith('http') ? data.linkedinUrl : `https://${data.linkedinUrl}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 transition-colors"
-                  onClick={e => e.stopPropagation()}
-                >
+                <a href={data.linkedinUrl.startsWith('http') ? data.linkedinUrl : `https://${data.linkedinUrl}`} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-blue-600 hover:text-blue-700 transition-colors" onClick={e => e.stopPropagation()}>
                   <Linkedin className="size-3.5" />LinkedIn
                 </a>
               )}
               {data.dataFreshness && (
                 <span className="flex items-center gap-1.5">
-                  <StatusDot
-                    status={data.dataFreshness === 'fresh' ? 'fresh' : data.dataFreshness === 'stale' ? 'stale' : data.dataFreshness === 'old' ? 'old' : 'unknown'}
-                    pulse={data.dataFreshness === 'fresh'}
-                  />
+                  <StatusDot status={data.dataFreshness === 'fresh' ? 'fresh' : data.dataFreshness === 'stale' ? 'stale' : data.dataFreshness === 'old' ? 'old' : 'unknown'} pulse={data.dataFreshness === 'fresh'} />
                   <span className="capitalize">{data.dataFreshness}</span>
                 </span>
               )}
@@ -764,49 +1386,20 @@ export default function CompanyProfileScreen() {
 
             {/* Action buttons */}
             <div className="flex items-center gap-2 mt-4 flex-wrap">
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
-                onClick={() => setEditCompanyOpen(true)}
-              >
+              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900" onClick={() => setEditCompanyOpen(true)}>
                 <Pencil className="size-3.5 mr-1.5" /> Edit Company
               </Button>
-              <Button
-                data-action="generate-research"
-                size="sm"
-                className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
-                onClick={() => generateResearch.mutate()}
-                disabled={generateResearch.isPending}
-              >
-                {generateResearch.isPending
-                  ? <Loader2 className="size-3.5 mr-1.5 animate-spin" />
-                  : <Sparkles className="size-3.5 mr-1.5" />
-                }
+              <Button data-action="generate-research" size="sm" className="h-8 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+                {generateResearch.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Sparkles className="size-3.5 mr-1.5" />}
                 {generateResearch.isPending ? 'Generating...' : 'Generate AI Research'}
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
-                onClick={() => setNoteOpen(true)}
-              >
+              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900" onClick={() => setNoteOpen(true)}>
                 <Plus className="size-3.5 mr-1.5" /> Add Note
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
-                onClick={() => setContactOpen(true)}
-              >
+              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900" onClick={() => setContactOpen(true)}>
                 <Plus className="size-3.5 mr-1.5" /> Add Contact
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900"
-                onClick={() => setOppOpen(true)}
-              >
+              <Button size="sm" variant="outline" className="h-8 text-xs border-gray-200 text-gray-600 rounded-lg hover:bg-gray-50 hover:text-gray-900" onClick={() => setOppOpen(true)}>
                 <Target className="size-3.5 mr-1.5" /> Add Opportunity
               </Button>
               {contacts.length > 0 && (
@@ -823,13 +1416,7 @@ export default function CompanyProfileScreen() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    className="h-8 text-xs border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 hover:text-amber-800"
-                    onClick={() => handleGenerateEmail(getResolvedEmailContactId())}
-                    disabled={!getResolvedEmailContactId()}
-                  >
+                  <Button size="sm" variant="outline" className="h-8 text-xs border-amber-200 text-amber-700 rounded-lg hover:bg-amber-50 hover:text-amber-800" onClick={() => handleGenerateEmail(getResolvedEmailContactId())} disabled={!getResolvedEmailContactId()}>
                     <Mail className="size-3.5 mr-1.5" /> Generate Email
                   </Button>
                 </div>
@@ -882,9 +1469,7 @@ export default function CompanyProfileScreen() {
               {researchCard ? <CheckCircle2 className="size-4 text-emerald-600" /> : <FileText className="size-4 text-gray-600" />}
             </div>
             <div>
-              <p className="text-lg font-semibold text-gray-900">
-                {researchCard ? `${researchCard.confidenceScore || 0}%` : '—'}
-              </p>
+              <p className="text-lg font-semibold text-gray-900">{researchCard ? `${researchCard.confidenceScore || 0}%` : '—'}</p>
               <p className="text-[11px] text-gray-500 uppercase tracking-wider font-medium">Research</p>
             </div>
           </div>
@@ -892,171 +1477,60 @@ export default function CompanyProfileScreen() {
       </div>
 
       {/* ══════════════════════════════════════════════════════════
-          TABS
+          VIEW TOGGLE — 5Q Intelligence vs Traditional
           ══════════════════════════════════════════════════════════ */}
-      <Tabs value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="bg-gray-100 rounded-lg p-1 h-auto gap-0.5 overflow-x-auto">
-          {[
-            { key: 'overview', label: 'Overview' },
-            { key: 'contacts', label: 'Contacts', count: contacts.length },
-            { key: 'research', label: 'Research' },
-            { key: 'opportunities', label: 'Opportunities', count: opportunities.length },
-            { key: 'notes', label: 'Notes', count: notes.length },
-            { key: 'activity', label: 'Activity', count: timeline.length },
-            { key: 'intelligence', label: 'Intelligence' },
-          ].map(tab => (
-            <TabsTrigger
-              key={tab.key}
-              value={tab.key}
-              className="rounded-md text-xs data-[state=active]:bg-white data-[state=active]:shadow-sm data-[state=active]:text-gray-900 data-[state=active]:font-medium text-gray-500 hover:text-gray-800 transition-colors px-3 py-1.5"
-            >
-              {tab.label}
-              {tab.count !== undefined && tab.count > 0 && (
-                <span className="ml-1.5 text-[11px] bg-gray-200 data-[state=active]:bg-amber-100 data-[state=active]:text-amber-700 text-gray-600 px-1.5 rounded-full tabular-nums font-medium">
-                  {tab.count}
-                </span>
-              )}
-            </TabsTrigger>
-          ))}
-        </TabsList>
+      <div className="flex items-center gap-1 bg-gray-100 rounded-lg p-1 h-9 w-fit">
+        <button
+          onClick={() => setViewMode('5q')}
+          className={`rounded-md text-xs px-3 py-1.5 transition-colors flex items-center gap-1.5 ${
+            viewMode === '5q'
+              ? 'bg-white shadow-sm text-gray-900 font-medium'
+              : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          <Brain className="size-3.5" />
+          5Q Intelligence
+        </button>
+        <button
+          onClick={() => setViewMode('intelligence')}
+          className={`rounded-md text-xs px-3 py-1.5 transition-colors ${
+            viewMode === 'intelligence'
+              ? 'bg-white shadow-sm text-gray-900 font-medium'
+              : 'text-gray-500 hover:text-gray-800'
+          }`}
+        >
+          <Shield className="size-3.5 inline mr-1" />
+          Health & Validation
+        </button>
+      </div>
 
-        {/* ──────────────────────────────────────────────────────────
-            TAB: OVERVIEW
-            ────────────────────────────────────────────────────────── */}
-        <TabsContent value="overview" className="space-y-6 mt-5">
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-3 slide-up">
-            {([
-              ['Website', data.website, Globe],
-              ['Industry', data.industry, BarChart3],
-              ['Employees', data.employeeSize, Users],
-              ['Location', data.location ?? data.country, MapPin],
-              ['Status', data.status, CheckCircle2],
-              ['Freshness', data.dataFreshness, Clock],
-            ] as const).map(([label, val, Icon]) => (
-              <div key={label} className="rounded-xl bg-white p-4 card-rest">
-                <div className="flex items-center gap-2 mb-1.5">
-                  <Icon className="size-3.5 text-gray-600" />
-                  <p className="text-[11px] font-medium text-gray-600 uppercase tracking-wider">{label}</p>
-                </div>
-                <p className="text-sm font-semibold text-gray-900 capitalize">{val || '—'}</p>
-              </div>
-            ))}
-          </div>
-
-          {/* Contacts Quick View */}
-          <div className="rounded-xl bg-white card-rest overflow-hidden slide-up" style={{ animationDelay: '50ms' }}>
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                <Users className="size-4 text-gray-600" />
-                Key Contacts
-                <span className="text-xs font-normal text-gray-600">{contacts.length} total</span>
-              </h3>
-              <div className="flex items-center gap-2">
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md"
-                  onClick={handleViewAllContacts}
-                >
-                  View All
-                  <ChevronRight className="size-3 ml-0.5" />
-                </Button>
-                <Button
-                  size="sm"
-                  className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md press-scale shadow-xs"
-                  onClick={() => setContactOpen(true)}
-                >
-                  <Plus className="size-3 mr-1" /> Add
-                </Button>
-              </div>
-            </div>
-            {contacts.length === 0 ? (
-              <div className="px-6 py-8 text-center">
-                <Users className="size-8 text-gray-700 mx-auto mb-2" />
-                <p className="text-sm text-gray-500">No contacts yet</p>
-                <Button size="sm" variant="outline" className="mt-3 h-7 text-xs rounded-md border-gray-200 text-gray-600" onClick={() => setContactOpen(true)}>
-                  <Plus className="size-3 mr-1" /> Add your first contact
-                </Button>
-              </div>
-            ) : (
-              <div className="divide-y divide-gray-50">
-                {contacts.slice(0, 5).map((c) => (
-                  <div
-                    key={c.id}
-                    className="flex items-center gap-4 px-6 py-3 hover:bg-gray-50/80 transition-colors cursor-pointer group"
-                    onClick={() => handleViewContact(c.id)}
-                  >
-                    <div className="flex size-9 rounded-full bg-gray-100 items-center justify-center shrink-0 text-xs font-semibold text-gray-600">
-                      {c.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 group-hover:text-amber-700 transition-colors truncate">
-                        {c.name}
-                        <ChevronRight className="size-3 inline ml-1 text-gray-700 group-hover:text-amber-500 transition-colors" />
-                      </p>
-                      <p className="text-xs text-gray-500 truncate">{c.jobTitle || 'No title'}</p>
-                    </div>
-                    <div className="hidden sm:flex items-center gap-3 shrink-0">
-                      {c.email && (
-                        <span className="text-xs text-gray-600 font-mono truncate max-w-[180px]">{c.email}</span>
-                      )}
-                      {c.emailHealth && (
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium border ${getHealthVariant(c.emailHealth)}`}>
-                          {c.emailHealth}
-                        </span>
-                      )}
-                    </div>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      className="h-7 text-xs text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-md shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                      onClick={(e) => { e.stopPropagation(); handleGenerateEmail(c.id) }}
-                    >
-                      <Mail className="size-3.5 mr-1" /> Email
-                    </Button>
-                  </div>
-                ))}
-                {contacts.length > 5 && (
-                  <button
-                    onClick={handleViewAllContacts}
-                    className="w-full px-6 py-3 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50/50 transition-colors font-medium text-center"
-                  >
-                    View all {contacts.length} contacts →
-                  </button>
-                )}
-              </div>
-            )}
-          </div>
-
-          {/* Research Quick Preview */}
+      {/* ══════════════════════════════════════════════════════════
+          5Q PROGRESSIVE DISCLOSURE SCROLL
+          ══════════════════════════════════════════════════════════ */}
+      {viewMode === '5q' ? (
+        <div className="space-y-8">
+          {/* Research Card Quick View */}
           {researchCard ? (
-            <div className="rounded-xl bg-white card-rest overflow-hidden slide-up" style={{ animationDelay: '100ms' }}>
+            <div className="rounded-xl bg-white card-rest overflow-hidden slide-up">
               <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
                 <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
                   <Sparkles className="size-4 text-amber-500" />
-                  Research Summary
+                  AI Research Summary
                   {researchCard.confidenceScore && (
-                    <span className="text-[11px] font-medium text-gray-600">
-                      {researchCard.confidenceScore}% confidence
-                    </span>
+                    <span className="text-[11px] font-medium text-gray-600">{researchCard.confidenceScore}% confidence</span>
                   )}
                 </h3>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md"
-                  onClick={() => setActiveTab('research')}
-                >
-                  View Full Research
-                  <ChevronRight className="size-3 ml-0.5" />
+                <Button size="sm" className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md press-scale shadow-xs" onClick={() => generateResearch.mutate()} disabled={generateResearch.isPending}>
+                  {generateResearch.isPending ? <Loader2 className="size-3 mr-1 animate-spin" /> : <Sparkles className="size-3 mr-1" />}
+                  Regenerate
                 </Button>
               </div>
               <div className="p-6">
-                <div className="grid gap-4 md:grid-cols-2">
-                  {(Object.entries(RESEARCH_LABELS) as [string, typeof RESEARCH_LABELS[string]][]).slice(0, 4).map(([key, cfg], idx) =>
+                <div className="grid gap-3 md:grid-cols-2">
+                  {(Object.entries(RESEARCH_LABELS) as [string, typeof RESEARCH_LABELS[string]][]).slice(0, 6).map(([key, cfg], idx) =>
                     (researchCard as unknown as Record<string, unknown>)[key] ? (
-                      <div key={String(key)} className={`rounded-lg border p-4 ${researchColors[idx]} slide-up`} style={{ animationDelay: `${idx * 40}ms` }}>
-                        <div className="flex items-center gap-2 mb-2">
+                      <div key={String(key)} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 40}ms` }}>
+                        <div className="flex items-center gap-2 mb-1.5">
                           <cfg.icon className="size-3.5 text-gray-500" />
                           <p className="text-xs font-semibold text-gray-800 uppercase tracking-wider">{cfg.label}</p>
                         </div>
@@ -1067,476 +1541,122 @@ export default function CompanyProfileScreen() {
                 </div>
               </div>
             </div>
-          ) : (
-            <div className="rounded-xl bg-gradient-to-br from-amber-50/80 to-orange-50/40 border border-amber-100/60 p-8 text-center slide-up" style={{ animationDelay: '100ms' }}>
-              <div className="flex size-12 rounded-xl bg-amber-100 items-center justify-center mx-auto mb-3">
-                <Sparkles className="size-6 text-amber-600" />
-              </div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-1">No research generated yet</h3>
-              <p className="text-sm text-gray-500 mb-4 max-w-md mx-auto">
-                Generate an AI-powered research card with business overview, tech stack, revenue, and more.
-              </p>
-              <Button
-                size="sm"
-                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
-                onClick={() => { generateResearch.mutate(); setActiveTab('research') }}
-                disabled={generateResearch.isPending}
-              >
-                {generateResearch.isPending
-                  ? <Loader2 className="size-3.5 mr-1.5 animate-spin" />
-                  : <Sparkles className="size-3.5 mr-1.5" />
-                }
-                Generate AI Research
-              </Button>
-            </div>
-          )}
+          ) : null}
 
-          {/* Opportunities Quick View */}
-          {opportunities.length > 0 && (
-            <div className="rounded-xl bg-white card-rest overflow-hidden slide-up" style={{ animationDelay: '150ms' }}>
-              <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <Target className="size-4 text-gray-600" />
-                  Active Opportunities
+          {/* Q1: What Changed? */}
+          <div className="rounded-xl bg-gradient-to-br from-blue-50/40 to-cyan-50/20 border border-blue-100/60 p-6">
+            <Q1WhatChanged companyId={selectedCompanyId} />
+          </div>
+
+          {/* Q2: Why Does It Matter? */}
+          <div className="rounded-xl bg-gradient-to-br from-violet-50/40 to-purple-50/20 border border-violet-100/60 p-6">
+            <Q2WhyMatters companyId={selectedCompanyId} />
+          </div>
+
+          {/* Q3: Who Should We Engage? */}
+          <div className="rounded-xl bg-gradient-to-br from-emerald-50/40 to-teal-50/20 border border-emerald-100/60 p-6">
+            <Q3WhoEngage companyId={selectedCompanyId} onViewContact={handleViewContact} onGenerateEmail={handleGenerateEmail} />
+          </div>
+
+          {/* Q4: What Should We Say? */}
+          <div className="rounded-xl bg-gradient-to-br from-amber-50/40 to-yellow-50/20 border border-amber-100/60 p-6">
+            <Q4WhatSay companyId={selectedCompanyId} onGenerateEmail={handleGenerateEmail} />
+          </div>
+
+          {/* Q5: What Should We Do? */}
+          <div className="rounded-xl bg-gradient-to-br from-rose-50/40 to-pink-50/20 border border-rose-100/60 p-6">
+            <Q5WhatDo companyId={selectedCompanyId} />
+          </div>
+
+          {/* Notes Timeline (always visible below 5Q) */}
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <StickyNote className="size-4 text-violet-600" />
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Notes
+                  <span className="text-xs font-normal text-gray-500 ml-1.5">({notes.length})</span>
                 </h3>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md"
-                  onClick={() => setActiveTab('opportunities')}
-                >
-                  View All
-                  <ChevronRight className="size-3 ml-0.5" />
-                </Button>
               </div>
-              <div className="divide-y divide-gray-50">
-                {opportunities.slice(0, 3).map((o) => (
-                  <div key={o.id} className="flex items-center gap-4 px-6 py-3">
-                    <div className={`w-0.5 h-8 rounded-full shrink-0 ${
-                      o.status === 'won' ? 'bg-emerald-500' : o.status === 'lost' ? 'bg-red-600' : 'bg-amber-400'
-                    }`} />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{o.title}</p>
-                      {o.nextAction && <p className="text-xs text-gray-600 mt-0.5">Next: {o.nextAction}</p>}
-                    </div>
-                    <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium capitalize border ${getOppStatusVariant(o.status)}`}>
-                      {o.status}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ──────────────────────────────────────────────────────────
-            TAB: CONTACTS
-            ────────────────────────────────────────────────────────── */}
-        <TabsContent value="contacts" className="mt-5">
-          <div className="flex items-center justify-between mb-4 gap-2">
-            <p className="text-sm text-gray-500">
-              {contacts.length} contact{contacts.length !== 1 ? 's' : ''} at {data.name}
-            </p>
-            <div className="flex items-center gap-2">
-              <Button
-                size="sm"
-                variant="ghost"
-                className="h-7 text-xs text-amber-600 hover:text-amber-700 hover:bg-amber-50 rounded-md transition-colors"
-                onClick={handleViewAllContacts}
-              >
-                <Users className="size-3 mr-1" /> View All Contacts
-                <ChevronRight className="size-3 ml-0.5" />
-              </Button>
-              <Button
-                size="sm"
-                className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
-                onClick={() => setContactOpen(true)}
-              >
-                <Plus className="size-3.5 mr-1.5" /> Add Contact
+              <Button size="sm" className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs text-xs" onClick={() => setNoteOpen(true)}>
+                <Plus className="size-3.5 mr-1.5" /> Add Note
               </Button>
             </div>
-          </div>
-          {contacts.length === 0 ? (
-            <EmptyState
-              icon={Users}
-              title="No contacts found"
-              description="Add contacts to this company to start tracking outreach and engagement."
-              actionLabel="Add Contact"
-              onAction={() => setContactOpen(true)}
-            />
-          ) : (
-            <div className="rounded-xl bg-white card-rest overflow-hidden slide-up">
-              <Table>
-                <TableHeader>
-                  <TableRow className="border-gray-100 hover:bg-transparent">
-                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Name</TableHead>
-                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider hidden md:table-cell">Title</TableHead>
-                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider hidden lg:table-cell">Email</TableHead>
-                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider">Health</TableHead>
-                    <TableHead className="text-[11px] font-semibold text-gray-500 uppercase tracking-wider text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {contacts.map((c) => (
-                    <TableRow
-                      key={c.id}
-                      className="table-row-hover border-gray-50 cursor-pointer group"
-                      onClick={() => handleViewContact(c.id)}
-                    >
-                      <TableCell>
-                        <div className="flex items-center gap-3">
-                          <div className="flex size-8 rounded-full bg-gray-100 items-center justify-center shrink-0 text-[11px] font-semibold text-gray-600">
-                            {c.name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <span className="font-medium text-gray-900 text-sm group-hover:text-amber-700 transition-colors">{c.name}</span>
-                            {c.roleBucket && (
-                              <p className="text-[11px] text-gray-600 mt-0.5">{c.roleBucket}</p>
-                            )}
-                          </div>
-                        </div>
-                      </TableCell>
-                      <TableCell className="text-sm text-gray-500 hidden md:table-cell">{c.jobTitle || '—'}</TableCell>
-                      <TableCell className="text-sm text-gray-500 font-mono hidden lg:table-cell">{c.email || '—'}</TableCell>
-                      <TableCell>
-                        <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-medium border ${getHealthVariant(c.emailHealth)}`}>
-                          {c.emailHealth || 'unknown'}
-                        </span>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          className="h-7 text-xs text-gray-600 hover:text-amber-600 hover:bg-amber-50 rounded-md"
-                          onClick={(e) => { e.stopPropagation(); handleGenerateEmail(c.id) }}
-                        >
-                          <Mail className="size-3.5 mr-1" /> Generate Email
-                        </Button>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ──────────────────────────────────────────────────────────
-            TAB: RESEARCH
-            ────────────────────────────────────────────────────────── */}
-        <TabsContent value="research" className="mt-5">
-          <div className="rounded-xl bg-white card-rest overflow-hidden slide-up">
-            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-3">
-              <div className="flex items-center gap-3">
-                <h3 className="text-sm font-semibold text-gray-900 flex items-center gap-2">
-                  <Sparkles className="size-4 text-amber-500" /> AI Research Card
-                </h3>
-                {/* AI Provider badge */}
-                <Badge
-                  variant="outline"
-                  className={`text-[11px] font-medium rounded-full px-2 py-0.5 ${hasAiKey ? 'border-emerald-200 bg-emerald-50 text-emerald-700' : 'border-gray-200 bg-gray-50 text-gray-500'}`}
-                >
-                  <Cpu className="size-2.5 mr-1" />
-                  {hasAiKey ? `Powered by ${aiProviderLabel || 'AI'}` : 'Template-based (configure AI in Settings)'}
-                </Badge>
-              </div>
-              <Button
-                size="sm"
-                className="h-7 text-xs bg-amber-600 hover:bg-amber-700 text-white rounded-md press-scale shadow-xs"
-                onClick={() => generateResearch.mutate()}
-                disabled={generateResearch.isPending}
-              >
-                {generateResearch.isPending
-                  ? <Loader2 className="size-3 mr-1 animate-spin" />
-                  : <Sparkles className="size-3 mr-1" />
-                }
-                {generateResearch.isPending ? 'Generating...' : researchCard ? 'Regenerate' : 'Generate AI Research'}
-              </Button>
-            </div>
-            <div className="p-6">
-              {researchCard ? (
-                <div className="space-y-5">
-                  {/* Confidence score bar */}
-                  {researchCard.confidenceScore != null && (
-                    <div className="flex items-center gap-4 p-4 rounded-lg bg-gray-50/80 border border-gray-100">
-                      <div className="flex-1">
-                        <div className="flex items-center justify-between mb-2">
-                          <p className="text-xs font-medium text-gray-500 uppercase tracking-wider">Confidence Score</p>
-                          <span className="text-sm font-bold text-gray-900 tabular-nums">{researchCard.confidenceScore}%</span>
-                        </div>
-                        <div className="h-2 rounded-full bg-gray-200 overflow-hidden">
-                          <div
-                            className="h-full rounded-full transition-all duration-700 ease-out"
-                            style={{
-                              width: `${researchCard.confidenceScore}%`,
-                              backgroundColor: researchCard.confidenceScore >= 75 ? '#059669' : researchCard.confidenceScore >= 50 ? '#D97706' : '#DC2626',
-                            }}
-                          />
-                        </div>
-                      </div>
-                      {researchCard.lastResearchedAt && (
-                        <div className="text-right shrink-0">
-                          <p className="text-[11px] text-gray-600">Last researched</p>
-                          <p className="text-xs font-medium text-gray-600">
-                            {formatDistanceToNow(new Date(researchCard.lastResearchedAt), { addSuffix: true })}
-                          </p>
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Research sections grid */}
-                  <div className="grid gap-4 md:grid-cols-2">
-                    {(Object.entries(RESEARCH_LABELS) as [string, typeof RESEARCH_LABELS[string]][]).map(([key, cfg], idx) =>
-                      (researchCard as unknown as Record<string, unknown>)[key] ? (
-                        <div key={String(key)} className={`rounded-lg border p-4 ${researchColors[idx % researchColors.length]} slide-up`} style={{ animationDelay: `${idx * 50}ms` }}>
-                          <div className="flex items-center gap-2 mb-2">
-                            <cfg.icon className="size-3.5 text-gray-500" />
-                            <p className="text-xs font-semibold text-gray-800 uppercase tracking-wider">{cfg.label}</p>
-                          </div>
-                          <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap">{String((researchCard as unknown as Record<string, unknown>)[key])}</p>
-                        </div>
-                      ) : null,
-                    )}
-                  </div>
-                </div>
-              ) : (
-                <EmptyState
-                  icon={FileText}
-                  title="No research generated yet"
-                  description="Click Generate AI Research to create an AI-powered research card with business overview, tech stack, revenue, and more."
-                  actionLabel="Generate AI Research"
-                  onAction={() => generateResearch.mutate()}
-                  className="py-10"
-                />
-              )}
-            </div>
-          </div>
-        </TabsContent>
-
-        {/* ──────────────────────────────────────────────────────────
-            TAB: OPPORTUNITIES
-            ────────────────────────────────────────────────────────── */}
-        <TabsContent value="opportunities" className="mt-5">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-gray-500">
-              {opportunities.length} opportunit{opportunities.length !== 1 ? 'ies' : 'y'} for {data.name}
-            </p>
-            <Button
-              size="sm"
-              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
-              onClick={() => setOppOpen(true)}
-            >
-              <Plus className="size-3.5 mr-1.5" /> Create Opportunity
-            </Button>
-          </div>
-          {opportunities.length === 0 ? (
-            <EmptyState
-              icon={Target}
-              title="No opportunities yet"
-              description="Create opportunities to track potential deals and engagement with this company."
-              actionLabel="Create Opportunity"
-              onAction={() => setOppOpen(true)}
-            />
-          ) : (
-            <div className="grid gap-3">
-              {opportunities.map((o, idx) => (
-                <div
-                  key={o.id}
-                  className={`rounded-xl bg-white card-interactive border-l-[3px] ${getStatusBorder(o.status)} p-5 flex items-start justify-between gap-4 slide-up`}
-                  style={{ animationDelay: `${idx * 30}ms` }}
-                >
-                  <div className="min-w-0 flex-1">
-                    <p className="text-sm font-semibold text-gray-900">{o.title}</p>
-                    {o.description && <p className="text-sm text-gray-500 mt-1 line-clamp-2">{o.description}</p>}
-                    {o.nextAction && (
-                      <p className="text-xs text-gray-600 mt-2 flex items-center gap-1">
-                        <ChevronRight className="size-3 text-amber-600" />
-                        {o.nextAction}
-                      </p>
-                    )}
-                    {/* Target contact link */}
-                    {o.targetContactId && contactMap[o.targetContactId] && (
-                      <button
-                        onClick={() => handleViewContact(o.targetContactId!)}
-                        className="inline-flex items-center gap-1.5 mt-2 text-xs text-amber-600 hover:text-amber-700 transition-colors"
-                      >
-                        <Users className="size-3" />
-                        {contactMap[o.targetContactId]}
-                        <ChevronRight className="size-3" />
-                      </button>
-                    )}
-                    <div className="flex items-center gap-4 mt-2 text-xs text-gray-600">
-                      <span className="flex items-center gap-1">
-                        <Calendar className="size-3" />
-                        {formatDistanceToNow(new Date(o.createdAt), { addSuffix: true })}
-                      </span>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 shrink-0">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); handleOppStatusCycle(o.id, o.status) }}
-                      disabled={updateOppMutation.isPending}
-                      className={`inline-flex items-center rounded-md px-2.5 py-1 text-[11px] font-medium capitalize border transition-all hover:opacity-80 ${getOppStatusVariant(o.status)} ${updateOppMutation.isPending ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
-                      title="Click to cycle status"
-                    >
-                      {updateOppMutation.isPending ? <Loader2 className="size-3 animate-spin inline mr-1" /> : null}
-                      {o.status}
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); deleteOppMutation.mutate(o.id) }}
-                      disabled={deleteOppMutation.isPending}
-                      className="text-gray-700 hover:text-red-500 transition-colors p-1 rounded-md hover:bg-red-50"
-                      aria-label="Delete opportunity"
-                      title="Delete opportunity"
-                    >
-                      {deleteOppMutation.isPending ? <Loader2 className="size-3.5 animate-spin" /> : <Trash2 className="size-3.5" />}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ──────────────────────────────────────────────────────────
-            TAB: NOTES — Timeline style
-            ────────────────────────────────────────────────────────── */}
-        <TabsContent value="notes" className="mt-5">
-          <div className="flex items-center justify-between mb-4">
-            <p className="text-sm text-gray-500">
-              {notes.length} note{notes.length !== 1 ? 's' : ''}
-            </p>
-            <Button
-              size="sm"
-              className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg press-scale shadow-xs"
-              onClick={() => setNoteOpen(true)}
-            >
-              <Plus className="size-3.5 mr-1.5" /> Add Note
-            </Button>
-          </div>
-          {notes.length === 0 ? (
-            <EmptyState
-              icon={StickyNote}
-              title="No notes yet"
-              description="Add notes to track conversations, insights, and action items for this company."
-              actionLabel="Add Note"
-              onAction={() => setNoteOpen(true)}
-            />
-          ) : (
-            <div className="relative pl-6">
-              {/* Timeline connector line */}
-              <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
-              <div className="space-y-4">
-                {notes.map((n, idx) => (
-                  <div
-                    key={n.id}
-                    className="relative flex items-start gap-4 slide-up"
-                    style={{ animationDelay: `${idx * 30}ms` }}
-                  >
-                    {/* Timeline dot */}
-                    <div className="absolute -left-6 top-2 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
-                    {/* Note card */}
-                    <div className="flex-1 rounded-xl bg-white p-5 card-rest min-w-0">
-                      <div className="flex items-start justify-between gap-3">
-                        <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap flex-1">{n.body}</p>
-                        <button
-                          onClick={() => setDeleteNoteId(n.id)}
-                          className="shrink-0 text-gray-700 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50"
-                          aria-label="Delete note"
-                          title="Delete note"
-                        >
-                          <X className="size-3.5" />
-                        </button>
-                      </div>
-                      <div className="flex items-center gap-2 mt-3">
-                        {n.noteType && (
-                          <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 rounded-md capitalize">
-                            {n.noteType}
-                          </Badge>
-                        )}
-                        <span className="text-[11px] text-gray-600">
-                          {formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-        </TabsContent>
-
-        {/* ──────────────────────────────────────────────────────────
-            TAB: ACTIVITY — Timeline entries
-            ────────────────────────────────────────────────────────── */}
-        <TabsContent value="activity" className="mt-5">
-          {timeline.length === 0 ? (
-            <EmptyState
-              icon={Clock}
-              title="No activity yet"
-              description="Activity will appear here as you interact with this company — adding contacts, generating research, and more."
-            />
-          ) : (
-            <div className="relative pl-6">
-              {/* Timeline connector */}
-              <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
-              <div className="space-y-4">
-                {timeline.map((t, idx) => {
-                  const iconData = getActivityIcon(t.action)
-                  const Icon = iconData.icon
-                  return (
-                    <div
-                      key={t.id}
-                      className="relative flex items-start gap-4 slide-up"
-                      style={{ animationDelay: `${idx * 30}ms` }}
-                    >
-                      {/* Timeline dot */}
-                      <div className="absolute -left-6 top-1.5 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
-                      {/* Activity icon */}
-                      <div className={`shrink-0 mt-0.5 rounded-lg p-1.5 ${iconData.bg}`}>
-                        <Icon className={`size-3.5 ${iconData.color}`} />
-                      </div>
-                      {/* Content */}
-                      <div className="min-w-0 flex-1 rounded-lg bg-white p-4 card-rest">
-                        <p className="text-sm font-medium text-gray-900 capitalize">
-                          {t.action.replace(/_/g, ' ')}
-                        </p>
-                        {t.details && (
-                          <p className="text-sm text-gray-500 mt-0.5">{t.details}</p>
-                        )}
-                        {/* Cross-nav: if activity references a contact, make it clickable */}
-                        {t.contact && (
-                          <button
-                            onClick={() => handleViewContact(t.contact!.id)}
-                            className="inline-flex items-center gap-1 mt-1.5 text-xs text-amber-600 hover:text-amber-700 transition-colors"
-                          >
-                            <Users className="size-3" />
-                            {t.contact!.name}
-                            <ChevronRight className="size-3" />
+            {notes.length === 0 ? (
+              <EmptyState icon={StickyNote} title="No notes yet" description="Add notes to track conversations and insights." actionLabel="Add Note" onAction={() => setNoteOpen(true)} />
+            ) : (
+              <div className="relative pl-6">
+                <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
+                <div className="space-y-3">
+                  {notes.map((n, idx) => (
+                    <div key={n.id} className="relative flex items-start gap-4 slide-up" style={{ animationDelay: `${idx * 30}ms` }}>
+                      <div className="absolute -left-6 top-2 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+                      <div className="flex-1 rounded-xl bg-white p-4 card-rest min-w-0">
+                        <div className="flex items-start justify-between gap-3">
+                          <p className="text-sm text-gray-800 leading-relaxed whitespace-pre-wrap flex-1">{n.body}</p>
+                          <button onClick={() => setDeleteNoteId(n.id)} className="shrink-0 text-gray-700 hover:text-red-500 transition-colors p-0.5 rounded-md hover:bg-red-50" aria-label="Delete note" title="Delete note">
+                            <X className="size-3.5" />
                           </button>
-                        )}
-                        <p className="text-[11px] text-gray-600 mt-1.5">
-                          {formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}
-                        </p>
+                        </div>
+                        <div className="flex items-center gap-2 mt-2">
+                          {n.noteType && <Badge className="bg-gray-100 text-gray-600 hover:bg-gray-100 text-[11px] font-normal border-0 rounded-md capitalize">{n.noteType}</Badge>}
+                          <span className="text-[11px] text-gray-600">{formatDistanceToNow(new Date(n.createdAt), { addSuffix: true })}</span>
+                        </div>
                       </div>
                     </div>
-                  )
-                })}
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Activity Timeline (always visible below notes) */}
+          {timeline.length > 0 && (
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Clock className="size-4 text-gray-600" />
+                <h3 className="text-sm font-semibold text-gray-900">
+                  Activity
+                  <span className="text-xs font-normal text-gray-500 ml-1.5">({timeline.length})</span>
+                </h3>
+              </div>
+              <div className="relative pl-6">
+                <div className="absolute left-[7px] top-2 bottom-2 border-l-2 border-gray-200" />
+                <div className="space-y-3">
+                  {timeline.slice(0, 10).map((t, idx) => {
+                    const iconData = getActivityIcon(t.action)
+                    const Icon = iconData.icon
+                    return (
+                      <div key={t.id} className="relative flex items-start gap-4 slide-up" style={{ animationDelay: `${idx * 30}ms` }}>
+                        <div className="absolute -left-6 top-1.5 size-3 rounded-full bg-white ring-4 ring-white border-2 border-amber-400" />
+                        <div className={`shrink-0 mt-0.5 rounded-lg p-1.5 ${iconData.bg}`}>
+                          <Icon className={`size-3.5 ${iconData.color}`} />
+                        </div>
+                        <div className="min-w-0 flex-1 rounded-lg bg-white p-3.5 card-rest">
+                          <p className="text-sm font-medium text-gray-900 capitalize">{t.action.replace(/_/g, ' ')}</p>
+                          {t.details && <p className="text-xs text-gray-500 mt-0.5">{t.details}</p>}
+                          <p className="text-[11px] text-gray-600 mt-1">{formatDistanceToNow(new Date(t.createdAt), { addSuffix: true })}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           )}
-        </TabsContent>
+        </div>
+      ) : (
+        /* ══════════════════════════════════════════════════════════
+           INTELLIGENCE HEALTH VIEW
+           ══════════════════════════════════════════════════════════ */
+        <IntelligenceTab companyId={data.id} />
+      )}
 
-        {/* ──────────────────────────────────────────────────────────
-            TAB: INTELLIGENCE — Phase 6 Health & Validation
-            ────────────────────────────────────────────────────────── */}
-        <TabsContent value="intelligence" className="mt-5">
-          <IntelligenceTab companyId={data.id} />
-        </TabsContent>
-      </Tabs>
+      {/* ══════════════════════════════════════════════════════════
+          DIALOGS (all preserved)
+          ══════════════════════════════════════════════════════════ */}
 
-      {/* Status Cycle Confirmation (C2 fix) */}
+      {/* Status Cycle Confirmation */}
       <AlertDialog open={statusConfirmOpen} onOpenChange={setStatusConfirmOpen}>
         <AlertDialogContent className="rounded-xl">
           <AlertDialogHeader>
@@ -1548,11 +1668,7 @@ export default function CompanyProfileScreen() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel className="rounded-lg" disabled={updateCompanyStatus.isPending}>Cancel</AlertDialogCancel>
-            <AlertDialogAction
-              className="rounded-lg bg-amber-600 hover:bg-amber-700 text-white"
-              onClick={handleStatusCycle}
-              disabled={updateCompanyStatus.isPending}
-            >
+            <AlertDialogAction className="rounded-lg bg-amber-600 hover:bg-amber-700 text-white" onClick={handleStatusCycle} disabled={updateCompanyStatus.isPending}>
               {updateCompanyStatus.isPending ? <Loader2 className="size-4 mr-2 animate-spin" /> : null}
               Confirm
             </AlertDialogAction>
@@ -1571,11 +1687,7 @@ export default function CompanyProfileScreen() {
           <p className="text-sm text-gray-600">Are you sure you want to delete this note? This action cannot be undone.</p>
           <DialogFooter className="gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setDeleteNoteId(null)} className="text-gray-600 border-gray-200 hover:bg-gray-50 hover:text-gray-900">Cancel</Button>
-            <Button
-              onClick={() => deleteNoteMutation.mutate(deleteNoteId!)}
-              disabled={deleteNoteMutation.isPending}
-              className="bg-red-600 text-white hover:bg-red-700 press-scale"
-            >
+            <Button onClick={() => deleteNoteMutation.mutate(deleteNoteId!)} disabled={deleteNoteMutation.isPending} className="bg-red-600 text-white hover:bg-red-700 press-scale">
               {deleteNoteMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : null}
               Delete
             </Button>
@@ -1612,12 +1724,10 @@ export default function CompanyProfileScreen() {
         </DialogContent>
       </Dialog>
 
-      {/* Edit Company Dialog (H7 fix) */}
+      {/* Edit Company Dialog */}
       <Dialog open={editCompanyOpen} onOpenChange={setEditCompanyOpen}>
         <DialogContent className="sm:max-w-md rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-gray-900">Edit Company</DialogTitle>
-          </DialogHeader>
+          <DialogHeader><DialogTitle className="text-gray-900">Edit Company</DialogTitle></DialogHeader>
           <div className="grid gap-4 py-2">
             <div className="grid gap-1.5">
               <Label className="text-sm font-medium text-gray-800">Name</Label>
@@ -1678,14 +1788,12 @@ export default function CompanyProfileScreen() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Contact Dialog — pre-fills company */}
+      {/* Add Contact Dialog */}
       <Dialog open={contactOpen} onOpenChange={setContactOpen}>
         <DialogContent className="sm:max-w-md rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-gray-900">Add Contact</DialogTitle>
-            <p className="text-xs text-gray-500 mt-1">
-              Adding to <span className="font-medium text-gray-800">{data.name}</span>
-            </p>
+            <p className="text-xs text-gray-500 mt-1">Adding to <span className="font-medium text-gray-800">{data.name}</span></p>
           </DialogHeader>
           <div className="space-y-4 py-1">
             <div className="space-y-1.5">
@@ -1730,14 +1838,12 @@ export default function CompanyProfileScreen() {
         </DialogContent>
       </Dialog>
 
-      {/* Add Opportunity Dialog — can link to target contact */}
+      {/* Add Opportunity Dialog */}
       <Dialog open={oppOpen} onOpenChange={setOppOpen}>
         <DialogContent className="sm:max-w-md rounded-xl">
           <DialogHeader>
             <DialogTitle className="text-gray-900">Create Opportunity</DialogTitle>
-            <p className="text-xs text-gray-500 mt-1">
-              For <span className="font-medium text-gray-800">{data.name}</span>
-            </p>
+            <p className="text-xs text-gray-500 mt-1">For <span className="font-medium text-gray-800">{data.name}</span></p>
           </DialogHeader>
           <div className="space-y-4 py-1">
             <div className="space-y-1.5">
@@ -1760,13 +1866,8 @@ export default function CompanyProfileScreen() {
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium text-gray-500 uppercase tracking-wider">Target Contact</Label>
-                <Select
-                  value={oppForm.targetContactId || ''}
-                  onValueChange={v => setOppForm(f => ({ ...f, targetContactId: v === '__none__' ? '' : v }))}
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select contact (optional)" />
-                  </SelectTrigger>
+                <Select value={oppForm.targetContactId || ''} onValueChange={v => setOppForm(f => ({ ...f, targetContactId: v === '__none__' ? '' : v }))}>
+                  <SelectTrigger className="w-full"><SelectValue placeholder="Select contact (optional)" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="__none__">No contact</SelectItem>
                     {contacts.map((c) => (

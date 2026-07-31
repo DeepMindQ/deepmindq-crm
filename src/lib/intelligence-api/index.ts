@@ -45,6 +45,8 @@ export type {
   IntelligenceKnowledgeIngestionStats,
 
   IntelligenceErrorCode,
+  normalizeTierForDisplay,
+  getTierColor,
 } from './types';
 
 // ── Middleware (for route handlers) ──

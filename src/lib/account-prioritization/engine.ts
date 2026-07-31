@@ -402,6 +402,8 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
         staticFitScore: staticFit.score,
         dynamicIntelScore: dynamicIntelligence.score,
         timingUrgencyScore: timingUrgency.score,
+        // Ticket 4: Unified 3-Score History — intelligence/revenue fields populated by callers
+        scoreTriggerType: 'priority',
         computedAt: new Date(),
       },
     }),

@@ -144,7 +144,19 @@ export async function GET(
     );
   }
 
-  // ── Step 2: Conditionally load data sections (PARALLEL) ──────────────────
+  // ── Step 2: Load lightweight revenue summary from AccountScore (always, for base response) ────
+  let revenueSummary: { score: number; category: string } | null = null;
+  try {
+    const accountScore = await db.accountScore.findUnique({
+      where: { companyId },
+      select: { score: true, category: true },
+    });
+    if (accountScore) {
+      revenueSummary = { score: accountScore.score, category: accountScore.category };
+    }
+  } catch { /* AccountScore table may not exist in all environments */ }
+
+  // ── Step 2b: Conditionally load data sections (PARALLEL) ──────────────────
   const [
     signals,
     contacts,
@@ -575,6 +587,7 @@ export async function GET(
     },
     researchCard,
     keyPeople,
+    ...(revenueSummary && { revenueSummary }),
     ...(signals != null && { signals }),
     ...(scores != null && { scores }),
     ...(contacts != null && { contacts }),

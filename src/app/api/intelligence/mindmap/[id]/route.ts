@@ -98,18 +98,19 @@ export async function GET(
   const centerNodeId = 'company-center';
 
   let nodes: MindmapNode[] = [];
+  let companyCapabilityIds: Set<string> = new Set();
 
   if (loadNodes) {
-    const [contacts, capabilities, signals] = await Promise.all([
+    const [contacts, fusionResults, signals] = await Promise.all([
       db.contact.findMany({
         where: { companyId },
         select: { id: true, rawName: true, title: true, role: true, leadScore: true },
         take: 30,
       }).catch(() => []),
-      db.capabilityAsset.findMany({
-        where: { isActive: true },
-        select: { id: true, title: true, category: true },
-        take: 30,
+      // Load company-linked capabilities via FusionResult (not all assets)
+      db.fusionResult.findMany({
+        where: { companyId },
+        select: { capabilityIds: true },
       }).catch(() => []),
       db.companySignal.findMany({
         where: { companyId },
@@ -117,6 +118,25 @@ export async function GET(
         take: 20,
       }).catch(() => []),
     ]);
+
+    // Extract unique capability IDs linked to this company
+    for (const fr of fusionResults) {
+      const ids = fr.capabilityIds as unknown[];
+      if (Array.isArray(ids)) {
+        for (const id of ids) {
+          if (typeof id === 'string') companyCapabilityIds.add(id);
+        }
+      }
+    }
+
+    // Load only company-linked capability assets
+    const capabilities = companyCapabilityIds.size > 0
+      ? await db.capabilityAsset.findMany({
+          where: { id: { in: Array.from(companyCapabilityIds) }, isActive: true },
+          select: { id: true, title: true, category: true },
+          take: 30,
+        }).catch(() => [])
+      : [];
 
     // Build nodes (hub-and-spoke: company center + entity nodes)
     nodes = [
@@ -135,7 +155,7 @@ export async function GET(
         confidence: Math.max(0, Math.min(1, (c.leadScore || 0) / 100)),
         metadata: { title: c.title, role: c.role },
       })),
-      // Knowledge/capability nodes
+      // Knowledge/capability nodes (company-linked only)
       ...capabilities.map((cap) => ({
         id: cap.id,
         label: (cap.title || '').slice(0, 100),
@@ -181,8 +201,32 @@ export async function GET(
       centerNode: centerLabel,
       lastGenerated: new Date().toISOString(),
     },
-    // Placeholder — not yet fully implemented
-    ...(loadKnowledgeConnections ? { knowledgeConnections: [] } : {}),
+    // knowledgeConnections: link signal nodes to capability nodes via fusion
+    ...(loadKnowledgeConnections ? {
+      knowledgeConnections: await (async () => {
+        if (companyCapabilityIds.size === 0) return [];
+        try {
+          const fusionLinks = await db.fusionResult.findMany({
+            where: { companyId },
+            select: { signalIds: true, capabilityIds: true, fusionScore: true, businessProblem: true },
+            take: 20,
+          });
+          return fusionLinks.map(fl => ({
+            sourceNode: Array.isArray(fl.signalIds) && (fl.signalIds as unknown[]).length > 0
+              ? String((fl.signalIds as unknown[])[0])
+              : 'unknown-signal',
+            targetNode: Array.isArray(fl.capabilityIds) && (fl.capabilityIds as unknown[]).length > 0
+              ? String((fl.capabilityIds as unknown[])[0])
+              : 'unknown-capability',
+            type: 'fusion_match',
+            description: String(fl.businessProblem || 'Signal-capability fusion'),
+            confidence: Math.max(0, Math.min(1, fl.fusionScore)),
+          }));
+        } catch {
+          return [];
+        }
+      })(),
+    } : {}),
   };
 
   const confidence = nodes.length > 0 ? Math.min(0.9, 0.5 + nodes.length * 0.02) : 0.1;

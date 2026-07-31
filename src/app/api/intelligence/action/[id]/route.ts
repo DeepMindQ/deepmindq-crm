@@ -157,7 +157,52 @@ export async function GET(
     );
   }
 
-  // ── Step 4: Compose response data ────────────────────────────────────────
+  // ── Step 4: Extract recommendations and sequences from action result ────
+  let recommendations: Array<{ action: string; priority: string; rationale: string; confidence: number }> = [];
+  let sequences: Array<{ step: number; action: string; dependsOn: string[] }> = [];
+
+  if (actionResult && typeof actionResult === 'object') {
+    const ar = actionResult as unknown as Record<string, unknown>;
+
+    // Extract recommendations from recommendedActions array
+    if (Array.isArray(ar.recommendedActions)) {
+      recommendations = (ar.recommendedActions as Array<Record<string, unknown>>)
+        .slice(0, 10)
+        .map((ra, idx) => ({
+          action: String(ra.action || ra.title || ra.name || `Action ${idx + 1}`),
+          priority: String(ra.priority || ra.urgency || 'medium'),
+          rationale: String(ra.rationale || ra.reasoning || ra.description || ''),
+          confidence: Number(ra.confidence ?? ar.confidence ?? 0),
+        }));
+    }
+
+    // Extract sequences from actionSteps or similar array
+    if (Array.isArray(ar.actionSteps)) {
+      sequences = (ar.actionSteps as Array<Record<string, unknown>>)
+        .slice(0, 10)
+        .map((as, idx) => ({
+          step: Number(as.step ?? as.order ?? idx + 1),
+          action: String(as.action || as.title || as.name || `Step ${idx + 1}`),
+          dependsOn: Array.isArray(as.dependsOn)
+            ? (as.dependsOn as string[]).map(String)
+            : [],
+        }));
+    }
+
+    // Fallback: derive recommendations from topActions if recommendedActions is empty
+    if (recommendations.length === 0 && Array.isArray(ar.topActions)) {
+      recommendations = (ar.topActions as Array<Record<string, unknown>>)
+        .slice(0, 10)
+        .map((ta, idx) => ({
+          action: String(ta.action || ta.title || ta.name || `Action ${idx + 1}`),
+          priority: String(ta.priority || 'medium'),
+          rationale: String(ta.rationale || ta.reasoning || ''),
+          confidence: Number(ta.confidence ?? ar.confidence ?? 0),
+        }));
+    }
+  }
+
+  // ── Step 5: Compose response data ────────────────────────────────────────
   const data: IntelligenceActionOutput = {
     companyId,
     ...(actionResult ? { actions: actionResult } : {}),
@@ -170,6 +215,8 @@ export async function GET(
         createdAt: e.createdAt.toISOString(),
       })),
     } : {}),
+    ...(shouldInclude(guardResult.includes, 'recommendations') ? { recommendations } : {}),
+    ...(shouldInclude(guardResult.includes, 'sequences') ? { sequences } : {}),
   };
 
   // H11 FIX: Safe confidence extraction with type narrowing

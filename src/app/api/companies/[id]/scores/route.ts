@@ -83,6 +83,12 @@ export interface ScoreHistoryEntry {
   triggerType: string;
   previousScore: number | null;
   newScore: number | null;
+  // Ticket 4: Unified 3-Score History
+  intelligenceScore: number | null;
+  intelligenceTier: string | null;
+  revenueScore: number | null;
+  revenueCategory: string | null;
+  scoreTriggerType: string | null;
 }
 
 export interface UnifiedScoresResponse {
@@ -262,6 +268,11 @@ export async function GET(
           staticFitScore: true,
           dynamicIntelScore: true,
           timingUrgencyScore: true,
+          intelligenceScore: true,
+          intelligenceTier: true,
+          revenueScore: true,
+          revenueCategory: true,
+          scoreTriggerType: true,
         },
       }),
     ]);
@@ -324,7 +335,7 @@ export async function GET(
       };
     }
 
-    // Map history
+    // Map history — includes all 3 score dimensions
     const history: ScoreHistoryEntry[] = historyEntries.map(h => ({
       id: h.id,
       accountPriorityScore: h.accountPriorityScore,
@@ -333,6 +344,11 @@ export async function GET(
       triggerType: h.triggerType,
       previousScore: h.previousScore,
       newScore: h.newScore,
+      intelligenceScore: h.intelligenceScore,
+      intelligenceTier: h.intelligenceTier,
+      revenueScore: h.revenueScore,
+      revenueCategory: h.revenueCategory,
+      scoreTriggerType: h.scoreTriggerType,
     }));
 
     const response: UnifiedScoresResponse = {

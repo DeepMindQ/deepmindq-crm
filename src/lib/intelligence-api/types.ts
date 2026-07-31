@@ -88,6 +88,8 @@ export type IntelligenceInclude =
   | 'nodes'
   | 'edges'
   | 'knowledgeConnections'
+  // Brief endpoint includes
+  | 'citations'
   // Knowledge endpoint includes
   | 'ingestion';
 
@@ -143,6 +145,13 @@ export interface IntelligenceCompanyContext {
     linkedInUrl?: string;
     source?: string;
   }>;
+
+  // Revenue summary (always present — lightweight AccountScore lookup)
+  // Note: Full score breakdown with `revenueOpportunity` requires ?include=scores
+  revenueSummary?: {
+    score: number;
+    category: string;
+  };
 
   // Active signals (?include=signals)
   signals?: IntelligenceSignal[];
@@ -313,6 +322,20 @@ export interface IntelligenceReasoningOutput {
   durationMs: number;
   summary: string | null;
   steps: ReasoningStep[];
+  // ?include=impact — extracted from high-confidence impact/risk/value steps
+  impact?: Array<{
+    stepNumber: number;
+    stepName: string;
+    summary: string | null;
+    confidence: number;
+  }>;
+  // ?include=recommendations — extracted from action/strategy/recommendation steps
+  recommendations?: Array<{
+    stepNumber: number;
+    stepName: string;
+    summary: string | null;
+    confidence: number;
+  }>;
 }
 
 export interface ReasoningStep {
@@ -374,10 +397,19 @@ export interface IntelligenceActionOutput {
     applicableContext: string;
     createdAt: string;
   }>;
-  // ?include=sequences — not yet implemented
-  sequences?: Array<Record<string, unknown>>;
-  // ?include=recommendations — not yet implemented
-  recommendations?: Array<Record<string, unknown>>;
+  // ?include=recommendations — extracted from ActionResult.recommendedActions
+  recommendations?: Array<{
+    action: string;
+    priority: string;
+    rationale: string;
+    confidence: number;
+  }>;
+  // ?include=sequences — extracted from ActionResult.actionSteps
+  sequences?: Array<{
+    step: number;
+    action: string;
+    dependsOn: string[];
+  }>;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -569,3 +601,65 @@ export const IntelligenceErrors = {
 } as const;
 
 export type IntelligenceErrorCode = typeof IntelligenceErrors[keyof typeof IntelligenceErrors];
+
+// ═══════════════════════════════════════════════════════════════════════════════
+//  TIER NORMALIZATION — Unified display across 3 score systems
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Normalize any tier value from the 3 scoring systems into a consistent display string.
+ *
+ * Input systems:
+ *   - Intelligence:  hot, warm, cold, unknown  (lowercase)
+ *   - Account Priority: HOT, ACTIVE, NURTURE, LOW  (uppercase enum)
+ *   - Revenue: HOT_ACCOUNT, WARM_ACCOUNT, NURTURE, AT_RISK  (uppercase enum with suffix)
+ *
+ * Output: always returns human-readable display tier.
+ */
+export function normalizeTierForDisplay(tier: string | null | undefined, scoreSystem: 'intelligence' | 'accountPriority' | 'revenue'): string {
+  if (!tier) return 'Unknown';
+
+  switch (scoreSystem) {
+    case 'intelligence':
+      // Intelligence tiers are already lowercase — just capitalize
+      return tier.charAt(0).toUpperCase() + tier.slice(1).toLowerCase();
+
+    case 'accountPriority': {
+      const map: Record<string, string> = {
+        'HOT': 'High',
+        'ACTIVE': 'High',
+        'NURTURE': 'Medium',
+        'LOW': 'Low',
+      };
+      return map[tier.toUpperCase()] || tier;
+    }
+
+    case 'revenue': {
+      const map: Record<string, string> = {
+        'HOT_ACCOUNT': 'High',
+        'WARM_ACCOUNT': 'Medium',
+        'NURTURE': 'Medium',
+        'AT_RISK': 'At Risk',
+      };
+      return map[tier.toUpperCase()] || tier;
+    }
+
+    default:
+      return tier;
+  }
+}
+
+/**
+ * Get a consistent color for any tier across all 3 scoring systems.
+ * Returns a hex color string for use in UI components.
+ */
+export function getTierColor(tier: string | null | undefined, scoreSystem: 'intelligence' | 'accountPriority' | 'revenue'): string {
+  const display = normalizeTierForDisplay(tier, scoreSystem);
+  switch (display) {
+    case 'High': case 'Hot': return '#059669';
+    case 'Medium': case 'Warm': return '#D97706';
+    case 'Low': case 'Cold': return '#F59E0B';
+    case 'At Risk': return '#DC2626';
+    default: return '#9CA3AF';
+  }
+}

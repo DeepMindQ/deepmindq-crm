@@ -31,6 +31,7 @@ import {
   DEFAULT_INDUSTRIES, EMPLOYEE_SIZES, ROLE_BUCKETS,
 } from '@/lib/constants'
 import { fetchApi } from '@/lib/fetchApi'
+import { normalizeTierForDisplay, getTierColor } from '@/lib/intelligence-api/types'
 import Image from 'next/image'
 import type { Company, Contact, Opportunity, CompanyNote, CompanyResearchCard, TimelineEntry, CompanyStatus } from '@/lib/types'
 
@@ -585,39 +586,33 @@ export default function CompanyProfileScreen() {
     ? {
         label: 'Intelligence',
         score: scoresData.intelligence.score,
-        tier: scoresData.intelligence.tier,
-        color: getDynamicColor(scoresData.intelligence.score),
+        tier: normalizeTierForDisplay(scoresData.intelligence.tier, 'intelligence'),
+        color: getTierColor(scoresData.intelligence.tier, 'intelligence'),
       }
-    : { label: 'Intelligence', score, tier: score >= 70 ? 'hot' : score >= 40 ? 'warm' : score >= 15 ? 'cold' : 'unknown', color: getDynamicColor(score) }
+    : { label: 'Intelligence', score, tier: normalizeTierForDisplay(score >= 70 ? 'hot' : score >= 40 ? 'warm' : score >= 15 ? 'cold' : 'unknown', 'intelligence'), color: getDynamicColor(score) }
 
   const priorityScoreItem: ScoreItem | null = scoresData?.accountPriority
     ? {
         label: 'Priority',
         score: Math.round(scoresData.accountPriority.score),
-        tier: scoresData.accountPriority.tier,
-        color: getDynamicColor(scoresData.accountPriority.score),
+        tier: normalizeTierForDisplay(scoresData.accountPriority.tier, 'accountPriority'),
+        color: getTierColor(scoresData.accountPriority.tier, 'accountPriority'),
       }
     : data.accountPriorityScore != null
       ? {
           label: 'Priority',
           score: Math.round(data.accountPriorityScore),
-          tier: data.priorityTier ?? 'unknown',
+          tier: normalizeTierForDisplay(data.priorityTier ?? null, 'accountPriority'),
           color: getDynamicColor(data.accountPriorityScore),
         }
       : null
-
-  const revenueTierMap: Record<string, string> = {
-    HOT_ACCOUNT: 'High', WARM_ACCOUNT: 'Medium', NURTURE: 'Low', AT_RISK: 'At Risk',
-  }
 
   const revenueScoreItem: ScoreItem | null = scoresData?.revenueOpportunity
     ? {
         label: 'Revenue',
         score: Math.round(scoresData.revenueOpportunity.score),
-        tier: revenueTierMap[scoresData.revenueOpportunity.category] || scoresData.revenueOpportunity.category,
-        color: scoresData.revenueOpportunity.category === 'AT_RISK'
-          ? '#DC2626'
-          : getDynamicColor(scoresData.revenueOpportunity.score),
+        tier: normalizeTierForDisplay(scoresData.revenueOpportunity.category, 'revenue'),
+        color: getTierColor(scoresData.revenueOpportunity.category, 'revenue'),
       }
     : null
 

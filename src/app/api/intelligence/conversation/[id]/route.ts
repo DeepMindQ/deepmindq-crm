@@ -31,6 +31,56 @@ import { logger } from '@/lib/logger';
 import { runGovernanceChecks } from '@/lib/ai-governance';
 import { getResearchContext } from '@/lib/intelligence-contract';
 
+// ── Helper: Extract buyer profiles from conversation result ──────────────
+function extractBuyerProfiles(
+  conversationResult: ConversationResult | null,
+): Array<{ role: string; concerns: string[]; motivation: string; confidence: number }> {
+  if (!conversationResult || typeof conversationResult !== 'object') return [];
+
+  const cr = conversationResult as unknown as Record<string, unknown>;
+
+  // Try buyerPersonas field first
+  if (Array.isArray(cr.buyerPersonas)) {
+    return (cr.buyerPersonas as Array<Record<string, unknown>>).slice(0, 5).map(bp => ({
+      role: String(bp.role || bp.title || bp.persona || 'Unknown'),
+      concerns: Array.isArray(bp.concerns) ? (bp.concerns as string[]).map(String) : [],
+      motivation: String(bp.motivation || bp.goal || bp.driver || ''),
+      confidence: Number(bp.confidence ?? cr.confidenceScore ?? cr.confidence ?? 0),
+    }));
+  }
+
+  // Try stakeholders field
+  if (Array.isArray(cr.stakeholders)) {
+    return (cr.stakeholders as Array<Record<string, unknown>>).slice(0, 5).map(s => ({
+      role: String(s.role || s.title || 'Unknown'),
+      concerns: Array.isArray(s.concerns) ? (s.concerns as string[]).map(String)
+        : Array.isArray(s.objections) ? (s.objections as string[]).map(String)
+        : [],
+      motivation: String(s.motivation || s.goal || s.interest || ''),
+      confidence: Number(s.confidence ?? cr.confidenceScore ?? cr.confidence ?? 0),
+    }));
+  }
+
+  // Fallback: derive from key contacts and talking points
+  const talkingPoints = Array.isArray(cr.talkingPoints)
+    ? (cr.talkingPoints as Array<{ topic?: string; persona?: string }>)
+    : [];
+  const uniquePersonas = [...new Set(talkingPoints.map(tp => tp.persona).filter(Boolean))];
+  if (uniquePersonas.length > 0) {
+    return uniquePersonas.slice(0, 5).map(persona => ({
+      role: String(persona),
+      concerns: talkingPoints
+        .filter(tp => tp.persona === persona)
+        .map(tp => tp.topic || '')
+        .filter(Boolean),
+      motivation: '',
+      confidence: Number(cr.confidenceScore ?? cr.confidence ?? 0) * 0.8,
+    }));
+  }
+
+  return [];
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
@@ -202,7 +252,7 @@ export async function GET(
       objections: risks.map(r => ({ objection: r, rebuttal: '', confidence: brief?.confidence ?? 0 })),
     }),
     ...(shouldInclude(guardResult.includes, 'buyerProfiles') && {
-      buyerProfiles: [],
+      buyerProfiles: extractBuyerProfiles(conversationResult),
     }),
     ...(wantsLearning && learningEvents.length > 0 ? {
       pastLearnings: learningEvents.map((e) => ({

@@ -147,6 +147,22 @@ const GOVERNANCE_CONFIGS: Record<string, GovernanceConfig> = {
     requireRecentIntelligence: false,
     maxStalenessDays: 180,
   },
+  // Intelligence API — Reasoning engine (30-step composite analysis)
+  reasoning: {
+    minResearchConfidence: 0.3,
+    minFreshnessScore: 15,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: true,
+    maxStalenessDays: 90,
+  },
+  // Intelligence API — Mindmap generation (DB-derived, no LLM)
+  mindmap: {
+    minResearchConfidence: 0.1,
+    minFreshnessScore: 5,
+    requireCapabilityMatch: false,
+    requireRecentIntelligence: false,
+    maxStalenessDays: 365,
+  },
   // Phase 3 Hardening: PPT slide generation
   ppt_generation: {
     minResearchConfidence: 0.2,
@@ -491,13 +507,6 @@ const GOVERNANCE_CONFIGS: Record<string, GovernanceConfig> = {
     maxStalenessDays: 180,
   },
   // Intelligence API route types
-  reasoning: {
-    minResearchConfidence: 0.2,
-    minFreshnessScore: 10,
-    requireCapabilityMatch: false,
-    requireRecentIntelligence: false,
-    maxStalenessDays: 180,
-  },
   full_pipeline: {
     minResearchConfidence: 0.2,
     minFreshnessScore: 10,
@@ -512,13 +521,6 @@ const GOVERNANCE_CONFIGS: Record<string, GovernanceConfig> = {
     requireCapabilityMatch: false,
     requireRecentIntelligence: false,
     maxStalenessDays: 9999,
-  },
-  mindmap: {
-    minResearchConfidence: 0.2,
-    minFreshnessScore: 10,
-    requireCapabilityMatch: false,
-    requireRecentIntelligence: false,
-    maxStalenessDays: 180,
   },
   grounding: {
     minResearchConfidence: 0.2,
@@ -681,6 +683,14 @@ export const GOVERNANCE_PROMPT_VERSION = 'v3-t3-deep-audit-complete';
 export function getGovernanceConfig(generationType: string): GovernanceConfig {
   const config = GOVERNANCE_CONFIGS[generationType];
   if (!config) {
+    // Handle dynamic reasoning step types (e.g., reasoning_signal_analysis, reasoning_competitive_positioning)
+    // These use the 'reasoning' parent config
+    if (generationType.startsWith('reasoning_')) {
+      const parentConfig = GOVERNANCE_CONFIGS['reasoning'];
+      if (parentConfig) {
+        return { ...parentConfig };
+      }
+    }
     // Log warning for unknown generation types — helps detect typos and missing registrations
     logger.warn(`[ai-governance] Unknown generation type: '${generationType}'. Using default config. Registered types: ${REGISTERED_TYPES.size}`);
     return { ...DEFAULT_CONFIG };

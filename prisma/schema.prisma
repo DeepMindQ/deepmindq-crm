@@ -1614,6 +1614,13 @@ model PriorityScoreHistory {
   timingUrgencyScore Float?
   whyNowReasons      String? // JSON array
 
+  // Ticket 4: Unified 3-Score History — track all 3 score dimensions
+  intelligenceScore   Int?       // Company.intelligenceScore at time of recording
+  intelligenceTier    String?    // hot/warm/cold/unknown at time of recording
+  revenueScore        Float?     // AccountScore.score at time of recording
+  revenueCategory     String?    // HOT_ACCOUNT/WARM_ACCOUNT/NURTURE/AT_RISK at time of recording
+  scoreTriggerType    String? @default("priority") // "priority", "intelligence", "revenue", "batch"
+
   computedAt DateTime @default(now())
   createdAt  DateTime @default(now())
 

@@ -217,7 +217,27 @@ export async function GET(
     }
   }
 
-  // ── Step 5: Build response data ─────────────────────────────────────────
+  // ── Step 5: Extract impact data from high-confidence steps ─────────────
+  const impactSteps = steps.filter(s =>
+    s.confidence >= 0.6 &&
+    (s.stepName.toLowerCase().includes('impact') ||
+     s.stepName.toLowerCase().includes('financial') ||
+     s.stepName.toLowerCase().includes('risk') ||
+     s.stepName.toLowerCase().includes('value') ||
+     (s.output && (s.output.toLowerCase().includes('impact') || s.output.toLowerCase().includes('revenue') || s.output.toLowerCase().includes('risk'))))
+  );
+
+  // ── Step 6: Extract recommendations from action-oriented steps ───────────
+  const recommendationSteps = steps.filter(s =>
+    s.confidence >= 0.5 &&
+    (s.stepName.toLowerCase().includes('recommend') ||
+     s.stepName.toLowerCase().includes('action') ||
+     s.stepName.toLowerCase().includes('next_step') ||
+     s.stepName.toLowerCase().includes('strategy') ||
+     (s.output && (s.output.toLowerCase().includes('recommend') || s.output.toLowerCase().includes('suggest') || s.output.toLowerCase().includes('should'))))
+  );
+
+  // ── Step 7: Build response data ─────────────────────────────────────────
   const data: IntelligenceReasoningOutput = {
     companyId: result.companyId,
     reasoningContextId: result.reasoningContextId,
@@ -234,6 +254,22 @@ export async function GET(
       ? `Completed ${result.completedSteps}/${result.totalSteps} reasoning steps with ${result.overallConfidence.toFixed(1)}% confidence`
       : null,
     steps,
+    ...(includeImpact ? {
+      impact: impactSteps.map(s => ({
+        stepNumber: s.stepNumber,
+        stepName: s.stepName,
+        summary: s.summary || (s.output ? s.output.slice(0, 300) : null),
+        confidence: s.confidence,
+      })),
+    } : {}),
+    ...(includeRecommendations ? {
+      recommendations: recommendationSteps.map(s => ({
+        stepNumber: s.stepNumber,
+        stepName: s.stepName,
+        summary: s.summary || (s.output ? s.output.slice(0, 300) : null),
+        confidence: s.confidence,
+      })),
+    } : {}),
   };
 
   const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);

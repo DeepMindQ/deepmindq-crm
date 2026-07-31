@@ -106,11 +106,10 @@ export async function GET(
   const runScores = guardResult.includes.size === 0 || shouldInclude(guardResult.includes, 'scores');
   const runFusion = guardResult.includes.size === 0 || shouldInclude(guardResult.includes, 'fusion');
   const runCapabilities = shouldInclude(guardResult.includes, 'capabilities');
-  // E5 FIX: Gate reasoning + actions on whether they contribute to requested includes.
-  // reasoning provides summary/confidence data; actions provides recommended actions.
-  // When empty includes (default), all engines run for backward compatibility.
-  const runReasoning = guardResult.includes.size === 0;
-  const runActions = guardResult.includes.size === 0;
+  // E5 FIX: Reasoning and actions run when: empty includes (default), scores requested
+  // (composite opportunity view needs context), or explicitly via company-level includes.
+  const runReasoning = guardResult.includes.size === 0 || runScores;
+  const runActions = guardResult.includes.size === 0 || runScores;
 
   // ── Step 3: Run engines conditionally in parallel ──────────────────────
   const engineResults: { scoring: RevenueScore | null; reasoning: ReasoningResult | null; actions: ActionResult | null } = {

@@ -24,9 +24,10 @@ import {
   createResponse,
   createErrorResponse,
   computeFreshness,
+  shouldInclude,
 } from '@/lib/intelligence-api/middleware';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
-import type { IntelligenceBriefOutput, IntelligenceBrief } from '@/lib/intelligence-api/types';
+import type { IntelligenceBriefOutput, IntelligenceBrief, IntelligenceInclude } from '@/lib/intelligence-api/types';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
@@ -153,6 +154,11 @@ export async function GET(
   }
 
   // ── Step 3: Map Brief → IntelligenceBrief contract ─────────────────────
+  // ?include=citations controls whether full evidence chain + citations are included.
+  // Default (no includes) returns a lightweight brief with just content + sections.
+  const includeCitations = guardResult.includes.size === 0
+    || shouldInclude(guardResult.includes, 'citations' as IntelligenceInclude);
+
   const intelligenceBrief: IntelligenceBrief = {
     briefType: briefResult.type,
     content: briefResult.content,
@@ -160,21 +166,26 @@ export async function GET(
       heading: s.heading,
       body: s.body,
       confidence: s.confidence,
-      citations: s.citations,
+      citations: includeCitations ? s.citations : [],
     })),
-    citations: briefResult.citations.map(c => ({
-      marker: c.marker,
-      evidenceId: c.evidenceId,
-      snippet: c.snippet,
-      url: c.url,
-    })),
-    evidenceChain: {
-      evidences: briefResult.evidenceChain.evidences,
-      aggregateConfidence: briefResult.evidenceChain.aggregateConfidence,
-      coverage: briefResult.evidenceChain.coverage,
-      gaps: briefResult.evidenceChain.gaps,
-      freshnessScore: briefResult.evidenceChain.freshnessScore,
-    },
+    ...(includeCitations ? {
+      citations: briefResult.citations.map(c => ({
+        marker: c.marker,
+        evidenceId: c.evidenceId,
+        snippet: c.snippet,
+        url: c.url,
+      })),
+      evidenceChain: {
+        evidences: briefResult.evidenceChain.evidences,
+        aggregateConfidence: briefResult.evidenceChain.aggregateConfidence,
+        coverage: briefResult.evidenceChain.coverage,
+        gaps: briefResult.evidenceChain.gaps,
+        freshnessScore: briefResult.evidenceChain.freshnessScore,
+      },
+    } : {
+      citations: [],
+      evidenceChain: { evidences: [], aggregateConfidence: briefResult.evidenceChain.aggregateConfidence, coverage: 0, gaps: [], freshnessScore: briefResult.evidenceChain.freshnessScore },
+    }),
     wordCount: briefResult.wordCount,
     modelUsed: briefResult.modelUsed,
     confidence: briefResult.confidence,

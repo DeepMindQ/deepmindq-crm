@@ -31,6 +31,8 @@ export const VALID_INCLUDES: Set<string> = new Set<string>([
   'talkingPoints', 'objections', 'buyerProfiles',
   // Mindmap endpoint includes
   'nodes', 'edges', 'knowledgeConnections',
+  // Brief endpoint includes
+  'citations',
   // Knowledge endpoint includes
   'ingestion',
 ]);

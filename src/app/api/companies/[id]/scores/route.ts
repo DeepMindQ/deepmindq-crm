@@ -147,7 +147,10 @@ export async function GET(
         },
       });
     }
-    // Non-RateLimitedError — return structured 500, don't re-throw\n    // ctx may not be assigned here, create a minimal fallback\n    const fallbackCtx = { correlationId: 'error', responseHeaders: { 'Content-Type': 'application/json' } };\n    return utilityError(fallbackCtx, 500, 'Internal server error', 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt);
+    // Non-RateLimitedError — return structured 500, don't re-throw
+    // ctx may not be assigned here, create a minimal fallback
+    const fallbackCtx = { correlationId: 'error', responseHeaders: { 'Content-Type': 'application/json' } };
+    return utilityError(fallbackCtx, 500, 'Internal server error', 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt);
   }
 
   try {

@@ -1040,3 +1040,33 @@ Stage Summary:
 - All 3 exit criteria met: cards with all fields, accept creates Pursuit, reject with reason updates OpportunityRecommendation
 - All test requirements met: unit test for accept/reject flow, integration test for feedback storage
 - 5 files changed, 1551 insertions, 778 deletions
+---
+Task ID: 10
+Agent: Main Agent
+Task: Ticket 10: Intelligence Inbox — Real Build Real Fix
+
+Work Log:
+- Read ARCHITECTURE.md (1308 lines) — extracted complete T10 spec
+- Audited all existing T10 code: screen (428 lines), human-intelligence.ts (376 lines), test file (334 lines)
+- Identified 13 gaps via third-party assessment (3 critical, 5 high, 3 medium, 2 low)
+- Fixed critical reviewInboxItem bug: status "approve"/"reject" → "approved"/"rejected"
+- Created 5 API routes: GET stats, GET list, POST review, POST convert, POST dismiss
+- Wired 3-layer navigation: store.ts ViewId, screen-map.tsx lazy import, nav-config.ts sidebar
+- Fixed priority sorting: fetch-all → sort by priority → in-memory paginate
+- Added dismissInboxItem() + batchDismissInboxItems() business logic functions
+- Rewrote screen: cleaned dead imports, added Dismiss/Investigate/batch actions, company name badge
+- Unwrapped apiSuccess envelope in screen fetch handlers
+- Added "Dismiss All Low-Severity" one-click button
+- Wired Investigate to company workspace navigation via useAppStore
+- Wrote 36 new tests (priority sort, dismiss, batch dismiss, API routes, navigation)
+- Fixed 1 existing test assertion (approve → approved status)
+- Third-party re-audit: addressed all critical/high findings
+- TSC: zero errors
+- 53 T10 tests, 200 total related tests, all passing
+
+Stage Summary:
+- Commit: 026563e pushed to GitHub
+- 14 files changed, 1129 insertions, 28 deletions
+- All 3 exit criteria met: inbox shows unreviewed intel, quick actions work, human intel submittable
+- Remaining low-priority items: "Create Opportunity" maps to "Convert to Intelligence" (domain difference, documented), priority label uses "normal" vs spec "medium" (schema constraint, cosmetic only)
+

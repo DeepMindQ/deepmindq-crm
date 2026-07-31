@@ -828,3 +828,41 @@ Stage Summary:
 - ~450 LOC (down from 905), well-structured sub-components
 - 1501 tests passing, 0 TypeScript errors
 - All Ticket 5 exit criteria met
+
+---
+
+Task ID: ticket-7-company-profile-5q
+Agent: main
+Task: Ticket 7 — Company Profile 5Q Intelligence Workspace (P0)
+
+Work Log:
+- Performed gap analysis: identified 7 CRITICAL gaps between tab-based layout and 5Q spec
+- Replaced tab-based CRM layout (7 tabs) with progressive disclosure 5Q narrative scroll
+- Built 5 sub-components: Q1WhatChanged, Q2WhyMatters, Q3WhoEngage, Q4WhatSay, Q5WhatDo
+- Each section lazy-loads via IntersectionObserver (useSectionVisible hook)
+- Wired to /api/intelligence/company/{id}?include=signals,brief,actions,contacts,knowledge
+- Q1: Signal timeline with severity badges, confidence scores, evidence counts
+- Q2: Enterprise reasoning summary, detected sales motion, account strategy, brief sections
+- Q3: Buying committee with rank ordering, lead scores, email actions, PRIMARY badge
+- Q4: AI conversation brief, numbered talking points, capability matches
+- Q5: Recommended actions with urgency badges, concrete steps, suggested messages, opportunities
+- Added view mode toggle: 5Q Intelligence vs Health & Validation
+- Preserved all CRUD dialogs (edit company, add note/contact/opportunity)
+- Preserved Intelligence Health tab behind view mode toggle
+- ScoreTriple remains at top of workspace header
+- Research card quick view above 5Q sections
+- Notes + Activity timeline below 5Q sections
+- Color-coded section containers with gradient backgrounds
+
+Stage Summary:
+- 1 file changed: company-profile-screen.tsx (+835 lines, -734 lines)
+- tsc --noEmit: 0 errors
+- ESLint: 0 errors
+- Pre-commit hooks: PASS
+- Commit: 5c037fc (pushed to main)
+- Exit criteria:
+  [x] 5Q workspace loads and displays all sections
+  [x] Each section lazy-loads independently (IntersectionObserver)
+  [x] ScoreTriple visible at top of workspace
+- All Ticket 7 exit criteria met
+

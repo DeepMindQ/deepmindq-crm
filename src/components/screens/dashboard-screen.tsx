@@ -378,6 +378,10 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
       </div>
+      {/* Secondary KPIs — 4 columns */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
+      </div>
       {/* Quick Actions — 6 columns */}
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
         {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
@@ -409,7 +413,34 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     </div>
   );
 
-  /* ── Empty state: API succeeded but no contactsByStatus ── */
+  /* ── Stats error inline banner (T6.5) ── */
+  // Checked below the KPI render so cards still show with fallback zeros.
+
+  /* ── Holistic zero-state: API succeeded but everything is zero ── */
+  const allZero = totalLeads === 0 && sent === 0 && (dd.repliesThisWeek || 0) === 0
+    && (dashStats?.signals ?? 0) === 0 && (dashStats?.opportunities ?? 0) === 0
+    && topCompanies.length === 0;
+
+  if (allZero && dashData) return (
+    <div className="flex flex-col items-center justify-center py-20 text-center max-w-md mx-auto">
+      <motion.div animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+        className="w-20 h-20 rounded-3xl flex items-center justify-center mb-5" style={{ background: 'rgba(212,175,55,0.08)', border: '2px solid rgba(212,175,55,0.15)' }}>
+        <Brain className="w-10 h-10" style={{ color: gold }} />
+      </motion.div>
+      <h2 className="text-lg font-bold text-foreground tracking-tight">Welcome to DeepMindQ</h2>
+      <p className="text-sm text-muted-foreground mt-2 leading-relaxed">Your intelligence platform is ready. Start by importing companies and contacts to activate your pipeline.</p>
+      <div className="flex flex-wrap items-center justify-center gap-3 mt-6">
+        <button onClick={() => nav('import')} className="flex items-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors" style={{ background: gold, color: '#000' }}>
+          <Upload className="w-3.5 h-3.5" /> Import Data
+        </button>
+        <button onClick={() => nav('signal-intelligence')} className="flex items-center gap-2 text-xs font-medium px-4 py-2.5 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: gold, border: `1px solid rgba(212,175,55,0.3)` }}>
+          <Radar className="w-3.5 h-3.5" /> AI Research
+        </button>
+      </div>
+    </div>
+  );
+
+  /* ── Fallback empty state: contactsByStatus missing ── */
   if (dashData && !dashData.contactsByStatus) return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
@@ -423,8 +454,24 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     </div>
   );
 
+  // Stats error banner variable — used inside render to show inline warning when stats API fails
+  const statsFailed = statsError && !dashStats;
+
   return (
     <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-5 pr-1">
+
+      {/* ═══════ T6.5: Stats error banner — inline warning when intelligence stats unavailable ═══════ */}
+      {statsFailed && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          className="rounded-xl px-5 py-3 flex items-center gap-3"
+          style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+          <p className="text-xs text-muted-foreground flex-1">Intelligence stats unavailable — KPI values may show defaults</p>
+          <button onClick={() => refetchStats()} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors" style={{ color: '#EF4444' }}>
+            <RefreshCw className="w-3 h-3" /> Retry
+          </button>
+        </motion.div>
+      )}
 
       {/* ═══════ 0. AI BRIEFING ═══════ */}
       {briefingLoading ? (
@@ -516,7 +563,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
         <StatCard icon={Building2} label="Total Companies" value={dd.totalCompanies || 0} bc="var(--color-gold)" delay={0} />
         <StatCard icon={Users} label="Active Contacts" value={totalLeads} bc="#3B82F6" delay={0.06} />
         <StatCard
-          icon={Radar} label="Active Signals"
+          icon={Radar} label="Signals"
           value={dashStats?.signals ?? 0} bc="#8B5CF6" delay={0.12}
           trend={dashStats?.today?.newSignals ? { value: dashStats.today.newSignals, up: true } : undefined}
         />
@@ -526,11 +573,30 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           trend={dashStats?.today?.newOpportunities ? { value: dashStats.today.newOpportunities, up: true } : undefined}
         />
         <StatCard
-          icon={ShieldAlert} label="Risks"
-          value={dashStats?.risks ?? 0} bc="#EF4444" delay={0.24}
-          trend={dashStats?.today?.newRisks ? { value: dashStats.today.newRisks, up: false } : undefined}
+          icon={Sparkles} label="Recommendations"
+          value={dashStats?.recommendations ?? 0} bc="#F59E0B" delay={0.24}
+          trend={dashStats?.today?.newRecommendations ? { value: dashStats.today.newRecommendations, up: true } : undefined}
         />
         <StatCard icon={Mail} label="Reply Rate" value={replyRate} suffix="%" bc="#A855F7" delay={0.30} />
+      </div>
+      {/* ═══════ 1b. INTELLIGENCE SCORE + SECONDARY KPIs ═══════ */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        <div className="relative rounded-xl overflow-hidden group cursor-default" style={{ background: card, backdropFilter: 'blur(20px)', border: `1px solid ${border}`, borderLeft: '3px solid #8B5CF6' }}>
+          <div className="p-4 space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.1)' }}><Brain className="w-4 h-4" style={{ color: '#8B5CF6' }} /></div>
+              <span className="text-xs font-medium text-muted-foreground">Avg Intelligence Score</span>
+            </div>
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-2xl font-bold tabular-nums text-foreground">{dashStats?.avgIntelligenceScore != null ? dashStats.avgIntelligenceScore.toFixed(1) : '--'}</span>
+              <span className="text-xs text-muted-foreground">/ 100</span>
+            </div>
+          </div>
+        </div>
+        <StatCard icon={ShieldAlert} label="Risks" value={dashStats?.risks ?? 0} bc="#EF4444" delay={0.05}
+          trend={dashStats?.today?.newRisks ? { value: dashStats.today.newRisks, up: false } : undefined} />
+        <StatCard icon={Layers} label="Insights" value={dashStats?.insights ?? 0} bc="#10B981" delay={0.10} />
+        <StatCard icon={Shield} label="Suppressed" value={suppressions} bc="#71717A" delay={0.15} />
       </div>
 
       {/* ═══════ 2. QUICK ACTIONS ═══════ */}
@@ -598,7 +664,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             </div>
           </div>
           <div className="px-5 pb-5 pt-3">
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
               <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Sent</p>
                 <p className="text-2xl font-bold text-foreground tabular-nums mt-1">{sent}</p>
@@ -614,6 +680,10 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
               <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Reply Rate</p>
                 <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: gold }}>{replyRate}%</p>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Suppressed</p>
+                <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: '#71717A' }}>{suppressions}</p>
               </div>
             </div>
             {/* Email health breakdown */}

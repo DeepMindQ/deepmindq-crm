@@ -30,12 +30,13 @@ export function RecommendationFeedbackForm({ recommendationId, companyId, onSubm
     if (!selected) return;
     setSubmitting(true);
     try {
-      await fetch(`/api/g-intelligence/companies/${companyId}/feedback`, {
+      // Posts to the T9 accept endpoint with feedback decision.
+      // The accept endpoint stores RecommendationFeedback if feedbackDecision is provided.
+      await fetch(`/api/ai/opportunities/${recommendationId}/accept`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          recommendationId,
-          userDecision: selected,
+          feedbackDecision: selected,
           feedbackReason: reason || undefined,
         }),
       });

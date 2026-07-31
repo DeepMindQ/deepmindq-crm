@@ -11,7 +11,7 @@
 
 import {
   LayoutDashboard, Cpu, Building2, Search,
-  Brain, BookOpen, Layers, Radar,
+  Brain, BookOpen, Layers, Radar, Target,
   Settings, Shield, Database, Plug, Activity,
   ChevronRight, BarChart3,
 } from 'lucide-react';
@@ -40,6 +40,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: 'command-center', label: 'Command Center', icon: LayoutDashboard, isNew: true },
       { key: 'accounts', label: 'Accounts', icon: Building2 },
       { key: 'signal-intelligence', label: 'Signal Intelligence', icon: Radar, isNew: true },
+      { key: 'opportunity-radar', label: 'Opportunity Radar', icon: Target, isNew: true },
       { key: 'intelligence-search', label: 'Intelligence Search', icon: Search },
     ],
   },

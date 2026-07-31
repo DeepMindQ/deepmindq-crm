@@ -498,8 +498,8 @@ export default function OpportunityRadarScreen({ navigateTo }: OpportunityRadarP
   };
 
   const handleViewCompany = (companyId: string) => {
-    // T9: "Click → navigate to Company Profile Q5"
-    navigateTo?.('company-detail', companyId);
+    // T9: "Click → navigate to Company Profile Q5" (5Q workspace)
+    navigateTo?.('company-profile', companyId);
   };
 
   const clearFilters = () => {

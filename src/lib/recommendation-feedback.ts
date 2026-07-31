@@ -4,7 +4,7 @@
  * Captures human validation decisions on recommendations
  * for future scoring calibration.
  *
- * TODO: Re-enable once recommendationFeedback table is added to Prisma schema.
+ * The RecommendationFeedback Prisma model and table exist in schema.prisma.
  */
 
 import { db } from '@/lib/db';

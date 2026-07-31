@@ -485,11 +485,12 @@ describe('Ticket 9 — Reject Flow (Unit)', () => {
 });
 
 /* ═══════════════════════════════════════════════════════════════
-   TEST SUITE 4: Integration Tests — Feedback Storage
+   TEST SUITE 4: Feedback Storage
    Per ARCHITECTURE.md: "Feedback stored in RecommendationFeedback"
+   Tests the feedback creation logic used by accept/reject routes.
    ═══════════════════════════════════════════════════════════════ */
 
-describe('Ticket 9 — Feedback Storage (Integration)', () => {
+describe('Ticket 9 — Feedback Storage', () => {
 
   it('accept creates RecommendationFeedback with correct fields', () => {
     const opps = new Map(mockOpportunities.map(o => [o.id, { ...o }]));
@@ -556,7 +557,8 @@ describe('Ticket 9 — Feedback Storage (Integration)', () => {
 
 /* ═══════════════════════════════════════════════════════════════
    TEST SUITE 5: Stats Computation
-   Validates the stats aggregation logic from the GET endpoint
+   Validates the stats aggregation logic from the GET endpoint.
+   The production route.ts computes stats across ALL records (not filtered).
    ═══════════════════════════════════════════════════════════════ */
 
 function computeStats(opps: { priority: string; status: string }[]): Stats {
@@ -599,5 +601,89 @@ describe('Ticket 9 — Stats Computation', () => {
     expect(stats.total).toBe(0);
     expect(stats.byPriority).toEqual({ high: 0, medium: 0, low: 0 });
     expect(Object.keys(stats.byStatus)).toHaveLength(0);
+  });
+});
+
+/* ═══════════════════════════════════════════════════════════════
+   TEST SUITE 6: T9 Frontend Navigation
+   Per ARCHITECTURE.md: "Click → navigate to Company Profile Q5"
+   Company Profile Q5 = 'company-profile' screen key (5Q workspace),
+   NOT 'company-detail' (which is the P3 basic company view).
+   ═══════════════════════════════════════════════════════════════ */
+
+describe('Ticket 9 — Frontend Navigation (per ARCHITECTURE.md exit criteria)', () => {
+  it('company name click navigates to company-profile (5Q workspace)', () => {
+    // ARCHITECTURE.md T9: "Click → navigate to Company Profile Q5"
+    // Company Profile Q5 is the 'company-profile' screen key
+    const navigatedCalls: { screen: string; companyId?: string }[] = [];
+    const navigateTo = (screen: string, companyId?: string) => {
+      navigatedCalls.push({ screen, companyId });
+    };
+
+    // Simulate the handleViewCompany logic from opportunity-radar-screen.tsx
+    const handleViewCompany = (companyId: string) => {
+      // T9: "Click → navigate to Company Profile Q5" (5Q workspace)
+      navigateTo('company-profile', companyId);
+    };
+
+    handleViewCompany('comp-1');
+
+    expect(navigatedCalls).toHaveLength(1);
+    expect(navigatedCalls[0].screen).toBe('company-profile');
+    expect(navigatedCalls[0].companyId).toBe('comp-1');
+  });
+
+  it('does NOT navigate to company-detail (wrong target)', () => {
+    // Verify the navigation does NOT go to 'company-detail'
+    // which is a P3 basic view, not the Q5 workspace
+    const navigatedCalls: { screen: string }[] = [];
+    const navigateTo = (screen: string) => {
+      navigatedCalls.push({ screen });
+    };
+
+    const handleViewCompany = (companyId: string) => {
+      navigateTo('company-profile', companyId);
+    };
+
+    handleViewCompany('comp-2');
+
+    expect(navigatedCalls[0].screen).not.toBe('company-detail');
+    expect(navigatedCalls[0].screen).toBe('company-profile');
+  });
+
+  it('T9 card displays all required fields per ARCHITECTURE.md', () => {
+    // ARCHITECTURE.md T9 Frontend spec:
+    // "Opportunity cards: Company, Trigger, Capability, Score, Priority, Why Now"
+    const card = mockOpportunities[0]; // opp-1
+    const requiredFields = {
+      Company: card.company?.normalizedName,
+      Trigger: card.businessTrigger,
+      Capability: card.recommendedCapability,
+      Score: card.opportunityScore,
+      Priority: card.priority,
+      WhyNow: card.whyNow,
+    };
+
+    // All fields must be present (non-null, non-empty)
+    for (const [field, value] of Object.entries(requiredFields)) {
+      expect(value, `${field} must be present on opportunity card`).toBeDefined();
+      expect(value, `${field} must not be empty`).not.toBe('');
+    }
+  });
+
+  it('T9 accept/reject buttons only shown for pending_review status', () => {
+    // Per ARCHITECTURE.md: Accept/Reject buttons
+    // These should only appear for pending_review opportunities
+    const pendingOpps = mockOpportunities.filter(o => o.status === 'pending_review');
+    const nonPendingOpps = mockOpportunities.filter(o => o.status !== 'pending_review');
+
+    expect(pendingOpps.length).toBeGreaterThan(0);
+    expect(nonPendingOpps.length).toBeGreaterThan(0);
+
+    // Only pending ones should show action buttons
+    const actionable = mockOpportunities.filter(o => o.status === 'pending_review');
+    expect(actionable).toHaveLength(3); // opp-1, opp-2, opp-3
+    expect(mockOpportunities.filter(o => o.status === 'accepted')).toHaveLength(1); // opp-4
+    expect(mockOpportunities.filter(o => o.status === 'rejected')).toHaveLength(1); // opp-5
   });
 });

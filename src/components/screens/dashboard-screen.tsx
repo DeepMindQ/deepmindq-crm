@@ -4,12 +4,12 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
-// recharts removed — engagement chart replaced with real aggregate stat panel (Phase 0.4)
 import {
   Building2, Users, FileText, Send, Mail, TrendingUp, TrendingDown,
   ChevronRight, Zap, UserPlus, Eye, MessageSquare, AlertTriangle,
   Sparkles, Brain, RefreshCw, Layers,
   Upload, GitBranch, MailPlus, Radar, Activity, Shield,
+  Target, ShieldAlert,
 } from 'lucide-react';
 import { useAppStore, type ViewId } from '@/lib/store';
 
@@ -18,6 +18,19 @@ import { useAppStore, type ViewId } from '@/lib/store';
    ═══════════════════════════════════════════════════ */
 const gold = 'var(--color-gold-dim)', goldLight = 'var(--color-gold)';
 const card = 'rgba(255, 255, 255, 0.85)', border = 'rgba(0, 0, 0, 0.08)';
+
+/* ═══════════════════════════════════════════════════
+   Typed API Envelope Unwrapping
+   Extracted outside component to avoid re-creation per render.
+   ═══════════════════════════════════════════════════ */
+function unwrap<T>(raw: unknown): T | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const obj = raw as Record<string, unknown>;
+  if (obj.success === true && obj.data !== undefined) return obj.data as T;
+  // If the response has no envelope (raw array/object), return as-is
+  if (Array.isArray(raw) || !('success' in obj)) return raw as T;
+  return undefined;
+}
 
 /* ═══════════════════════════════════════════════════
    Types
@@ -29,6 +42,7 @@ interface DashboardData {
   queuePending: number;
   repliesThisWeek: number;
   bouncesCount: number;
+  suppressionsCount: number;
   emailHealthDistribution: Record<string, number>;
 }
 
@@ -138,6 +152,14 @@ function fmtDetails(action: string, details?: string) {
   return action.replace(/_/g, ' ');
 }
 
+/** Insight type → color mapping */
+const INSIGHT_COLORS: Record<string, { dot: string; bg: string }> = {
+  positive: { dot: '#10B981', bg: 'rgba(16,185,129,0.10)' },
+  negative: { dot: '#EF4444', bg: 'rgba(239,68,68,0.10)' },
+  action:   { dot: '#3B82F6', bg: 'rgba(59,130,246,0.10)' },
+  neutral:  { dot: '#71717A', bg: 'rgba(113,113,122,0.10)' },
+};
+
 /* ═══════════════════════════════════════════════════
    Animated Counter
    ═══════════════════════════════════════════════════ */
@@ -193,8 +215,6 @@ function StatCard({ icon: Icon, label, value, suffix, trend, bc, delay }: {
   );
 }
 
-// ChartTip removed — no longer used after Phase 0.4 fake data cleanup
-
 /* ═══════════════════════════════════════════════════
    Quick Action Card
    ═══════════════════════════════════════════════════ */
@@ -227,16 +247,6 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   const nav = navigateTo || ((screen: string) => useAppStore.getState().setActiveView(screen as ViewId));
 
   /* ── Data queries ── */
-  /* ── Typed API envelope unwrapping ── */
-  function unwrap<T>(raw: unknown): T | undefined {
-    if (!raw || typeof raw !== 'object') return undefined;
-    const obj = raw as Record<string, unknown>;
-    if (obj.success === true && obj.data !== undefined) return obj.data as T;
-    // If the response has no envelope (raw array/object), return as-is
-    if (Array.isArray(raw) || !('success' in obj)) return raw as T;
-    return undefined;
-  }
-
   const { data: dashData, isLoading, isError: dashError, refetch: refetchDash } = useQuery({
     queryKey: ['dashboard'] as const,
     queryFn: (): Promise<DashboardData | undefined> => fetch('/api/dashboard').then(r => r.json()).then(d => unwrap<DashboardData>(d)),
@@ -280,7 +290,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     retry: false,
   });
 
-  const { data: dashStats } = useQuery({
+  const { data: dashStats, isError: statsError, refetch: refetchStats } = useQuery({
     queryKey: ['dashboard-stats'] as const,
     queryFn: (): Promise<DashboardStats | undefined> => fetch('/api/dashboard/stats').then(r => r.json()).then(d => unwrap<DashboardStats>(d)),
     staleTime: 60000,
@@ -316,57 +326,70 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
       </button>
     </div>
   );
+
   const totalLeads = Object.values(dd.contactsByStatus || {}).reduce((a: number, b: number) => a + b, 0);
-  const replied = dd.repliesThisWeek || 0;
   const sent = dd.contactsByStatus?.sent || 0;
   const queued = dd.queuePending || 0;
   const drafts = dd.draftsPendingReview || 0;
-  const replyRate = sent > 0 ? ((replied / sent) * 100).toFixed(1) : '0.0';
+  const bounces = dd.bouncesCount || 0;
+  const suppressions = dd.suppressionsCount || 0;
+
+  // Engagement metrics — contact-level status counts (not reply-table counts)
+  const repliedContacts = dd.contactsByStatus?.replied || 0;
+  const bouncedContacts = dd.contactsByStatus?.bounced || 0;
+  const replyRate = sent > 0 ? ((dd.repliesThisWeek || 0) / sent * 100).toFixed(1) : '0.0';
+
+  // Email health breakdown from emailHealthDistribution
+  const healthValid = dd.emailHealthDistribution?.valid || 0;
+  const healthRisky = dd.emailHealthDistribution?.risky || 0;
+  const healthInvalid = dd.emailHealthDistribution?.invalid || 0;
+  const healthTotal = healthValid + healthRisky + healthInvalid;
+  const healthPct = healthTotal > 0 ? Math.round((healthValid / healthTotal) * 100) : 0;
 
   // Pipeline funnel — each stage uses its own source from the dashboard API.
-  // totalLeads: sum of all contactsByStatus (contacts imported).
-  // drafts: drafts pending review (from DB count).
-  // queued: send queue pending/scheduled (from DB count).
-  // sent: contacts with 'sent' status.
-  // replied: replies received this week (from reply table).
   const funnelStages = [
     { label: 'Imported', count: totalLeads },
     { label: 'Drafted', count: drafts },
     { label: 'Queued', count: queued },
-    { label: 'Sent', count: dd.contactsByStatus?.sent || 0 },
-    { label: 'Replied', count: replied },
+    { label: 'Sent', count: sent },
+    { label: 'Replied', count: dd.repliesThisWeek || 0 },
   ];
   const funnelMax = Math.max(funnelStages[0].count, 1);
-
-  // Engagement snapshot — aggregate outreach metrics.
-  // sent: contacts with 'sent' status. replied: contacts with 'replied' status.
-  // bounced: from bounce count (separate table). replyRate: replied/sent ratio.
-  const repliedCount = dd.contactsByStatus?.replied || 0;
-  const bouncedCount = dd.bouncesCount || 0;
-  const engagementSummary = {
-    sent,
-    replied: repliedCount,
-    bounced: bouncedCount,
-    replyRate: sent > 0 ? ((repliedCount / sent) * 100).toFixed(1) : '0.0',
-  };
 
   const maxContacts = topCompanies.length > 0 ? Math.max(...topCompanies.map(c => c.contactCount)) : 1;
   const maxSegContacts = segments.length > 0 ? Math.max(...segments.map(s => s._count?.contacts || 0)) : 1;
 
-  /* ── Loading skeleton ── */
+  // Navigate to company detail — works with or without navigateTo prop
+  const goToCompany = (companyId: string) => {
+    useAppStore.getState().setSelectedCompanyId(companyId);
+    if (navigateTo) {
+      navigateTo('company-detail', companyId);
+    } else {
+      useAppStore.getState().setActiveView('company-detail');
+    }
+  };
+
+  /* ── Loading skeleton — matches actual layout section by section ── */
   if (isLoading) return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
+      {/* AI Briefing skeleton */}
+      <Skeleton className="h-40 rounded-xl" />
+      {/* KPI Cards — 6 columns, 6 items */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
       </div>
+      {/* Quick Actions — 6 columns */}
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
         {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
       </div>
+      {/* Pipeline Funnel */}
       <Skeleton className="h-48 rounded-xl" />
+      {/* Engagement + Top Companies */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <Skeleton className="h-72 rounded-xl lg:col-span-3" />
         <Skeleton className="h-72 rounded-xl lg:col-span-2" />
       </div>
+      {/* Activity + Segments */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         <Skeleton className="h-72 rounded-xl" />
         <Skeleton className="h-72 rounded-xl" />
@@ -450,15 +473,18 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
               {(aiBriefing.keyInsights?.length ?? 0) > 0 && (
                 <div className="space-y-1.5">
                   <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider">Key Insights</p>
-                  {aiBriefing.keyInsights!.slice(0, 3).map((ins, i: number) => (
-                    <div key={i} className="flex items-start gap-1.5">
-                      <ChevronRight className="w-3.5 h-3.5 mt-0.5 shrink-0" style={{ color: gold }} />
-                      <div className="min-w-0">
-                        <span className="text-xs font-semibold text-foreground">{ins.title}</span>
-                        <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{ins.description}</p>
+                  {aiBriefing.keyInsights!.slice(0, 3).map((ins, i: number) => {
+                    const typeStyle = INSIGHT_COLORS[ins.type] || INSIGHT_COLORS.neutral;
+                    return (
+                      <div key={i} className="flex items-start gap-1.5">
+                        <div className="w-2 h-2 rounded-full mt-1.5 shrink-0" style={{ background: typeStyle.dot }} />
+                        <div className="min-w-0">
+                          <span className="text-xs font-semibold text-foreground">{ins.title}</span>
+                          <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{ins.description}</p>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
               {(aiBriefing.predictions?.length ?? 0) > 0 && (
@@ -473,6 +499,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                           <span style={{ color: tc, fontWeight: 700, fontSize: 12 }}>{arrow}</span>
                           <span className="text-[11px] font-medium text-foreground">{p.metric}</span>
                           <span className="text-[11px] text-muted-foreground tabular-nums">{p.current}\u2192{p.predicted}</span>
+                          <span className="text-[10px] text-muted-foreground/60 tabular-nums">{p.confidence}%</span>
                         </div>
                       );
                     })}
@@ -484,13 +511,25 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
         </motion.div>
       )}
 
-      {/* ═══════ 1. KPI CARDS ═══════ */}
+      {/* ═══════ 1. KPI CARDS — with today's deltas as trends ═══════ */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard icon={Building2} label="Total Companies" value={dd.totalCompanies || 0} bc="var(--color-gold)" delay={0} />
         <StatCard icon={Users} label="Active Contacts" value={totalLeads} bc="#3B82F6" delay={0.06} />
-        <StatCard icon={Radar} label="Active Signals" value={dashStats?.signals ?? 0} bc="#8B5CF6" delay={0.12} />
-        <StatCard icon={Brain} label="Avg Intel Score" value={dashStats?.avgIntelligenceScore ?? 0} suffix="/100" bc="#06B6D4" delay={0.18} />
-        <StatCard icon={FileText} label="Pending Drafts" value={drafts} bc="#F59E0B" delay={0.24} />
+        <StatCard
+          icon={Radar} label="Active Signals"
+          value={dashStats?.signals ?? 0} bc="#8B5CF6" delay={0.12}
+          trend={dashStats?.today?.newSignals ? { value: dashStats.today.newSignals, up: true } : undefined}
+        />
+        <StatCard
+          icon={Target} label="Opportunities"
+          value={dashStats?.opportunities ?? 0} bc="#06B6D4" delay={0.18}
+          trend={dashStats?.today?.newOpportunities ? { value: dashStats.today.newOpportunities, up: true } : undefined}
+        />
+        <StatCard
+          icon={ShieldAlert} label="Risks"
+          value={dashStats?.risks ?? 0} bc="#EF4444" delay={0.24}
+          trend={dashStats?.today?.newRisks ? { value: dashStats.today.newRisks, up: false } : undefined}
+        />
         <StatCard icon={Mail} label="Reply Rate" value={replyRate} suffix="%" bc="#A855F7" delay={0.30} />
       </div>
 
@@ -543,14 +582,14 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
         </div>
       </motion.div>
 
-      {/* ═══════ 4. ENGAGEMENT SNAPSHOT (60%) + TOP COMPANIES (40%) ═══════ */}
+      {/* ═══════ 4. ENGAGEMENT OVERVIEW (60%) + TOP COMPANIES (40%) ═══════ */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
         <motion.div className="lg:col-span-3 rounded-xl overflow-hidden" style={glassPanel}
           initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, delay: 0.3 }}>
           <div className="px-5 pt-5 pb-1 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-foreground tracking-tight">Engagement Overview</h2>
-              <p className="text-[11px] text-muted-foreground mt-0.5">Aggregate email outreach metrics</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Email outreach metrics and email health</p>
             </div>
             <div className="flex items-center gap-4 text-[11px] font-medium">
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-800" />Sent</span>
@@ -558,22 +597,53 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: '#EF4444' }} />Bounced</span>
             </div>
           </div>
-          <div className="px-5 pb-5 pt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Sent</p>
-              <p className="text-2xl font-bold text-foreground tabular-nums mt-1">{engagementSummary.sent}</p>
+          <div className="px-5 pb-5 pt-3">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+              <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Sent</p>
+                <p className="text-2xl font-bold text-foreground tabular-nums mt-1">{sent}</p>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Replies (7d)</p>
+                <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: '#10B981' }}>{dd.repliesThisWeek || 0}</p>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Bounces</p>
+                <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: '#EF4444' }}>{bounces}</p>
+              </div>
+              <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Reply Rate</p>
+                <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: gold }}>{replyRate}%</p>
+              </div>
             </div>
-            <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Replied</p>
-              <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: '#10B981' }}>{engagementSummary.replied}</p>
-            </div>
-            <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Bounced</p>
-              <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: '#EF4444' }}>{engagementSummary.bounced}</p>
-            </div>
-            <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
-              <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Reply Rate</p>
-              <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: gold }}>{engagementSummary.replyRate}%</p>
+            {/* Email health breakdown */}
+            <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.015)', border: '1px solid rgba(0,0,0,0.05)' }}>
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Email Health</p>
+                <span className="text-[11px] font-bold tabular-nums" style={{ color: healthPct >= 80 ? '#10B981' : healthPct >= 50 ? '#F59E0B' : '#EF4444' }}>{healthPct}% valid</span>
+              </div>
+              <div className="flex gap-1 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.04)' }}>
+                {healthValid > 0 && (
+                  <motion.div className="h-full rounded-l-full" style={{ background: '#10B981' }}
+                    initial={{ width: 0 }} animate={{ width: `${(healthValid / Math.max(healthTotal, 1)) * 100}%` }}
+                    transition={{ duration: 0.8, delay: 0.4 }} />
+                )}
+                {healthRisky > 0 && (
+                  <motion.div className="h-full" style={{ background: '#F59E0B' }}
+                    initial={{ width: 0 }} animate={{ width: `${(healthRisky / Math.max(healthTotal, 1)) * 100}%` }}
+                    transition={{ duration: 0.8, delay: 0.5 }} />
+                )}
+                {healthInvalid > 0 && (
+                  <motion.div className="h-full rounded-r-full" style={{ background: '#EF4444' }}
+                    initial={{ width: 0 }} animate={{ width: `${(healthInvalid / Math.max(healthTotal, 1)) * 100}%` }}
+                    transition={{ duration: 0.8, delay: 0.6 }} />
+                )}
+              </div>
+              <div className="flex items-center gap-4 mt-1.5 text-[10px] text-muted-foreground">
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: '#10B981' }} />Valid {healthValid}</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: '#F59E0B' }} />Risky {healthRisky}</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: '#EF4444' }} />Invalid {healthInvalid}</span>
+              </div>
             </div>
           </div>
         </motion.div>
@@ -590,7 +660,13 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
               whileHover={{ x: 2 }} onClick={() => nav('companies')}>View All <ChevronRight className="w-3 h-3" /></motion.button>
           </div>
           <div className="flex-1 px-5 pb-4 max-h-80 overflow-y-auto custom-scrollbar">
-            {topCompanies.length === 0 ? (
+            {companiesError ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-2"><AlertTriangle className="w-5 h-5 text-red-400" /></div>
+                <p className="text-sm text-muted-foreground">Failed to load companies</p>
+                <button onClick={() => refetchCompanies()} className="mt-2 text-xs font-medium px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: gold }}><RefreshCw className="w-3 h-3 inline mr-1" />Retry</button>
+              </div>
+            ) : topCompanies.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
                   className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
@@ -604,7 +680,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                 {topCompanies.map((co, i) => (
                   <motion.button key={co.id} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100/50 transition-colors text-left group"
                     initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.4 + i * 0.05 }}
-                    onClick={() => { useAppStore.getState().setSelectedCompanyId(co.id); navigateTo?.('company-detail', co.id); }}>
+                    onClick={() => goToCompany(co.id)}>
                     <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold" style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
                       {i + 1}
                     </div>
@@ -702,7 +778,8 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             ) : segments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <div className="w-12 h-12 rounded-xl bg-gray-100/50 flex items-center justify-center mb-3"><Layers className="w-6 h-6 text-muted-foreground/40" /></div>
-                <p className="text-sm text-muted-foreground">Loading segments...</p>
+                <p className="text-sm font-medium text-foreground">No segments yet</p>
+                <p className="text-xs text-muted-foreground mt-1">Create segments to organize your contacts</p>
               </div>
             ) : (
               segments.map((seg, i) => (

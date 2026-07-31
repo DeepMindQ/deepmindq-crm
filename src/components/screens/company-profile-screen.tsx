@@ -172,8 +172,10 @@ function SectionError({ message, onRetry }: { message: string; onRetry: () => vo
   )
 }
 
-/** Narrative divider between Q sections — Design Bible §1.5 */
-function NarrativeDivider({ label, subtitle, color }: { label: string; subtitle: string; color: string }) {
+/** Narrative divider between Q sections — Design Bible §1.5
+ *  These are chapter breaks in an intelligence story.
+ *  The transition text provides emotional pacing between cognitive stages. */
+function NarrativeDivider({ label, subtitle, color, transition }: { label: string; subtitle: string; color: string; transition?: string }) {
   const colorMap: Record<string, { text: string; icon: string; bg: string }> = {
     blue: { text: 'text-blue-700', icon: 'text-blue-500', bg: 'bg-blue-50' },
     violet: { text: 'text-violet-700', icon: 'text-violet-500', bg: 'bg-violet-50' },
@@ -183,14 +185,19 @@ function NarrativeDivider({ label, subtitle, color }: { label: string; subtitle:
   }
   const c = colorMap[color] || colorMap.blue
   return (
-    <div className="flex items-center gap-3 py-2">
-      <div className="h-px flex-1 bg-gray-200" />
-      <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${c.bg}`}>
-        <p className={`text-xs font-bold uppercase tracking-wider ${c.text}`}>{label}</p>
-        <span className="text-gray-300">·</span>
-        <p className="text-[10px] text-gray-500">{subtitle}</p>
+    <div className="space-y-1.5 py-2">
+      <div className="flex items-center gap-3">
+        <div className="h-px flex-1 bg-gray-200" />
+        <div className={`flex items-center gap-2 px-3 py-1.5 rounded-full ${c.bg}`}>
+          <p className={`text-xs font-bold uppercase tracking-wider ${c.text}`}>{label}</p>
+          <span className="text-gray-300">·</span>
+          <p className="text-[10px] text-gray-500">{subtitle}</p>
+        </div>
+        <div className="h-px flex-1 bg-gray-200" />
       </div>
-      <div className="h-px flex-1 bg-gray-200" />
+      {transition && (
+        <p className="text-center text-[11px] text-gray-400 italic">{transition}</p>
+      )}
     </div>
   )
 }
@@ -1470,6 +1477,54 @@ export default function CompanyProfileScreen() {
 
   // ── Handlers ──
 
+  // ═══════════════════════════════════════════════════════════════
+  // GAP FIX T7-KB: Keyboard shortcuts (Design Bible §5.1)
+  // 1-5: Jump to question section
+  // R:   Refresh intelligence
+  // Cmd/Ctrl+E: Trigger enrichment
+  // ═══════════════════════════════════════════════════════════════
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    // Skip if user is typing in an input/textarea/select
+    const tag = (e.target as HTMLElement)?.tagName
+    if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') return
+    // Skip if any dialog is open
+    if (noteOpen || contactOpen || oppOpen || statusConfirmOpen || editCompanyOpen || !!deleteNoteId) return
+
+    // 1-5: Jump to Q section
+    if (e.key >= '1' && e.key <= '5' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault()
+      const sectionMap: Record<string, string> = {
+        '1': 'q1-what-changed',
+        '2': 'q2-why-matters',
+        '3': 'q3-who-engage',
+        '4': 'q4-what-say',
+        '5': 'q5-what-do',
+      }
+      const target = document.getElementById(sectionMap[e.key])
+      if (target) target.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      return
+    }
+
+    // R: Refresh intelligence
+    if (e.key === 'r' && !e.metaKey && !e.ctrlKey && !e.altKey) {
+      e.preventDefault()
+      refetchIntel()
+      return
+    }
+
+    // Cmd/Ctrl+E: Trigger enrichment
+    if (e.key === 'e' && (e.metaKey || e.ctrlKey)) {
+      e.preventDefault()
+      if (!generateResearch.isPending) generateResearch.mutate()
+      return
+    }
+  }, [noteOpen, contactOpen, oppOpen, statusConfirmOpen, editCompanyOpen, deleteNoteId, refetchIntel, generateResearch])
+
+  useEffect(() => {
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [handleKeyDown])
+
   const handleOppStatusCycle = (oppId: string, currentStatus: string) => {
     const currentIdx = OPP_STATUS_CYCLE.indexOf(currentStatus as typeof OPP_STATUS_CYCLE[number])
     const nextIdx = (currentIdx + 1) % OPP_STATUS_CYCLE.length
@@ -1957,10 +2012,11 @@ export default function CompanyProfileScreen() {
           <Shield className="size-3.5 inline mr-1" />
           Health & Validation
         </button>
-        {/* GAP FIX 12: Keyboard shortcut hint */}
-        <div className="ml-2 hidden md:flex items-center gap-1 text-[10px] text-gray-400">
-          <Keyboard className="size-3" />
-          <span>1-5</span>
+        {/* GAP FIX T7-KB: Keyboard shortcut hints (Design Bible §5.1) */}
+        <div className="ml-2 hidden md:flex items-center gap-2 text-[10px] text-gray-400">
+          <span className="flex items-center gap-0.5"><Keyboard className="size-3" />1-5</span>
+          <span className="flex items-center gap-0.5">R refresh</span>
+          <span className="flex items-center gap-0.5">⌘E enrich</span>
         </div>
       </div>
 
@@ -2004,7 +2060,7 @@ export default function CompanyProfileScreen() {
             </div>
           ) : null}
 
-          {/* GAP FIX 15: Narrative Dividers + Q sections */}
+          {/* Narrative Dividers + Q sections — Design Bible §1.5 */}
           <NarrativeDivider label="Q1" subtitle="What Changed?" color="blue" />
           <div className="rounded-xl bg-gradient-to-br from-blue-50/40 to-cyan-50/20 border border-blue-100/60 p-6">
             <Q1WhatChanged
@@ -2016,7 +2072,7 @@ export default function CompanyProfileScreen() {
             />
           </div>
 
-          <NarrativeDivider label="Q2" subtitle="Why Does It Matter?" color="violet" />
+          <NarrativeDivider label="Q2" subtitle="Why Does It Matter?" color="violet" transition="WHY THIS MATTERS — Understanding the strategic impact" />
           <div className="rounded-xl bg-gradient-to-br from-violet-50/40 to-purple-50/20 border border-violet-100/60 p-6">
             <Q2WhyMatters
               brief={intelData?.brief}
@@ -2028,7 +2084,7 @@ export default function CompanyProfileScreen() {
             />
           </div>
 
-          <NarrativeDivider label="Q3" subtitle="Who Should We Engage?" color="emerald" />
+          <NarrativeDivider label="Q3" subtitle="Who Should We Engage?" color="emerald" transition="WHO TO APPROACH — Mapping the buying committee" />
           <div className="rounded-xl bg-gradient-to-br from-emerald-50/40 to-teal-50/20 border border-emerald-100/60 p-6">
             <Q3WhoEngage
               contacts={intelContacts}
@@ -2041,7 +2097,7 @@ export default function CompanyProfileScreen() {
             />
           </div>
 
-          <NarrativeDivider label="Q4" subtitle="What Should We Say?" color="amber" />
+          <NarrativeDivider label="Q4" subtitle="What Should We Say?" color="amber" transition="WHAT TO SAY — Preparing the right message" />
           <div className="rounded-xl bg-gradient-to-br from-amber-50/40 to-yellow-50/20 border border-amber-100/60 p-6">
             <Q4WhatSay
               brief={intelData?.brief}
@@ -2053,7 +2109,7 @@ export default function CompanyProfileScreen() {
             />
           </div>
 
-          <NarrativeDivider label="Q5" subtitle="What Should We Do?" color="rose" />
+          <NarrativeDivider label="Q5" subtitle="What Should We Do?" color="rose" transition="WHAT TO DO — Turning intelligence into action" />
           <div className="rounded-xl bg-gradient-to-br from-rose-50/40 to-pink-50/20 border border-rose-100/60 p-6">
             <Q5WhatDo
               actions={intelData?.actions}

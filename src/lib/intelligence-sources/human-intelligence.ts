@@ -32,6 +32,7 @@ export interface InboxFilters {
   status?: string;
   submittedBy?: string;
   priority?: string;
+  category?: string;
   search?: string;
   page?: number;
   limit?: number;
@@ -242,6 +243,7 @@ export async function getInboxItems(
   if (filters.status) where.status = filters.status;
   if (filters.submittedBy) where.submittedBy = filters.submittedBy;
   if (filters.priority) where.priority = filters.priority;
+  if (filters.category) where.category = filters.category;
   if (filters.search) {
     where.OR = [
       { content: { contains: filters.search, mode: 'insensitive' } },

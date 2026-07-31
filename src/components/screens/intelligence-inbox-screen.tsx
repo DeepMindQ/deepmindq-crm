@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import {
   Inbox, CheckCircle, XCircle, ArrowRight,
   AlertTriangle, Tag, Loader2,
-  Search, CheckCheck, Trash2, Clock, Eye,
+  Search, CheckCheck, Trash2, Clock, Eye, Target,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -93,7 +93,7 @@ function parseTags(tags: string | null | undefined): string[] {
    Inbox Item Card
    ═══════════════════════════════════════════════════════════════ */
 function InboxItemCard({
-  item, busy, onReview, onConvert, onDismiss, onInvestigate, onExpand, expanded, selected,
+  item, busy, onReview, onConvert, onDismiss, onInvestigate, onCreateOpportunity, onExpand, expanded, selected,
   onSelect,
 }: {
   item: InboxItem;
@@ -102,6 +102,7 @@ function InboxItemCard({
   onConvert: (id: string) => void;
   onDismiss: (id: string) => void;
   onInvestigate: (companyId: string) => void;
+  onCreateOpportunity: (companyId: string) => void;
   onExpand: (id: string) => void;
   expanded: boolean;
   selected: boolean;
@@ -214,6 +215,12 @@ function InboxItemCard({
                     <Eye className="h-3 w-3" />
                     Investigate
                   </Button>
+                  <Button size="sm" variant="outline"
+                    className="h-7 text-xs text-purple-600 border-purple-200 hover:bg-purple-50 gap-1"
+                    disabled={busy} onClick={() => onCreateOpportunity(item.companyId)}>
+                    <Target className="h-3 w-3" />
+                    Create Opportunity
+                  </Button>
                 </>
               )}
               {item.status === 'approved' && (
@@ -251,6 +258,7 @@ export default function IntelligenceInboxScreen() {
   const [page, setPage] = useState(1);
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [actionInProgress, setActionInProgress] = useState<Set<string>>(new Set());
@@ -276,6 +284,7 @@ export default function IntelligenceInboxScreen() {
       params.set('limit', '20');
       if (statusFilter !== 'all') params.set('status', statusFilter);
       if (priorityFilter !== 'all') params.set('priority', priorityFilter);
+      if (categoryFilter !== 'all') params.set('category', categoryFilter);
       if (searchQuery.trim()) params.set('search', searchQuery.trim());
       const res = await fetch(`/api/g-intel-acquisition/inbox?${params}`);
       if (!res.ok) throw new Error('Failed');
@@ -287,10 +296,10 @@ export default function IntelligenceInboxScreen() {
       setHasMore(newItems.length >= 20);
     } catch { toast.error('Failed to load inbox items'); }
     finally { setLoading(false); setLoadingMore(false); }
-  }, [statusFilter, priorityFilter, searchQuery]);
+  }, [statusFilter, priorityFilter, categoryFilter, searchQuery]);
 
   useEffect(() => { fetchStats(); }, [fetchStats]);
-  useEffect(() => { setPage(1); fetchItems(1, false); }, [statusFilter, priorityFilter, searchQuery]);
+  useEffect(() => { setPage(1); fetchItems(1, false); }, [statusFilter, priorityFilter, categoryFilter, searchQuery]);
 
   const handleReview = async (id: string, action: 'approve' | 'reject') => {
     setActionInProgress(prev => new Set(prev).add(id));
@@ -339,7 +348,20 @@ export default function IntelligenceInboxScreen() {
 
   const handleBatchDismiss = async () => {
     const pendingSelected = items.filter(i => selectedIds.has(i.id) && i.status === 'pending');
-    for (const item of pendingSelected) await handleDismiss(item.id);
+    if (pendingSelected.length === 0) return;
+    try {
+      const res = await fetch('/api/g-intel-acquisition/inbox/batch-dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: pendingSelected.map(i => i.id), reviewerId: 'current-user' }),
+      });
+      if (!res.ok) throw new Error();
+      const envelope = await res.json();
+      const result = envelope.data ?? envelope;
+      if (result.dismissed > 0) toast.success(`Dismissed ${result.dismissed} items`);
+      if (result.failed > 0) toast.warning(`${result.failed} items could not be dismissed`);
+      fetchItems(1, false); fetchStats();
+    } catch { toast.error('Failed to batch dismiss'); }
     setSelectedIds(new Set());
   };
 
@@ -349,13 +371,29 @@ export default function IntelligenceInboxScreen() {
       toast.info('No low-severity pending items to dismiss');
       return;
     }
-    for (const item of lowPendingItems) await handleDismiss(item.id);
-    toast.success(`Dismissed ${lowPendingItems.length} low-severity items`);
+    try {
+      const res = await fetch('/api/g-intel-acquisition/inbox/batch-dismiss', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: lowPendingItems.map(i => i.id), reviewerId: 'current-user' }),
+      });
+      if (!res.ok) throw new Error();
+      const envelope = await res.json();
+      const result = envelope.data ?? envelope;
+      toast.success(`Dismissed ${result.dismissed} low-severity items`);
+      if (result.failed > 0) toast.warning(`${result.failed} items could not be dismissed`);
+      fetchItems(1, false); fetchStats();
+    } catch { toast.error('Failed to dismiss low-severity items'); }
   };
 
   const handleInvestigate = (companyId: string) => {
     setSelectedCompanyId(companyId);
     setActiveView('company-workspace');
+  };
+
+  const handleCreateOpportunity = (companyId: string) => {
+    setSelectedCompanyId(companyId);
+    setActiveView('opportunity-radar');
   };
 
   const toggleExpand = (id: string) => {
@@ -429,6 +467,25 @@ export default function IntelligenceInboxScreen() {
               <SelectItem value="critical">Critical</SelectItem>
             </SelectContent>
           </Select>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[140px] h-9 text-xs border-slate-200"><SelectValue placeholder="Category" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="Strategy">Strategy</SelectItem>
+              <SelectItem value="Products">Products</SelectItem>
+              <SelectItem value="Technology">Technology</SelectItem>
+              <SelectItem value="Leadership">Leadership</SelectItem>
+              <SelectItem value="Opportunities">Opportunities</SelectItem>
+              <SelectItem value="Stakeholders">Stakeholders</SelectItem>
+              <SelectItem value="Conversations">Conversations</SelectItem>
+              <SelectItem value="Platforms">Platforms</SelectItem>
+              <SelectItem value="Architecture">Architecture</SelectItem>
+              <SelectItem value="Patents">Patents</SelectItem>
+              <SelectItem value="Competitors">Competitors</SelectItem>
+              <SelectItem value="Partnerships">Partnerships</SelectItem>
+              <SelectItem value="Market">Market</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
 
         {/* Batch actions — per T10 spec: "Batch actions (dismiss all low-severity)" */}
@@ -483,6 +540,7 @@ export default function IntelligenceInboxScreen() {
               onConvert={handleConvert}
               onDismiss={handleDismiss}
               onInvestigate={handleInvestigate}
+              onCreateOpportunity={handleCreateOpportunity}
               onExpand={toggleExpand}
               expanded={expandedIds.has(item.id)}
               selected={selectedIds.has(item.id)}

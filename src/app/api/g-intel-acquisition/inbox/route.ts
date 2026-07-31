@@ -18,6 +18,11 @@ import {
 
 const VALID_STATUSES = ['pending', 'approved', 'rejected', 'converted'];
 const VALID_PRIORITIES = ['low', 'normal', 'high', 'critical'];
+const VALID_CATEGORIES = [
+  'Strategy', 'Products', 'Technology', 'Leadership', 'Opportunities',
+  'Stakeholders', 'Conversations', 'Platforms', 'Architecture', 'Patents',
+  'Competitors', 'Partnerships', 'Market',
+];
 
 export async function GET(request: NextRequest) {
   try {
@@ -27,6 +32,7 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(100, Math.max(1, safeInt(searchParams.get('limit'), 20, 1)));
     const status = searchParams.get('status');
     const priority = searchParams.get('priority');
+    const category = searchParams.get('category');
     const companyId = searchParams.get('companyId');
     const search = searchParams.get('search');
 
@@ -34,6 +40,7 @@ export async function GET(request: NextRequest) {
     const filters: Record<string, unknown> = { page, limit };
     if (status && VALID_STATUSES.includes(status)) filters.status = status;
     if (priority && VALID_PRIORITIES.includes(priority)) filters.priority = priority;
+    if (category && VALID_CATEGORIES.includes(category)) filters.category = category;
     if (companyId) filters.companyId = companyId;
     if (search && search.trim()) filters.search = search.trim();
 

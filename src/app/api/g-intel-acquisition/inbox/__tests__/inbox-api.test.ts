@@ -181,6 +181,38 @@ describe('GET /api/g-intel-acquisition/inbox', () => {
     expect(res.status).toBe(500)
     expect(json.success).toBe(false)
   })
+
+  it('filters by category query param', async () => {
+    const { GET } = await import('../route')
+
+    mockGetInboxItems.mockResolvedValue({ items: [], total: 0 })
+    mockGetInboxStats.mockResolvedValue({ byStatus: {}, byPriority: {}, total: 0 })
+
+    const req = new Request('http://localhost/api/g-intel-acquisition/inbox?category=Strategy')
+    const res = await GET(req as any)
+
+    expect(res.status).toBe(200)
+    expect(mockGetInboxItems).toHaveBeenCalledWith(
+      expect.objectContaining({
+        category: 'Strategy',
+      }),
+    )
+  })
+
+  it('ignores invalid category values', async () => {
+    const { GET } = await import('../route')
+
+    mockGetInboxItems.mockResolvedValue({ items: [], total: 0 })
+    mockGetInboxStats.mockResolvedValue({ byStatus: {}, byPriority: {}, total: 0 })
+
+    const req = new Request('http://localhost/api/g-intel-acquisition/inbox?category=InvalidCategory')
+    const res = await GET(req as any)
+
+    expect(res.status).toBe(200)
+    expect(mockGetInboxItems).toHaveBeenCalledWith(
+      expect.not.objectContaining({ category: 'InvalidCategory' }),
+    )
+  })
 })
 
 // ═══════════════════════════════════════════════════════════════

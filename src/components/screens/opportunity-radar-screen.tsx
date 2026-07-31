@@ -1,518 +1,713 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useMemo, useEffect } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
-  Radar, Crosshair, Sparkles, ChevronDown, ChevronUp,
-  UserCheck, Flame, Sun, Droplets, Eye, Building2,
-  MessageSquare, BarChart3, RefreshCw, Cpu, Cloud, Database,
-  AlertCircle, Brain,
+  Radar, Target, Building2, Sparkles, ChevronRight,
+  RefreshCw, Filter, X, Search, ArrowRight,
+  CheckCircle2, XCircle, Loader2, AlertCircle,
+  Flame, TrendingUp, Minus, Eye, MessageSquare,
+  LucideIcon,
 } from 'lucide-react';
-import { PageTransition, AnimatedCounter, EmptyState } from '@/components/ui/animated-components';
-import { Badge } from '@/components/ui/badge';
+import { PageTransition, EmptyState } from '@/components/ui/animated-components';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
+import { ErrorState } from '@/components/enterprise/ErrorState';
+import { cn } from '@/lib/utils';
 
-/* ═══════════════════════════════════════════════════
-   Types
-   ═══════════════════════════════════════════════════ */
-interface Opportunity {
-  companyName: string;
+/* ═══════════════════════════════════════════════════════════════
+   Types — aligned with OpportunityRecommendation schema + T9 API contract
+   ═══════════════════════════════════════════════════════════════ */
+
+interface CapabilityMatchNested {
+  id: string;
   matchScore: number;
-  opportunityType: string;
+  reason: string;
+  salesAngle?: string | null;
+  capability: { id: string; title: string; category?: string | null };
+}
+
+interface OpportunityItem {
+  id: string;
+  companyId: string;
+  signalId: string;
+  capabilityMatchId: string;
+  opportunityTitle: string;
+  businessTrigger: string;
   whyNow: string;
-  relevantCapability: string;
-  targetPersona: string;
-  confidence: number;
-  reasoning: string;
+  businessProblem: string;
+  recommendedCapability: string;
+  recommendedStakeholders: string;
+  suggestedConversation: string;
+  evidenceIds: string;
+  confidenceScore: number;
+  freshnessScore: number;
+  matchScore: number;
+  opportunityScore: number;
+  priority: string;
+  status: string;
+  rejectionReason?: string | null;
+  rejectionFeedback?: string | null;
+  reviewedAt?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  company?: { id: string; normalizedName: string; industry?: string | null; sizeRange?: string | null };
+  signal?: { id: string; signalType: string; title: string; severity: string };
+  capabilityMatch?: CapabilityMatchNested;
 }
 
-interface Distribution {
-  hot: number;
-  warm: number;
-  developing: number;
-  monitoring: number;
+interface Stats {
+  total: number;
+  byPriority: { high: number; medium: number; low: number };
+  byStatus: Record<string, number>;
 }
 
-interface APIResponse {
-  opportunities: Opportunity[];
-  companiesScanned: number;
-  distribution: Distribution;
+interface OpportunitiesResponse {
+  opportunities: OpportunityItem[];
+  stats: Stats;
+  pagination: {
+    page: number;
+    pageSize: number;
+    total: number;
+    totalPages: number;
+  };
 }
 
-/* ═══════════════════════════════════════════════════
-   Constants
-   ═══════════════════════════════════════════════════ */
-const TYPE_STYLES: Record<string, { bg: string; text: string; icon: React.ComponentType<{ className?: string }> }> = {
-  'AI Automation': { bg: 'bg-purple-50', text: 'text-purple-700', icon: Cpu },
-  'Cloud Modernization': { bg: 'bg-blue-50', text: 'text-blue-700', icon: Cloud },
-  'Data Analytics': { bg: 'bg-emerald-50', text: 'text-emerald-700', icon: Database },
-  'Digital Transformation': { bg: 'bg-amber-50', text: 'text-amber-700', icon: RefreshCw },
+/* ═══════════════════════════════════════════════════════════════
+   Priority / Status / Severity Config — per T9 spec enums
+   ═══════════════════════════════════════════════════════════════ */
+
+const priorityConfig: Record<string, {
+  label: string; icon: LucideIcon; color: string; badge: string; order: number;
+}> = {
+  high:   { label: 'High',   icon: Flame,      badge: 'bg-red-100 text-red-700 border-red-200',      color: 'text-red-600',   order: 0 },
+  medium: { label: 'Medium', icon: TrendingUp,  badge: 'bg-amber-100 text-amber-700 border-amber-200', color: 'text-amber-600', order: 1 },
+  low:    { label: 'Low',    icon: Minus,       badge: 'bg-slate-100 text-slate-600 border-slate-200', color: 'text-slate-500', order: 2 },
 };
 
-const DISTRIBUTION_TIERS = [
-  { key: 'hot' as const, tier: 'Hot', range: '≥80%', color: '#DC2626', icon: Flame },
-  { key: 'warm' as const, tier: 'Warm', range: '60–79%', color: '#D97706', icon: Sun },
-  { key: 'developing' as const, tier: 'Developing', range: '40–59%', color: '#2563EB', icon: Droplets },
-  { key: 'monitoring' as const, tier: 'Monitoring', range: '<40%', color: '#9CA3AF', icon: Eye },
+const statusConfig: Record<string, { label: string; color: string }> = {
+  pending_review: { label: 'Pending Review', color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  accepted:       { label: 'Accepted',       color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  rejected:       { label: 'Rejected',       color: 'bg-red-100 text-red-700 border-red-200' },
+  monitored:      { label: 'Monitored',      color: 'bg-violet-100 text-violet-700 border-violet-200' },
+};
+
+const REJECTION_REASONS = [
+  { value: 'WRONG_TIMING', label: 'Wrong Timing' },
+  { value: 'EXISTING_RELATIONSHIP', label: 'Existing Relationship' },
+  { value: 'NOT_RELEVANT', label: 'Not Relevant' },
+  { value: 'LOW_CONFIDENCE', label: 'Low Confidence' },
+  { value: 'NO_BUDGET', label: 'No Budget' },
+  { value: 'OTHER', label: 'Other' },
 ];
 
-const FILTERS = [
-  { key: 'all', label: 'All' },
-  { key: 'high', label: 'High Match' },
-  { key: 'recent', label: 'Recently Detected' },
-];
+/* ═══════════════════════════════════════════════════════════════
+   Utilities
+   ═══════════════════════════════════════════════════════════════ */
 
-/* ═══════════════════════════════════════════════════
-   Helpers
-   ═══════════════════════════════════════════════════ */
-function scoreColor(s: number) {
-  return s >= 80 ? '#059669' : s >= 60 ? '#D97706' : '#DC2626';
-}
-function scoreLabel(s: number) {
-  return s >= 80 ? 'Hot' : s >= 60 ? 'Warm' : s >= 40 ? 'Developing' : 'Monitoring';
-}
-function getTypeStyle(type: string) {
-  return TYPE_STYLES[type] ?? TYPE_STYLES['Digital Transformation'];
+function unwrap<T>(raw: unknown): T | undefined {
+  if (!raw || typeof raw !== 'object') return undefined;
+  const obj = raw as Record<string, unknown>;
+  if (obj.success === true && obj.data !== undefined) return obj.data as T;
+  if (Array.isArray(raw) || !('success' in obj)) return raw as T;
+  return undefined;
 }
 
-/* ═══════════════════════════════════════════════════
-   Loading Skeleton
-   ═══════════════════════════════════════════════════ */
-function LoadingSkeleton() {
+function formatTimeAgo(dateStr: string): string {
+  const now = new Date();
+  const date = new Date(dateStr);
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  const diffHr = Math.floor(diffMin / 60);
+  if (diffHr < 24) return `${diffHr}h ago`;
+  const diffDay = Math.floor(diffHr / 24);
+  if (diffDay < 30) return `${diffDay}d ago`;
+  return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Reject Modal — T9: "Accept/Reject buttons with feedback form"
+   ═══════════════════════════════════════════════════════════════ */
+
+function RejectModal({ opportunity, onConfirm, onCancel }: {
+  opportunity: OpportunityItem;
+  onConfirm: (reason: string, feedback: string) => void;
+  onCancel: () => void;
+}) {
+  const [reason, setReason] = useState('');
+  const [feedback, setFeedback] = useState('');
+
   return (
-    <PageTransition className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
-      {/* Header skeleton */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3">
-            <Skeleton className="w-10 h-10 rounded-xl" />
-            <Skeleton className="h-7 w-48" />
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm">
+      <div className="bg-white rounded-xl border border-slate-200 shadow-xl w-full max-w-md mx-4 p-6">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-100">
+            <XCircle className="h-5 w-5 text-red-600" />
           </div>
-          <Skeleton className="h-4 w-72 ml-[52px]" />
+          <div>
+            <h3 className="text-sm font-bold text-slate-900">Reject Opportunity</h3>
+            <p className="text-xs text-slate-500">{opportunity.opportunityTitle}</p>
+          </div>
         </div>
-        <div className="flex gap-2 ml-[52px] md:ml-0">
-          {[...Array(3)].map((_, i) => (
-            <Skeleton key={i} className="h-8 w-28 rounded-full" />
-          ))}
+
+        <div className="space-y-3">
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Rejection Reason *</label>
+            <select
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              className="w-full h-9 rounded-lg border border-slate-200 bg-white px-3 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-300"
+            >
+              <option value="">Select a reason...</option>
+              {REJECTION_REASONS.map(r => (
+                <option key={r.value} value={r.value}>{r.label}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-semibold text-slate-700 mb-1">Additional Feedback</label>
+            <textarea
+              value={feedback}
+              onChange={(e) => setFeedback(e.target.value)}
+              placeholder="Optional: provide additional context..."
+              rows={3}
+              className="w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm text-slate-700 focus:outline-none focus:ring-2 focus:ring-red-500/20 focus:border-red-300 resize-none"
+            />
+          </div>
         </div>
-      </div>
-      {/* Distribution skeleton */}
-      <div className="bg-white border border-gray-200 rounded-xl p-6 space-y-5">
-        <Skeleton className="h-4 w-60" />
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="rounded-lg border border-gray-100 p-4 space-y-3">
-              <div className="flex items-center gap-2">
-                <Skeleton className="w-7 h-7 rounded-lg" />
-                <div className="space-y-1.5">
-                  <Skeleton className="h-3 w-16" />
-                  <Skeleton className="h-2.5 w-12" />
-                </div>
-              </div>
-              <Skeleton className="h-7 w-14" />
-              <Skeleton className="h-1.5 w-full rounded-full" />
-            </div>
-          ))}
-        </div>
-      </div>
-      {/* Cards skeleton */}
-      <div className="space-y-3">
-        <Skeleton className="h-4 w-40" />
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="bg-white border border-gray-200 rounded-xl p-5 space-y-4">
-              <div className="flex items-start justify-between">
-                <div className="flex items-center gap-2.5">
-                  <Skeleton className="w-9 h-9 rounded-lg" />
-                  <div className="space-y-1.5">
-                    <Skeleton className="h-4 w-36" />
-                    <Skeleton className="h-3 w-20" />
-                  </div>
-                </div>
-                <Skeleton className="h-8 w-14" />
-              </div>
-              <Skeleton className="h-5 w-24 rounded-md" />
-              <Skeleton className="h-3 w-full" />
-              <Skeleton className="h-3 w-3/4" />
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5"><Skeleton className="h-2.5 w-20" /><Skeleton className="h-3 w-full" /></div>
-                <div className="space-y-1.5"><Skeleton className="h-2.5 w-20" /><Skeleton className="h-3 w-24" /></div>
-              </div>
-              <Skeleton className="h-1.5 w-full rounded-full" />
-            </div>
-          ))}
+
+        <div className="flex items-center justify-end gap-2 mt-5">
+          <Button variant="outline" size="sm" onClick={onCancel} className="h-8 text-xs">
+            Cancel
+          </Button>
+          <Button
+            size="sm"
+            onClick={() => onConfirm(reason, feedback)}
+            disabled={!reason}
+            className="h-8 text-xs bg-red-600 hover:bg-red-700 text-white"
+          >
+            <XCircle className="h-3.5 w-3.5 mr-1" />
+            Reject
+          </Button>
         </div>
       </div>
-    </PageTransition>
+    </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   Component
-   ═══════════════════════════════════════════════════ */
-export default function OpportunityRadarScreen({ navigateTo }: { navigateTo?: (screen: string) => void }) {
-  const [data, setData] = useState<APIResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [filter, setFilter] = useState('all');
-  const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
+/* ═══════════════════════════════════════════════════════════════
+   Stats Bar — shows byPriority and byStatus counts
+   ═══════════════════════════════════════════════════════════════ */
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await fetch('/api/ai/opportunities');
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        const json = await res.json();
-        if (!cancelled) {
-          setData(json.data ?? json);
-          setLoading(false);
-        }
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to load opportunities');
-          setLoading(false);
-        }
-      }
-    })();
-    return () => { cancelled = true; };
-  }, []);
+function StatsBar({ stats }: { stats: Stats }) {
+  return (
+    <div className="flex items-center gap-3 flex-wrap">
+      <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-50 border border-slate-200">
+        <Target className="h-3.5 w-3.5 text-slate-500" />
+        <span className="text-[11px] font-semibold text-slate-700">{stats.total}</span>
+        <span className="text-[10px] text-slate-400">total</span>
+      </div>
+      {Object.entries(stats.byPriority).map(([key, count]) => {
+        const cfg = priorityConfig[key];
+        if (!cfg) return null;
+        const Icon = cfg.icon;
+        return (
+          <div key={key} className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white">
+            <Icon className={cn('h-3 w-3', cfg.color)} />
+            <span className="text-[11px] font-semibold text-slate-700">{count}</span>
+            <span className="text-[10px] text-slate-400">{cfg.label}</span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
-  /* Filtered + sorted opportunities */
-  const filtered = useMemo(() => {
-    if (!data) return [];
-    let list = [...data.opportunities];
-    if (filter === 'high') list = list.filter((o) => o.matchScore >= 80);
-    if (filter === 'recent') list.sort((a, b) => b.confidence - a.confidence);
-    return list;
-  }, [data, filter]);
+/* ═══════════════════════════════════════════════════════════════
+   Opportunity Card — T9: "Opportunity cards: Company, Trigger,
+   Capability, Score, Priority, Why Now"
+   ═══════════════════════════════════════════════════════════════ */
 
-  /* Filter counts */
-  const filterCounts = useMemo(() => {
-    if (!data) return { all: 0, high: 0, recent: 0 };
-    return {
-      all: data.opportunities.length,
-      high: data.opportunities.filter((o) => o.matchScore >= 80).length,
-      recent: data.opportunities.length,
-    };
-  }, [data]);
+function OpportunityCard({ opportunity, onAccept, onReject, onViewCompany }: {
+  opportunity: OpportunityItem;
+  onAccept: (id: string) => void;
+  onReject: (opp: OpportunityItem) => void;
+  onViewCompany: (companyId: string) => void;
+}) {
+  const prioCfg = priorityConfig[opportunity.priority] ?? priorityConfig.medium;
+  const statusCfg = statusConfig[opportunity.status];
+  const PrioIcon = prioCfg.icon;
+  const scorePct = opportunity.opportunityScore;
 
-  /* ── Loading ── */
-  if (loading) return <LoadingSkeleton />;
-
-  /* ── Error ── */
-  if (error) {
-    return (
-      <PageTransition className="p-6 lg:p-8 max-w-7xl mx-auto">
-        <EmptyState
-          icon={AlertCircle}
-          title="Failed to load opportunities"
-          description={error}
-        />
-      </PageTransition>
-    );
-  }
-
-  if (!data) return null;
-
-  const totalOpps = data.opportunities.length;
+  const isPending = opportunity.status === 'pending_review';
+  const isAccepted = opportunity.status === 'accepted';
+  const isRejected = opportunity.status === 'rejected';
 
   return (
-    <PageTransition className="p-6 lg:p-8 max-w-7xl mx-auto space-y-8">
-      {/* ── 1. Page Header ── */}
-      <div className="flex flex-col md:flex-row md:items-end md:justify-between gap-4">
-        <div>
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))' }}>
-              <Radar className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
-            </div>
-            <h1 className="text-2xl font-bold text-foreground tracking-tight">Opportunity Radar</h1>
+    <div className={cn(
+      'rounded-xl border bg-white transition-all hover:shadow-md',
+      isAccepted ? 'border-emerald-200' : isRejected ? 'border-red-100 opacity-70' : 'border-slate-200',
+    )}>
+      {/* Card header */}
+      <div className="px-4 pt-4 pb-3">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 flex-1">
+            {/* Company — T9 field 1 */}
+            <button
+              onClick={() => onViewCompany(opportunity.companyId)}
+              className="flex items-center gap-1.5 text-left group mb-1"
+            >
+              <Building2 className="h-3.5 w-3.5 text-slate-400 group-hover:text-blue-500 transition-colors" />
+              <span className="text-sm font-bold text-slate-900 group-hover:text-blue-600 transition-colors truncate">
+                {opportunity.company?.normalizedName ?? 'Unknown Company'}
+              </span>
+              {opportunity.company?.industry && (
+                <span className="text-[10px] text-slate-400 hidden sm:inline">{opportunity.company.industry}</span>
+              )}
+            </button>
+
+            {/* Title */}
+            <h3 className="text-xs font-semibold text-slate-700 leading-snug line-clamp-2">
+              {opportunity.opportunityTitle}
+            </h3>
           </div>
-          <p className="text-sm text-muted-foreground ml-[52px]">
-            AI-matched opportunities &middot;{' '}
-            <span className="font-medium text-foreground">
-              <AnimatedCounter value={data.companiesScanned} />
-            </span>{' '}
-            companies scanned
+
+          {/* Priority badge — T9 field 5 */}
+          <span className={cn(
+            'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border shrink-0',
+            prioCfg.badge,
+          )}>
+            <PrioIcon className="h-2.5 w-2.5" />
+            {prioCfg.label}
+          </span>
+        </div>
+
+        {/* Status badge */}
+        {statusCfg && (
+          <div className="mt-2">
+            <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border', statusCfg.color)}>
+              {statusCfg.label}
+            </span>
+            {isRejected && opportunity.rejectionReason && (
+              <span className="ml-2 text-[10px] text-red-500">
+                ({opportunity.rejectionReason.replace(/_/g, ' ').toLowerCase()})
+              </span>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Card body — key fields */}
+      <div className="px-4 pb-3 space-y-2.5">
+        {/* Score — T9 field 4 */}
+        <div className="flex items-center gap-3">
+          <div className="flex-1">
+            <ConfidenceBar value={scorePct} label={scorePct >= 70 ? 'High' : scorePct >= 40 ? 'Medium' : 'Low'} size="sm" />
+          </div>
+          <span className="text-lg font-bold tabular-nums text-slate-900">{scorePct}</span>
+        </div>
+
+        {/* Trigger — T9 field 2 */}
+        <div>
+          <div className="flex items-center gap-1 mb-0.5">
+            <Sparkles className="h-3 w-3 text-amber-500" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Trigger</span>
+          </div>
+          <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+            {opportunity.businessTrigger}
           </p>
         </div>
-        <div className="flex items-center gap-2 ml-[52px] md:ml-0">
-          {FILTERS.map((f) => (
-            <button
-              key={f.key}
-              onClick={() => setFilter(f.key)}
-              className={`px-3.5 py-1.5 rounded-full text-xs font-medium transition-all border ${
-                filter === f.key
-                  ? 'border-[#D4AF37]/30 bg-[#D4AF37]/10 text-foreground shadow-sm'
-                  : 'border-gray-200 bg-white text-muted-foreground hover:border-gray-300 hover:text-foreground'
-              }`}
-            >
-              {f.label}
-              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-[11px] font-semibold ${
-                filter === f.key ? 'bg-[#D4AF37]/20 text-[#9A8340]' : 'bg-gray-100 text-muted-foreground'
-              }`}>{filterCounts[f.key as keyof typeof filterCounts]}</span>
-            </button>
-          ))}
+
+        {/* Capability — T9 field 3 */}
+        <div>
+          <div className="flex items-center gap-1 mb-0.5">
+            <Target className="h-3 w-3 text-blue-500" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Recommended Capability</span>
+          </div>
+          <p className="text-xs text-slate-600 leading-relaxed line-clamp-2">
+            {opportunity.recommendedCapability}
+          </p>
+        </div>
+
+        {/* Why Now — T9 field 6 */}
+        <div>
+          <div className="flex items-center gap-1 mb-0.5">
+            <ArrowRight className="h-3 w-3 text-emerald-500" />
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Why Now</span>
+          </div>
+          <p className="text-xs text-slate-600 leading-relaxed line-clamp-3">
+            {opportunity.whyNow}
+          </p>
         </div>
       </div>
 
-      {/* ── 2. Score Distribution ── */}
-      <div className="bg-white border border-gray-200 rounded-xl shadow-sm p-6">
-        <div className="flex items-center gap-2 mb-5">
-          <BarChart3 className="w-4 h-4 text-muted-foreground" />
-          <h2 className="text-sm font-semibold text-foreground">Opportunity Score Distribution</h2>
-          <span className="text-xs text-muted-foreground ml-auto">{totalOpps} accounts scored</span>
-        </div>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {DISTRIBUTION_TIERS.map((tier, i) => {
-            const count = data.distribution[tier.key];
-            return (
-              <motion.div
-                key={tier.key}
-                initial={{ opacity: 0, y: 12 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: i * 0.08, duration: 0.4 }}
-                className="relative overflow-hidden rounded-lg border border-gray-100 p-4"
+      {/* Card footer — Accept/Reject buttons + metadata */}
+      <div className="px-4 py-3 border-t border-slate-100 bg-slate-50/50 rounded-b-xl">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-1.5 text-[10px] text-slate-400">
+            <span>{formatTimeAgo(opportunity.createdAt)}</span>
+            {opportunity.signal && (
+              <>
+                <span>·</span>
+                <span className="capitalize">{opportunity.signal.signalType.replace(/_/g, ' ')}</span>
+              </>
+            )}
+          </div>
+
+          {/* T9: Accept/Reject buttons — only for pending_review */}
+          {isPending && (
+            <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => onReject(opportunity)}
+                className="h-7 text-[11px] px-2.5 text-red-600 border-red-200 hover:bg-red-50"
               >
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ backgroundColor: `${tier.color}12` }}>
-                    <tier.icon className="w-3.5 h-3.5" style={{ color: tier.color }} />
-                  </div>
-                  <div>
-                    <p className="text-xs font-semibold text-foreground">{tier.tier}</p>
-                    <p className="text-[11px] text-muted-foreground">{tier.range}</p>
-                  </div>
-                </div>
-                <div className="flex items-baseline gap-1.5 mb-2.5">
-                  <span className="text-2xl font-bold" style={{ color: tier.color }}>
-                    <AnimatedCounter value={count} />
-                  </span>
-                  <span className="text-xs text-muted-foreground">accounts</span>
-                </div>
-                <div className="h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                  <motion.div
-                    className="h-full rounded-full"
-                    style={{ backgroundColor: tier.color }}
-                    initial={{ width: 0 }}
-                    animate={{ width: count > 0 && totalOpps > 0 ? `${Math.max((count / totalOpps) * 100, 8)}%` : '0%' }}
-                    transition={{ delay: 0.4 + i * 0.1, duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-                  />
-                </div>
-              </motion.div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── 3. Top Opportunities Grid ── */}
-      <div>
-        <div className="flex items-center gap-2 mb-4">
-          <Crosshair className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
-          <h2 className="text-sm font-semibold text-foreground">Top Opportunities</h2>
-          <Badge variant="outline" className="ml-2 text-[11px]">{filtered.length} shown</Badge>
-        </div>
-
-        <AnimatePresence mode="wait">
-          {filtered.length === 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center py-16 text-center"
-            >
-              <motion.div
-                animate={{ scale: [1, 1.08, 1] }}
-                transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
+                <XCircle className="h-3 w-3 mr-1" />
+                Reject
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => onAccept(opportunity.id)}
+                className="h-7 text-[11px] px-2.5 bg-emerald-600 hover:bg-emerald-700 text-white"
               >
-                <Brain className="w-7 h-7" style={{ color: 'var(--color-gold)' }} />
-              </motion.div>
-              <p className="text-sm font-semibold text-foreground">
-                {totalOpps === 0 ? 'Opportunity Radar Active — Awaiting Signals' : 'No opportunities match this filter'}
-              </p>
-              {totalOpps === 0 ? (
-                <>
-                  <p className="text-xs text-muted-foreground max-w-sm mt-1">
-                    AI is monitoring your accounts for buying signals. Opportunities will appear here when the engine detects high-intent patterns.
-                  </p>
-                  <div className="space-y-2 mt-3">
-                    {[
-                      'Funding rounds and expansion signals',
-                      'Leadership changes creating new entry points',
-                      'Technology stack changes indicating needs',
-                    ].map((text, i) => (
-                      <motion.p
-                        key={i}
-                        initial={{ opacity: 0, x: -8 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{ delay: 0.3 + i * 0.15, duration: 0.4 }}
-                        className="flex items-center gap-2 text-xs text-muted-foreground"
-                      >
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: 'var(--color-gold)' }} />
-                        {text}
-                      </motion.p>
-                    ))}
-                  </div>
-                  <button
-                    onClick={() => navigateTo?.('signal-intelligence')}
-                    className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold text-white shadow-sm transition-colors"
-                    style={{ background: 'var(--color-gold)' }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#C5A030'; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-gold)'; }}
-                  >
-                    Run Signal Scan
-                  </button>
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground max-w-sm mt-1">
-                  Try selecting a different filter to see more results.
-                </p>
-              )}
-            </motion.div>
-          ) : (
-            <motion.div
-              key={filter}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="grid grid-cols-1 lg:grid-cols-2 gap-4"
-            >
-              {filtered.map((opp, i) => {
-                const typeStyle = getTypeStyle(opp.opportunityType);
-                const TypeIcon = typeStyle.icon;
-                const isExpanded = expandedIdx === i;
-                const sc = scoreColor(opp.matchScore);
-
-                return (
-                  <motion.div
-                    key={`${opp.companyName}-${i}`}
-                    initial={{ opacity: 0, y: 16 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: i * 0.06, duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
-                    className="bg-white border border-gray-200 rounded-xl shadow-sm hover:shadow-md transition-shadow duration-300 flex flex-col"
-                  >
-                    {/* Card Header */}
-                    <div className="p-5 pb-4 flex-1">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-2.5 min-w-0">
-                          <div className="w-9 h-9 rounded-lg bg-gray-50 border border-gray-100 flex items-center justify-center shrink-0">
-                            <Building2 className="w-4 h-4 text-muted-foreground" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate block">
-                              {opp.companyName}
-                            </p>
-                            <p className="text-[11px] text-muted-foreground">{opp.opportunityType}</p>
-                          </div>
-                        </div>
-                        <div className="text-right shrink-0 ml-3">
-                          <div className="text-2xl font-bold tabular-nums" style={{ color: sc }}>{opp.matchScore}%</div>
-                          <div className="text-[11px] font-medium" style={{ color: sc }}>{scoreLabel(opp.matchScore)}</div>
-                        </div>
-                      </div>
-
-                      {/* Type Badge */}
-                      <div className="mb-3">
-                        <span className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium ${typeStyle.bg} ${typeStyle.text}`}>
-                          <TypeIcon className="w-3 h-3" />
-                          {opp.opportunityType}
-                        </span>
-                      </div>
-
-                      {/* Why Now */}
-                      <div className="mb-3">
-                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1">Why Now</p>
-                        <p className="text-xs text-foreground/80 leading-relaxed">{opp.whyNow}</p>
-                      </div>
-
-                      {/* Meta Row */}
-                      <div className="grid grid-cols-2 gap-3 mb-3">
-                        <div>
-                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Relevant Capability</p>
-                          <p className="text-xs text-foreground font-medium leading-snug">{opp.relevantCapability}</p>
-                        </div>
-                        <div>
-                          <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Target Persona</p>
-                          <div className="flex items-center gap-1">
-                            <UserCheck className="w-3 h-3 text-muted-foreground" />
-                            <p className="text-xs text-foreground font-medium">{opp.targetPersona}</p>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Confidence Bar */}
-                      <div className="flex items-center gap-3">
-                        <p className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Confidence</p>
-                        <div className="flex-1 h-1.5 rounded-full bg-gray-100 overflow-hidden">
-                          <motion.div
-                            className="h-full rounded-full"
-                            style={{ background: `linear-gradient(90deg, ${sc}, ${sc}CC)` }}
-                            initial={{ width: 0 }}
-                            animate={{ width: `${opp.confidence}%` }}
-                            transition={{ delay: 0.3 + i * 0.06, duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-                          />
-                        </div>
-                        <span className="text-xs font-semibold tabular-nums" style={{ color: sc }}>{opp.confidence}%</span>
-                      </div>
-                    </div>
-
-                    {/* AI Reasoning Toggle */}
-                    <div className="border-t border-gray-100">
-                      <button
-                        onClick={() => setExpandedIdx(isExpanded ? null : i)}
-                        className="w-full flex items-center justify-between px-5 py-2.5 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-gray-50/50 transition-colors rounded-b-xl"
-                      >
-                        <div className="flex items-center gap-1.5">
-                          <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--color-gold)' }} />
-                          <span>AI Reasoning</span>
-                        </div>
-                        {isExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-                      </button>
-
-                      <AnimatePresence>
-                        {isExpanded && (
-                          <motion.div
-                            initial={{ height: 0, opacity: 0 }}
-                            animate={{ height: 'auto', opacity: 1 }}
-                            exit={{ height: 0, opacity: 0 }}
-                            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-                            className="overflow-hidden"
-                          >
-                            <div className="px-5 pb-4 pt-1">
-                              <div className="rounded-lg bg-gray-50 p-3">
-                                <p className="text-xs text-foreground/75 leading-relaxed">{opp.reasoning}</p>
-                              </div>
-                            </div>
-                          </motion.div>
-                        )}
-                      </AnimatePresence>
-                    </div>
-
-                    {/* Action Footer */}
-                    <div className="px-5 pb-4 pt-1 flex items-center gap-2">
-                      <button
-                        onClick={() => navigateTo?.('conversation-studio')}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium text-white transition-all hover:opacity-90"
-                        style={{ background: opp.matchScore >= 80 ? 'linear-gradient(135deg, #D4AF37, #B8960F)' : 'linear-gradient(135deg, #4B5563, #374151)' }}
-                      >
-                        <MessageSquare className="w-3.5 h-3.5" />
-                        Start Conversation
-                      </button>
-                      <button
-                        onClick={() => navigateTo?.('conversation-studio')}
-                        className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium border border-gray-200 text-muted-foreground hover:text-foreground hover:border-gray-300 bg-white transition-colors"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        View Details
-                      </button>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </motion.div>
+                <CheckCircle2 className="h-3 w-3 mr-1" />
+                Accept
+              </Button>
+            </div>
           )}
-        </AnimatePresence>
+
+          {isAccepted && (
+            <span className="inline-flex items-center gap-1 text-[10px] font-medium text-emerald-600">
+              <CheckCircle2 className="h-3 w-3" />
+              Pursuit Created
+            </span>
+          )}
+        </div>
       </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Main Screen Component — Ticket 9: Opportunity Radar Screen (P0)
+   ═══════════════════════════════════════════════════════════════ */
+
+interface OpportunityRadarProps {
+  navigateTo?: (screen: string, companyId?: string) => void;
+}
+
+export default function OpportunityRadarScreen({ navigateTo }: OpportunityRadarProps) {
+  const queryClient = useQueryClient();
+
+  /* ── Filter state — T9 API contract: ?status=X&priority=high&page=N ── */
+  const [statusFilter, setStatusFilter] = useState<string>('pending_review');
+  const [priorityFilter, setPriorityFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+
+  // Reject modal state
+  const [rejectTarget, setRejectTarget] = useState<OpportunityItem | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [rejectFeedback, setRejectFeedback] = useState('');
+
+  /* ── Build API URL with server-side filter params ── */
+  const apiParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    if (priorityFilter !== 'all') params.set('priority', priorityFilter);
+    if (page > 1) params.set('page', String(page));
+    const qs = params.toString();
+    return qs ? `/api/ai/opportunities?${qs}` : '/api/ai/opportunities';
+  }, [statusFilter, priorityFilter, page]);
+
+  /* ── Data fetching with useQuery ── */
+  const { data: raw, isLoading, error: fetchError, refetch } = useQuery({
+    queryKey: ['opportunities', statusFilter, priorityFilter, page],
+    queryFn: () =>
+      fetch(apiParams)
+        .then(r => { if (!r.ok) throw new Error('Failed to fetch opportunities'); return r.json(); }),
+    staleTime: 15000,
+    retry: false,
+  });
+  const data = unwrap<OpportunitiesResponse>(raw) ?? null;
+  const loading = isLoading;
+  const error = fetchError?.message || null;
+
+  const opportunities = data?.opportunities ?? [];
+  const stats = data?.stats ?? { total: 0, byPriority: { high: 0, medium: 0, low: 0 }, byStatus: {} };
+  const pagination = data?.pagination ?? { page: 1, pageSize: 20, total: 0, totalPages: 0 };
+
+  // Client-side search filter
+  const searchLower = search.toLowerCase();
+  const filtered = search
+    ? opportunities.filter(o =>
+        o.company?.normalizedName?.toLowerCase().includes(searchLower) ||
+        o.opportunityTitle.toLowerCase().includes(searchLower) ||
+        o.recommendedCapability.toLowerCase().includes(searchLower) ||
+        o.businessTrigger.toLowerCase().includes(searchLower)
+      )
+    : opportunities;
+
+  /* ── Accept mutation ── */
+  const acceptMutation = useMutation({
+    mutationFn: (id: string) =>
+      fetch(`/api/ai/opportunities/${id}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          feedbackDecision: 'confirmed_accurate',
+          feedbackReason: 'Accepted via Opportunity Radar',
+        }),
+      }).then(r => { if (!r.ok) throw new Error('Accept failed'); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['opportunities'] });
+    },
+  });
+
+  /* ── Reject mutation ── */
+  const rejectMutation = useMutation({
+    mutationFn: ({ id, reason, feedback }: { id: string; reason: string; feedback: string }) =>
+      fetch(`/api/ai/opportunities/${id}/reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reason, feedback }),
+      }).then(r => { if (!r.ok) throw new Error('Reject failed'); return r.json(); }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['opportunities'] });
+      setRejectTarget(null);
+    },
+  });
+
+  const handleAccept = (id: string) => {
+    acceptMutation.mutate(id);
+  };
+
+  const handleReject = (opp: OpportunityItem) => {
+    setRejectTarget(opp);
+  };
+
+  const handleRejectConfirm = (reason: string, feedback: string) => {
+    if (!rejectTarget) return;
+    rejectMutation.mutate({ id: rejectTarget.id, reason, feedback });
+  };
+
+  const handleViewCompany = (companyId: string) => {
+    // T9: "Click → navigate to Company Profile Q5"
+    navigateTo?.('company-detail', companyId);
+  };
+
+  const clearFilters = () => {
+    setStatusFilter('pending_review');
+    setPriorityFilter('all');
+    setPage(1);
+    setSearch('');
+  };
+
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [statusFilter, priorityFilter]);
+
+  return (
+    <PageTransition>
+      <div className="h-full flex flex-col gap-0 overflow-hidden">
+        {/* ═══════════════════════════════════════════════════
+           Section 1: Header
+           ═══════════════════════════════════════════════════ */}
+        <div className="flex-shrink-0 px-4 sm:px-6 pt-6 pb-2">
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div className="flex items-center gap-3">
+              <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500/10 to-pink-500/10 border border-purple-200/50">
+                <Radar className="h-5.5 w-5.5 text-purple-600" />
+              </div>
+              <div>
+                <h1 className="text-lg font-bold text-slate-900 tracking-tight">Opportunity Radar</h1>
+                <p className="text-xs text-slate-500 mt-0.5">
+                  AI-detected opportunities matched to your capabilities, prioritized by score
+                </p>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-3 flex-wrap">
+              {data && <StatsBar stats={stats} />}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => refetch()}
+                disabled={loading}
+                className="h-8 gap-1.5 text-xs"
+              >
+                <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
+                Refresh
+              </Button>
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════
+           Section 2: Filters — T9: "Priority filter, Status filter"
+           ═══════════════════════════════════════════════════ */}
+        <div className="flex-shrink-0 px-4 sm:px-6 pt-2 pb-4">
+          <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Search */}
+              <div className="relative max-w-xs">
+                <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+                <Input
+                  placeholder="Search opportunities..."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="pl-9 h-9 text-sm bg-slate-50 border-slate-200"
+                />
+              </div>
+
+              {/* Status filter — T9: "Status filter (pending_review, accepted, rejected, monitored)" */}
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+              >
+                <option value="all">All Statuses</option>
+                <option value="pending_review">Pending Review</option>
+                <option value="accepted">Accepted</option>
+                <option value="rejected">Rejected</option>
+                <option value="monitored">Monitored</option>
+              </select>
+
+              {/* Priority filter — T9: "Priority filter (high, medium, low)" */}
+              <select
+                value={priorityFilter}
+                onChange={(e) => setPriorityFilter(e.target.value)}
+                className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+              >
+                <option value="all">All Priorities</option>
+                <option value="high">High</option>
+                <option value="medium">Medium</option>
+                <option value="low">Low</option>
+              </select>
+
+              {/* Clear filters */}
+              {(statusFilter !== 'pending_review' || priorityFilter !== 'all' || search) && (
+                <button
+                  onClick={clearFilters}
+                  className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                >
+                  <X className="h-3 w-3" />
+                  Clear all
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* ═══════════════════════════════════════════════════
+           Section 3: Opportunity Cards
+           ═══════════════════════════════════════════════════ */}
+        <div className="flex-1 min-h-0 px-4 sm:px-6 pb-6 overflow-y-auto">
+          {error && (
+            <ErrorState
+              title="Opportunity Radar Error"
+              message={error}
+              onRetry={() => refetch()}
+              className="mb-4"
+            />
+          )}
+
+          {loading && !data ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-72 rounded-xl" />
+              ))}
+            </div>
+          ) : !data || opportunities.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center min-h-[300px]">
+              <EmptyState
+                icon={Radar}
+                title="No opportunities detected yet"
+                description="Opportunities are generated when buying signals are matched to your capabilities. Import companies, run research, and ensure capabilities are configured to start seeing opportunities."
+                action={
+                  navigateTo && (
+                    <Button onClick={() => navigateTo('import')} size="sm" className="gap-1.5">
+                      Import Companies
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
+                  )
+                }
+              />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="flex-1 flex items-center justify-center min-h-[300px]">
+              <EmptyState
+                icon={Filter}
+                title="No opportunities match your filters"
+                description="Try adjusting your filter criteria to see more opportunities."
+                action={
+                  <Button variant="outline" size="sm" onClick={clearFilters} className="gap-1.5">
+                    Clear Filters
+                  </Button>
+                }
+              />
+            </div>
+          ) : (
+            <>
+              {/* Cards grid */}
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                {filtered.map((opp) => (
+                  <OpportunityCard
+                    key={opp.id}
+                    opportunity={opp}
+                    onAccept={handleAccept}
+                    onReject={handleReject}
+                    onViewCompany={handleViewCompany}
+                  />
+                ))}
+              </div>
+
+              {/* Pagination */}
+              {pagination.totalPages > 1 && (
+                <div className="flex items-center justify-between mt-4">
+                  <span className="text-[11px] text-slate-500">
+                    Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] px-2.5"
+                      disabled={pagination.page <= 1}
+                      onClick={() => setPage(p => p - 1)}
+                    >
+                      Previous
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="h-7 text-[11px] px-2.5"
+                      disabled={pagination.page >= pagination.totalPages}
+                      onClick={() => setPage(p => p + 1)}
+                    >
+                      Next
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Reject Modal */}
+      {rejectTarget && (
+        <RejectModal
+          opportunity={rejectTarget}
+          onConfirm={handleRejectConfirm}
+          onCancel={() => setRejectTarget(null)}
+        />
+      )}
     </PageTransition>
   );
 }

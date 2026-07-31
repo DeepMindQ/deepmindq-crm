@@ -1,331 +1,111 @@
-import { db } from '@/lib/db'
-import { apiError, apiSuccess } from '@/lib/apiHelpers'
-import { sdkWebSearch } from '@/lib/llm-client'
-import { governedAICallAggregate } from '@/lib/ai-governance'
-import { logger } from '@/lib/logger';
+import { NextRequest } from 'next/server';
+import { db } from '@/lib/db';
+import { apiSuccess, apiError } from '@/lib/apiHelpers';
 
-/* ── In-memory cache (1 hour TTL) ── */
-let cachedResult: { data: OpportunitiesResponse; ts: number } | null = null
-const CACHE_TTL = 60 * 60 * 1000
+/* ═══════════════════════════════════════════════════════════════
+   Ticket 9 — Opportunity Radar Screen API
 
-/* ── Types ── */
-interface SearchResult {
-  companyName: string
-  results: { title: string; snippet: string; url: string }[] | null
-  error: string | null
-}
+   Contract (per ARCHITECTURE.md):
+   GET /api/ai/opportunities?status=pending_review&priority=high&page=1
+   Response: {
+     opportunities: OpportunityRecommendation[],
+     stats: { total, byPriority, byStatus }
+   }
+   ═══════════════════════════════════════════════════════════════ */
 
-interface ScoredOpportunity {
-  companyName: string
-  matchScore: number
-  opportunityType: string
-  whyNow: string
-  relevantCapability: string
-  targetPersona: string
-  confidence: number
-  reasoning: string
-}
+const VALID_STATUSES = ['pending_review', 'accepted', 'rejected', 'monitored'];
+const VALID_PRIORITIES = ['high', 'medium', 'low'];
+const PAGE_SIZE = 20;
 
-interface OpportunitiesResponse {
-  opportunities: ScoredOpportunity[]
-  companiesScanned: number
-  distribution: { hot: number; warm: number; developing: number; monitoring: number }
-  generatedAt: string
-}
+export async function GET(request: NextRequest) {
+  try {
+    const { searchParams } = new URL(request.url);
 
-/* ── Simple concurrency limiter (semaphore) ── */
-async function withConcurrency<T>(
-  tasks: (() => Promise<T>)[],
-  limit: number,
-): Promise<PromiseSettledResult<T>[]> {
-  const results: PromiseSettledResult<T>[] = []
-  const executing: Promise<void>[] = []
+    /* ── Parse query params ── */
+    const status = searchParams.get('status');
+    const priority = searchParams.get('priority');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
 
-  for (const task of tasks) {
-    const p = task().then(
-      (value) => { results.push({ status: 'fulfilled', value }) },
-      (reason) => { results.push({ status: 'rejected', reason }) },
-    )
-    executing.push(p as Promise<void>)
+    /* ── Build Prisma where clause ── */
+    const where: Record<string, unknown> = {};
 
-    if (executing.length >= limit) {
-      await Promise.race(executing)
-      // Remove settled promises
-      const stillRunning = executing.filter((e) => {
-        let settled = false
-        e.then(
-          () => { settled = true },
-          () => { settled = true },
-        )
-        return !settled
-      })
-      executing.length = 0
-      executing.push(...stillRunning)
+    if (status && VALID_STATUSES.includes(status)) {
+      where.status = status;
     }
-  }
-
-  await Promise.allSettled(executing)
-  return results
-}
-
-/* ── Web search for a single company (Phase 2.2: via llm-client) ── */
-async function searchCompany(
-  name: string,
-): Promise<SearchResult> {
-  try {
-    const query = `${name} investment digital transformation AI 2025`
-    const results = await sdkWebSearch(query, 8)
-    return { companyName: name, results: results.map(r => ({ title: r.title ?? '', snippet: r.snippet ?? '', url: r.url ?? '' })), error: null }
-  } catch (err: unknown) {
-    const msg = err instanceof Error ? err.message : String(err)
-    return { companyName: name, results: null, error: msg }
-  }
-}
-
-/* ── LLM JSON parsing with fallback ── */
-function parseLLMJson(raw: string): ScoredOpportunity[] {
-  if (!raw) return []
-
-  const cleaned = raw
-    .replace(/```json\s*/gi, '')
-    .replace(/```\s*/g, '')
-    .trim()
-
-  // Attempt direct JSON parse
-  try {
-    const arr = JSON.parse(cleaned)
-    if (Array.isArray(arr)) {
-      return arr
-        .filter(
-          (item: Record<string, unknown>) =>
-            item.companyName &&
-            typeof item.matchScore === 'number' &&
-            (item.matchScore as number) >= 40,
-        )
-        .map((item: Record<string, unknown>) => ({
-          companyName: String(item.companyName),
-          matchScore: Math.min(100, Math.max(0, Math.round(item.matchScore as number))),
-          opportunityType: String(item.opportunityType ?? 'Digital Transformation'),
-          whyNow: String(item.whyNow ?? ''),
-          relevantCapability: String(item.relevantCapability ?? ''),
-          targetPersona: String(item.targetPersona ?? 'CIO'),
-          confidence: Math.min(100, Math.max(0, Math.round((item.confidence as number) ?? 50))),
-          reasoning: String(item.reasoning ?? ''),
-        }))
-        .sort((a: ScoredOpportunity, b: ScoredOpportunity) => b.matchScore - a.matchScore)
-    }
-  } catch {
-    // fall through to regex
-  }
-
-  // Regex fallback — extract individual objects
-  const opportunities: ScoredOpportunity[] = []
-  const objRegex =
-    /\{\s*"companyName"\s*:\s*"([^"]+)"\s*.*?"matchScore"\s*:\s*(\d+)\s*.*?\}/gu
-  let match: RegExpExecArray | null
-  while ((match = objRegex.exec(cleaned)) !== null) {
-    const block = match[0]
-    const score = parseInt(match[2], 10)
-    if (score < 40) continue
-    const typeMatch = block.match(/"opportunityType"\s*:\s*"([^"]+)"/)
-    const whyMatch = block.match(/"whyNow"\s*:\s*"([^"]*)"/)
-    const capMatch = block.match(/"relevantCapability"\s*:\s*"([^"]*)"/)
-    const personaMatch = block.match(/"targetPersona"\s*:\s*"([^"]+)"/)
-    const confMatch = block.match(/"confidence"\s*:\s*(\d+)/)
-    const reasonMatch = block.match(/"reasoning"\s*:\s*"([^"]*)"/)
-    opportunities.push({
-      companyName: match[1],
-      matchScore: Math.min(100, score),
-      opportunityType: typeMatch?.[1] ?? 'Digital Transformation',
-      whyNow: whyMatch?.[1] ?? '',
-      relevantCapability: capMatch?.[1] ?? '',
-      targetPersona: personaMatch?.[1] ?? 'CIO',
-      confidence: confMatch ? Math.min(100, parseInt(confMatch[1], 10)) : 50,
-      reasoning: reasonMatch?.[1] ?? '',
-    })
-  }
-
-  return opportunities.sort((a, b) => b.matchScore - a.matchScore)
-}
-
-/* ── Build distribution buckets ── */
-function buildDistribution(opportunities: ScoredOpportunity[]) {
-  let hot = 0
-  let warm = 0
-  let developing = 0
-  let monitoring = 0
-
-  for (const opp of opportunities) {
-    if (opp.matchScore >= 80) hot++
-    else if (opp.matchScore >= 60) warm++
-    else if (opp.matchScore >= 40) developing++
-    else monitoring++
-  }
-
-  return { hot, warm, developing, monitoring }
-}
-
-/* ── GET /api/ai/opportunities ── */
-export async function GET() {
-  try {
-    // Return cached result if still fresh
-    if (cachedResult && Date.now() - cachedResult.ts < CACHE_TTL) {
-      return apiSuccess(cachedResult.data)
+    if (priority && VALID_PRIORITIES.includes(priority)) {
+      where.priority = priority;
     }
 
-    // 1. Fetch up to 15 companies with contact counts, industry, intelligence score
-    const companies = await db.company.findMany({
-      take: 15,
-      orderBy: { intelligenceScore: 'desc' },
-      where: { status: { not: 'archived' } },
-      select: {
-        id: true,
-        normalizedName: true,
-        industry: true,
-        sizeRange: true,
-        location: true,
-        intelligenceScore: true,
-        engagementScore: true,
-        lifecycleStage: true,
-        status: true,
-        _count: { select: { contacts: true } },
-      },
-    })
+    /* ── Fetch opportunities with company + signal + capability match ── */
+    const [opportunities, total, allForStats] = await Promise.all([
+      // Paginated opportunities
+      db.opportunityRecommendation.findMany({
+        where,
+        include: {
+          company: {
+            select: { id: true, normalizedName: true, industry: true, sizeRange: true },
+          },
+          signal: {
+            select: { id: true, signalType: true, title: true, severity: true },
+          },
+          capabilityMatch: {
+            select: {
+              id: true,
+              matchScore: true,
+              reason: true,
+              salesAngle: true,
+              capability: {
+                select: { id: true, title: true, category: true },
+              },
+            },
+          },
+        },
+        orderBy: [
+          { priority: 'desc' },     // high first
+          { opportunityScore: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
 
-    if (companies.length === 0) {
-      const empty: OpportunitiesResponse = {
-        opportunities: [],
-        companiesScanned: 0,
-        distribution: { hot: 0, warm: 0, developing: 0, monitoring: 0 },
-        generatedAt: new Date().toISOString(),
+      // Total count for current filters
+      db.opportunityRecommendation.count({ where }),
+
+      // All records for stats computation (byPriority, byStatus)
+      db.opportunityRecommendation.findMany({
+        select: { priority: true, status: true },
+      }),
+    ]);
+
+    /* ── Build stats: { total, byPriority, byStatus } ── */
+    const byPriority = { high: 0, medium: 0, low: 0 };
+    const byStatus: Record<string, number> = {};
+    for (const rec of allForStats) {
+      if (rec.priority in byPriority) {
+        (byPriority as Record<string, number>)[rec.priority]++;
       }
-      return apiSuccess(empty)
+      byStatus[rec.status] = (byStatus[rec.status] || 0) + 1;
     }
 
-    // 2. Run web searches with concurrency limit of 3
-    const searchTasks = companies.map(
-      (c) => () => searchCompany(c.normalizedName),
-    )
-
-    const searchResults = await withConcurrency(searchTasks, 3)
-
-    // 3. Merge company data with search results
-    const companyContext = companies.map((c, i) => {
-      const sr = searchResults[i]
-      const searchItems =
-        sr?.status === 'fulfilled'
-          ? sr.value.results
-            ?.map((r) => `- ${r.title}: ${r.snippet}`)
-            .join('\n') ?? 'No search results'
-          : 'Search failed'
-
-      return [
-        `### ${c.normalizedName}`,
-        `- Industry: ${c.industry ?? 'Unknown'}`,
-        `- Size: ${c.sizeRange ?? 'Unknown'}`,
-        `- Location: ${c.location ?? 'Unknown'}`,
-        `- Intelligence Score: ${c.intelligenceScore}/100`,
-        `- Engagement Score: ${c.engagementScore}/100`,
-        `- Lifecycle Stage: ${c.lifecycleStage}`,
-        `- Contacts: ${c._count.contacts}`,
-        `- Recent Signals:`,
-        searchItems,
-      ].join('\n')
-    })
-
-    const userPrompt = [
-      'Here are the companies to analyze:',
-      '',
-      companyContext.join('\n\n'),
-    ].join('\n')
-
-    const systemPrompt = `You are an enterprise opportunity analyst. Given the following companies with their data and recent web signals, score each one as a sales opportunity.
-
-For each company, assess:
-- Match score (0-100) based on signals and industry alignment
-- Opportunity type (AI Automation, Cloud Modernization, Data Analytics, Digital Transformation, Consulting)
-- Why now (based on detected signals)
-- Relevant capability to offer
-- Target persona to approach
-- Confidence level
-
-Return ONLY valid JSON array:
-[
-  {
-    "companyName": "...",
-    "matchScore": 87,
-    "opportunityType": "AI Automation",
-    "whyNow": "Description of why this is timely...",
-    "relevantCapability": "Specific capability to offer",
-    "targetPersona": "CIO/CTO/COO/VP Digital etc",
-    "confidence": 85,
-    "reasoning": "Brief explanation"
-  }
-]
-
-Only include companies with matchScore >= 40. Sort by matchScore descending.`
-
-    // 4. Single LLM call via governance layer
-    const governed = await governedAICallAggregate({
-      generationType: 'opportunities',
-      systemPrompt,
-      userPrompt,
-      tier: 'deep',
-      maxTokens: 8192,
-      temperature: 0.5,
-    })
-
-    const raw = governed.success ? (governed.response ?? '') : ''
-    const opportunities = parseLLMJson(raw)
-    const distribution = buildDistribution(opportunities)
-
-    const response: OpportunitiesResponse = {
-      opportunities,
-      companiesScanned: companies.length,
-      distribution,
-      generatedAt: new Date().toISOString(),
-    }
-
-    cachedResult = { data: response, ts: Date.now() }
-    return apiSuccess(response)
-  } catch (error: unknown) {
-    const msg = error instanceof Error ? error.message : String(error)
-    logger.error('[ai/opportunities] Failed:', { detail: msg })
-
-    // Return stale cache on failure if available
-    if (cachedResult) {
-      return apiSuccess(cachedResult.data)
-    }
-
-    // Rule-based fallback: return top companies as potential opportunities
-    const topCompanies = await db.company.findMany({
-      take: 10,
-      orderBy: { intelligenceScore: 'desc' },
-      where: { status: { not: 'archived' } },
-      select: {
-        normalizedName: true,
-        industry: true,
-        intelligenceScore: true,
-        lifecycleStage: true,
-      },
-    })
-
-    const fallbackOpps: ScoredOpportunity[] = topCompanies.map((c) => ({
-      companyName: c.normalizedName,
-      matchScore: c.intelligenceScore,
-      opportunityType: 'Digital Transformation',
-      whyNow: `${c.industry ?? 'Technology'} company with ${c.lifecycleStage} stage`,
-      relevantCapability: 'AI & Data Analytics',
-      targetPersona: 'CIO / CTO',
-      confidence: Math.min(95, Math.max(30, c.intelligenceScore)),
-      reasoning: `Company has intelligence score of ${c.intelligenceScore}/100 indicating strong opportunity potential`,
-    }))
+    const stats = {
+      total: allForStats.length,
+      byPriority,
+      byStatus,
+    };
 
     return apiSuccess({
-      opportunities: fallbackOpps,
-      companiesScanned: topCompanies.length,
-      distribution: buildDistribution(fallbackOpps),
-      generatedAt: new Date().toISOString(),
-    })
+      opportunities,
+      stats,
+      pagination: {
+        page,
+        pageSize: PAGE_SIZE,
+        total,
+        totalPages: Math.ceil(total / PAGE_SIZE),
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch opportunities';
+    return apiError(message, 500);
   }
 }

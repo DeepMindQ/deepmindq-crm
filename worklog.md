@@ -939,3 +939,30 @@ Stage Summary:
 - No regressions in T2(22) + T3(60) + T6(24) = 106 tests
 - Committed: 78d855d
 - Pushed to main
+
+---
+Task ID: ticket-8-gap-fix
+Agent: main
+Task: Ticket 8 — Fix remaining 25% gap (Evidence Detail Panel)
+
+Work Log:
+- Performed honest third-party audit of Ticket 8 vs ARCHITECTURE.md (lines 933-960)
+- Identified primary gap: EvidenceDetailPanel only showed count, not actual Evidence records
+- Created GET /api/signals/[id]/evidence API route
+  - Resolves CompanySignal.evidenceIds JSON array into full Evidence records
+  - Returns evidence with sourceTitle, sourceName, snippet, confidence, quality tier, extractedField/Value, sourceUrl, sourceDate
+- Rewrote EvidenceDetailPanel component
+  - Fetches /api/signals/[id]/evidence via React Query on expand
+  - Renders each Evidence record as a card with title, source, snippet, confidence badge, quality tier badge, extracted values, source link, date
+  - Loading state with spinner, empty state with graceful fallback
+- TypeScript: zero errors
+- Tests: 36/36 passing
+- All 5 ARCHITECTURE.md exit criteria verified as met
+
+Stage Summary:
+- Gap reduced from ~25% to 0%
+- All ARCHITECTURE.md exit criteria now met
+- New API route: /api/signals/[id]/evidence
+- Updated component: EvidenceDetailPanel with real evidence fetching
+- Committed: f83e3f8
+- Pushed to main

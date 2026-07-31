@@ -257,7 +257,7 @@ function scoreTimingUrgency(
 
 // ── Main: Compute Account Priority ──
 
-export async function computeAccountPriority(companyId: string): Promise<ComputeResult> {
+export async function computeAccountPriority(companyId: string, triggerType: 'manual' | 'icp_change' | 'scheduled' | 'batch' = 'manual'): Promise<ComputeResult> {
   const company = await db.company.findUnique({
     where: { id: companyId },
     select: {
@@ -363,15 +363,49 @@ export async function computeAccountPriority(companyId: string): Promise<Compute
   const tier = classifyTier(composite);
   const computedAt = new Date().toISOString();
 
-  // Persist to Company
-  await db.company.update({
+  // Capture previous score for history tracking
+  const previousCompany = await db.company.findUnique({
     where: { id: companyId },
-    data: {
-      accountPriorityScore: composite,
-      priorityTier: tier,
-      priorityComputedAt: new Date(),
-    },
+    select: { accountPriorityScore: true, priorityTier: true },
   });
+  const previousScore = previousCompany?.accountPriorityScore ?? null;
+  const previousTier = previousCompany?.priorityTier ?? null;
+
+  // Persist to Company + PriorityScoreHistory in a transaction
+  await db.$transaction([
+    db.company.update({
+      where: { id: companyId },
+      data: {
+        accountPriorityScore: composite,
+        priorityTier: tier,
+        priorityComputedAt: new Date(),
+      },
+    }),
+    db.priorityScoreHistory.create({
+      data: {
+        companyId,
+        accountPriorityScore: composite,
+        priorityTier: tier,
+        staticFitTotal: staticFit.score,
+        dynamicIntelTotal: dynamicIntelligence.score,
+        timingUrgencyTotal: timingUrgency.score,
+        previousScore,
+        previousTier,
+        newScore: composite,
+        newTier: tier,
+        triggerType,
+        triggerDetails: JSON.stringify({
+          staticFit,
+          dynamicIntelligence,
+          timingUrgency,
+        }),
+        staticFitScore: staticFit.score,
+        dynamicIntelScore: dynamicIntelligence.score,
+        timingUrgencyScore: timingUrgency.score,
+        computedAt: new Date(),
+      },
+    }),
+  ]);
 
   return {
     companyId,
@@ -401,7 +435,7 @@ export async function computeAllAccountPriorities(): Promise<{
   for (let i = 0; i < companies.length; i += 10) {
     const batch = companies.slice(i, i + 10);
     const batchResults = await Promise.allSettled(
-      batch.map(c => computeAccountPriority(c.id))
+      batch.map(c => computeAccountPriority(c.id, 'batch'))
     );
     for (const r of batchResults) {
       if (r.status === 'fulfilled') results.push(r.value);

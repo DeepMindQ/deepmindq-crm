@@ -1,5 +1,8 @@
-// ── Phase 7.6: Account Scorer ──
-// Calculates composite AccountScore from multiple signal dimensions.
+/**
+ * @deprecated Use account-scoring.ts instead. This file is a legacy scorer that is
+ * superseded by the 5-dimension account-scoring.ts. Only kept for backward
+ * compatibility with existing tests. No production code imports this module.
+ */
 
 import { db } from '@/lib/db';
 

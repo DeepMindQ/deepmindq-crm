@@ -39,6 +39,7 @@ vi.mock('@/lib/db', () => ({
     reasoningStep: { findMany: vi.fn() },
     learningEvent: { findMany: vi.fn() },
     knowledgeEntry: { findMany: vi.fn() },
+    accountScore: { findUnique: vi.fn().mockResolvedValue(null) },
   },
 }));
 

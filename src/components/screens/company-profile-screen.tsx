@@ -25,7 +25,7 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from '@/components/ui/alert-dialog'
-import { ScoreGauge, getActivityIcon, StatusDot, EmptyState } from '@/components/shared/design-system'
+import { ScoreGauge, ScoreTriple, type ScoreItem, getActivityIcon, StatusDot, EmptyState } from '@/components/shared/design-system'
 import {
   getHealthVariant, getStatusBorder, getOppStatusVariant, getCompanyStatusVariant,
   DEFAULT_INDUSTRIES, EMPLOYEE_SIZES, ROLE_BUCKETS,
@@ -283,6 +283,17 @@ export default function CompanyProfileScreen() {
       return r.json()
     }),
     enabled: !!selectedCompanyId,
+  })
+
+  // ── Fetch unified 3-score data ──
+  const { data: scoresData } = useQuery({
+    queryKey: ['company-scores', selectedCompanyId],
+    queryFn: () => fetch(`/api/companies/${selectedCompanyId}/scores`).then(r => {
+      if (!r.ok) throw new Error('Failed to load scores')
+      return r.json()
+    }),
+    enabled: !!selectedCompanyId,
+    staleTime: 60_000,
   })
 
   // ── Fetch AI provider info for research tab ──
@@ -567,6 +578,41 @@ export default function CompanyProfileScreen() {
   const timeline: TimelineEntry[] = data.timeline || []
   const score = data.intelligenceScore ?? 0
 
+  // Build ScoreTriple items from unified scores data
+  const intelligenceScoreItem: ScoreItem | null = scoresData?.intelligence
+    ? {
+        label: 'Intelligence',
+        score: scoresData.intelligence.score,
+        tier: scoresData.intelligence.tier,
+        color: '#2563EB',
+      }
+    : { label: 'Intelligence', score, tier: score >= 70 ? 'hot' : score >= 40 ? 'warm' : score >= 15 ? 'cold' : 'unknown', color: '#2563EB' }
+
+  const priorityScoreItem: ScoreItem | null = scoresData?.accountPriority
+    ? {
+        label: 'Priority',
+        score: Math.round(scoresData.accountPriority.score),
+        tier: scoresData.accountPriority.tier,
+        color: '#059669',
+      }
+    : data.accountPriorityScore != null
+      ? {
+          label: 'Priority',
+          score: Math.round(data.accountPriorityScore),
+          tier: data.priorityTier ?? 'unknown',
+          color: '#059669',
+        }
+      : null
+
+  const revenueScoreItem: ScoreItem | null = scoresData?.revenueOpportunity
+    ? {
+        label: 'Revenue',
+        score: Math.round(scoresData.revenueOpportunity.score),
+        tier: scoresData.revenueOpportunity.category,
+        color: '#D97706',
+      }
+    : null
+
   const segments = [
     { label: 'Data Completeness', value: Math.min(100, Math.round((score * 0.4) + 20)), color: '#2563EB' },
     { label: 'Contact Quality', value: Math.min(100, Math.round((score * 0.35) + 15)), color: '#059669' },
@@ -782,15 +828,13 @@ export default function CompanyProfileScreen() {
             </div>
           </div>
 
-          {/* Score Gauge — desktop only */}
+          {/* Score Triple — desktop only */}
           <div className="hidden lg:block shrink-0">
-            <ScoreGauge
-              score={score}
-              size={108}
-              strokeWidth={9}
-              label="Intel Score"
-              sublabel={researchCard ? 'Research complete' : 'Generate research'}
-              segments={segments}
+            <ScoreTriple
+              intelligence={intelligenceScoreItem}
+              accountPriority={priorityScoreItem}
+              revenueOpportunity={revenueScoreItem}
+              className="w-[220px]"
             />
           </div>
         </div>

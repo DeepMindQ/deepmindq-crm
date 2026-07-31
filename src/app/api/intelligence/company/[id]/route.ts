@@ -426,12 +426,48 @@ export async function GET(
       const sr = result as RevenueScore;
       // H6 FIX: Type guard instead of unchecked 'in' check
       if (sr && typeof sr === 'object' && 'success' in sr && sr.success) {
+        // Fetch persisted AccountScore (Revenue Opportunity)
+        let accountScoreRecord: { score: number; scoreBreakdown: unknown; category: string; calculatedAt: Date } | null = null;
+        try {
+          accountScoreRecord = await db.accountScore.findUnique({
+            where: { companyId },
+          });
+        } catch { /* accountScore table may not exist in all environments */ }
+
+        // Parse revenue opportunity breakdown
+        let revenueOpportunity: IntelligenceCompanyContext['scores'] extends undefined ? never : NonNullable<NonNullable<IntelligenceCompanyContext['scores']>>['revenueOpportunity'];
+        if (accountScoreRecord) {
+          try {
+            const parsed = typeof accountScoreRecord.scoreBreakdown === 'string'
+              ? JSON.parse(accountScoreRecord.scoreBreakdown)
+              : accountScoreRecord.scoreBreakdown;
+            if (parsed && typeof parsed === 'object') {
+              revenueOpportunity = {
+                score: accountScoreRecord.score,
+                category: accountScoreRecord.category,
+                breakdown: {
+                  intelligenceCoverage: Number(parsed.intelligenceCoverage) || 0,
+                  signalStrength: Number(parsed.signalStrength) || 0,
+                  freshness: Number(parsed.freshness) || 0,
+                  strategicFit: Number(parsed.strategicFit) || 0,
+                  engagementHistory: Number(parsed.engagementHistory) || 0,
+                },
+              };
+            }
+          } catch { /* ignore */ }
+        }
+
+        // Classify intelligence tier
+        const intelScore = (company.intelligenceScore as number) ?? 0;
+        const intelTier = intelScore >= 70 ? 'hot' : intelScore >= 40 ? 'warm' : intelScore >= 15 ? 'cold' : 'unknown';
+
         scores = {
-          revenue: sr,
+          intelligence: { score: intelScore, tier: intelTier },
           accountPriority: company.accountPriorityScore
             ? { score: company.accountPriorityScore, tier: company.priorityTier ?? 'medium' }
             : undefined,
-          intelConfidence: Number(sr.confidence ?? 0) / 100,
+          revenue: sr,
+          ...(revenueOpportunity && { revenueOpportunity }),
         };
         confidences.push(sr.confidence / 100);
       } else if (sr && typeof sr === 'object' && 'error' in sr && sr.error) {

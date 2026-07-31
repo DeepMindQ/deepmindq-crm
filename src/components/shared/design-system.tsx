@@ -137,6 +137,82 @@ export function ScoreGauge({
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   Score Triple — 3 scores side-by-side (Intelligence / Priority / Revenue)
+   ═══════════════════════════════════════════════════════════════ */
+export interface ScoreItem {
+  label: string
+  score: number
+  tier: string
+  color: string
+  description?: string
+}
+
+interface ScoreTripleProps {
+  intelligence: ScoreItem | null
+  accountPriority: ScoreItem | null
+  revenueOpportunity: ScoreItem | null
+  className?: string
+}
+
+function scoreGaugeColor(score: number): string {
+  if (score >= 80) return '#059669'
+  if (score >= 60) return '#2563EB'
+  if (score >= 40) return '#D97706'
+  return '#DC2626'
+}
+
+export function ScoreTriple({ intelligence, accountPriority, revenueOpportunity, className }: ScoreTripleProps) {
+  const scores = [intelligence, accountPriority, revenueOpportunity].filter(Boolean) as ScoreItem[]
+
+  if (scores.length === 0) {
+    return (
+      <div className={cn('flex items-center justify-center py-6 text-sm text-gray-400', className)}>
+        No scores computed yet
+      </div>
+    )
+  }
+
+  return (
+    <div className={cn('grid gap-3', scores.length === 1 ? 'grid-cols-1' : scores.length === 2 ? 'grid-cols-2' : 'grid-cols-3', className)}>
+      {scores.map((s) => (
+        <div key={s.label} className="rounded-lg border border-gray-200/60 bg-gray-50/50 p-3 flex flex-col items-center gap-2">
+          {/* Mini radial gauge */}
+          <div className="relative" style={{ width: 56, height: 56 }}>
+            <svg aria-hidden="true" viewBox="0 0 56 56" className="w-full h-full -rotate-90">
+              <circle cx={28} cy={28} r={22} fill="none" stroke="#F3F4F6" strokeWidth={5} />
+              <circle
+                cx={28} cy={28} r={22}
+                fill="none" stroke={s.color || scoreGaugeColor(s.score)} strokeWidth={5}
+                strokeDasharray={2 * Math.PI * 22}
+                strokeDashoffset={2 * Math.PI * 22 - (s.score / 100) * 2 * Math.PI * 22}
+                strokeLinecap="round"
+                className="transition-all duration-700 ease-out"
+              />
+            </svg>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <span className="text-base font-bold text-gray-900 tabular-nums">{s.score}</span>
+            </div>
+          </div>
+          {/* Label + tier */}
+          <div className="text-center">
+            <p className="text-xs font-semibold text-gray-700 leading-tight">{s.label}</p>
+            <span
+              className="inline-block mt-0.5 text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-full"
+              style={{
+                backgroundColor: s.color ? `${s.color}15` : '#F3F4F6',
+                color: s.color || '#6B7280',
+              }}
+            >
+              {s.tier || 'unknown'}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+/* ═══════════════════════════════════════════════════════════════
    Trend Indicator — ↑ 12% vs last week
    ═══════════════════════════════════════════════════════════════ */
 interface TrendIndicatorProps {

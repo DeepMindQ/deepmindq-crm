@@ -148,12 +148,26 @@ export interface IntelligenceCompanyContext {
 
   // Intelligence scores (?include=scores)
   scores?: {
-    revenue: RevenueScore;
+    intelligence: {
+      score: number;
+      tier: string;
+    };
     accountPriority?: {
       score: number;
       tier: string;
     };
-    intelConfidence?: number;
+    revenue: RevenueScore;
+    revenueOpportunity?: {
+      score: number;
+      category: string;
+      breakdown: {
+        intelligenceCoverage: number;
+        signalStrength: number;
+        freshness: number;
+        strategicFit: number;
+        engagementHistory: number;
+      } | null;
+    };
   };
 
   // Contacts (?include=contacts)

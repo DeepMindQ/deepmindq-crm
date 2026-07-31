@@ -686,9 +686,9 @@ export async function POST() {
       }),
     ]);
 
-    // ── 6. Create Evidence entries ──
-    await Promise.all([
-      // Evidence for AI signal
+    // ── 6. Create Evidence entries (BEFORE linking to signals) ──
+    const evidenceRecords = await Promise.all([
+      // Evidence for AI signal (signal 0: Azure AI Studio)
       db.evidence.create({
         data: {
           companyId: company.id,
@@ -704,6 +704,7 @@ export async function POST() {
           sourceQualityTier: 'premium',
         },
       }),
+      // Evidence for funding signal (signal 3: $10B Azure AI)
       db.evidence.create({
         data: {
           companyId: company.id,
@@ -719,6 +720,7 @@ export async function POST() {
           sourceQualityTier: 'premium',
         },
       }),
+      // Evidence for leadership signal (signal 6: Nadella restructuring)
       db.evidence.create({
         data: {
           companyId: company.id,
@@ -734,6 +736,7 @@ export async function POST() {
           sourceQualityTier: 'premium',
         },
       }),
+      // Evidence for mention signal (signal 8: Copilot adoption)
       db.evidence.create({
         data: {
           companyId: company.id,
@@ -749,6 +752,7 @@ export async function POST() {
           sourceQualityTier: 'premium',
         },
       }),
+      // Evidence for tech signal (signal 1: Teams microservices)
       db.evidence.create({
         data: {
           companyId: company.id,
@@ -764,6 +768,7 @@ export async function POST() {
           sourceQualityTier: 'premium',
         },
       }),
+      // Evidence for hiring signal (signal 9: 500+ AI engineers)
       db.evidence.create({
         data: {
           companyId: company.id,
@@ -779,6 +784,7 @@ export async function POST() {
           sourceQualityTier: 'standard',
         },
       }),
+      // Evidence for partnership signal (signal 5: SAP partnership)
       db.evidence.create({
         data: {
           companyId: company.id,
@@ -794,6 +800,7 @@ export async function POST() {
           sourceQualityTier: 'premium',
         },
       }),
+      // Evidence for news signal (signal 7: Gartner MQ)
       db.evidence.create({
         data: {
           companyId: company.id,
@@ -810,6 +817,41 @@ export async function POST() {
         },
       }),
     ]);
+
+    // ── 6b. Link Evidence IDs to Signals via evidenceIds ──
+    // Signal → Evidence mapping by sourceUrl correlation:
+    //   signals[0] (Azure AI Studio) → evidence[0] (azure-ai-studio-launch)
+    //   signals[1] (Teams microservices) → evidence[4] (teams-microservices)
+    //   signals[3] ($10B funding) → evidence[1] (investor)
+    //   signals[5] (SAP partnership) → evidence[6] (sap partnership)
+    //   signals[6] (Nadella restructuring) → evidence[2] (reuters)
+    //   signals[7] (Gartner MQ) → evidence[7] (gartner)
+    //   signals[8] (Copilot adoption) → evidence[3] (bloomberg copilot)
+    //   signals[9] (500+ AI engineers) → evidence[5] (careers)
+    const signalEvidenceLinks: Record<number, number[]> = {
+      0: [0],       // Azure AI Studio signal → Azure AI Studio evidence
+      1: [4],       // Teams microservices → Teams architecture evidence
+      3: [1],       // $10B funding → Investor relations evidence
+      5: [6],       // SAP partnership → SAP news evidence
+      6: [2],       // Nadella restructuring → Reuters evidence
+      7: [7],       // Gartner MQ → Gartner evidence
+      8: [3],       // Copilot adoption → Bloomberg evidence
+      9: [5],       // 500+ AI engineers → Careers evidence
+    };
+
+    await Promise.all(
+      Object.entries(signalEvidenceLinks).map(([signalIdx, evidenceIndices]) => {
+        const signal = signals[Number(signalIdx)];
+        if (!signal) return Promise.resolve();
+        const linkedIds = evidenceIndices
+          .map(i => evidenceRecords[i]?.id)
+          .filter((id): id is string => !!id);
+        return db.companySignal.update({
+          where: { id: signal.id },
+          data: { evidenceIds: JSON.stringify(linkedIds) },
+        });
+      })
+    );
 
     return NextResponse.json({
       success: true,

@@ -1,8 +1,14 @@
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { governedAICall } from '@/lib/ai-governance';
 import { webSearch as sdkWebSearch } from '@/lib/llm-client';
+import {
+  utilityGuard,
+  utilityCatchError,
+  RateLimitedError,
+} from '@/lib/intelligence-api/guard';
+import { companyIdSchema } from '@/lib/intelligence-api/validators';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Types — AI Evidence Framework Compliant
@@ -457,11 +463,41 @@ Be SPECIFIC. Reference real information from web results. Every signal needs evi
    ═══════════════════════════════════════════════════════════════════════════ */
 
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  const startedAt = Date.now();
+
+  // ── Guard: rate limiting + correlation-id + response headers ──
+  let ctx: ReturnType<typeof utilityGuard>;
+  try {
+    ctx = utilityGuard(request, 'intelligence');
+  } catch (err) {
+    if (err instanceof RateLimitedError) {
+      const resetAt = Number(err.headers['X-RateLimit-Reset']) || Math.ceil(Date.now() / 1000) + 60;
+      return new Response(JSON.stringify(err.errorBody), {
+        status: 429,
+        headers: {
+          ...err.headers,
+          'Retry-After': String(Math.max(1, Math.ceil(resetAt - Date.now() / 1000))),
+        },
+      });
+    }
+    throw err;
+  }
+
   try {
     const { id: companyId } = await params;
+
+    // Validate companyId with Zod
+    const companyIdResult = companyIdSchema.safeParse(companyId);
+    if (!companyIdResult.success) {
+      const message = companyIdResult.error.issues[0]?.message || 'Invalid company ID';
+      return NextResponse.json(
+        { error: message },
+        { status: 400, headers: ctx.responseHeaders },
+      );
+    }
 
     // 1. Fetch the company
     const company = await db.company.findUnique({
@@ -469,7 +505,10 @@ export async function GET(
     });
 
     if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'Company not found' },
+        { status: 404, headers: ctx.responseHeaders },
+      );
     }
 
     // 2. Fetch related data in parallel
@@ -551,12 +590,18 @@ export async function GET(
       notes,
       timeline,
       aiInsights,
+    }, {
+      status: 200,
+      headers: ctx.responseHeaders,
     });
-  } catch (error) {
-    logger.error('[intelligence] Error:', { error: error });
-    return NextResponse.json(
-      { error: 'Failed to generate company intelligence' },
-      { status: 500 },
+  } catch (err) {
+    return utilityCatchError(
+      ctx,
+      err,
+      500,
+      'INTELLIGENCE_UNAVAILABLE',
+      'Failed to generate company intelligence',
+      Date.now() - startedAt,
     );
   }
 }

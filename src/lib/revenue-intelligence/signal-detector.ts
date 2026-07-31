@@ -1,3 +1,9 @@
+'use strict';
+
+/**
+ * @deprecated Use signal-extraction.ts instead. This module scans CompanySignal which is a subset of what signal-extraction.ts covers via IntelligenceObjects.
+ */
+
 // ── Phase 7.6: Signal Detector ──
 // Scans CompanySignals for a given company and classifies them into
 // revenue-relevant OpportunitySignal records using keyword matching.

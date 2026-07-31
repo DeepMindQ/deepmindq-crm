@@ -1,904 +1,855 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Brain, Sparkles, Send, ArrowRight, Building2, TrendingUp,
-  Zap, Activity, BarChart3, Clock, Lightbulb, RefreshCw,
-  MessageSquare, ArrowUpRight, Target, AlertTriangle, Globe,
-  Shield, ChevronRight, FileText, Mail, Radar, Inbox,
-  Radio, Users, Database, ShieldCheck, Cpu, HeartPulse,
+  Brain, Zap, Activity, Target, Building2, Clock, Radio,
+  Shield, Cpu, HeartPulse, RefreshCw, ArrowUpRight,
+  AlertTriangle, TrendingUp, BarChart3, FileText,
+  ChevronRight, Globe,
 } from 'lucide-react';
-import { PageTransition, AnimatedCounter, EmptyState } from '@/components/ui/animated-components';
+import { fetchApi } from '@/lib/fetchApi';
+import {
+  PageTransition,
+  AnimatedCounter,
+  StaggerGrid,
+  StaggerItem,
+  PulseDot,
+} from '@/components/ui/animated-components';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Separator } from '@/components/ui/separator';
 import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
-import { AIProgressTracker } from '@/components/enterprise/AIProgressTracker';
-import { EvidenceBadge } from '@/components/enterprise/EvidenceBadge';
 import { ErrorState } from '@/components/enterprise/ErrorState';
 import { LoadingState } from '@/components/enterprise/LoadingState';
 
 /* ═══════════════════════════════════════════════════════════════
-   Types — mirror the API response shape exactly
+   Types
    ═══════════════════════════════════════════════════════════════ */
+
 interface CommandCenterProps {
   navigateTo?: (screen: string, companyId?: string) => void;
 }
 
-interface TopCompany {
-  id: string; name: string; industry: string; score: number;
-  status: string; lifecycleStage?: string;
+interface KPIs {
+  totalAccounts: number;
+  activeSignals: number;
+  avgIntelligenceScore: number;
+  pendingActions: number;
 }
 
-interface Signal {
-  id: string; companyId: string; type: string; title: string;
-  severity: string; createdAt: string;
+interface RecentSignal {
+  id: string;
+  companyId: string;
+  companyName: string;
+  signalType: string;
+  title: string;
+  severity: string;
+  impact: string;
+  confidence: number;
+  createdAt: string;
 }
 
-interface HighValueLead {
-  id: string; name: string; email: string; score: number;
-  company: string; status: string;
+interface TopOpportunity {
+  id: string;
+  companyId: string;
+  companyName: string;
+  industry: string | null;
+  title: string;
+  score: number;
+  confidence: number;
+  priority: string;
+  status: string;
+  createdAt: string;
 }
 
-interface StrategicInsight {
-  insight: string; impact: 'high' | 'medium' | 'low'; action: string;
+interface EngineStatus {
+  name: string;
+  status: 'healthy' | 'degraded' | 'unhealthy';
 }
 
-interface Recommendation {
-  type: string; priority: 'high' | 'medium' | 'low'; engine: string;
-  title: string; description: string; actionScreen?: string;
+interface SystemHealth {
+  engines: EngineStatus[];
+  aiStatus: 'available' | 'degraded' | 'unavailable';
 }
 
-interface InsightsData {
-  companyEngine: {
-    totalCompanies: number;
-    companiesByStatus: Record<string, number>;
-    companiesByIndustry: Record<string, number>;
-    companiesByLifecycle: Record<string, number>;
-    companiesByCountry: Record<string, number>;
-    topScoredCompanies: TopCompany[];
-    unreadSignalCount: number;
-    criticalSignalCount: number;
-    latestSignals: Signal[];
-  };
-  emailEngine: {
-    totalContacts: number;
-    contactsByStatus: Record<string, number>;
-    pendingDrafts: number;
-    pendingQueue: number;
-    totalReplies: number;
-    positiveReplies: number;
-    replyRate: number;
-    avgLeadScore: number;
-    highValueLeads: HighValueLead[];
-    activeSequences: number;
-  };
-  capabilityEngine: {
-    totalCapabilities: number;
-    capabilitiesByCategory: Record<string, number>;
-    capabilitiesByServiceLine: Record<string, number>;
-    topCapabilities: Array<{ id: string; title: string; category: string; usedInEmails: number }>;
-  };
-  recommendations: Recommendation[];
-  healthScore: number;
-  aiSummary?: string;
-  aiStrategicInsights?: StrategicInsight[];
-  aiHealthAnalysis?: string;
+interface IntelligenceFeedItem {
+  id: string;
+  companyId: string;
+  eventType: string;
+  title: string;
+  description: string;
+  createdAt: string;
 }
 
-type ProgressStep = 'pending' | 'processing' | 'complete' | 'error';
+interface MorningBrief {
+  greeting: string;
+  executiveSummary: string;
+  topTargets: unknown[];
+  newIntelligence: unknown[];
+  actionsDue: unknown[];
+}
+
+interface CommandCenterData {
+  kpis: KPIs;
+  recentSignals: RecentSignal[];
+  topOpportunities: TopOpportunity[];
+  systemHealth: SystemHealth;
+  intelligenceFeed: IntelligenceFeedItem[];
+  morningBrief?: MorningBrief;
+}
+
+interface ApiResponse {
+  success: boolean;
+  data: CommandCenterData;
+  meta: { endpoint: string; durationMs: number };
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Constants
+   ═══════════════════════════════════════════════════════════════ */
+
+const POLL_INTERVAL = 30_000;
+
+const SEVERITY_STYLES: Record<string, { variant: 'destructive' | 'secondary' | 'outline' | 'default'; className: string }> = {
+  critical: { variant: 'destructive', className: 'bg-red-500/20 text-red-400 border-red-500/30 hover:bg-red-500/30' },
+  high: { variant: 'destructive', className: 'bg-orange-500/20 text-orange-400 border-orange-500/30 hover:bg-orange-500/30' },
+  medium: { variant: 'secondary', className: 'bg-amber-500/20 text-amber-400 border-amber-500/30 hover:bg-amber-500/30' },
+  low: { variant: 'secondary', className: 'bg-slate-500/20 text-slate-400 border-slate-500/30 hover:bg-slate-500/30' },
+};
+
+const PRIORITY_STYLES: Record<string, string> = {
+  high: 'bg-red-500/20 text-red-400 border-red-500/30',
+  medium: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+  low: 'bg-slate-500/20 text-slate-400 border-slate-500/30',
+};
+
+const ENGINE_STATUS_COLORS: Record<string, string> = {
+  healthy: 'bg-emerald-500 shadow-emerald-500/50',
+  degraded: 'bg-amber-500 shadow-amber-500/50',
+  unhealthy: 'bg-red-500 shadow-red-500/50',
+};
+
+const ENGINE_STATUS_LABEL: Record<string, string> = {
+  healthy: 'Operational',
+  degraded: 'Degraded',
+  unhealthy: 'Down',
+};
+
+const AI_STATUS_STYLES: Record<string, { dotColor: string; label: string; textColor: string }> = {
+  available: { dotColor: 'bg-emerald-500 shadow-emerald-500/50', label: 'AI Online', textColor: 'text-emerald-400' },
+  degraded: { dotColor: 'bg-amber-500 shadow-amber-500/50', label: 'AI Degraded', textColor: 'text-amber-400' },
+  unavailable: { dotColor: 'bg-red-500 shadow-red-500/50', label: 'AI Offline', textColor: 'text-red-400' },
+};
 
 /* ═══════════════════════════════════════════════════════════════
    Helpers
    ═══════════════════════════════════════════════════════════════ */
-function delay(ms: number) {
-  return new Promise(resolve => setTimeout(resolve, ms));
-}
 
-function relativeTime(dateStr: string): string {
+function formatTimeAgo(isoString: string): string {
   const now = Date.now();
-  const then = new Date(dateStr).getTime();
-  const diffMin = Math.floor((now - then) / 60000);
-  if (diffMin < 1) return 'Just now';
-  if (diffMin < 60) return `${diffMin}m ago`;
-  const diffHr = Math.floor(diffMin / 60);
-  if (diffHr < 24) return `${diffHr}h ago`;
-  return `${Math.floor(diffHr / 24)}d ago`;
-}
-
-function healthColor(score: number) {
-  if (score >= 75) return { text: 'text-emerald-600', bg: 'bg-emerald-50', bar: 'bg-emerald-500', track: 'bg-emerald-100', ring: 'ring-emerald-500/20' };
-  if (score >= 50) return { text: 'text-amber-600', bg: 'bg-amber-50', bar: 'bg-amber-500', track: 'bg-amber-100', ring: 'ring-amber-500/20' };
-  return { text: 'text-red-500', bg: 'bg-red-50', bar: 'bg-red-500', track: 'bg-red-100', ring: 'ring-red-500/20' };
-}
-
-function severityColor(severity: string) {
-  if (severity === 'critical') return { bg: 'bg-red-50 border-red-200', text: 'text-red-700', badge: 'bg-red-100 text-red-700' };
-  if (severity === 'high') return { bg: 'bg-orange-50 border-orange-200', text: 'text-orange-700', badge: 'bg-orange-100 text-orange-700' };
-  if (severity === 'medium') return { bg: 'bg-amber-50 border-amber-200', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-700' };
-  return { bg: 'bg-slate-50 border-slate-200', text: 'text-slate-600', badge: 'bg-slate-100 text-slate-600' };
+  const then = new Date(isoString).getTime();
+  const diffMs = now - then;
+  if (diffMs < 60_000) return 'just now';
+  if (diffMs < 3_600_000) return `${Math.floor(diffMs / 60_000)}m ago`;
+  if (diffMs < 86_400_000) return `${Math.floor(diffMs / 3_600_000)}h ago`;
+  return `${Math.floor(diffMs / 86_400_000)}d ago`;
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Sub-component: Health Gauge (circular)
+   Sub-components
    ═══════════════════════════════════════════════════════════════ */
-function HealthGauge({ score, size = 72 }: { score: number; size?: number }) {
-  const c = healthColor(score);
-  const r = (size - 8) / 2;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (score / 100) * circ;
 
-  return (
-    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
-      <svg aria-hidden="true" width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="5" className={c.track} />
-        <circle
-          cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth="5"
-          strokeLinecap="round"
-          className={c.bar}
-          strokeDasharray={circ}
-          strokeDashoffset={offset}
-          style={{ transition: 'stroke-dashoffset 1s ease-out' }}
-        />
-      </svg>
-      <span className={`absolute text-sm font-bold tabular-nums ${c.text}`}>{score}</span>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Sub-component: Priority Action Card
-   ═══════════════════════════════════════════════════════════════ */
-function PriorityActionCard({
-  icon: Icon, label, count, items, accentBg, accentText, accentBorder,
-  onClick, badgeText, badgeClass,
-}: {
-  icon: typeof Zap;
-  label: string;
-  count: number;
-  items: Array<{ primary: string; secondary?: string; badge?: string; badgeClass?: string }>;
-  accentBg: string; accentText: string; accentBorder: string;
-  onClick?: () => void;
-  badgeText?: string;
-  badgeClass?: string;
-}) {
-  return (
-    <motion.button
-      onClick={onClick}
-      className={`card-interactive rounded-xl bg-white border border-slate-200 overflow-hidden text-left w-full press-scale ${accentBorder}`}
-      whileHover={{ y: -2 }}
-    >
-      <div className="p-4 pb-3">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2.5">
-            <div className={`flex h-8 w-8 items-center justify-center rounded-lg ${accentBg}`}>
-              <Icon className={`h-4 w-4 ${accentText}`} />
-            </div>
-            <div>
-              <p className="text-xs font-medium text-slate-500 uppercase tracking-wider">{label}</p>
-              <p className="text-xl font-bold text-slate-900 tabular-nums leading-tight">{count}</p>
-            </div>
-          </div>
-          {badgeText && (
-            <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-semibold ${badgeClass || 'bg-blue-100 text-blue-700'}`}>
-              {badgeText}
-            </span>
-          )}
-          <ArrowUpRight className="h-4 w-4 text-slate-300" />
-        </div>
-        <div className="space-y-1.5">
-          {items.slice(0, 3).map((item, i) => (
-            <div key={i} className="flex items-center gap-2 text-xs">
-              {item.badge && (
-                <span className={`inline-flex items-center px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase ${item.badgeClass || ''}`}>
-                  {item.badge}
-                </span>
-              )}
-              <span className="text-slate-700 truncate font-medium">{item.primary}</span>
-              {item.secondary && <span className="text-slate-400 ml-auto text-[11px]">{item.secondary}</span>}
-            </div>
-          ))}
-          {items.length === 0 && (
-            <p className="text-[11px] text-slate-400 italic">No items at this time</p>
-          )}
-        </div>
-      </div>
-    </motion.button>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Sub-component: Strategic Insight Card
-   ═══════════════════════════════════════════════════════════════ */
-function StrategicInsightCard({
-  insight, index, onNavigate,
-}: {
-  insight: StrategicInsight;
-  index: number;
-  onNavigate?: (screen: string) => void;
-}) {
-  const impactMap: Record<string, { badge: string; label: string; accent: string; confidence: number }> = {
-    high: { badge: 'bg-red-100 text-red-700 border-red-300', label: 'HIGH', accent: 'risk', confidence: 92 },
-    medium: { badge: 'bg-amber-100 text-amber-700 border-amber-300', label: 'MEDIUM', accent: 'signal', confidence: 78 },
-    low: { badge: 'bg-slate-100 text-slate-600 border-slate-300', label: 'LOW', accent: 'enrichment', confidence: 65 },
-  };
-  const m = impactMap[insight.impact] ?? impactMap.medium;
-
+/** Morning Brief — AI-generated executive summary card */
+function MorningBriefCard({ brief }: { brief: MorningBrief }) {
   return (
     <motion.div
-      data-accent={m.accent}
-      className="intel-card"
-      initial={{ opacity: 0, y: 12 }}
+      initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.08 }}
+      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
     >
-      <div className="pl-5 pr-5 py-4 space-y-3">
-        {/* Header */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-3.5 w-3.5 text-blue-500 shrink-0" />
-            <p className="text-sm text-slate-800 font-medium leading-relaxed">{insight.insight}</p>
-          </div>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider border whitespace-nowrap ${m.badge}`}>
-            {m.label}
-          </span>
-        </div>
-
-        {/* Confidence + Source Evidence */}
-        <div className="flex items-center gap-3">
-          <ConfidenceBar value={m.confidence} size="sm" showPercentage={true} />
-          <div className="flex items-center gap-1.5">
-            <EvidenceBadge source="analytics" confidence={m.confidence} />
-            <EvidenceBadge source="internal" confidence={85} />
-          </div>
-        </div>
-
-        {/* Recommended Action */}
-        <div className="rounded-lg border border-blue-100 bg-blue-50/60 p-3">
-          <div className="flex items-center justify-between gap-2">
-            <div className="flex items-start gap-2 flex-1">
-              <Lightbulb className="h-3.5 w-3.5 text-blue-600 mt-0.5 shrink-0" />
-              <p className="text-xs text-slate-700 leading-relaxed font-medium">{insight.action}</p>
+      <Card className="border-slate-700/50 bg-slate-800/80 backdrop-blur-md overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-amber-500/5 via-transparent to-blue-500/5 pointer-events-none" />
+        <CardHeader className="pb-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-amber-500/20 to-amber-600/10 border border-amber-500/20 flex items-center justify-center">
+              <Brain className="w-4.5 h-4.5 text-amber-400" />
             </div>
-            {onNavigate && (
-              <ChevronRight className="h-4 w-4 text-blue-400 shrink-0 cursor-pointer hover:text-blue-600" />
-            )}
+            <div className="flex-1 min-w-0">
+              <CardTitle className="text-sm font-semibold text-slate-100">
+                {brief.greeting || 'Morning Brief'}
+              </CardTitle>
+              <CardDescription className="text-xs text-slate-400 mt-0.5">
+                AI-generated intelligence summary
+              </CardDescription>
+            </div>
           </div>
-        </div>
-      </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <p className="text-sm text-slate-300 leading-relaxed">
+            {brief.executiveSummary}
+          </p>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Sub-component: Account Score Row
-   ═══════════════════════════════════════════════════════════════ */
-function AccountScoreRow({
-  company, rank, onView,
-}: { company: TopCompany; rank: number; onView?: (id: string) => void }) {
-  const sc = company.score >= 80 ? 'text-emerald-600' : company.score >= 60 ? 'text-amber-600' : 'text-slate-500';
-  const barColor = company.score >= 80 ? 'bg-emerald-500' : company.score >= 60 ? 'bg-amber-500' : 'bg-slate-400';
-
+/** Single KPI card with animated counter */
+function KPICard({
+  label,
+  value,
+  icon: Icon,
+  color,
+  delay,
+}: {
+  label: string;
+  value: number;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
+  color: string;
+  delay: number;
+}) {
   return (
-    <button
-      onClick={() => onView?.(company.id)}
-      className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors group text-left"
+    <motion.div
+      initial={{ opacity: 0, y: 20, scale: 0.95 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      transition={{ duration: 0.5, delay, ease: [0.22, 1, 0.36, 1] }}
+      whileHover={{ y: -3, transition: { duration: 0.2 } }}
     >
-      <span className="text-[11px] font-bold text-slate-300 w-4 text-center">{rank}</span>
-      <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100">
-        <Building2 className="h-3.5 w-3.5 text-slate-500" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-semibold text-slate-800 truncate group-hover:text-blue-700 transition-colors">{company.name}</p>
-        <p className="text-[11px] text-slate-400">{company.industry || 'Unknown'}</p>
-      </div>
-      <div className="flex items-center gap-2">
-        <div className="w-16 h-1.5 rounded-full bg-slate-100 overflow-hidden">
-          <div className={`h-full rounded-full ${barColor}`} style={{ width: `${company.score}%`, transition: 'width 0.8s ease-out' }} />
-        </div>
-        <span className={`text-xs font-bold tabular-nums w-6 text-right ${sc}`}>{company.score}</span>
-      </div>
-    </button>
+      <Card className="border-slate-700/50 bg-slate-800/80 backdrop-blur-md">
+        <CardContent className="p-5">
+          <div className="flex items-start justify-between">
+            <div className="space-y-2">
+              <p className="text-[11px] font-medium uppercase tracking-widest text-slate-400">
+                {label}
+              </p>
+              <p className="text-3xl font-bold tabular-nums" style={{ color }}>
+                <AnimatedCounter value={value} />
+              </p>
+            </div>
+            <div
+              className="w-10 h-10 rounded-lg flex items-center justify-center shrink-0"
+              style={{ background: `${color}15` }}
+            >
+              <Icon className="w-5 h-5" style={{ color }} />
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Sub-component: Signal Feed Item
-   ═══════════════════════════════════════════════════════════════ */
-function SignalFeedItem({ signal, onClick }: { signal: Signal; onClick?: () => void }) {
-  const sc = severityColor(signal.severity);
-
+/** KPI Skeleton placeholder */
+function KPISkeleton() {
   return (
-    <button
-      onClick={onClick}
-      className="w-full text-left flex items-start gap-2.5 px-3 py-2.5 rounded-lg hover:bg-slate-50 transition-colors group"
-    >
-      <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md border ${sc.bg} mt-0.5`}>
-        <Zap className={`h-3 w-3 ${sc.text}`} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center gap-1.5 mb-0.5">
-          <span className={`text-[9px] font-bold uppercase tracking-wider ${sc.text}`}>{signal.severity}</span>
-          <span className="text-[9px] text-slate-400">·</span>
-          <span className="text-[9px] text-slate-400">{signal.type}</span>
-        </div>
-        <p className="text-xs font-medium text-slate-700 truncate group-hover:text-slate-900 transition-colors">{signal.title}</p>
-      </div>
-      <span className="text-[11px] text-slate-400 whitespace-nowrap mt-0.5">{relativeTime(signal.createdAt)}</span>
-    </button>
+    <Card className="border-slate-700/50 bg-slate-800/80">
+      <CardContent className="p-5">
+        <Skeleton className="h-3 w-24 rounded bg-slate-700 mb-3" />
+        <Skeleton className="h-8 w-16 rounded bg-slate-700" />
+      </CardContent>
+    </Card>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Sub-component: Industry Bar
-   ═══════════════════════════════════════════════════════════════ */
-function IndustryBar({ label, count, max, color }: { label: string; count: number; max: number; color: string }) {
-  const pct = max > 0 ? Math.round((count / max) * 100) : 0;
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-[11px] text-slate-500 w-24 truncate">{label}</span>
-      <div className="flex-1 h-2 rounded-full bg-slate-100 overflow-hidden">
-        <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%`, transition: 'width 0.6s ease-out' }} />
+/** Recent Signals Feed — scrollable list with severity badges */
+function RecentSignalsFeed({
+  signals,
+  onNavigate,
+}: {
+  signals: RecentSignal[];
+  onNavigate?: (screen: string, companyId?: string) => void;
+}) {
+  if (signals.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-center">
+        <Radio className="w-8 h-8 text-slate-600 mb-2" />
+        <p className="text-sm text-slate-500">No active signals</p>
       </div>
-      <span className="text-[11px] font-semibold text-slate-600 tabular-nums w-6 text-right">{count}</span>
+    );
+  }
+
+  return (
+    <ScrollArea className="max-h-96">
+      <div className="space-y-1.5 pr-3">
+        {signals.map((signal, i) => {
+          const severityStyle = SEVERITY_STYLES[signal.severity] || SEVERITY_STYLES.low;
+          return (
+            <motion.div
+              key={signal.id}
+              initial={{ opacity: 0, x: -12 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.3, delay: i * 0.04 }}
+              className={`group flex items-start gap-3 p-3 rounded-lg border transition-colors cursor-pointer ${
+                signal.severity === 'critical'
+                  ? 'border-red-500/20 bg-red-500/5 hover:bg-red-500/10'
+                  : 'border-slate-700/30 bg-slate-800/40 hover:bg-slate-700/40'
+              }`}
+              onClick={() => onNavigate?.('company-detail', signal.companyId)}
+            >
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <Badge
+                    variant={severityStyle.variant}
+                    className={`text-[10px] px-1.5 py-0 h-5 font-medium ${severityStyle.className}`}
+                  >
+                    {signal.severity}
+                  </Badge>
+                  <span className="text-xs text-slate-500">{signal.signalType}</span>
+                </div>
+                <p className="text-sm font-medium text-slate-200 truncate group-hover:text-slate-100 transition-colors">
+                  {signal.title}
+                </p>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <Building2 className="w-3 h-3 text-slate-500 shrink-0" />
+                  <span className="text-xs text-slate-400 truncate">{signal.companyName}</span>
+                </div>
+              </div>
+              <div className="flex flex-col items-end gap-1 shrink-0">
+                <ConfidenceBar value={signal.confidence} size="sm" className="w-16" />
+                <span className="text-[10px] text-slate-500">{formatTimeAgo(signal.createdAt)}</span>
+              </div>
+            </motion.div>
+          );
+        })}
+      </div>
+    </ScrollArea>
+  );
+}
+
+/** Intelligence Feed — timeline of recent events */
+function IntelligenceFeedPanel({
+  feed,
+  onNavigate,
+}: {
+  feed: IntelligenceFeedItem[];
+  onNavigate?: (screen: string, companyId?: string) => void;
+}) {
+  if (feed.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-center">
+        <Globe className="w-8 h-8 text-slate-600 mb-2" />
+        <p className="text-sm text-slate-500">No recent intelligence</p>
+      </div>
+    );
+  }
+
+  return (
+    <ScrollArea className="max-h-80">
+      <div className="space-y-0.5 pr-3">
+        {feed.map((item, i) => (
+          <motion.div
+            key={item.id}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ duration: 0.3, delay: i * 0.03 }}
+            className="group flex gap-3 py-2.5 cursor-pointer"
+            onClick={() => onNavigate?.('company-detail', item.companyId)}
+          >
+            <div className="flex flex-col items-center">
+              <div className="w-2 h-2 rounded-full bg-slate-600 mt-1.5 shrink-0 ring-2 ring-slate-800" />
+              {i < feed.length - 1 && <div className="w-px flex-1 bg-slate-700/50 mt-1" />}
+            </div>
+            <div className="flex-1 min-w-0 pb-2">
+              <div className="flex items-center gap-2 mb-0.5">
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-5 text-slate-400 border-slate-600/50">
+                  {item.eventType}
+                </Badge>
+                <span className="text-[10px] text-slate-500">{formatTimeAgo(item.createdAt)}</span>
+              </div>
+              <p className="text-sm text-slate-300 group-hover:text-slate-100 truncate transition-colors">
+                {item.title}
+              </p>
+              {item.description && (
+                <p className="text-xs text-slate-500 truncate mt-0.5">{item.description}</p>
+              )}
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </ScrollArea>
+  );
+}
+
+/** Top Opportunities Table */
+function OpportunitiesTable({
+  opportunities,
+  onNavigate,
+}: {
+  opportunities: TopOpportunity[];
+  onNavigate?: (screen: string, companyId?: string) => void;
+}) {
+  if (opportunities.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-10 text-center">
+        <Target className="w-8 h-8 text-slate-600 mb-2" />
+        <p className="text-sm text-slate-500">No opportunities</p>
+      </div>
+    );
+  }
+
+  return (
+    <ScrollArea className="max-h-96">
+      <div className="space-y-2 pr-3">
+        {opportunities.map((opp, i) => (
+          <motion.div
+            key={opp.id}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.35, delay: i * 0.05 }}
+            className="group flex items-center gap-3 p-3 rounded-lg border border-slate-700/30 bg-slate-800/40 hover:bg-slate-700/40 transition-colors cursor-pointer"
+            onClick={() => onNavigate?.('company-detail', opp.companyId)}
+          >
+            {/* Score ring */}
+            <div className="w-11 h-11 rounded-full border-2 border-slate-600 flex items-center justify-center shrink-0 group-hover:border-amber-500/50 transition-colors">
+              <span className="text-sm font-bold tabular-nums text-slate-200">{opp.score}</span>
+            </div>
+
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-0.5">
+                <p className="text-sm font-medium text-slate-200 truncate group-hover:text-slate-100 transition-colors">
+                  {opp.companyName}
+                </p>
+                <Badge
+                  variant="outline"
+                  className={`text-[10px] px-1.5 py-0 h-5 shrink-0 ${
+                    PRIORITY_STYLES[opp.priority] || PRIORITY_STYLES.medium
+                  }`}
+                >
+                  {opp.priority}
+                </Badge>
+              </div>
+              <p className="text-xs text-slate-400 truncate">{opp.title}</p>
+              <div className="flex items-center gap-3 mt-1">
+                {opp.industry && (
+                  <span className="text-[11px] text-slate-500">{opp.industry}</span>
+                )}
+                <span className="text-[11px] text-slate-500 capitalize">{opp.status.replace(/_/g, ' ')}</span>
+              </div>
+            </div>
+
+            <div className="flex flex-col items-end gap-1 shrink-0">
+              <ConfidenceBar value={opp.confidence} size="sm" className="w-14" />
+              <ChevronRight className="w-3.5 h-3.5 text-slate-600 group-hover:text-slate-400 transition-colors" />
+            </div>
+          </motion.div>
+        ))}
+      </div>
+    </ScrollArea>
+  );
+}
+
+/** System Health Panel — engine status dots + AI status */
+function SystemHealthPanel({ health }: { health: SystemHealth }) {
+  const healthyCount = health.engines.filter(e => e.status === 'healthy').length;
+  const aiStyle = AI_STATUS_STYLES[health.aiStatus] || AI_STATUS_STYLES.unavailable;
+
+  return (
+    <div className="space-y-4">
+      {/* AI Status banner */}
+      <div className="flex items-center gap-3 p-3 rounded-lg border border-slate-700/30 bg-slate-800/40">
+        <span className={`w-2.5 h-2.5 rounded-full ${aiStyle.dotColor} shadow-sm`} />
+        <span className={`text-sm font-medium ${aiStyle.textColor}`}>{aiStyle.label}</span>
+        <span className="text-xs text-slate-500 ml-auto">24h governance</span>
+      </div>
+
+      <Separator className="bg-slate-700/30" />
+
+      {/* Engine grid */}
+      <div className="space-y-2">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-xs font-medium text-slate-400 uppercase tracking-wider">Engines</span>
+          <span className="text-xs text-slate-500">
+            {healthyCount}/{health.engines.length} operational
+          </span>
+        </div>
+        <div className="grid grid-cols-2 gap-2">
+          {health.engines.map((engine) => (
+            <div
+              key={engine.name}
+              className="flex items-center gap-2.5 p-2.5 rounded-lg border border-slate-700/30 bg-slate-800/40"
+            >
+              <span className={`w-2 h-2 rounded-full shrink-0 shadow-sm ${ENGINE_STATUS_COLORS[engine.status]}`} />
+              <div className="min-w-0">
+                <p className="text-xs font-medium text-slate-300 truncate">{engine.name}</p>
+                <p className="text-[10px] text-slate-500">{ENGINE_STATUS_LABEL[engine.status]}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Sub-component: Engine Health Bar
-   ═══════════════════════════════════════════════════════════════ */
-function EngineHealthBar({
-  label, icon: Icon, score, description,
-}: { label: string; icon: typeof Shield; score: number; description: string }) {
-  const c = healthColor(score);
+/** System Health skeleton */
+function SystemHealthSkeleton() {
   return (
-    <div className="flex items-start gap-3">
-      <div className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg ${c.bg}`}>
-        <Icon className={`h-4 w-4 ${c.text}`} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="flex items-center justify-between mb-1">
-          <span className="text-xs font-semibold text-slate-700">{label}</span>
-          <span className={`text-xs font-bold tabular-nums ${c.text}`}>{score}/100</span>
-        </div>
-        <div className="w-full h-2 rounded-full bg-slate-100 overflow-hidden">
-          <div className={`h-full rounded-full ${c.bar}`} style={{ width: `${score}%`, transition: 'width 1s ease-out' }} />
-        </div>
-        <p className="text-[11px] text-slate-400 mt-1 leading-relaxed">{description}</p>
+    <div className="space-y-4">
+      <Skeleton className="h-10 w-full rounded-lg bg-slate-700" />
+      <Separator className="bg-slate-700/30" />
+      <div className="grid grid-cols-2 gap-2">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <Skeleton key={i} className="h-14 w-full rounded-lg bg-slate-700" />
+        ))}
       </div>
     </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Sub-component: Loading Progress
-   ═══════════════════════════════════════════════════════════════ */
-function CommandLoadingState() {
-  const [steps, setSteps] = useState<Array<{ label: string; status: ProgressStep }>>([
-    { label: 'Scanning company signals', status: 'pending' },
-    { label: 'Analyzing email pipeline', status: 'pending' },
-    { label: 'Evaluating capability coverage', status: 'pending' },
-    { label: 'Generating AI intelligence briefing', status: 'pending' },
-  ]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const s = [...steps];
-      for (let i = 0; i < s.length; i++) {
-        await delay(400 + Math.random() * 300);
-        if (cancelled) return;
-        s[i].status = 'processing';
-        setSteps([...s]);
-        await delay(600 + Math.random() * 400);
-        if (cancelled) return;
-        s[i].status = 'complete';
-        setSteps([...s]);
-      }
-    })();
-    return () => { cancelled = true; };
-     
-  }, []);
-
-  return (
-    <div className="flex flex-col items-center justify-center py-20 gap-6">
-      <div className="flex items-center gap-3">
-        <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-gradient-to-br from-blue-500/15 to-blue-600/5 border border-blue-200/50">
-          <Brain className="h-6 w-6 text-blue-600 animate-pulse" />
-        </div>
-        <div>
-          <h3 className="text-sm font-semibold text-slate-800">Analyzing platform signals...</h3>
-          <p className="text-xs text-slate-400">Cross-referencing all three intelligence engines</p>
-        </div>
-      </div>
-      <div className="w-full max-w-sm">
-        <AIProgressTracker steps={steps} />
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Sub-component: Command Empty State
-   ═══════════════════════════════════════════════════════════════ */
-function CommandEmptyState({ navigateTo }: { navigateTo?: (screen: string) => void }) {
-  return (
-    <EmptyState
-      icon={Radar}
-      title="No Intelligence Data Yet"
-      description="The Command Center activates once you have companies, contacts, and signals in your platform. Start by importing companies or enriching your existing data."
-      action={
-        <div className="flex items-center gap-2">
-          <Button size="sm" variant="default" onClick={() => navigateTo?.('companies')} className="gap-1.5">
-            <Building2 className="h-3.5 w-3.5" />
-            Add Companies
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => navigateTo?.('contacts')} className="gap-1.5">
-            <Users className="h-3.5 w-3.5" />
-            Import Contacts
-          </Button>
-        </div>
-      }
-    />
   );
 }
 
 /* ═══════════════════════════════════════════════════════════════
    Main Component
    ═══════════════════════════════════════════════════════════════ */
-export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) {
-  const [insights, setInsights] = useState<InsightsData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
-  const [lastRefreshed, setLastRefreshed] = useState<Date | null>(null);
 
-  const fetchInsights = useCallback(async () => {
-    setLoading(true);
-    setError(false);
-    try {
-      const res = await fetch('/api/command-center/insights');
-      if (res.ok) {
-        const json = await res.json();
-        setInsights(json);
-        setLastRefreshed(new Date());
+export default function CommandCenterScreen({ navigateTo }: CommandCenterProps) {
+  const [data, setData] = useState<CommandCenterData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [rateLimited, setRateLimited] = useState(false);
+  const [rateLimitRetry, setRateLimitRetry] = useState(0);
+  const [lastFetched, setLastFetched] = useState<Date | null>(null);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const fetchInsights = useCallback(async (isPoll = false) => {
+    // Don't overlay loading state on polling fetches
+    if (!isPoll) setLoading(true);
+    setError(null);
+    setRateLimited(false);
+
+    const { data: responseData, error: fetchError } = await fetchApi<ApiResponse>(
+      '/api/command-center/insights',
+    );
+
+    if (fetchError) {
+      if (fetchError.includes('429') || fetchError.includes('Rate limit')) {
+        setRateLimited(true);
+        setRateLimitRetry(30); // Default 30s retry
+        setError(null);
       } else {
-        setError(true);
+        setError(fetchError);
       }
-    } catch {
-      setError(true);
-    } finally {
       setLoading(false);
+      return;
     }
+
+    if (responseData && responseData.success && responseData.data) {
+      setData(responseData.data);
+      setLastFetched(new Date());
+    } else {
+      setError('Unexpected response format from command center API.');
+    }
+
+    setLoading(false);
   }, []);
 
-  useEffect(() => { fetchInsights(); }, [fetchInsights]);
+  // Initial fetch
+  useEffect(() => {
+    fetchInsights(false);
 
-  // ── Derived data for priority cards ──
-  const criticalSignals = insights?.companyEngine.latestSignals.filter(
-    s => s.severity === 'critical' || s.severity === 'high'
-  ) ?? [];
-  const highValueLeads = insights?.emailEngine.highValueLeads ?? [];
-  const pendingDrafts = insights?.emailEngine.pendingDrafts ?? 0;
-  const positiveReplies = insights?.emailEngine.positiveReplies ?? 0;
+    // Start polling every 30s
+    pollRef.current = setInterval(() => {
+      fetchInsights(true);
+    }, POLL_INTERVAL);
 
-  // ── Compute individual engine health scores ──
-  const companyHealth = insights ? Math.min(100, Math.round(
-    Math.min(insights.companyEngine.totalCompanies / 200, 30) +
-    (insights.companyEngine.unreadSignalCount === 0 ? 20 : Math.max(20 - insights.companyEngine.unreadSignalCount, 0)) +
-    Math.min(Object.keys(insights.companyEngine.companiesByIndustry).length * 2, 20) +
-    (insights.companyEngine.topScoredCompanies.length > 0 ? Math.min(insights.companyEngine.topScoredCompanies[0].score / 5, 15) : 0) +
-    (insights.companyEngine.criticalSignalCount === 0 ? 15 : 0)
-  )) : 0;
+    return () => {
+      if (pollRef.current) clearInterval(pollRef.current);
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    };
+  }, [fetchInsights]);
 
-  const emailHealth = insights ? Math.min(100, Math.round(
-    Math.min(insights.emailEngine.totalContacts / 200, 25) +
-    Math.min(insights.emailEngine.avgLeadScore / 5, 25) +
-    Math.min(insights.emailEngine.replyRate * 1.5, 25) +
-    (pendingDrafts === 0 ? 15 : Math.max(15 - pendingDrafts / 10, 0)) +
-    (insights.emailEngine.activeSequences > 0 ? 10 : 0)
-  )) : 0;
+  // Rate limit countdown timer
+  useEffect(() => {
+    if (!rateLimited || rateLimitRetry <= 0) return;
 
-  const capabilityHealth = insights ? Math.min(100, Math.round(
-    Math.min(insights.capabilityEngine.totalCapabilities / 2, 40) +
-    Math.min(Object.keys(insights.capabilityEngine.capabilitiesByCategory).length * 5, 20) +
-    (insights.capabilityEngine.topCapabilities.length > 0 ? Math.min(insights.capabilityEngine.topCapabilities[0].usedInEmails * 2, 20) : 0) +
-    (insights.capabilityEngine.totalCapabilities >= 20 ? 20 : insights.capabilityEngine.totalCapabilities >= 10 ? 10 : 0)
-  )) : 0;
+    retryTimerRef.current = setTimeout(() => {
+      setRateLimitRetry(prev => {
+        if (prev <= 1) {
+          setRateLimited(false);
+          fetchInsights(true);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
 
-  // ── Industry distribution data ──
-  const industryEntries = insights
-    ? Object.entries(insights.companyEngine.companiesByIndustry)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 6)
-    : [];
-  const maxIndustry = industryEntries.length > 0 ? industryEntries[0][1] : 1;
-  const industryColors = ['bg-blue-500', 'bg-violet-500', 'bg-cyan-500', 'bg-amber-500', 'bg-emerald-500', 'bg-pink-500'];
+    return () => {
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
+    };
+  }, [rateLimited, rateLimitRetry, fetchInsights]);
 
-  // ── Activity timeline items (derived from available data) ──
-  const activityItems = insights ? [
-    ...(insights.companyEngine.latestSignals.map(s => ({
-      id: s.id, icon: Zap, iconColor: s.severity === 'critical' ? 'text-red-500' : 'text-blue-500',
-      iconBg: s.severity === 'critical' ? 'bg-red-50' : 'bg-blue-50',
-      label: `Signal: ${s.title}`, time: relativeTime(s.createdAt),
-    }))),
-    ...(insights.emailEngine.positiveReplies > 0 ? [{
-      id: 'replies', icon: MessageSquare, iconColor: 'text-emerald-500', iconBg: 'bg-emerald-50',
-      label: `${insights.emailEngine.positiveReplies} positive replies received`, time: 'Recent',
-    }] : []),
-    ...(insights.emailEngine.pendingDrafts > 0 ? [{
-      id: 'drafts', icon: FileText, iconColor: 'text-amber-500', iconBg: 'bg-amber-50',
-      label: `${insights.emailEngine.pendingDrafts} drafts awaiting review`, time: 'Pending',
-    }] : []),
-    ...(insights.emailEngine.pendingQueue > 0 ? [{
-      id: 'queue', icon: Send, iconColor: 'text-blue-500', iconBg: 'bg-blue-50',
-      label: `${insights.emailEngine.pendingQueue} emails in send queue`, time: 'Queued',
-    }] : []),
-  ].slice(0, 6) : [];
+  const handleRefresh = useCallback(() => {
+    if (rateLimited) return;
+    fetchInsights(false);
+  }, [fetchInsights, rateLimited]);
 
-  // ── Signal count change indicator (simulated) ──
-  const signalChange = insights ? (insights.companyEngine.unreadSignalCount > 5 ? '+3 new' : 'No change') : null;
+  /* ── Render: Error ── */
+  if (error && !data) {
+    return (
+      <div className="min-h-screen bg-slate-950 p-4 md:p-6 lg:p-8">
+        <ErrorState
+          title="Command Center Unavailable"
+          message={error}
+          onRetry={handleRefresh}
+          className="bg-slate-900 rounded-xl border border-slate-800"
+        />
+      </div>
+    );
+  }
 
-  /* ═══════════════════════════════════════════════════════════
-     Render
-     ═══════════════════════════════════════════════════════════ */
-  return (
-    <PageTransition>
-      <div className="h-full flex flex-col overflow-hidden">
-        <ScrollArea className="flex-1">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 space-y-6">
-
-            {/* ═══════════════════════════════════════
-               SECTION 1: Executive Summary Bar
-               ═══════════════════════════════════════ */}
-            {!loading && !error && insights && (
-              <motion.section
-                initial={{ opacity: 0, y: 16 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="rounded-xl border border-slate-200 bg-white overflow-hidden"
-              >
-                <div className="bg-gradient-to-r from-slate-900 to-slate-800 px-5 py-4 flex items-center gap-4">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/10 backdrop-blur">
-                    <Brain className="h-5 w-5 text-blue-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 mb-1">
-                      <h1 className="text-sm font-bold text-white tracking-tight">AI Revenue Command Center</h1>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-500/20 text-[11px] font-semibold text-blue-300 uppercase tracking-wider">
-                        <Radio className="h-2.5 w-2.5" />
-                        Live
-                      </span>
-                    </div>
-                    {insights.aiSummary ? (
-                      <p className="text-xs text-slate-300 leading-relaxed line-clamp-2">{insights.aiSummary}</p>
-                    ) : (
-                      <p className="text-xs text-slate-400">
-                        Platform operational. {insights.companyEngine.totalCompanies} companies tracked, {insights.emailEngine.totalContacts} contacts, {insights.capabilityEngine.totalCapabilities} capabilities.
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Health Gauge + Change Indicator */}
-                  <div className="flex items-center gap-4 shrink-0">
-                    {signalChange && (
-                      <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-white/10">
-                        <Activity className={`h-3 w-3 ${signalChange.includes('+') ? 'text-amber-400' : 'text-slate-500'}`} />
-                        <span className={`text-[11px] font-semibold ${signalChange.includes('+') ? 'text-amber-400' : 'text-slate-500'}`}>{signalChange}</span>
-                      </div>
-                    )}
-                    <div className="text-center">
-                      <HealthGauge score={insights.healthScore} size={56} />
-                      <p className="text-[9px] text-slate-500 mt-1 uppercase tracking-wider font-medium">Health</p>
-                    </div>
-                  </div>
+  /* ── Render: Loading (first load) ── */
+  if (loading && !data) {
+    return (
+      <div className="min-h-screen bg-slate-950 p-4 md:p-6 lg:p-8">
+        <PageTransition>
+          <div className="max-w-7xl mx-auto space-y-6">
+            {/* Header skeleton */}
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <Skeleton className="h-7 w-48 rounded bg-slate-800" />
+                <Skeleton className="h-4 w-64 rounded bg-slate-800" />
+              </div>
+              <Skeleton className="h-9 w-24 rounded-lg bg-slate-800" />
+            </div>
+            {/* KPI skeleton grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <KPISkeleton key={i} />
+              ))}
+            </div>
+            {/* Main content skeleton */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <div className="space-y-6">
+                <LoadingState message="Loading signals…" lines={4} className="rounded-xl border border-slate-800 bg-slate-900" />
+                <LoadingState message="Loading feed…" lines={3} className="rounded-xl border border-slate-800 bg-slate-900" />
+              </div>
+              <div className="space-y-6">
+                <LoadingState message="Loading opportunities…" lines={5} className="rounded-xl border border-slate-800 bg-slate-900" />
+                <div className="rounded-xl border border-slate-800 bg-slate-900 p-6">
+                  <SystemHealthSkeleton />
                 </div>
+              </div>
+            </div>
+          </div>
+        </PageTransition>
+      </div>
+    );
+  }
 
-                {/* Bottom bar with timestamp + refresh */}
-                <div className="px-5 py-2.5 bg-slate-50 border-t border-slate-100 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                      <Clock className="h-3 w-3" />
-                      {lastRefreshed ? `Last refreshed: ${lastRefreshed.toLocaleTimeString()}` : 'Refreshing...'}
+  if (!data) return null;
+
+  /* ── Render: Main Dashboard ── */
+  return (
+    <div className="min-h-screen bg-slate-950">
+      <PageTransition>
+        <div className="max-w-7xl mx-auto p-4 md:p-6 lg:p-8 space-y-6">
+          {/* ── Header ── */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+            className="flex items-center justify-between"
+          >
+            <div className="flex items-center gap-4">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-blue-500/10 border border-amber-500/20 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h1 className="text-xl font-bold text-slate-100 tracking-tight">
+                  Command Center
+                </h1>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <PulseDot color="var(--color-gold)" />
+                  <span className="text-xs text-slate-500">
+                    Live Intelligence Feed
+                    {lastFetched && (
+                      <> · Updated {formatTimeAgo(lastFetched.toISOString())}</>
+                    )}
+                  </span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {rateLimited && (
+                <Badge variant="outline" className="text-xs text-amber-400 border-amber-500/30 bg-amber-500/10">
+                  <Clock className="w-3 h-3 mr-1" />
+                  Retry in {rateLimitRetry}s
+                </Badge>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={loading || rateLimited}
+                className="gap-2 border-slate-700 text-slate-300 hover:bg-slate-800 hover:text-slate-100 bg-slate-800/50"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
+                Refresh
+              </Button>
+            </div>
+          </motion.div>
+
+          {/* ── Morning Brief (optional) ── */}
+          <AnimatePresence>
+            {data.morningBrief && data.morningBrief.executiveSummary && (
+              <MorningBriefCard brief={data.morningBrief} />
+            )}
+          </AnimatePresence>
+
+          {/* ── KPI Grid ── */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <KPICard
+              label="Total Accounts"
+              value={data.kpis.totalAccounts}
+              icon={Building2}
+              color="#E8C860"
+              delay={0.05}
+            />
+            <KPICard
+              label="Active Signals"
+              value={data.kpis.activeSignals}
+              icon={Radio}
+              color="#F87171"
+              delay={0.1}
+            />
+            <KPICard
+              label="Avg. Intel Score"
+              value={data.kpis.avgIntelligenceScore}
+              icon={TrendingUp}
+              color="#34D399"
+              delay={0.15}
+            />
+            <KPICard
+              label="Pending Actions"
+              value={data.kpis.pendingActions}
+              icon={Target}
+              color="#60A5FA"
+              delay={0.2}
+            />
+          </div>
+
+          {/* ── Main Content: 2-Column Grid ── */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Left Column */}
+            <StaggerGrid className="space-y-6" stagger={0.08} delay={0.15}>
+              {/* Recent Signals */}
+              <StaggerItem>
+                <Card className="border-slate-700/50 bg-slate-800/80 backdrop-blur-md">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Activity className="w-4 h-4 text-red-400" />
+                        <CardTitle className="text-sm font-semibold text-slate-200">
+                          Recent Signals
+                        </CardTitle>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-600/50">
+                        {data.recentSignals.length} active
+                      </Badge>
                     </div>
-                    <Separator orientation="vertical" className="h-3" />
-                    <div className="flex items-center gap-1.5 text-[11px] text-slate-400">
-                      <Database className="h-3 w-3" />
-                      {insights.companyEngine.totalCompanies} companies · {insights.emailEngine.totalContacts} contacts · {insights.capabilityEngine.totalCapabilities} capabilities
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <RecentSignalsFeed signals={data.recentSignals} onNavigate={navigateTo} />
+                  </CardContent>
+                </Card>
+              </StaggerItem>
+
+              {/* Intelligence Feed */}
+              <StaggerItem>
+                <Card className="border-slate-700/50 bg-slate-800/80 backdrop-blur-md">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Globe className="w-4 h-4 text-blue-400" />
+                        <CardTitle className="text-sm font-semibold text-slate-200">
+                          Intelligence Feed
+                        </CardTitle>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-600/50">
+                        {data.intelligenceFeed.length} events
+                      </Badge>
                     </div>
-                  </div>
-                  <Button variant="ghost" size="sm" onClick={fetchInsights} className="h-7 gap-1.5 text-slate-500 hover:text-slate-700 text-xs">
-                    <RefreshCw className="h-3 w-3" />
-                    Refresh
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <IntelligenceFeedPanel feed={data.intelligenceFeed} onNavigate={navigateTo} />
+                  </CardContent>
+                </Card>
+              </StaggerItem>
+            </StaggerGrid>
+
+            {/* Right Column */}
+            <StaggerGrid className="space-y-6" stagger={0.08} delay={0.25}>
+              {/* Top Opportunities */}
+              <StaggerItem>
+                <Card className="border-slate-700/50 bg-slate-800/80 backdrop-blur-md">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <Target className="w-4 h-4 text-amber-400" />
+                        <CardTitle className="text-sm font-semibold text-slate-200">
+                          Top Opportunities
+                        </CardTitle>
+                      </div>
+                      <Badge variant="outline" className="text-[10px] text-slate-400 border-slate-600/50">
+                        {data.topOpportunities.length} targets
+                      </Badge>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <OpportunitiesTable opportunities={data.topOpportunities} onNavigate={navigateTo} />
+                  </CardContent>
+                </Card>
+              </StaggerItem>
+
+              {/* System Health */}
+              <StaggerItem>
+                <Card className="border-slate-700/50 bg-slate-800/80 backdrop-blur-md">
+                  <CardHeader className="pb-3">
+                    <div className="flex items-center gap-3">
+                      <Cpu className="w-4 h-4 text-emerald-400" />
+                      <CardTitle className="text-sm font-semibold text-slate-200">
+                        System Health
+                      </CardTitle>
+                    </div>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <SystemHealthPanel health={data.systemHealth} />
+                  </CardContent>
+                </Card>
+              </StaggerItem>
+            </StaggerGrid>
+          </div>
+
+          {/* ── Error banner (non-blocking, shown below content) ── */}
+          <AnimatePresence>
+            {error && data && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-center gap-3 p-4 rounded-lg border border-amber-500/20 bg-amber-500/5">
+                  <AlertTriangle className="w-4 h-4 text-amber-400 shrink-0" />
+                  <p className="text-sm text-amber-300">{error}</p>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRefresh}
+                    className="ml-auto text-amber-400 hover:text-amber-300 hover:bg-amber-500/10 shrink-0"
+                  >
+                    <RefreshCw className="w-3.5 h-3.5 mr-1" />
+                    Retry
                   </Button>
                 </div>
-              </motion.section>
+              </motion.div>
             )}
-
-            {/* ═══════════════════════════════════════
-               LOADING STATE
-               ═══════════════════════════════════════ */}
-            {loading && <CommandLoadingState />}
-
-            {/* ═══════════════════════════════════════
-               ERROR STATE
-               ═══════════════════════════════════════ */}
-            {error && !loading && (
-              <ErrorState
-                title="Intelligence generation could not complete"
-                message="The AI Revenue Command Center could not retrieve or process your platform data. This may be due to a temporary service disruption or database issue."
-                onRetry={fetchInsights}
-              />
-            )}
-
-            {/* ═══════════════════════════════════════
-               EMPTY STATE
-               ═══════════════════════════════════════ */}
-            {!loading && !error && insights && insights.companyEngine.totalCompanies === 0 && (
-              <CommandEmptyState navigateTo={navigateTo} />
-            )}
-
-            {/* ═══════════════════════════════════════
-               MAIN CONTENT (data available)
-               ═══════════════════════════════════════ */}
-            {!loading && !error && insights && insights.companyEngine.totalCompanies > 0 && (
-              <>
-
-                {/* ═══════════════════════════════════
-                   SECTION 2: Priority Action Grid
-                   ═══════════════════════════════════ */}
-                <section className="space-y-3">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">Priority Actions</h2>
-                    <Badge variant="secondary" className="text-[11px] h-5 px-1.5 bg-blue-50 text-blue-600 border-blue-200">
-                      AI-Detected
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                    {/* Critical Signals */}
-                    <PriorityActionCard
-                      icon={Zap}
-                      label="Critical Signals"
-                      count={criticalSignals.length}
-                      accentBg="bg-red-50" accentText="text-red-600" accentBorder=""
-                      badgeText={insights.companyEngine.unreadSignalCount > 0 ? `${insights.companyEngine.unreadSignalCount} total` : undefined}
-                      badgeClass="bg-red-100 text-red-700"
-                      items={criticalSignals.map(s => ({
-                        primary: s.title,
-                        badge: s.severity,
-                        badgeClass: severityColor(s.severity).badge,
-                        secondary: relativeTime(s.createdAt),
-                      }))}
-                      onClick={() => navigateTo?.('companies')}
-                    />
-                    {/* High-Value Leads */}
-                    <PriorityActionCard
-                      icon={Target}
-                      label="High-Value Leads"
-                      count={highValueLeads.length}
-                      accentBg="bg-violet-50" accentText="text-violet-600" accentBorder=""
-                      items={highValueLeads.map(l => ({
-                        primary: l.name,
-                        secondary: `Score: ${l.score}`,
-                        badge: l.score >= 90 ? 'Hot' : l.score >= 80 ? 'Warm' : undefined,
-                        badgeClass: l.score >= 90 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700',
-                      }))}
-                      onClick={() => navigateTo?.('leads')}
-                    />
-                    {/* Drafts Awaiting Review */}
-                    <PriorityActionCard
-                      icon={FileText}
-                      label="Drafts Awaiting Review"
-                      count={pendingDrafts}
-                      accentBg="bg-amber-50" accentText="text-amber-600" accentBorder=""
-                      badgeText={pendingDrafts > 10 ? 'Review needed' : pendingDrafts > 0 ? 'Pending' : undefined}
-                      badgeClass={pendingDrafts > 10 ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'}
-                      items={pendingDrafts > 0 ? [
-                        { primary: `${pendingDrafts} AI-generated drafts`, secondary: 'Ready to review' },
-                      ] : []}
-                      onClick={() => navigateTo?.('drafts')}
-                    />
-                    {/* Positive Replies */}
-                    <PriorityActionCard
-                      icon={MessageSquare}
-                      label="Positive Replies"
-                      count={positiveReplies}
-                      accentBg="bg-emerald-50" accentText="text-emerald-600" accentBorder=""
-                      badgeText={insights.emailEngine.replyRate > 0 ? `${insights.emailEngine.replyRate}% rate` : undefined}
-                      badgeClass="bg-emerald-100 text-emerald-700"
-                      items={positiveReplies > 0 ? [
-                        { primary: `${positiveReplies} warm leads detected`, secondary: 'Follow-up recommended' },
-                      ] : []}
-                      onClick={() => navigateTo?.('replies')}
-                    />
-                  </div>
-                </section>
-
-                {/* ═══════════════════════════════════
-                   SECTION 3: AI Strategic Insights Panel
-                   ═══════════════════════════════════ */}
-                {insights.aiStrategicInsights && insights.aiStrategicInsights.length > 0 && (
-                  <section className="space-y-3">
-                    <div className="flex items-center gap-2">
-                      <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400">AI Strategic Insights</h2>
-                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-[11px] font-semibold text-blue-600">
-                        <Sparkles className="h-2.5 w-2.5" />
-                        {insights.aiStrategicInsights.length} insights
-                      </span>
-                    </div>
-                    <div className="space-y-3">
-                      {insights.aiStrategicInsights.slice(0, 6).map((insight, idx) => (
-                        <StrategicInsightCard key={idx} insight={insight} index={idx} />
-                      ))}
-                    </div>
-                  </section>
-                )}
-
-                {/* ═══════════════════════════════════
-                   SECTION 4: Revenue Command Dashboard (2 cols)
-                   ═══════════════════════════════════ */}
-                <section>
-                  <h2 className="text-xs font-semibold uppercase tracking-wider text-slate-400 mb-3">Revenue Intelligence Dashboard</h2>
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-
-                    {/* ── Left Column ── */}
-                    <div className="space-y-4">
-                      {/* Account Intelligence Scores */}
-                      <div className="section-container">
-                        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Building2 className="h-4 w-4 text-blue-500" />
-                            <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Account Intelligence Scores</h3>
-                          </div>
-                          <Button variant="ghost" size="sm" className="h-6 text-[11px] text-slate-400 hover:text-blue-600" onClick={() => navigateTo?.('companies')}>
-                            View all
-                          </Button>
-                        </div>
-                        <div className="p-2">
-                          {insights.companyEngine.topScoredCompanies.length > 0 ? (
-                            <div className="divide-y divide-slate-50">
-                              {insights.companyEngine.topScoredCompanies.slice(0, 5).map((company, idx) => (
-                                <AccountScoreRow key={company.id} company={company} rank={idx + 1} onView={(id) => navigateTo?.('company-detail', id)} />
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-slate-400 py-6 text-center">No companies scored yet</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Industry Distribution */}
-                      {industryEntries.length > 0 && (
-                        <div className="section-container">
-                          <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-                            <Globe className="h-4 w-4 text-violet-500" />
-                            <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Industry Distribution</h3>
-                          </div>
-                          <div className="p-4 space-y-2.5">
-                            {industryEntries.map(([name, count], idx) => (
-                              <IndustryBar key={name} label={name} count={count} max={maxIndustry} color={industryColors[idx % industryColors.length]} />
-                            ))}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* ── Right Column ── */}
-                    <div className="space-y-4">
-                      {/* Signal Intelligence Feed */}
-                      <div className="section-container">
-                        <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                          <div className="flex items-center gap-2">
-                            <Radio className="h-4 w-4 text-amber-500" />
-                            <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Signal Intelligence Feed</h3>
-                          </div>
-                          <Badge variant="secondary" className="text-[11px] h-5 px-1.5 bg-amber-50 text-amber-600 border-amber-200">
-                            {insights.companyEngine.unreadSignalCount} unread
-                          </Badge>
-                        </div>
-                        <div className="max-h-48 overflow-y-auto p-1">
-                          {insights.companyEngine.latestSignals.length > 0 ? (
-                            <div className="divide-y divide-slate-50">
-                              {insights.companyEngine.latestSignals.slice(0, 5).map(signal => (
-                                <SignalFeedItem key={signal.id} signal={signal} onClick={() => navigateTo?.('companies')} />
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-slate-400 py-6 text-center">No signals detected</p>
-                          )}
-                        </div>
-                      </div>
-
-                      {/* Activity Timeline */}
-                      <div className="section-container">
-                        <div className="px-4 py-3 border-b border-slate-100 flex items-center gap-2">
-                          <Activity className="h-4 w-4 text-blue-500" />
-                          <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Activity Timeline</h3>
-                        </div>
-                        <div className="p-3 space-y-1 max-h-48 overflow-y-auto">
-                          {activityItems.length > 0 ? (
-                            activityItems.map(item => {
-                              const Icon = item.icon;
-                              return (
-                                <div key={item.id} className="flex items-center gap-2.5 px-3 py-2 rounded-lg hover:bg-slate-50 transition-colors">
-                                  <div className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-md ${item.iconBg}`}>
-                                    <Icon className={`h-3 w-3 ${item.iconColor}`} />
-                                  </div>
-                                  <p className="text-xs text-slate-600 flex-1 truncate">{item.label}</p>
-                                  <span className="text-[11px] text-slate-400">{item.time}</span>
-                                </div>
-                              );
-                            })
-                          ) : (
-                            <p className="text-xs text-slate-400 py-4 text-center">No recent activity</p>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                {/* ═══════════════════════════════════
-                   SECTION 5: Engine Health Overview
-                   ═══════════════════════════════════ */}
-                <section className="section-container">
-                  <div className="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
-                    <div className="flex items-center gap-2">
-                      <HeartPulse className="h-4 w-4 text-emerald-500" />
-                      <h3 className="text-xs font-semibold text-slate-700 uppercase tracking-wider">Engine Health Overview</h3>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <HealthGauge score={insights.healthScore} size={40} />
-                      <span className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Overall</span>
-                    </div>
-                  </div>
-                  <div className="p-5 space-y-5">
-                    <EngineHealthBar
-                      icon={Shield}
-                      label="Company Engine"
-                      score={companyHealth}
-                      description={`${insights.companyEngine.totalCompanies} companies tracked · ${insights.companyEngine.unreadSignalCount} unread signals · ${insights.companyEngine.criticalSignalCount} critical`}
-                    />
-                    <Separator />
-                    <EngineHealthBar
-                      icon={Mail}
-                      label="Email Engine"
-                      score={emailHealth}
-                      description={`${insights.emailEngine.pendingDrafts} drafts pending · ${insights.emailEngine.positiveReplies} positive replies · ${insights.emailEngine.replyRate}% reply rate`}
-                    />
-                    <Separator />
-                    <EngineHealthBar
-                      icon={Cpu}
-                      label="Capability Engine"
-                      score={capabilityHealth}
-                      description={`${insights.capabilityEngine.totalCapabilities} capabilities · ${Object.keys(insights.capabilityEngine.capabilitiesByCategory).length} categories`}
-                    />
-
-                    {/* AI Health Analysis */}
-                    {insights.aiHealthAnalysis && (
-                      <>
-                        <Separator />
-                        <div className="rounded-lg bg-slate-50 border border-slate-100 p-4">
-                          <div className="flex items-center gap-2 mb-2">
-                            <Brain className="h-3.5 w-3.5 text-blue-600" />
-                            <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">AI Health Analysis</span>
-                          </div>
-                          <p className="text-xs text-slate-600 leading-relaxed">{insights.aiHealthAnalysis}</p>
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </section>
-
-                {/* Bottom spacing */}
-                <div className="h-8" />
-              </>
-            )}
-          </div>
-        </ScrollArea>
-      </div>
-    </PageTransition>
+          </AnimatePresence>
+        </div>
+      </PageTransition>
+    </div>
   );
 }

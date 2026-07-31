@@ -781,3 +781,50 @@ Stage Summary:
   [x] System Health shows real engine status from EngineRun aggregation
   [x] Error state shown with retry button (no more silent swallowing)
 - Commit: 9d91be2 (push pending — network timeout)
+
+---
+Task ID: phase-a-foundation-cleanup
+Agent: main
+Task: Phase A — Foundation Cleanup (pre-requisite for Ticket 5)
+
+Work Log:
+- A1: Deleted deprecated `account-scorer.ts` (4-dimension legacy scorer). Updated 3 test files to import from `account-scoring.ts` instead. Deleted `account-scorer.test.ts`. Rewrote `recommendation-generator.test.ts` and `opportunity-radar.test.ts` to test actual module functions.
+- A2: Marked `signal-detector.ts` as `@deprecated` with `'use strict'`. Removed signal-detector imports from `index.test.ts`. `signal-extraction.ts` remains the canonical signal detection module.
+- A3: Clarified roles of `brief-generator.ts` (fast, template-based) vs `account-brief.ts` (premium, LLM-enhanced). Fixed 9 `as any` casts in `brief-generator.ts`. Fixed signal type comparisons from UPPERCASE to lowercase (`'PAIN'` → `'pain'`, `'TECHNOLOGY'` → `'technology'`, `'GROWTH'` → `'growth'`). Added `brief-generator.ts` to barrel exports.
+- A4: Analyzed type systems — `intelligence-types.ts` (domain model for evidence framework) and `intelligence-api/types.ts` (API response envelopes) serve different purposes. Both are needed — no merge required.
+- A5: Verified `company-profile-screen.tsx` does NOT call the legacy route. Only `company-detail-screen.tsx` calls it, and the response shape was preserved.
+- A7: Added `utilityGuard`, `companyIdSchema` Zod validation, `utilityCatchError` with scrubbing, and correlation-id headers to the legacy `/api/companies/[id]/intelligence` route. Response format preserved to avoid breaking frontend.
+
+Stage Summary:
+- Deprecated scorer deleted, 3 test files rewritten, 1 test file deleted
+- signal-detector.ts deprecated, signal-extraction.ts canonical
+- 9 `as any` casts removed from brief-generator.ts, case-sensitive signal type bugs fixed
+- Legacy intelligence route now has guards, validation, scrubbing
+- 1501 tests passing, 0 TypeScript errors
+
+---
+Task ID: ticket-5-command-center-rebuild
+Agent: main
+Task: Ticket 5 — Command Center Screen (P0, Complete Rebuild)
+
+Work Log:
+- Completely rewrote `command-center-screen.tsx` from 905 LOC of mock data to ~450 LOC of production code
+- Removed ALL mock data and fake delays
+- Wired to real `/api/command-center/insights` API endpoint via `fetchApi`
+- Built dark Bloomberg/Palantir theme (slate-950/900/800 backgrounds)
+- 4 KPI cards with AnimatedCounter: Total Accounts, Active Signals, Avg Intel Score, Pending Actions
+- Recent Signals Feed: scrollable, severity badges (critical/high/medium/low), clickable company names
+- Top Opportunities Table: score, priority badges, confidence bars, clickable rows
+- System Health Panel: engine status dots (healthy/degraded/unhealthy), AI status banner
+- Intelligence Feed: timeline with event dots, relative timestamps
+- Morning Brief Card: AI-generated executive summary (optional, from morningBrief field)
+- 30-second polling interval with manual refresh button
+- 429 rate limit handling with countdown retry
+- Error handling: ErrorState on first load failure, non-blocking banner if data exists
+- Framer Motion entrance animations throughout
+
+Stage Summary:
+- Command Center now calls real API, displays live data
+- ~450 LOC (down from 905), well-structured sub-components
+- 1501 tests passing, 0 TypeScript errors
+- All Ticket 5 exit criteria met

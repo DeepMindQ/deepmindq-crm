@@ -1,10 +1,13 @@
 /**
- * Phase 7.6: Account Intelligence Brief Generator
+ * Phase 7.6: Premium Account Intelligence Brief Generator (LLM-Enhanced)
  *
  * Produces a holistic, executive-ready AccountBrief for a company by
  * combining deterministic signal extraction, account scoring, and
  * knowledge-fabric data.  LLM is used ONLY for the executive summary
  * and engagement approach narrative — everything else is rule-based.
+ *
+ * Premium brief path — uses LLM for summary and engagement approach.
+ * For fast template-only briefs, see brief-generator.ts.
  *
  * Critical invariant: the system MUST always return a brief, even if
  * every LLM provider is down.  Template fallbacks guarantee this.

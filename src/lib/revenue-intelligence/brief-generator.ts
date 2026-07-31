@@ -1,8 +1,7 @@
-// ── Phase 7.6: Hybrid Brief Generator ──
-// Generates AccountBrief using the hybrid approach:
-//   1. Rule engine extracts structured facts from signals/scores/opportunities
-//   2. Facts are assembled into a structured JSON payload
-//   3. LLM generates ONLY the narrative summary (LLM never invents facts)
+// ── Phase 7.6: Fast Brief Generator (Template-Based) ──
+// Generates AccountBrief using pure rules and templates — no LLM required.
+// Use this for: quick previews, batch operations, LLM-fallback scenarios.
+// For LLM-enhanced briefs, see account-brief.ts.
 
 import { db } from '@/lib/db';
 import type { SignalCategory } from './signal-patterns';
@@ -96,7 +95,7 @@ export async function extractBriefFacts(companyId: string): Promise<BriefFacts> 
 
   const oppSignals = await db.opportunitySignal.findMany({
     where: { companyId, status: { in: ['new', 'validated'] } },
-    select: { signalType: true, title: true, score: true, confidence: true } as any,
+    select: { signalType: true, title: true, score: true, confidence: true },
     orderBy: { score: 'desc' },
     take: 10,
   });
@@ -107,17 +106,17 @@ export async function extractBriefFacts(companyId: string): Promise<BriefFacts> 
     }),
     db.pursuit.count({
       where: { companyId, status: 'active' },
-    }) as any,
+    }),
   ]);
 
   const themes = extractThemes(company);
-  const risks = extractRisks(recentSignals, oppSignals as any[]);
+  const risks = extractRisks(recentSignals, oppSignals);
   const recommendations = generateRuleBasedRecommendations({
-    company: company as { status: string; lifecycleStage: string; engagementScore: number },
+    company: { status: company.status, lifecycleStage: company.lifecycleStage, engagementScore: company.engagementScore },
     latestScore,
     openOpps,
     activePursuits,
-    oppSignals: oppSignals as any[],
+    oppSignals,
     recentSignals,
     themes,
   });
@@ -287,11 +286,11 @@ function extractThemes(company: {
 
 function extractRisks(
   recentSignals: { signalType: string; title: string; confidence: number }[],
-  oppSignals: { signalType: SignalCategory; title: string; score: number }[],
+  oppSignals: { signalType: string; title: string; score: number }[],
 ): BriefFacts['risks'] {
   const risks: BriefFacts['risks'] = [];
 
-  const painSignals = oppSignals.filter(s => (s.signalType as any) === 'PAIN');
+  const painSignals = oppSignals.filter(s => s.signalType === 'pain');
   for (const ps of painSignals) {
     risks.push({
       risk: ps.title,
@@ -317,7 +316,7 @@ function generateRuleBasedRecommendations(ctx: {
   latestScore: { score: number; category: string } | null;
   openOpps: number;
   activePursuits: number;
-  oppSignals: { signalType: SignalCategory; title: string; score: number }[];
+  oppSignals: { signalType: string; title: string; score: number }[];
   recentSignals: { signalType: string }[];
   themes: string[];
 }): BriefFacts['recommendations'] {
@@ -331,7 +330,7 @@ function generateRuleBasedRecommendations(ctx: {
     });
   }
 
-  const techSignals = ctx.oppSignals.filter(s => (s.signalType as any) === 'TECHNOLOGY' && s.score > 50);
+  const techSignals = ctx.oppSignals.filter(s => s.signalType === 'technology' && s.score > 50);
   if (techSignals.length > 0) {
     recs.push({
       action: 'Position technology capabilities based on detected tech signals',
@@ -340,7 +339,7 @@ function generateRuleBasedRecommendations(ctx: {
     });
   }
 
-  const painSignals = ctx.oppSignals.filter(s => (s.signalType as any) === 'PAIN');
+  const painSignals = ctx.oppSignals.filter(s => s.signalType === 'pain');
   if (painSignals.length > 0) {
     recs.push({
       action: 'Take consultative approach addressing detected pain points',
@@ -349,7 +348,7 @@ function generateRuleBasedRecommendations(ctx: {
     });
   }
 
-  if (ctx.oppSignals.some(s => (s.signalType as any) === 'GROWTH')) {
+  if (ctx.oppSignals.some(s => s.signalType === 'growth')) {
     recs.push({
       action: 'Open expansion support conversation',
       priority: 'medium',

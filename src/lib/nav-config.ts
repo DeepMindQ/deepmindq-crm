@@ -36,6 +36,7 @@ export const NAV_SECTIONS: NavSection[] = [
     heading: 'INTELLIGENCE',
     defaultOpen: true,
     items: [
+      { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { key: 'command-center', label: 'Command Center', icon: LayoutDashboard, isNew: true },
       { key: 'accounts', label: 'Accounts', icon: Building2 },
       { key: 'intelligence-search', label: 'Intelligence Search', icon: Search },

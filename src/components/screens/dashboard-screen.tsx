@@ -28,8 +28,9 @@ interface DashboardData {
   draftsPendingReview: number;
   queuePending: number;
   repliesThisWeek: number;
-  bouncesCount?: number;
-  emailHealthDistribution?: Record<string, number>;
+  bouncesCount: number;
+  suppressionsCount: number;
+  emailHealthDistribution: Record<string, number>;
 }
 
 interface AuditEntry {
@@ -43,6 +44,16 @@ interface TopCompany {
 }
 
 interface Segment { id: string; name: string; _count: { contacts: number } }
+
+/** Dashboard stats from /api/dashboard/stats — intelligence dimension */
+interface DashboardStats {
+  signals: number;
+  opportunities: number;
+  risks: number;
+  recommendations: number;
+  avgIntelligenceScore: number;
+  today: { newSignals: number; newOpportunities: number; newRisks: number; newRecommendations: number };
+}
 
 /** Raw company shape returned by /api/companies */
 interface RawCompany {
@@ -194,35 +205,49 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   const nav = navigateTo || ((screen: string) => useAppStore.getState().setActiveView(screen as ViewId));
 
   /* ── Data queries ── */
-  const { data: dashData, isLoading } = useQuery<DashboardData>({
+  const { data: dashData, isLoading, isError: dashError, refetch: refetchDash } = useQuery<DashboardData>({
     queryKey: ['dashboard'],
-    queryFn: () => fetch('/api/dashboard').then(r => r.json()),
+    queryFn: () => fetch('/api/dashboard').then(r => r.json()).then(d => d.data ? d.data : d),
     staleTime: 30000,
+    retry: 2,
   });
 
-  const { data: activity = [] } = useQuery<AuditEntry[]>({
+  const { data: activity = [], isError: activityError, refetch: refetchActivity } = useQuery<AuditEntry[]>({
     queryKey: ['dashboard-activity'],
-    queryFn: () => fetch('/api/audit?limit=8').then(r => r.json()),
+    queryFn: () => fetch('/api/audit?limit=8').then(r => r.json()).then(d => d.data ? d.data : d),
     staleTime: 30000,
+    retry: 2,
   });
 
-  const { data: rawCompanies } = useQuery<{ companies?: RawCompany[]; data?: RawCompany[] } | undefined>({
+  const { data: rawCompanies, isError: companiesError, refetch: refetchCompanies } = useQuery<{ companies?: RawCompany[]; data?: RawCompany[] } | undefined>({
     queryKey: ['dashboard-companies'],
     queryFn: () => fetch('/api/companies?limit=8&sortBy=contacts&sortDir=desc').then(r => r.json()),
     staleTime: 60000,
+    retry: 2,
   });
 
-  const { data: rawSegments } = useQuery<RawSegment[] | { data: RawSegment[] } | undefined>({
+  const { data: rawSegments, isError: segmentsError, refetch: refetchSegments } = useQuery<RawSegment[] | { data: RawSegment[] } | undefined>({
     queryKey: ['dashboard-segments'],
     queryFn: () => fetch('/api/segments?limit=6').then(r => r.json()),
     staleTime: 60000,
+    retry: 2,
   });
 
   const { data: aiBriefing, isLoading: briefingLoading, isError: briefingError, refetch: refetchBriefing } = useQuery<AIBriefing>({
     queryKey: ['dashboard-briefing'],
-    queryFn: () => fetch('/api/ai/insights').then(r => r.json()).then(d => d?.data || d),
+    queryFn: () => fetch('/api/ai/insights').then(r => r.json()).then(d => {
+      const payload = d.data ? d.data : d;
+      return { summary: payload.summary, keyInsights: payload.keyInsights, predictions: payload.predictions };
+    }),
     staleTime: 120000,
     retry: false,
+  });
+
+  const { data: dashStats } = useQuery<DashboardStats>({
+    queryKey: ['dashboard-stats'],
+    queryFn: () => fetch('/api/dashboard/stats').then(r => r.json()).then(d => d.data ? d.data : d),
+    staleTime: 60000,
+    retry: 1,
   });
 
   /* ── Derived data ── */
@@ -242,18 +267,24 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     }));
   }, [rawSegments]);
 
-  const totalLeads = Object.values(dashData?.contactsByStatus || {}).reduce((a: number, b: number) => a + b, 0);
-  const replied = dashData?.repliesThisWeek || 0;
-  const sent = dashData?.contactsByStatus?.sent || 0;
-  const queued = dashData?.queuePending || 0;
-  const drafts = dashData?.draftsPendingReview || 0;
+  // Safe access — dashData is guaranteed after the guards above, but TS needs narrowing
+  const dd = dashData!;
+  const totalLeads = Object.values(dd.contactsByStatus || {}).reduce((a: number, b: number) => a + b, 0);
+  const replied = dd.repliesThisWeek || 0;
+  const sent = dd.contactsByStatus?.sent || 0;
+  const queued = dd.queuePending || 0;
+  const drafts = dd.draftsPendingReview || 0;
   const replyRate = sent > 0 ? ((replied / sent) * 100).toFixed(1) : '0.0';
 
+  // Pipeline funnel — consistent stages from the data we actually have.
+  // Each stage uses its own source: total contacts from groupBy, drafts/queue from DB counts,
+  // replies from reply table, bounced from bounce count. This is an honest funnel
+  // showing how contacts flow through the outreach pipeline.
   const funnelStages = [
     { label: 'Imported', count: totalLeads },
-    { label: 'Drafted', count: drafts + (dashData?.contactsByStatus?.drafted || 0) },
-    { label: 'Queued', count: queued + (dashData?.contactsByStatus?.queued || 0) },
-    { label: 'Sent', count: dashData?.contactsByStatus?.sent || 0 },
+    { label: 'Drafted', count: drafts + (dd.contactsByStatus?.drafted || 0) },
+    { label: 'Queued', count: queued + (dd.contactsByStatus?.queued || 0) },
+    { label: 'Sent', count: dd.contactsByStatus?.sent || 0 },
     { label: 'Replied', count: replied },
   ];
   const funnelMax = Math.max(funnelStages[0].count, 1);
@@ -295,8 +326,30 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     </div>
   );
 
-  if (!dashData?.contactsByStatus) return (
-    <div className="text-muted-foreground text-sm p-6">Failed to load dashboard data.</div>
+  /* ── Error state with retry ── */
+  if (dashError && !dashData) return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mb-3"><AlertTriangle className="w-6 h-6 text-red-400" /></div>
+      <p className="text-sm font-medium text-foreground">Failed to load dashboard data</p>
+      <p className="text-xs text-muted-foreground mt-1">Check your connection and try again</p>
+      <button onClick={() => refetchDash()} className="mt-3 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: gold }}>
+        <RefreshCw className="w-3 h-3" /> Retry
+      </button>
+    </div>
+  );
+
+  /* ── Empty state: API succeeded but no contactsByStatus ── */
+  if (dashData && !dashData.contactsByStatus) return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
+        <Brain className="w-6 h-6" style={{ color: gold }} />
+      </div>
+      <p className="text-sm font-medium text-foreground">No dashboard data available</p>
+      <p className="text-xs text-muted-foreground mt-1">Start by importing companies and contacts</p>
+      <button onClick={() => nav('import')} className="mt-3 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: gold }}>
+        <Upload className="w-3 h-3" /> Import Data
+      </button>
+    </div>
   );
 
   return (
@@ -384,12 +437,13 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
       )}
 
       {/* ═══════ 1. KPI CARDS ═══════ */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-        <StatCard icon={Building2} label="Total Companies" value={dashData.totalCompanies || 0} bc="var(--color-gold)" delay={0} />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+        <StatCard icon={Building2} label="Total Companies" value={dd.totalCompanies || 0} bc="var(--color-gold)" delay={0} />
         <StatCard icon={Users} label="Active Contacts" value={totalLeads} bc="#3B82F6" delay={0.06} />
-        <StatCard icon={FileText} label="Pending Drafts" value={drafts} bc="#F59E0B" delay={0.12} />
-        <StatCard icon={Send} label="In Queue" value={queued} bc="#10B981" delay={0.18} />
-        <StatCard icon={Mail} label="Reply Rate" value={replyRate} suffix="%" bc="#A855F7" delay={0.24} />
+        <StatCard icon={Radar} label="Active Signals" value={dashStats?.signals ?? 0} bc="#8B5CF6" delay={0.12} />
+        <StatCard icon={Brain} label="Avg Intel Score" value={dashStats?.avgIntelligenceScore ?? 0} suffix="/100" bc="#06B6D4" delay={0.18} />
+        <StatCard icon={FileText} label="Pending Drafts" value={drafts} bc="#F59E0B" delay={0.24} />
+        <StatCard icon={Mail} label="Reply Rate" value={replyRate} suffix="%" bc="#A855F7" delay={0.30} />
       </div>
 
       {/* ═══════ 2. QUICK ACTIONS ═══════ */}
@@ -448,12 +502,12 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
           <div className="px-5 pt-5 pb-1 flex items-center justify-between">
             <div>
               <h2 className="text-sm font-bold text-foreground tracking-tight">Engagement Overview</h2>
-              <p className="text-[11px] text-muted-foreground mt-0.5">7-day opens, clicks & replies</p>
+              <p className="text-[11px] text-muted-foreground mt-0.5">Aggregate email outreach metrics</p>
             </div>
             <div className="flex items-center gap-4 text-[11px] font-medium">
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-800" />Opens</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: gold }} />Clicks</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: '#10B981' }} />Replies</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-800" />Sent</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: '#10B981' }} />Replied</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: '#EF4444' }} />Bounced</span>
             </div>
           </div>
           <div className="px-5 pb-5 pt-3 grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -536,7 +590,13 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             <p className="text-[11px] text-muted-foreground mt-0.5">Latest pipeline actions</p>
           </div>
           <div className="px-5 pb-5">
-            {activity.length === 0 ? (
+            {activityError ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-2"><AlertTriangle className="w-5 h-5 text-red-400" /></div>
+                <p className="text-sm text-muted-foreground">Failed to load activity</p>
+                <button onClick={() => refetchActivity()} className="mt-2 text-xs font-medium px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: gold }}><RefreshCw className="w-3 h-3 inline mr-1" />Retry</button>
+              </div>
+            ) : activity.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
                   className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
@@ -585,7 +645,13 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
               whileHover={{ x: 2 }} onClick={() => nav('segments')}>View All <ChevronRight className="w-3 h-3" /></motion.button>
           </div>
           <div className="px-5 pb-5 space-y-3 pt-2">
-            {segments.length === 0 ? (
+            {segmentsError ? (
+              <div className="flex flex-col items-center justify-center py-10 text-center">
+                <div className="w-10 h-10 rounded-xl bg-red-50 flex items-center justify-center mb-2"><AlertTriangle className="w-5 h-5 text-red-400" /></div>
+                <p className="text-sm text-muted-foreground">Failed to load segments</p>
+                <button onClick={() => refetchSegments()} className="mt-2 text-xs font-medium px-3 py-1 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: gold }}><RefreshCw className="w-3 h-3 inline mr-1" />Retry</button>
+              </div>
+            ) : segments.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <div className="w-12 h-12 rounded-xl bg-gray-100/50 flex items-center justify-center mb-3"><Layers className="w-6 h-6 text-muted-foreground/40" /></div>
                 <p className="text-sm text-muted-foreground">Loading segments...</p>

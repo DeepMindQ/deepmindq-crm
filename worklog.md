@@ -990,3 +990,31 @@ Stage Summary:
 - Evidence records properly linked to signals — Evidence Detail Panel will show actual evidence
 - Committed: e30de20
 - Pushed to main
+
+---
+Task ID: 8-gap-fix
+Agent: main
+Task: Third-party audit and gap fix for Ticket 8 (Signal Intelligence Screen)
+
+Work Log:
+- Read complete ARCHITECTURE.md (1308 lines, 66.6KB) from first line to last — first time in 5 sessions
+- Extracted exact Ticket 8 scope (lines 933-960): API contract, frontend requirements, tests, exit criteria
+- Launched third-party audit subagent to read all 5 production files and produce detailed gap report
+- Found API route: PASS (all filters, correct response shape, apiSuccess envelope)
+- Found evidence route: PASS (all edge cases handled)
+- Found frontend screen: PASS with minor warnings (missing 'unknown' category, dead type field)
+- Found test suite: CRITICAL FAIL — 3 phantom functions tested that don't exist in production code
+- Fixed evidenceCounts: now batch-resolves against Evidence table instead of counting JSON array length
+- Fixed categories type: string[] → SignalMeaningCategory[]
+- Added 'unknown' to meaningCategoryConfig in frontend
+- Removed dead companyName field from SignalItem type
+- Completely rewrote test file: 43 tests (up from 36), all testing actual production code patterns
+- TypeScript: zero errors
+- All 43 tests pass
+- Committed and pushed: 36059cc
+
+Stage Summary:
+- Ticket 8 implementation is now fully aligned with ARCHITECTURE.md spec (lines 933-960)
+- All 3 exit criteria met: signal list with filters, evidence detail panel, capability match display
+- Root cause of 5 rejections: never read full ARCHITECTURE.md, and tests tested phantom functions
+- Key files changed: route.ts, signal-intelligence-screen.tsx, signal-intelligence.test.ts

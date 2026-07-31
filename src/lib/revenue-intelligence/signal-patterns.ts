@@ -112,8 +112,8 @@ export const ACCOUNT_SCORING_WEIGHTS = {
 export const ACCOUNT_CATEGORY_THRESHOLDS = {
   HOT_ACCOUNT: 70,
   WARM_ACCOUNT: 40,
-  NURTURE: 0,   // everything below 40
-  AT_RISK: -1,  // never auto-assigned; only via explicit logic
+  NURTURE: 20,   // scores 20-39
+  AT_RISK: 0,    // scores below 20 — auto-assigned for low-scoring accounts
 } as const;
 
 export type AccountCategory = 'HOT_ACCOUNT' | 'WARM_ACCOUNT' | 'NURTURE' | 'AT_RISK';

@@ -274,3 +274,412 @@ describe('Account Prioritization Engine', () => {
     })
   })
 })
+
+// ═══════════════════════════════════════════════════════════════
+// Additional Edge-Case Tests
+// ═══════════════════════════════════════════════════════════════
+
+describe('scoreStaticFit edge cases', () => {
+  it('returns 0 industry score when company is in excludeIndustries', async () => {
+    vi.clearAllMocks()
+    mockDbFindUnique.mockResolvedValue({
+      id: 'company-exclude',
+      industry: 'Healthcare',
+      sizeRange: '500-1000',
+      country: 'US',
+      accountPriorityScore: null,
+      priorityTier: null,
+    })
+    mockCompanyResearchCardFindUnique.mockResolvedValue({
+      techStack: null,
+      structuredTechLandscape: null,
+    })
+    mockCompanySignalFindMany.mockResolvedValue([])
+    mockEvidenceAggregate.mockResolvedValue({ _count: 0, _avg: { confidence: 0 } })
+    mockContactCount.mockResolvedValue(0)
+    mockSignalCapabilityMatchAggregate.mockResolvedValue({ _count: 0, _avg: { matchScore: 0 } })
+    mockOpportunityRecommendationCount.mockResolvedValue(0)
+    mockCompanyTimelineEventCount.mockResolvedValue(0)
+    mockSystemSettingFindUnique.mockResolvedValue({
+      key: 'icp_profile',
+      value: JSON.stringify({
+        targetIndustries: ['Technology'],
+        targetSizeRanges: ['500-1000'],
+        targetCountries: ['US'],
+        preferredTechnologies: [],
+        excludeIndustries: ['Healthcare'],
+      }),
+    })
+    mockDbTransaction.mockImplementation(async (ops: unknown[]) => {
+      for (const op of ops) await op
+    })
+    mockDbUpdate.mockResolvedValue({})
+    mockPriorityScoreHistoryCreate.mockResolvedValue({ id: 'h-1' })
+
+    const result = await computeAccountPriority('company-exclude')
+    expect(result.priority.staticFit.industry).toBe(0)
+  })
+
+  it('handles partial keyword overlap (20 points)', async () => {
+    vi.clearAllMocks()
+    mockDbFindUnique.mockResolvedValue({
+      id: 'company-finance',
+      industry: 'Software',
+      sizeRange: '500-1000',
+      country: 'US',
+      accountPriorityScore: null,
+      priorityTier: null,
+    })
+    mockCompanyResearchCardFindUnique.mockResolvedValue({
+      techStack: null,
+      structuredTechLandscape: null,
+    })
+    mockCompanySignalFindMany.mockResolvedValue([])
+    mockEvidenceAggregate.mockResolvedValue({ _count: 0, _avg: { confidence: 0 } })
+    mockContactCount.mockResolvedValue(0)
+    mockSignalCapabilityMatchAggregate.mockResolvedValue({ _count: 0, _avg: { matchScore: 0 } })
+    mockOpportunityRecommendationCount.mockResolvedValue(0)
+    mockCompanyTimelineEventCount.mockResolvedValue(0)
+    mockSystemSettingFindUnique.mockResolvedValue({
+      key: 'icp_profile',
+      value: JSON.stringify({
+        targetIndustries: ['Enterprise Software'],
+        targetSizeRanges: ['500-1000'],
+        targetCountries: ['US'],
+        preferredTechnologies: [],
+      }),
+    })
+    mockDbTransaction.mockImplementation(async (ops: unknown[]) => {
+      for (const op of ops) await op
+    })
+    mockDbUpdate.mockResolvedValue({})
+    mockPriorityScoreHistoryCreate.mockResolvedValue({ id: 'h-2' })
+
+    const result = await computeAccountPriority('company-finance')
+    expect(result.priority.staticFit.industry).toBe(20)
+  })
+
+  it('returns neutral industry score (15) when ICP has no target industries', async () => {
+    vi.clearAllMocks()
+    mockDbFindUnique.mockResolvedValue({
+      id: 'company-no-targets',
+      industry: 'Manufacturing',
+      sizeRange: '500-1000',
+      country: 'US',
+      accountPriorityScore: null,
+      priorityTier: null,
+    })
+    mockCompanyResearchCardFindUnique.mockResolvedValue({
+      techStack: null,
+      structuredTechLandscape: null,
+    })
+    mockCompanySignalFindMany.mockResolvedValue([])
+    mockEvidenceAggregate.mockResolvedValue({ _count: 0, _avg: { confidence: 0 } })
+    mockContactCount.mockResolvedValue(0)
+    mockSignalCapabilityMatchAggregate.mockResolvedValue({ _count: 0, _avg: { matchScore: 0 } })
+    mockOpportunityRecommendationCount.mockResolvedValue(0)
+    mockCompanyTimelineEventCount.mockResolvedValue(0)
+    mockSystemSettingFindUnique.mockResolvedValue({
+      key: 'icp_profile',
+      value: JSON.stringify({
+        targetIndustries: [],
+        targetSizeRanges: [],
+        targetCountries: [],
+        preferredTechnologies: [],
+      }),
+    })
+    mockDbTransaction.mockImplementation(async (ops: unknown[]) => {
+      for (const op of ops) await op
+    })
+    mockDbUpdate.mockResolvedValue({})
+    mockPriorityScoreHistoryCreate.mockResolvedValue({ id: 'h-3' })
+
+    const result = await computeAccountPriority('company-no-targets')
+    expect(result.priority.staticFit.industry).toBe(15)
+  })
+
+  it('matches size range correctly', async () => {
+    vi.clearAllMocks()
+    mockDbFindUnique.mockResolvedValue({
+      id: 'company-size',
+      industry: 'Technology',
+      sizeRange: '750',
+      country: 'US',
+      accountPriorityScore: null,
+      priorityTier: null,
+    })
+    mockCompanyResearchCardFindUnique.mockResolvedValue({
+      techStack: null,
+      structuredTechLandscape: null,
+    })
+    mockCompanySignalFindMany.mockResolvedValue([])
+    mockEvidenceAggregate.mockResolvedValue({ _count: 0, _avg: { confidence: 0 } })
+    mockContactCount.mockResolvedValue(0)
+    mockSignalCapabilityMatchAggregate.mockResolvedValue({ _count: 0, _avg: { matchScore: 0 } })
+    mockOpportunityRecommendationCount.mockResolvedValue(0)
+    mockCompanyTimelineEventCount.mockResolvedValue(0)
+    mockSystemSettingFindUnique.mockResolvedValue({
+      key: 'icp_profile',
+      value: JSON.stringify({
+        targetIndustries: ['Technology'],
+        targetSizeRanges: ['500-1000'],
+        targetCountries: ['US'],
+        preferredTechnologies: [],
+      }),
+    })
+    mockDbTransaction.mockImplementation(async (ops: unknown[]) => {
+      for (const op of ops) await op
+    })
+    mockDbUpdate.mockResolvedValue({})
+    mockPriorityScoreHistoryCreate.mockResolvedValue({ id: 'h-4' })
+
+    const result = await computeAccountPriority('company-size')
+    expect(result.priority.staticFit.size).toBe(25)
+  })
+})
+
+describe('scoreTimingUrgency edge cases', () => {
+  it('returns max signalRecency (40) for same-day signals', async () => {
+    vi.clearAllMocks()
+    mockDbFindUnique.mockResolvedValue({
+      id: 'company-today',
+      industry: 'Technology',
+      sizeRange: '500-1000',
+      country: 'US',
+      accountPriorityScore: null,
+      priorityTier: null,
+    })
+    mockCompanyResearchCardFindUnique.mockResolvedValue({
+      techStack: null,
+      structuredTechLandscape: null,
+    })
+    mockCompanySignalFindMany.mockResolvedValue([
+      {
+        impact: 'high',
+        signalDate: new Date().toISOString(),
+        createdAt: new Date(),
+      },
+    ])
+    mockEvidenceAggregate.mockResolvedValue({ _count: 0, _avg: { confidence: 0 } })
+    mockContactCount.mockResolvedValue(0)
+    mockSignalCapabilityMatchAggregate.mockResolvedValue({ _count: 0, _avg: { matchScore: 0 } })
+    mockOpportunityRecommendationCount.mockResolvedValue(0)
+    mockCompanyTimelineEventCount.mockResolvedValue(0)
+    mockSystemSettingFindUnique.mockResolvedValue({
+      key: 'icp_profile',
+      value: JSON.stringify({
+        targetIndustries: ['Technology'],
+        targetSizeRanges: ['500-1000'],
+        targetCountries: ['US'],
+        preferredTechnologies: [],
+      }),
+    })
+    mockDbTransaction.mockImplementation(async (ops: unknown[]) => {
+      for (const op of ops) await op
+    })
+    mockDbUpdate.mockResolvedValue({})
+    mockPriorityScoreHistoryCreate.mockResolvedValue({ id: 'h-5' })
+
+    const result = await computeAccountPriority('company-today')
+    expect(result.priority.timingUrgency.signalRecency).toBe(40)
+  })
+
+  it('returns min signalRecency (3) for very old signals', async () => {
+    vi.clearAllMocks()
+    const oldDate = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000)
+    mockDbFindUnique.mockResolvedValue({
+      id: 'company-old',
+      industry: 'Technology',
+      sizeRange: '500-1000',
+      country: 'US',
+      accountPriorityScore: null,
+      priorityTier: null,
+    })
+    mockCompanyResearchCardFindUnique.mockResolvedValue({
+      techStack: null,
+      structuredTechLandscape: null,
+    })
+    mockCompanySignalFindMany.mockResolvedValue([
+      {
+        impact: 'high',
+        signalDate: oldDate.toISOString(),
+        createdAt: oldDate,
+      },
+    ])
+    mockEvidenceAggregate.mockResolvedValue({ _count: 0, _avg: { confidence: 0 } })
+    mockContactCount.mockResolvedValue(0)
+    mockSignalCapabilityMatchAggregate.mockResolvedValue({ _count: 0, _avg: { matchScore: 0 } })
+    mockOpportunityRecommendationCount.mockResolvedValue(0)
+    mockCompanyTimelineEventCount.mockResolvedValue(0)
+    mockSystemSettingFindUnique.mockResolvedValue({
+      key: 'icp_profile',
+      value: JSON.stringify({
+        targetIndustries: ['Technology'],
+        targetSizeRanges: ['500-1000'],
+        targetCountries: ['US'],
+        preferredTechnologies: [],
+      }),
+    })
+    mockDbTransaction.mockImplementation(async (ops: unknown[]) => {
+      for (const op of ops) await op
+    })
+    mockDbUpdate.mockResolvedValue({})
+    mockPriorityScoreHistoryCreate.mockResolvedValue({ id: 'h-6' })
+
+    const result = await computeAccountPriority('company-old')
+    expect(result.priority.timingUrgency.signalRecency).toBe(3)
+  })
+
+  it('returns 0 timing when no signals exist', async () => {
+    vi.clearAllMocks()
+    mockDbFindUnique.mockResolvedValue({
+      id: 'company-no-sig',
+      industry: 'Technology',
+      sizeRange: '500-1000',
+      country: 'US',
+      accountPriorityScore: null,
+      priorityTier: null,
+    })
+    mockCompanyResearchCardFindUnique.mockResolvedValue({
+      techStack: null,
+      structuredTechLandscape: null,
+    })
+    mockCompanySignalFindMany.mockResolvedValue([])
+    mockEvidenceAggregate.mockResolvedValue({ _count: 0, _avg: { confidence: 0 } })
+    mockContactCount.mockResolvedValue(0)
+    mockSignalCapabilityMatchAggregate.mockResolvedValue({ _count: 0, _avg: { matchScore: 0 } })
+    mockOpportunityRecommendationCount.mockResolvedValue(0)
+    mockCompanyTimelineEventCount.mockResolvedValue(0)
+    mockSystemSettingFindUnique.mockResolvedValue({
+      key: 'icp_profile',
+      value: JSON.stringify({
+        targetIndustries: ['Technology'],
+        targetSizeRanges: ['500-1000'],
+        targetCountries: ['US'],
+        preferredTechnologies: [],
+      }),
+    })
+    mockDbTransaction.mockImplementation(async (ops: unknown[]) => {
+      for (const op of ops) await op
+    })
+    mockDbUpdate.mockResolvedValue({})
+    mockPriorityScoreHistoryCreate.mockResolvedValue({ id: 'h-7' })
+
+    const result = await computeAccountPriority('company-no-sig')
+    expect(result.priority.timingUrgency.score).toBe(0)
+  })
+})
+
+describe('getPrioritizedCompanies with filters', () => {
+  it('supports sortBy parameter', async () => {
+    vi.clearAllMocks()
+    mockDbFindMany.mockResolvedValue([])
+    mockDbCount.mockResolvedValue(0)
+    mockDbGroupBy.mockResolvedValue([])
+
+    await getPrioritizedCompanies({ sortBy: 'intelligenceScore' })
+    expect(mockDbFindMany).toHaveBeenCalledTimes(1)
+    const callArgs = mockDbFindMany.mock.calls[0][0] as { orderBy: Record<string, unknown> }
+    expect(callArgs.orderBy).toHaveProperty('intelligenceScore')
+  })
+
+  it('supports search filter', async () => {
+    vi.clearAllMocks()
+    mockDbFindMany.mockResolvedValue([])
+    mockDbCount.mockResolvedValue(0)
+    mockDbGroupBy.mockResolvedValue([])
+
+    await getPrioritizedCompanies({ search: 'Test' })
+    expect(mockDbFindMany).toHaveBeenCalledTimes(1)
+    const callArgs = mockDbFindMany.mock.calls[0][0] as { where: Record<string, unknown> }
+    expect(callArgs.where).toHaveProperty('OR')
+    const orConditions = callArgs.where.OR as Array<Record<string, unknown>>
+    expect(orConditions.length).toBeGreaterThan(0)
+    // Verify one of the OR conditions searches rawName
+    const hasRawNameSearch = orConditions.some(
+      (cond: Record<string, unknown>) =>
+        typeof cond.rawName === 'object' && cond.rawName !== null && 'contains' in (cond.rawName as object)
+    )
+    expect(hasRawNameSearch).toBe(true)
+  })
+})
+
+describe('parseEmployeeRange edge cases', () => {
+  it('handles 10000+ size range', async () => {
+    vi.clearAllMocks()
+    mockDbFindUnique.mockResolvedValue({
+      id: 'company-10k',
+      industry: 'Technology',
+      sizeRange: '10000+',
+      country: 'US',
+      accountPriorityScore: null,
+      priorityTier: null,
+    })
+    mockCompanyResearchCardFindUnique.mockResolvedValue({
+      techStack: null,
+      structuredTechLandscape: null,
+    })
+    mockCompanySignalFindMany.mockResolvedValue([])
+    mockEvidenceAggregate.mockResolvedValue({ _count: 0, _avg: { confidence: 0 } })
+    mockContactCount.mockResolvedValue(0)
+    mockSignalCapabilityMatchAggregate.mockResolvedValue({ _count: 0, _avg: { matchScore: 0 } })
+    mockOpportunityRecommendationCount.mockResolvedValue(0)
+    mockCompanyTimelineEventCount.mockResolvedValue(0)
+    mockSystemSettingFindUnique.mockResolvedValue({
+      key: 'icp_profile',
+      value: JSON.stringify({
+        targetIndustries: ['Technology'],
+        targetSizeRanges: ['10000+'],
+        targetCountries: ['US'],
+        preferredTechnologies: [],
+      }),
+    })
+    mockDbTransaction.mockImplementation(async (ops: unknown[]) => {
+      for (const op of ops) await op
+    })
+    mockDbUpdate.mockResolvedValue({})
+    mockPriorityScoreHistoryCreate.mockResolvedValue({ id: 'h-8' })
+
+    const result = await computeAccountPriority('company-10k')
+    expect(result.priority.staticFit.size).toBe(25)
+  })
+
+  it('handles comma-formatted range', async () => {
+    vi.clearAllMocks()
+    mockDbFindUnique.mockResolvedValue({
+      id: 'company-comma',
+      industry: 'Technology',
+      sizeRange: '1,000-5,000',
+      country: 'US',
+      accountPriorityScore: null,
+      priorityTier: null,
+    })
+    mockCompanyResearchCardFindUnique.mockResolvedValue({
+      techStack: null,
+      structuredTechLandscape: null,
+    })
+    mockCompanySignalFindMany.mockResolvedValue([])
+    mockEvidenceAggregate.mockResolvedValue({ _count: 0, _avg: { confidence: 0 } })
+    mockContactCount.mockResolvedValue(0)
+    mockSignalCapabilityMatchAggregate.mockResolvedValue({ _count: 0, _avg: { matchScore: 0 } })
+    mockOpportunityRecommendationCount.mockResolvedValue(0)
+    mockCompanyTimelineEventCount.mockResolvedValue(0)
+    mockSystemSettingFindUnique.mockResolvedValue({
+      key: 'icp_profile',
+      value: JSON.stringify({
+        targetIndustries: ['Technology'],
+        targetSizeRanges: ['1,000-5,000'],
+        targetCountries: ['US'],
+        preferredTechnologies: [],
+      }),
+    })
+    mockDbTransaction.mockImplementation(async (ops: unknown[]) => {
+      for (const op of ops) await op
+    })
+    mockDbUpdate.mockResolvedValue({})
+    mockPriorityScoreHistoryCreate.mockResolvedValue({ id: 'h-9' })
+
+    const result = await computeAccountPriority('company-comma')
+    expect(result.priority.staticFit.size).toBe(25)
+  })
+})

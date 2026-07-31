@@ -15,6 +15,7 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { Prisma } from '@prisma/client';
 
 // ── Types ──
 
@@ -324,12 +325,12 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
   try {
     const raw = researchCard?.techStack;
     if (raw) techStack = typeof raw === 'string' ? JSON.parse(raw) : raw;
-  } catch { /* ignore */ }
+  } catch { logger.warn('[engine] Failed to parse techStack for company', { companyId }) }
   if (techStack.length === 0 && researchCard?.structuredTechLandscape) {
     try {
       const landscape = typeof researchCard.structuredTechLandscape === 'string' ? JSON.parse(researchCard.structuredTechLandscape) : researchCard.structuredTechLandscape;
       techStack = [...(landscape.cloud || []), ...(landscape.data || []), ...(landscape.ai || [])];
-    } catch { /* ignore */ }
+    } catch { logger.warn('[engine] Failed to parse structuredTechLandscape for company', { companyId }) }
   }
 
   // Compute the three dimensions
@@ -384,6 +385,7 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
         companyId,
         accountPriorityScore: composite,
         priorityTier: tier,
+        // Note: staticFitTotal/dynamicIntelTotal/timingUrgencyTotal (Int) are deprecated duplicates of staticFitScore/dynamicIntelScore/timingUrgencyScore (Float). Kept for backward compatibility with existing history queries.
         staticFitTotal: staticFit.score,
         dynamicIntelTotal: dynamicIntelligence.score,
         timingUrgencyTotal: timingUrgency.score,
@@ -462,9 +464,9 @@ export async function getPrioritizedCompanies(options: {
     sortOrder = 'desc',
   } = options;
 
-  const where: Record<string, unknown> = {};
+  const where: Prisma.CompanyWhereInput = {};
   if (tier && tier !== 'ALL') {
-    where.priorityTier = tier;
+    where.priorityTier = tier as 'HOT' | 'ACTIVE' | 'NURTURE' | 'LOW';
   }
   if (search) {
     where.OR = [
@@ -474,7 +476,7 @@ export async function getPrioritizedCompanies(options: {
     ];
   }
 
-  const orderBy: Record<string, string> = {};
+  const orderBy: Prisma.CompanyOrderByWithRelationInput = {};
   if (sortBy === 'priorityScore') orderBy.accountPriorityScore = sortOrder;
   else if (sortBy === 'intelligenceScore') orderBy.intelligenceScore = sortOrder;
   else if (sortBy === 'engagementScore') orderBy.engagementScore = sortOrder;

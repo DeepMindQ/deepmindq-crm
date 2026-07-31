@@ -154,10 +154,10 @@ interface ScoreTripleProps {
   className?: string
 }
 
-function scoreGaugeColor(score: number): string {
+export function getScoreColor(score: number): string {
   if (score >= 80) return '#059669'
-  if (score >= 60) return '#2563EB'
-  if (score >= 40) return '#D97706'
+  if (score >= 60) return '#D97706'
+  if (score >= 40) return '#F59E0B'
   return '#DC2626'
 }
 
@@ -173,7 +173,7 @@ export function ScoreTriple({ intelligence, accountPriority, revenueOpportunity,
   }
 
   return (
-    <div className={cn('grid gap-3', scores.length === 1 ? 'grid-cols-1' : scores.length === 2 ? 'grid-cols-2' : 'grid-cols-3', className)}>
+    <div aria-label="Score summary" className={cn('grid gap-3', scores.length === 1 ? 'grid-cols-1' : scores.length === 2 ? 'grid-cols-2' : 'grid-cols-3', className)}>
       {scores.map((s) => (
         <div key={s.label} className="rounded-lg border border-gray-200/60 bg-gray-50/50 p-3 flex flex-col items-center gap-2">
           {/* Mini radial gauge */}
@@ -182,15 +182,15 @@ export function ScoreTriple({ intelligence, accountPriority, revenueOpportunity,
               <circle cx={28} cy={28} r={22} fill="none" stroke="#F3F4F6" strokeWidth={5} />
               <circle
                 cx={28} cy={28} r={22}
-                fill="none" stroke={s.color || scoreGaugeColor(s.score)} strokeWidth={5}
+                fill="none" stroke={s.color || getScoreColor(s.score)} strokeWidth={5}
                 strokeDasharray={2 * Math.PI * 22}
-                strokeDashoffset={2 * Math.PI * 22 - (s.score / 100) * 2 * Math.PI * 22}
+                strokeDashoffset={Math.max(0, 2 * Math.PI * 22 - (Math.min(100, Math.max(0, s.score)) / 100) * 2 * Math.PI * 22)}
                 strokeLinecap="round"
                 className="transition-all duration-700 ease-out"
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-base font-bold text-gray-900 tabular-nums">{s.score}</span>
+              <span className="text-base font-bold text-gray-900 tabular-nums">{Math.min(100, Math.max(0, s.score))}</span>
             </div>
           </div>
           {/* Label + tier */}

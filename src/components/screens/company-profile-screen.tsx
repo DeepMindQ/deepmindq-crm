@@ -604,20 +604,30 @@ export default function CompanyProfileScreen() {
         }
       : null
 
+  const revenueTierMap: Record<string, string> = {
+    HOT_ACCOUNT: 'High', WARM_ACCOUNT: 'Medium', NURTURE: 'Low', AT_RISK: 'At Risk',
+  }
+
   const revenueScoreItem: ScoreItem | null = scoresData?.revenueOpportunity
     ? {
         label: 'Revenue',
         score: Math.round(scoresData.revenueOpportunity.score),
-        tier: scoresData.revenueOpportunity.category,
+        tier: revenueTierMap[scoresData.revenueOpportunity.category] || scoresData.revenueOpportunity.category,
         color: '#D97706',
       }
     : null
 
-  const segments = [
-    { label: 'Data Completeness', value: Math.min(100, Math.round((score * 0.4) + 20)), color: '#2563EB' },
-    { label: 'Contact Quality', value: Math.min(100, Math.round((score * 0.35) + 15)), color: '#059669' },
-    { label: 'Research Depth', value: researchCard ? Math.min(100, Math.round((score * 0.25) + 10)) : 0, color: '#D97706' },
-  ]
+  const segments = scoresData?.intelligence?.breakdown
+    ? [
+        { label: 'Data Quality', value: Math.min(100, scoresData.intelligence.breakdown.dataCompleteness), color: '#2563EB' },
+        { label: 'Evidence', value: Math.min(100, scoresData.intelligence.breakdown.evidenceQuality), color: '#059669' },
+        { label: 'Signals', value: Math.min(100, scoresData.intelligence.breakdown.signalStrength), color: '#D97706' },
+      ]
+    : [
+        { label: 'Data Completeness', value: Math.min(100, Math.round((score * 0.4) + 20)), color: '#2563EB' },
+        { label: 'Contact Quality', value: Math.min(100, Math.round((score * 0.35) + 15)), color: '#059669' },
+        { label: 'Research Depth', value: researchCard ? Math.min(100, Math.round((score * 0.25) + 10)) : 0, color: '#D97706' },
+      ]
 
   // Resolve target contact names for opportunities
   const contactMap: Record<string, string> = {}
@@ -828,8 +838,8 @@ export default function CompanyProfileScreen() {
             </div>
           </div>
 
-          {/* Score Triple — desktop only */}
-          <div className="hidden lg:block shrink-0">
+          {/* Score Triple — all viewports */}
+          <div className="lg:block shrink-0">
             <ScoreTriple
               intelligence={intelligenceScoreItem}
               accountPriority={priorityScoreItem}

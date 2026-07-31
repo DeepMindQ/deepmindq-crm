@@ -123,6 +123,7 @@ export interface IntelligenceCompanyContext {
     website: string | null;
     status: string;
     assignedTo: string | null;
+    /** Intelligence score (0-100). Defaults to 0, never null. */
     intelligenceScore: number;
     engagementScore: number;
     accountPriorityScore: number | null;
@@ -147,6 +148,14 @@ export interface IntelligenceCompanyContext {
   signals?: IntelligenceSignal[];
 
   // Intelligence scores (?include=scores)
+  /** Three unified scores for a company.
+   *  - intelligence: Data quality / research depth score (0-100)
+   *  - accountPriority: ICP fit / sales readiness score (0-100)
+   *  - revenue: Real-time AI revenue score from ScoringEngine ({ score, grade, confidence })
+   *  - revenueOpportunity: Deterministic revenue score from AccountScore table ({ score, category, breakdown })
+   *    Note: revenue and revenueOpportunity measure different things — revenue is AI-computed real-time,
+   *    revenueOpportunity is deterministic historical scoring from 5 sub-dimensions.
+   */
   scores?: {
     intelligence: {
       score: number;

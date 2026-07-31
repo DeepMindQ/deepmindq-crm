@@ -181,6 +181,13 @@ enum ImportBatchStatus {
   failed
 }
 
+enum AccountCategory {
+  HOT_ACCOUNT
+  WARM_ACCOUNT
+  NURTURE
+  AT_RISK
+}
+
 // ── Core Entities (per SDD Section 5) ──
 
 model Contact {
@@ -1587,9 +1594,12 @@ model PriorityScoreHistory {
 
   // Snapshot fields (set at write time)
   accountPriorityScore Int
-  priorityTier         String
+  priorityTier         String // TODO(H-9): Should be CompanyPriorityTier enum. Requires migration to clean legacy "medium" values.
+  // @deprecated Use staticFitScore (Float) instead. Kept for backward compatibility.
   staticFitTotal       Int
+  // @deprecated Use dynamicIntelScore (Float) instead. Kept for backward compatibility.
   dynamicIntelTotal    Int
+  // @deprecated Use timingUrgencyScore (Float) instead. Kept for backward compatibility.
   timingUrgencyTotal   Int
 
   // Audit trail fields (GAP-35 enhancement)
@@ -1610,6 +1620,7 @@ model PriorityScoreHistory {
   @@index([companyId])
   @@index([companyId, computedAt(sort: Desc)])
   @@index([computedAt])
+  @@index([triggerType])
 }
 
 // ── Phase 6.1 Hardening: Human Feedback Loop ──
@@ -1970,8 +1981,9 @@ model AccountScore {
   company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
   score          Float // 0-100 overall
   scoreBreakdown        Json     @default("{}") // JSON: { intelligenceCoverage, signalStrength, freshness, strategicFit, overallScore }
-  category       String   @default("NURTURE") // HOT_ACCOUNT, WARM_ACCOUNT, NURTURE, AT_RISK
+  category       AccountCategory @default(NURTURE)
   calculatedAt   DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@index([companyId])
   @@index([category])

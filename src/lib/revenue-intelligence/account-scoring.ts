@@ -83,7 +83,8 @@ const TOTAL_CATEGORIES = ALL_CATEGORIES.length; // 13
 function classifyCategory(score: number): AccountCategory {
   if (score >= ACCOUNT_CATEGORY_THRESHOLDS.HOT_ACCOUNT) return 'HOT_ACCOUNT';
   if (score >= ACCOUNT_CATEGORY_THRESHOLDS.WARM_ACCOUNT) return 'WARM_ACCOUNT';
-  return 'NURTURE';
+  if (score >= ACCOUNT_CATEGORY_THRESHOLDS.NURTURE) return 'NURTURE';
+  return 'AT_RISK';
 }
 
 /** Safe-parse a JSON string into ScoreBreakdown, returning defaults on failure. */

@@ -109,7 +109,7 @@ export async function calculateAndPersistScore(companyId: string): Promise<Score
       companyId,
       score: compositeScore,
       scoreBreakdown: JSON.stringify(breakdown),
-      category,
+      category: category as 'HOT_ACCOUNT' | 'WARM_ACCOUNT' | 'NURTURE' | 'AT_RISK',
     },
   });
 

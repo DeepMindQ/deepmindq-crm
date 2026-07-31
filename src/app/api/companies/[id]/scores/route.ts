@@ -8,20 +8,32 @@
  *
  * Each score includes a breakdown of its sub-dimensions and the tier classification.
  * Also returns PriorityScoreHistory for trend analysis.
+ *
+ * Architecture: Uses utilityGuard for rate limiting, correlation-id, scrubError.
+ * Response uses IntelligenceResponse envelope for consistency.
  */
 
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { getAccountIntelligence } from '@/lib/intelligence-contract';
+import {
+  utilityGuard,
+  utilityError,
+  utilityCatchError,
+  utilitySuccess,
+  RateLimitedError,
+} from '@/lib/intelligence-api/guard';
 
-// ── Response Types ──
+// ── Canonical Response Types (single source of truth) ──
+// These types are also consumed by the frontend ScoreTriple component.
 
-interface IntelligenceScoreDetail {
+export interface IntelligenceScoreDetail {
   score: number;
   tier: string;
   computedAt: string | null;
   source: 'live_computed' | 'company_table';
+  staleness?: { status: 'fresh' | 'stale'; lastComputedAt: string | null };
   breakdown?: {
     dataCompleteness: number;
     evidenceQuality: number;
@@ -32,7 +44,7 @@ interface IntelligenceScoreDetail {
   };
 }
 
-interface AccountPriorityDetail {
+export interface AccountPriorityDetail {
   score: number;
   tier: string;
   computedAt: string | null;
@@ -44,10 +56,14 @@ interface AccountPriorityDetail {
   source: 'company_table';
 }
 
-interface RevenueOpportunityDetail {
+export interface RevenueOpportunityDetail {
   score: number;
   category: string;
+  /** Normalized display tier derived from category */
+  displayTier: string;
   computedAt: string | null;
+  /** True when scoreBreakdown was in legacy format (pre-account-scoring.ts) */
+  legacyFormat?: boolean;
   breakdown: {
     intelligenceCoverage: number;
     signalStrength: number;
@@ -58,7 +74,7 @@ interface RevenueOpportunityDetail {
   source: 'account_score_table';
 }
 
-interface ScoreHistoryEntry {
+export interface ScoreHistoryEntry {
   id: string;
   accountPriorityScore: number;
   priorityTier: string;
@@ -68,7 +84,7 @@ interface ScoreHistoryEntry {
   newScore: number | null;
 }
 
-interface UnifiedScoresResponse {
+export interface UnifiedScoresResponse {
   companyId: string;
   companyName: string;
   intelligence: IntelligenceScoreDetail;
@@ -80,6 +96,7 @@ interface UnifiedScoresResponse {
 
 // ── Helpers ──
 
+/** Classify intelligence tier from numeric score */
 function classifyIntelligenceTier(score: number): string {
   if (score >= 70) return 'hot';
   if (score >= 40) return 'warm';
@@ -87,12 +104,99 @@ function classifyIntelligenceTier(score: number): string {
   return 'unknown';
 }
 
+/**
+ * Normalize a revenue category (HOT_ACCOUNT/WARM_ACCOUNT/NURTURE/AT_RISK)
+ * into a human-readable display tier for the ScoreTriple badge.
+ */
+export function normalizeRevenueCategory(category: string): string {
+  const map: Record<string, string> = {
+    HOT_ACCOUNT: 'High',
+    WARM_ACCOUNT: 'Medium',
+    NURTURE: 'Low',
+    AT_RISK: 'At Risk',
+  };
+  return map[category] ?? category;
+}
+
+/**
+ * Parse revenue opportunity scoreBreakdown from AccountScore.
+ * Detects legacy format (from deprecated account-scorer.ts) vs new format.
+ *
+ * Legacy keys: { signalStrength, engagement, opportunityFit, timing }
+ * New keys:    { intelligenceCoverage, signalStrength, freshness, strategicFit, engagementHistory }
+ */
+export function parseRevenueBreakdown(scoreBreakdown: unknown): {
+  breakdown: RevenueOpportunityDetail['breakdown'];
+  isLegacy: boolean;
+} {
+  if (!scoreBreakdown || typeof scoreBreakdown !== 'object') {
+    return { breakdown: null, isLegacy: false };
+  }
+
+  const parsed =
+    typeof scoreBreakdown === 'string'
+      ? (() => { try { return JSON.parse(scoreBreakdown); } catch { return null; } })()
+      : scoreBreakdown;
+
+  if (!parsed || typeof parsed !== 'object') {
+    return { breakdown: null, isLegacy: false };
+  }
+
+  // Detect legacy format: has "engagement" or "opportunityFit" keys (deprecated scorer)
+  const isLegacy = 'engagement' in parsed || 'opportunityFit' in parsed;
+
+  if (isLegacy) {
+    // Map legacy keys to new keys as best-effort
+    return {
+      breakdown: {
+        intelligenceCoverage: 0,
+        signalStrength: Number(parsed.signalStrength) || 0,
+        freshness: Number(parsed.timing) || 0,
+        strategicFit: Number(parsed.opportunityFit) || 0,
+        engagementHistory: Number(parsed.engagement) || 0,
+      },
+      isLegacy: true,
+    };
+  }
+
+  // New format: expected keys from account-scoring.ts
+  return {
+    breakdown: {
+      intelligenceCoverage: Number(parsed.intelligenceCoverage) || 0,
+      signalStrength: Number(parsed.signalStrength) || 0,
+      freshness: Number(parsed.freshness) || 0,
+      strategicFit: Number(parsed.strategicFit) || 0,
+      engagementHistory: Number(parsed.engagementHistory) || 0,
+    },
+    isLegacy: false,
+  };
+}
+
 // ── GET Handler ──
 
 export async function GET(
-  _request: Request,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const startedAt = Date.now();
+
+  // ── Guard: rate limiting + correlation-id + response headers ──
+  let ctx: ReturnType<typeof utilityGuard>;
+  try {
+    ctx = utilityGuard(request, 'scores');
+  } catch (err) {
+    if (err instanceof RateLimitedError) {
+      return new Response(JSON.stringify(err.errorBody), {
+        status: 429,
+        headers: {
+          ...err.headers,
+          'Retry-After': String(Math.ceil((Date.now() + 60000 - Date.now()) / 1000)),
+        },
+      });
+    }
+    throw err;
+  }
+
   try {
     const { id } = await params;
 
@@ -112,16 +216,20 @@ export async function GET(
     });
 
     if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+      return utilityError(ctx, 404, 'Company not found', 'NOT_FOUND', Date.now() - startedAt);
     }
 
     // Compute live Intelligence Score via getAccountIntelligence (6-component weighted)
     let intelligenceResult = null;
+    let intelUsedFallback = false;
     try {
       intelligenceResult = await getAccountIntelligence(id);
     } catch (err) {
+      intelUsedFallback = true;
       logger.warn('[scores] getAccountIntelligence failed, falling back to stored value', {
-        companyId: id, error: err instanceof Error ? err.message : String(err),
+        correlationId: ctx.correlationId,
+        companyId: id,
+        error: err instanceof Error ? err.message : String(err),
       });
     }
 
@@ -163,17 +271,22 @@ export async function GET(
           tier: classifyIntelligenceTier(company.intelligenceScore),
           computedAt: company.lastEnrichedAt?.toISOString() ?? null,
           source: 'company_table',
+          ...(intelUsedFallback && {
+            staleness: {
+              status: 'stale' as const,
+              lastComputedAt: company.lastEnrichedAt?.toISOString() ?? null,
+            },
+          }),
         };
 
     // Build Account Priority Score detail
     let accountPriority: AccountPriorityDetail | null = null;
     if (company.accountPriorityScore !== null) {
-      // Use breakdown from the first history entry (already fetched above)
       const latestHistory = historyEntries[0] ?? null;
 
       accountPriority = {
         score: company.accountPriorityScore,
-        tier: company.priorityTier ?? 'unknown',
+        tier: company.priorityTier ?? 'NURTURE',
         computedAt: company.priorityComputedAt?.toISOString() ?? null,
         breakdown: latestHistory
           ? {
@@ -189,26 +302,14 @@ export async function GET(
     // Build Revenue Opportunity Score detail
     let revenueOpportunity: RevenueOpportunityDetail | null = null;
     if (accountScore) {
-      let breakdown: RevenueOpportunityDetail['breakdown'] = null;
-      try {
-        const parsed = typeof accountScore.scoreBreakdown === 'string'
-          ? JSON.parse(accountScore.scoreBreakdown)
-          : accountScore.scoreBreakdown;
-        if (parsed && typeof parsed === 'object') {
-          breakdown = {
-            intelligenceCoverage: Number(parsed.intelligenceCoverage) || 0,
-            signalStrength: Number(parsed.signalStrength) || 0,
-            freshness: Number(parsed.freshness) || 0,
-            strategicFit: Number(parsed.strategicFit) || 0,
-            engagementHistory: Number(parsed.engagementHistory) || 0,
-          };
-        }
-      } catch { /* ignore parse failure */ }
+      const { breakdown, isLegacy } = parseRevenueBreakdown(accountScore.scoreBreakdown);
 
       revenueOpportunity = {
         score: accountScore.score,
         category: accountScore.category,
+        displayTier: normalizeRevenueCategory(accountScore.category),
         computedAt: accountScore.calculatedAt?.toISOString() ?? null,
+        ...(isLegacy && { legacyFormat: true }),
         breakdown,
         source: 'account_score_table',
       };
@@ -235,9 +336,15 @@ export async function GET(
       fetchedAt: new Date().toISOString(),
     };
 
-    return NextResponse.json(response);
-  } catch (error) {
-    logger.error('[scores] GET error:', { error, companyId: _request.url });
-    return NextResponse.json({ error: 'Failed to fetch scores' }, { status: 500 });
+    return utilitySuccess(ctx, response, 'scores', Date.now() - startedAt);
+  } catch (err) {
+    return utilityCatchError(
+      ctx,
+      err,
+      502,
+      'INTELLIGENCE_UNAVAILABLE',
+      'Scores fetch failed',
+      Date.now() - startedAt,
+    );
   }
 }

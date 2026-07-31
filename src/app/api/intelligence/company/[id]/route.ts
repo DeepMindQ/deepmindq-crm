@@ -434,7 +434,7 @@ export async function GET(
           });
         } catch { /* accountScore table may not exist in all environments */ }
 
-        // Parse revenue opportunity breakdown
+        // Parse revenue opportunity breakdown (detects legacy vs new format)
         let revenueOpportunity: IntelligenceCompanyContext['scores'] extends undefined ? never : NonNullable<NonNullable<IntelligenceCompanyContext['scores']>>['revenueOpportunity'];
         if (accountScoreRecord) {
           try {
@@ -442,16 +442,25 @@ export async function GET(
               ? JSON.parse(accountScoreRecord.scoreBreakdown)
               : accountScoreRecord.scoreBreakdown;
             if (parsed && typeof parsed === 'object') {
+              const isLegacy = 'engagement' in parsed || 'opportunityFit' in parsed;
               revenueOpportunity = {
                 score: accountScoreRecord.score,
                 category: accountScoreRecord.category,
-                breakdown: {
-                  intelligenceCoverage: Number(parsed.intelligenceCoverage) || 0,
-                  signalStrength: Number(parsed.signalStrength) || 0,
-                  freshness: Number(parsed.freshness) || 0,
-                  strategicFit: Number(parsed.strategicFit) || 0,
-                  engagementHistory: Number(parsed.engagementHistory) || 0,
-                },
+                breakdown: isLegacy
+                  ? {
+                      intelligenceCoverage: 0,
+                      signalStrength: Number(parsed.signalStrength) || 0,
+                      freshness: Number(parsed.timing) || 0,
+                      strategicFit: Number(parsed.opportunityFit) || 0,
+                      engagementHistory: Number(parsed.engagement) || 0,
+                    }
+                  : {
+                      intelligenceCoverage: Number(parsed.intelligenceCoverage) || 0,
+                      signalStrength: Number(parsed.signalStrength) || 0,
+                      freshness: Number(parsed.freshness) || 0,
+                      strategicFit: Number(parsed.strategicFit) || 0,
+                      engagementHistory: Number(parsed.engagementHistory) || 0,
+                    },
               };
             }
           } catch { /* ignore */ }
@@ -460,13 +469,13 @@ export async function GET(
         // Classify intelligence tier from live score
         // Use the formal 6-component intelligence score from getAccountIntelligence when possible,
         // falling back to Company.intelligenceScore (research-time heuristic)
-        const intelScore = (company.intelligenceScore as number) ?? 0;
+        const intelScore = company.intelligenceScore ?? 0;
         const intelTier = intelScore >= 70 ? 'hot' : intelScore >= 40 ? 'warm' : intelScore >= 15 ? 'cold' : 'unknown';
 
         scores = {
           intelligence: { score: intelScore, tier: intelTier },
           accountPriority: company.accountPriorityScore
-            ? { score: company.accountPriorityScore, tier: company.priorityTier ?? 'medium' }
+            ? { score: company.accountPriorityScore, tier: company.priorityTier ?? 'NURTURE' }
             : undefined,
           revenue: sr,
           ...(revenueOpportunity && { revenueOpportunity }),

@@ -48,11 +48,18 @@ interface CompanyRow {
   priorityTier: string | null;
   accountPriorityScore: number | null;
   intelligenceScore: number | null;
+  opportunityScore: number | null;
   accountScore: number | null;
   accountCategory: string | null;
-  contactCount: number; signalCount: number;
+  contactCount: number; signalCount: number; opportunityCount: number;
   isEnriched: boolean; topSignal: any;
   lastActivityAt: string | null; updatedAt: string | null;
+}
+
+interface CompaniesResponse {
+  companies: CompanyRow[];
+  pagination: { page: number; limit: number; total: number; totalPages: number; nextCursor?: string | null };
+  filters: { tiers: { tier: string; count: number }[]; statuses: { status: string; count: number }[] };
 }
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
@@ -181,6 +188,7 @@ function TableSkeleton() {
       <TableCell><Skeleton className="h-4 w-20" /></TableCell>
       <TableCell className="hidden md:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
       <TableCell className="hidden lg:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
+      <TableCell className="hidden xl:table-cell"><Skeleton className="h-4 w-20" /></TableCell>
       <TableCell className="hidden sm:table-cell"><Skeleton className="h-4 w-14" /></TableCell>
       <TableCell><Skeleton className="h-4 w-14" /></TableCell>
       <TableCell><Skeleton className="h-4 w-16" /></TableCell>
@@ -320,15 +328,15 @@ export default function CompaniesScreen() {
       const { data: d, error } = await fetchApi('/api/companies', { params: {
         page, limit: 20, search: debounced || undefined, industry: industry || undefined,
         status: status || undefined, sizeRange: sizeRange || undefined, tier: tier || undefined,
-        sortBy, sortDir,
+        sortBy, sortOrder: sortDir,
       }});
       if (error) throw new Error(error);
       return d!;
     },
   });
-  const companies: CompanyRow[] = data?.companies ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = Math.max(1, Math.ceil(total / 20));
+  const companies: CompanyRow[] = (data as CompaniesResponse)?.companies ?? [];
+  const total = (data as CompaniesResponse)?.pagination?.total ?? 0;
+  const totalPages = (data as CompaniesResponse)?.pagination?.totalPages ?? Math.max(1, Math.ceil(total / 20));
 
   const { data: meta } = useQuery({
     queryKey: ['companies-meta'],
@@ -496,7 +504,8 @@ export default function CompaniesScreen() {
                     <TableHead className="text-muted-foreground">Tier</TableHead>
                     <SortHead label="ICP Score" field="accountPriorityScore" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                     <SortHead label="Intel" field="score" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="hidden md:table-cell" />
-                    <SortHead label="Acct Score" field="accountScore" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="hidden lg:table-cell" />
+                    <SortHead label="Acct Score" field="accountScore" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="hidden xl:table-cell" />
+                    <SortHead label="Opp Score" field="opportunityScore" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="hidden lg:table-cell" />
                     <SortHead label="Signals" field="signals" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} className="hidden sm:table-cell" />
                     <SortHead label="Contacts" field="contacts" sortBy={sortBy} sortDir={sortDir} onSort={handleSort} />
                     <TableHead className="text-muted-foreground">Status</TableHead>
@@ -526,6 +535,7 @@ export default function CompaniesScreen() {
                           <TableCell><ScoreBar score={c.accountPriorityScore} /></TableCell>
                           <TableCell className="hidden md:table-cell"><ScoreBar score={c.intelligenceScore} /></TableCell>
                           <TableCell className="hidden lg:table-cell"><ScoreBar score={c.accountScore != null ? Math.round(c.accountScore) : null} /></TableCell>
+                          <TableCell className="hidden xl:table-cell"><ScoreBar score={c.opportunityScore} /></TableCell>
                           <TableCell className="hidden sm:table-cell">{c.signalCount > 0 ? <span className="text-[11px] font-semibold text-purple-600 bg-purple-50 px-1.5 py-0.5 rounded-full">{c.signalCount}</span> : <span className="text-xs text-gray-300">0</span>}</TableCell>
                           <TableCell>{c.contactCount > 0 ? <span className="text-[11px] font-semibold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded-full">{c.contactCount}</span> : <span className="text-xs text-gray-300">0</span>}</TableCell>
                           <TableCell><StatusBadge status={c.status} /></TableCell>

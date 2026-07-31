@@ -5,6 +5,14 @@ import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    GET — List companies with search, filter, sort, paginate
+   
+   T6 API Contract (ARCHITECTURE.md:865):
+   GET /api/companies?sortBy=accountPriorityScore&sortOrder=desc&page=1&limit=50&tier=HOT
+   Response: {
+     companies: Company[],
+     pagination: { page, limit, total, totalPages },
+     filters: { tiers: CompanyPriorityTier[], statuses: CompanyStatus[] }
+   }
    ═══════════════════════════════════════════════════ */
 export async function GET(request: Request) {
   try {
@@ -14,10 +22,14 @@ export async function GET(request: Request) {
     const status = searchParams.get('status');
     const sizeRange = searchParams.get('sizeRange');
     const tier = searchParams.get('tier');
-    const sortBy = searchParams.get('sortBy') || 'name';
-    const sortDir = searchParams.get('sortDir') === 'desc' ? 'desc' : 'asc';
+    const sortBy = searchParams.get('sortBy') || 'accountPriorityScore';
+    // T6 spec uses sortOrder; also accept legacy sortDir for backward compat
+    const sortOrder = searchParams.get('sortOrder') || searchParams.get('sortDir') || 'desc';
+    const sortDir = sortOrder === 'asc' ? 'asc' : 'desc';
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10));
-    const limit = Math.max(1, Math.min(100, parseInt(searchParams.get('limit') || '20', 10)));
+    const limit = Math.max(1, Math.min(100, parseInt(searchParams.get('limit') || '50', 10)));
+    // Cursor-based pagination: accept cursor param, fall back to offset
+    const cursor = searchParams.get('cursor');
 
     // Build where clause
     const where: Prisma.CompanyWhereInput = {};
@@ -33,57 +45,72 @@ export async function GET(request: Request) {
       ];
     }
 
-    if (industry) {
-      where.industry = industry;
-    }
-
-    if (status) {
-      where.status = status as CompanyStatus;
-    }
-
-    if (sizeRange) {
-      where.sizeRange = sizeRange;
-    }
-
+    if (industry) where.industry = industry;
+    if (status) where.status = status as CompanyStatus;
+    if (sizeRange) where.sizeRange = sizeRange;
     if (tier && Object.values(CompanyPriorityTier).includes(tier as CompanyPriorityTier)) {
       where.priorityTier = tier as CompanyPriorityTier;
     }
 
-    // Build orderBy — T6: support priority, intelligence, opportunity score sorting
+    // Build orderBy — T6: all three score dimensions + signals + activity
     let orderBy: Prisma.CompanyOrderByWithRelationInput;
     switch (sortBy) {
-      case 'contacts':
-        orderBy = { contacts: { _count: sortDir } };
+      case 'accountPriorityScore':
+        orderBy = { accountPriorityScore: { sort: sortDir, nulls: 'last' } };
         break;
+      case 'intelligenceScore':
       case 'score':
         orderBy = { intelligenceScore: sortDir };
         break;
-      case 'accountPriorityScore':
-        orderBy = { accountPriorityScore: { sort: sortDir, nulls: 'last' } };
+      case 'opportunityScore':
+        // Prisma limitation: cannot orderBy nested relation field directly.
+        // Sort by recommendation count as proxy for opportunity strength.
+        orderBy = { opportunityRecommendations: { _count: sortDir } };
         break;
       case 'accountScore':
         orderBy = { accountScore: { score: sortDir } };
         break;
+      case 'contacts':
+        orderBy = { contacts: { _count: sortDir } };
+        break;
       case 'signals':
         orderBy = { signals: { _count: sortDir } };
         break;
-      case 'updatedAt':
-        orderBy = { updatedAt: sortDir };
-        break;
       case 'lastActivityAt':
         orderBy = { lastActivityAt: { sort: sortDir, nulls: 'last' } };
+        break;
+      case 'updatedAt':
+        orderBy = { updatedAt: sortDir };
         break;
       default:
         orderBy = { rawName: sortDir };
     }
 
-    const [companies, total, globalStats] = await Promise.all([
+    // Cursor-based skip: if cursor provided, decode base64 cursor to get offset
+    let skip = cursor ? (() => {
+      try { return parseInt(Buffer.from(cursor, 'base64').toString('utf-8'), 10) || 0; }
+      catch { return 0; }
+    })() : (page - 1) * limit;
+
+    const [companies, total, tierDist, statusDist] = await Promise.all([
       db.company.findMany({
         where,
         include: {
-          _count: { select: { contacts: true, signals: true } },
+          _count: {
+            select: {
+              contacts: true,
+              signals: true,
+              opportunityRecommendations: true,
+            },
+          },
           researchCard: { select: { id: true } },
           accountScore: { select: { score: true, category: true } },
+          opportunityRecommendations: {
+            where: { status: { in: ['pending_review', 'accepted', 'monitored'] } },
+            orderBy: { opportunityScore: 'desc' },
+            take: 1,
+            select: { opportunityScore: true },
+          },
           signals: {
             where: { status: { in: ['detected', 'validated', 'active'] } },
             orderBy: { createdAt: 'desc' },
@@ -92,23 +119,26 @@ export async function GET(request: Request) {
           },
         },
         orderBy,
-        skip: (page - 1) * limit,
+        skip,
         take: limit,
       }),
       db.company.count({ where }),
-      // Global stats across all companies (ignoring pagination filters)
-      db.company.aggregate({
-        _avg: { intelligenceScore: true },
-        _count: { id: true },
+      // Tier distribution for filters metadata
+      db.company.groupBy({
+        by: ['priorityTier'],
+        _count: true,
+      }),
+      // Status distribution for filters metadata
+      db.company.groupBy({
+        by: ['status'],
+        _count: true,
       }),
     ]);
 
-    const withSignals = await db.company.count({
-      where: { ...where, signals: { some: {} } },
-    });
-    const enriched = await db.company.count({
-      where: { ...where, researchCard: { isNot: null } },
-    });
+    const totalPages = Math.max(1, Math.ceil(total / limit));
+    // Generate next cursor (base64-encoded offset of next page)
+    const nextOffset = skip + companies.length;
+    const nextCursor = nextOffset < total ? Buffer.from(String(nextOffset)).toString('base64') : null;
 
     const result = companies.map((c: any) => ({
       id: c.id,
@@ -121,10 +151,12 @@ export async function GET(request: Request) {
       priorityTier: c.priorityTier ?? null,
       accountPriorityScore: c.accountPriorityScore ?? null,
       intelligenceScore: c.intelligenceScore,
+      opportunityScore: c.opportunityRecommendations?.[0]?.opportunityScore ?? null,
       accountScore: c.accountScore?.score ?? null,
       accountCategory: c.accountScore?.category ?? null,
       contactCount: c._count.contacts,
       signalCount: c._count.signals,
+      opportunityCount: c._count.opportunityRecommendations ?? 0,
       isEnriched: !!c.researchCard,
       topSignal: c.signals[0] ?? null,
       lastActivityAt: c.lastActivityAt?.toISOString() ?? null,
@@ -133,14 +165,23 @@ export async function GET(request: Request) {
 
     return NextResponse.json({
       companies: result,
-      total,
-      page,
-      limit,
-      stats: {
-        total: globalStats._count.id,
-        avgScore: Math.round(globalStats._avg.intelligenceScore ?? 0),
-        withSignals,
-        enriched,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages,
+        ...(nextCursor && { nextCursor }),
+      },
+      filters: {
+        tiers: tierDist
+          .filter(t => t.priorityTier != null)
+          .map(t => ({ tier: t.priorityTier as string, count: t._count }))
+          .sort((a, b) => {
+            const order: Record<string, number> = { HOT: 0, ACTIVE: 1, NURTURE: 2, LOW: 3 };
+            return (order[a.tier] ?? 99) - (order[b.tier] ?? 99);
+          }),
+        statuses: statusDist
+          .map(s => ({ status: s.status as string, count: s._count })),
       },
     });
   } catch (error) {

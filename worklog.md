@@ -866,3 +866,35 @@ Stage Summary:
   [x] ScoreTriple visible at top of workspace
 - All Ticket 7 exit criteria met
 
+---
+Task ID: t7-company-profile-5q-workspace
+Agent: main
+Task: Ticket 7 — Company Profile 5Q Workspace (15 gap fixes per ARCHITECTURE.md + DESIGN BIBLE)
+
+Work Log:
+- Read ARCHITECTURE.md T7 spec (lines 899-930), DESIGN BIBLE (5Q workspace, trust indicators, context adaptation, keyboard shortcuts), and full company-profile-screen.tsx (1899 lines)
+- Identified 15 concrete gaps between architecture spec/design bible and implementation
+- Rewrote company-profile-screen.tsx (2395 lines) with all 15 fixes
+- GAP FIX 1+13: Refactored from 5 per-section API calls to single ONE-SHOT GET ?include=all (Design Bible §4.2)
+- GAP FIX 2: Q1 SignalTimeline now receives signals as props from one-shot fetch
+- GAP FIX 3: Q2 ReasoningSummary now shows impact assessment (account strategy), trigger signals, brief sections with per-section confidence
+- GAP FIX 4: Q3 BuyingCommittee now classifies buying roles (DM/Champion/Influencer/Blocker/Budget Holder) and shows engagement pulse indicators
+- GAP FIX 5: Q4 ConversationPrep now includes objection handling cards derived from brief warnings
+- GAP FIX 6: Q5 ActionList now has action dismissal, confidence badges, and Show Dismissed toggle
+- GAP FIX 7: Added Intelligence Quality trust indicator bar in header (Design Bible §6.1)
+- GAP FIX 8: Added GovernanceBadge component (Verified/Needs Review/Failed/Not Evaluated) on Q1-Q2 headers (§6.2)
+- GAP FIX 9: Added EvidenceGroundingBar on Q2 and Q4 AI content panels (§6.3)
+- GAP FIX 10: Added AIFooter showing model + duration on Q2 brief and Q5 actions (§6.4)
+- GAP FIX 11: Added new-account hero (single enrichment CTA) and stale intelligence warning >60 days (§7.1)
+- GAP FIX 12: Added keyboard shortcuts: 1-5 jump to Q sections, Cmd+E enrichment, R refresh (§5.1)
+- GAP FIX 14: Added SectionError with retry button on all Q sections (§1.6)
+- GAP FIX 15: Added NarrativeDivider labeled chapter breaks between Q sections (§1.5)
+- tsc --noEmit: 0 errors
+- ESLint pre-commit hook: passed
+- Pushed: commit e45c75d to main
+
+Stage Summary:
+- 15/15 gaps identified and fixed
+- File: src/components/screens/company-profile-screen.tsx (734 insertions, 238 deletions)
+- Zero TypeScript errors, zero ESLint errors
+- Git push succeeded (e45c75d)

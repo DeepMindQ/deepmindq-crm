@@ -276,31 +276,154 @@ function CapabilityMatchPanel({ matches }: { matches: SignalCapabilityMatch[] })
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   Evidence Record type — mirrors Evidence model fields returned
+   by GET /api/signals/[id]/evidence
+   ═══════════════════════════════════════════════════════════════ */
+interface EvidenceRecord {
+  id: string;
+  sourceUrl: string;
+  sourceTitle: string | null;
+  sourceName: string | null;
+  snippet: string;
+  extractedField: string | null;
+  extractedValue: string | null;
+  relevanceScore: number;
+  confidence: number;
+  sourceDate: string | null;
+  sourceQualityTier: string;
+  status: string;
+  createdAt: string;
+}
+
+/* ═══════════════════════════════════════════════════════════════
    Evidence Detail Panel — T8 exit criteria
+   "Click signal → evidence detail panel" + "Evidence detail panel shows supporting evidence"
+   Fetches actual Evidence records from /api/signals/[id]/evidence
    ═══════════════════════════════════════════════════════════════ */
 function EvidenceDetailPanel({ signal, evidenceCount }: { signal: SignalItem; evidenceCount: number }) {
+  const { data: evidenceRaw, isLoading: evidenceLoading } = useQuery({
+    queryKey: ['signal-evidence', signal.id],
+    queryFn: () =>
+      fetch(`/api/signals/${signal.id}/evidence`)
+        .then(r => { if (!r.ok) throw new Error('Failed to fetch evidence'); return r.json(); }),
+    staleTime: 30000,
+    retry: false,
+    enabled: true,
+  });
+  const evidenceData = unwrap<{ evidence: EvidenceRecord[]; signalId: string }>(evidenceRaw);
+  const evidenceRecords: EvidenceRecord[] = evidenceData?.evidence ?? [];
+
   return (
     <div className="flex flex-col gap-3 pt-2">
-      {/* Evidence count */}
+      {/* ── Evidence List: Actual Evidence records backing this signal ── */}
       <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
-        <div className="flex items-center gap-1.5 mb-1.5">
+        <div className="flex items-center gap-1.5 mb-2">
           <FileText className="h-3 w-3 text-blue-500" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">Supporting Evidence</span>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">
+            Supporting Evidence
+          </span>
+          <Badge variant="secondary" className="text-[10px] ml-1">{evidenceRecords.length}</Badge>
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-sm font-bold text-slate-800 tabular-nums">{evidenceCount}</span>
-          <span className="text-xs text-slate-500">evidence records backing this signal</span>
-        </div>
-        {signal.sourceUrl && (
-          <a
-            href={signal.sourceUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-blue-600 hover:text-blue-800 hover:underline transition-colors"
-          >
-            <Globe className="h-3 w-3" />
-            {signal.sourceUrl.length > 60 ? signal.sourceUrl.slice(0, 60) + '...' : signal.sourceUrl}
-          </a>
+
+        {evidenceLoading && (
+          <div className="flex items-center gap-2 py-2">
+            <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+            <span className="text-xs text-slate-400">Loading evidence records...</span>
+          </div>
+        )}
+
+        {!evidenceLoading && evidenceRecords.length === 0 && (
+          <div className="py-2">
+            <p className="text-xs text-slate-400">
+              {evidenceCount > 0
+                ? `${evidenceCount} evidence record(s) referenced but not yet resolved.`
+                : 'No evidence records are linked to this signal.'}
+            </p>
+            {signal.sourceUrl && (
+              <a
+                href={signal.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+              >
+                <Globe className="h-3 w-3" />
+                {signal.sourceUrl.length > 60 ? signal.sourceUrl.slice(0, 60) + '...' : signal.sourceUrl}
+              </a>
+            )}
+          </div>
+        )}
+
+        {!evidenceLoading && evidenceRecords.length > 0 && (
+          <div className="flex flex-col gap-2">
+            {evidenceRecords.map((ev) => (
+              <div
+                key={ev.id}
+                className="rounded-md bg-white border border-slate-100 p-2.5 hover:border-blue-200 transition-colors"
+              >
+                {/* Evidence title / source name */}
+                <div className="flex items-start justify-between gap-2 mb-1">
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-semibold text-slate-800 truncate">
+                      {ev.sourceTitle || ev.sourceName || 'Untitled Evidence'}
+                    </p>
+                    {ev.sourceName && ev.sourceTitle && (
+                      <p className="text-[10px] text-slate-400">{ev.sourceName}</p>
+                    )}
+                  </div>
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Quality tier badge */}
+                    <span className={cn(
+                      'px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase border',
+                      ev.sourceQualityTier === 'premium'
+                        ? 'bg-amber-50 text-amber-700 border-amber-200'
+                        : ev.sourceQualityTier === 'low'
+                          ? 'bg-slate-50 text-slate-500 border-slate-200'
+                          : 'bg-blue-50 text-blue-600 border-blue-200'
+                    )}>
+                      {ev.sourceQualityTier}
+                    </span>
+                    {/* Confidence badge */}
+                    <span className="text-[10px] font-bold tabular-nums text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded">
+                      {Math.round(ev.confidence * 100)}%
+                    </span>
+                  </div>
+                </div>
+
+                {/* Snippet — the core evidence content */}
+                <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-3">
+                  {ev.snippet}
+                </p>
+
+                {/* Extracted field/value */}
+                {ev.extractedField && ev.extractedValue && (
+                  <div className="mt-1.5 flex items-center gap-1.5">
+                    <span className="text-[10px] font-medium text-slate-400 uppercase">{ev.extractedField}:</span>
+                    <span className="text-[11px] font-semibold text-slate-700">{ev.extractedValue}</span>
+                  </div>
+                )}
+
+                {/* Footer: source URL + date */}
+                <div className="mt-1.5 flex items-center justify-between gap-2">
+                  {ev.sourceUrl && (
+                    <a
+                      href={ev.sourceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-800 hover:underline transition-colors truncate max-w-[200px]"
+                    >
+                      <Globe className="h-2.5 w-2.5 shrink-0" />
+                      {ev.sourceUrl.length > 40 ? ev.sourceUrl.slice(0, 40) + '...' : ev.sourceUrl}
+                    </a>
+                  )}
+                  {ev.sourceDate && (
+                    <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                      {formatTimeAgo(ev.sourceDate)}
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
         )}
       </div>
 

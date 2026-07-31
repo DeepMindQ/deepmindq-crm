@@ -16,10 +16,10 @@ import { VALID_INCLUDES } from './middleware';
 
 // ── Shared building blocks ──────────────────────────────────────────────────
 
-/** Company ID must be a non-empty string (UUID, NanoID, or CUID) */
+/** Company ID must be a non-empty string (UUID, NanoID, or CUID) — min 3 chars */
 export const companyIdSchema = z
   .string()
-  .min(1, 'Company ID is required')
+  .min(3, 'Company ID must be at least 3 characters')
   .max(128, 'Company ID is too long')
   .regex(
     /^[a-zA-Z0-9_-]+$/,
@@ -41,9 +41,15 @@ export const includeSchema = z
       if (!val) return true; // null/undefined is fine (no includes)
       const parts = val.split(',').map(s => s.trim()).filter(Boolean);
       const validIncludes = getValidIncludeKeys();
-      return parts.every(p => validIncludes.has(p));
+      const invalidParts = parts.filter(p => !validIncludes.has(p));
+      if (invalidParts.length > 0) {
+        throw new z.ZodError([
+          { code: 'custom', path: ['include'], message: `Invalid include values: ${invalidParts.join(', ')}` },
+        ]);
+      }
+      return true;
     },
-    { message: 'One or more include values are invalid' }
+    { message: 'Invalid include values' }
   );
 
 /** Page parameter for paginated endpoints */
@@ -73,6 +79,7 @@ export const limitSchema = z
  *   - companyId (path param)
  *   - include (optional query param)
  */
+/** Validates request parameters for all 10 intelligence endpoints */
 export const companyIntelligenceSchema = z.object({
   companyId: companyIdSchema,
   include: includeSchema,

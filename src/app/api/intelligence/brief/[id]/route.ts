@@ -25,14 +25,15 @@ import {
   createErrorResponse,
   computeFreshness,
   shouldInclude,
+  runGovernanceMetadata,
+  SECURITY_HEADERS,
 } from '@/lib/intelligence-api/middleware';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import type { IntelligenceBriefOutput, IntelligenceBrief, IntelligenceInclude } from '@/lib/intelligence-api/types';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
-import { runGovernanceChecks } from '@/lib/ai-governance';
-import { getResearchContext } from '@/lib/intelligence-contract';
+import { z } from 'zod';
 
 const VALID_BRIEF_TYPES = new Set<BriefType>([
   'account_brief',
@@ -41,6 +42,15 @@ const VALID_BRIEF_TYPES = new Set<BriefType>([
   'contact_brief',
   'opportunity_brief',
 ]);
+
+const briefTypeSchema = z.enum(['account_brief', 'deal_strategy', 'exec_summary', 'contact_brief', 'opportunity_brief']);
+const depthSchema = z.enum(['standard', 'deep']);
+const audienceSchema = z.enum(['executive', 'analyst', 'sales']).optional();
+
+/** Strip dangerous HTML from AI-generated content to prevent XSS */
+function sanitizeMarkdown(content: string): string {
+  return content.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<iframe[\s\S]*?<\/iframe>/gi, '');
+}
 
 export async function GET(
   request: NextRequest,
@@ -54,36 +64,30 @@ export async function GET(
   if (guardResult instanceof Response) return guardResult;
   const { companyId, correlationId, responseHeaders, includes } = guardResult;
 
-  // Ticket 3: Run real governance check for response metadata (requires DB)
-  let governanceMeta: { passed: boolean; generationType: string; checks: Record<string, { passed: boolean; message: string }> } | undefined;
-  try {
-    // Only run governance check against real PostgreSQL — skip for file-based/test DBs
-    if (process.env.DATABASE_URL?.startsWith('postgres')) {
-      const researchCtx = await getResearchContext(companyId);
-      const govResult = await runGovernanceChecks({ companyId, generationType: 'account_brief', researchContext: researchCtx });
-      governanceMeta = {
-        passed: govResult.passed,
-        generationType: 'account_brief',
-        checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
-      };
-    }
-  } catch {
-    // Governance metadata is optional — degrade gracefully
-  }
+  // ── Parse & validate brief-specific query params BEFORE governance ─────────
+  const briefTypeResult = briefTypeSchema.safeParse(request.nextUrl.searchParams.get('briefType'));
+  const briefType = briefTypeResult.success ? briefTypeResult.data : 'account_brief';
 
-  // Parse brief-specific query params
-  const briefType = (request.nextUrl.searchParams.get('briefType') as BriefType) || 'account_brief';
-  const depth = (request.nextUrl.searchParams.get('depth') as BriefDepth) || 'deep';
-  const audience = (request.nextUrl.searchParams.get('audience') as 'executive' | 'analyst' | 'sales' | null) || undefined;
+  const depthResult = depthSchema.safeParse(request.nextUrl.searchParams.get('depth'));
+  const depth: BriefDepth = depthResult.success ? depthResult.data : 'deep';
+
+  const audienceResult = audienceSchema.safeParse(request.nextUrl.searchParams.get('audience'));
+  const audience = audienceResult.success ? audienceResult.data : undefined;
+
   const focusAreasRaw = request.nextUrl.searchParams.get('focusAreas');
-  const focusAreas = focusAreasRaw ? focusAreasRaw.split(',').map(s => s.trim()).filter(Boolean) : undefined;
+  const focusAreas = focusAreasRaw
+    ? focusAreasRaw.split(',').map(s => s.trim()).filter(Boolean).slice(0, 10)
+    : undefined;
 
-  if (!VALID_BRIEF_TYPES.has(briefType)) {
+  if (!briefTypeResult.success) {
     return Response.json(
-      createErrorResponse('brief', companyId, `Invalid briefType: ${briefType}. Must be one of: ${Array.from(VALID_BRIEF_TYPES).join(', ')}`, IntelligenceErrors.VALIDATION_FAILED, Date.now() - startedAt, includes),
-      { status: 400, headers: responseHeaders },
+      createErrorResponse('brief', companyId, `Invalid briefType: ${briefTypeResult.error.issues[0]?.message || 'unknown'}. Must be one of: ${Array.from(VALID_BRIEF_TYPES).join(', ')}`, IntelligenceErrors.VALIDATION_FAILED, Date.now() - startedAt, includes),
+      { status: 400, headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
+
+  // ── Governance check (uses actual briefType, not hardcoded) ─────────
+  const governanceMeta = await runGovernanceMetadata(companyId, briefType);
 
   logger.info('[intelligence/brief] Processing', {
     companyId,
@@ -112,14 +116,14 @@ export async function GET(
     logger.error('[intelligence/brief] DB lookup failed', { companyId, correlationId, error: rawMessage });
     return Response.json(
       createErrorResponse('brief', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, IntelligenceErrors.INTELLIGENCE_UNAVAILABLE, Date.now() - startedAt, includes),
-      { status: 500, headers: responseHeaders },
+      { status: 500, headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
   if (!company) {
     return Response.json(
       createErrorResponse('brief', companyId, 'Company not found', IntelligenceErrors.COMPANY_NOT_FOUND, Date.now() - startedAt, includes),
-      { status: 404, headers: responseHeaders },
+      { status: 404, headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
@@ -138,7 +142,7 @@ export async function GET(
     logger.warn('[intelligence/brief] SynthesisEngine threw', { companyId, correlationId, error: rawMessage });
     return Response.json(
       createErrorResponse('brief', companyId, scrubError(rawMessage), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, includes),
-      { status: 502, headers: responseHeaders },
+      { status: 502, headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
@@ -149,19 +153,17 @@ export async function GET(
     });
     return Response.json(
       createErrorResponse('brief', companyId, scrubError(briefResult.error || 'Brief generation failed'), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, includes),
-      { status: 502, headers: responseHeaders },
+      { status: 502, headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
   // ── Step 3: Map Brief → IntelligenceBrief contract ─────────────────────
-  // ?include=citations controls whether full evidence chain + citations are included.
-  // Default (no includes) returns a lightweight brief with just content + sections.
   const includeCitations = guardResult.includes.size === 0
-    || shouldInclude(guardResult.includes, 'citations' as IntelligenceInclude);
+    || shouldInclude(guardResult.includes, 'citations');
 
   const intelligenceBrief: IntelligenceBrief = {
     briefType: briefResult.type,
-    content: briefResult.content,
+    content: sanitizeMarkdown(briefResult.content),
     sections: briefResult.sections.map(s => ({
       heading: s.heading,
       body: s.body,
@@ -184,11 +186,11 @@ export async function GET(
       },
     } : {
       citations: [],
-      evidenceChain: { evidences: [], aggregateConfidence: briefResult.evidenceChain.aggregateConfidence, coverage: 0, gaps: [], freshnessScore: briefResult.evidenceChain.freshnessScore },
+      evidenceChain: { evidences: [], aggregateConfidence: briefResult.evidenceChain.aggregateConfidence, coverage: includeCitations ? briefResult.evidenceChain.coverage : 0, gaps: [], freshnessScore: briefResult.evidenceChain.freshnessScore },
     }),
     wordCount: briefResult.wordCount,
     modelUsed: briefResult.modelUsed,
-    confidence: briefResult.confidence,
+    confidence: Math.min(1, briefResult.confidence),
     durationMs: briefResult.durationMs,
     tokensUsed: briefResult.tokensUsed,
     costUsd: briefResult.costUsd,
@@ -200,7 +202,7 @@ export async function GET(
     brief: intelligenceBrief,
   };
 
-  const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
+  const freshness = computeFreshness(company);
   const durationMs = Date.now() - startedAt;
 
   logger.info('[intelligence/brief] Brief generated', {
@@ -209,7 +211,7 @@ export async function GET(
     wordCount: briefResult.wordCount,
     sections: briefResult.sections.length,
     citations: briefResult.citations.length,
-    confidence: briefResult.confidence,
+    confidence: Math.min(1, briefResult.confidence),
     durationMs,
     freshnessLevel: freshness.level,
     warnings: briefResult.warnings.length,
@@ -220,12 +222,12 @@ export async function GET(
       durationMs,
       includes,
       cached: false,
-      confidence: briefResult.confidence,
+      confidence: Math.min(1, briefResult.confidence),
       freshness,
       requestedAt,
       respondedAt: new Date(),
       ...(governanceMeta && { governance: governanceMeta }),
     }),
-    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
+    { headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );
 }

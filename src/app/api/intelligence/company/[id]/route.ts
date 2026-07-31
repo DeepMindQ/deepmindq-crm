@@ -31,6 +31,9 @@ import {
   createResponse,
   createErrorResponse,
   computeFreshness,
+  runGovernanceMetadata,
+  safeNumber,
+  SECURITY_HEADERS,
 } from '@/lib/intelligence-api/middleware';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
@@ -39,8 +42,13 @@ import type {
 } from '@/lib/intelligence-api/types';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
-import { runGovernanceChecks } from '@/lib/ai-governance';
-import { getResearchContext } from '@/lib/intelligence-contract';
+
+// ── Helpers ─────────────────────────────────────────────────────────────────────
+
+/** A8: Safe type guard for Record<string, unknown> conversion */
+function asRecord(obj: unknown): Record<string, unknown> {
+  return (obj && typeof obj === 'object' ? obj : {}) as Record<string, unknown>;
+}
 
 // ── Engine references (static object exports, not classes) ──────────────────────
 // ScoringEngine, ActionEngine, ConversationEngine are object literals with static methods
@@ -58,22 +66,8 @@ export async function GET(
   if (guardResult instanceof Response) return guardResult;
   const { companyId, correlationId, responseHeaders } = guardResult;
 
-  // Ticket 3: Run real governance check for response metadata (best-effort, postgres only)
-  let governanceMeta: { passed: boolean; generationType: string; checks: Record<string, { passed: boolean; message: string }> } | undefined;
-  try {
-    // Only run governance check against real PostgreSQL — skip for file-based/test DBs
-    if (process.env.DATABASE_URL?.startsWith('postgres')) {
-      const researchCtx = await getResearchContext(companyId);
-      const govResult = await runGovernanceChecks({ companyId, generationType: 'company_intelligence', researchContext: researchCtx });
-      governanceMeta = {
-        passed: govResult.passed,
-        generationType: 'company_intelligence',
-        checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
-      };
-    }
-  } catch {
-    // Governance metadata is optional — degrade gracefully
-  }
+  // E1: Use shared governance helper instead of 12-line inline block
+  const governanceMeta = await runGovernanceMetadata(companyId, 'company_intelligence');
 
   logger.info('[intelligence/company] Processing', {
     companyId,
@@ -119,7 +113,7 @@ export async function GET(
     });
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : 'Unknown error';
-    logger.error('[intelligence/company] DB lookup failed', { companyId, error: rawMessage });
+    logger.error('[intelligence/company] DB lookup failed', { companyId, correlationId, error: rawMessage });
     return Response.json(
       createErrorResponse(
         'company',
@@ -129,12 +123,19 @@ export async function GET(
         Date.now() - startedAt,
         guardResult.includes,
       ),
-      { status: 500, headers: responseHeaders },
+      {
+        status: 500,
+        headers: {
+          ...SECURITY_HEADERS,
+          'Content-Type': 'application/json',
+          ...responseHeaders,
+        },
+      },
     );
   }
 
   if (!company) {
-    logger.warn('[intelligence/company] Company not found', { companyId });
+    logger.warn('[intelligence/company] Company not found', { companyId, correlationId });
     return Response.json(
       createErrorResponse(
         'company',
@@ -144,7 +145,14 @@ export async function GET(
         Date.now() - startedAt,
         guardResult.includes,
       ),
-      { status: 404, headers: responseHeaders },
+      {
+        status: 404,
+        headers: {
+          ...SECURITY_HEADERS,
+          'Content-Type': 'application/json',
+          ...responseHeaders,
+        },
+      },
     );
   }
 
@@ -158,17 +166,18 @@ export async function GET(
     if (accountScore) {
       revenueSummary = { score: accountScore.score, category: accountScore.category };
     }
-  } catch { /* AccountScore table may not exist in all environments */ }
+  } catch (err) {
+    // B1: Log instead of swallowing
+    logger.debug('[intelligence/company] AccountScore lookup failed', {
+      companyId,
+      correlationId,
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
   // ── Step 2b: Conditionally load data sections (PARALLEL) ──────────────────
-  const [
-    signals,
-    contacts,
-    timeline,
-    knowledge,
-    mindmap,
-    loadedResearchCard,
-  ] = await Promise.all([
+  // B15: Use Promise.allSettled so one rejection doesn't kill all results
+  const settledSections = await Promise.allSettled([
     // Signals
     shouldInclude(guardResult.includes, 'signals')
       ? db.companySignal.findMany({
@@ -188,7 +197,7 @@ export async function GET(
           createdAt: s.extractedAt.toISOString(), companyId: s.companyId,
         }))).catch(err => {
           logger.warn('[intelligence/company] Failed to load signals', {
-            companyId, error: err instanceof Error ? err.message : String(err),
+            companyId, correlationId, error: err instanceof Error ? err.message : String(err),
           });
           return undefined;
         })
@@ -215,7 +224,7 @@ export async function GET(
           lastActivityAt: c.lastContactedAt?.toISOString() ?? null,
         }))).catch(err => {
           logger.warn('[intelligence/company] Failed to load contacts', {
-            companyId, error: err instanceof Error ? err.message : String(err),
+            companyId, correlationId, error: err instanceof Error ? err.message : String(err),
           });
           return undefined;
         })
@@ -234,11 +243,12 @@ export async function GET(
         }).then(records => records.map((e) => ({
           id: e.id, type: e.eventType, title: e.title,
           description: e.description,
+          // I8: metadata is untyped JSON — trusted internal data from enrichment pipeline
           metadata: (e.metadata as Record<string, unknown>) ?? {},
           createdAt: e.createdAt.toISOString(), companyId: e.companyId,
         }))).catch(err => {
           logger.warn('[intelligence/company] Failed to load timeline', {
-            companyId, error: err instanceof Error ? err.message : String(err),
+            companyId, correlationId, error: err instanceof Error ? err.message : String(err),
           });
           return undefined;
         })
@@ -259,14 +269,15 @@ export async function GET(
             take: 1,
           });
 
-          // Extract unique capability IDs from all fusion results
-          const allCapabilityIds: string[] = [];
+          // D14: Use Set for O(1) lookup instead of Array.includes O(n²)
+          const allCapabilityIds = new Set<string>();
           for (const fr of fusionResults) {
+            // D15: Array.isArray guard already present
             const ids = fr.capabilityIds as unknown[];
             if (Array.isArray(ids)) {
               for (const capId of ids) {
-                if (typeof capId === 'string' && !allCapabilityIds.includes(capId)) {
-                  allCapabilityIds.push(capId);
+                if (typeof capId === 'string') {
+                  allCapabilityIds.add(capId);
                 }
               }
             }
@@ -276,9 +287,9 @@ export async function GET(
           let capabilities: Array<Record<string, unknown>> = [];
           let caseStudies: Array<Record<string, unknown>> = [];
 
-          if (allCapabilityIds.length > 0) {
+          if (allCapabilityIds.size > 0) {
             const assets = await db.capabilityAsset.findMany({
-              where: { id: { in: allCapabilityIds } },
+              where: { id: { in: Array.from(allCapabilityIds) } },
               select: {
                 id: true, title: true, summary: true, category: true,
                 serviceLine: true, targetIndustries: true, problems: true, evidence: true,
@@ -304,7 +315,7 @@ export async function GET(
           return { capabilities, caseStudies };
         })().catch(err => {
           logger.warn('[intelligence/company] Failed to load knowledge', {
-            companyId, error: err instanceof Error ? err.message : String(err),
+            companyId, correlationId, error: err instanceof Error ? err.message : String(err),
           });
           return undefined;
         })
@@ -337,13 +348,14 @@ export async function GET(
           return {
             nodeCount: 1 + contactCount + signalCount + capabilityCount, // +1 for company center
             edgeCount: contactCount + signalCount + capabilityCount, // hub-and-spoke
-            centerNode: (company.normalizedName as string) || (company.rawName as string) || '',
+            // A17: normalizedName could be null — fall back through rawName then literal
+            centerNode: company.normalizedName || company.rawName || 'Company',
             categories: ['person', 'signal', 'knowledge'],
             lastGenerated: null,
           };
         })().catch(err => {
           logger.warn('[intelligence/company] Failed to compute mindmap summary', {
-            companyId, error: err instanceof Error ? err.message : String(err),
+            companyId, correlationId, error: err instanceof Error ? err.message : String(err),
           });
           return undefined;
         })
@@ -377,12 +389,22 @@ export async function GET(
         }
       } catch (err) {
         logger.warn('[intelligence/company] Failed to load research card / key people', {
-          companyId, error: err instanceof Error ? err.message : String(err),
+          companyId, correlationId, error: err instanceof Error ? err.message : String(err),
         });
       }
       return { researchCard, keyPeople };
     })(),
   ]);
+
+  // B15: Safely extract results from settled promises
+  const signals = settledSections[0].status === 'fulfilled' ? settledSections[0].value : undefined;
+  const contacts = settledSections[1].status === 'fulfilled' ? settledSections[1].value : undefined;
+  const timeline = settledSections[2].status === 'fulfilled' ? settledSections[2].value : undefined;
+  const knowledge = settledSections[3].status === 'fulfilled' ? settledSections[3].value : undefined;
+  const mindmap = settledSections[4].status === 'fulfilled' ? settledSections[4].value : undefined;
+  const loadedResearchCard = settledSections[5].status === 'fulfilled'
+    ? settledSections[5].value as { researchCard: Record<string, unknown> | null; keyPeople: IntelligenceCompanyContext['keyPeople'] }
+    : { researchCard: null, keyPeople: [] };
 
   const { researchCard, keyPeople } = loadedResearchCard;
 
@@ -431,6 +453,7 @@ export async function GET(
     if (settled.status !== 'fulfilled') {
       const reason = (settled as PromiseRejectedResult).reason;
       logger.warn('[intelligence/company] Engine promise rejected', {
+        companyId, correlationId,
         error: reason instanceof Error ? reason.message : String(reason),
       });
       continue;
@@ -448,7 +471,14 @@ export async function GET(
           accountScoreRecord = await db.accountScore.findUnique({
             where: { companyId },
           });
-        } catch { /* accountScore table may not exist in all environments */ }
+        } catch (err) {
+          // B2: Log instead of swallowing
+          logger.debug('[intelligence/company] AccountScore lookup failed (scores path)', {
+            companyId,
+            correlationId,
+            error: err instanceof Error ? err.message : String(err),
+          });
+        }
 
         // Parse revenue opportunity breakdown (detects legacy vs new format)
         let revenueOpportunity: IntelligenceCompanyContext['scores'] extends undefined ? never : NonNullable<NonNullable<IntelligenceCompanyContext['scores']>>['revenueOpportunity'];
@@ -479,12 +509,13 @@ export async function GET(
                     },
               };
             }
-          } catch { /* ignore */ }
+          } catch {
+            // B3: Log parse failure
+            logger.debug('[intelligence/company] Failed to parse scoreBreakdown', { companyId, correlationId });
+          }
         }
 
-        // Classify intelligence tier from live score
-        // Use the formal 6-component intelligence score from getAccountIntelligence when possible,
-        // falling back to Company.intelligenceScore (research-time heuristic)
+        // E3: Intelligence tier classification — this logic mirrors scores/route.ts
         const intelScore = company.intelligenceScore ?? 0;
         const intelTier = intelScore >= 70 ? 'hot' : intelScore >= 40 ? 'warm' : intelScore >= 15 ? 'cold' : 'unknown';
 
@@ -496,10 +527,11 @@ export async function GET(
           revenue: sr,
           ...(revenueOpportunity && { revenueOpportunity }),
         };
-        confidences.push(sr.confidence / 100);
+        // D6: Confidence may already be 0-1 in some code paths; clamp to [0,1]
+        confidences.push(Math.min(1, (sr.confidence ?? 0) / 100));
       } else if (sr && typeof sr === 'object' && 'error' in sr && sr.error) {
         logger.warn('[intelligence/company] ScoringEngine returned failure', {
-          companyId,
+          companyId, correlationId,
           error: String(sr.error),
         });
       }
@@ -515,15 +547,15 @@ export async function GET(
         }
       } else if (ar && typeof ar === 'object' && 'error' in ar && ar.error) {
         logger.warn('[intelligence/company] ActionEngine returned failure', {
-          companyId,
+          companyId, correlationId,
           error: String(ar.error),
         });
       }
     }
 
     if (key === 'brief' && result) {
-      // H9 FIX: Safe type narrowing via explicit unknown bridge with validation
-      const cr = result as Record<string, unknown>;
+      // A8: Use asRecord helper instead of unchecked cast
+      const cr = asRecord(result);
       if (cr && typeof cr === 'object' && cr.success === true) {
         const summary = String(cr.meetingObjective || cr.companyContext || '');
         const keyThemes = Array.isArray(cr.signalContext) ? cr.signalContext.map(String) : [];
@@ -541,6 +573,7 @@ export async function GET(
           }],
           citations: [],
           evidenceChain: { evidences: [], aggregateConfidence: 0, coverage: 0, gaps: [], freshnessScore: 0 },
+          // D2: Simple whitespace split; CJK text may undercount slightly
           wordCount: summary.split(/\s+/).filter(Boolean).length,
           modelUsed: 'conversation-engine',
           confidence: briefConfidence,
@@ -552,7 +585,7 @@ export async function GET(
         confidences.push(briefConfidence);
       } else {
         logger.warn('[intelligence/company] ConversationEngine.brief returned failure', {
-          companyId,
+          companyId, correlationId,
           error: String(cr.error ?? ''),
         });
       }
@@ -560,7 +593,8 @@ export async function GET(
   }
 
   // ── Step 5: Compute freshness & confidence ─────────────────────────────
-  const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
+  // A7: CompanyRow satisfies computeFreshness parameter shape — no cast needed
+  const freshness = computeFreshness(company);
 
   // Average of available confidences; default to freshness-derived estimate
   const aggregateConfidence =
@@ -582,8 +616,9 @@ export async function GET(
       website: company.website,
       status: company.status,
       assignedTo: company.assignedTo,
-      intelligenceScore: (company.intelligenceScore as number) ?? 0,
-      engagementScore: (company.engagementScore as number) ?? 0,
+      // D1: Use safeNumber to guard against NaN from DB — ?? doesn't catch NaN
+      intelligenceScore: safeNumber(company.intelligenceScore, 0),
+      engagementScore: safeNumber(company.engagementScore, 0),
       accountPriorityScore: company.accountPriorityScore as number | null,
       priorityTier: company.priorityTier as string | null,
       createdAt: (company.createdAt as Date).toISOString(),
@@ -626,6 +661,13 @@ export async function GET(
       respondedAt: new Date(),
       ...(governanceMeta && { governance: governanceMeta }),
     }),
-    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
+    {
+      headers: {
+        ...SECURITY_HEADERS,
+        'Content-Type': 'application/json',
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30',
+        ...responseHeaders,
+      },
+    },
   );
 }

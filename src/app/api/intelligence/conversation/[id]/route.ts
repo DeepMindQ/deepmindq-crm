@@ -22,14 +22,22 @@ import {
   createResponse,
   createErrorResponse,
   computeFreshness,
+  runGovernanceMetadata,
+  SECURITY_HEADERS,
 } from '@/lib/intelligence-api/middleware';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import type { IntelligenceConversationOutput, IntelligenceBrief } from '@/lib/intelligence-api/types';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
-import { runGovernanceChecks } from '@/lib/ai-governance';
-import { getResearchContext } from '@/lib/intelligence-contract';
+
+// ── Shared helpers ──────────────────────────────────────────────────────────
+
+const FALLBACK_CONFIDENCE_FACTOR = 0.8;
+
+function asRecord(obj: unknown): Record<string, unknown> {
+  return (obj && typeof obj === 'object' ? obj : {}) as Record<string, unknown>;
+}
 
 // ── Helper: Extract buyer profiles from conversation result ──────────────
 function extractBuyerProfiles(
@@ -37,7 +45,7 @@ function extractBuyerProfiles(
 ): Array<{ role: string; concerns: string[]; motivation: string; confidence: number }> {
   if (!conversationResult || typeof conversationResult !== 'object') return [];
 
-  const cr = conversationResult as unknown as Record<string, unknown>;
+  const cr = asRecord(conversationResult);
 
   // Try buyerProfile field (singular object — ConversationResult.buyerProfile)
   if (cr.buyerProfile && typeof cr.buyerProfile === 'object') {
@@ -69,7 +77,7 @@ function extractBuyerProfiles(
       role: 'General Contact',
       concerns: talkingPoints.map(tp => String(tp.point || '')).filter(Boolean),
       motivation: '',
-      confidence: Number(cr.confidenceScore ?? cr.confidence ?? 0) / 100 * 0.8,
+      confidence: Number(cr.confidenceScore ?? cr.confidence ?? 0) / 100 * FALLBACK_CONFIDENCE_FACTOR,
     }];
   }
 
@@ -87,25 +95,12 @@ export async function GET(
   if (guardResult instanceof Response) return guardResult;
   const { companyId, correlationId, responseHeaders } = guardResult;
 
-  // Ticket 3: Run real governance check for response metadata (requires DB)
-  let governanceMeta: { passed: boolean; generationType: string; checks: Record<string, { passed: boolean; message: string }> } | undefined;
-  try {
-    // Only run governance check against real PostgreSQL — skip for file-based/test DBs
-    if (process.env.DATABASE_URL?.startsWith('postgres')) {
-      const researchCtx = await getResearchContext(companyId);
-      const govResult = await runGovernanceChecks({ companyId, generationType: 'conversation_plan', researchContext: researchCtx });
-      governanceMeta = {
-        passed: govResult.passed,
-        generationType: 'conversation_plan',
-        checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
-      };
-    }
-  } catch {
-    // Governance metadata is optional — degrade gracefully
-  }
+  // E1: Governance metadata — delegated to shared helper
+  const governanceMeta = await runGovernanceMetadata(companyId, 'conversation_plan');
 
   logger.info('[intelligence/conversation] Processing', {
     companyId,
+    correlationId,
     includes: Array.from(guardResult.includes),
   });
 
@@ -125,14 +120,14 @@ export async function GET(
     logger.error('[intelligence/conversation] DB lookup failed', { companyId, error: rawMessage });
     return Response.json(
       createErrorResponse('conversation', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, IntelligenceErrors.INTELLIGENCE_UNAVAILABLE, Date.now() - startedAt, guardResult.includes),
-      { status: 500, headers: responseHeaders },
+      { status: 500, headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
   if (!company) {
     return Response.json(
       createErrorResponse('conversation', companyId, 'Company not found', IntelligenceErrors.COMPANY_NOT_FOUND, Date.now() - startedAt, guardResult.includes),
-      { status: 404, headers: responseHeaders },
+      { status: 404, headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
@@ -141,13 +136,14 @@ export async function GET(
     || shouldInclude(guardResult.includes, 'talkingPoints')
     || shouldInclude(guardResult.includes, 'objections')
     || shouldInclude(guardResult.includes, 'buyerProfiles');
-  const wantsLearning = shouldInclude(guardResult.includes, 'learning');
+  const wantsLearning = guardResult.includes.size === 0 || shouldInclude(guardResult.includes, 'learning');
 
   // ── Step 3: Run engine + load learning insights in parallel ────────
   let conversationResult: ConversationResult | null = null;
   let learningEvents: Array<{ id: string; learnedInsight: string; companyId: string | null; applicableContext: string; createdAt: Date }> = [];
 
   try {
+    // B4: Engine timeout is delegated to the engine layer — no AbortController wrapper needed here
     const results = await Promise.all([
       wantsConversation
         ? ConversationEngine.brief({ companyId, skipNarrative: true })
@@ -177,10 +173,10 @@ export async function GET(
     learningEvents = results[1];
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : String(err);
-    logger.warn('[intelligence/conversation] Engine threw', { companyId, error: rawMessage });
+    logger.warn('[intelligence/conversation] Engine/parallel fetch failed', { companyId, correlationId, error: rawMessage });
     return Response.json(
-      createErrorResponse('conversation', companyId, scrubError(rawMessage), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, guardResult.includes),
-      { status: 502, headers: responseHeaders },
+      createErrorResponse('conversation', companyId, `Conversation processing failed: ${scrubError(rawMessage)}`, IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, guardResult.includes),
+      { status: 502, headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
@@ -191,7 +187,7 @@ export async function GET(
     });
     return Response.json(
       createErrorResponse('conversation', companyId, scrubError(conversationResult.error || 'Conversation engine failed'), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, guardResult.includes),
-      { status: 502, headers: responseHeaders },
+      { status: 502, headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
@@ -202,7 +198,7 @@ export async function GET(
   let risks: string[] = [];
 
   if (conversationResult && conversationResult.success) {
-    const cr = conversationResult as unknown as Record<string, unknown>;
+    const cr = asRecord(conversationResult);
     const summary = (cr.briefingNarrative as string) || (cr.companyContext as string) || (cr.meetingObjective as string) || '';
     keyThemes = Array.isArray(cr.talkingPoints)
       ? ((cr.talkingPoints as Array<{ point?: string }>).map((tp) => tp.point || '').filter(Boolean))
@@ -231,7 +227,7 @@ export async function GET(
       durationMs: 0,
       tokensUsed: 0,
       costUsd: 0,
-      warnings: risks.length > 0 ? risks.map(r => `Risk: ${r}`) : [],
+      warnings: risks.length > 0 ? risks.map(r => `Objection: ${r}`) : [],
     };
   }
 
@@ -244,7 +240,7 @@ export async function GET(
       talkingPoints: keyThemes.map(t => ({ topic: t, context: '', confidence: brief?.confidence ?? 0 })),
     }),
     ...(shouldInclude(guardResult.includes, 'objections') && conversationResult && typeof conversationResult === 'object' ? {
-      objections: ((conversationResult as unknown as Record<string, unknown>).objectionsToPrepare as Array<Record<string, unknown>> || []).map((o) => ({
+      objections: (asRecord(conversationResult).objectionsToPrepare as Array<Record<string, unknown>> || []).map((o) => ({
         objection: String(o.objection || ''),
         rebuttal: String(o.preparedResponse || ''),
         confidence: Number(
@@ -270,7 +266,7 @@ export async function GET(
   };
 
   const confidence = brief?.confidence ?? 0;
-  const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
+  const freshness = computeFreshness(company);
   const durationMs = Date.now() - startedAt;
 
   logger.info('[intelligence/conversation] Response assembled', {
@@ -292,6 +288,6 @@ export async function GET(
       respondedAt: new Date(),
       ...(governanceMeta && { governance: governanceMeta }),
     }),
-    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
+    { headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );
 }

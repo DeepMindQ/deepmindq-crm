@@ -12,12 +12,35 @@
 import { NextRequest } from 'next/server';
 import { IntelligenceResponse, IntelligenceMeta, IntelligenceInclude, FreshnessInfo, IntelligenceErrors, IntelligenceEndpoint } from './types';
 
+/** Shared security headers applied to all intelligence API responses */
+export const SECURITY_HEADERS: Record<string, string> = {
+  'X-Content-Type-Options': 'nosniff',
+  'X-Frame-Options': 'DENY',
+  'Vary': 'Accept, Include',
+};
+
+/** Safe number helper — catches NaN/Infinity, clamps to fallback */
+export function safeNumber(value: unknown, fallback: number = 0, min?: number, max?: number): number {
+  const n = typeof value === 'number' && Number.isFinite(value) ? value : Number(value) || fallback;
+  return min !== undefined ? Math.max(min, max !== undefined ? Math.min(max, n) : n) : n;
+}
+
+/** Shared company DB loader — used by all 7 intelligence routes to avoid duplication */
+export async function loadCompanyForFreshness(
+  companyId: string,
+): Promise<Record<string, unknown> | null> {
+  return (await import('@/lib/db')).db.company.findUnique({
+    where: { id: companyId },
+    select: { id: true, lastEnrichedAt: true, lastActivityAt: true, intelligenceScore: true },
+  }).catch(() => null);
+}
+
 // ── Include Parameter Parsing ───────────────────────────────────────────────────
 
 // Single source of truth for valid include keys — mirrors IntelligenceInclude union type.
 // NOTE: If you add a new IntelligenceInclude variant in types.ts, add it here too.
 // Exported so validators.ts can import instead of duplicating.
-export const VALID_INCLUDES: Set<string> = new Set<string>([
+export const VALID_INCLUDES: Set<IntelligenceInclude> = new Set<IntelligenceInclude>([
   // Company endpoint includes
   'signals', 'scores', 'contacts', 'timeline', 'actions', 'brief',
   'knowledge', 'mindmap', 'learning',
@@ -47,14 +70,22 @@ export const VALID_INCLUDES: Set<string> = new Set<string>([
  */
 export function parseIncludeParams(
   request: NextRequest,
-): { includes: Set<IntelligenceInclude>; raw: string | null } {
+): { includes: Set<IntelligenceInclude>; raw: string | null; rejected: string[] } {
   const raw = request.nextUrl.searchParams.get('include');
-  if (!raw) return { includes: new Set(), raw: null };
+  if (!raw) return { includes: new Set(), raw: null, rejected: [] };
 
   const requested = raw.split(',').map(s => s.trim()).filter(Boolean);
-  const valid = requested.filter(s => VALID_INCLUDES.has(s)) as IntelligenceInclude[];
+  const valid: IntelligenceInclude[] = [];
+  const rejected: string[] = [];
+  for (const s of requested) {
+    if (VALID_INCLUDES.has(s as IntelligenceInclude)) {
+      valid.push(s as IntelligenceInclude);
+    } else {
+      rejected.push(s);
+    }
+  }
 
-  return { includes: new Set(valid), raw };
+  return { includes: new Set(valid), raw, rejected };
 }
 
 /**
@@ -120,6 +151,27 @@ export function createResponse<T>(
   };
 }
 
+/** Shared governance helper — eliminates 12-line duplication across all routes */
+export async function runGovernanceMetadata(
+  companyId: string,
+  generationType: string,
+): Promise<{ passed: boolean; generationType: string; checks: Record<string, { passed: boolean; message: string }> } | undefined> {
+  try {
+    if (!process.env.DATABASE_URL?.startsWith('postgres')) return undefined;
+    const { getResearchContext } = await import('@/lib/intelligence-contract');
+    const { runGovernanceChecks } = await import('@/lib/ai-governance');
+    const researchCtx = await getResearchContext(companyId);
+    const govResult = await runGovernanceChecks({ companyId, generationType, researchContext: researchCtx });
+    return {
+      passed: govResult.passed,
+      generationType,
+      checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
+    };
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Create an error IntelligenceResponse envelope.
  */
@@ -136,7 +188,7 @@ export interface IntelligenceErrorResponse {
  * Used by all Intelligence API error paths (400, 429, 500).
  */
 export function createErrorResponse(
-  _endpoint: IntelligenceEndpoint,
+  endpoint: IntelligenceEndpoint,
   companyId: string,
   error: string,
   errorCode: IntelligenceErrorCode = IntelligenceErrors.INTELLIGENCE_UNAVAILABLE,
@@ -148,7 +200,7 @@ export function createErrorResponse(
   if (durationMs !== undefined && durationMs > 0) details.durationMs = durationMs;
   if (includes && includes.size > 0) details.requestedIncludes = Array.from(includes);
   const detailKeys = Object.keys(details);
-  return { error, code: errorCode, details: detailKeys.length > 0 ? details : undefined };
+  return { error, code: errorCode, ...(detailKeys.length > 0 && { details }) };
 }
 
 // ── Freshness Computation ─────────────────────────────────────────────────────────
@@ -185,7 +237,7 @@ export function computeFreshness(company: {
   return {
     level,
     lastEnriched: lastEnriched.toISOString(),
-    lastSignal: lastActivity.toISOString(),
+    lastSignal: lastActivity.toISOString(),  // falls back to lastActivityAt
     score,
   };
 }

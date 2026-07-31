@@ -29,10 +29,10 @@ import { z } from 'zod';
 import { logger } from '@/lib/logger';
 import { scrubError } from './handler';
 
-const INTELLIGENCE_RATE_LIMIT = 60;
-const INTELLIGENCE_RATE_WINDOW_MS = 60_000;
-const UTILITY_RATE_LIMIT = 120;
-const UTILITY_RATE_WINDOW_MS = 60_000;
+const INTELLIGENCE_RATE_LIMIT = Number(process.env.INTELLIGENCE_RATE_LIMIT) || 60;
+const INTELLIGENCE_RATE_WINDOW_MS = Number(process.env.INTELLIGENCE_RATE_WINDOW_MS) || 60_000;
+const UTILITY_RATE_LIMIT = Number(process.env.UTILITY_RATE_LIMIT) || 120;
+const UTILITY_RATE_WINDOW_MS = Number(process.env.UTILITY_RATE_WINDOW_MS) || 60_000;
 
 export interface IntelligenceGuardResult {
   companyId: string;
@@ -113,19 +113,24 @@ export async function intelligenceGuard(
         status: 429,
         headers: {
           ...responseHeaders,
-          'Retry-After': String(Math.ceil((rl.resetAt - Date.now()) / 1000)),
+          'Retry-After': String(Math.max(1, Math.ceil((rl.resetAt - Date.now()) / 1000))),
         },
       },
     );
   }
 
   // ── All checks passed ────────────────────────────────────────────────
-  const { includes } = parseIncludeParams(request);
+  const parseResult = parseIncludeParams(request);
+  if (parseResult.rejected.length > 0) {
+    logger.warn('[intelligence-guard] Invalid includes rejected', { correlationId, endpoint, companyId, rejected: parseResult.rejected });
+  }
+  logger.info('[intelligence-guard] Request passed', { correlationId, endpoint, companyId, includes: Array.from(parseResult.includes) });
+
   return {
     companyId,
     correlationId,
     responseHeaders,
-    includes,
+    includes: parseResult.includes,
   };
 }
 
@@ -149,7 +154,7 @@ export function utilityGuard(
     || request.headers.get('x-real-ip')
     || 'unknown';
   const rl = rateLimit({
-    key: `intelligence:${clientIp}:${endpoint}`,
+    key: `utility:${clientIp}:${endpoint}`,
     limit: UTILITY_RATE_LIMIT,
     windowMs: UTILITY_RATE_WINDOW_MS,
   });

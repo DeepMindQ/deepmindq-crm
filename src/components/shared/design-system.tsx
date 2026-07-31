@@ -141,6 +141,7 @@ export function ScoreGauge({
    ═══════════════════════════════════════════════════════════════ */
 export interface ScoreItem {
   label: string
+  /** Score value — should be 0-100, will be clamped in display */
   score: number
   tier: string
   color: string

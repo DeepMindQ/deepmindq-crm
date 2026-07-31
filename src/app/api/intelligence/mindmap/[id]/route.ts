@@ -18,14 +18,17 @@ import {
   createErrorResponse,
   computeFreshness,
   shouldInclude,
+  runGovernanceMetadata,
+  SECURITY_HEADERS,
 } from '@/lib/intelligence-api/middleware';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import type { IntelligenceMindmap, MindmapNode } from '@/lib/intelligence-api/types';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
-import { runGovernanceChecks } from '@/lib/ai-governance';
-import { getResearchContext } from '@/lib/intelligence-contract';
+
+/** Default confidence for knowledge/capability nodes lacking a score (D9) */
+const DEFAULT_CAPABILITY_CONFIDENCE = 0.7;
 
 export async function GET(
   request: NextRequest,
@@ -40,27 +43,22 @@ export async function GET(
 
   logger.info('[intelligence/mindmap] Processing', {
     companyId,
+    correlationId,
     includes: Array.from(guardResult.includes),
   });
 
-  // Ticket 3: Run real governance check for response metadata (requires DB)
-  let governanceMeta: { passed: boolean; generationType: string; checks: Record<string, { passed: boolean; message: string }> } | undefined;
-  try {
-    if (process.env.DATABASE_URL?.startsWith('postgres')) {
-      const researchCtx = await getResearchContext(companyId);
-      const govResult = await runGovernanceChecks({ companyId, generationType: 'mindmap', researchContext: researchCtx });
-      governanceMeta = {
-        passed: govResult.passed,
-        generationType: 'mindmap',
-        checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
-      };
-    }
-  } catch {
-    // Governance metadata is optional — degrade gracefully
-  }
+  // E1: Use shared governance helper from middleware (replaces 12-line inline block)
+  const governanceMeta = await runGovernanceMetadata(companyId, 'mindmap');
 
   // ── Step 1: Load company from DB (for freshness + center node label) ─────
-  let company: Record<string, unknown> | null = null;
+  // A7: Properly typed company row — eliminates verbose type assertions downstream
+  let company: {
+    id: string;
+    rawName: string | null;
+    normalizedName: string | null;
+    lastEnrichedAt: Date | null;
+    lastActivityAt: Date | null;
+  } | null = null;
   try {
     company = await db.company.findUnique({
       where: { id: companyId },
@@ -94,7 +92,7 @@ export async function GET(
   const loadKnowledgeConnections = shouldInclude(guardResult.includes, 'knowledgeConnections');
 
   // ── Step 3: Load entities in parallel (only when nodes are requested) ─────
-  const centerLabel = (company.normalizedName as string) || (company.rawName as string) || 'Company';
+  const centerLabel = company.normalizedName || company.rawName || 'Company';
   const centerNodeId = 'company-center';
 
   let nodes: MindmapNode[] = [];
@@ -106,17 +104,26 @@ export async function GET(
         where: { companyId },
         select: { id: true, rawName: true, title: true, role: true, leadScore: true },
         take: 30,
-      }).catch(() => []),
+      }).catch((err: unknown) => {
+        logger.debug('[intelligence/mindmap] Failed to load contacts', { companyId, error: err instanceof Error ? err.message : String(err) });
+        return [];
+      }),
       // Load company-linked capabilities via FusionResult (not all assets)
       db.fusionResult.findMany({
         where: { companyId },
         select: { capabilityIds: true },
-      }).catch(() => []),
+      }).catch((err: unknown) => {
+        logger.debug('[intelligence/mindmap] Failed to load fusion results', { companyId, error: err instanceof Error ? err.message : String(err) });
+        return [];
+      }),
       db.companySignal.findMany({
         where: { companyId },
         select: { id: true, signalType: true, title: true, confidence: true },
         take: 20,
-      }).catch(() => []),
+      }).catch((err: unknown) => {
+        logger.debug('[intelligence/mindmap] Failed to load signals', { companyId, error: err instanceof Error ? err.message : String(err) });
+        return [];
+      }),
     ]);
 
     // Extract unique capability IDs linked to this company
@@ -152,6 +159,7 @@ export async function GET(
         id: c.id,
         label: (c.rawName || '').slice(0, 100),
         type: 'person' as const,
+        // D8: leadScore is 0-100 in the DB schema; clamp after normalising to 0-1
         confidence: Math.max(0, Math.min(1, (c.leadScore || 0) / 100)),
         metadata: { title: c.title, role: c.role },
       })),
@@ -160,7 +168,7 @@ export async function GET(
         id: cap.id,
         label: (cap.title || '').slice(0, 100),
         type: 'knowledge' as const,
-        confidence: 0.7,
+        confidence: DEFAULT_CAPABILITY_CONFIDENCE,
         metadata: { category: cap.category },
       })),
       // Signal nodes
@@ -203,6 +211,7 @@ export async function GET(
     },
     // knowledgeConnections: link signal nodes to capability nodes via fusion
     ...(loadKnowledgeConnections ? {
+      // F7: await inside spread is fine — the IIFE is evaluated before the spread consumes the result
       knowledgeConnections: await (async () => {
         if (companyCapabilityIds.size === 0) return [];
         try {
@@ -230,7 +239,7 @@ export async function GET(
   };
 
   const confidence = nodes.length > 0 ? Math.min(0.9, 0.5 + nodes.length * 0.02) : 0.1;
-  const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
+  const freshness = computeFreshness(company);
   const durationMs = Date.now() - startedAt;
 
   logger.info('[intelligence/mindmap] Response assembled', {
@@ -254,6 +263,13 @@ export async function GET(
       respondedAt: new Date(),
       ...(governanceMeta && { governance: governanceMeta }),
     }),
-    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        ...SECURITY_HEADERS,
+        ...responseHeaders,
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30',
+      },
+    },
   );
 }

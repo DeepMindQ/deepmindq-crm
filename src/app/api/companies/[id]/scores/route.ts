@@ -105,9 +105,11 @@ export interface UnifiedScoresResponse {
 
 /** Classify intelligence tier from numeric score */
 function classifyIntelligenceTier(score: number): string {
-  if (score >= 70) return 'hot';
-  if (score >= 40) return 'warm';
-  if (score >= 15) return 'cold';
+  // Guard against NaN from null DB values
+  const s = Number.isFinite(score) ? score : 0;
+  if (s >= 70) return 'hot';
+  if (s >= 40) return 'warm';
+  if (s >= 15) return 'cold';
   return 'unknown';
 }
 
@@ -188,7 +190,11 @@ export async function GET(
   const startedAt = Date.now();
 
   // ── Guard: rate limiting + correlation-id + response headers ──
-  let ctx: ReturnType<typeof utilityGuard>;
+  // Initialize with a safe fallback so ctx is always assigned
+  let ctx: ReturnType<typeof utilityGuard> = {
+    correlationId: 'error',
+    responseHeaders: { 'Content-Type': 'application/json' },
+  };
   try {
     ctx = utilityGuard(request, 'scores');
   } catch (err) {
@@ -202,7 +208,7 @@ export async function GET(
         },
       });
     }
-    throw err;
+    // Non-RateLimitedError — return structured 500, don't re-throw\n    // ctx may not be assigned here, create a minimal fallback\n    const fallbackCtx = { correlationId: 'error', responseHeaders: { 'Content-Type': 'application/json' } };\n    return utilityError(fallbackCtx, 500, 'Internal server error', 'INTELLIGENCE_UNAVAILABLE', Date.now() - startedAt);
   }
 
   try {
@@ -245,6 +251,7 @@ export async function GET(
         correlationId: ctx.correlationId,
         companyId: id,
         error: err instanceof Error ? err.message : String(err),
+        errorType: err instanceof Error ? err.constructor.name : typeof err,
       });
     }
 
@@ -252,6 +259,9 @@ export async function GET(
     const [accountScore, historyEntries] = await Promise.all([
       db.accountScore.findUnique({
         where: { companyId: id },
+      }).catch((err) => {
+        logger.debug('[scores] AccountScore lookup failed', { correlationId: ctx.correlationId, companyId: id, error: err instanceof Error ? err.message : String(err) });
+        return null;
       }),
       db.priorityScoreHistory.findMany({
         where: { companyId: id },
@@ -280,8 +290,8 @@ export async function GET(
     // Build Intelligence Score detail (live-computed preferred, stored fallback)
     const intelligence: IntelligenceScoreDetail = intelligenceResult
       ? {
-          score: intelligenceResult.intelligenceScore,
-          tier: intelligenceResult.tier,
+          score: Number.isFinite(intelligenceResult.intelligenceScore) ? intelligenceResult.intelligenceScore : 0,
+          tier: intelligenceResult.tier || classifyIntelligenceTier(0),
           computedAt: intelligenceResult.computedAt,
           source: 'live_computed',
           breakdown: intelligenceResult.components,

@@ -25,14 +25,21 @@ import {
   createResponse,
   createErrorResponse,
   computeFreshness,
+  SECURITY_HEADERS,
+  runGovernanceMetadata,
 } from '@/lib/intelligence-api/middleware';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import type { IntelligenceActionOutput } from '@/lib/intelligence-api/types';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
-import { runGovernanceChecks } from '@/lib/ai-governance';
-import { getResearchContext } from '@/lib/intelligence-contract';
+
+/** A9: Type-safe helper to treat an unknown value as a Record without `as unknown as` */
+function asRecord(obj: unknown): Record<string, unknown> {
+  return (obj && typeof obj === 'object' ? obj : {}) as Record<string, unknown>;
+}
+
+const JSON_CONTENT_TYPE = 'application/json; charset=utf-8';
 
 export async function GET(
   request: NextRequest,
@@ -45,25 +52,13 @@ export async function GET(
   if (guardResult instanceof Response) return guardResult;
   const { companyId, correlationId, responseHeaders } = guardResult;
 
-  // Ticket 3: Run real governance check for response metadata (requires DB)
-  let governanceMeta: { passed: boolean; generationType: string; checks: Record<string, { passed: boolean; message: string }> } | undefined;
-  try {
-    // Only run governance check against real PostgreSQL — skip for file-based/test DBs
-    if (process.env.DATABASE_URL?.startsWith('postgres')) {
-      const researchCtx = await getResearchContext(companyId);
-      const govResult = await runGovernanceChecks({ companyId, generationType: 'action_strategy', researchContext: researchCtx });
-      governanceMeta = {
-        passed: govResult.passed,
-        generationType: 'action_strategy',
-        checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
-      };
-    }
-  } catch {
-    // Governance metadata is optional — degrade gracefully
-  }
+  // E1: Use shared governance helper instead of inline 12-line block
+  const governanceMeta = await runGovernanceMetadata(companyId, 'action_strategy');
 
+  // H1: Add correlationId to processing log
   logger.info('[intelligence/action] Processing', {
     companyId,
+    correlationId,
     includes: Array.from(guardResult.includes),
   });
 
@@ -80,17 +75,17 @@ export async function GET(
     });
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : 'Unknown error';
-    logger.error('[intelligence/action] DB lookup failed', { companyId, error: rawMessage });
+    logger.error('[intelligence/action] DB lookup failed', { companyId, correlationId, error: rawMessage });
     return Response.json(
       createErrorResponse('action', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, IntelligenceErrors.INTELLIGENCE_UNAVAILABLE, Date.now() - startedAt, guardResult.includes),
-      { status: 500, headers: responseHeaders },
+      { status: 500, headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': JSON_CONTENT_TYPE } },
     );
   }
 
   if (!company) {
     return Response.json(
       createErrorResponse('action', companyId, 'Company not found', IntelligenceErrors.COMPANY_NOT_FOUND, Date.now() - startedAt, guardResult.includes),
-      { status: 404, headers: responseHeaders },
+      { status: 404, headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': JSON_CONTENT_TYPE } },
     );
   }
 
@@ -98,6 +93,7 @@ export async function GET(
   const wantsActions = guardResult.includes.size === 0
     || shouldInclude(guardResult.includes, 'recommendations')
     || shouldInclude(guardResult.includes, 'sequences');
+  // E9: Consistent with wantsActions — default when no includes specified
   const wantsLearning = guardResult.includes.size === 0
     || shouldInclude(guardResult.includes, 'learning');
 
@@ -126,8 +122,11 @@ export async function GET(
               createdAt: true,
             },
           }).catch(err => {
+            // B17: Log error type properly
             logger.warn('[intelligence/action] Failed to load learning insights', {
               companyId,
+              correlationId,
+              errorType: err instanceof Error ? err.constructor.name : typeof err,
               error: err instanceof Error ? err.message : String(err),
             });
             return [];
@@ -138,21 +137,22 @@ export async function GET(
     learningEvents = results[1];
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : String(err);
-    logger.warn('[intelligence/action] ActionEngine threw', { companyId, error: rawMessage });
+    logger.warn('[intelligence/action] ActionEngine threw', { companyId, correlationId, error: rawMessage });
     return Response.json(
       createErrorResponse('action', companyId, scrubError(rawMessage), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, guardResult.includes),
-      { status: 502, headers: responseHeaders },
+      { status: 502, headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': JSON_CONTENT_TYPE } },
     );
   }
 
   if (actionResult && !actionResult.success) {
     logger.warn('[intelligence/action] ActionEngine failed', {
       companyId,
+      correlationId,
       error: actionResult.error,
     });
     return Response.json(
       createErrorResponse('action', companyId, scrubError(actionResult.error || 'Action engine failed'), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, guardResult.includes),
-      { status: 502, headers: responseHeaders },
+      { status: 502, headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': JSON_CONTENT_TYPE } },
     );
   }
 
@@ -161,7 +161,8 @@ export async function GET(
   let sequences: Array<{ step: number; action: string; dependsOn: string[] }> = [];
 
   if (actionResult && typeof actionResult === 'object') {
-    const ar = actionResult as unknown as Record<string, unknown>;
+    // A9: Use type guard helper instead of `as unknown as Record<string, unknown>`
+    const ar = asRecord(actionResult);
 
     // Extract recommendations from actions array (RecommendedAction[])
     if (Array.isArray(ar.actions)) {
@@ -171,7 +172,8 @@ export async function GET(
           action: String(ra.title || ra.concreteStep || `Action ${idx + 1}`),
           priority: String(ra.urgency || 'medium'),
           rationale: String(ra.reason || ''),
-          confidence: Number(ra.confidence ?? ar.confidence ?? 0),
+          // A3: ActionResult has no top-level `confidence` — only use ra.confidence
+          confidence: Number(ra.confidence ?? 0),
         }));
     }
 
@@ -186,14 +188,14 @@ export async function GET(
         }));
     }
 
-    // Fallback: derive recommendation from primaryAction if actions array was empty
+    // D5: Fallback — derive recommendation from primaryAction with null checks
     if (recommendations.length === 0 && ar.primaryAction && typeof ar.primaryAction === 'object') {
       const pa = ar.primaryAction as Record<string, unknown>;
       recommendations = [{
-        action: String(pa.title || pa.concreteStep || 'Primary Action'),
-        priority: String(pa.urgency || 'medium'),
-        rationale: String(pa.reason || ''),
-        confidence: Number(pa.confidence ?? 0),
+        action: String(pa.title != null ? pa.title : pa.concreteStep != null ? pa.concreteStep : 'Primary Action'),
+        priority: String(pa.urgency != null ? pa.urgency : 'medium'),
+        rationale: String(pa.reason != null ? pa.reason : ''),
+        confidence: Number(pa.confidence != null ? pa.confidence : 0),
       }];
     }
   }
@@ -201,7 +203,8 @@ export async function GET(
   // ── Step 5: Compose response data ────────────────────────────────────────
   const data: IntelligenceActionOutput = {
     companyId,
-    ...(actionResult ? { actions: actionResult } : {}),
+    // G1: Strip internal engine fields — spread result but suppress `error` from output
+    ...(actionResult ? { actions: { ...actionResult, error: undefined as unknown as string | null } } : {}),
     ...(wantsLearning ? {
       learningInsights: learningEvents.map((e) => ({
         id: e.id,
@@ -219,11 +222,13 @@ export async function GET(
   const confidence = actionResult && typeof actionResult === 'object' && 'confidence' in actionResult
     ? Number((actionResult as { confidence?: unknown }).confidence ?? 0)
     : 0;
-  const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
+  // A7: Type already matches — no need for `as Parameters<typeof computeFreshness>[0]`
+  const freshness = computeFreshness(company);
   const durationMs = Date.now() - startedAt;
 
   logger.info('[intelligence/action] Response assembled', {
     companyId,
+    correlationId,
     durationMs,
     confidence,
     learningCount: learningEvents.length,
@@ -241,6 +246,6 @@ export async function GET(
       respondedAt: new Date(),
       ...(governanceMeta && { governance: governanceMeta }),
     }),
-    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
+    { headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': JSON_CONTENT_TYPE, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );
 }

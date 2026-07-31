@@ -81,7 +81,7 @@ export async function getICPProfile(): Promise<ICPProfile> {
       return { ...DEFAULT_ICP, ...JSON.parse(setting.value) };
     }
   } catch (e) {
-    logger.error('[ICP] Failed to load profile, using defaults:', { error: e });
+    logger.error('[ICP] Failed to load profile, using defaults', { error: e instanceof Error ? e.message : String(e), errorType: e instanceof Error ? e.constructor.name : typeof e });
   }
   return DEFAULT_ICP;
 }
@@ -272,7 +272,10 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
     },
   });
 
-  if (!company) throw new Error(`Company ${companyId} not found`);
+  if (!company) {
+    logger.warn('[account-priority] Company not found', { companyId });
+    throw new Error(`Company ${companyId} not found`);
+  }
 
   const icp = await getICPProfile();
 

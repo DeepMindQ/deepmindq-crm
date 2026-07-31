@@ -55,9 +55,9 @@ export type IntelligenceEndpoint =
   | 'conversation'
   | 'mindmap'
   | 'brief'
-  | 'grounding'
-  | 'retrieval'
-  | 'knowledge';
+  | 'grounding'    // route handler outside /api/intelligence/
+  | 'retrieval'    // route handler outside /api/intelligence/
+  | 'knowledge';   // route handler outside /api/intelligence/
 
 export type IntelligenceInclude =
   // Company endpoint includes
@@ -95,6 +95,9 @@ export type IntelligenceInclude =
 
 // NOTE: Ghost entries REMOVED — 'people_changes', 'data_health', 'reasoning', 'opportunities'
 // These had zero route implementations. Do NOT re-add without a corresponding route handler.
+// Note: 'grounding', 'retrieval', 'knowledge' endpoints defined in IntelligenceEndpoint but route
+// handlers live outside the main intelligence routes. 'learning' is accepted globally but only
+// action/conversation routes implement it.
 
 // ═══════════════════════════════════════════════════════════════════════════════
 //  FRESHNESS — Staleness tracking for all intelligence data
@@ -103,7 +106,7 @@ export type IntelligenceInclude =
 export interface FreshnessInfo {
   level: 'realtime' | 'fresh' | 'aging' | 'stale' | 'unknown';
   lastEnriched: string | null;   // ISO 8601
-  lastSignal: string | null;     // ISO 8601
+  lastSignal: string | null;     // ISO 8601 (falls back to lastActivityAt)
   score: number;               // 0-100
 }
 
@@ -125,7 +128,7 @@ export interface IntelligenceCompanyContext {
     website: string | null;
     status: string;
     assignedTo: string | null;
-    /** Intelligence score (0-100). Defaults to 0, never null. */
+    /** Intelligence score (0-100). Defaults to 0; may be null in DB, normalized to 0 in API. */
     intelligenceScore: number;
     engagementScore: number;
     accountPriorityScore: number | null;
@@ -292,7 +295,7 @@ export interface IntelligenceBrief {
   tokensUsed: number;
   /** Estimated cost */
   costUsd: number;
-  /** Warnings (hallucinated citations, low evidence, etc.) */
+  /** Warnings (hallucinated citations, low evidence, objection risks, etc.) */
   warnings: string[];
 }
 
@@ -397,14 +400,14 @@ export interface IntelligenceActionOutput {
     applicableContext: string;
     createdAt: string;
   }>;
-  // ?include=recommendations — extracted from ActionResult.recommendedActions
+  // ?include=recommendations — extracted from ActionResult.actions
   recommendations?: Array<{
     action: string;
     priority: string;
     rationale: string;
     confidence: number;
   }>;
-  // ?include=sequences — extracted from ActionResult.actionSteps
+  // ?include=sequences — extracted from ActionResult.actions (each action becomes a step)
   sequences?: Array<{
     step: number;
     action: string;

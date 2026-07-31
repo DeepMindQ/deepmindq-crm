@@ -25,13 +25,13 @@ import {
   createResponse,
   createErrorResponse,
   computeFreshness,
+  runGovernanceMetadata,
+  SECURITY_HEADERS,
 } from '@/lib/intelligence-api/middleware';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import type { IntelligenceReasoningOutput, ReasoningStep } from '@/lib/intelligence-api/types';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
-import { runGovernanceChecks } from '@/lib/ai-governance';
-import { getResearchContext } from '@/lib/intelligence-contract';
 
 export async function GET(
   request: NextRequest,
@@ -45,22 +45,7 @@ export async function GET(
   if (guardResult instanceof Response) return guardResult;
   const { companyId, correlationId, responseHeaders } = guardResult;
 
-  // Ticket 3: Run real governance check for response metadata (requires DB)
-  let governanceMeta: { passed: boolean; generationType: string; checks: Record<string, { passed: boolean; message: string }> } | undefined;
-  try {
-    // Only run governance check against real PostgreSQL — skip for file-based/test DBs
-    if (process.env.DATABASE_URL?.startsWith('postgres')) {
-      const researchCtx = await getResearchContext(companyId);
-      const govResult = await runGovernanceChecks({ companyId, generationType: 'reasoning', researchContext: researchCtx });
-      governanceMeta = {
-        passed: govResult.passed,
-        generationType: 'reasoning',
-        checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
-      };
-    }
-  } catch {
-    // Governance metadata is optional — degrade gracefully
-  }
+  const governanceMeta = await runGovernanceMetadata(companyId, 'reasoning');
 
   // ── Step 2: Gate — only run engine when includes demand it ─────────────
   const shouldRunEngine =
@@ -73,6 +58,7 @@ export async function GET(
 
   logger.info('[intelligence/reasoning] Processing', {
     companyId,
+    correlationId,
     includeSteps,
     includes: Array.from(guardResult.includes),
   });
@@ -93,20 +79,20 @@ export async function GET(
     logger.error('[intelligence/reasoning] DB lookup failed', { companyId, error: rawMessage });
     return Response.json(
       createErrorResponse('reasoning', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, IntelligenceErrors.INTELLIGENCE_UNAVAILABLE, Date.now() - startedAt, guardResult.includes),
-      { status: 500, headers: responseHeaders },
+      { status: 500, headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
   if (!company) {
     return Response.json(
       createErrorResponse('reasoning', companyId, 'Company not found', IntelligenceErrors.COMPANY_NOT_FOUND, Date.now() - startedAt, guardResult.includes),
-      { status: 404, headers: responseHeaders },
+      { status: 404, headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
   if (!shouldRunEngine) {
     // No engine-produced data requested → return minimal response immediately
-    const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
+    const freshness = computeFreshness(company);
     const durationMs = Date.now() - startedAt;
     const minimalData: IntelligenceReasoningOutput = {
       companyId,
@@ -134,20 +120,21 @@ export async function GET(
         requestedAt,
         respondedAt: new Date(),
       }),
-      { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
+      { headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
     );
   }
 
   // ── Step 3: Run the reasoning engine ─────────────────────────────────────
+  // Engine manages its own timeout internally
   let result: ReasoningResult;
   try {
     result = await EnterpriseReasoningEngine.build(companyId);
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : String(err);
-    logger.error('[intelligence/reasoning] Engine build threw', { companyId, error: rawMessage });
+    logger.error('[intelligence/reasoning] Engine build threw', { companyId, correlationId, error: rawMessage });
     return Response.json(
       createErrorResponse('reasoning', companyId, scrubError(rawMessage), IntelligenceErrors.ENGINE_FAILED, Date.now() - startedAt, guardResult.includes),
-      { status: 502, headers: responseHeaders },
+      { status: 502, headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
@@ -167,7 +154,7 @@ export async function GET(
         Date.now() - startedAt,
         guardResult.includes,
       ),
-      { status: 502, headers: responseHeaders },
+      { status: 502, headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
@@ -195,12 +182,12 @@ export async function GET(
       steps = dbSteps.map((step) => ({
         stepNumber: step.stepNumber,
         stepName: step.stepName,
-        status: step.output !== null && step.output !== undefined
+        status: step.output !== null && step.output !== undefined && String(step.output).trim() !== ''
           ? 'completed' as const
           : step.aiCalls > 0
             ? 'completed' as const
             : 'pending' as const,
-        output: typeof step.output === 'string' ? step.output : JSON.stringify(step.output),
+        output: (() => { try { return typeof step.output === 'string' ? step.output : JSON.stringify(step.output); } catch { return String(step.output ?? ''); } })(),
         summary: step.summary,
         confidence: step.confidence,
         durationMs: step.durationMs,
@@ -249,10 +236,8 @@ export async function GET(
     totalAIcalls: result.totalAIcalls,
     totalTokensUsed: result.totalTokensUsed,
     totalCostUsd: result.totalCostUsd,
-    durationMs: result.durationMs + (Date.now() - startedAt),
-    summary: steps.length > 0
-      ? `Completed ${result.completedSteps}/${result.totalSteps} reasoning steps with ${result.overallConfidence.toFixed(1)}% confidence`
-      : null,
+    durationMs: result.durationMs + (Date.now() - startedAt),  // engine build time + route overhead
+    summary: steps.length > 0 ? `Completed ${result.completedSteps}/${result.totalSteps} reasoning steps with ${result.overallConfidence.toFixed(1)}% confidence` : null,
     steps,
     ...(includeImpact ? {
       impact: impactSteps.map(s => ({
@@ -272,11 +257,12 @@ export async function GET(
     } : {}),
   };
 
-  const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
+  const freshness = computeFreshness(company);
   const durationMs = Date.now() - startedAt;
 
   logger.info('[intelligence/reasoning] Response assembled', {
     companyId,
+    correlationId,
     durationMs,
     stepsCount: steps.length,
     confidence: result.overallConfidence,
@@ -294,6 +280,6 @@ export async function GET(
       respondedAt: new Date(),
       ...(governanceMeta && { governance: governanceMeta }),
     }),
-    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
+    { headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
   );
 }

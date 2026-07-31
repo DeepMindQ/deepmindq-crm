@@ -29,6 +29,8 @@ import {
   createErrorResponse,
   computeFreshness,
   shouldInclude,
+  runGovernanceMetadata,
+  SECURITY_HEADERS,
 } from '@/lib/intelligence-api/middleware';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import type {
@@ -37,8 +39,6 @@ import type {
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
-import { runGovernanceChecks } from '@/lib/ai-governance';
-import { getResearchContext } from '@/lib/intelligence-contract';
 
 export async function GET(
   request: NextRequest,
@@ -51,30 +51,23 @@ export async function GET(
   if (guardResult instanceof Response) return guardResult;
   const { companyId, correlationId, responseHeaders } = guardResult;
 
-  // Ticket 3: Run real governance check for response metadata (requires DB)
-  let governanceMeta: { passed: boolean; generationType: string; checks: Record<string, { passed: boolean; message: string }> } | undefined;
-  try {
-    // Only run governance check against real PostgreSQL — skip for file-based/test DBs
-    if (process.env.DATABASE_URL?.startsWith('postgres')) {
-      const researchCtx = await getResearchContext(companyId);
-      const govResult = await runGovernanceChecks({ companyId, generationType: 'opportunities', researchContext: researchCtx });
-      governanceMeta = {
-        passed: govResult.passed,
-        generationType: 'opportunities',
-        checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
-      };
-    }
-  } catch {
-    // Governance metadata is optional — degrade gracefully
-  }
+  // E1: Use shared governance helper from middleware
+  const governanceMeta = await runGovernanceMetadata(companyId, 'opportunities');
 
   logger.info('[intelligence/opportunity] Processing', {
     companyId,
+    correlationId,
     includes: Array.from(guardResult.includes),
   });
 
   // ── Step 1: Load company from DB (for freshness) ────────────────────────
-  let company: Record<string, unknown> | null = null;
+  let company: {
+    id: string;
+    lastEnrichedAt?: Date | null;
+    lastActivityAt?: Date | null;
+    accountPriorityScore?: number | null;
+    priorityTier?: string | null;
+  } | null = null;
   try {
     company = await db.company.findUnique({
       where: { id: companyId },
@@ -152,7 +145,13 @@ export async function GET(
   }
 
   if (enginePromises.length > 0) {
-    await Promise.all(enginePromises);
+    try {
+      await Promise.all(enginePromises);
+    } catch {
+      // Individual engine .catch() handlers above should swallow errors,
+      // but guard against unexpected rejections (e.g. Promise construction failure).
+      logger.warn('[intelligence/opportunity] Unexpected engine promise rejection', { companyId, correlationId });
+    }
   }
 
   const scoring = engineResults.scoring;
@@ -200,6 +199,7 @@ export async function GET(
       });
 
       fusionData = fusionResults.map((fr) => ({
+        // Present signal IDs as comma-separated list for readability
         externalSignal: Array.isArray(fr.signalIds) ? (fr.signalIds as string[]).join(', ') : '',
         internalCapability: Array.isArray(fr.capabilityIds) ? (fr.capabilityIds as string[]).join(', ') : '',
         fusionScore: fr.fusionScore,
@@ -252,13 +252,13 @@ export async function GET(
         companyId,
         error: err instanceof Error ? err.message : String(err),
       });
-      capabilitiesData = [];
+      // Don't set capabilitiesData — leave undefined to indicate "not loaded"
     }
   }
 
   // ── Step 5: Compute confidence ───────────────────────────────────────────
   const confidences: number[] = [];
-  if (scoring?.success) confidences.push((scoring.confidence ?? 0) / 100);
+  if (scoring?.success) confidences.push(Math.min(1, (scoring.confidence ?? 0) / 100));
   if (reasoning?.success) confidences.push((reasoning.overallConfidence ?? 0) / 1);
   const confidence = confidences.length > 0
     ? confidences.reduce((sum, c) => sum + c, 0) / confidences.length
@@ -267,7 +267,7 @@ export async function GET(
   // ── Step 6: Compose IntelligenceOpportunity ──────────────────────────────
   const data: IntelligenceOpportunity = {
     companyId,
-    ...(runScores && scoring?.success ? { scores: scoring as RevenueScore } : {}),
+    ...(runScores && scoring && typeof scoring === 'object' && 'success' in scoring && scoring.success ? { scores: scoring as RevenueScore } : {}),
     ...(reasoning
       ? {
           reasoning: {
@@ -285,7 +285,7 @@ export async function GET(
   };
 
   // ── Step 7: Build & return envelope ─────────────────────────────────────
-  const freshness = computeFreshness(company as Parameters<typeof computeFreshness>[0]);
+  const freshness = computeFreshness(company);
   const durationMs = Date.now() - startedAt;
 
   logger.info('[intelligence/opportunity] Response assembled', {
@@ -307,6 +307,13 @@ export async function GET(
       respondedAt: new Date(),
       ...(governanceMeta && { governance: governanceMeta }),
     }),
-    { headers: { ...responseHeaders, 'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30' } },
+    {
+      headers: {
+        'Content-Type': 'application/json',
+        ...SECURITY_HEADERS,
+        ...responseHeaders,
+        'Cache-Control': 'public, s-maxage=60, stale-while-revalidate=30',
+      },
+    },
   );
 }

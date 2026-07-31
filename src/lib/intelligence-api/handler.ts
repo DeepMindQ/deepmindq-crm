@@ -22,8 +22,12 @@ const SENSITIVE_PATTERNS = [
   /postgres:\/\/[^\s]+/gi,
   /mysql:\/\/[^\s]+/gi,
   /mongodb:\/\/[^\s]+/gi,
+  /mongodb\+srv:\/\/[^\s]+/gi,
   /bearer\s+\S+/gi,
   /authorization:\s*\S+/gi,
+  /ssh[_-]?[a-z]+[_-]?key[=\s][^\s]*/gi,
+  /aws[_-]?secret[_-]?access[_-]?key[=\s][^\s]*/gi,
+  /private[_-]?key[=\s][^\s]*/gi,
 ];
 
 /**
@@ -34,8 +38,12 @@ function scrubError(message: string): string {
   for (const pattern of SENSITIVE_PATTERNS) {
     scrubbed = scrubbed.replace(pattern, '[REDACTED]');
   }
-  // Truncate long error messages
-  return scrubbed.length > 500 ? scrubbed.substring(0, 500) + '...' : scrubbed;
+  // Truncate long error messages at a safe boundary (before any partial [REDACTED])
+  if (scrubbed.length > 500) {
+    const safeCut = scrubbed.lastIndexOf('[REDACTED]', 500);
+    scrubbed = (safeCut > 400 ? scrubbed.substring(0, safeCut) : scrubbed.substring(0, 500)) + '...';
+  }
+  return scrubbed;
 }
 
 export { SENSITIVE_PATTERNS, scrubError };

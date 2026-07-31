@@ -1018,3 +1018,25 @@ Stage Summary:
 - All 3 exit criteria met: signal list with filters, evidence detail panel, capability match display
 - Root cause of 5 rejections: never read full ARCHITECTURE.md, and tests tested phantom functions
 - Key files changed: route.ts, signal-intelligence-screen.tsx, signal-intelligence.test.ts
+
+---
+Task ID: 9
+Agent: main
+Task: Ticket 9 — Opportunity Radar Screen (P0) complete build
+
+Work Log:
+- Read Ticket 9 spec from ARCHITECTURE.md lines 963-989
+- Discovered existing API (route.ts) was completely wrong — used LLM web search to generate fake opportunities instead of querying OpportunityRecommendation table
+- Discovered existing frontend (opportunity-radar-screen.tsx) used wrong types, no filters, no accept/reject
+- Rewrote GET /api/ai/opportunities: query params (status, priority, page), response shape { opportunities, stats, pagination }, includes company+signal+capabilityMatch relations
+- Created POST /api/ai/opportunities/[id]/accept: creates Pursuit record, updates status, creates RecommendationFeedback
+- Created POST /api/ai/opportunities/[id]/reject: validates rejection reason, updates status, creates RecommendationFeedback
+- Complete rewrite of opportunity-radar-screen.tsx: cards with 6 spec fields (Company, Trigger, Capability, Score, Priority, Why Now), priority/status filters, accept/reject with modal feedback form, company navigation
+- 33 tests all pass (filter logic, accept flow, reject flow, feedback storage, stats computation)
+- TypeScript zero errors, pre-commit hooks pass
+- Committed and pushed: 5c16485
+
+Stage Summary:
+- All 3 exit criteria met: cards with all fields, accept creates Pursuit, reject with reason updates OpportunityRecommendation
+- All test requirements met: unit test for accept/reject flow, integration test for feedback storage
+- 5 files changed, 1551 insertions, 778 deletions

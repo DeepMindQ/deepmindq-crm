@@ -1,27 +1,24 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion, AnimatePresence } from 'framer-motion';
 import {
   Radar, Activity, TrendingUp, DollarSign, Cpu, Crown,
   Building2, Clock, ChevronRight, RefreshCw, Filter, X, Search,
-  Zap, Eye, Newspaper, Globe, Database, Sparkles, ArrowRight,
-  LucideIcon, AlertTriangle, ShieldAlert, Shield, ShieldCheck, User,
-  ArrowUpRight, Lightbulb, FileText, CheckCircle2, Loader2,
-  ChevronDown, Layers, Target, Crosshair, Link2,
+  ArrowRight, LucideIcon, ShieldAlert, Shield, ShieldCheck,
+  FileText, CheckCircle2, Loader2, Target,
 } from 'lucide-react';
-import { PageTransition, AnimatedCounter, EmptyState } from '@/components/ui/animated-components';
+import { PageTransition, EmptyState } from '@/components/ui/animated-components';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
-import { EvidenceBadge } from '@/components/enterprise/EvidenceBadge';
-import { AIProgressTracker } from '@/components/enterprise/AIProgressTracker';
 import { ErrorState } from '@/components/enterprise/ErrorState';
+import {
+  Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
+} from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Separator } from '@/components/ui/separator';
 import { cn } from '@/lib/utils';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -73,64 +70,66 @@ interface SignalsResponse {
   };
 }
 
-type DisplaySeverity = 'critical' | 'high' | 'medium' | 'low';
-type TypeFilter = 'all' | 'technology' | 'growth' | 'partnership' | 'leadership' | 'news' | 'people';
-type MeaningFilter = 'all' | 'budget_available' | 'leadership_openness' | 'tech_dissatisfaction' | 'growth_pressure' | 'compliance_requirement' | 'vendor_evaluation';
-type SeverityFilter = 'all' | 'critical' | 'high' | 'medium' | 'low';
-type SortBy = 'severity' | 'confidence' | 'time';
+/* ═══════════════════════════════════════════════════════════════
+   Evidence Record type — mirrors Evidence model fields returned
+   by GET /api/signals/[id]/evidence
+   ═══════════════════════════════════════════════════════════════ */
+interface EvidenceRecord {
+  id: string;
+  sourceUrl: string;
+  sourceTitle: string | null;
+  sourceName: string | null;
+  snippet: string;
+  extractedField: string | null;
+  extractedValue: string | null;
+  relevanceScore: number;
+  confidence: number;
+  sourceDate: string | null;
+  sourceQualityTier: string;
+  status: string;
+  createdAt: string;
+}
 
 /* ═══════════════════════════════════════════════════════════════
-   Config — Signal Type Colors & Icons (from Prisma SignalType enum)
+   Severity / Type / Meaning Config — per T8 spec enums
    ═══════════════════════════════════════════════════════════════ */
-const typeConfig: Record<string, {
-  icon: LucideIcon; color: string; bg: string; border: string;
-  badge: string; label: string; category: string; accent: string;
-  barColor: string;
+const severityConfig: Record<string, {
+  label: string; icon: LucideIcon; badge: string; order: number;
 }> = {
-  funding:             { icon: DollarSign,    color: 'text-amber-600',   bg: 'bg-amber-50',     border: 'border-amber-200',     badge: 'bg-amber-100 text-amber-700 border-amber-300',       label: 'Funding',         category: 'growth',       accent: 'opportunity', barColor: '#D97706' },
-  hiring:              { icon: User,          color: 'text-blue-600',    bg: 'bg-blue-50',      border: 'border-blue-200',      badge: 'bg-blue-100 text-blue-700 border-blue-300',          label: 'Hiring',          category: 'growth',       accent: 'opportunity', barColor: '#2563EB' },
-  leadership_change:   { icon: Crown,         color: 'text-violet-600',   bg: 'bg-violet-50',    border: 'border-violet-200',    badge: 'bg-violet-100 text-violet-700 border-violet-300',    label: 'Leadership',      category: 'leadership',   accent: 'signal',     barColor: '#7C3AED' },
-  leadership:          { icon: Crown,         color: 'text-violet-600',   bg: 'bg-violet-50',    border: 'border-violet-200',    badge: 'bg-violet-100 text-violet-700 border-violet-300',    label: 'Leadership',      category: 'leadership',   accent: 'signal',     barColor: '#7C3AED' },
-  tech_change:         { icon: Cpu,           color: 'text-cyan-600',    bg: 'bg-cyan-50',      border: 'border-cyan-200',      badge: 'bg-cyan-100 text-cyan-700 border-cyan-300',          label: 'Technology',      category: 'technology',   accent: 'signal',     barColor: '#0891B2' },
-  technology:          { icon: Cpu,           color: 'text-cyan-600',    bg: 'bg-cyan-50',      border: 'border-cyan-200',      badge: 'bg-cyan-100 text-cyan-700 border-cyan-300',          label: 'Technology',      category: 'technology',   accent: 'signal',     barColor: '#0891B2' },
-  news:                { icon: Newspaper,     color: 'text-slate-600',   bg: 'bg-slate-50',     border: 'border-slate-200',     badge: 'bg-slate-100 text-slate-600 border-slate-300',       label: 'News',            category: 'news',         accent: 'signal',     barColor: '#475569' },
-  mention:             { icon: Globe,         color: 'text-teal-600',    bg: 'bg-teal-50',      border: 'border-teal-200',      badge: 'bg-teal-100 text-teal-700 border-teal-300',          label: 'Mention',         category: 'news',         accent: 'signal',     barColor: '#0D9488' },
-  partnership:         { icon: Link2,         color: 'text-blue-600',    bg: 'bg-blue-50',      border: 'border-blue-200',      badge: 'bg-blue-100 text-blue-700 border-blue-300',          label: 'Partnership',     category: 'partnership', accent: 'opportunity', barColor: '#2563EB' },
-  expansion:           { icon: TrendingUp,    color: 'text-emerald-600', bg: 'bg-emerald-50',   border: 'border-emerald-200',   badge: 'bg-emerald-100 text-emerald-700 border-emerald-300',  label: 'Expansion',       category: 'growth',       accent: 'opportunity', barColor: '#059669' },
-  people_change:       { icon: User,          color: 'text-rose-600',    bg: 'bg-rose-50',      border: 'border-rose-200',      badge: 'bg-rose-100 text-rose-700 border-rose-300',          label: 'People Change',   category: 'leadership',   accent: 'signal',     barColor: '#E11D48' },
-  internal_memory:     { icon: Database,      color: 'text-indigo-600',  bg: 'bg-indigo-50',    border: 'border-indigo-200',    badge: 'bg-indigo-100 text-indigo-700 border-indigo-300',     label: 'Internal Memory', category: 'technology',   accent: 'signal',     barColor: '#4F46E5' },
+  critical: { label: 'Critical', icon: ShieldAlert,   badge: 'bg-red-100 text-red-800 border-red-200',      order: 0 },
+  high:     { label: 'High',     icon: Shield,         badge: 'bg-amber-100 text-amber-800 border-amber-200', order: 1 },
+  medium:   { label: 'Medium',   icon: ShieldCheck,    badge: 'bg-blue-100 text-blue-800 border-blue-200',    order: 2 },
+  low:      { label: 'Low',      icon: Shield,         badge: 'bg-slate-100 text-slate-700 border-slate-200', order: 3 },
 };
 
-const defaultTypeConfig = {
-  icon: Activity, color: 'text-slate-500', bg: 'bg-slate-50', border: 'border-slate-200',
-  badge: 'bg-slate-100 text-slate-600 border-slate-300', label: 'Signal', category: 'growth', accent: 'signal', barColor: '#64748B',
+const typeConfig: Record<string, { icon: LucideIcon; label: string }> = {
+  funding:             { icon: DollarSign,   label: 'Funding' },
+  hiring:              { icon: Activity,     label: 'Hiring' },
+  leadership_change:   { icon: Crown,        label: 'Leadership' },
+  leadership:          { icon: Crown,        label: 'Leadership' },
+  tech_change:         { icon: Cpu,          label: 'Technology' },
+  technology:          { icon: Cpu,          label: 'Technology' },
+  news:                { icon: FileText,     label: 'News' },
+  mention:             { icon: FileText,     label: 'Mention' },
+  partnership:         { icon: TrendingUp,   label: 'Partnership' },
+  expansion:           { icon: TrendingUp,   label: 'Expansion' },
+  people_change:       { icon: Activity,     label: 'People Change' },
+  internal_memory:     { icon: FileText,     label: 'Internal Memory' },
 };
 
-/* ═══════════════════════════════════════════════════════════════
-   Meaning Category Config — per T8 spec
-   ═══════════════════════════════════════════════════════════════ */
-const meaningCategoryConfig: Record<string, { label: string; color: string; icon: LucideIcon }> = {
-  budget_available:      { label: 'Budget Available',      color: 'bg-emerald-100 text-emerald-700 border-emerald-200',     icon: DollarSign },
-  leadership_openness:   { label: 'Leadership Open',       color: 'bg-violet-100 text-violet-700 border-violet-200',       icon: Crown },
-  tech_dissatisfaction:  { label: 'Tech Dissatisfaction',   color: 'bg-red-100 text-red-700 border-red-200',               icon: Cpu },
-  growth_pressure:       { label: 'Growth Pressure',        color: 'bg-amber-100 text-amber-700 border-amber-200',         icon: TrendingUp },
-  compliance_requirement:{ label: 'Compliance Need',        color: 'bg-blue-100 text-blue-700 border-blue-200',            icon: Shield },
-  vendor_evaluation:    { label: 'Vendor Evaluation',       color: 'bg-cyan-100 text-cyan-700 border-cyan-200',           icon: Target },
+const meaningCategoryConfig: Record<string, { label: string; color: string }> = {
+  budget_available:      { label: 'Budget Available',      color: 'bg-emerald-100 text-emerald-700 border-emerald-200' },
+  leadership_openness:   { label: 'Leadership Open',       color: 'bg-violet-100 text-violet-700 border-violet-200' },
+  tech_dissatisfaction:  { label: 'Tech Dissatisfaction',  color: 'bg-red-100 text-red-700 border-red-200' },
+  growth_pressure:       { label: 'Growth Pressure',       color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  compliance_requirement:{ label: 'Compliance Need',       color: 'bg-blue-100 text-blue-700 border-blue-200' },
+  vendor_evaluation:    { label: 'Vendor Evaluation',      color: 'bg-cyan-100 text-cyan-700 border-cyan-200' },
 };
 
 const impactConfig: Record<string, { label: string; color: string }> = {
-  high:   { label: 'High Impact',   color: 'bg-red-100 text-red-700 border-red-200' },
-  medium: { label: 'Med Impact',    color: 'bg-amber-100 text-amber-700 border-amber-200' },
-  low:    { label: 'Low Impact',    color: 'bg-slate-100 text-slate-600 border-slate-200' },
-};
-
-const severityConfig: Record<DisplaySeverity, {
-  label: string; icon: LucideIcon; color: string; bg: string; border: string; badge: string; order: number;
-}> = {
-  critical: { label: 'Critical', icon: ShieldAlert,   color: 'text-red-700',     bg: 'bg-red-50',      border: 'border-red-300',      badge: 'bg-red-100 text-red-800 border-red-200',      order: 0 },
-  high:     { label: 'High',     icon: Shield,         color: 'text-amber-700',   bg: 'bg-amber-50',    border: 'border-amber-300',    badge: 'bg-amber-100 text-amber-800 border-amber-200', order: 1 },
-  medium:   { label: 'Medium',   icon: ShieldCheck,    color: 'text-blue-700',    bg: 'bg-blue-50',     border: 'border-blue-300',     badge: 'bg-blue-100 text-blue-800 border-blue-200',    order: 2 },
-  low:      { label: 'Low',      icon: Shield,         color: 'text-slate-600',   bg: 'bg-slate-50',    border: 'border-slate-200',    badge: 'bg-slate-100 text-slate-700 border-slate-200',   order: 3 },
+  high:   { label: 'High',   color: 'bg-red-100 text-red-700 border-red-200' },
+  medium: { label: 'Med',    color: 'bg-amber-100 text-amber-700 border-amber-200' },
+  low:    { label: 'Low',    color: 'bg-slate-100 text-slate-600 border-slate-200' },
 };
 
 /* ═══════════════════════════════════════════════════════════════
@@ -158,14 +157,6 @@ function formatTimeAgo(dateStr: string): string {
   return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 }
 
-function getDisplaySeverity(severity: string, confidence?: number): DisplaySeverity {
-  if (severity === 'critical') return 'critical';
-  if (severity === 'high' && (confidence ?? 0) >= 0.85) return 'critical';
-  if (severity === 'high') return 'high';
-  if (severity === 'medium') return 'medium';
-  return 'low';
-}
-
 function getConfidenceLabel(conf: number | undefined): string {
   if (conf === undefined) return '—';
   if (conf >= 80) return 'High';
@@ -173,134 +164,15 @@ function getConfidenceLabel(conf: number | undefined): string {
   return 'Low';
 }
 
-function getCategoryForType(type: string): string {
-  return typeConfig[type]?.category ?? 'growth';
-}
-
-function getSeverityOrder(s: string): number {
-  const map: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
-  return map[s] ?? 3;
-}
-
 /* ═══════════════════════════════════════════════════════════════
-   Confidence Gauge (Featured Signal)
+   Evidence Detail Side Panel — T8: "Click signal → evidence detail panel"
+   Opens as a right-side panel when a signal row is clicked.
    ═══════════════════════════════════════════════════════════════ */
-function ConfidenceGauge({ value }: { value: number }) {
-  const clamped = Math.max(0, Math.min(100, Math.round(value * 100)));
-  const circumference = 2 * Math.PI * 42;
-  const offset = circumference - (clamped / 100) * circumference;
-  const color = clamped >= 80 ? '#059669' : clamped >= 60 ? '#D97706' : '#DC2626';
-
-  return (
-    <div className="relative flex items-center justify-center">
-      <svg aria-hidden="true" width="120" height="120" viewBox="0 0 100 100" className="-rotate-90">
-        <circle cx="50" cy="50" r="42" fill="none" stroke="#F1F5F9" strokeWidth="8" />
-        <motion.circle
-          cx="50" cy="50" r="42" fill="none" stroke={color} strokeWidth="8"
-          strokeLinecap="round"
-          initial={{ strokeDasharray: circumference, strokeDashoffset: circumference }}
-          animate={{ strokeDashoffset: offset }}
-          transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-        />
-      </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center">
-        <motion.span
-          className="text-2xl font-bold tabular-nums"
-          style={{ color }}
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5 }}
-        >
-          {clamped}%
-        </motion.span>
-        <span className="text-[11px] font-medium text-slate-500 uppercase tracking-wider">
-          Confidence
-        </span>
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Capability Match Display — T8 exit criteria
-   ═══════════════════════════════════════════════════════════════ */
-function CapabilityMatchPanel({ matches }: { matches: SignalCapabilityMatch[] }) {
-  if (!matches || matches.length === 0) {
-    return (
-      <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <Target className="h-3 w-3 text-slate-400" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Capability Matches</span>
-        </div>
-        <p className="text-xs text-slate-500">No capability matches yet for this signal.</p>
-      </div>
-    );
-  }
-
-  return (
-    <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
-      <div className="flex items-center gap-1.5 mb-2">
-        <Crosshair className="h-3 w-3 text-blue-500" />
-        <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">
-          Signal-to-Capability Matches
-        </span>
-        <Badge variant="secondary" className="text-[10px] ml-1">{matches.length}</Badge>
-      </div>
-      <div className="flex flex-col gap-2">
-        {matches.map((m) => (
-          <div key={m.id} className="flex items-start gap-2 rounded-md bg-white border border-slate-100 p-2.5">
-            <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-semibold text-slate-800 truncate">
-                  {m.capability.title}
-                </span>
-                <span className="text-[10px] font-bold tabular-nums text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
-                  {Math.round(m.matchScore * 100)}%
-                </span>
-              </div>
-              {m.reason && (
-                <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2">{m.reason}</p>
-              )}
-              {m.salesAngle && (
-                <div className="mt-1.5 flex items-start gap-1">
-                  <ArrowRight className="h-2.5 w-2.5 text-blue-500 mt-0.5 shrink-0" />
-                  <span className="text-[11px] text-blue-600 font-medium leading-relaxed">{m.salesAngle}</span>
-                </div>
-              )}
-            </div>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Evidence Record type — mirrors Evidence model fields returned
-   by GET /api/signals/[id]/evidence
-   ═══════════════════════════════════════════════════════════════ */
-interface EvidenceRecord {
-  id: string;
-  sourceUrl: string;
-  sourceTitle: string | null;
-  sourceName: string | null;
-  snippet: string;
-  extractedField: string | null;
-  extractedValue: string | null;
-  relevanceScore: number;
-  confidence: number;
-  sourceDate: string | null;
-  sourceQualityTier: string;
-  status: string;
-  createdAt: string;
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Evidence Detail Panel — T8 exit criteria
-   "Click signal → evidence detail panel" + "Evidence detail panel shows supporting evidence"
-   Fetches actual Evidence records from /api/signals/[id]/evidence
-   ═══════════════════════════════════════════════════════════════ */
-function EvidenceDetailPanel({ signal, evidenceCount }: { signal: SignalItem; evidenceCount: number }) {
+function EvidenceDetailPanel({ signal, evidenceCount, onClose }: {
+  signal: SignalItem;
+  evidenceCount: number;
+  onClose: () => void;
+}) {
   const { data: evidenceRaw, isLoading: evidenceLoading } = useQuery({
     queryKey: ['signal-evidence', signal.id],
     queryFn: () =>
@@ -313,605 +185,216 @@ function EvidenceDetailPanel({ signal, evidenceCount }: { signal: SignalItem; ev
   const evidenceData = unwrap<{ evidence: EvidenceRecord[]; signalId: string }>(evidenceRaw);
   const evidenceRecords: EvidenceRecord[] = evidenceData?.evidence ?? [];
 
+  const sevCfg = severityConfig[signal.severity] ?? severityConfig.low;
+  const meaningCfg = signal.meaningCategory ? meaningCategoryConfig[signal.meaningCategory] : null;
+  const typeCfg = typeConfig[signal.signalType] ?? { icon: Activity, label: signal.signalType };
+  const TypeIcon = typeCfg.icon;
+  const impactCfg = impactConfig[signal.impact] ?? impactConfig.medium;
+
   return (
-    <div className="flex flex-col gap-3 pt-2">
-      {/* ── Evidence List: Actual Evidence records backing this signal ── */}
-      <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
-        <div className="flex items-center gap-1.5 mb-2">
-          <FileText className="h-3 w-3 text-blue-500" />
-          <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">
-            Supporting Evidence
+    <div className="flex flex-col h-full">
+      {/* Panel header */}
+      <div className="flex-shrink-0 px-4 py-3 border-b border-slate-200 bg-slate-50/50">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">
+            Signal Detail
           </span>
-          <Badge variant="secondary" className="text-[10px] ml-1">{evidenceRecords.length}</Badge>
+          <button
+            onClick={onClose}
+            className="inline-flex items-center gap-1 text-[11px] text-slate-500 hover:text-slate-700 transition-colors"
+          >
+            <X className="h-3.5 w-3.5" />
+            Close
+          </button>
         </div>
-
-        {evidenceLoading && (
-          <div className="flex items-center gap-2 py-2">
-            <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
-            <span className="text-xs text-slate-400">Loading evidence records...</span>
-          </div>
+        <h3 className="text-sm font-bold text-slate-900 leading-snug">{signal.title}</h3>
+        <div className="flex items-center gap-2 mt-2 flex-wrap">
+          {/* Type badge */}
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border bg-slate-50 text-slate-600 border-slate-200">
+            <TypeIcon className="h-3 w-3" />
+            {typeCfg.label}
+          </span>
+          {/* Severity badge — T8: color-coded */}
+          <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border', sevCfg.badge)}>
+            {sevCfg.label}
+          </span>
+          {/* Impact */}
+          <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border', impactCfg.color)}>
+            {impactCfg.label} Impact
+          </span>
+          {/* Meaning */}
+          {meaningCfg && (
+            <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border', meaningCfg.color)}>
+              {meaningCfg.label}
+            </span>
+          )}
+        </div>
+        {signal.description && (
+          <p className="text-xs text-slate-600 leading-relaxed mt-2">{signal.description}</p>
         )}
+      </div>
 
-        {!evidenceLoading && evidenceRecords.length === 0 && (
-          <div className="py-2">
-            <p className="text-xs text-slate-400">
-              {evidenceCount > 0
-                ? `${evidenceCount} evidence record(s) referenced but not yet resolved.`
-                : 'No evidence records are linked to this signal.'}
-            </p>
-            {signal.sourceUrl && (
-              <a
-                href={signal.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-blue-600 hover:text-blue-800 hover:underline transition-colors"
-              >
-                <Globe className="h-3 w-3" />
-                {signal.sourceUrl.length > 60 ? signal.sourceUrl.slice(0, 60) + '...' : signal.sourceUrl}
-              </a>
+      {/* Panel body — scrollable */}
+      <ScrollArea className="flex-1">
+        <div className="px-4 py-3 flex flex-col gap-3">
+
+          {/* ── Evidence List: Actual Evidence records backing this signal ── */}
+          <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <FileText className="h-3 w-3 text-blue-500" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">
+                Supporting Evidence
+              </span>
+              <Badge variant="secondary" className="text-[10px] ml-1">{evidenceRecords.length}</Badge>
+            </div>
+
+            {evidenceLoading && (
+              <div className="flex items-center gap-2 py-2">
+                <Loader2 className="h-3.5 w-3.5 animate-spin text-blue-400" />
+                <span className="text-xs text-slate-400">Loading evidence records...</span>
+              </div>
             )}
-          </div>
-        )}
 
-        {!evidenceLoading && evidenceRecords.length > 0 && (
-          <div className="flex flex-col gap-2">
-            {evidenceRecords.map((ev) => (
-              <div
-                key={ev.id}
-                className="rounded-md bg-white border border-slate-100 p-2.5 hover:border-blue-200 transition-colors"
-              >
-                {/* Evidence title / source name */}
-                <div className="flex items-start justify-between gap-2 mb-1">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs font-semibold text-slate-800 truncate">
-                      {ev.sourceTitle || ev.sourceName || 'Untitled Evidence'}
-                    </p>
-                    {ev.sourceName && ev.sourceTitle && (
-                      <p className="text-[10px] text-slate-400">{ev.sourceName}</p>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    {/* Quality tier badge */}
-                    <span className={cn(
-                      'px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase border',
-                      ev.sourceQualityTier === 'premium'
-                        ? 'bg-amber-50 text-amber-700 border-amber-200'
-                        : ev.sourceQualityTier === 'low'
-                          ? 'bg-slate-50 text-slate-500 border-slate-200'
-                          : 'bg-blue-50 text-blue-600 border-blue-200'
-                    )}>
-                      {ev.sourceQualityTier}
-                    </span>
-                    {/* Confidence badge */}
-                    <span className="text-[10px] font-bold tabular-nums text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded">
-                      {Math.round(ev.confidence * 100)}%
-                    </span>
-                  </div>
-                </div>
-
-                {/* Snippet — the core evidence content */}
-                <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-3">
-                  {ev.snippet}
+            {!evidenceLoading && evidenceRecords.length === 0 && (
+              <div className="py-2">
+                <p className="text-xs text-slate-400">
+                  {evidenceCount > 0
+                    ? `${evidenceCount} evidence record(s) referenced but not yet resolved.`
+                    : 'No evidence records are linked to this signal.'}
                 </p>
-
-                {/* Extracted field/value */}
-                {ev.extractedField && ev.extractedValue && (
-                  <div className="mt-1.5 flex items-center gap-1.5">
-                    <span className="text-[10px] font-medium text-slate-400 uppercase">{ev.extractedField}:</span>
-                    <span className="text-[11px] font-semibold text-slate-700">{ev.extractedValue}</span>
-                  </div>
+                {signal.sourceUrl && (
+                  <a
+                    href={signal.sourceUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1 mt-1.5 text-[11px] text-blue-600 hover:text-blue-800 hover:underline transition-colors"
+                  >
+                    {signal.sourceUrl.length > 60 ? signal.sourceUrl.slice(0, 60) + '...' : signal.sourceUrl}
+                  </a>
                 )}
-
-                {/* Footer: source URL + date */}
-                <div className="mt-1.5 flex items-center justify-between gap-2">
-                  {ev.sourceUrl && (
-                    <a
-                      href={ev.sourceUrl}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-800 hover:underline transition-colors truncate max-w-[200px]"
-                    >
-                      <Globe className="h-2.5 w-2.5 shrink-0" />
-                      {ev.sourceUrl.length > 40 ? ev.sourceUrl.slice(0, 40) + '...' : ev.sourceUrl}
-                    </a>
-                  )}
-                  {ev.sourceDate && (
-                    <span className="text-[10px] text-slate-400 whitespace-nowrap">
-                      {formatTimeAgo(ev.sourceDate)}
-                    </span>
-                  )}
-                </div>
               </div>
-            ))}
-          </div>
-        )}
-      </div>
+            )}
 
-      {/* Business Impact — from CompanySignal.businessImpact */}
-      {signal.businessImpact && (
-        <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Lightbulb className="h-3 w-3 text-amber-500" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-600">Business Impact</span>
-          </div>
-          <p className="text-xs text-slate-600 leading-relaxed">{signal.businessImpact}</p>
-        </div>
-      )}
-
-      {/* Recommended Action — from CompanySignal.recommendedAction */}
-      {signal.recommendedAction && (
-        <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-3">
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <ArrowRight className="h-3 w-3 text-blue-600" />
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">Recommended Action</span>
-          </div>
-          <p className="text-xs text-slate-700 font-medium leading-relaxed">{signal.recommendedAction}</p>
-        </div>
-      )}
-
-      {/* Signal-to-Capability matches */}
-      <CapabilityMatchPanel matches={signal.signalCapabilityMatches ?? []} />
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Featured Signal Alert
-   ═══════════════════════════════════════════════════════════════ */
-function FeaturedSignalCard({
-  signal,
-  evidenceCount,
-  onViewCompany,
-}: {
-  signal: SignalItem;
-  evidenceCount: number;
-  onViewCompany: (companyId: string) => void;
-}) {
-  const cfg = typeConfig[signal.signalType] ?? defaultTypeConfig;
-  const TypeIcon = cfg.icon;
-  const confidence = signal.confidence ?? 0;
-  const displaySev = getDisplaySeverity(signal.severity, confidence);
-  const sevCfg = severityConfig[displaySev];
-  const SevIcon = sevCfg.icon;
-  const meaningCfg = signal.meaningCategory ? meaningCategoryConfig[signal.meaningCategory] : null;
-  const MeaningIcon = meaningCfg?.icon ?? Lightbulb;
-  const impactCfg = impactConfig[signal.impact] ?? impactConfig.medium;
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-      className="relative overflow-hidden rounded-2xl border-2 border-red-200 bg-gradient-to-br from-red-50/60 via-white to-amber-50/40"
-    >
-      <div className="absolute left-0 top-0 bottom-0 w-1 bg-gradient-to-b from-red-500 via-amber-500 to-red-500 animate-pulse" />
-
-      <div className="p-5 sm:p-6 pl-6 sm:pl-7">
-        <div className="flex items-start justify-between gap-4 mb-5">
-          <div className="flex items-center gap-3">
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-100">
-              <AlertTriangle className="h-5 w-5 text-red-600" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2 mb-0.5">
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-red-600">Priority Alert</span>
-                <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border', sevCfg.badge)}>
-                  <SevIcon className="h-3 w-3" />
-                  {sevCfg.label}
-                </span>
+            {!evidenceLoading && evidenceRecords.length > 0 && (
+              <div className="flex flex-col gap-2">
+                {evidenceRecords.map((ev) => (
+                  <div
+                    key={ev.id}
+                    className="rounded-md bg-white border border-slate-100 p-2.5 hover:border-blue-200 transition-colors"
+                  >
+                    <div className="flex items-start justify-between gap-2 mb-1">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-slate-800 truncate">
+                          {ev.sourceTitle || ev.sourceName || 'Untitled Evidence'}
+                        </p>
+                        {ev.sourceName && ev.sourceTitle && (
+                          <p className="text-[10px] text-slate-400">{ev.sourceName}</p>
+                        )}
+                      </div>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <span className={cn(
+                          'px-1.5 py-0.5 rounded text-[9px] font-semibold uppercase border',
+                          ev.sourceQualityTier === 'premium'
+                            ? 'bg-amber-50 text-amber-700 border-amber-200'
+                            : ev.sourceQualityTier === 'low'
+                              ? 'bg-slate-50 text-slate-500 border-slate-200'
+                              : 'bg-blue-50 text-blue-600 border-blue-200'
+                        )}>
+                          {ev.sourceQualityTier}
+                        </span>
+                        <span className="text-[10px] font-bold tabular-nums text-slate-600 bg-slate-50 px-1.5 py-0.5 rounded">
+                          {Math.round(ev.confidence * 100)}%
+                        </span>
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-slate-600 leading-relaxed line-clamp-3">{ev.snippet}</p>
+                    {ev.extractedField && ev.extractedValue && (
+                      <div className="mt-1.5 flex items-center gap-1.5">
+                        <span className="text-[10px] font-medium text-slate-400 uppercase">{ev.extractedField}:</span>
+                        <span className="text-[11px] font-semibold text-slate-700">{ev.extractedValue}</span>
+                      </div>
+                    )}
+                    <div className="mt-1.5 flex items-center justify-between gap-2">
+                      {ev.sourceUrl && (
+                        <a
+                          href={ev.sourceUrl}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[10px] text-blue-600 hover:text-blue-800 hover:underline transition-colors truncate max-w-[200px]"
+                        >
+                          {ev.sourceUrl.length > 40 ? ev.sourceUrl.slice(0, 40) + '...' : ev.sourceUrl}
+                        </a>
+                      )}
+                      {ev.sourceDate && (
+                        <span className="text-[10px] text-slate-400 whitespace-nowrap">
+                          {formatTimeAgo(ev.sourceDate)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-              <h2 className="text-base font-bold text-slate-900 leading-snug">{signal.title}</h2>
-            </div>
+            )}
           </div>
-        </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-[1fr_auto] gap-5">
-          <div className="flex flex-col gap-4">
-            {/* Signal: What was detected */}
-            <div className="rounded-xl bg-white border border-slate-200 p-4">
-              <div className="flex items-center gap-1.5 mb-2">
-                <Radar className="h-3.5 w-3.5 text-blue-500" />
-                <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-400">Signal Detected</span>
-              </div>
-              <p className="text-sm text-slate-700 leading-relaxed">{signal.description || 'No description available.'}</p>
+          {/* Business Impact */}
+          {signal.businessImpact && (
+            <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-600">Business Impact</span>
+              <p className="text-xs text-slate-600 leading-relaxed mt-1">{signal.businessImpact}</p>
             </div>
+          )}
 
-            {/* Meta badges */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <EvidenceBadge source={signal.source || 'internal'} confidence={Math.round(confidence * 100)} />
-              <span className="inline-flex items-center gap-1 text-[11px] text-slate-400">
-                <Clock className="h-3 w-3" />
-                {signal.signalDate ? formatTimeAgo(signal.signalDate) : formatTimeAgo(signal.extractedAt)}
+          {/* Recommended Action */}
+          {signal.recommendedAction && (
+            <div className="rounded-lg border border-blue-100 bg-blue-50/50 p-3">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">Recommended Action</span>
+              <p className="text-xs text-slate-700 font-medium leading-relaxed mt-1">{signal.recommendedAction}</p>
+            </div>
+          )}
+
+          {/* ── Signal-to-Capability Match Display — T8 exit criteria ── */}
+          <div className="rounded-lg bg-slate-50/80 border border-slate-100 p-3">
+            <div className="flex items-center gap-1.5 mb-2">
+              <Target className="h-3 w-3 text-blue-500" />
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-600">
+                Signal-to-Capability Matches
               </span>
-              {signal.company?.normalizedName && (
-                <button
-                  onClick={() => onViewCompany(signal.companyId)}
-                  className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 hover:underline transition-colors"
-                >
-                  <Building2 className="h-3 w-3 text-slate-400" />
-                  {signal.company.normalizedName}
-                </button>
-              )}
-              {/* Impact badge */}
-              <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border', impactCfg.color)}>
-                {impactCfg.label}
-              </span>
-              {/* Meaning category badge */}
-              {meaningCfg && (
-                <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border', meaningCfg.color)}>
-                  <MeaningIcon className="h-2.5 w-2.5" />
-                  {meaningCfg.label}
-                </span>
+              {signal.signalCapabilityMatches && (
+                <Badge variant="secondary" className="text-[10px] ml-1">{signal.signalCapabilityMatches.length}</Badge>
               )}
             </div>
-
-            {/* Evidence detail panel with capability matches */}
-            <EvidenceDetailPanel signal={signal} evidenceCount={evidenceCount} />
-          </div>
-
-          {/* Right: Confidence gauge */}
-          <div className="flex flex-col items-center gap-3 lg:pl-4">
-            <ConfidenceGauge value={confidence} />
-            <div className="flex items-center gap-1.5">
-              <TypeIcon className="h-3.5 w-3.5 text-slate-400" />
-              <span className="text-xs font-medium text-slate-500">{cfg.label}</span>
-            </div>
-            {signal.companyId && (
-              <Button
-                onClick={() => onViewCompany(signal.companyId)}
-                size="sm"
-                className="mt-2 gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
-              >
-                View Account
-                <ArrowUpRight className="h-3.5 w-3.5" />
-              </Button>
+            {!signal.signalCapabilityMatches || signal.signalCapabilityMatches.length === 0 ? (
+              <p className="text-xs text-slate-500">No capability matches yet for this signal.</p>
+            ) : (
+              <div className="flex flex-col gap-2">
+                {signal.signalCapabilityMatches.map((m) => (
+                  <div key={m.id} className="flex items-start gap-2 rounded-md bg-white border border-slate-100 p-2.5">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-xs font-semibold text-slate-800 truncate">{m.capability.title}</span>
+                        <span className="text-[10px] font-bold tabular-nums text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded">
+                          {Math.round(m.matchScore * 100)}%
+                        </span>
+                      </div>
+                      {m.reason && (
+                        <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2">{m.reason}</p>
+                      )}
+                      {m.salesAngle && (
+                        <div className="mt-1.5 flex items-start gap-1">
+                          <ArrowRight className="h-2.5 w-2.5 text-blue-500 mt-0.5 shrink-0" />
+                          <span className="text-[11px] text-blue-600 font-medium leading-relaxed">{m.salesAngle}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
             )}
           </div>
+
         </div>
-      </div>
-    </motion.div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Signal Card — Full T8 columns: Title, Type, Severity, Impact, Confidence, Meaning, Date
-   ═══════════════════════════════════════════════════════════════ */
-function SignalCard({
-  signal,
-  evidenceCount,
-  onViewCompany,
-}: {
-  signal: SignalItem;
-  evidenceCount: number;
-  onViewCompany: (companyId: string) => void;
-}) {
-  const cfg = typeConfig[signal.signalType] ?? defaultTypeConfig;
-  const TypeIcon = cfg.icon;
-  const confidence = signal.confidence ?? 0;
-  const displaySev = getDisplaySeverity(signal.severity, confidence);
-  const sevCfg = severityConfig[displaySev];
-  const SevIcon = sevCfg.icon;
-  const impactCfg = impactConfig[signal.impact] ?? impactConfig.medium;
-  const meaningCfg = signal.meaningCategory ? meaningCategoryConfig[signal.meaningCategory] : null;
-  const MeaningIcon = meaningCfg?.icon ?? Lightbulb;
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <motion.div
-      data-accent={cfg.accent}
-      className="intel-card group"
-      initial={{ opacity: 0, y: 16 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8, scale: 0.98 }}
-      transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-      whileHover={{ y: -1 }}
-    >
-      <div className="pl-5 pr-5 py-4 sm:pl-6 sm:pr-6 sm:py-5 flex flex-col gap-3.5">
-        {/* Row 1: Type badge + Company + Severity + Impact + Meaning + Time */}
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-2 flex-wrap min-w-0">
-            {/* Type icon + badge */}
-            <span className={cn(
-              'inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md text-[11px] font-semibold uppercase tracking-wider border shrink-0',
-              cfg.badge
-            )}>
-              <TypeIcon className="h-3 w-3" />
-              {cfg.label}
-            </span>
-            {/* Company */}
-            {signal.company?.normalizedName && (
-              <button
-                onClick={() => onViewCompany(signal.companyId)}
-                className="inline-flex items-center gap-1 text-xs font-medium text-blue-700 hover:text-blue-900 hover:underline transition-colors"
-              >
-                <Building2 className="h-3 w-3 text-slate-400" />
-                {signal.company.normalizedName}
-              </button>
-            )}
-            {/* Severity badge — T8: color-coded */}
-            <span className={cn(
-              'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold border',
-              sevCfg.badge
-            )}>
-              <SevIcon className="h-2.5 w-2.5" />
-              {sevCfg.label}
-            </span>
-            {/* Impact badge — T8 column */}
-            <span className={cn(
-              'inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium border',
-              impactCfg.color
-            )}>
-              {impactCfg.label}
-            </span>
-            {/* Meaning category badge — T8 column */}
-            {meaningCfg && (
-              <span className={cn(
-                'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-medium border',
-                meaningCfg.color
-              )}>
-                <MeaningIcon className="h-2.5 w-2.5" />
-                {meaningCfg.label}
-              </span>
-            )}
-          </div>
-          {/* Time */}
-          <span className="flex items-center gap-1 text-[11px] text-slate-400 whitespace-nowrap shrink-0">
-            <Clock className="h-3 w-3" />
-            {signal.signalDate ? formatTimeAgo(signal.signalDate) : formatTimeAgo(signal.extractedAt)}
-          </span>
-        </div>
-
-        {/* Row 2: Title + Description */}
-        <div>
-          <h3 className="text-sm font-semibold text-slate-900 leading-snug">{signal.title}</h3>
-          {signal.description && (
-            <p className="mt-1 text-xs text-slate-500 leading-relaxed line-clamp-2">{signal.description}</p>
-          )}
-        </div>
-
-        {/* Row 3: Confidence bar + Evidence count */}
-        <div className="flex items-center gap-3 flex-wrap">
-          <div className="flex-1 min-w-[140px] max-w-[220px]">
-            <ConfidenceBar value={Math.round(confidence * 100)} label={getConfidenceLabel(Math.round(confidence * 100))} size="sm" />
-          </div>
-          {/* Evidence count badge — T8 evidence detail */}
-          <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium bg-slate-50 border border-slate-200 text-slate-600">
-            <FileText className="h-3 w-3" />
-            {evidenceCount} evidence
-          </span>
-          {/* Capability matches count */}
-          {(signal.signalCapabilityMatches?.length ?? 0) > 0 && (
-            <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg text-[11px] font-medium bg-blue-50 border border-blue-200 text-blue-600">
-              <Target className="h-3 w-3" />
-              {signal.signalCapabilityMatches!.length} match{signal.signalCapabilityMatches!.length !== 1 ? 'es' : ''}
-            </span>
-          )}
-        </div>
-
-        {/* Row 4: Expandable evidence detail panel — T8: Click signal → evidence detail */}
-        <AnimatePresence>
-          {expanded && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              className="overflow-hidden"
-            >
-              <Separator className="my-1" />
-              <EvidenceDetailPanel signal={signal} evidenceCount={evidenceCount} />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {/* Row 5: Actions */}
-        <div className="flex items-center justify-between pt-0.5">
-          <button
-            onClick={() => setExpanded(!expanded)}
-            className="inline-flex items-center gap-1 text-[11px] font-medium text-blue-600 hover:text-blue-800 transition-colors"
-          >
-            {expanded ? 'Collapse' : 'View Evidence & Matches'}
-            <motion.div
-              animate={{ rotate: expanded ? 180 : 0 }}
-              transition={{ duration: 0.2 }}
-            >
-              <ChevronDown className="h-3 w-3" />
-            </motion.div>
-          </button>
-          <div className="flex items-center gap-2">
-            {signal.companyId && (
-              <button
-                onClick={() => onViewCompany(signal.companyId)}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/5 border border-primary/15 hover:border-primary/30 transition-colors"
-              >
-                View Account
-                <ChevronRight className="h-3 w-3" />
-              </button>
-            )}
-          </div>
-        </div>
-      </div>
-    </motion.div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Filter Pills
-   ═══════════════════════════════════════════════════════════════ */
-function FilterPills<T extends string>({
-  options,
-  active,
-  onChange,
-  label,
-}: {
-  options: { key: T; label: string; count?: number }[];
-  active: T;
-  onChange: (v: T) => void;
-  label: string;
-}) {
-  return (
-    <div className="flex items-center gap-2">
-      <span className="text-[11px] font-medium text-slate-400 shrink-0">{label}:</span>
-      <div className="flex items-center gap-1 flex-wrap">
-        {options.map(opt => (
-          <button
-            key={opt.key}
-            onClick={() => onChange(opt.key)}
-            className={cn(
-              'px-2.5 py-1 rounded-lg text-[11px] font-medium border transition-all',
-              active === opt.key
-                ? 'bg-slate-900 text-white border-slate-900 shadow-sm'
-                : 'bg-white text-slate-600 border-slate-200 hover:border-slate-300 hover:bg-slate-50'
-            )}
-          >
-            {opt.label}
-            {opt.count !== undefined && opt.count > 0 && (
-              <span className={cn(
-                'ml-1.5 text-[11px] tabular-nums',
-                active === opt.key ? 'text-slate-300' : 'text-slate-400'
-              )}>
-                {opt.count}
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Signal Distribution Bar
-   ═══════════════════════════════════════════════════════════════ */
-function SignalDistributionBar({ signals }: { signals: SignalItem[] }) {
-  const typeCounts: Record<string, { count: number; color: string; label: string }> = {};
-  signals.forEach(s => {
-    const cfg = typeConfig[s.signalType];
-    if (!cfg) return;
-    const label = cfg.label;
-    if (!typeCounts[label]) {
-      typeCounts[label] = { count: 0, color: cfg.barColor, label };
-    }
-    typeCounts[label].count++;
-  });
-
-  const entries = Object.values(typeCounts).sort((a, b) => b.count - a.count);
-  const total = entries.reduce((sum, e) => sum + e.count, 0);
-
-  if (total === 0) return null;
-
-  return (
-    <div className="space-y-2">
-      <div className="flex h-3 w-full rounded-full overflow-hidden bg-slate-100">
-        {entries.map((entry, idx) => (
-          <motion.div
-            key={entry.label}
-            className="h-full"
-            style={{ background: entry.color }}
-            initial={{ width: 0 }}
-            animate={{ width: `${(entry.count / total) * 100}%` }}
-            transition={{ duration: 0.6, delay: idx * 0.05, ease: [0.22, 1, 0.36, 1] }}
-            title={`${entry.label}: ${entry.count} (${Math.round((entry.count / total) * 100)}%)`}
-          />
-        ))}
-      </div>
-      <div className="flex items-center gap-3 flex-wrap">
-        {entries.map(entry => (
-          <div key={entry.label} className="flex items-center gap-1.5">
-            <div className="h-2 w-2 rounded-full shrink-0" style={{ background: entry.color }} />
-            <span className="text-[11px] font-medium text-slate-500 whitespace-nowrap">
-              {entry.label} <span className="text-slate-400">({entry.count})</span>
-            </span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Loading Skeleton
-   ═══════════════════════════════════════════════════════════════ */
-function SignalsLoadingSkeleton() {
-  return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border-2 border-slate-200 p-6 space-y-4">
-        <div className="flex items-center gap-3">
-          <Skeleton className="h-10 w-10 rounded-xl" />
-          <div className="space-y-2 flex-1">
-            <Skeleton className="h-3 w-20 rounded" />
-            <Skeleton className="h-5 w-64 rounded" />
-          </div>
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          <div className="space-y-3">
-            <Skeleton className="h-20 rounded-xl w-full" />
-            <Skeleton className="h-16 rounded-xl w-full" />
-            <Skeleton className="h-16 rounded-xl w-full" />
-          </div>
-          <div className="flex justify-center items-start">
-            <Skeleton className="h-[120px] w-[120px] rounded-full" />
-          </div>
-        </div>
-      </div>
-      {[1, 2, 3, 4].map(i => (
-        <div key={i} className="rounded-xl border border-slate-200 p-5 space-y-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Skeleton className="h-5 w-20 rounded-md" />
-              <Skeleton className="h-5 w-24 rounded-md" />
-            </div>
-            <Skeleton className="h-4 w-16" />
-          </div>
-          <Skeleton className="h-4 w-full max-w-md" />
-          <Skeleton className="h-3 w-full" />
-          <Skeleton className="h-2 w-48 rounded-full bg-slate-100" />
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   AI Scanning Loading State
-   ═══════════════════════════════════════════════════════════════ */
-function ScanningState({ scanTime }: { scanTime: number }) {
-  const [step, setStep] = useState(0);
-
-  useEffect(() => {
-    if (scanTime < 400) setStep(4);
-    else if (scanTime < 800) setStep(3);
-    else if (scanTime < 1400) setStep(2);
-    else setStep(1);
-
-    const t1 = setTimeout(() => setStep(2), 600);
-    const t2 = setTimeout(() => setStep(3), 1200);
-    const t3 = setTimeout(() => setStep(4), 2000);
-    return () => { clearTimeout(t1); clearTimeout(t2); clearTimeout(t3); };
-  }, [scanTime]);
-
-  const steps = [
-    { label: 'Reading account data', status: step >= 1 ? 'complete' as const : 'pending' as const },
-    { label: 'Analyzing signal patterns', status: step >= 2 ? 'complete' as const : step === 1 ? 'processing' as const : 'pending' as const },
-    { label: 'Mapping evidence & capabilities', status: step >= 3 ? 'complete' as const : step === 2 ? 'processing' as const : 'pending' as const },
-    { label: 'Generating intelligence feed', status: step >= 4 ? 'complete' as const : step === 3 ? 'processing' as const : 'pending' as const },
-  ];
-
-  return (
-    <div className="flex flex-col items-center justify-center py-16 px-6 gap-6">
-      <div className="flex flex-col items-center gap-3">
-        <div className="relative">
-          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-blue-500/10 to-cyan-500/10 border border-blue-200/50 flex items-center justify-center">
-            <Radar className="h-7 w-7 text-blue-600" />
-          </div>
-          <div className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-blue-500 animate-ping" />
-        </div>
-        <h3 className="text-sm font-semibold text-slate-700">Scanning for Intelligence Signals</h3>
-        <p className="text-xs text-slate-400 max-w-xs text-center">
-          Analyzing company signals, evidence records, and capability matches across your accounts
-        </p>
-      </div>
-      <AIProgressTracker steps={steps} />
+      </ScrollArea>
     </div>
   );
 }
@@ -924,11 +407,36 @@ interface SignalIntelligenceProps {
 }
 
 export default function SignalIntelligenceScreen({ navigateTo }: SignalIntelligenceProps) {
+  /* ── Server-side filtering state — T8 API contract supports:
+     ?companyId={id}&type=funding&severity=high&status=active&meaningCategory=X&page=N ── */
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [severityFilter, setSeverityFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [meaningFilter, setMeaningFilter] = useState<string>('all');
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState('');
+
+  // Selected signal for evidence detail side panel
+  const [selectedSignal, setSelectedSignal] = useState<SignalItem | null>(null);
+
+  // Build API URL with server-side filter params per T8 API contract
+  const apiParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (typeFilter !== 'all') params.set('type', typeFilter);
+    if (severityFilter !== 'all') params.set('severity', severityFilter);
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    if (meaningFilter !== 'all') params.set('meaningCategory', meaningFilter);
+    if (page > 1) params.set('page', String(page));
+    const qs = params.toString();
+    return qs ? `/api/signals?${qs}` : '/api/signals';
+  }, [typeFilter, severityFilter, statusFilter, meaningFilter, page]);
+
   /* ── Data fetching with useQuery — T8 API contract ── */
   const { data: raw, isLoading, error: fetchError, refetch: fetchSignals } = useQuery({
-    queryKey: ['signals', 'intelligence'],
-    queryFn: () => fetch('/api/signals')
-      .then(r => { if (!r.ok) throw new Error('Failed to fetch signals'); return r.json(); }),
+    queryKey: ['signals', typeFilter, severityFilter, statusFilter, meaningFilter, page],
+    queryFn: () =>
+      fetch(apiParams)
+        .then(r => { if (!r.ok) throw new Error('Failed to fetch signals'); return r.json(); }),
     staleTime: 15000,
     retry: false,
   });
@@ -936,178 +444,49 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
   const loading = isLoading;
   const error = fetchError?.message || null;
 
-  const [scanStartTime] = useState(Date.now());
-
-  // Filters
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('all');
-  const [meaningFilter, setMeaningFilter] = useState<MeaningFilter>('all');
-  const [severityFilter, setSeverityFilter] = useState<SeverityFilter>('all');
-  const [sortBy, setSortBy] = useState<SortBy>('severity');
-  const [search, setSearch] = useState('');
-
-  // Pagination
-  const [visibleCount, setVisibleCount] = useState(12);
-  const loaderRef = useRef<HTMLDivElement>(null);
-
   const signals = data?.signals ?? [];
   const evidenceCounts = data?.evidenceCounts ?? {};
   const categories = data?.categories ?? [];
   const pagination = data?.pagination ?? { page: 1, pageSize: 20, total: 0, totalPages: 0 };
 
-  // Client-side filtering (server also supports filters, but we do client-side for instant UX)
-  const filteredSignals = useMemo(() => {
-    let result = [...signals];
+  // Client-side search filter (on top of server-side filtering)
+  const searchLower = search.toLowerCase();
+  const filteredSignals = search
+    ? signals.filter(s =>
+        s.company?.normalizedName?.toLowerCase().includes(searchLower) ||
+        s.title.toLowerCase().includes(searchLower) ||
+        s.description?.toLowerCase().includes(searchLower) ||
+        s.signalType.toLowerCase().includes(searchLower)
+      )
+    : signals;
 
-    if (typeFilter !== 'all') {
-      result = result.filter(s => getCategoryForType(s.signalType) === typeFilter);
-    }
-
-    if (meaningFilter !== 'all') {
-      result = result.filter(s => s.meaningCategory === meaningFilter);
-    }
-
-    if (severityFilter !== 'all') {
-      result = result.filter(s => {
-        const ds = getDisplaySeverity(s.severity, s.confidence);
-        return ds === severityFilter;
-      });
-    }
-
-    if (search) {
-      const q = search.toLowerCase();
-      result = result.filter(s =>
-        s.company?.normalizedName?.toLowerCase().includes(q) ||
-        s.title.toLowerCase().includes(q) ||
-        s.description?.toLowerCase().includes(q) ||
-        s.signalType.toLowerCase().includes(q)
-      );
-    }
-
-    // Sort
-    result.sort((a, b) => {
-      if (sortBy === 'severity') {
-        const aSev = getSeverityOrder(getDisplaySeverity(a.severity, a.confidence));
-        const bSev = getSeverityOrder(getDisplaySeverity(b.severity, b.confidence));
-        if (aSev !== bSev) return aSev - bSev;
-        return (b.confidence ?? 0) - (a.confidence ?? 0);
-      }
-      if (sortBy === 'confidence') {
-        return (b.confidence ?? 0) - (a.confidence ?? 0);
-      }
-      return new Date(b.extractedAt).getTime() - new Date(a.extractedAt).getTime();
-    });
-
-    return result;
-  }, [signals, typeFilter, meaningFilter, severityFilter, search, sortBy]);
-
-  const severityCounts = useMemo(() => {
-    const counts = { critical: 0, high: 0, medium: 0, low: 0 };
-    signals.forEach(s => {
-      const ds = getDisplaySeverity(s.severity, s.confidence);
-      counts[ds]++;
-    });
-    return counts;
-  }, [signals]);
-
-  const meaningCounts = useMemo(() => {
-    const counts: Record<string, number> = {};
-    signals.forEach(s => {
-      if (s.meaningCategory) {
-        counts[s.meaningCategory] = (counts[s.meaningCategory] || 0) + 1;
-      }
-    });
-    return counts;
-  }, [signals]);
-
-  const featuredSignal = useMemo(() => {
-    if (filteredSignals.length === 0) return null;
-    const first = filteredSignals[0];
-    const ds = getDisplaySeverity(first.severity, first.confidence);
-    return ds === 'critical' ? first : null;
-  }, [filteredSignals]);
-
-  const feedSignals = featuredSignal
-    ? filteredSignals.filter(s => s.id !== featuredSignal.id)
-    : filteredSignals;
-
-  const visibleSignals = feedSignals.slice(0, visibleCount);
-  const hasMore = visibleCount < feedSignals.length;
-
-  // Infinite scroll observer
-  useEffect(() => {
-    const el = loaderRef.current;
-    if (!el || !hasMore) return;
-    const observer = new IntersectionObserver(
-      entries => {
-        if (entries[0].isIntersecting) {
-          setVisibleCount(prev => prev + 8);
-        }
-      },
-      { threshold: 0.1 }
-    );
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [hasMore]);
-
-  const handleViewCompany = useCallback((companyId: string) => {
+  const handleViewCompany = (companyId: string) => {
     navigateTo?.('company-detail', companyId);
-  }, [navigateTo]);
+  };
 
-  const clearFilters = useCallback(() => {
+  const clearFilters = () => {
     setTypeFilter('all');
-    setMeaningFilter('all');
     setSeverityFilter('all');
+    setStatusFilter('all');
+    setMeaningFilter('all');
+    setPage(1);
     setSearch('');
-  }, []);
+  };
 
   const activeFilterCount = [
     typeFilter !== 'all' ? 1 : 0,
-    meaningFilter !== 'all' ? 1 : 0,
     severityFilter !== 'all' ? 1 : 0,
+    statusFilter !== 'all' ? 1 : 0,
+    meaningFilter !== 'all' ? 1 : 0,
     search ? 1 : 0,
   ].reduce((a, b) => a + b, 0);
 
-  const typeFilterOptions: { key: TypeFilter; label: string }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'technology', label: 'Technology' },
-    { key: 'growth', label: 'Growth' },
-    { key: 'partnership', label: 'Partnership' },
-    { key: 'leadership', label: 'Leadership' },
-    { key: 'news', label: 'News' },
-    { key: 'people', label: 'People' },
-  ];
+  const handleRowClick = (signal: SignalItem) => {
+    setSelectedSignal(prev => prev?.id === signal.id ? null : signal);
+  };
 
-  /* T8: Meaning category filter options from API categories */
-  const meaningFilterOptions: { key: MeaningFilter; label: string; count?: number }[] = [
-    { key: 'all', label: 'All' },
-    ...(Object.entries(meaningCategoryConfig)
-      .filter(([k]) => categories.includes(k))
-      .map(([k, v]) => ({
-        key: k as MeaningFilter,
-        label: v.label,
-        count: meaningCounts[k],
-      }))
-    ),
-  ];
-
-  const severityFilterOptions: { key: SeverityFilter; label: string; count?: number }[] = [
-    { key: 'all', label: 'All' },
-    { key: 'critical', label: 'Critical', count: severityCounts.critical },
-    { key: 'high', label: 'High', count: severityCounts.high },
-    { key: 'medium', label: 'Medium', count: severityCounts.medium },
-    { key: 'low', label: 'Low', count: severityCounts.low },
-  ];
-
-  const sortOptions: { key: SortBy; label: string }[] = [
-    { key: 'severity', label: 'Severity' },
-    { key: 'confidence', label: 'Confidence' },
-    { key: 'time', label: 'Time' },
-  ];
-
-  const lastScanTime = useMemo(() => {
-    if (!data) return null;
-    return new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
-  }, [data]);
+  // Reset page when filters change
+  useEffect(() => { setPage(1); }, [typeFilter, severityFilter, statusFilter, meaningFilter]);
 
   return (
     <PageTransition>
@@ -1129,44 +508,17 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
               </div>
             </div>
 
-            {/* Right side: summary badges + actions */}
             <div className="flex items-center gap-3 flex-wrap">
               {data && signals.length > 0 && (
                 <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-slate-50 border border-slate-200">
                   <span className="text-[11px] font-medium text-slate-400 mr-1">
-                    <AnimatedCounter value={signals.length} className="text-sm font-bold text-slate-800" /> signals
+                    {pagination.total} signals
                   </span>
-                  <span className="text-[11px] font-medium text-slate-400 mr-1">
-                    {pagination.total} total
-                  </span>
-                  <Separator orientation="vertical" className="h-4 mx-1" />
-                  {severityCounts.critical > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-red-100 text-red-700 text-[11px] font-bold tabular-nums">
-                      {severityCounts.critical} Critical
+                  {pagination.totalPages > 1 && (
+                    <span className="text-[11px] text-slate-400">
+                      Page {pagination.page}/{pagination.totalPages}
                     </span>
                   )}
-                  {severityCounts.high > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-700 text-[11px] font-bold tabular-nums">
-                      {severityCounts.high} High
-                    </span>
-                  )}
-                  {severityCounts.medium > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-blue-100 text-blue-700 text-[11px] font-bold tabular-nums">
-                      {severityCounts.medium} Medium
-                    </span>
-                  )}
-                  {severityCounts.low > 0 && (
-                    <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-md bg-slate-100 text-slate-600 text-[11px] font-bold tabular-nums">
-                      {severityCounts.low} Low
-                    </span>
-                  )}
-                </div>
-              )}
-
-              {lastScanTime && (
-                <div className="hidden sm:flex items-center gap-1.5 text-[11px] text-slate-400">
-                  <CheckCircle2 className="h-3 w-3 text-emerald-500" />
-                  Last scan: {lastScanTime}
                 </div>
               )}
 
@@ -1185,58 +537,94 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
         </div>
 
         {/* ═══════════════════════════════════════════════════
-           Section 2: Signal Distribution Analytics + Filters
+           Section 2: Filters — T8: Meaning category filter + Severity badge filter
+           Server-side: type, severity, status, meaningCategory, page
            ═══════════════════════════════════════════════════ */}
         {data && signals.length > 0 && (
           <div className="flex-shrink-0 px-4 sm:px-6 pt-2 pb-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-4">
-              {/* Distribution bar */}
-              <SignalDistributionBar signals={signals} />
-
-              {/* Filter rows */}
-              <div className="flex flex-col gap-3">
-                {/* Search */}
-                <div className="relative max-w-sm">
+            <div className="rounded-xl border border-slate-200 bg-white p-4 space-y-3">
+              {/* Search */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="relative max-w-xs">
                   <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
                   <Input
-                    placeholder="Search companies, signals, or types..."
+                    placeholder="Search signals..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
                     className="pl-9 h-9 text-sm bg-slate-50 border-slate-200"
                   />
                 </div>
 
-                {/* Filter pill groups */}
-                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 sm:gap-5 flex-wrap">
-                  <FilterPills
-                    options={typeFilterOptions}
-                    active={typeFilter}
-                    onChange={setTypeFilter}
-                    label="Type"
-                  />
-                  {/* T8: Meaning category filter */}
-                  <FilterPills
-                    options={meaningFilterOptions}
-                    active={meaningFilter}
-                    onChange={setMeaningFilter}
-                    label="Meaning"
-                  />
-                  <FilterPills
-                    options={severityFilterOptions}
-                    active={severityFilter}
-                    onChange={setSeverityFilter}
-                    label="Severity"
-                  />
-                  <FilterPills
-                    options={sortOptions}
-                    active={sortBy}
-                    onChange={setSortBy}
-                    label="Sort by"
-                  />
+                {/* Filter buttons */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  {/* Type filter — server-side */}
+                  <select
+                    value={typeFilter}
+                    onChange={(e) => setTypeFilter(e.target.value)}
+                    className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  >
+                    <option value="all">All Types</option>
+                    <option value="funding">Funding</option>
+                    <option value="hiring">Hiring</option>
+                    <option value="leadership_change">Leadership Change</option>
+                    <option value="leadership">Leadership</option>
+                    <option value="tech_change">Tech Change</option>
+                    <option value="technology">Technology</option>
+                    <option value="news">News</option>
+                    <option value="mention">Mention</option>
+                    <option value="partnership">Partnership</option>
+                    <option value="expansion">Expansion</option>
+                    <option value="people_change">People Change</option>
+                    <option value="internal_memory">Internal Memory</option>
+                  </select>
+
+                  {/* Severity filter — server-side — T8: "Severity badge (color-coded)" */}
+                  <select
+                    value={severityFilter}
+                    onChange={(e) => setSeverityFilter(e.target.value)}
+                    className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  >
+                    <option value="all">All Severities</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+
+                  {/* Status filter — server-side */}
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
+                    className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  >
+                    <option value="all">All Statuses</option>
+                    <option value="detected">Detected</option>
+                    <option value="validated">Validated</option>
+                    <option value="active">Active</option>
+                    <option value="aging">Aging</option>
+                    <option value="expired">Expired</option>
+                    <option value="archived">Archived</option>
+                  </select>
+
+                  {/* Meaning category filter — T8: "Meaning category filter (budget_available, leadership_openness, etc.)" */}
+                  <select
+                    value={meaningFilter}
+                    onChange={(e) => setMeaningFilter(e.target.value)}
+                    className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  >
+                    <option value="all">All Meanings</option>
+                    {Object.entries(meaningCategoryConfig)
+                      .filter(([k]) => categories.includes(k))
+                      .map(([k, v]) => (
+                        <option key={k} value={k}>{v.label}</option>
+                      ))}
+                  </select>
+
+                  {/* Active filter indicator */}
                   {activeFilterCount > 0 && (
                     <button
                       onClick={clearFilters}
-                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
                     >
                       <X className="h-3 w-3" />
                       Clear all
@@ -1244,21 +632,13 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                   )}
                 </div>
               </div>
-
-              {/* Active filter count */}
-              {activeFilterCount > 0 && (
-                <div className="flex items-center gap-2">
-                  <span className="text-[11px] text-slate-400">
-                    Showing {filteredSignals.length} of {signals.length} signals
-                  </span>
-                </div>
-              )}
             </div>
           </div>
         )}
 
         {/* ═══════════════════════════════════════════════════
-           Sections 3–6: Content Area (scrollable)
+           Section 3: Signal Table — T8: "Signal table: Title, Type, Severity, Impact, Confidence, Meaning, Date"
+           Uses shadcn/ui Table component — consistent with companies-screen.tsx (Ticket 6)
            ═══════════════════════════════════════════════════ */}
         <div className="flex-1 min-h-0 px-4 sm:px-6 pb-6">
           {error && (
@@ -1271,7 +651,11 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
           )}
 
           {loading && !data ? (
-            <ScanningState scanTime={Date.now() - scanStartTime} />
+            <div className="space-y-3">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <Skeleton key={i} className="h-14 rounded-lg" />
+              ))}
+            </div>
           ) : !data || signals.length === 0 ? (
             <div className="flex-1 flex items-center justify-center">
               <EmptyState
@@ -1280,12 +664,10 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                 description="Signals are generated from our intelligence pipeline when company data is enriched. Import companies and run research to start detecting buying signals, technology changes, leadership moves, funding events, and more."
                 action={
                   navigateTo && (
-                    <div className="flex items-center gap-3">
-                      <Button onClick={() => navigateTo('import')} size="sm" className="gap-1.5">
-                        Import Companies
-                        <ArrowRight className="h-3.5 w-3.5" />
-                      </Button>
-                    </div>
+                    <Button onClick={() => navigateTo('import')} size="sm" className="gap-1.5">
+                      Import Companies
+                      <ArrowRight className="h-3.5 w-3.5" />
+                    </Button>
                   )
                 }
               />
@@ -1304,60 +686,164 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
               />
             </div>
           ) : (
-            <ScrollArea className="h-[calc(100vh-340px)]">
-              <div className="space-y-4 pr-3">
-                {/* Section 3: Featured Signal Alert */}
-                <AnimatePresence>
-                  {featuredSignal && (
-                    <FeaturedSignalCard
-                      signal={featuredSignal}
-                      evidenceCount={evidenceCounts[featuredSignal.id] ?? 0}
-                      onViewCompany={handleViewCompany}
-                    />
-                  )}
-                </AnimatePresence>
+            <div className="flex gap-4 h-[calc(100vh-300px)]">
+              {/* Main table area */}
+              <div className={cn('flex-1 min-w-0 overflow-hidden', selectedSignal ? 'border-r border-slate-200' : '')}>
+                <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                        {/* T8 columns: Title, Type, Severity, Impact, Confidence, Meaning, Date */}
+                        <TableHead className="w-[300px] text-xs font-semibold text-slate-500">Title</TableHead>
+                        <TableHead className="w-[100px] text-xs font-semibold text-slate-500">Type</TableHead>
+                        <TableHead className="w-[90px] text-xs font-semibold text-slate-500">Severity</TableHead>
+                        <TableHead className="w-[90px] text-xs font-semibold text-slate-500">Impact</TableHead>
+                        <TableHead className="w-[140px] text-xs font-semibold text-slate-500">Confidence</TableHead>
+                        <TableHead className="w-[130px] text-xs font-semibold text-slate-500">Meaning</TableHead>
+                        <TableHead className="w-[90px] text-xs font-semibold text-slate-500">Date</TableHead>
+                        <TableHead className="w-[40px]"></TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredSignals.map((signal) => {
+                        const sevCfg = severityConfig[signal.severity] ?? severityConfig.low;
+                        const SevIcon = sevCfg.icon;
+                        const typeCfg = typeConfig[signal.signalType] ?? { icon: Activity, label: signal.signalType };
+                        const TypeIcon = typeCfg.icon;
+                        const impactCfg = impactConfig[signal.impact] ?? impactConfig.medium;
+                        const meaningCfg = signal.meaningCategory ? meaningCategoryConfig[signal.meaningCategory] : null;
+                        const confPct = Math.round((signal.confidence ?? 0) * 100);
+                        const isSelected = selectedSignal?.id === signal.id;
 
-                {/* Section 4: Signal Intelligence Feed */}
-                <div className="flex items-center gap-2 mb-1">
-                  <Layers className="h-4 w-4 text-slate-400" />
-                  <h2 className="text-sm font-semibold text-slate-700">
-                    Intelligence Feed
-                  </h2>
-                  <Badge variant="secondary" className="text-[11px] tabular-nums">
-                    {feedSignals.length}
-                  </Badge>
+                        return (
+                          <TableRow
+                            key={signal.id}
+                            className={cn(
+                              'cursor-pointer transition-colors',
+                              isSelected ? 'bg-blue-50/50 hover:bg-blue-50/70' : 'hover:bg-slate-50/50'
+                            )}
+                            onClick={() => handleRowClick(signal)}
+                          >
+                            {/* Title — T8 column 1 */}
+                            <TableCell>
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-sm font-semibold text-slate-900 truncate">{signal.title}</span>
+                                {signal.company?.normalizedName && (
+                                  <button
+                                    onClick={(e) => { e.stopPropagation(); handleViewCompany(signal.companyId); }}
+                                    className="text-[11px] text-blue-600 hover:text-blue-800 hover:underline transition-colors text-left"
+                                  >
+                                    {signal.company.normalizedName}
+                                  </button>
+                                )}
+                              </div>
+                            </TableCell>
+
+                            {/* Type — T8 column 2 */}
+                            <TableCell>
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border bg-slate-50 text-slate-600 border-slate-200">
+                                <TypeIcon className="h-3 w-3" />
+                                {typeCfg.label}
+                              </span>
+                            </TableCell>
+
+                            {/* Severity — T8 column 3 + "Severity badge (color-coded)" */}
+                            <TableCell>
+                              <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border', sevCfg.badge)}>
+                                <SevIcon className="h-2.5 w-2.5" />
+                                {sevCfg.label}
+                              </span>
+                            </TableCell>
+
+                            {/* Impact — T8 column 4 */}
+                            <TableCell>
+                              <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border', impactCfg.color)}>
+                                {impactCfg.label}
+                              </span>
+                            </TableCell>
+
+                            {/* Confidence — T8 column 5 */}
+                            <TableCell>
+                              <ConfidenceBar value={confPct} label={getConfidenceLabel(confPct)} size="sm" />
+                            </TableCell>
+
+                            {/* Meaning — T8 column 6 */}
+                            <TableCell>
+                              {meaningCfg ? (
+                                <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border', meaningCfg.color)}>
+                                  {meaningCfg.label}
+                                </span>
+                              ) : (
+                                <span className="text-[11px] text-slate-400">—</span>
+                              )}
+                            </TableCell>
+
+                            {/* Date — T8 column 7 */}
+                            <TableCell>
+                              <span className="text-[11px] text-slate-500 tabular-nums whitespace-nowrap">
+                                {signal.signalDate ? formatTimeAgo(signal.signalDate) : formatTimeAgo(signal.extractedAt)}
+                              </span>
+                            </TableCell>
+
+                            {/* Evidence count + action */}
+                            <TableCell>
+                              <div className="flex items-center gap-1">
+                                {(evidenceCounts[signal.id] ?? 0) > 0 && (
+                                  <Badge variant="secondary" className="text-[10px] tabular-nums">
+                                    {evidenceCounts[signal.id]} ev
+                                  </Badge>
+                                )}
+                                <ChevronRight className={cn('h-3.5 w-3.5 text-slate-400 transition-transform', isSelected && 'rotate-90 text-blue-500')} />
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
                 </div>
 
-                <AnimatePresence mode="popLayout">
-                  {visibleSignals.map(signal => (
-                    <SignalCard
-                      key={signal.id}
-                      signal={signal}
-                      evidenceCount={evidenceCounts[signal.id] ?? 0}
-                      onViewCompany={handleViewCompany}
-                    />
-                  ))}
-                </AnimatePresence>
-
-                {/* Load more sentinel */}
-                {hasMore && (
-                  <div ref={loaderRef} className="flex items-center justify-center py-4">
-                    <div className="flex items-center gap-2 text-xs text-slate-400">
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      Loading more signals...
+                {/* Pagination */}
+                {pagination.totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-3">
+                    <span className="text-[11px] text-slate-500">
+                      Showing page {pagination.page} of {pagination.totalPages} ({pagination.total} total)
+                    </span>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-[11px] px-2.5"
+                        disabled={pagination.page <= 1}
+                        onClick={() => setPage(p => p - 1)}
+                      >
+                        Previous
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-[11px] px-2.5"
+                        disabled={pagination.page >= pagination.totalPages}
+                        onClick={() => setPage(p => p + 1)}
+                      >
+                        Next
+                      </Button>
                     </div>
                   </div>
                 )}
-
-                {!hasMore && feedSignals.length > 12 && (
-                  <div className="flex items-center justify-center py-3">
-                    <span className="text-xs text-slate-400">
-                      Showing all {feedSignals.length} signals
-                    </span>
-                  </div>
-                )}
               </div>
-            </ScrollArea>
+
+              {/* ── Evidence Detail Side Panel — T8: "Click signal → evidence detail panel" ── */}
+              {selectedSignal && (
+                <div className="w-[420px] flex-shrink-0 rounded-xl border border-slate-200 bg-white overflow-hidden">
+                  <EvidenceDetailPanel
+                    signal={selectedSignal}
+                    evidenceCount={evidenceCounts[selectedSignal.id] ?? 0}
+                    onClose={() => setSelectedSignal(null)}
+                  />
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

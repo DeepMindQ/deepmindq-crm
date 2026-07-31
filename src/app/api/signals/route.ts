@@ -1,385 +1,127 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import {
-  utilityGuard,
-  utilityCatchError,
-  utilitySuccess,
-  RateLimitedError,
-} from '@/lib/intelligence-api/guard';
+import { apiSuccess, apiError } from '@/lib/apiHelpers';
+import type { SignalType, SignalSeverity, SignalStatus, SignalMeaningCategory } from '@prisma/client';
 
 /* ═══════════════════════════════════════════════════════════════
-   Types
-   ═══════════════════════════════════════════════════════════════ */
-interface Signal {
-  id: string;
-  type: string;
-  title: string;
-  description: string;
-  contactId?: string;
-  contactName?: string;
-  companyName?: string;
-  severity: 'high' | 'medium' | 'low';
-  detectedAt: string;
-  metadata?: Record<string, unknown>;
-}
+   Ticket 8 — Signal Intelligence Screen API
 
-/* In-memory dismissed signal IDs (lightweight — resets on server restart) */
-const dismissedIds = new Set<string>();
-
-/* ═══════════════════════════════════════════════════════════════
-   GET /api/signals — Detect signals from lead data
+   Contract (per ARCHITECTURE.md):
+   GET /api/signals?companyId={id}&type=funding&severity=high&status=active&page=1
+   Response: {
+     signals: CompanySignal[],
+     evidenceCounts: Record<string, number>,
+     categories: SignalMeaningCategory[]
+   }
    ═══════════════════════════════════════════════════════════════ */
+
+const VALID_TYPES: string[] = [
+  'funding', 'hiring', 'leadership_change', 'leadership', 'tech_change',
+  'technology', 'news', 'mention', 'partnership', 'expansion',
+  'people_change', 'internal_memory',
+];
+const VALID_SEVERITIES: string[] = ['low', 'medium', 'high', 'critical'];
+const VALID_STATUSES: string[] = ['detected', 'validated', 'active', 'aging', 'expired', 'archived'];
+
+const PAGE_SIZE = 20;
+
 export async function GET(request: NextRequest) {
-  const startedAt = Date.now();
-
-  let ctx: ReturnType<typeof utilityGuard>;
-  try {
-    ctx = utilityGuard(request, 'signals');
-  } catch (err) {
-    if (err instanceof RateLimitedError) {
-      return new Response(JSON.stringify(err.errorBody), {
-        status: 429,
-        headers: err.headers,
-      });
-    }
-    throw err;
-  }
-
   try {
     const { searchParams } = new URL(request.url);
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 50);
 
-    const now = new Date();
-    const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-    const signals: Signal[] = [];
-    const typeCounts: Record<string, number> = {};
+    /* ── Parse query params ── */
+    const companyId = searchParams.get('companyId') || undefined;
+    const type = searchParams.get('type');
+    const severity = searchParams.get('severity');
+    const status = searchParams.get('status');
+    const meaningCategory = searchParams.get('meaningCategory');
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
 
-    /* ── 1. High-Engagement Leads ──
-       Contacts with open events but no reply events, status = 'sent' */
-    try {
-      const contactsSent = await db.contact.findMany({
-        where: { status: 'sent' },
-        select: { id: true, rawName: true, companyId: true },
-      });
-      const sentIds = contactsSent.map(c => c.id);
+    /* ── Build Prisma where clause ── */
+    const where: Record<string, unknown> = {};
 
-      if (sentIds.length > 0) {
-        // Get contacts that have 'open' events
-        const openContacts = await db.emailEvent.groupBy({
-          by: ['contactId'],
-          where: {
-            contactId: { in: sentIds },
-            eventType: 'open',
+    if (companyId) where.companyId = companyId;
+    if (type && VALID_TYPES.includes(type)) where.signalType = type as SignalType;
+    if (severity && VALID_SEVERITIES.includes(severity)) where.severity = severity as SignalSeverity;
+    if (status && VALID_STATUSES.includes(status)) where.status = status as SignalStatus;
+    if (meaningCategory) where.meaningCategory = meaningCategory as SignalMeaningCategory;
+
+    /* ── Fetch signals with company + capability matches ── */
+    const [signals, total, categoriesRaw, evidenceCountsRaw] = await Promise.all([
+      // Signals paginated
+      db.companySignal.findMany({
+        where,
+        include: {
+          company: {
+            select: { id: true, normalizedName: true, website: true },
           },
-        });
-        const openContactIds = new Set(openContacts.map(o => o.contactId));
-
-        // Get contacts that have 'reply' events
-        const replyContacts = await db.emailEvent.groupBy({
-          by: ['contactId'],
-          where: {
-            contactId: { in: sentIds },
-            eventType: 'reply',
-          },
-        });
-        const replyContactIds = new Set(replyContacts.map(r => r.contactId));
-
-        // High engagement = opened but not replied
-        const highEngagementIds = [...openContactIds].filter(id => !replyContactIds.has(id));
-
-        if (highEngagementIds.length > 0) {
-          const contacts = await db.contact.findMany({
-            where: { id: { in: highEngagementIds } },
-            include: { company: { select: { normalizedName: true } } },
-            take: 10,
-            orderBy: { leadScore: 'desc' },
-          });
-
-          for (const c of contacts) {
-            signals.push({
-              id: `high-engagement-${c.id}`,
-              type: 'high_engagement',
-              title: 'High-Engagement Lead',
-              description: 'Opened your email but hasn\'t replied — prime for follow-up',
-              contactId: c.id,
-              contactName: c.rawName,
-              companyName: c.company?.normalizedName ?? undefined,
-              severity: 'high',
-              detectedAt: now.toISOString(),
-              metadata: { leadScore: c.leadScore },
-            });
-            typeCounts['high_engagement'] = (typeCounts['high_engagement'] || 0) + 1;
-          }
-        }
-      }
-    } catch { /* skip */ }
-
-    /* ── 2. Score Spike ──
-       Contacts where leadScore >= 80 AND status IN ('imported', 'cleaned') */
-    try {
-      const scoreSpikeContacts = await db.contact.findMany({
-        where: {
-          leadScore: { gte: 80 },
-          status: { in: ['imported', 'cleaned'] },
-        },
-        include: { company: { select: { normalizedName: true } } },
-        take: 10,
-        orderBy: { leadScore: 'desc' },
-      });
-
-      for (const c of scoreSpikeContacts) {
-        signals.push({
-          id: `score-spike-${c.id}`,
-          type: 'score_spike',
-          title: 'Score Spike — Untapped Potential',
-          description: `Lead score ${c.leadScore} but still in "${c.status}" status — draft and send!`,
-          contactId: c.id,
-          contactName: c.rawName,
-          companyName: c.company?.normalizedName ?? undefined,
-          severity: 'high',
-          detectedAt: now.toISOString(),
-          metadata: { leadScore: c.leadScore, status: c.status },
-        });
-        typeCounts['score_spike'] = (typeCounts['score_spike'] || 0) + 1;
-      }
-    } catch { /* skip */ }
-
-    /* ── 3. Stale Lead ──
-       Contacts where status = 'sent' AND lastContactedAt < 7 days ago AND no reply events */
-    try {
-      const staleContacts = await db.contact.findMany({
-        where: {
-          status: 'sent',
-          lastContactedAt: { lte: sevenDaysAgo },
-        },
-        select: { id: true, rawName: true, companyId: true, lastContactedAt: true },
-        take: 50,
-      });
-
-      if (staleContacts.length > 0) {
-        const staleIds = staleContacts.map(c => c.id);
-        const replyEvents = await db.emailEvent.groupBy({
-          by: ['contactId'],
-          where: { contactId: { in: staleIds }, eventType: 'reply' },
-        });
-        const repliedIds = new Set(replyEvents.map(r => r.contactId));
-        const openEvents = await db.emailEvent.groupBy({
-          by: ['contactId'],
-          where: { contactId: { in: staleIds }, eventType: 'open' },
-        });
-        const openedIds = new Set(openEvents.map(o => o.contactId));
-        const clickEvents = await db.emailEvent.groupBy({
-          by: ['contactId'],
-          where: { contactId: { in: staleIds }, eventType: 'click' },
-        });
-        const clickedIds = new Set(clickEvents.map(o => o.contactId));
-
-        const trulyStale = staleContacts.filter(c =>
-          !repliedIds.has(c.id) && !openedIds.has(c.id) && !clickedIds.has(c.id)
-        );
-
-        if (trulyStale.length > 0) {
-          const companies = await db.company.findMany({
-            where: { id: { in: trulyStale.map(c => c.companyId).filter(Boolean) } },
-            select: { id: true, normalizedName: true },
-          });
-          const companyMap = new Map(companies.map(co => [co.id, co.normalizedName]));
-
-          for (const c of trulyStale.slice(0, 8)) {
-            signals.push({
-              id: `stale-lead-${c.id}`,
-              type: 'stale_lead',
-              title: 'Stale Lead — No Engagement',
-              description: `Sent 7+ days ago with zero opens, clicks, or replies`,
-              contactId: c.id,
-              contactName: c.rawName,
-              companyName: companyMap.get(c.companyId) ?? undefined,
-              severity: 'low',
-              detectedAt: now.toISOString(),
-              metadata: { lastContactedAt: c.lastContactedAt?.toISOString() },
-            });
-            typeCounts['stale_lead'] = (typeCounts['stale_lead'] || 0) + 1;
-          }
-        }
-      }
-    } catch { /* skip */ }
-
-    /* ── 4. Recent Bounce Risk ──
-       Contacts where emailHealth = 'risky' AND has queue items with status pending/scheduled */
-    try {
-      const riskyQueueContacts = await db.contact.findMany({
-        where: {
-          emailHealth: 'risky',
-          drafts: {
-            some: {
-              queueItem: {
-                status: { in: ['pending', 'scheduled'] },
+          signalCapabilityMatches: {
+            include: {
+              capability: {
+                select: { id: true, title: true, category: true },
               },
             },
+            take: 5,
+            orderBy: { matchScore: 'desc' },
           },
         },
-        include: {
-          company: { select: { normalizedName: true } },
-        },
-        take: 10,
-      });
+        orderBy: [
+          { severity: 'desc' },
+          { confidence: 'desc' },
+          { createdAt: 'desc' },
+        ],
+        skip: (page - 1) * PAGE_SIZE,
+        take: PAGE_SIZE,
+      }),
 
-      for (const c of riskyQueueContacts) {
-        signals.push({
-          id: `bounce-risk-${c.id}`,
-          type: 'bounce_risk',
-          title: 'Bounce Risk in Queue',
-          description: 'Email health is "risky" and currently queued — likely to bounce',
-          contactId: c.id,
-          contactName: c.rawName,
-          companyName: c.company?.normalizedName ?? undefined,
-          severity: 'high',
-          detectedAt: now.toISOString(),
-          metadata: { emailHealth: c.emailHealth },
-        });
-        typeCounts['bounce_risk'] = (typeCounts['bounce_risk'] || 0) + 1;
-      }
-    } catch { /* skip */ }
+      // Total count
+      db.companySignal.count({ where }),
 
-    /* ── 5. Unassigned High-Value ──
-       Contacts where leadScore >= 70 AND assignedTo IS NULL */
-    try {
-      const unassignedContacts = await db.contact.findMany({
-        where: {
-          leadScore: { gte: 70 },
-          assignedTo: null,
-        },
-        include: { company: { select: { normalizedName: true } } },
-        take: 10,
-        orderBy: { leadScore: 'desc' },
-      });
+      // Distinct meaning categories present in result set
+      db.companySignal.findMany({
+        where,
+        select: { meaningCategory: true },
+        distinct: ['meaningCategory'],
+      }),
 
-      for (const c of unassignedContacts) {
-        signals.push({
-          id: `unassigned-${c.id}`,
-          type: 'unassigned_high_value',
-          title: 'Unassigned High-Value Lead',
-          description: `Score ${c.leadScore} — needs an owner to drive conversion`,
-          contactId: c.id,
-          contactName: c.rawName,
-          companyName: c.company?.normalizedName ?? undefined,
-          severity: 'medium',
-          detectedAt: now.toISOString(),
-          metadata: { leadScore: c.leadScore },
-        });
-        typeCounts['unassigned_high_value'] = (typeCounts['unassigned_high_value'] || 0) + 1;
-      }
-    } catch { /* skip */ }
+      // Evidence counts per signal (from evidenceIds JSON array)
+      db.companySignal.findMany({
+        where,
+        select: { id: true, evidenceIds: true },
+      }),
+    ]);
 
-    /* ── 6. Sequence Dropout ──
-       SequenceEnrollment where status IN ('cancelled', 'paused') */
-    try {
-      const dropouts = await db.sequenceEnrollment.findMany({
-        where: {
-          status: { in: ['cancelled', 'paused'] },
-        },
-        include: {
-          contact: {
-            select: {
-              id: true,
-              rawName: true,
-              company: { select: { normalizedName: true } },
-            },
-          },
-          sequence: { select: { name: true } },
-        },
-        take: 10,
-        orderBy: { startedAt: 'desc' },
-      });
-
-      for (const d of dropouts) {
-        signals.push({
-          id: `sequence-dropout-${d.id}`,
-          type: 'sequence_dropout',
-          title: `Sequence "${d.sequence.name}" — ${d.status}`,
-          description: `${d.contact.rawName} dropped out of the sequence`,
-          contactId: d.contact.id,
-          contactName: d.contact.rawName,
-          companyName: d.contact.company?.normalizedName ?? undefined,
-          severity: 'medium',
-          detectedAt: now.toISOString(),
-          metadata: { sequenceName: d.sequence.name, enrollmentStatus: d.status },
-        });
-        typeCounts['sequence_dropout'] = (typeCounts['sequence_dropout'] || 0) + 1;
-      }
-    } catch { /* skip */ }
-
-    /* ── 7. New Positive Reply ──
-       Most recent Reply per contact where category = 'positive' */
-    try {
-      const positiveReplies = await db.reply.findMany({
-        where: { category: 'positive' },
-        include: {
-          contact: {
-            select: {
-              id: true,
-              rawName: true,
-              company: { select: { normalizedName: true } },
-            },
-          },
-        },
-        take: 10,
-        orderBy: { receivedAt: 'desc' },
-      });
-
-      for (const r of positiveReplies) {
-        signals.push({
-          id: `positive-reply-${r.id}`,
-          type: 'positive_reply',
-          title: 'Positive Reply — Action Needed!',
-          description: r.body
-            ? `${r.body.slice(0, 80)}${r.body.length > 80 ? '...' : ''}`
-            : 'Received a positive response — respond promptly!',
-          contactId: r.contact.id,
-          contactName: r.contact.rawName,
-          companyName: r.contact.company?.normalizedName ?? undefined,
-          severity: 'high',
-          detectedAt: r.receivedAt.toISOString(),
-          metadata: { replyId: r.id, subject: r.subject },
-        });
-        typeCounts['positive_reply'] = (typeCounts['positive_reply'] || 0) + 1;
-      }
-    } catch { /* skip */ }
-
-    /* ── Filter out dismissed & sort ── */
-    const active = signals.filter(s => !dismissedIds.has(s.id));
-    const severityOrder: Record<string, number> = { high: 0, medium: 1, low: 2 };
-    active.sort((a, b) => {
-      const sevDiff = severityOrder[a.severity] - severityOrder[b.severity];
-      if (sevDiff !== 0) return sevDiff;
-      return new Date(b.detectedAt).getTime() - new Date(a.detectedAt).getTime();
-    });
-
-    return utilitySuccess(ctx, {
-      signals: active.slice(0, limit),
-      summary: typeCounts,
-      total: active.length,
-      dismissed: dismissedIds.size,
-    }, 'signals', Date.now() - startedAt);
-  } catch (err) {
-    return utilityCatchError(ctx, err, 502, 'ENGINE_ERROR', 'Signal detection failed', Date.now() - startedAt);
-  }
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   POST /api/signals — Dismiss a signal (in-memory)
-   ═══════════════════════════════════════════════════════════════ */
-export async function POST(request: NextRequest) {
-  try {
-    const body = await request.json() as { id?: string; action?: string };
-
-    if (body.action === 'dismiss' && body.id) {
-      dismissedIds.add(body.id);
-      return Response.json({ success: true, dismissed: body.id });
+    /* ── Build evidenceCounts map ── */
+    const evidenceCounts: Record<string, number> = {};
+    for (const s of evidenceCountsRaw) {
+      let count = 0;
+      try {
+        const ids = typeof s.evidenceIds === 'string'
+          ? JSON.parse(s.evidenceIds)
+          : s.evidenceIds;
+        if (Array.isArray(ids)) count = ids.length;
+      } catch { /* skip malformed JSON */ }
+      evidenceCounts[s.id] = count;
     }
 
-    return Response.json({ error: 'Invalid action. Use { id, action: "dismiss" }' }, { status: 400 });
-  } catch {
-    return Response.json({ error: 'Invalid request body' }, { status: 400 });
+    /* ── Build categories list ── */
+    const categories: string[] = categoriesRaw
+      .map(c => c.meaningCategory)
+      .filter((c): c is NonNullable<typeof c> => c !== null && c !== undefined);
+
+    return apiSuccess({
+      signals,
+      evidenceCounts,
+      categories,
+      pagination: {
+        page,
+        pageSize: PAGE_SIZE,
+        total,
+        totalPages: Math.ceil(total / PAGE_SIZE),
+      },
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Failed to fetch signals';
+    return apiError(message, 500);
   }
 }

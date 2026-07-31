@@ -152,7 +152,11 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
   // ── Fetch with useQuery ──
   const { data: _data, isLoading: loading } = useQuery<AuditEntry[]>({
     queryKey: ['audit-logs'],
-    queryFn: () => fetch('/api/audit').then(r => r.json()).then((d: any) => Array.isArray(d) ? d : []),
+    queryFn: () => fetch('/api/audit').then(r => r.json()).then((d: any) => {
+      // apiSuccess envelope: { success, data } — unwrap it; fallback to raw array
+      const entries = d?.success === true && Array.isArray(d.data) ? d.data : Array.isArray(d) ? d : [];
+      return entries;
+    }),
     staleTime: 30000,
   });
   const data = _data || null;

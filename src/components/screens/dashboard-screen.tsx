@@ -29,7 +29,6 @@ interface DashboardData {
   queuePending: number;
   repliesThisWeek: number;
   bouncesCount: number;
-  suppressionsCount: number;
   emailHealthDistribution: Record<string, number>;
 }
 
@@ -47,12 +46,20 @@ interface Segment { id: string; name: string; _count: { contacts: number } }
 
 /** Dashboard stats from /api/dashboard/stats — intelligence dimension */
 interface DashboardStats {
+  companies: number;
+  contacts: number;
   signals: number;
+  insights: number;
   opportunities: number;
   risks: number;
   recommendations: number;
   avgIntelligenceScore: number;
   today: { newSignals: number; newOpportunities: number; newRisks: number; newRecommendations: number };
+  breakdown: {
+    signalsByImpact: Record<string, number>;
+    signalsByType: Record<string, number>;
+    insightsByType: Record<string, number>;
+  };
 }
 
 /** Raw company shape returned by /api/companies */
@@ -76,10 +83,25 @@ interface RawSegment {
 }
 
 /** AI briefing shape returned by /api/ai/insights */
+interface AIInsightItem {
+  type: 'positive' | 'negative' | 'neutral' | 'action';
+  icon: string;
+  title: string;
+  description: string;
+}
+
+interface AIPredictionItem {
+  metric: string;
+  current: number;
+  predicted: number;
+  trend: 'up' | 'down' | 'stable';
+  confidence: number;
+}
+
 interface AIBriefing {
   summary?: string;
-  keyInsights?: Array<{ title: string; description: string }>;
-  predictions?: Array<{ trend: string; metric: string; current: string; predicted: string }>;
+  keyInsights?: AIInsightItem[];
+  predictions?: AIPredictionItem[];
 }
 
 /* ═══════════════════════════════════════════════════
@@ -205,16 +227,26 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   const nav = navigateTo || ((screen: string) => useAppStore.getState().setActiveView(screen as ViewId));
 
   /* ── Data queries ── */
-  const { data: dashData, isLoading, isError: dashError, refetch: refetchDash } = useQuery<DashboardData>({
-    queryKey: ['dashboard'],
-    queryFn: () => fetch('/api/dashboard').then(r => r.json()).then(d => d.data ? d.data : d),
+  /* ── Typed API envelope unwrapping ── */
+  function unwrap<T>(raw: unknown): T | undefined {
+    if (!raw || typeof raw !== 'object') return undefined;
+    const obj = raw as Record<string, unknown>;
+    if (obj.success === true && obj.data !== undefined) return obj.data as T;
+    // If the response has no envelope (raw array/object), return as-is
+    if (Array.isArray(raw) || !('success' in obj)) return raw as T;
+    return undefined;
+  }
+
+  const { data: dashData, isLoading, isError: dashError, refetch: refetchDash } = useQuery({
+    queryKey: ['dashboard'] as const,
+    queryFn: (): Promise<DashboardData | undefined> => fetch('/api/dashboard').then(r => r.json()).then(d => unwrap<DashboardData>(d)),
     staleTime: 30000,
     retry: 2,
   });
 
   const { data: activity = [], isError: activityError, refetch: refetchActivity } = useQuery<AuditEntry[]>({
     queryKey: ['dashboard-activity'],
-    queryFn: () => fetch('/api/audit?limit=8').then(r => r.json()).then(d => d.data ? d.data : d),
+    queryFn: () => fetch('/api/audit?limit=8').then(r => r.json()).then(d => unwrap<AuditEntry[]>(d) || []),
     staleTime: 30000,
     retry: 2,
   });
@@ -233,19 +265,24 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     retry: 2,
   });
 
-  const { data: aiBriefing, isLoading: briefingLoading, isError: briefingError, refetch: refetchBriefing } = useQuery<AIBriefing>({
-    queryKey: ['dashboard-briefing'],
-    queryFn: () => fetch('/api/ai/insights').then(r => r.json()).then(d => {
-      const payload = d.data ? d.data : d;
-      return { summary: payload.summary, keyInsights: payload.keyInsights, predictions: payload.predictions };
+  const { data: aiBriefing, isLoading: briefingLoading, isError: briefingError, refetch: refetchBriefing } = useQuery({
+    queryKey: ['dashboard-briefing'] as const,
+    queryFn: (): Promise<AIBriefing | null> => fetch('/api/ai/insights').then(r => r.json()).then(d => {
+      const payload = unwrap<Record<string, unknown>>(d);
+      if (!payload) return null;
+      return {
+        summary: typeof payload.summary === 'string' ? payload.summary : undefined,
+        keyInsights: Array.isArray(payload.keyInsights) ? payload.keyInsights as AIInsightItem[] : undefined,
+        predictions: Array.isArray(payload.predictions) ? payload.predictions as AIPredictionItem[] : undefined,
+      };
     }),
     staleTime: 120000,
     retry: false,
   });
 
-  const { data: dashStats } = useQuery<DashboardStats>({
-    queryKey: ['dashboard-stats'],
-    queryFn: () => fetch('/api/dashboard/stats').then(r => r.json()).then(d => d.data ? d.data : d),
+  const { data: dashStats } = useQuery({
+    queryKey: ['dashboard-stats'] as const,
+    queryFn: (): Promise<DashboardStats | undefined> => fetch('/api/dashboard/stats').then(r => r.json()).then(d => unwrap<DashboardStats>(d)),
     staleTime: 60000,
     retry: 1,
   });
@@ -267,8 +304,18 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     }));
   }, [rawSegments]);
 
-  // Safe access — dashData is guaranteed after the guards above, but TS needs narrowing
-  const dd = dashData!;
+  // Safe access — if dashData is undefined despite passing loading/error guards,
+  // return the error fallback with retry. This prevents downstream crashes.
+  const dd = dashData;
+  if (!dd) return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mb-3"><AlertTriangle className="w-6 h-6 text-red-400" /></div>
+      <p className="text-sm font-medium text-foreground">Dashboard data unavailable</p>
+      <button onClick={() => refetchDash()} className="mt-3 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: gold }}>
+        <RefreshCw className="w-3 h-3" /> Retry
+      </button>
+    </div>
+  );
   const totalLeads = Object.values(dd.contactsByStatus || {}).reduce((a: number, b: number) => a + b, 0);
   const replied = dd.repliesThisWeek || 0;
   const sent = dd.contactsByStatus?.sent || 0;
@@ -276,30 +323,31 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   const drafts = dd.draftsPendingReview || 0;
   const replyRate = sent > 0 ? ((replied / sent) * 100).toFixed(1) : '0.0';
 
-  // Pipeline funnel — consistent stages from the data we actually have.
-  // Each stage uses its own source: total contacts from groupBy, drafts/queue from DB counts,
-  // replies from reply table, bounced from bounce count. This is an honest funnel
-  // showing how contacts flow through the outreach pipeline.
+  // Pipeline funnel — each stage uses its own source from the dashboard API.
+  // totalLeads: sum of all contactsByStatus (contacts imported).
+  // drafts: drafts pending review (from DB count).
+  // queued: send queue pending/scheduled (from DB count).
+  // sent: contacts with 'sent' status.
+  // replied: replies received this week (from reply table).
   const funnelStages = [
     { label: 'Imported', count: totalLeads },
-    { label: 'Drafted', count: drafts + (dd.contactsByStatus?.drafted || 0) },
-    { label: 'Queued', count: queued + (dd.contactsByStatus?.queued || 0) },
+    { label: 'Drafted', count: drafts },
+    { label: 'Queued', count: queued },
     { label: 'Sent', count: dd.contactsByStatus?.sent || 0 },
     { label: 'Replied', count: replied },
   ];
   const funnelMax = Math.max(funnelStages[0].count, 1);
 
-  // Engagement snapshot — REAL totals only, no fabricated daily breakdowns.
-  // Per-day email event tracking is not yet wired up; until it is, we show
-  // the honest aggregate count (sent / replied / bounced) instead of
-  // multiplying by fake coefficients.
-  const repliedCount = dashData?.contactsByStatus?.replied || 0;
-  const bouncedCount = dashData?.contactsByStatus?.bounced || 0;
+  // Engagement snapshot — aggregate outreach metrics.
+  // sent: contacts with 'sent' status. replied: contacts with 'replied' status.
+  // bounced: from bounce count (separate table). replyRate: replied/sent ratio.
+  const repliedCount = dd.contactsByStatus?.replied || 0;
+  const bouncedCount = dd.bouncesCount || 0;
   const engagementSummary = {
     sent,
     replied: repliedCount,
     bounced: bouncedCount,
-    openRate: sent > 0 ? ((repliedCount / sent) * 100).toFixed(1) : '0.0',
+    replyRate: sent > 0 ? ((repliedCount / sent) * 100).toFixed(1) : '0.0',
   };
 
   const maxContacts = topCompanies.length > 0 ? Math.max(...topCompanies.map(c => c.contactCount)) : 1;
@@ -450,7 +498,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
         <QuickAction icon={Upload} label="Import Data" color="#3B82F6" onClick={() => nav('import')} delay={0.3} />
         <QuickAction icon={GitBranch} label="New Sequence" color="#8B5CF6" onClick={() => nav('sequences')} delay={0.34} />
-        <QuickAction icon={MailPlus} label="Email Studio" color="#10B981" onClick={() => nav('email-studio')} delay={0.38} />
+        <QuickAction icon={MailPlus} label="Drafts" color="#10B981" onClick={() => nav('drafts')} delay={0.38} />
         <QuickAction icon={Radar} label="AI Research" color={gold} onClick={() => nav('signal-intelligence')} delay={0.42} />
         <QuickAction icon={Activity} label="Pipeline" color="#F59E0B" onClick={() => nav('pipeline')} delay={0.46} />
         <QuickAction icon={Shield} label="AI Health" color="#EF4444" onClick={() => nav('ai-health')} delay={0.50} />
@@ -525,7 +573,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             </div>
             <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
               <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Reply Rate</p>
-              <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: gold }}>{engagementSummary.openRate}%</p>
+              <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: gold }}>{engagementSummary.replyRate}%</p>
             </div>
           </div>
         </motion.div>

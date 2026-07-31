@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { logger } from '@/lib/logger';
+import { apiSuccess, apiError } from '@/lib/apiHelpers';
 
 // GET /api/audit — returns audit entries in the shape audit-screen.tsx expects
 export async function GET(request: NextRequest) {
@@ -22,9 +23,9 @@ export async function GET(request: NextRequest) {
       createdAt: log.createdAt.toISOString(),
     }));
 
-    return NextResponse.json(entries);
+    return apiSuccess(entries);
   } catch (error) {
     logger.error('Audit error:', { error: error });
-    return NextResponse.json([]);
+    return apiError('Failed to fetch audit entries', 500);
   }
 }

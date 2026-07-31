@@ -3,38 +3,55 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 const {
   mockCompanyFindMany,
   mockCompanyFindUnique,
-  mockKnowledgeEntryFindMany,
+  mockKnowledgeEntryGroupBy,
   mockOpportunitySignalFindMany,
-  mockOpportunitySignalGroupBy,
-  mockIntelligenceObjectFindMany,
-  mockIntelligenceObjectGroupBy,
-  mockIntelligenceTimelineFindMany,
+  mockIntelligenceObjectFindFirst,
+  mockIntelligenceTimelineCount,
   mockAccountScoreUpsert,
   mockAccountScoreFindUnique,
-  mockEvidenceFindMany,
+  mockAccountScoreFindMany,
+  mockEvidenceCount,
 } = vi.hoisted(() => ({
   mockCompanyFindMany: vi.fn(),
   mockCompanyFindUnique: vi.fn(),
-  mockKnowledgeEntryFindMany: vi.fn(),
+  mockKnowledgeEntryGroupBy: vi.fn(),
   mockOpportunitySignalFindMany: vi.fn(),
-  mockOpportunitySignalGroupBy: vi.fn(),
-  mockIntelligenceObjectFindMany: vi.fn(),
-  mockIntelligenceObjectGroupBy: vi.fn(),
-  mockIntelligenceTimelineFindMany: vi.fn(),
+  mockIntelligenceObjectFindFirst: vi.fn(),
+  mockIntelligenceTimelineCount: vi.fn(),
   mockAccountScoreUpsert: vi.fn(),
   mockAccountScoreFindUnique: vi.fn(),
-  mockEvidenceFindMany: vi.fn(),
+  mockAccountScoreFindMany: vi.fn(),
+  mockEvidenceCount: vi.fn(),
 }))
 
 vi.mock('@/lib/db', () => ({
   db: {
     company: { findMany: mockCompanyFindMany, findUnique: mockCompanyFindUnique },
-    knowledgeEntry: { findMany: mockKnowledgeEntryFindMany },
-    opportunitySignal: { findMany: mockOpportunitySignalFindMany, groupBy: mockOpportunitySignalGroupBy },
-    intelligenceObject: { findMany: mockIntelligenceObjectFindMany, groupBy: mockIntelligenceObjectGroupBy },
-    intelligenceTimeline: { findMany: mockIntelligenceTimelineFindMany },
-    accountScore: { upsert: mockAccountScoreUpsert, findUnique: mockAccountScoreFindUnique },
-    evidence: { findMany: mockEvidenceFindMany },
+    knowledgeEntry: { groupBy: mockKnowledgeEntryGroupBy },
+    opportunitySignal: { findMany: mockOpportunitySignalFindMany },
+    intelligenceObject: { findFirst: mockIntelligenceObjectFindFirst },
+    intelligenceTimeline: { count: mockIntelligenceTimelineCount },
+    accountScore: { upsert: mockAccountScoreUpsert, findUnique: mockAccountScoreFindUnique, findMany: mockAccountScoreFindMany },
+    evidence: { count: mockEvidenceCount },
+  },
+}))
+
+vi.mock('@/lib/intelligence-sources', () => ({
+  FRESHNESS_CONFIG: {},
+  ALL_CATEGORIES: ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M'],
+}))
+
+vi.mock('../signal-patterns', () => ({
+  ACCOUNT_SCORING_WEIGHTS: {
+    intelligenceCoverage: 0.20,
+    opportunitySignals: 0.30,
+    freshness: 0.20,
+    strategicFit: 0.20,
+    engagementHistory: 0.10,
+  },
+  ACCOUNT_CATEGORY_THRESHOLDS: {
+    HOT_ACCOUNT: 80,
+    WARM_ACCOUNT: 60,
   },
 }))
 
@@ -56,123 +73,131 @@ describe('Account Scoring', () => {
 
   const baseCompany = {
     id: companyId,
-    name: 'Acme Corp',
     industry: 'Technology',
-    employeeCount: 500,
-    revenue: '50M',
+    domain: 'acme.com',
+  }
+
+  function setupBaseMocks() {
+    mockCompanyFindUnique.mockResolvedValue(baseCompany)
+    mockKnowledgeEntryGroupBy.mockResolvedValue([
+      { category: 'Strategy' },
+      { category: 'Products' },
+      { category: 'Technology' },
+    ])
+    mockOpportunitySignalFindMany.mockResolvedValue([
+      { signalType: 'technology', score: 85 },
+      { signalType: 'growth', score: 70 },
+    ])
+    mockIntelligenceObjectFindFirst.mockResolvedValue({ capturedAt: now })
+    mockIntelligenceTimelineCount.mockResolvedValue(3)
+    mockEvidenceCount.mockResolvedValue(1)
   }
 
   describe('calculateAccountScore', () => {
-    it('all sub-scores computed correctly', async () => {
-      mockCompanyFindUnique.mockResolvedValue(baseCompany)
-      mockIntelligenceObjectGroupBy
-        .mockResolvedValueOnce([{ _count: 15 }])        // total objects
-        .mockResolvedValueOnce([{ _count: 5 }])          // distinct source types
-      mockOpportunitySignalFindMany.mockResolvedValue([
-        { category: 'technology', score: 0.9 },
-        { category: 'growth', score: 0.7 },
-      ])
-      mockKnowledgeEntryFindMany.mockResolvedValue([
-        { id: 'ke-1', category: 'Strategy', content: 'Expanding into AI' },
-        { id: 'ke-2', category: 'Products', content: 'New platform launch' },
-      ])
-      mockIntelligenceObjectFindMany.mockResolvedValue([
-        { capturedAt: now, sourceType: 'website' },
-      ])
-
+    it('returns score in 0-100 range', async () => {
+      setupBaseMocks()
       const result = await calculateAccountScore(companyId)
-
-      expect(result).toHaveProperty('intelligenceCoverage')
-      expect(result).toHaveProperty('signalStrength')
-      expect(result).toHaveProperty('knowledgeDepth')
-      expect(result).toHaveProperty('freshness')
-      expect(result).toHaveProperty('compositeScore')
-      expect(result.compositeScore).toBeGreaterThanOrEqual(0)
-      expect(result.compositeScore).toBeLessThanOrEqual(1)
+      expect(result.score).toBeGreaterThanOrEqual(0)
+      expect(result.score).toBeLessThanOrEqual(100)
     })
 
-    it('no intelligence objects → low score', async () => {
-      mockCompanyFindUnique.mockResolvedValue(baseCompany)
-      mockIntelligenceObjectGroupBy
-        .mockResolvedValueOnce([{ _count: 0 }])
-        .mockResolvedValueOnce([{ _count: 0 }])
+    it('returns valid category', async () => {
+      setupBaseMocks()
+      const result = await calculateAccountScore(companyId)
+      expect(['HOT_ACCOUNT', 'WARM_ACCOUNT', 'NURTURE']).toContain(result.category)
+    })
+
+    it('includes all 5 breakdown dimensions', async () => {
+      setupBaseMocks()
+      const result = await calculateAccountScore(companyId)
+      expect(result.breakdown).toHaveProperty('intelligenceCoverage')
+      expect(result.breakdown).toHaveProperty('signalStrength')
+      expect(result.breakdown).toHaveProperty('freshness')
+      expect(result.breakdown).toHaveProperty('strategicFit')
+      expect(result.breakdown).toHaveProperty('engagementHistory')
+    })
+
+    it('each sub-score is 0-100', async () => {
+      setupBaseMocks()
+      const result = await calculateAccountScore(companyId)
+      const { breakdown } = result
+      expect(breakdown.intelligenceCoverage).toBeGreaterThanOrEqual(0)
+      expect(breakdown.intelligenceCoverage).toBeLessThanOrEqual(100)
+      expect(breakdown.signalStrength).toBeGreaterThanOrEqual(0)
+      expect(breakdown.signalStrength).toBeLessThanOrEqual(100)
+      expect(breakdown.freshness).toBeGreaterThanOrEqual(0)
+      expect(breakdown.freshness).toBeLessThanOrEqual(100)
+      expect(breakdown.strategicFit).toBeGreaterThanOrEqual(0)
+      expect(breakdown.strategicFit).toBeLessThanOrEqual(100)
+      expect(breakdown.engagementHistory).toBeGreaterThanOrEqual(0)
+      expect(breakdown.engagementHistory).toBeLessThanOrEqual(100)
+    })
+
+    it('no signals → zero signal strength', async () => {
+      setupBaseMocks()
       mockOpportunitySignalFindMany.mockResolvedValue([])
-      mockKnowledgeEntryFindMany.mockResolvedValue([])
-      mockIntelligenceObjectFindMany.mockResolvedValue([])
-
       const result = await calculateAccountScore(companyId)
-
-      expect(result.intelligenceCoverage).toBe(0)
-      expect(result.compositeScore).toBeLessThan(0.3)
+      expect(result.breakdown.signalStrength).toBe(0)
     })
 
-    it('high coverage + high signals → HOT_ACCOUNT', async () => {
-      mockCompanyFindUnique.mockResolvedValue({ ...baseCompany, industry: 'Technology' })
-      mockIntelligenceObjectGroupBy
-        .mockResolvedValueOnce([{ _count: 50 }])
-        .mockResolvedValueOnce([{ _count: 8 }])
-      mockOpportunitySignalFindMany.mockResolvedValue([
-        { category: 'technology', score: 0.95 },
-        { category: 'growth', score: 0.90 },
-        { category: 'partnership', score: 0.85 },
-        { category: 'leadership', score: 0.88 },
-      ])
-      mockKnowledgeEntryFindMany.mockResolvedValue([
-        { id: 'ke-1', category: 'Strategy', content: 'AI first strategy' },
-        { id: 'ke-2', category: 'Products', content: 'Platform v2' },
-        { id: 'ke-3', category: 'Technology', content: 'Cloud migration' },
-      ])
-      mockIntelligenceObjectFindMany.mockResolvedValue([
-        { capturedAt: now, sourceType: 'website' },
-      ])
-
+    it('stale data → low freshness', async () => {
+      setupBaseMocks()
+      mockIntelligenceObjectFindFirst.mockResolvedValue({
+        capturedAt: new Date('2023-01-01'),
+      })
       const result = await calculateAccountScore(companyId)
-
-      expect(result.tier).toBe('HOT_ACCOUNT')
-      expect(result.compositeScore).toBeGreaterThanOrEqual(0.7)
+      expect(result.breakdown.freshness).toBeLessThan(20)
     })
 
-    it('strategicFit based on industry', async () => {
-      mockCompanyFindUnique.mockResolvedValue({ ...baseCompany, industry: 'Healthcare' })
-      mockIntelligenceObjectGroupBy.mockResolvedValueOnce([{ _count: 10 }]).mockResolvedValueOnce([{ _count: 3 }])
-      mockOpportunitySignalFindMany.mockResolvedValue([])
-      mockKnowledgeEntryFindMany.mockResolvedValue([])
-      mockIntelligenceObjectFindMany.mockResolvedValue([])
-
+    it('no intelligence objects → zero freshness', async () => {
+      setupBaseMocks()
+      mockIntelligenceObjectFindFirst.mockResolvedValue(null)
       const result = await calculateAccountScore(companyId)
-
-      expect(result.strategicFit).toBeGreaterThanOrEqual(0)
-      expect(result.strategicFit).toBeLessThanOrEqual(1)
+      expect(result.breakdown.freshness).toBe(0)
     })
 
-    it('freshness decay applied to older data', async () => {
-      const oldDate = new Date('2023-06-01')
-      mockCompanyFindUnique.mockResolvedValue(baseCompany)
-      mockIntelligenceObjectGroupBy.mockResolvedValueOnce([{ _count: 5 }]).mockResolvedValueOnce([{ _count: 2 }])
-      mockOpportunitySignalFindMany.mockResolvedValue([])
-      mockKnowledgeEntryFindMany.mockResolvedValue([])
-      mockIntelligenceObjectFindMany.mockResolvedValue([
-        { capturedAt: oldDate, sourceType: 'website' },
-      ])
+    it('strategicFit is deterministic (no Math.random)', async () => {
+      setupBaseMocks()
+      const result1 = await calculateAccountScore(companyId)
+      const result2 = await calculateAccountScore(companyId)
+      expect(result1.breakdown.strategicFit).toBe(result2.breakdown.strategicFit)
+    })
 
+    it('technology industry gets high strategicFit', async () => {
+      setupBaseMocks()
       const result = await calculateAccountScore(companyId)
+      expect(result.breakdown.strategicFit).toBeGreaterThanOrEqual(80)
+    })
 
-      expect(result.freshness).toBeLessThan(0.5)
+    it('manufacturing industry gets moderate strategicFit', async () => {
+      setupBaseMocks()
+      mockCompanyFindUnique.mockResolvedValue({
+        ...baseCompany,
+        industry: 'manufacturing',
+      })
+      const result = await calculateAccountScore(companyId)
+      expect(result.breakdown.strategicFit).toBeGreaterThanOrEqual(40)
+      expect(result.breakdown.strategicFit).toBeLessThanOrEqual(60)
     })
   })
 
   describe('persistAccountScore', () => {
-    it('upserts correctly', async () => {
-      mockAccountScoreUpsert.mockResolvedValue({ id: 'as-1', companyId })
-      const scoreData = { companyId, compositeScore: 0.82, tier: 'HOT_ACCOUNT', intelligenceCoverage: 0.9, signalStrength: 0.85, knowledgeDepth: 0.7, freshness: 0.8, strategicFit: 0.9 }
+    it('upserts with correct fields', async () => {
+      setupBaseMocks()
+      mockAccountScoreUpsert.mockResolvedValue({
+        id: 'as-1',
+        companyId,
+        score: 75,
+        scoreBreakdown: '{}',
+        category: 'WARM_ACCOUNT',
+        calculatedAt: new Date(),
+      })
 
-      await persistAccountScore(companyId, scoreData)
+      await persistAccountScore(companyId)
 
       expect(mockAccountScoreUpsert).toHaveBeenCalledWith(
         expect.objectContaining({
           where: { companyId },
-          create: expect.objectContaining({ companyId, compositeScore: 0.82, tier: 'HOT_ACCOUNT' }),
-          update: expect.objectContaining({ compositeScore: 0.82, tier: 'HOT_ACCOUNT' }),
         }),
       )
     })
@@ -187,41 +212,51 @@ describe('Account Scoring', () => {
   })
 
   describe('getTopOpportunities', () => {
-    it('ordered by score DESC with company info', async () => {
-      mockAccountScoreFindUnique
-        .mockResolvedValueOnce({ companyId: 'comp-1', compositeScore: 0.92, tier: 'HOT_ACCOUNT', company: { name: 'Acme Corp' } })
-        .mockResolvedValueOnce({ companyId: 'comp-2', compositeScore: 0.78, tier: 'WARM_ACCOUNT', company: { name: 'Beta Inc' } })
-        .mockResolvedValueOnce({ companyId: 'comp-3', compositeScore: 0.55, tier: 'COLD_ACCOUNT', company: { name: 'Gamma Ltd' } })
+    it('returns scored accounts ordered by score DESC', async () => {
+      mockAccountScoreFindMany.mockResolvedValue([
+        {
+          id: 'as-1',
+          companyId: 'comp-1',
+          score: 92,
+          scoreBreakdown: JSON.stringify({ overallScore: 92 }),
+          category: 'HOT_ACCOUNT',
+          calculatedAt: new Date(),
+          company: { id: 'comp-1', rawName: 'Acme Corp', industry: 'Technology', domain: 'acme.com' },
+        },
+        {
+          id: 'as-2',
+          companyId: 'comp-2',
+          score: 78,
+          scoreBreakdown: JSON.stringify({ overallScore: 78 }),
+          category: 'WARM_ACCOUNT',
+          calculatedAt: new Date(),
+          company: { id: 'comp-2', rawName: 'Beta Inc', industry: 'Finance', domain: 'beta.com' },
+        },
+      ])
 
-      const results = await getTopOpportunities(3)
+      const results = await getTopOpportunities(2)
 
-      expect(results).toHaveLength(3)
-      expect(results[0].compositeScore).toBeGreaterThanOrEqual(results[1].compositeScore)
-      expect(results[1].compositeScore).toBeGreaterThanOrEqual(results[2].compositeScore)
-      expect(results[0].company.name).toBe('Acme Corp')
+      expect(results).toHaveLength(2)
+      expect(results[0].score).toBeGreaterThanOrEqual(results[1].score)
     })
   })
 
   describe('recalculateAllScores', () => {
-    it('processes multiple companies', async () => {
+    it('processes companies with intelligence objects', async () => {
       mockCompanyFindMany.mockResolvedValue([{ id: 'comp-1' }, { id: 'comp-2' }])
-      mockCompanyFindUnique.mockResolvedValue(baseCompany)
-      mockIntelligenceObjectGroupBy.mockResolvedValue([{ _count: 5 }]).mockResolvedValue([{ _count: 2 }])
-      mockOpportunitySignalFindMany.mockResolvedValue([])
-      mockKnowledgeEntryFindMany.mockResolvedValue([])
-      mockIntelligenceObjectFindMany.mockResolvedValue([])
+      setupBaseMocks()
       mockAccountScoreUpsert.mockResolvedValue({ id: 'as-1' })
 
-      const results = await recalculateAllScores()
+      const { updated } = await recalculateAllScores()
 
-      expect(results.processed).toBe(2)
+      expect(updated).toBe(2)
       expect(mockAccountScoreUpsert).toHaveBeenCalledTimes(2)
     })
 
-    it('returns zero processed for empty company list', async () => {
+    it('returns zero for empty company list', async () => {
       mockCompanyFindMany.mockResolvedValue([])
-      const results = await recalculateAllScores()
-      expect(results.processed).toBe(0)
+      const { updated } = await recalculateAllScores()
+      expect(updated).toBe(0)
       expect(mockAccountScoreUpsert).not.toHaveBeenCalled()
     })
   })

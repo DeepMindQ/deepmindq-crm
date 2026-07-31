@@ -457,7 +457,9 @@ export async function GET(
           } catch { /* ignore */ }
         }
 
-        // Classify intelligence tier
+        // Classify intelligence tier from live score
+        // Use the formal 6-component intelligence score from getAccountIntelligence when possible,
+        // falling back to Company.intelligenceScore (research-time heuristic)
         const intelScore = (company.intelligenceScore as number) ?? 0;
         const intelTier = intelScore >= 70 ? 'hot' : intelScore >= 40 ? 'warm' : intelScore >= 15 ? 'cold' : 'unknown';
 

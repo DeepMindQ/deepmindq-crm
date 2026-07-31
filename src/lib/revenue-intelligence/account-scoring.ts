@@ -226,15 +226,15 @@ async function computeStrategicFit(companyId: string): Promise<number> {
   let base: number;
 
   if (TECH_INDUSTRY_KEYWORDS.some((kw) => industry.includes(kw))) {
-    base = 80 + Math.round(Math.random() * 15); // 80–95
+    base = 85; // Deterministic: technology-heavy industries score highest
   } else if (FINANCE_INDUSTRY_KEYWORDS.some((kw) => industry.includes(kw))) {
-    base = 60 + Math.round(Math.random() * 20); // 60–80
+    base = 70; // Financial services: strong strategic fit
   } else if (TRADITIONAL_INDUSTRY_KEYWORDS.some((kw) => industry.includes(kw))) {
-    base = 40 + Math.round(Math.random() * 20); // 40–60
+    base = 50; // Traditional industries: moderate fit
   } else if (industry === '' || !company.industry) {
-    base = 40;
+    base = 40; // Unknown industry: baseline
   } else {
-    base = 30 + Math.round(Math.random() * 20); // 30–50
+    base = 40; // Other known industries: baseline with domain bonus below
   }
 
   // Digital presence bonus

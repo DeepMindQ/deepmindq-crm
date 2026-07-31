@@ -834,14 +834,15 @@ describe('getAccountIntelligence — additional coverage', () => {
     expect(result.components.contactCoverage).toBe(100);
   });
 
-  it('should use intelligenceScore as fallback when engagementScore is 0', async () => {
+  it('should use engagementScore=0 correctly (not fall through to intelligenceScore)', async () => {
     setupGetResearchContext();
     mockDb.company.findUnique
       .mockResolvedValueOnce(minimalCompany)
       .mockResolvedValueOnce({ engagementScore: 0, intelligenceScore: 55 });
 
     const result = await getAccountIntelligence('company-1');
-    expect(result.components.engagementScore).toBe(55);
+    // With ?? operator, 0 is a valid value — should NOT fall through to intelligenceScore
+    expect(result.components.engagementScore).toBe(0);
   });
 
   it('should handle missing company on second findUnique call gracefully', async () => {

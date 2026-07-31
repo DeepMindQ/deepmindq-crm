@@ -519,7 +519,7 @@ export async function getAccountIntelligence(companyId: string): Promise<Account
   const engagementScore = await db.company.findUnique({
     where: { id: companyId },
     select: { engagementScore: true, intelligenceScore: true },
-  }).then(c => Math.min(100, Math.max(0, c?.engagementScore || c?.intelligenceScore || 0)));
+  }).then(c => Math.min(100, Math.max(0, c?.engagementScore ?? c?.intelligenceScore ?? 0)));
 
   // Weighted composite: data 25%, evidence 20%, freshness 15%, signals 20%, contacts 10%, engagement 10%
   const compositeScore = Math.round(

@@ -265,6 +265,8 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
       industry: true,
       sizeRange: true,
       country: true,
+      accountPriorityScore: true,
+      priorityTier: true,
     },
   });
 
@@ -363,13 +365,9 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
   const tier = classifyTier(composite);
   const computedAt = new Date().toISOString();
 
-  // Capture previous score for history tracking
-  const previousCompany = await db.company.findUnique({
-    where: { id: companyId },
-    select: { accountPriorityScore: true, priorityTier: true },
-  });
-  const previousScore = previousCompany?.accountPriorityScore ?? null;
-  const previousTier = previousCompany?.priorityTier ?? null;
+  // Capture previous score for history tracking (from initial read)
+  const previousScore = company.accountPriorityScore ?? null;
+  const previousTier = company.priorityTier ?? null;
 
   // Persist to Company + PriorityScoreHistory in a transaction
   await db.$transaction([

@@ -13,6 +13,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { getAccountIntelligence } from '@/lib/intelligence-contract';
 
 // ── Response Types ──
 
@@ -20,7 +21,15 @@ interface IntelligenceScoreDetail {
   score: number;
   tier: string;
   computedAt: string | null;
-  source: 'company_table';
+  source: 'live_computed' | 'company_table';
+  breakdown?: {
+    dataCompleteness: number;
+    evidenceQuality: number;
+    freshnessScore: number;
+    signalStrength: number;
+    contactCoverage: number;
+    engagementScore: number;
+  };
 }
 
 interface AccountPriorityDetail {
@@ -106,48 +115,61 @@ export async function GET(
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    // Fetch AccountScore (Revenue/Opportunity) — persisted by account-scoring.ts
-    const accountScore = await db.accountScore.findUnique({
-      where: { companyId: id },
-    });
+    // Compute live Intelligence Score via getAccountIntelligence (6-component weighted)
+    let intelligenceResult = null;
+    try {
+      intelligenceResult = await getAccountIntelligence(id);
+    } catch (err) {
+      logger.warn('[scores] getAccountIntelligence failed, falling back to stored value', {
+        companyId: id, error: err instanceof Error ? err.message : String(err),
+      });
+    }
 
-    // Fetch PriorityScoreHistory — last 10 entries for trend
-    const historyEntries = await db.priorityScoreHistory.findMany({
-      where: { companyId: id },
-      orderBy: { computedAt: 'desc' },
-      take: 10,
-      select: {
-        id: true,
-        accountPriorityScore: true,
-        priorityTier: true,
-        computedAt: true,
-        triggerType: true,
-        previousScore: true,
-        newScore: true,
-      },
-    });
-
-    // Build Intelligence Score detail
-    const intelligence: IntelligenceScoreDetail = {
-      score: company.intelligenceScore,
-      tier: classifyIntelligenceTier(company.intelligenceScore),
-      computedAt: company.lastEnrichedAt?.toISOString() ?? null,
-      source: 'company_table',
-    };
-
-    // Build Account Priority Score detail
-    let accountPriority: AccountPriorityDetail | null = null;
-    if (company.accountPriorityScore !== null) {
-      // Try to get breakdown from the most recent history entry
-      const latestHistory = await db.priorityScoreHistory.findFirst({
+    // Fetch AccountScore + PriorityScoreHistory in parallel
+    const [accountScore, historyEntries] = await Promise.all([
+      db.accountScore.findUnique({
+        where: { companyId: id },
+      }),
+      db.priorityScoreHistory.findMany({
         where: { companyId: id },
         orderBy: { computedAt: 'desc' },
+        take: 10,
         select: {
+          id: true,
+          accountPriorityScore: true,
+          priorityTier: true,
+          computedAt: true,
+          triggerType: true,
+          previousScore: true,
+          newScore: true,
           staticFitScore: true,
           dynamicIntelScore: true,
           timingUrgencyScore: true,
         },
-      });
+      }),
+    ]);
+
+    // Build Intelligence Score detail (live-computed preferred, stored fallback)
+    const intelligence: IntelligenceScoreDetail = intelligenceResult
+      ? {
+          score: intelligenceResult.intelligenceScore,
+          tier: intelligenceResult.tier,
+          computedAt: intelligenceResult.computedAt,
+          source: 'live_computed',
+          breakdown: intelligenceResult.components,
+        }
+      : {
+          score: company.intelligenceScore,
+          tier: classifyIntelligenceTier(company.intelligenceScore),
+          computedAt: company.lastEnrichedAt?.toISOString() ?? null,
+          source: 'company_table',
+        };
+
+    // Build Account Priority Score detail
+    let accountPriority: AccountPriorityDetail | null = null;
+    if (company.accountPriorityScore !== null) {
+      // Use breakdown from the first history entry (already fetched above)
+      const latestHistory = historyEntries[0] ?? null;
 
       accountPriority = {
         score: company.accountPriorityScore,

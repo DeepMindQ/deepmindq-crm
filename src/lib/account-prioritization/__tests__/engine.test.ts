@@ -183,21 +183,15 @@ describe('Account Prioritization Engine', () => {
     })
 
     it('captures previous score for history tracking', async () => {
-      // First call: company data, Second call: previous score capture
-      mockDbFindUnique
-        .mockResolvedValueOnce({
-          id: 'company-1',
-          industry: 'Technology',
-          sizeRange: '500-1000',
-          country: 'US',
-          accountPriorityScore: 42,
-          priorityTier: 'NURTURE',
-        })
-        .mockResolvedValueOnce({
-          id: 'company-1',
-          accountPriorityScore: 42,
-          priorityTier: 'NURTURE',
-        })
+      // The first findUnique now includes accountPriorityScore/priorityTier
+      mockDbFindUnique.mockResolvedValue({
+        id: 'company-1',
+        industry: 'Technology',
+        sizeRange: '500-1000',
+        country: 'US',
+        accountPriorityScore: 42,
+        priorityTier: 'NURTURE',
+      })
 
       await computeAccountPriority('company-1')
       const historyCall = mockPriorityScoreHistoryCreate.mock.calls[0][0] as { data: Record<string, unknown> }

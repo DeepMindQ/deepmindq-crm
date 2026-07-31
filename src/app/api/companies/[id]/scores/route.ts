@@ -24,6 +24,7 @@ import {
   utilitySuccess,
   RateLimitedError,
 } from '@/lib/intelligence-api/guard';
+import { companyIdSchema } from '@/lib/intelligence-api/validators';
 
 // ── Canonical Response Types (single source of truth) ──
 // These types are also consumed by the frontend ScoreTriple component.
@@ -186,11 +187,12 @@ export async function GET(
     ctx = utilityGuard(request, 'scores');
   } catch (err) {
     if (err instanceof RateLimitedError) {
+      const resetAt = Number(err.headers['X-RateLimit-Reset']) || Math.ceil(Date.now() / 1000) + 60;
       return new Response(JSON.stringify(err.errorBody), {
         status: 429,
         headers: {
           ...err.headers,
-          'Retry-After': String(Math.ceil((Date.now() + 60000 - Date.now()) / 1000)),
+          'Retry-After': String(Math.max(1, Math.ceil(resetAt - Date.now() / 1000))),
         },
       });
     }
@@ -199,6 +201,13 @@ export async function GET(
 
   try {
     const { id } = await params;
+
+    // Validate companyId with Zod
+    const companyIdResult = companyIdSchema.safeParse(id);
+    if (!companyIdResult.success) {
+      const message = companyIdResult.error.issues[0]?.message || 'Invalid company ID';
+      return utilityError(ctx, 400, message, 'INVALID_REQUEST', Date.now() - startedAt);
+    }
 
     // Fetch company with base score fields
     const company = await db.company.findUnique({

@@ -1,7 +1,12 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { logger } from '@/lib/logger';
-import { scrubError } from '@/lib/intelligence-api/handler';
+import {
+  utilityGuard,
+  utilityCatchError,
+  utilitySuccess,
+  utilityError,
+  RateLimitedError,
+} from '@/lib/intelligence-api/guard';
 import {
   scoreRevenueOpportunity,
   scoreRevenueOpportunities,
@@ -20,13 +25,29 @@ const schema = z.object({
 // ── POST /api/ai/revenue-score ──
 
 export async function POST(request: NextRequest) {
+  const startedAt = Date.now();
+
+  // ── Guard: rate limiting + correlation-id + response headers ──
+  let ctx: ReturnType<typeof utilityGuard>;
+  try {
+    ctx = utilityGuard(request, 'revenue-score');
+  } catch (err) {
+    if (err instanceof RateLimitedError) {
+      return new Response(JSON.stringify(err.errorBody), {
+        status: 429,
+        headers: err.headers,
+      });
+    }
+    throw err;
+  }
+
   try {
     const body = await request.json();
     const parsed = schema.safeParse(body);
 
     if (!parsed.success) {
       const msg = parsed.error.issues[0]?.message || 'Validation failed';
-      return NextResponse.json({ error: msg }, { status: 400 });
+      return utilityError(ctx, 400, msg, 'VALIDATION_FAILED', Date.now() - startedAt);
     }
 
     const { companyId, companyIds, scoreAll: scoreAllFlag, limit = 50 } = parsed.data;
@@ -34,24 +55,19 @@ export async function POST(request: NextRequest) {
     // Single company
     if (companyId) {
       const result = await scoreRevenueOpportunity(companyId);
-      return NextResponse.json({ success: true, score: result });
+      return utilitySuccess(ctx, { score: result }, 'revenue-score', Date.now() - startedAt);
     }
 
     // Multiple companies
     if (companyIds && companyIds.length > 0) {
       const results = await scoreRevenueOpportunities(companyIds);
-      return NextResponse.json({
-        success: true,
-        scores: results,
-        meta: { totalScored: results.length },
-      });
+      return utilitySuccess(ctx, { scores: results, meta: { totalScored: results.length } }, 'revenue-score', Date.now() - startedAt);
     }
 
     // Score all
     if (scoreAllFlag) {
       const results = await scoreAllRevenueOpportunities(limit);
-      return NextResponse.json({
-        success: true,
+      return utilitySuccess(ctx, {
         scores: results,
         meta: {
           totalScored: results.length,
@@ -61,17 +77,18 @@ export async function POST(request: NextRequest) {
           low: results.filter(r => r.priorityTier === 'low').length,
           nurture: results.filter(r => r.priorityTier === 'nurture').length,
         },
-      });
+      }, 'revenue-score', Date.now() - startedAt);
     }
 
-    return NextResponse.json(
-      { error: 'Provide companyId, companyIds, or scoreAll: true' },
-      { status: 400 }
-    );
+    return utilityError(ctx, 400, 'Provide companyId, companyIds, or scoreAll: true', 'INVALID_REQUEST', Date.now() - startedAt);
   } catch (error) {
-    logger.error('[ai/revenue-score] Error:', { error });
-    const rawMessage = error instanceof Error ? error.message : 'Unknown error';
-    const safeMessage = scrubError(rawMessage);
-    return NextResponse.json({ error: safeMessage }, { status: 500 });
+    return utilityCatchError(
+      ctx,
+      error,
+      500,
+      'ENGINE_ERROR',
+      'Revenue scoring failed',
+      Date.now() - startedAt,
+    );
   }
 }

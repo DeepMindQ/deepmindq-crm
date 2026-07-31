@@ -2,9 +2,31 @@
  * @deprecated Use account-scoring.ts instead. This file is a legacy scorer that is
  * superseded by the 5-dimension account-scoring.ts. Only kept for backward
  * compatibility with existing tests. No production code imports this module.
+ *
+ * IMPORTANT: This module writes a 4-key scoreBreakdown format:
+ *   { signalStrength, engagement, opportunityFit, timing }
+ * The replacement account-scoring.ts writes a 5-key format:
+ *   { intelligenceCoverage, signalStrength, freshness, strategicFit, engagementHistory }
+ *
+ * If you are reading scores written by this module, the scores/route.ts parseRevenueBreakdown()
+ * helper detects legacy format and maps keys appropriately.
  */
 
+'use strict'; // Enforce strict mode as additional deprecation signal
+
 import { db } from '@/lib/db';
+
+// ── Deprecation runtime warning ──
+if (typeof process !== 'undefined' && process.env.NODE_ENV !== 'test') {
+  const msg = '[DEPRECATED] account-scorer.ts is superseded by account-scoring.ts. Migrate imports.';
+  try {
+    const { logger } = require('@/lib/logger');
+    logger.warn(msg);
+  } catch {
+    // Fallback if logger not available
+    console.warn(msg);
+  }
+}
 
 export interface ScoreBreakdown {
   signalStrength: number;  // 0-30

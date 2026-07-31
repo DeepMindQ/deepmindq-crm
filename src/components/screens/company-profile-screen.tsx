@@ -579,28 +579,30 @@ export default function CompanyProfileScreen() {
   const score = data.intelligenceScore ?? 0
 
   // Build ScoreTriple items from unified scores data
+  const getDynamicColor = (s: number) => s >= 80 ? '#059669' : s >= 60 ? '#D97706' : s >= 40 ? '#F59E0B' : '#DC2626'
+
   const intelligenceScoreItem: ScoreItem | null = scoresData?.intelligence
     ? {
         label: 'Intelligence',
         score: scoresData.intelligence.score,
         tier: scoresData.intelligence.tier,
-        color: '#2563EB',
+        color: getDynamicColor(scoresData.intelligence.score),
       }
-    : { label: 'Intelligence', score, tier: score >= 70 ? 'hot' : score >= 40 ? 'warm' : score >= 15 ? 'cold' : 'unknown', color: '#2563EB' }
+    : { label: 'Intelligence', score, tier: score >= 70 ? 'hot' : score >= 40 ? 'warm' : score >= 15 ? 'cold' : 'unknown', color: getDynamicColor(score) }
 
   const priorityScoreItem: ScoreItem | null = scoresData?.accountPriority
     ? {
         label: 'Priority',
         score: Math.round(scoresData.accountPriority.score),
         tier: scoresData.accountPriority.tier,
-        color: '#059669',
+        color: getDynamicColor(scoresData.accountPriority.score),
       }
     : data.accountPriorityScore != null
       ? {
           label: 'Priority',
           score: Math.round(data.accountPriorityScore),
           tier: data.priorityTier ?? 'unknown',
-          color: '#059669',
+          color: getDynamicColor(data.accountPriorityScore),
         }
       : null
 
@@ -613,7 +615,9 @@ export default function CompanyProfileScreen() {
         label: 'Revenue',
         score: Math.round(scoresData.revenueOpportunity.score),
         tier: revenueTierMap[scoresData.revenueOpportunity.category] || scoresData.revenueOpportunity.category,
-        color: '#D97706',
+        color: scoresData.revenueOpportunity.category === 'AT_RISK'
+          ? '#DC2626'
+          : getDynamicColor(scoresData.revenueOpportunity.score),
       }
     : null
 
@@ -650,7 +654,7 @@ export default function CompanyProfileScreen() {
           HEADER — Back button, Company card, Score Gauge
           ══════════════════════════════════════════════════════════ */}
       <div className="rounded-xl bg-white p-4 md:p-6 card-rest slide-up">
-        <div className="flex items-start gap-4 md:gap-5">
+        <div className="flex flex-col sm:flex-row items-start gap-4 md:gap-5">
           {/* Company Logo */}
           <div className="size-14 rounded-xl bg-gray-100 overflow-hidden shrink-0 flex items-center justify-center border border-gray-200/60">
             {data.domain ? (
@@ -838,13 +842,13 @@ export default function CompanyProfileScreen() {
             </div>
           </div>
 
-          {/* Score Triple — all viewports */}
-          <div className="lg:block shrink-0">
+          {/* Score Triple — visible on all viewports */}
+          <div className="shrink-0">
             <ScoreTriple
               intelligence={intelligenceScoreItem}
               accountPriority={priorityScoreItem}
               revenueOpportunity={revenueScoreItem}
-              className="w-[220px]"
+              className="w-full sm:w-[220px]"
             />
           </div>
         </div>

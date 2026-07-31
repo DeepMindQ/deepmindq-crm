@@ -192,6 +192,7 @@ export type UtilityErrorCode =
   | 'INTELLIGENCE_UNAVAILABLE'
   | 'RATE_LIMITED'
   | 'ENGINE_TIMEOUT'
+  | 'ENGINE_ERROR'
   | 'VALIDATION_FAILED';
 
 /**

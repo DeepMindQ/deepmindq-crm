@@ -173,7 +173,7 @@ export function ScoreTriple({ intelligence, accountPriority, revenueOpportunity,
   }
 
   return (
-    <div aria-label="Score summary" className={cn('grid gap-3', scores.length === 1 ? 'grid-cols-1' : scores.length === 2 ? 'grid-cols-2' : 'grid-cols-3', className)}>
+    <div aria-label="Score summary" className={cn('grid gap-3', scores.length === 1 ? 'grid-cols-1' : scores.length === 2 ? 'grid-cols-2 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-3', className)}>
       {scores.map((s) => (
         <div key={s.label} className="rounded-lg border border-gray-200/60 bg-gray-50/50 p-3 flex flex-col items-center gap-2">
           {/* Mini radial gauge */}

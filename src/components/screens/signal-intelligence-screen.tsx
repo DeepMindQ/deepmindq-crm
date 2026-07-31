@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import type { SignalMeaningCategory } from '@prisma/client';
 
 /* ═══════════════════════════════════════════════════════════════
    Types — aligned with CompanySignal schema + T8 API contract
@@ -39,7 +40,6 @@ interface SignalItem {
   signalType: string;
   title: string;
   description?: string | null;
-  companyName?: string;
   companyId: string;
   company?: { id: string; normalizedName: string; website?: string | null };
   severity: string;
@@ -61,7 +61,7 @@ interface SignalItem {
 interface SignalsResponse {
   signals: SignalItem[];
   evidenceCounts: Record<string, number>;
-  categories: string[];
+  categories: SignalMeaningCategory[];
   pagination: {
     page: number;
     pageSize: number;
@@ -124,6 +124,7 @@ const meaningCategoryConfig: Record<string, { label: string; color: string }> = 
   growth_pressure:       { label: 'Growth Pressure',       color: 'bg-amber-100 text-amber-700 border-amber-200' },
   compliance_requirement:{ label: 'Compliance Need',       color: 'bg-blue-100 text-blue-700 border-blue-200' },
   vendor_evaluation:    { label: 'Vendor Evaluation',      color: 'bg-cyan-100 text-cyan-700 border-cyan-200' },
+  unknown:              { label: 'Unknown',                  color: 'bg-slate-100 text-slate-500 border-slate-200' },
 };
 
 const impactConfig: Record<string, { label: string; color: string }> = {
@@ -614,7 +615,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                   >
                     <option value="all">All Meanings</option>
                     {Object.entries(meaningCategoryConfig)
-                      .filter(([k]) => categories.includes(k))
+                      .filter(([k]) => (categories as string[]).includes(k))
                       .map(([k, v]) => (
                         <option key={k} value={k}>{v.label}</option>
                       ))}

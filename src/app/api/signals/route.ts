@@ -91,23 +91,46 @@ export async function GET(request: NextRequest) {
       }),
     ]);
 
-    /* ── Build evidenceCounts map ── */
-    const evidenceCounts: Record<string, number> = {};
+    /* ── Build evidenceCounts: count actual resolvable Evidence records ── */
+    // Collect all evidence IDs across all signals in this result set
+    const allEvidenceIds: string[] = [];
+    const signalEvidenceIdsMap: Record<string, string[]> = {};
     for (const s of evidenceCountsRaw) {
-      let count = 0;
+      let ids: string[] = [];
       try {
-        const ids = typeof s.evidenceIds === 'string'
+        const raw = typeof s.evidenceIds === 'string'
           ? JSON.parse(s.evidenceIds)
           : s.evidenceIds;
-        if (Array.isArray(ids)) count = ids.length;
+        if (Array.isArray(raw)) {
+          ids = raw.filter((eid: unknown) => typeof eid === 'string' && eid.length > 0);
+        }
       } catch { /* skip malformed JSON */ }
-      evidenceCounts[s.id] = count;
+      signalEvidenceIdsMap[s.id] = ids;
+      allEvidenceIds.push(...ids);
     }
 
-    /* ── Build categories list ── */
-    const categories: string[] = categoriesRaw
+    // Batch-resolve: count Evidence records that actually exist in DB
+    const existingEvidenceIds = new Set<string>();
+    if (allEvidenceIds.length > 0) {
+      const uniqueIds = [...new Set(allEvidenceIds)];
+      const existingRecords = await db.evidence.findMany({
+        where: { id: { in: uniqueIds } },
+        select: { id: true },
+      });
+      for (const rec of existingRecords) {
+        existingEvidenceIds.add(rec.id);
+      }
+    }
+
+    const evidenceCounts: Record<string, number> = {};
+    for (const [signalId, ids] of Object.entries(signalEvidenceIdsMap)) {
+      evidenceCounts[signalId] = ids.filter(eid => existingEvidenceIds.has(eid)).length;
+    }
+
+    /* ── Build categories list with correct type ── */
+    const categories: SignalMeaningCategory[] = categoriesRaw
       .map(c => c.meaningCategory)
-      .filter((c): c is NonNullable<typeof c> => c !== null && c !== undefined);
+      .filter((c): c is NonNullable<typeof c> => c !== null && c !== undefined) as SignalMeaningCategory[];
 
     return apiSuccess({
       signals,

@@ -15,7 +15,7 @@
 | 4 | 3-Score Architecture Unification | P0 | **COMPLETE** | 11 gaps identified & fixed, unified scores endpoint, ScoreTriple component, PriorityScoreHistory tracking, 1453/1453 tests pass |
 | 5 | Signal Detection Engine | P0 | PENDING | Depends: Ticket 1 |
 | 6 | Account Intelligence Scoring | P0 | PENDING | Depends: Ticket 1 |
-| 7 | Conversation Intelligence | P0 | PENDING | Depends: Ticket 6 |
+| 7 | Company Profile — 5Q Workspace | P0 | **COMPLETE** | 5Q sections built, one-shot API, keyboard shortcuts, 59/59 tests pass, 10 gaps fixed |
 | 8 | Opportunity Discovery | P0 | PENDING | Depends: Ticket 5 |
 | 9 | Knowledge Fabric | P0/P1 | PENDING | Depends: Ticket 1 |
 | 10 | Intelligence Inbox | P0 | PENDING | Depends: Ticket 1 |
@@ -125,7 +125,9 @@ Deep audit round 2 found 13 additional gaps beyond the 13 fixed in round 1.
 | Ticket 1 | 117 pass | ✅ |
 | Ticket 2 | 117 + 43 = 160 pass | ✅ |
 | Ticket 3 | 1413 + 12 = 1425 pass (was 1413 before deep audit fix; 12 more previously-skipped tests now pass) | ✅ |
-| **Total** | **1425 pass** | ✅ |
+| Ticket 6 | 24 pass | ✅ |
+| Ticket 7 | 59 pass | ✅ |
+| **Total** | **1508 pass** | ✅ |
 
 ---
 

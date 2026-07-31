@@ -160,7 +160,7 @@ function formatTimeAgo(dateStr: string): string {
 
 function getDisplaySeverity(severity: string, confidence?: number): DisplaySeverity {
   if (severity === 'critical') return 'critical';
-  if (severity === 'high' && (confidence ?? 0) >= 85) return 'critical';
+  if (severity === 'high' && (confidence ?? 0) >= 0.85) return 'critical';
   if (severity === 'high') return 'high';
   if (severity === 'medium') return 'medium';
   return 'low';

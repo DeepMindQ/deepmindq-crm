@@ -78,6 +78,54 @@ interface ActionItem {
   createdAt: string;
 }
 
+interface CommandCenterInsights {
+  kpis: {
+    totalAccounts: number;
+    activeSignals: number;
+    avgIntelligenceScore: number;
+    pendingActions: number;
+  };
+  recentSignals: Array<{
+    id: string;
+    companyId: string;
+    companyName: string;
+    signalType: string;
+    title: string;
+    severity: string;
+    impact: string;
+    confidence: number;
+    createdAt: string;
+  }>;
+  topOpportunities: Array<{
+    id: string;
+    companyId: string;
+    companyName: string;
+    industry: string | null;
+    title: string;
+    score: number;
+    confidence: number;
+    priority: string;
+    status: string;
+    createdAt: string;
+  }>;
+  systemHealth: {
+    engines: Array<{ name: string; status: string }>;
+    aiStatus: string;
+  };
+  intelligenceFeed: Array<{
+    id: string;
+    companyId: string;
+    eventType: string;
+    title: string;
+    description: string;
+    createdAt: string;
+  }>;
+  morningBrief?: {
+    greeting: string;
+    executiveSummary: string;
+  };
+}
+
 /* ═══════════════════════════════════════════════════
    Command Center — Intelligence Briefing
    
@@ -100,6 +148,7 @@ export function CommandCenter() {
   const [crossInsights, setCrossInsights] = useState<CrossAccountInsight[]>([]);
   const [loading, setLoading] = useState(true);
   const [briefingLoading, setBriefingLoading] = useState(true);
+  const [insights, setInsights] = useState<CommandCenterInsights | null>(null);
 
   const fetchIntelligence = useCallback(async () => {
     setLoading(true);
@@ -122,21 +171,21 @@ export function CommandCenter() {
         companies: compData.stats?.total ?? companies.length,
         capabilities: capabilities.length,
         signals: signals.length,
-        contacts: companies.reduce((sum: number, c: any) => sum + (c._count?.contacts ?? 0), 0),
+        contacts: companies.reduce((sum: number, c: Record<string, unknown>) => sum + ((c._count as Record<string, number>)?.contacts ?? 0), 0),
       };
       setStats(newStats);
 
       // Rank accounts by intelligence score + signal count
       const ranked = companies
-        .map((c: any) => ({
-          id: c.id,
-          name: c.name || c.rawName || 'Unknown',
-          industry: c.industry,
-          domain: c.domain,
-          score: c.score ?? c.intelligenceScore ?? 0,
-          signalCount: c._count?.signals ?? c.signalCount ?? 0,
-          topSignal: c.topSignal,
-          intelligenceScore: c.intelligenceScore,
+        .map((c: Record<string, unknown>) => ({
+          id: c.id as string,
+          name: (c.name || c.rawName || 'Unknown') as string,
+          industry: c.industry as string | null,
+          domain: c.domain as string | null,
+          score: (c.score ?? c.intelligenceScore ?? 0) as number,
+          signalCount: (c._count as Record<string, number>)?.signals ?? (c.signalCount as number) ?? 0,
+          topSignal: c.topSignal as string | undefined,
+          intelligenceScore: c.intelligenceScore as number | undefined,
         }))
         .sort((a: PriorityAccount, b: PriorityAccount) => (b.score + b.signalCount) - (a.score + a.signalCount))
         .slice(0, 8);
@@ -258,13 +307,37 @@ export function CommandCenter() {
     }
   }, [topAccounts]);
 
+  const fetchUnifiedInsights = useCallback(async () => {
+    try {
+      const res = await fetch('/api/command-center/insights');
+      if (res.ok) {
+        const json = await res.json();
+        // Support both envelope { success, data } and direct response
+        const data = json.success ? json.data : json;
+        setInsights(data);
+        // Update stats from KPIs
+        if (data.kpis) {
+          setStats({
+            companies: data.kpis.totalAccounts,
+            capabilities: stats.capabilities,
+            signals: data.kpis.activeSignals,
+            contacts: stats.contacts,
+          });
+        }
+      }
+    } catch (err) {
+      logger.error('Command Center unified insights fetch error:', { error: err });
+    }
+  }, [stats.capabilities, stats.contacts]);
+
   useEffect(() => {
     if (intelligenceActivated) {
       fetchIntelligence();
+      fetchUnifiedInsights();
     } else {
       setLoading(false);
     }
-  }, [intelligenceActivated, fetchIntelligence]);
+  }, [intelligenceActivated, fetchIntelligence, fetchUnifiedInsights]);
 
   useEffect(() => {
     if (intelligenceActivated && topAccounts.length > 0 && !loading) {
@@ -358,6 +431,20 @@ export function CommandCenter() {
           <h1 className="text-xl font-bold tracking-tight text-foreground">
             Command Center
           </h1>
+          {insights?.morningBrief?.greeting && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mb-4"
+            >
+              <p className="text-lg font-semibold text-transparent bg-clip-text bg-gradient-to-r from-amber-400 to-orange-500">
+                {insights.morningBrief.greeting}
+              </p>
+              {insights.morningBrief.executiveSummary && (
+                <p className="text-sm text-gray-400 mt-1 leading-relaxed">{insights.morningBrief.executiveSummary}</p>
+              )}
+            </motion.div>
+          )}
           <p className="text-sm text-muted-foreground mt-0.5">
             What should I focus on today?
           </p>
@@ -416,6 +503,51 @@ export function CommandCenter() {
           </motion.div>
         ))}
       </div>
+
+      {/* Ticket 5: Spec KPI Cards */}
+      {insights?.kpis && (
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+          {[
+            { label: 'Total Accounts', value: insights.kpis.totalAccounts, icon: Building2, color: 'text-blue-600 bg-blue-50' },
+            { label: 'Active Signals', value: insights.kpis.activeSignals, icon: Zap, color: 'text-amber-600 bg-amber-50' },
+            { label: 'Avg Intel Score', value: insights.kpis.avgIntelligenceScore, icon: TrendingUp, color: 'text-emerald-600 bg-emerald-50' },
+            { label: 'Pending Actions', value: insights.kpis.pendingActions, icon: Target, color: 'text-violet-600 bg-violet-50' },
+          ].map(kpi => (
+            <div key={kpi.label} className="rounded-xl bg-gray-900/50 border border-gray-700/50 p-4">
+              <div className="flex items-center gap-3">
+                <div className={`size-9 rounded-lg ${kpi.color} flex items-center justify-center`}>
+                  <kpi.icon className="size-4" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-white tabular-nums">{kpi.value}</p>
+                  <p className="text-xs text-gray-400">{kpi.label}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Ticket 5: System Health */}
+      {insights?.systemHealth && (
+        <div className="rounded-xl bg-gray-900/50 border border-gray-700/50 p-4">
+          <div className="flex items-center justify-between">
+            <h3 className="text-sm font-semibold text-gray-300">System Health</h3>
+            <div className="flex items-center gap-2">
+              <div className={`size-2 rounded-full ${insights.systemHealth.aiStatus === 'available' ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+              <span className="text-xs text-gray-400">{insights.systemHealth.aiStatus}</span>
+            </div>
+          </div>
+          <div className="flex gap-4 mt-3">
+            {insights.systemHealth.engines.map(eng => (
+              <div key={eng.name} className="flex items-center gap-1.5">
+                <div className={`size-1.5 rounded-full ${eng.status === 'healthy' ? 'bg-emerald-500' : 'bg-red-500'}`} />
+                <span className="text-[11px] text-gray-500">{eng.name.replace(' Engine', '')}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Cross-Account Intelligence Insights */}
       <AnimatePresence>
@@ -625,6 +757,55 @@ export function CommandCenter() {
           </div>
         </motion.div>
       </div>
+
+      {/* Ticket 5: Top Opportunities Table */}
+      {insights?.topOpportunities && insights.topOpportunities.length > 0 && (
+        <div className="rounded-xl bg-gray-900/50 border border-gray-700/50 p-5">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-gray-300">Top Opportunities</h3>
+            <Badge variant="secondary" className="text-[10px]">{insights.topOpportunities.length}</Badge>
+          </div>
+          <div className="space-y-2">
+            {insights.topOpportunities.slice(0, 5).map(opp => (
+              <div
+                key={opp.id}
+                className="flex items-center justify-between p-3 rounded-lg bg-gray-800/50 hover:bg-gray-800 transition-colors cursor-pointer"
+                onClick={() => { setSelectedCompanyId(opp.companyId); setActiveView('companies'); }}
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-gray-200 truncate">{opp.companyName}</p>
+                  <p className="text-xs text-gray-500 truncate">{opp.title || opp.industry || '—'}</p>
+                </div>
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="text-right">
+                    <p className="text-sm font-bold text-white tabular-nums">{opp.score}</p>
+                    <p className="text-[10px] text-gray-500 uppercase">{opp.priority}</p>
+                  </div>
+                  <ChevronRight className="size-4 text-gray-600" />
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Ticket 5: Intelligence Feed */}
+      {insights?.intelligenceFeed && insights.intelligenceFeed.length > 0 && (
+        <div className="rounded-xl bg-gray-900/50 border border-gray-700/50 p-5">
+          <h3 className="text-sm font-semibold text-gray-300 mb-4">Intelligence Feed</h3>
+          <div className="space-y-2">
+            {insights.intelligenceFeed.slice(0, 8).map(item => (
+              <div key={item.id} className="flex items-start gap-3 p-2 rounded-lg hover:bg-gray-800/30 transition-colors">
+                <Clock className="size-3.5 text-gray-600 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-300 truncate">{item.title}</p>
+                  <p className="text-[10px] text-gray-600 mt-0.5">{item.eventType} · {new Date(item.createdAt).toLocaleDateString()}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Intelligence Search Prompt */}
       <motion.div

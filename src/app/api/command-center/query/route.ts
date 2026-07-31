@@ -1,7 +1,15 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
+import {
+  utilityGuard,
+  utilityCatchError,
+  utilitySuccess,
+  utilityError,
+  RateLimitedError,
+} from '@/lib/intelligence-api/guard';
+import { z } from 'zod';
 
 /* ═══════════════════════════════════════════════════════════════════
    AI Command Center — Natural Language Query (v2)
@@ -20,12 +28,18 @@ interface QueryResult {
   query: string;
   interpretation: string;
   engine: 'company' | 'email' | 'capability' | 'general';
-  data: any;
+  data: Record<string, unknown> | Record<string, unknown>[];
   summary: string;
   aiInsights?: string[];
   suggestedFollowUp?: string[];
   aiProcessed?: boolean;
 }
+
+// ── Zod schema for POST body validation ──
+const querySchema = z.object({
+  query: z.string().min(1, 'Query is required').max(1000, 'Query too long'),
+  limit: z.number().min(1).max(200).optional(),
+});
 
 // ── LLM helper — governed aggregate call ─────────────
 
@@ -46,7 +60,7 @@ async function llmChat(systemPrompt: string, userPrompt: string): Promise<string
   }
 }
 
-async function webSearch(query: string, num = 5): Promise<any[]> {
+async function webSearch(query: string, num = 5): Promise<Array<{ title: string; snippet: string; url: string }>> {
   try {
     const { sdkWebSearch } = await import('@/lib/llm-client');
     return (await sdkWebSearch(query, num)).map(r => ({ title: r.title, snippet: r.snippet, url: r.url }));
@@ -72,7 +86,7 @@ interface DataFetch {
     | 'sendQueue'
     | 'emailTemplates'
     | 'sequences';
-  filters: Record<string, any>;
+  filters: Record<string, string | number | boolean>;
   orderBy?: string;
   orderDir?: 'asc' | 'desc';
   limit?: number;
@@ -170,11 +184,11 @@ function parsePlan(raw: string | null): QueryPlan | null {
 
 // ── Data Fetcher (translates plan → Prisma calls) ─────────────────
 
-function asSafeArray(val: unknown): any[] {
+function asSafeArray(val: unknown): Record<string, unknown>[] {
   return Array.isArray(val) ? val : [];
 }
 
-async function executeFetch(fetch: DataFetch): Promise<{ source: string; data: any[] }> {
+async function executeFetch(fetch: DataFetch): Promise<{ source: string; data: Record<string, unknown>[] }> {
   try {
     const where: Record<string, any> = {};
     const filters = fetch.filters ?? {};
@@ -538,11 +552,27 @@ async function legacyKeywordQuery(query: string): Promise<QueryResult> {
 // ── Main Route Handler ────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
+  const startedAt = Date.now();
+
+  // ── Guard ──
+  let ctx: ReturnType<typeof utilityGuard>;
   try {
-    const { query } = await req.json();
-    if (!query || typeof query !== 'string') {
-      return NextResponse.json({ error: 'Query is required' }, { status: 400 });
+    ctx = utilityGuard(req, 'command-center-query');
+  } catch (err) {
+    if (err instanceof RateLimitedError) {
+      return new Response(JSON.stringify(err.errorBody), { status: 429, headers: err.headers });
     }
+    throw err;
+  }
+
+  try {
+    const body = await req.json();
+    const parsed = querySchema.safeParse(body);
+    if (!parsed.success) {
+      const msg = parsed.error.issues[0]?.message || 'Validation failed';
+      return utilityError(ctx, 400, msg, 'VALIDATION_FAILED', Date.now() - startedAt);
+    }
+    const { query } = parsed.data;
 
     // ── Attempt AI-powered two-pass pipeline ──
     try {
@@ -553,7 +583,7 @@ export async function POST(req: NextRequest) {
       if (!plan || plan.dataFetches.length === 0) {
         logger.warn('[CommandCenter] LLM plan was empty or unparseable, falling back to keyword matching');
         const fallback = await legacyKeywordQuery(query);
-        return NextResponse.json(fallback);
+        return utilitySuccess(ctx, fallback, 'command-center-query', Date.now() - startedAt);
       }
 
       // Execute all data fetches in parallel
@@ -605,16 +635,15 @@ export async function POST(req: NextRequest) {
         aiProcessed: true,
       };
 
-      return NextResponse.json(result);
+      return utilitySuccess(ctx, result, 'command-center-query', Date.now() - startedAt);
     } catch (aiError) {
       // AI pipeline failed — fall back to keyword matching
       logger.error('[CommandCenter] AI pipeline failed, falling back:', { error: aiError });
       const fallback = await legacyKeywordQuery(query);
-      return NextResponse.json(fallback);
+      return utilitySuccess(ctx, fallback, 'command-center-query', Date.now() - startedAt);
     }
   } catch (error) {
-    logger.error('[Command Center Query]', { error: error });
-    return NextResponse.json({ error: 'Query processing failed' }, { status: 500 });
+    return utilityCatchError(ctx, error, 500, 'ENGINE_ERROR', 'Query processing failed', Date.now() - startedAt);
   }
 }
 

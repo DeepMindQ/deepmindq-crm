@@ -1,16 +1,40 @@
-import { NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import {
+  utilityGuard,
+  utilityCatchError,
+  utilitySuccess,
+  RateLimitedError,
+} from '@/lib/intelligence-api/guard';
 
 /**
  * GET /api/dashboard/stats
  *
  * Aggregated command-center stats — companies, contacts, signals,
  * insights, opportunities, risks, and recommended actions, plus
- * simple "today" deltas used by the metric cards on the AI Command
- * Center screen.
+ * "today" deltas and avgIntelligenceScore used by metric cards.
+ *
+ * Uses utilityGuard for rate limiting, correlation-id, scrubError.
+ * Returns proper error responses instead of masking 500 as 200.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const startedAt = Date.now();
+
+  // ── Guard ──
+  let ctx: ReturnType<typeof utilityGuard>;
+  try {
+    ctx = utilityGuard(request, 'dashboard-stats');
+  } catch (err) {
+    if (err instanceof RateLimitedError) {
+      return new Response(JSON.stringify(err.errorBody), {
+        status: 429,
+        headers: err.headers,
+      });
+    }
+    throw err;
+  }
+
   try {
     const now = new Date();
     const startOfToday = new Date(now);
@@ -24,6 +48,7 @@ export async function GET() {
       opportunities,
       risks,
       recommendations,
+      avgScoreResult,
       newSignalsToday,
       newOpportunitiesToday,
       newRisksToday,
@@ -44,6 +69,10 @@ export async function GET() {
         },
       }),
       db.aIInsight.count({ where: { status: 'active', type: 'RECOMMENDATION' } }),
+      db.company.aggregate({
+        where: { status: { not: 'archived' }, intelligenceScore: { gte: 0 } },
+        _avg: { intelligenceScore: true },
+      }),
       db.companySignal.count({ where: { createdAt: { gte: startOfToday } } }),
       db.opportunityRecommendation.count({ where: { createdAt: { gte: startOfToday } } }),
       db.companySignal.count({
@@ -81,7 +110,7 @@ export async function GET() {
     const byInsightType: Record<string, number> = {};
     for (const g of insightsByType) byInsightType[g.type as string] = g._count.type;
 
-    return NextResponse.json({
+    return utilitySuccess(ctx, {
       companies,
       contacts,
       signals,
@@ -89,6 +118,7 @@ export async function GET() {
       opportunities,
       risks,
       recommendations,
+      avgIntelligenceScore: Math.round(avgScoreResult._avg?.intelligenceScore ?? 0),
       today: {
         newSignals: newSignalsToday,
         newOpportunities: newOpportunitiesToday,
@@ -100,31 +130,15 @@ export async function GET() {
         signalsByType: bySignalType,
         insightsByType: byInsightType,
       },
-    });
-  } catch (error) {
-    logger.error('[dashboard/stats] error:', { error: error });
-    return NextResponse.json(
-      {
-        companies: 0,
-        contacts: 0,
-        signals: 0,
-        insights: 0,
-        opportunities: 0,
-        risks: 0,
-        recommendations: 0,
-        today: {
-          newSignals: 0,
-          newOpportunities: 0,
-          newRisks: 0,
-          newRecommendations: 0,
-        },
-        breakdown: {
-          signalsByImpact: {},
-          signalsByType: {},
-          insightsByType: {},
-        },
-      },
-      { status: 200 }
+    }, 'dashboard-stats', Date.now() - startedAt);
+  } catch (err) {
+    return utilityCatchError(
+      ctx,
+      err,
+      502,
+      'INTELLIGENCE_UNAVAILABLE',
+      'Dashboard stats fetch failed',
+      Date.now() - startedAt,
     );
   }
 }

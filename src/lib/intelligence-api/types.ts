@@ -8,6 +8,10 @@
  *
  * Each endpoint returns an IntelligenceResponse<T> wrapper with
  * metadata about the request, caching, and confidence.
+ *
+ * IntelligenceEndpoint defines 10 endpoints: 7 core routes under /api/intelligence/
+ * (company, reasoning, opportunity, action, conversation, mindmap, brief) plus 3
+ * auxiliary routes outside (grounding, retrieval, knowledge).
  */
 
 import type { RevenueScore } from '@/lib/engines/scoring-engine';
@@ -39,7 +43,7 @@ export interface IntelligenceMeta {
   includes: string[];       // which ?include= params were fulfilled
   confidence: number;         // 0-1 aggregate confidence of the response
   freshness: FreshnessInfo;
-  /** Ticket 3: Governance metadata — present when AI generation was involved */
+  /** Governance metadata — present when AI generation was involved */
   governance?: {
     passed: boolean;
     generationType?: string;
@@ -104,7 +108,7 @@ export type IntelligenceInclude =
 // ═══════════════════════════════════════════════════════════════════════════════
 
 export interface FreshnessInfo {
-  level: 'realtime' | 'fresh' | 'aging' | 'stale' | 'unknown';
+  level: 'realtime' | 'fresh' | 'aging' | 'stale' | 'very_stale' | 'unknown';
   lastEnriched: string | null;   // ISO 8601
   lastSignal: string | null;     // ISO 8601 (falls back to lastActivityAt)
   score: number;               // 0-100
@@ -257,7 +261,7 @@ export interface IntelligenceTimelineEvent {
 }
 
 export interface IntelligenceBrief {
-  /** Brief type (account_brief, deal_strategy, etc.) */
+  /** Brief type (account_brief, deal_strategy, exec_summary, contact_brief, opportunity_brief) */
   briefType: string;
   /** Full Markdown content */
   content: string;
@@ -370,8 +374,8 @@ export interface IntelligenceOpportunity {
   };
   // ?include=fusion
   fusion?: Array<{
-    externalSignal: string;
-    internalCapability: string;
+    externalSignal: string | string[];
+    internalCapability: string | string[];
     fusionScore: number;
     businessProblem: string;
     recommendedCapability: string;
@@ -663,6 +667,7 @@ export function getTierColor(tier: string | null | undefined, scoreSystem: 'inte
     case 'Medium': case 'Warm': return '#D97706';
     case 'Low': case 'Cold': return '#F59E0B';
     case 'At Risk': return '#DC2626';
+    case 'Very Stale': return '#9CA3AF';
     default: return '#9CA3AF';
   }
 }

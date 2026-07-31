@@ -28,6 +28,9 @@ const SENSITIVE_PATTERNS = [
   /ssh[_-]?[a-z]+[_-]?key[=\s][^\s]*/gi,
   /aws[_-]?secret[_-]?access[_-]?key[=\s][^\s]*/gi,
   /private[_-]?key[=\s][^\s]*/gi,
+  /redis:\/\/[^\s]+/gi,
+  /amqp:\/\/[^\s]+/gi,
+  /smtp:\/\/[^\s:]+[^\s]*/gi,
 ];
 
 /**
@@ -41,7 +44,13 @@ function scrubError(message: string): string {
   // Truncate long error messages at a safe boundary (before any partial [REDACTED])
   if (scrubbed.length > 500) {
     const safeCut = scrubbed.lastIndexOf('[REDACTED]', 500);
-    scrubbed = (safeCut > 400 ? scrubbed.substring(0, safeCut) : scrubbed.substring(0, 500)) + '...';
+    // Also check we're not mid-Unicode surrogate pair
+    let cutIndex = safeCut > 400 ? safeCut : 500;
+    if (cutIndex < scrubbed.length) {
+      // Walk back to avoid splitting a multi-byte character
+      while (cutIndex > 0 && (scrubbed.charCodeAt(cutIndex) & 0xFC00) === 0xDC00) cutIndex--;
+      scrubbed = scrubbed.substring(0, cutIndex) + '...';
+    }
   }
   return scrubbed;
 }

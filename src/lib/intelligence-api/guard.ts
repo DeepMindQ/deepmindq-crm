@@ -124,7 +124,7 @@ export async function intelligenceGuard(
   if (parseResult.rejected.length > 0) {
     logger.warn('[intelligence-guard] Invalid includes rejected', { correlationId, endpoint, companyId, rejected: parseResult.rejected });
   }
-  logger.info('[intelligence-guard] Request passed', { correlationId, endpoint, companyId, includes: Array.from(parseResult.includes) });
+  logger.info('[intelligence-guard] Request passed', { correlationId, endpoint, companyId, clientIp, includes: Array.from(parseResult.includes) });
 
   return {
     companyId,

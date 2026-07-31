@@ -47,10 +47,20 @@ const briefTypeSchema = z.enum(['account_brief', 'deal_strategy', 'exec_summary'
 const depthSchema = z.enum(['standard', 'deep']);
 const audienceSchema = z.enum(['executive', 'analyst', 'sales']).optional();
 
-/** Strip dangerous HTML from AI-generated content to prevent XSS */
+/** Strip dangerous HTML/JS from AI-generated content to prevent XSS */
 function sanitizeMarkdown(content: string): string {
-  return content.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<iframe[\s\S]*?<\/iframe>/gi, '');
+  return content
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<iframe[\s\S]*?<\/iframe>/gi, '')
+    .replace(/<object[\s\S]*?<\/object>/gi, '')
+    .replace(/<embed[\s\S]*?<\/embed>/gi, '')
+    .replace(/<link[\s\S]*?>/gi, '')
+    .replace(/<meta[\s\S]*?>/gi, '')
+    .replace(/on\w+\s*=/gi, '');
 }
+
+/** Validate focusAreas — only allow alphanumeric, hyphens, underscores */
+const focusAreaSchema = z.string().regex(/^[a-zA-Z0-9_-]+$/, 'Focus area contains invalid characters');
 
 export async function GET(
   request: NextRequest,
@@ -75,9 +85,19 @@ export async function GET(
   const audience = audienceResult.success ? audienceResult.data : undefined;
 
   const focusAreasRaw = request.nextUrl.searchParams.get('focusAreas');
-  const focusAreas = focusAreasRaw
-    ? focusAreasRaw.split(',').map(s => s.trim()).filter(Boolean).slice(0, 10)
-    : undefined;
+  let focusAreas: string[] | undefined;
+  if (focusAreasRaw) {
+    const parts = focusAreasRaw.split(',').map(s => s.trim()).filter(Boolean).slice(0, 10);
+    // C3: Validate each focus area against safe pattern
+    const invalidAreas = parts.filter(p => !focusAreaSchema.safeParse(p).success);
+    if (invalidAreas.length > 0) {
+      return Response.json(
+        createErrorResponse('brief', companyId, `Invalid focusAreas: ${invalidAreas.join(', ')}. Only alphanumeric, hyphens, underscores allowed.`, IntelligenceErrors.VALIDATION_FAILED, Date.now() - startedAt, includes),
+        { status: 400, headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } },
+      );
+    }
+    focusAreas = parts;
+  }
 
   if (!briefTypeResult.success) {
     return Response.json(

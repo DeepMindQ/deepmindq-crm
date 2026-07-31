@@ -84,14 +84,14 @@ export async function GET(
     logger.error('[intelligence/opportunity] DB lookup failed', { companyId, error: rawMessage });
     return Response.json(
       createErrorResponse('opportunity', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, IntelligenceErrors.INTELLIGENCE_UNAVAILABLE, Date.now() - startedAt, guardResult.includes),
-      { status: 500, headers: responseHeaders },
+      { status: 500, headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
   if (!company) {
     return Response.json(
       createErrorResponse('opportunity', companyId, 'Company not found', IntelligenceErrors.COMPANY_NOT_FOUND, Date.now() - startedAt, guardResult.includes),
-      { status: 404, headers: responseHeaders },
+      { status: 404, headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
@@ -199,9 +199,9 @@ export async function GET(
       });
 
       fusionData = fusionResults.map((fr) => ({
-        // Present signal IDs as comma-separated list for readability
-        externalSignal: Array.isArray(fr.signalIds) ? (fr.signalIds as string[]).join(', ') : '',
-        internalCapability: Array.isArray(fr.capabilityIds) ? (fr.capabilityIds as string[]).join(', ') : '',
+        // D4: Keep signal and capability IDs as arrays for frontend flexibility
+        externalSignal: Array.isArray(fr.signalIds) ? (fr.signalIds as string[]) : [],
+        internalCapability: Array.isArray(fr.capabilityIds) ? (fr.capabilityIds as string[]) : [],
         fusionScore: fr.fusionScore,
         businessProblem: fr.businessProblem ?? '',
         recommendedCapability: fr.recommendedCapability ?? '',
@@ -258,7 +258,11 @@ export async function GET(
 
   // ── Step 5: Compute confidence ───────────────────────────────────────────
   const confidences: number[] = [];
-  if (scoring?.success) confidences.push(Math.min(1, (scoring.confidence ?? 0) / 100));
+  // D7: Handle both 0-100 and 0-1 confidence ranges from ScoringEngine
+  if (scoring?.success) {
+    const rawConf = scoring.confidence ?? 0;
+    confidences.push(Math.min(1, rawConf > 1 ? rawConf / 100 : rawConf));
+  }
   if (reasoning?.success) confidences.push((reasoning.overallConfidence ?? 0) / 1);
   const confidence = confidences.length > 0
     ? confidences.reduce((sum, c) => sum + c, 0) / confidences.length

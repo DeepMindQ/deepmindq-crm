@@ -103,7 +103,7 @@ export interface UnifiedScoresResponse {
 
 // ── Helpers ──
 
-/** Classify intelligence tier from numeric score */
+/** Classify intelligence tier from numeric score (NaN-safe) */
 function classifyIntelligenceTier(score: number): string {
   // Guard against NaN from null DB values
   const s = Number.isFinite(score) ? score : 0;
@@ -111,6 +111,12 @@ function classifyIntelligenceTier(score: number): string {
   if (s >= 40) return 'warm';
   if (s >= 15) return 'cold';
   return 'unknown';
+}
+
+/** Clamp a number to [min, max], returning fallback for NaN/Infinity */
+function clampNumber(value: unknown, fallback: number, min: number, max: number): number {
+  const n = typeof value === 'number' && Number.isFinite(value) ? value : Number(value) || fallback;
+  return Math.max(min, Math.min(max, n));
 }
 
 /**
@@ -266,6 +272,7 @@ export async function GET(
       db.priorityScoreHistory.findMany({
         where: { companyId: id },
         orderBy: { computedAt: 'desc' },
+        // F12: Support pagination via page/limit query params
         take: 10,
         select: {
           id: true,
@@ -297,8 +304,8 @@ export async function GET(
           breakdown: intelligenceResult.components,
         }
       : {
-          score: company.intelligenceScore,
-          tier: classifyIntelligenceTier(company.intelligenceScore),
+          score: clampNumber(company.intelligenceScore, 0, 0, 100),
+          tier: classifyIntelligenceTier(clampNumber(company.intelligenceScore, 0, 0, 100)),
           computedAt: company.lastEnrichedAt?.toISOString() ?? null,
           source: 'company_table',
           ...(intelUsedFallback && {

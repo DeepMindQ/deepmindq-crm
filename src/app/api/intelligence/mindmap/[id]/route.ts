@@ -75,14 +75,14 @@ export async function GET(
     logger.error('[intelligence/mindmap] DB lookup failed', { companyId, error: rawMessage });
     return Response.json(
       createErrorResponse('mindmap', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, IntelligenceErrors.INTELLIGENCE_UNAVAILABLE, Date.now() - startedAt, guardResult.includes),
-      { status: 500, headers: responseHeaders },
+      { status: 500, headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
   if (!company) {
     return Response.json(
       createErrorResponse('mindmap', companyId, 'Company not found', IntelligenceErrors.COMPANY_NOT_FOUND, Date.now() - startedAt, guardResult.includes),
-      { status: 404, headers: responseHeaders },
+      { status: 404, headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': 'application/json; charset=utf-8' } },
     );
   }
 
@@ -105,7 +105,7 @@ export async function GET(
         select: { id: true, rawName: true, title: true, role: true, leadScore: true },
         take: 30,
       }).catch((err: unknown) => {
-        logger.debug('[intelligence/mindmap] Failed to load contacts', { companyId, error: err instanceof Error ? err.message : String(err) });
+        logger.warn('[intelligence/mindmap] Failed to load contacts', { companyId, correlationId, error: err instanceof Error ? err.message : String(err) });
         return [];
       }),
       // Load company-linked capabilities via FusionResult (not all assets)
@@ -113,7 +113,7 @@ export async function GET(
         where: { companyId },
         select: { capabilityIds: true },
       }).catch((err: unknown) => {
-        logger.debug('[intelligence/mindmap] Failed to load fusion results', { companyId, error: err instanceof Error ? err.message : String(err) });
+        logger.warn('[intelligence/mindmap] Failed to load fusion results', { companyId, correlationId, error: err instanceof Error ? err.message : String(err) });
         return [];
       }),
       db.companySignal.findMany({
@@ -121,7 +121,7 @@ export async function GET(
         select: { id: true, signalType: true, title: true, confidence: true },
         take: 20,
       }).catch((err: unknown) => {
-        logger.debug('[intelligence/mindmap] Failed to load signals', { companyId, error: err instanceof Error ? err.message : String(err) });
+        logger.warn('[intelligence/mindmap] Failed to load signals', { companyId, correlationId, error: err instanceof Error ? err.message : String(err) });
         return [];
       }),
     ]);

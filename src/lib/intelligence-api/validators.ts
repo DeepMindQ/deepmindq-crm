@@ -1,9 +1,9 @@
 /**
  * Intelligence API — Zod Validation Schemas
  *
- * Validates request parameters for all 6 core Intelligence API endpoints.
+ * Validates request parameters for all 10 intelligence API endpoints.
  * Each schema validates:
- *   - companyId: must be a non-empty string (UUID or NanoID format)
+ *   - companyId: must be a non-empty string (UUID, NanoID, or CUID format)
  *   - include: optional comma-separated list of valid include keys
  *
  * Usage:
@@ -16,14 +16,14 @@ import { VALID_INCLUDES } from './middleware';
 
 // ── Shared building blocks ──────────────────────────────────────────────────
 
-/** Company ID must be a non-empty string (UUID, NanoID, or CUID) — min 3 chars */
+/** Company ID must be a non-empty string (UUID, NanoID, or CUID) — min 3 chars, alphanumeric + hyphens/underscores only */
 export const companyIdSchema = z
   .string()
   .min(3, 'Company ID must be at least 3 characters')
   .max(128, 'Company ID is too long')
   .regex(
     /^[a-zA-Z0-9_-]+$/,
-    'Company ID contains invalid characters'
+    'Company ID contains invalid characters — only letters, numbers, hyphens, and underscores are allowed'
   );
 
 // Valid include keys — imported from middleware (single source of truth).

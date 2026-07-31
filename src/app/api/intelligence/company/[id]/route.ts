@@ -50,6 +50,15 @@ function asRecord(obj: unknown): Record<string, unknown> {
   return (obj && typeof obj === 'object' ? obj : {}) as Record<string, unknown>;
 }
 
+/** E3: Shared intelligence tier classification — mirrors scores/route.ts classifyIntelligenceTier */
+function classifyIntelligenceTier(score: number): string {
+  const s = Number.isFinite(score) ? score : 0;
+  if (s >= 70) return 'hot';
+  if (s >= 40) return 'warm';
+  if (s >= 15) return 'cold';
+  return 'unknown';
+}
+
 // ── Engine references (static object exports, not classes) ──────────────────────
 // ScoringEngine, ActionEngine, ConversationEngine are object literals with static methods
 
@@ -515,9 +524,9 @@ export async function GET(
           }
         }
 
-        // E3: Intelligence tier classification — this logic mirrors scores/route.ts
-        const intelScore = company.intelligenceScore ?? 0;
-        const intelTier = intelScore >= 70 ? 'hot' : intelScore >= 40 ? 'warm' : intelScore >= 15 ? 'cold' : 'unknown';
+        // E3: Use shared tier classification function
+        const intelScore = safeNumber(company.intelligenceScore, 0);
+        const intelTier = classifyIntelligenceTier(intelScore);
 
         scores = {
           intelligence: { score: intelScore, tier: intelTier },
@@ -527,8 +536,9 @@ export async function GET(
           revenue: sr,
           ...(revenueOpportunity && { revenueOpportunity }),
         };
-        // D6: Confidence may already be 0-1 in some code paths; clamp to [0,1]
-        confidences.push(Math.min(1, (sr.confidence ?? 0) / 100));
+        // D6: Clamp confidence to [0,1] — handle both 0-100 and 0-1 range
+        const rawConf = sr.confidence ?? 0;
+        confidences.push(Math.min(1, rawConf > 1 ? rawConf / 100 : rawConf));
       } else if (sr && typeof sr === 'object' && 'error' in sr && sr.error) {
         logger.warn('[intelligence/company] ScoringEngine returned failure', {
           companyId, correlationId,

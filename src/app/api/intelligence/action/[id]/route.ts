@@ -203,7 +203,7 @@ export async function GET(
   // ── Step 5: Compose response data ────────────────────────────────────────
   const data: IntelligenceActionOutput = {
     companyId,
-    // G1: Strip internal engine fields — spread result but suppress `error` from output
+    // G1: Expose ActionResult but suppress internal error field from API response
     ...(actionResult ? { actions: { ...actionResult, error: undefined as unknown as string | null } } : {}),
     ...(wantsLearning ? {
       learningInsights: learningEvents.map((e) => ({

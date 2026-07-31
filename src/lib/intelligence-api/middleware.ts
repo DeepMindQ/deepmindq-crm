@@ -11,6 +11,7 @@
 
 import { NextRequest } from 'next/server';
 import { IntelligenceResponse, IntelligenceMeta, IntelligenceInclude, FreshnessInfo, IntelligenceErrors, IntelligenceEndpoint } from './types';
+import { logger } from '@/lib/logger';
 
 /** Shared security headers applied to all intelligence API responses */
 export const SECURITY_HEADERS: Record<string, string> = {
@@ -143,7 +144,7 @@ export function createResponse<T>(
       respondedAt: (meta.respondedAt || new Date()).toISOString(),
       durationMs: meta.durationMs,
       cached: meta.cached,
-      includes: Array.from(meta.includes),
+      includes: Array.from(meta.includes).sort(),
       confidence: meta.confidence,
       freshness: meta.freshness || { level: 'unknown', lastEnriched: null, lastSignal: null, score: 0 },
       ...(meta.governance ? { governance: meta.governance } : {}),
@@ -167,7 +168,12 @@ export async function runGovernanceMetadata(
       generationType,
       checks: Object.fromEntries(Object.entries(govResult.checks).map(([k, v]) => [k, { passed: v.passed, message: v.message }])),
     };
-  } catch {
+  } catch (err) {
+    logger.warn('[intelligence-api] Governance metadata fetch failed, skipping', {
+      companyId,
+      generationType,
+      error: err instanceof Error ? err.message : String(err),
+    });
     return undefined;
   }
 }
@@ -225,19 +231,20 @@ export function computeFreshness(company: {
 
   const hoursSince = (Date.now() - lastEnriched.getTime()) / (1000 * 60 * 60);
 
-  let level: FreshnessInfo['level'] = 'stale';
+  let level: FreshnessInfo['level'] = 'very_stale';
   let score = 0;
   if (hoursSince < 1) { level = 'realtime'; score = 95; }
   else if (hoursSince < 6) { level = 'fresh'; score = 80; }
   else if (hoursSince < 24) { level = 'fresh'; score = 65; }
   else if (hoursSince < 72) { level = 'aging'; score = 40; }
   else if (hoursSince < 168) { level = 'stale'; score = 20; }
+  // else: very_stale (168+ hours), score = 0
 
   const lastActivity = company.lastActivityAt ? new Date(company.lastActivityAt) : lastEnriched;
   return {
     level,
     lastEnriched: lastEnriched.toISOString(),
-    lastSignal: lastActivity.toISOString(),  // falls back to lastActivityAt
+    lastSignal: lastActivity.toISOString(),
     score,
   };
 }

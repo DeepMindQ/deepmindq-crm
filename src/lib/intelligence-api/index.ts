@@ -58,6 +58,10 @@ export {
   createResponse,
   createErrorResponse,
   computeFreshness,
+  safeNumber,
+  loadCompanyForFreshness,
+  runGovernanceMetadata,
+  SECURITY_HEADERS,
 } from './middleware';
 export type { IntelligenceErrorResponse } from './middleware';
 
@@ -100,3 +104,14 @@ export type {
 // NOTE: Engine internals (GroundingEngine, RetrievalEngine, SynthesisEngine) are NOT
 // re-exported from this barrel. Routes should import them directly from their engine modules.
 // This prevents the API layer from leaking internal composition details to consumers.
+
+// ── Guard utilities (for route handlers) ──
+export {
+  intelligenceGuard,
+  utilityGuard,
+  utilityError,
+  utilityCatchError,
+  utilitySuccess,
+  RateLimitedError,
+} from './guard';
+export type { IntelligenceGuardResult, UtilityErrorCode } from './guard';

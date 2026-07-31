@@ -56,11 +56,19 @@ export async function GET(
   const includeImpact = shouldInclude(guardResult.includes, 'impact');
   const includeRecommendations = shouldInclude(guardResult.includes, 'recommendations');
 
+  // F2: Step pagination — respect page/limit from query params
+  const pageParam = request.nextUrl.searchParams.get('page');
+  const limitParam = request.nextUrl.searchParams.get('limit');
+  const stepPage = pageParam ? Math.max(1, parseInt(pageParam, 10) || 1) : 1;
+  const stepLimit = limitParam ? Math.min(100, Math.max(1, parseInt(limitParam, 10) || 50)) : 50;
+
   logger.info('[intelligence/reasoning] Processing', {
     companyId,
     correlationId,
     includeSteps,
     includes: Array.from(guardResult.includes),
+    stepPage,
+    stepLimit,
   });
 
   // ── Step 1: Load company from DB (for freshness) ────────────────────────
@@ -179,22 +187,24 @@ export async function GET(
         },
       });
 
-      steps = dbSteps.map((step) => ({
-        stepNumber: step.stepNumber,
-        stepName: step.stepName,
-        status: step.output !== null && step.output !== undefined && String(step.output).trim() !== ''
-          ? 'completed' as const
-          : step.aiCalls > 0
+      steps = dbSteps
+        .slice((stepPage - 1) * stepLimit, stepPage * stepLimit)
+        .map((step) => ({
+          stepNumber: step.stepNumber,
+          stepName: step.stepName,
+          status: step.output !== null && step.output !== undefined && String(step.output).trim() !== ''
             ? 'completed' as const
-            : 'pending' as const,
-        output: (() => { try { return typeof step.output === 'string' ? step.output : JSON.stringify(step.output); } catch { return String(step.output ?? ''); } })(),
-        summary: step.summary,
-        confidence: step.confidence,
-        durationMs: step.durationMs,
-        aiCalls: step.aiCalls,
-        tokensUsed: step.tokensUsed,
-        costUsd: step.costUsd,
-      }));
+            : step.aiCalls > 0
+              ? 'completed' as const
+              : 'pending' as const,
+          output: (() => { try { return typeof step.output === 'string' ? step.output : JSON.stringify(step.output); } catch { return String(step.output ?? ''); } })(),
+          summary: step.summary,
+          confidence: step.confidence,
+          durationMs: step.durationMs,
+          aiCalls: step.aiCalls,
+          tokensUsed: step.tokensUsed,
+          costUsd: step.costUsd,
+        }));
     } catch (err) {
       logger.warn('[intelligence/reasoning] Failed to fetch reasoning steps', {
         companyId,
@@ -236,7 +246,7 @@ export async function GET(
     totalAIcalls: result.totalAIcalls,
     totalTokensUsed: result.totalTokensUsed,
     totalCostUsd: result.totalCostUsd,
-    durationMs: result.durationMs + (Date.now() - startedAt),  // engine build time + route overhead
+    durationMs: Date.now() - startedAt,  // total route duration (includes engine build time)
     summary: steps.length > 0 ? `Completed ${result.completedSteps}/${result.totalSteps} reasoning steps with ${result.overallConfidence.toFixed(1)}% confidence` : null,
     steps,
     ...(includeImpact ? {

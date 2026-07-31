@@ -117,7 +117,7 @@ export async function GET(
     });
   } catch (err) {
     const rawMessage = err instanceof Error ? err.message : 'Unknown error';
-    logger.error('[intelligence/conversation] DB lookup failed', { companyId, error: rawMessage });
+    logger.error('[intelligence/conversation] DB lookup failed', { companyId, correlationId, error: rawMessage });
     return Response.json(
       createErrorResponse('conversation', companyId, `Company lookup failed: ${scrubError(rawMessage)}`, IntelligenceErrors.INTELLIGENCE_UNAVAILABLE, Date.now() - startedAt, guardResult.includes),
       { status: 500, headers: { ...SECURITY_HEADERS, ...responseHeaders, 'Content-Type': 'application/json; charset=utf-8' } },
@@ -234,7 +234,8 @@ export async function GET(
   // ── Step 5: Compose response data ────────────────────────────────────────
   const data: IntelligenceConversationOutput = {
     companyId,
-    ...(conversationResult ? { conversation: conversationResult } : {}),
+    // G2: Expose ConversationResult but suppress internal error field from API response
+    ...(conversationResult ? { conversation: { ...conversationResult, error: undefined as unknown as string | null } as unknown as ConversationResult } : {}),
     ...(brief ? { brief } : {}),
     ...(shouldInclude(guardResult.includes, 'talkingPoints') && {
       talkingPoints: keyThemes.map(t => ({ topic: t, context: '', confidence: brief?.confidence ?? 0 })),
@@ -271,6 +272,7 @@ export async function GET(
 
   logger.info('[intelligence/conversation] Response assembled', {
     companyId,
+    correlationId,
     durationMs,
     confidence,
     learningCount: learningEvents.length,

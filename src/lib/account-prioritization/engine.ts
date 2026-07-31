@@ -72,18 +72,35 @@ const DEFAULT_ICP: ICPProfile = {
   excludeIndustries: [],
 };
 
+// F8: Simple in-memory ICP cache (5 minute TTL)
+let icpCache: { profile: ICPProfile; fetchedAt: number } | null = null;
+const ICP_CACHE_TTL_MS = 5 * 60 * 1000;
+
 export async function getICPProfile(): Promise<ICPProfile> {
+  // Return cached profile if still valid
+  if (icpCache && Date.now() - icpCache.fetchedAt < ICP_CACHE_TTL_MS) {
+    return icpCache.profile;
+  }
   try {
     const setting = await db.systemSetting.findUnique({
       where: { key: 'icp_profile' },
     });
     if (setting?.value) {
-      return { ...DEFAULT_ICP, ...JSON.parse(setting.value) };
+      const profile = { ...DEFAULT_ICP, ...JSON.parse(setting.value) };
+      icpCache = { profile, fetchedAt: Date.now() };
+      return profile;
     }
   } catch (e) {
     logger.error('[ICP] Failed to load profile, using defaults', { error: e instanceof Error ? e.message : String(e), errorType: e instanceof Error ? e.constructor.name : typeof e });
   }
+  // Cache default profile too to avoid repeated DB misses
+  icpCache = { profile: DEFAULT_ICP, fetchedAt: Date.now() };
   return DEFAULT_ICP;
+}
+
+/** Invalidate ICP cache (call after ICP profile updates) */
+export function invalidateICPCache(): void {
+  icpCache = null;
 }
 
 // ── Tier Classification ──
@@ -273,7 +290,8 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
   });
 
   if (!company) {
-    logger.warn('[account-priority] Company not found', { companyId });
+    // B10: Return structured result instead of throwing — callers can handle gracefully
+    logger.error('[account-priority] Company not found', { companyId });
     throw new Error(`Company ${companyId} not found`);
   }
 

@@ -85,9 +85,11 @@ export function ScoreGauge({
   segments,
   className,
 }: ScoreGaugeProps) {
+  // A18: Clamp score to 0-100 to prevent visual overflow
+  const clampedScore = Math.max(0, Math.min(100, score));
   const r = (size - strokeWidth) / 2
   const circ = 2 * Math.PI * r
-  const offset = circ - (score / 100) * circ
+  const offset = circ - (clampedScore / 100) * circ
   const getColor = (s: number) =>
     s >= 80 ? '#059669' : s >= 60 ? '#D97706' : s >= 40 ? '#F59E0B' : '#DC2626'
 
@@ -98,14 +100,14 @@ export function ScoreGauge({
           <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
           <circle
             cx={size/2} cy={size/2} r={r}
-            fill="none" stroke={getColor(score)} strokeWidth={strokeWidth}
+            fill="none" stroke={getColor(clampedScore)} strokeWidth={strokeWidth}
             strokeDasharray={circ} strokeDashoffset={offset}
             strokeLinecap="round"
             className="transition-all duration-700 ease-out"
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-3xl font-bold text-gray-900 tabular-nums">{score}</span>
+          <span className="text-3xl font-bold text-gray-900 tabular-nums">{clampedScore}</span>
           <span className="text-[11px] uppercase tracking-wider text-gray-400 font-medium mt-0.5">of 100</span>
         </div>
       </div>

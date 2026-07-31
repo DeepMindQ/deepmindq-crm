@@ -713,3 +713,21 @@ Stage Summary:
 - tsc --noEmit: 0 errors
 - vitest: 1425 pass, 14 skipped
 - governance shell check: 9/9 PASS
+
+---
+Task ID: t4-deep-gap-analysis
+Agent: main
+Task: Ticket 4 — Deep Gap Analysis and Fixture Report
+
+Work Log:
+- Performed deepest-of-deep line-by-line audit of all Ticket 4 files
+- Read and cross-referenced: engine.ts (529 lines), account-scoring.ts (413 lines), account-scorer.ts (124 lines), scores/route.ts (243 lines), company/[id]/route.ts (605 lines), types.ts (563 lines), design-system.tsx (390 lines), company-profile-screen.tsx (1788 lines), all test files, Prisma schema, guard.ts, intelligence-contract.ts
+- Identified 52 total gaps: 4 CRITICAL, 14 HIGH, 18 MEDIUM, 16 LOW
+- Generated comprehensive PDF gap analysis report with fixtures and remediation plan
+- Report includes: executive summary, gap tables by severity, test fixture code, remediation priority plan, cross-file reference map
+
+Stage Summary:
+- PDF report saved to /home/z/my-project/download/Ticket4_Deep_Gap_Analysis.pdf (13 pages)
+- Key CRITICAL findings: (1) scores route has no guard/rate-limit/scrubError, (2) ticket4 tests are tautological placeholders, (3) AT_RISK never returned by new scorer, (4) revenue-score route leaks raw errors
+- Key HIGH findings: tier classification inconsistency across 3 systems, deprecated scorer format can corrupt scores endpoint data, missing sub-function unit tests
+- Remediation plan: Phase 1 (8h must-fix), Phase 2 (11.5h should-fix), Phase 3 (9h backlog)

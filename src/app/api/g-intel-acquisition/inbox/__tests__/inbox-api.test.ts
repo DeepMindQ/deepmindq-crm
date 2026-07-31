@@ -1,9 +1,10 @@
 /**
  * Ticket 10 — Intelligence Inbox API Route Tests
  *
- * Tests cover all 4 API endpoints:
- * - GET /api/g-intel-acquisition/inbox/stats
- * - GET /api/g-intel-acquisition/inbox
+ * Tests cover all 6 API endpoints:
+ * - GET  /api/g-intel-acquisition/inbox/stats
+ * - GET  /api/g-intel-acquisition/inbox
+ * - POST /api/g-intel-acquisition/inbox (submit)
  * - POST /api/g-intel-acquisition/inbox/[id]/review
  * - POST /api/g-intel-acquisition/inbox/[id]/convert
  * - POST /api/g-intel-acquisition/inbox/[id]/dismiss
@@ -21,12 +22,14 @@ const {
   mockReviewInboxItem,
   mockConvertApprovedItem,
   mockDismissInboxItem,
+  mockSubmitToIntelligenceInbox,
 } = vi.hoisted(() => ({
   mockGetInboxStats: vi.fn(),
   mockGetInboxItems: vi.fn(),
   mockReviewInboxItem: vi.fn(),
   mockConvertApprovedItem: vi.fn(),
   mockDismissInboxItem: vi.fn(),
+  mockSubmitToIntelligenceInbox: vi.fn(),
 }))
 
 vi.mock('@/lib/intelligence-sources/human-intelligence', () => ({
@@ -35,6 +38,7 @@ vi.mock('@/lib/intelligence-sources/human-intelligence', () => ({
   reviewInboxItem: mockReviewInboxItem,
   convertApprovedItem: mockConvertApprovedItem,
   dismissInboxItem: mockDismissInboxItem,
+  submitToIntelligenceInbox: mockSubmitToIntelligenceInbox,
 }))
 
 // ═══════════════════════════════════════════════════════════════
@@ -385,5 +389,209 @@ describe('POST /api/g-intel-acquisition/inbox/[id]/dismiss', () => {
     const res = await POST(req as any, { params: Promise.resolve({ id: 'missing' }) })
 
     expect(res.status).toBe(404)
+  })
+})
+
+// ═══════════════════════════════════════════════════════════════
+// Submit API (POST /api/g-intel-acquisition/inbox)
+// ═══════════════════════════════════════════════════════════════
+
+describe('POST /api/g-intel-acquisition/inbox', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('submits new intelligence and returns created item in apiSuccess envelope', async () => {
+    const { POST } = await import('../route')
+
+    const createdItem = {
+      id: 'inbox-new',
+      companyId: 'co-1',
+      submittedBy: 'user-1',
+      content: 'Acme Corp is expanding into APAC',
+      status: 'pending',
+      priority: 'normal',
+      source: 'manual',
+    }
+    mockSubmitToIntelligenceInbox.mockResolvedValue(createdItem)
+
+    const req = new Request('http://localhost/api/g-intel-acquisition/inbox', {
+      method: 'POST',
+      body: JSON.stringify({
+        companyId: 'co-1',
+        submittedBy: 'user-1',
+        content: 'Acme Corp is expanding into APAC',
+      }),
+    })
+    const res = await POST(req as any)
+    const json = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(json.success).toBe(true)
+    expect(json.data.id).toBe('inbox-new')
+    expect(json.data.status).toBe('pending')
+    expect(json.timestamp).toBeDefined()
+  })
+
+  it('returns 400 when companyId is missing', async () => {
+    const { POST } = await import('../route')
+
+    const req = new Request('http://localhost/api/g-intel-acquisition/inbox', {
+      method: 'POST',
+      body: JSON.stringify({ submittedBy: 'user-1', content: 'Some intel' }),
+    })
+    const res = await POST(req as any)
+    const json = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(json.success).toBe(false)
+    expect(json.error).toContain('companyId')
+  })
+
+  it('returns 400 when submittedBy is missing', async () => {
+    const { POST } = await import('../route')
+
+    const req = new Request('http://localhost/api/g-intel-acquisition/inbox', {
+      method: 'POST',
+      body: JSON.stringify({ companyId: 'co-1', content: 'Some intel' }),
+    })
+    const res = await POST(req as any)
+    const json = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(json.error).toContain('submittedBy')
+  })
+
+  it('returns 400 when content is empty', async () => {
+    const { POST } = await import('../route')
+
+    const req = new Request('http://localhost/api/g-intel-acquisition/inbox', {
+      method: 'POST',
+      body: JSON.stringify({ companyId: 'co-1', submittedBy: 'user-1', content: '   ' }),
+    })
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(400)
+  })
+
+  it('returns 400 when priority is invalid', async () => {
+    const { POST } = await import('../route')
+
+    const req = new Request('http://localhost/api/g-intel-acquisition/inbox', {
+      method: 'POST',
+      body: JSON.stringify({
+        companyId: 'co-1',
+        submittedBy: 'user-1',
+        content: 'Some intel',
+        priority: 'urgent',
+      }),
+    })
+    const res = await POST(req as any)
+    const json = await res.json()
+
+    expect(res.status).toBe(400)
+    expect(json.error).toContain('Invalid priority')
+  })
+
+  it('returns 404 when company does not exist', async () => {
+    const { POST } = await import('../route')
+
+    mockSubmitToIntelligenceInbox.mockRejectedValue(
+      new Error('Company with id "missing" not found.'),
+    )
+
+    const req = new Request('http://localhost/api/g-intel-acquisition/inbox', {
+      method: 'POST',
+      body: JSON.stringify({
+        companyId: 'missing',
+        submittedBy: 'user-1',
+        content: 'Some intel',
+      }),
+    })
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(404)
+  })
+
+  it('returns 400 when category is invalid', async () => {
+    const { POST } = await import('../route')
+
+    mockSubmitToIntelligenceInbox.mockRejectedValue(
+      new Error('Invalid category "bad_cat". Must be one of: Strategy, Technology'),
+    )
+
+    const req = new Request('http://localhost/api/g-intel-acquisition/inbox', {
+      method: 'POST',
+      body: JSON.stringify({
+        companyId: 'co-1',
+        submittedBy: 'user-1',
+        content: 'Some intel',
+        category: 'bad_cat',
+      }),
+    })
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(400)
+  })
+
+  it('passes all fields including tags to submitToIntelligenceInbox', async () => {
+    const { POST } = await import('../route')
+
+    mockSubmitToIntelligenceInbox.mockResolvedValue({ id: 'inbox-1' })
+
+    const req = new Request('http://localhost/api/g-intel-acquisition/inbox', {
+      method: 'POST',
+      body: JSON.stringify({
+        companyId: 'co-1',
+        submittedBy: 'user-1',
+        content: 'Intel content',
+        summary: 'Short summary',
+        category: 'Strategy',
+        priority: 'high',
+        tags: ['expansion', 'apac'],
+        sourceUrl: 'https://example.com',
+      }),
+    })
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(200)
+    expect(mockSubmitToIntelligenceInbox).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companyId: 'co-1',
+        submittedBy: 'user-1',
+        content: 'Intel content',
+        summary: 'Short summary',
+        category: 'Strategy',
+        priority: 'high',
+        tags: ['expansion', 'apac'],
+        sourceUrl: 'https://example.com',
+      }),
+    )
+  })
+
+  it('sanitizes content, summary, sourceUrl, and submittedBy', async () => {
+    const { POST } = await import('../route')
+
+    mockSubmitToIntelligenceInbox.mockResolvedValue({ id: 'inbox-1' })
+
+    const req = new Request('http://localhost/api/g-intel-acquisition/inbox', {
+      method: 'POST',
+      body: JSON.stringify({
+        companyId: 'co-1',
+        submittedBy: '<script>xss</script>',
+        content: '<b>Intel</b>',
+        summary: '<i>Summary</i>',
+        sourceUrl: 'https://example.com',
+      }),
+    })
+    const res = await POST(req as any)
+
+    expect(res.status).toBe(200)
+    const callArgs = mockSubmitToIntelligenceInbox.mock.calls[0][0]
+    // The sanitize helper strips HTML tags — verify fields are cleaned
+    expect(callArgs.submittedBy).not.toContain('<script>')
+    expect(callArgs.content).not.toContain('<b>')
+    expect(callArgs.summary).not.toContain('<i>')
+    expect(callArgs.sourceUrl).toBe('https://example.com')
   })
 })

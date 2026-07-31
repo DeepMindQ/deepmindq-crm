@@ -46,12 +46,12 @@ export interface InboxStats {
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
-/** Ensure tags are stored as a JSON string array. */
-function serializeTags(tags?: string[]): string {
+/** Normalise tags to a JSON-compatible array for Prisma Json field. */
+function normalizeTags(tags?: string[]): string[] {
   if (!tags || !Array.isArray(tags)) {
-    return JSON.stringify([]);
+    return [];
   }
-  return JSON.stringify(tags);
+  return tags;
 }
 
 /** Validate that a category string is a recognised KnowledgeCategory. */
@@ -87,7 +87,7 @@ export async function submitToIntelligenceInbox(
     validateCategory(input.category);
   }
 
-  const tagsJson = serializeTags(input.tags);
+  const tagsArray = normalizeTags(input.tags);
 
   return db.humanIntelligenceInbox.create({
     data: {
@@ -100,7 +100,7 @@ export async function submitToIntelligenceInbox(
       sourceUrl: input.sourceUrl ?? null,
       status: 'pending',
       priority: input.priority ?? 'normal',
-      tags: tagsJson,
+      tags: tagsArray,
     },
   });
 }
@@ -243,7 +243,10 @@ export async function getInboxItems(
   if (filters.submittedBy) where.submittedBy = filters.submittedBy;
   if (filters.priority) where.priority = filters.priority;
   if (filters.search) {
-    where.content = { contains: filters.search, mode: 'insensitive' };
+    where.OR = [
+      { content: { contains: filters.search, mode: 'insensitive' } },
+      { summary: { contains: filters.search, mode: 'insensitive' } },
+    ];
   }
 
   // Priority sort order: critical > high > normal > low (per ARCHITECTURE.md T10 spec)
@@ -453,7 +456,7 @@ export async function updateInboxItem(
   if (data.summary !== undefined) updateData.summary = data.summary;
   if (data.category !== undefined) updateData.category = data.category;
   if (data.priority !== undefined) updateData.priority = data.priority;
-  if (data.tags !== undefined) updateData.tags = serializeTags(data.tags);
+  if (data.tags !== undefined) updateData.tags = normalizeTags(data.tags);
 
   return db.humanIntelligenceInbox.update({
     where: { id },

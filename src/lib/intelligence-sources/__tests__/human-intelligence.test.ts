@@ -118,7 +118,7 @@ describe('Human Intelligence Inbox', () => {
       ).rejects.toThrow('Invalid category "invalid_cat"')
     })
 
-    it('serialises tags to JSON when provided', async () => {
+    it('passes tags as a JSON-compatible array (not stringified)', async () => {
       mockCompanyFindUnique.mockResolvedValue({ id: 'co-1' })
       mockInboxCreate.mockResolvedValue({ id: 'inbox-2' })
 
@@ -132,7 +132,7 @@ describe('Human Intelligence Inbox', () => {
       expect(mockInboxCreate).toHaveBeenCalledWith(
         expect.objectContaining({
           data: expect.objectContaining({
-            tags: JSON.stringify(['expansion', 'apac']),
+            tags: ['expansion', 'apac'],
           }),
         }),
       )

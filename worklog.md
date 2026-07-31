@@ -1070,3 +1070,28 @@ Stage Summary:
 - All 3 exit criteria met: inbox shows unreviewed intel, quick actions work, human intel submittable
 - Remaining low-priority items: "Create Opportunity" maps to "Convert to Intelligence" (domain difference, documented), priority label uses "normal" vs spec "medium" (schema constraint, cosmetic only)
 
+
+---
+Task ID: T10-audit
+Agent: Main Agent (Senior Principal Engineer)
+Task: Ticket 10 Real Build Real Fix — third-party audit + gap closure
+
+Work Log:
+- Read ARCHITECTURE.md in full (1309 lines) to extract T10 scope (lines 992-1014)
+- Analyzed current state: T10 already committed (ea3cfaa) with 62 tests, TSC clean
+- Ran full regression: 1636 pass, 73 pre-existing failures from T1-T4
+- Performed line-by-line audit of all 14 T10 files against ARCHITECTURE.md spec
+- Found 3 gaps: (1) Missing Create Opportunity action, (2) No batch dismiss API, (3) No category filter
+- FIX #1: Added Create Opportunity button → navigates to opportunity-radar with companyId
+- FIX #2: Created POST /api/g-intel-acquisition/inbox/batch-dismiss with validation + rate limit
+- FIX #3: Added category filter to API route (whitelist validated) + frontend dropdown
+- Wired frontend batch operations to batch API (was sequential individual calls)
+- Added 9 new tests (7 batch dismiss + 2 category filter)
+- Ran 10 consecutive test iterations: all stable at 1645 pass / 73 pre-existing fail
+- TSC: zero errors across all iterations
+- Committed as 50e96df, pushed to GitHub
+
+Stage Summary:
+- 71 T10 tests pass (was 62), 1645 total pass, zero regressions
+- All 3 ARCHITECTURE.md gaps closed
+- Production ready: proper error handling, XSS sanitization, whitelist validation, rate limiting

@@ -7,6 +7,10 @@
  * Each ?include= section is independently guarded: engine failures never
  * kill the whole response. Parallel engine calls use Promise.allSettled.
  *
+ * Supported includes: signals, scores, contacts, timeline, actions, brief, knowledge, mindmap, learning
+ * Note: 'learning' is valid globally (used by action/conversation routes) but not applicable to this
+ * endpoint — it will be silently ignored here since learning insights are not part of the company context.
+ *
  * Contract:
  *   - Returns IntelligenceResponse<IntelligenceCompanyContext>
  *   - All engine calls are wrapped in try/catch (non-throwing)

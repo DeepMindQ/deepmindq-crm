@@ -268,6 +268,7 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
       country: true,
       accountPriorityScore: true,
       priorityTier: true,
+      intelligenceScore: true,
     },
   });
 
@@ -284,6 +285,7 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
     capabilityMatches,
     opportunities,
     recentEvents,
+    revenueScoreData,
   ] = await Promise.all([
     db.companyResearchCard.findUnique({
       where: { companyId },
@@ -318,6 +320,11 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
         createdAt: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
       },
     }),
+    // Ticket 4: Revenue Opportunity Score for unified 3-score history
+    db.accountScore.findUnique({
+      where: { companyId },
+      select: { score: true, category: true },
+    }).catch(() => null),
   ]);
 
   // Parse tech stack
@@ -402,7 +409,13 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
         staticFitScore: staticFit.score,
         dynamicIntelScore: dynamicIntelligence.score,
         timingUrgencyScore: timingUrgency.score,
-        // Ticket 4: Unified 3-Score History — intelligence/revenue fields populated by callers
+        // Ticket 4: Unified 3-Score History — capture intelligence & revenue snapshots
+        intelligenceScore: company.intelligenceScore ?? null,
+        intelligenceTier: company.intelligenceScore != null
+          ? (company.intelligenceScore >= 70 ? 'hot' : company.intelligenceScore >= 40 ? 'warm' : company.intelligenceScore >= 15 ? 'cold' : 'unknown')
+          : null,
+        revenueScore: revenueScoreData?.score ?? null,
+        revenueCategory: revenueScoreData?.category ?? null,
         scoreTriggerType: 'priority',
         computedAt: new Date(),
       },

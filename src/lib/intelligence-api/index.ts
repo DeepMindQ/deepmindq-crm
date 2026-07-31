@@ -45,9 +45,10 @@ export type {
   IntelligenceKnowledgeIngestionStats,
 
   IntelligenceErrorCode,
-  normalizeTierForDisplay,
-  getTierColor,
 } from './types';
+
+// ── Tier Normalization Functions (runtime values, NOT types) ──
+export { normalizeTierForDisplay, getTierColor } from './types';
 
 // ── Middleware (for route handlers) ──
 export {

@@ -119,7 +119,7 @@ export function normalizeRevenueCategory(category: string): string {
   const map: Record<string, string> = {
     HOT_ACCOUNT: 'High',
     WARM_ACCOUNT: 'Medium',
-    NURTURE: 'Low',
+    NURTURE: 'Medium',
     AT_RISK: 'At Risk',
   };
   return map[category] ?? category;

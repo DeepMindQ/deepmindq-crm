@@ -7,8 +7,8 @@
  * Composes ActionEngine + ContinuousLearningLoop data.
  *
  * Query params:
- *   ?include=recommendations — include action recommendations (placeholder, not yet implemented)
- *   ?include=sequences      — include action sequences (placeholder, not yet implemented)
+ *   ?include=recommendations — extract recommendations from ActionResult
+ *   ?include=sequences      — extract action sequences from ActionResult
  *   ?include=learning       — include learning insights (optional)
  *   Multiple includes via comma-separation: ?include=recommendations,sequences,learning
  *
@@ -101,8 +101,7 @@ export async function GET(
   const wantsLearning = guardResult.includes.size === 0
     || shouldInclude(guardResult.includes, 'learning');
 
-  // TODO (A7): Add selective loading for `recommendations` include when engine supports it
-  // TODO (A8): Add selective loading for `sequences` include when engine supports it
+  // Recommendations and sequences are extracted from ActionResult after engine runs.
 
   // ── Step 3: Run engine + load learning insights in parallel ────────
   let actionResult: ActionResult | null = null;

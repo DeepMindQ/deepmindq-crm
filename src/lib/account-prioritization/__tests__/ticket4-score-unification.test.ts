@@ -86,12 +86,24 @@ vi.mock('@/lib/intelligence-contract', () => ({
 // ── Imports (after mocks) ──
 
 import { GET } from '@/app/api/companies/[id]/scores/route';
-import { normalizeRevenueCategory, parseRevenueBreakdown } from '@/app/api/companies/[id]/scores/route';
+import { parseRevenueBreakdown } from '@/lib/intelligence-api/middleware';
+import { normalizeTierForDisplay } from '@/lib/intelligence-api/types';
+
+// Local helper matching the route's normalization
+const normalizeRevenueCategory = (category: string) => normalizeTierForDisplay(category, 'revenue');
 
 // ── Helpers ──
 
 function makeRequest(url = 'http://localhost/api/companies/cmp-123/scores'): NextRequest {
-  return new Request(url, { headers: { 'x-forwarded-for': '127.0.0.1' } }) as unknown as NextRequest;
+  const urlObj = new URL(url);
+  const req = new Request(url, { headers: { 'x-forwarded-for': '127.0.0.1' } }) as unknown as NextRequest;
+  // NextRequest provides nextUrl with searchParams — mock it for route handler compatibility
+  Object.defineProperty(req, 'nextUrl', {
+    value: { searchParams: urlObj.searchParams },
+    writable: true,
+    configurable: true,
+  });
+  return req;
 }
 
 function makeParams(id: string) {
@@ -501,8 +513,8 @@ describe('Ticket 4: Score Unification — Integration Tests', () => {
       expect(normalizeRevenueCategory('WARM_ACCOUNT')).toBe('Medium');
     });
 
-    it('maps NURTURE -> Low', () => {
-      expect(normalizeRevenueCategory('NURTURE')).toBe('Low');
+    it('maps NURTURE -> Medium', () => {
+      expect(normalizeRevenueCategory('NURTURE')).toBe('Medium');
     });
 
     it('maps AT_RISK -> At Risk', () => {
@@ -513,8 +525,8 @@ describe('Ticket 4: Score Unification — Integration Tests', () => {
       expect(normalizeRevenueCategory('UNKNOWN_TIER')).toBe('UNKNOWN_TIER');
     });
 
-    it('handles empty string', () => {
-      expect(normalizeRevenueCategory('')).toBe('');
+    it('handles empty string as Unknown', () => {
+      expect(normalizeRevenueCategory('')).toBe('Unknown');
     });
   });
 

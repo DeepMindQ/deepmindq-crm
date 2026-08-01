@@ -29,6 +29,7 @@ const mockOpportunityRecommendationCount = vi.fn()
 const mockCompanyTimelineEventCount = vi.fn()
 const mockSystemSettingFindUnique = vi.fn()
 const mockPriorityScoreHistoryCreate = vi.fn()
+const mockAccountScoreFindUnique = vi.fn()
 
 vi.mock('@/lib/db', () => ({
   db: {
@@ -66,6 +67,9 @@ vi.mock('@/lib/db', () => ({
     },
     priorityScoreHistory: {
       create: (...args: unknown[]) => mockPriorityScoreHistoryCreate(...args),
+    },
+    accountScore: {
+      findUnique: (...args: unknown[]) => mockAccountScoreFindUnique(...args),
     },
   },
 }))
@@ -111,6 +115,7 @@ function setupDefaultMocks() {
   })
   mockDbUpdate.mockResolvedValue({})
   mockPriorityScoreHistoryCreate.mockResolvedValue({ id: 'history-1' })
+  mockAccountScoreFindUnique.mockResolvedValue(null)
   mockDbGroupBy.mockResolvedValue([
     { priorityTier: 'HOT', _count: 5 },
     { priorityTier: 'ACTIVE', _count: 10 },
@@ -122,6 +127,7 @@ function setupDefaultMocks() {
 
 beforeEach(() => {
   vi.clearAllMocks()
+  invalidateICPCache()
   setupDefaultMocks()
 })
 
@@ -133,6 +139,7 @@ const {
   computeAllAccountPriorities,
   getPrioritizedCompanies,
   getICPProfile,
+  invalidateICPCache,
 } = await import('@/lib/account-prioritization/engine')
 
 // ═══════════════════════════════════════════════════════════════
@@ -223,9 +230,16 @@ describe('Account Prioritization Engine', () => {
       expect(timingUrgency.score).toBeLessThanOrEqual(100)
     })
 
-    it('throws for non-existent company', async () => {
+    it('returns graceful zero-result for non-existent company (B10)', async () => {
       mockDbFindUnique.mockResolvedValueOnce(null)
-      await expect(computeAccountPriority('nonexistent')).rejects.toThrow()
+      const result = await computeAccountPriority('nonexistent')
+      expect(result.companyId).toBe('nonexistent')
+      expect(result.priority.composite).toBe(0)
+      expect(result.priority.tier).toBe('LOW')
+      expect(result.priority.staticFit.score).toBe(0)
+      expect(result.priority.dynamicIntelligence.score).toBe(0)
+      expect(result.priority.timingUrgency.score).toBe(0)
+      expect(result.computedAt).toBeDefined()
     })
   })
 

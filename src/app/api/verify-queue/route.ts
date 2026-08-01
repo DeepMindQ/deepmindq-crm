@@ -13,7 +13,7 @@ import { checkApiAuth } from '@/lib/api-auth';
 /* POST /api/verify-queue — Add contacts to verification queue */
 export async function POST(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
 
 try {
@@ -45,7 +45,7 @@ try {
     // We don't need a separate queue table — just use the emailHealth field
     const queued = contacts.length;
 
-    await logAction('verify_queue_added', 'Contact', 'batch', { count: queued });
+    await logAction('verify_queue_added', 'Contact', 'batch', { count: queued }, session!.id);
 
     return NextResponse.json({
       success: true,

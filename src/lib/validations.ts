@@ -166,19 +166,6 @@ export const loginSchema = z.object({
   password: z.string().min(1, 'Password is required'),
 })
 
-export const resetPasswordRequestSchema = z.object({
-  email: z.string().email('Invalid email address'),
-})
-
-export const resetPasswordConfirmSchema = z.object({
-  email: z.string().email('Invalid email address'),
-  code: z.string().length(6, 'Code must be 6 digits'),
-  newPassword: z.string()
-    .min(8, 'Password must be at least 8 characters')
-    .regex(/[A-Z]/, 'Password must contain an uppercase letter')
-    .regex(/[0-9]/, 'Password must contain a number'),
-})
-
 // ── Inferred types ──────────────────────────────────────────────────
 export type CreateCompanyInput = z.infer<typeof createCompanySchema>
 export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>
@@ -195,8 +182,6 @@ export type CreateKnowledgeDocInput = z.infer<typeof createKnowledgeDocSchema>
 export type ImportExecuteInput = z.infer<typeof importExecuteSchema>
 export type RegisterInput = z.infer<typeof registerSchema>
 export type LoginInput = z.infer<typeof loginSchema>
-export type ResetPasswordRequestInput = z.infer<typeof resetPasswordRequestSchema>
-export type ResetPasswordConfirmInput = z.infer<typeof resetPasswordConfirmSchema>
 
 // ── Task ────────────────────────────────────────────────────────────
 export const TASK_STATUSES = ['pending', 'in_progress', 'completed', 'overdue'] as const

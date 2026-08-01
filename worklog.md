@@ -211,3 +211,48 @@ Stage Summary:
 - Email sending now rate-limited to 50/hour per user
 - Export center history query now returns actual export records
 - All adversarial audit P0/P1/P2 findings addressed
+
+---
+Task ID: 3b
+Agent: Super Z (main)
+Task: Phase 3B — Security Hygiene
+
+Work Log:
+- Created branch: phase-3b-security-hygiene (from main)
+- Baseline captured: 54 files / 1832 pass / 14 skip / 0 fail, tsc clean
+- 3B-2: Deleted src/lib/validate.ts — confirmed zero imports across entire src/ via grep
+- 3B-3: Removed ADMIN_ROLES constant from src/lib/auth-helpers.ts — confirmed zero runtime usage via grep
+- 3B-4: Removed resetPasswordRequestSchema, resetPasswordConfirmSchema, ResetPasswordRequestInput, ResetPasswordConfirmInput from src/lib/validations.ts — confirmed zero external references via grep
+- 3B-1: Enriched 6 routes with session.id in logAction calls:
+  - verify-queue/route.ts: POST handler — 1 logAction enriched
+  - verify-queue/process/route.ts: POST handler — 1 logAction enriched
+  - leads/assign/route.ts: POST handler — 1 logAction enriched
+  - leads/consent/route.ts: POST handler — 1 logAction enriched
+  - contacts/[id]/notes/route.ts: POST, PUT, DELETE handlers — 3 logActions enriched
+  - batches/route.ts: POST handler — 5 logActions enriched
+  Total: 12 logAction calls now capture authenticated user identity
+- 3B-5: Investigated engine.ts — confirmed data-intelligence module is completely orphaned (zero imports from src/). logAction calls inside are dead code. No modification made — documented as finding.
+- Fixed e2e-business-journey.test.ts: updated import from deleted '@/lib/validate' to '@/lib/apiHelpers', adjusted assertions for different return type
+- Created tests/security-phase3b-hygiene.test.ts: 10 tests covering:
+  - logAction userId in verify-queue POST (1)
+  - logAction userId in verify-queue/process POST (1)
+  - logAction userId in leads/assign POST (1)
+  - logAction userId in leads/consent POST (1)
+  - logAction userId in contacts/notes POST, PUT, DELETE (3)
+  - validate.ts deleted via filesystem check (1)
+  - ADMIN_ROLES removed via import check (1)
+  - resetPassword schemas removed via import check (1)
+- Post-fix: 55 files / 1842 pass / 14 skip / 0 fail, tsc clean, next build successful
+
+Stage Summary:
+- 1 file deleted (validate.ts)
+- 6 production files modified (enriched logAction with session.id)
+- 1 production file modified (removed ADMIN_ROLES)
+- 1 production file modified (removed orphaned schemas)
+- 1 existing test file modified (e2e-business-journey.test.ts — updated broken import)
+- 1 test file created: tests/security-phase3b-hygiene.test.ts (10 tests)
+- Net test gain: +10 (1832 → 1842)
+- Zero test regressions
+- Zero type errors
+- Build successful
+- Additional finding: data-intelligence/engine.ts is dead code (zero imports) — 3 logAction calls inside are unreachable

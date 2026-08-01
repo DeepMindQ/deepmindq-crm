@@ -11,7 +11,7 @@ import { checkApiAuth } from '@/lib/api-auth';
 
 export async function POST(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
 
 try {
@@ -55,7 +55,7 @@ try {
       from: contact.consentStatus,
       to: consentStatus,
       source: consentSource,
-    });
+    }, session!.id);
 
     return NextResponse.json({ success: true, contact: updated });
   } catch (error) {

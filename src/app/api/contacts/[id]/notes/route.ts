@@ -39,7 +39,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
 
 try {
@@ -58,7 +58,7 @@ try {
       },
     });
 
-    await logAction('note_added', 'Contact', id, { noteId: note.id, body: noteBody.trim().slice(0, 100) });
+    await logAction('note_added', 'Contact', id, { noteId: note.id, body: noteBody.trim().slice(0, 100) }, session!.id);
 
     return NextResponse.json(note, { status: 201 });
   } catch (error) {
@@ -72,7 +72,7 @@ export async function PUT(
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
 
 try {
@@ -90,7 +90,7 @@ try {
       data: { body: noteBody.trim() },
     });
 
-    await logAction('note_updated', 'Contact', contactId, { noteId, body: noteBody.trim().slice(0, 100) });
+    await logAction('note_updated', 'Contact', contactId, { noteId, body: noteBody.trim().slice(0, 100) }, session!.id);
 
     return NextResponse.json(note);
   } catch (error) {
@@ -104,7 +104,7 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
 
 try {
@@ -118,7 +118,7 @@ try {
       where: { id: noteId, contactId },
     });
 
-    await logAction('note_deleted', 'Contact', contactId, { noteId });
+    await logAction('note_deleted', 'Contact', contactId, { noteId }, session!.id);
 
     return NextResponse.json({ success: true });
   } catch (error) {

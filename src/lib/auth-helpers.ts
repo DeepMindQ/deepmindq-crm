@@ -131,15 +131,6 @@ function timingSafeEqual(a: string, b: string): boolean {
   return result === 0;
 }
 
-// ── Admin Role Check ───────────────────────────────────
-/**
- * Check if a session token's user has admin role.
- * Note: In Edge middleware, we cannot do DB lookups.
- * This is a placeholder for API-level admin checks.
- * The actual admin check happens in api-auth.ts using the full session.
- */
-export const ADMIN_ROLES = ['admin', 'ADMIN'];
-
 // ── Security Headers ───────────────────────────────────
 /**
  * Standard security headers applied to all responses.

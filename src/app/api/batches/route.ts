@@ -241,7 +241,7 @@ async function processChunk(
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
   // Auth gate: authenticated users only for file import
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
 
   try {
@@ -322,7 +322,7 @@ export async function POST(request: Request) {
       },
     });
 
-    await logAction('batch_created', 'ImportBatch', batch.id, { fileName: file.name, totalRows: rows.length, consentSource, source });
+    await logAction('batch_created', 'ImportBatch', batch.id, { fileName: file.name, totalRows: rows.length, consentSource, source }, session!.id);
 
     // For small files, process synchronously
     if (rows.length <= LARGE_FILE_THRESHOLD) {
@@ -365,7 +365,7 @@ export async function POST(request: Request) {
         acceptedRows: result.accepted,
         duplicateRows: result.duplicates,
         invalidRows: result.invalid,
-      });
+      }, session!.id);
 
       // Auto-add new contacts to verification queue
       if (result.newContactIds.length > 0) {
@@ -431,7 +431,7 @@ export async function POST(request: Request) {
                 status: 'cancelled',
               },
             });
-            await logAction('batch_cancelled', 'ImportBatch', batch.id, { processedRows: progressData.processedRows });
+            await logAction('batch_cancelled', 'ImportBatch', batch.id, { processedRows: progressData.processedRows }, session!.id);
             break;
           }
 
@@ -467,7 +467,7 @@ export async function POST(request: Request) {
             acceptedRows: progressData.acceptedRows,
             duplicateRows: progressData.duplicateRows,
             invalidRows: progressData.invalidRows,
-          });
+          }, session!.id);
 
           // Auto-add to verification queue
           if (progressData.newContactIds.length > 0) {
@@ -487,7 +487,7 @@ export async function POST(request: Request) {
           data: { status: 'failed' },
         });
         logger.error('Chunked processing error:', { error: err });
-        await logAction('batch_failed', 'ImportBatch', batch.id, { error: String(err) });
+        await logAction('batch_failed', 'ImportBatch', batch.id, { error: String(err) }, session!.id);
       } finally {
         // Keep progress in memory for a while, then clean up
         setTimeout(() => { batchProgress.delete(batch.id); }, 30 * 60 * 1000);

@@ -50,7 +50,7 @@ async function verifySingleContact(contact: any): Promise<{ health: string; scor
 
 export async function POST() {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
 
 try {
@@ -86,7 +86,7 @@ try {
           email: contact.email,
           health: result.health,
           score: result.score,
-        });
+        }, session!.id);
       } catch (err) {
         logger.error(`Verification failed for ${contact.email}:`, { error: err });
       }

@@ -1,7 +1,7 @@
 # DeepMindQ — Project Status
 
 **Last Updated**: 2026-08-01
-**Baseline Tag**: `security-baseline-v1`
+**Baseline Tag**: `product-baseline-v1`
 **Branch**: `main`
 
 ---
@@ -18,13 +18,167 @@ contacts, sequences, knowledge/capability library, reasoning, conversation,
 analytics, settings, and system health screens — all built with real API
 integration, loading states, error boundaries, and AI features).
 
-Previous maturity assessments mixed four distinct concerns:
-1. Core product capability
-2. Security hardening (Phase 2-4, now complete)
-3. Enterprise SaaS architecture patterns (not applicable)
-4. Future roadmap enhancements
+The backend architecture, AI engines, security foundation, and core capabilities
+are significantly built. The biggest risk is NOT missing technology — it is that
+the user experience does not communicate the power of what has been built.
 
-Going forward, these are tracked separately below.
+---
+
+## Priority Order — LOCKED
+
+### Phase 1 (NOW): Product Experience Transformation — TOP PRIORITY
+### Phase 2: Product Polish and Demo Readiness
+### Phase 3: Operational Improvements
+### Phase 4: Future Roadmap Enhancements
+
+Do NOT prioritize new architecture, SaaS features, CRM features, multi-tenancy,
+or enterprise procurement features until the core user experience feels exceptional.
+
+**Next milestone:**
+> "DeepMindQ looks and feels like a category-defining AI intelligence product."
+
+---
+
+## Phase 1: Product Experience Transformation (Current Priority)
+
+### Objective
+
+Transform DeepMindQ from a technically powerful platform into an intuitive,
+premium enterprise intelligence product that a VP Sales, CRO, or enterprise
+user can immediately understand and adopt.
+
+### Focus Area 1: User Journey Redesign
+
+The complete intelligence flow must feel like a guided experience:
+
+```
+Company Discovery -> Company Understanding -> Signals -> Prioritization ->
+Contact Intelligence -> AI Reasoning -> Recommendations ->
+Conversation Preparation -> Action
+```
+
+The experience should feel like an intelligence assistant guiding the user,
+not a collection of screens.
+
+### Focus Area 2: UI/UX Audit of All Screens
+
+Evaluate every major screen against these criteria:
+- Is the purpose immediately clear?
+- Does the user know what action to take next?
+- Is important intelligence highlighted?
+- Is information overload reduced?
+- Does it look like an enterprise AI product?
+- Are workflows consistent?
+
+Prioritize redesign over adding new features.
+
+### Focus Area 3: Intelligence Layer Visibility
+
+The biggest differentiator is the intelligence engine. The UI must clearly show:
+- Why this company matters
+- Why this account is prioritized
+- What signals were detected
+- What evidence supports the recommendation
+- What AI reasoning happened
+- What action the sales person should take next
+
+The AI should feel like a strategic advisor, not just another dashboard.
+
+### Focus Area 4: Executive Experience
+
+For VP Sales / CRO: "When I open this platform, I immediately understand
+where my revenue opportunities are and what actions my team should take."
+
+The first 5 minutes must demonstrate value.
+
+### Focus Area 5: Design System Consistency
+
+Audit and unify:
+- Navigation patterns
+- Typography scale
+- Color system
+- Component variants
+- Card designs
+- Table designs
+- Empty states
+- Loading states
+- Error states
+- AI interaction patterns
+
+Create a unified DeepMindQ design language.
+
+### Focus Area 6: Reduce Complexity
+
+Identify and fix:
+- Screens that can be merged
+- Information that can be summarized
+- Workflows that need fewer clicks
+- Features hidden inside complex navigation
+
+The goal is simplicity without losing intelligence depth.
+
+### Phase 1 Work Items
+
+| # | Item | Focus Area | Effort | Status |
+|---|------|-----------|--------|--------|
+| UX-1 | Full UI/UX audit of all 77 screens — document findings per screen | 2, 5 | 3 days | Pending |
+| UX-2 | Design system unification — tokens, components, patterns | 5 | 5 days | Pending |
+| UX-3 | User journey redesign — intelligence flow as guided experience | 1, 6 | 5 days | Pending |
+| UX-4 | Command center redesign — executive 5-minute value demo | 4 | 5 days | Pending |
+| UX-5 | Company profile redesign — intelligence visibility, not data dump | 3, 2 | 5 days | Pending |
+| UX-6 | Signal intelligence redesign — why this matters, what to do | 3, 2 | 3 days | Pending |
+| UX-7 | AI reasoning visualization — make the 30-step engine visible | 3 | 5 days | Pending |
+| UX-8 | Navigation simplification — merge, hide, prioritize | 6 | 3 days | Pending |
+| UX-9 | Dashboard/executive view — revenue opportunities at a glance | 4, 3 | 3 days | Pending |
+| UX-10 | Empty states, loading states, error states — design system | 5 | 2 days | Pending |
+| UX-11 | Notification/action center — what needs attention now | 1, 6 | 2 days | Pending |
+| UX-12 | Demo data flow — curated, compelling, consistent | 4 | 3 days | Pending |
+
+---
+
+## Phase 2: Product Polish and Demo Readiness (After Phase 1)
+
+| # | Item | Effort | Status |
+|---|------|--------|--------|
+| P-1 | Fix notification endpoint (404 in production) | 4 hours | Pending |
+| P-2 | Fetch user name from session (not hardcoded) | 1 hour | Pending |
+| P-3 | Intelligence report export (PDF) | 3 days | Pending |
+| P-4 | Connector scheduler automation | 3 days | Pending |
+| P-5 | Dashboard widget customization | 3 days | Pending |
+| P-6 | Demo script + walkthrough | 3 days | Pending |
+| P-7 | Knowledge search UX improvement | 2 days | Pending |
+
+---
+
+## Phase 3: Operational Improvements (After Phase 2)
+
+| # | Item | Severity | Effort | Status |
+|---|------|----------|--------|--------|
+| O-1 | Delete `src/lib/auth.ts` mock file (auth bypass vector) | Critical | 1 hour | Pending |
+| O-2 | Wire CSRF protection into api-middleware.ts | High | 2 hours | Pending |
+| O-3 | Session absolute max lifetime (rolling expiry risk) | Medium | 2 hours | Pending |
+| O-4 | Replace in-memory rate limiting for serverless | High | 2-3 days | Pending |
+| O-5 | Replace `sanitize.ts` with DOMPurify | Medium | 4 hours | Pending |
+| O-6 | Add security headers to vercel.json | Medium | 2 hours | Pending |
+| O-7 | Caddyfile TLS + security headers | Medium | 4 hours | Pending |
+| O-8 | Consolidate audit.ts + audit-logger.ts | Low | 4 hours | Pending |
+| O-9 | Update validate-env.ts (remove NextAuth references) | Low | 2 hours | Pending |
+| O-10 | Clean up dead code (otp-cache.ts, orphaned references) | Low | 2 hours | Pending |
+
+---
+
+## Phase 4: Future Roadmap Enhancements (After Phase 3)
+
+Items that strengthen the intelligence platform but are not required
+for the initial experience transformation.
+
+| # | Item | Effort | Status |
+|---|------|--------|--------|
+| F-1 | Google Sheets / CRM connectors | 5 days | Pending |
+| F-2 | Real-time intelligence alerts (email/push) | 3 days | Pending |
+| F-3 | Mobile PWA | 5 days | Pending |
+| F-4 | API documentation (OpenAPI/Swagger) | 3 days | Pending |
+| F-5 | A/B testing for outreach drafts | 3 days | Pending |
 
 ---
 
@@ -79,44 +233,9 @@ They must NOT reduce product maturity scoring.
 
 ---
 
-## Track 1 — Product Capability Completion
+## Security Hardening — COMPLETE (Phase 2-4)
 
-Measures progress against the DeepMindQ intelligence platform vision.
-
-### Current Assessment: 78% Complete
-
-| Dimension | Score | Notes |
-|-----------|:-----:|-------|
-| Intelligence Quality | 9.5/10 | 30-step reasoning, hallucination prevention, evidence grounding |
-| User Workflows | 7.5/10 | 77 functional screens; needs workflow simplification |
-| AI Reasoning Experience | 8.5/10 | Sophisticated engine; needs user-facing visualization |
-| Sales Productivity Impact | 7.0/10 | Full pipeline exists; needs real-user validation |
-| Ease of Use | 7.0/10 | Command palette, dark theme, animations; needs UX refinement |
-| Demo Readiness | 6.5/10 | Functionally demo-able; needs polish and curated data |
-
-### Remaining Product Work (Not Architecture Expansion)
-
-| # | Item | Impact | Effort | Status |
-|---|------|--------|--------|--------|
-| P1 | Fix notification endpoint (404 in production) | Visible error in demo | 4 hours | Pending |
-| P2 | Fetch user name from session (not hardcoded) | Professional appearance | 1 hour | Pending |
-| P3 | 30-step reasoning visualization (user-facing) | Shows AI thinking — key differentiator | 5 days | Pending |
-| P4 | Intelligence report export (PDF) | Sharable deliverables | 3 days | Pending |
-| P5 | Connector scheduler automation | Continuous intelligence | 3 days | Pending |
-| P6 | Dashboard widget customization | Users see what matters | 3 days | Pending |
-| P7 | Demo script + curated demo data | Consistent impressive demos | 3 days | Pending |
-| P8 | UI/UX polish (theme consistency, responsive refinement) | Enterprise-grade feel | 5 days | Pending |
-| P9 | Simplify user workflows (reduce clicks to intelligence) | Sales productivity | 5 days | Pending |
-| P10 | Knowledge search UX improvement | Faster access to institutional knowledge | 2 days | Pending |
-
----
-
-## Track 2 — Enterprise Operational Readiness
-
-Measures deployment, security, monitoring, compliance, and infrastructure.
-Security hardening (Phase 2-4) is already complete and treated as foundation.
-
-### Security Hardening — COMPLETE (Phase 2-4)
+Foundation work, treated as complete. Tagged `security-baseline-v1`.
 
 | Phase | What Was Done | Tests |
 |-------|--------------|-------|
@@ -129,50 +248,34 @@ Security hardening (Phase 2-4) is already complete and treated as foundation.
 | Phase 4 | Critical input path hardening (webhooks, dev OTP gates) | 1868 pass |
 | **Final Score** | **8.3/10** | **Tagged `security-baseline-v1`** |
 
-### Remaining Operational Items
-
-| # | Item | Severity | Effort | Status |
-|---|------|----------|--------|--------|
-| O1 | Delete `src/lib/auth.ts` mock file (auth bypass vector) | Critical | 1 hour | Pending |
-| O2 | Wire CSRF protection into api-middleware.ts | High | 2 hours | Pending |
-| O3 | Session absolute max lifetime (rolling expiry risk) | Medium | 2 hours | Pending |
-| O4 | Replace in-memory rate limiting for serverless | High | 2-3 days | Pending |
-| O5 | Replace `sanitize.ts` with DOMPurify | Medium | 4 hours | Pending |
-| O6 | Add security headers to vercel.json | Medium | 2 hours | Pending |
-| O7 | Caddyfile TLS + security headers | Medium | 4 hours | Pending |
-| O8 | Consolidate audit.ts + audit-logger.ts | Low | 4 hours | Pending |
-| O9 | Update validate-env.ts (remove NextAuth references) | Low | 2 hours | Pending |
-| O10 | Clean up dead code (otp-cache.ts, orphaned references) | Low | 2 hours | Pending |
-
 ---
 
 ## 20-Ticket Roadmap — Full Status
 
 All 20 tickets from ARCHITECTURE.md Section 11 are functionally complete.
-Implementation happened across both tracked ticket sessions and Phase 5-9 development.
 
-| # | Ticket | Priority | Status | Implementation Evidence |
-|---|--------|----------|--------|--------------------------|
-| 1 | Foundation Hardening | P0 | COMPLETE | 117 tests, 33 gaps fixed |
-| 2 | Intelligence API Layer Refactor | P0 | COMPLETE | 43 tests, selective loading, type safety |
-| 3 | AI Governance Hardening | P0 | COMPLETE | 1425 tests, 26 gaps, 61 gen types |
-| 4 | 3-Score Architecture Unification | P0 | COMPLETE | 1453 tests, ScoreTriple component |
-| 5 | Command Center Screen | P0 | COMPLETE | command-center-screen.tsx (899 lines), real API |
-| 6 | Company List with Priority Ranking | P0 | COMPLETE | 24 tests, tier filtering, score sorting |
-| 7 | Company Profile 5Q Workspace | P0 | COMPLETE | 59 tests, 5Q sections |
-| 8 | Signal Intelligence Screen | P0 | COMPLETE | signal-intelligence-screen.tsx (853 lines) |
-| 9 | Opportunity Radar Screen | P0 | COMPLETE | opportunity-radar-screen.tsx (713 lines) |
-| 10 | Intelligence Inbox | P0 | COMPLETE | intelligence-inbox-screen.tsx (565 lines) |
-| 11 | Data Intelligence Import | P1 | COMPLETE | data-import-screen.tsx (1099 lines), pipeline |
-| 12 | Contact Management | P1 | COMPLETE | contacts-screen.tsx (1484 lines), scoring |
-| 13 | Email Draft Generation | P2 | COMPLETE | email-generation-screen.tsx (986 lines), governed |
-| 14 | Sequence Management | P2 | COMPLETE | sequences-screen.tsx (446 lines), enrollment |
-| 15 | Knowledge & Capability Library | P0/P1 | COMPLETE | knowledge-library (2382 lines), capability (2053 lines) |
-| 16 | Intelligence Reasoning View | P0 | COMPLETE | intelligence-reasoning (612 lines), 30-step engine |
-| 17 | Conversation Intelligence | P0 | COMPLETE | conversation-studio (646 lines), engine (40KB) |
-| 18 | Analytics & Reporting | P3 | COMPLETE | analytics (425 lines), reports (920 lines) |
-| 19 | Settings & Configuration | P3 | COMPLETE | settings (2308 lines), ICP, data rules |
-| 20 | System Health & Audit | P3 | COMPLETE | ai-health (767 lines), audit (525+566 lines) |
+| # | Ticket | Status | Implementation Evidence |
+|---|--------|--------|--------------------------|
+| 1 | Foundation Hardening | COMPLETE | 117 tests, 33 gaps fixed |
+| 2 | Intelligence API Layer Refactor | COMPLETE | 43 tests, selective loading, type safety |
+| 3 | AI Governance Hardening | COMPLETE | 1425 tests, 26 gaps, 61 gen types |
+| 4 | 3-Score Architecture Unification | COMPLETE | 1453 tests, ScoreTriple component |
+| 5 | Command Center Screen | COMPLETE | command-center-screen.tsx (899 lines), real API |
+| 6 | Company List with Priority Ranking | COMPLETE | 24 tests, tier filtering, score sorting |
+| 7 | Company Profile 5Q Workspace | COMPLETE | 59 tests, 5Q sections |
+| 8 | Signal Intelligence Screen | COMPLETE | signal-intelligence-screen.tsx (853 lines) |
+| 9 | Opportunity Radar Screen | COMPLETE | opportunity-radar-screen.tsx (713 lines) |
+| 10 | Intelligence Inbox | COMPLETE | intelligence-inbox-screen.tsx (565 lines) |
+| 11 | Data Intelligence Import | COMPLETE | data-import-screen.tsx (1099 lines), pipeline |
+| 12 | Contact Management | COMPLETE | contacts-screen.tsx (1484 lines), scoring |
+| 13 | Email Draft Generation | COMPLETE | email-generation-screen.tsx (986 lines), governed |
+| 14 | Sequence Management | COMPLETE | sequences-screen.tsx (446 lines), enrollment |
+| 15 | Knowledge & Capability Library | COMPLETE | knowledge-library (2382 lines), capability (2053 lines) |
+| 16 | Intelligence Reasoning View | COMPLETE | intelligence-reasoning (612 lines), 30-step engine |
+| 17 | Conversation Intelligence | COMPLETE | conversation-studio (646 lines), engine (40KB) |
+| 18 | Analytics & Reporting | COMPLETE | analytics (425 lines), reports (920 lines) |
+| 19 | Settings & Configuration | COMPLETE | settings (2308 lines), ICP, data rules |
+| 20 | System Health & Audit | COMPLETE | ai-health (767 lines), audit (525+566 lines) |
 
 ---
 
@@ -211,11 +314,11 @@ Implementation happened across both tracked ticket sessions and Phase 5-9 develo
 
 > **"If a VP Sales or CRO opens DeepMindQ tomorrow, how close is the experience to a finished enterprise intelligence product?"**
 
-Current answer: **Functionally complete, operationally unfinished.**
+Current answer: **Functionally complete, experience transformation needed.**
 The intelligence pipeline works end-to-end. The AI reasoning layer is differentiated.
-The gaps are polish, not architecture. Fix O1-O3 and P1-P2, and the demo experience
-is enterprise-ready.
+The technology is there — the experience must now match it.
 
 ---
 
-*Baseline locked 2026-08-01. Future assessments measure against this document.*
+*Baseline locked 2026-08-01. Priority order locked: Experience -> Polish -> Ops -> Roadmap.*
+*Tags: `security-baseline-v1` (security hardening), `product-baseline-v1` (product baseline)*

@@ -99,7 +99,7 @@ export async function GET(
     focusAreas = parts;
   }
 
-  if (!briefTypeResult.success) {
+  if (request.nextUrl.searchParams.has('briefType') && !briefTypeResult.success) {
     return Response.json(
       createErrorResponse('brief', companyId, `Invalid briefType: ${briefTypeResult.error.issues[0]?.message || 'unknown'}. Must be one of: ${Array.from(VALID_BRIEF_TYPES).join(', ')}`, IntelligenceErrors.VALIDATION_FAILED, Date.now() - startedAt, includes),
       { status: 400, headers: { ...responseHeaders, ...SECURITY_HEADERS, 'Content-Type': 'application/json; charset=utf-8' } },

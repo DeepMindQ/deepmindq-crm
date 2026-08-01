@@ -1232,3 +1232,29 @@ Stage Summary:
 - Deliverable: /home/z/my-project/download/DeepMindQ_Phase1C_Failure_Analysis.pdf (71 KB, 10 sections)
 - Zero production code changes made during analysis (verification-first methodology preserved)
 - Recommended next: Apply fixes in priority order (validators.ts -> brief route -> test updates)
+
+---
+Task ID: phase-1c-fixes
+Agent: Main Agent
+Task: Phase 1C Fixes — Apply production and test fixes with evidence-driven verification
+
+Work Log:
+- Verified Defect 1 (validators.ts): empirically confirmed throw-in-refine bypasses safeParse in Zod v4 via node -e test
+- Verified Defect 2 (brief route): confirmed lines 102-107 contradict line 79 default; guarded with has() check
+- Applied Fix 1: validators.ts:46 — replaced `throw new z.ZodError(...)` with `return false`
+- Applied Fix 2: brief/[id]/route.ts:102 — added `request.nextUrl.searchParams.has('briefType') &&` guard
+- TSC pass confirmed after production fixes
+- Test regression: 1754 -> 1761 (+7 from validators fix, 0 regressions)
+- Applied Test Fix 1: ticket2-integration.test.ts — added 'very_stale' to 3 allowlists (lines 362,697,709), fixed 1 unit test expectation (line 752), evidence: types.ts:111 FreshnessInfo union type
+- Applied Test Fix 1b: ticket-deep-coverage.test.ts:528 — fixed 1 unit test expectation, same evidence
+- Applied Test Fix 2: ticket2-integration.test.ts:223 — fixed mock field 'topic' -> 'point', evidence: conversation-engine.ts:78 TalkingPoint interface
+- Applied Test Fix 3: ticket1-intelligence-validation.test.ts:54 — fixed assertion 'required' -> 'at least 3 characters', evidence: validators.ts:22 schema message
+- Final results: 48/48 files pass, 1777 pass / 0 fail / 14 skip, TSC zero errors
+
+Stage Summary:
+- 2 production fixes applied (validators.ts, brief route) with empirical evidence
+- 5 test-only fixes applied with source-of-truth evidence (types.ts, conversation-engine.ts, validators.ts)
+- Pass rate: 95.1% (v1.0) -> 97.9% (Phase 1B) -> 99.2% (Phase 1C)
+- Zero regressions: all 1754 baseline tests still pass
+- Zero production code changes made without evidence of production defect
+- Phase 1C complete

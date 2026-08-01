@@ -51,7 +51,7 @@ describe('companyIdSchema', () => {
     const result = companyIdSchema.safeParse('');
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues[0].message).toContain('required');
+      expect(result.error.issues[0].message).toContain('at least 3 characters');
     }
   });
 

@@ -522,10 +522,10 @@ describe('computeFreshness — all branches', () => {
     expect(result.score).toBe(20);
   });
 
-  it('returns stale when enriched more than 168 hours ago (score=0 default)', () => {
+  it('returns very_stale when enriched more than 168 hours ago (score=0 default)', () => {
     const tenDaysAgo = new Date(Date.now() - 240 * 60 * 60 * 1000).toISOString();
     const result = computeFreshness({ lastEnrichedAt: tenDaysAgo });
-    expect(result.level).toBe('stale');
+    expect(result.level).toBe('very_stale');
     expect(result.score).toBe(0); // No explicit score set for >168h
   });
 

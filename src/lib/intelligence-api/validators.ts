@@ -43,9 +43,7 @@ export const includeSchema = z
       const validIncludes = getValidIncludeKeys();
       const invalidParts = parts.filter(p => !validIncludes.has(p));
       if (invalidParts.length > 0) {
-        throw new z.ZodError([
-          { code: 'custom', path: ['include'], message: `Invalid include values: ${invalidParts.join(', ')}` },
-        ]);
+        return false; // Let safeParse return { success: false } with refine message
       }
       return true;
     },

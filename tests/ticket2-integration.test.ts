@@ -220,7 +220,7 @@ const mockConversationResult = {
   suggestedDuration: '45 min',
   keyStakeholders: ['CTO'],
   buyerProfile: { role: 'CTO', priorities: ['AI'], challenges: ['Scale'] },
-  talkingPoints: [{ topic: 'AI capabilities', keyMessage: 'We do AI', supportingEvidence: [] }],
+  talkingPoints: [{ point: 'AI capabilities', evidence: 'Market report', source: 'internal', priority: 'must_cover' }],
   questionsToAsk: [],
   objectionsToPrepare: [],
   topicsToAvoid: [],
@@ -359,7 +359,7 @@ function expectEnvelope(body: unknown, endpoint: string) {
 
   // Freshness
   const freshness = meta.freshness as Record<string, unknown>;
-  expect(['realtime', 'fresh', 'aging', 'stale', 'unknown']).toContain(freshness.level);
+  expect(['realtime', 'fresh', 'aging', 'stale', 'very_stale', 'unknown']).toContain(freshness.level);
   expect(typeof freshness.score).toBe('number');
 }
 
@@ -694,7 +694,7 @@ describe('Intelligence API — Freshness', () => {
       const meta = (result.body as Record<string, unknown>).meta as Record<string, unknown>;
       const freshness = meta.freshness as Record<string, unknown>;
       expect(freshness, `${name} should have freshness in meta`).toBeDefined();
-      expect(['realtime', 'fresh', 'aging', 'stale', 'unknown'], `${name} freshness.level valid`).toContain(freshness.level);
+      expect(['realtime', 'fresh', 'aging', 'stale', 'very_stale', 'unknown'], `${name} freshness.level valid`).toContain(freshness.level);
       expect(typeof freshness.score, `${name} freshness.score is number`).toBe('number');
     }
   });
@@ -706,7 +706,7 @@ describe('Intelligence API — Freshness', () => {
     const meta = (result.body as Record<string, unknown>).meta as Record<string, unknown>;
     const freshness = meta.freshness as Record<string, unknown>;
     expect(typeof freshness.level).toBe('string');
-    expect(['realtime', 'fresh', 'aging', 'stale', 'unknown']).toContain(freshness.level);
+    expect(['realtime', 'fresh', 'aging', 'stale', 'very_stale', 'unknown']).toContain(freshness.level);
     expect(typeof freshness.score).toBe('number');
     // lastEnriched and lastSignal can be string | null
     expect(freshness.lastEnriched === null || typeof freshness.lastEnriched === 'string').toBe(true);
@@ -743,13 +743,13 @@ describe('Intelligence API — Freshness', () => {
     vi.useRealTimers();
   });
 
-  it('computeFreshness returns stale for >168 hours', () => {
+  it('computeFreshness returns very_stale for >168 hours', () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date('2024-06-15T12:00:00Z'));
     const result = computeFreshness({
       lastEnrichedAt: new Date('2024-06-01T12:00:00Z'), // 336 hours ago (14 days)
     });
-    expect(result.level).toBe('stale');
+    expect(result.level).toBe('very_stale');
     expect(result.score).toBe(0);
     vi.useRealTimers();
   });

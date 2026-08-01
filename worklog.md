@@ -48,3 +48,42 @@ Stage Summary:
 - ADMIN_ROLES in auth-helpers.ts is unused at runtime (cosmetic only)
 - Route inventory: 223 files, not 183 (earlier count was incomplete — missing nested routes)
 - 5 blocking tests prove auth prevents DB execution on destructive endpoints
+
+---
+Task ID: 2a
+Agent: Super Z (main)
+Task: Phase 2A — Authentication Foundation Fix
+
+Work Log:
+- Read and analyzed all auth source files: session.ts, verify-otp/route.ts, api-auth.ts
+- Identified TWO broken session creation paths in verify-otp (both bypass createSession, both hardcode userId)
+- Confirmed zero existing tests cover OTP or session creation
+- Ran baselines: 51 files / 1802 pass / 14 skip, tsc clean, next build clean
+- Surgical fix to verify-otp/route.ts:
+  - Removed inline generateToken() (was duplicating session.ts)
+  - Added lookupUser() helper to resolve actual User record by email
+  - PATH A (cookie hash): now does OTP match → lookupUser → createSession(user.id)
+  - PATH B (DB OTP fallback): now does OTP lookup → resolve user (prefer otp.user, fallback email lookup) → createSession(user.id)
+  - Both paths return 403 if user not found or inactive
+  - Eliminated all hardcoded 'shanker-001' references
+  - Both paths now use createSession() from session.ts (single source of truth)
+- Created tests/security-verify-otp.test.ts: 16 tests covering:
+  - Unauthorized email → 403
+  - Input validation → 400
+  - No OTP cookie → 401
+  - Rate limiting → 401
+  - Invalid OTP → 401
+  - PATH A: success with real user ID, needsPassword, missing user→403, inactive user→403
+  - PATH B: success with real user ID, null otp.user fallback, inactive user→403
+  - DB error graceful fallback
+  - Zero 'shanker-001' in responses
+- Post-fix validation: 52 files / 1818 pass / 14 skip / 0 fail, tsc clean, next build clean
+
+Stage Summary:
+- 1 file modified: src/app/api/auth/verify-otp/route.ts
+- 1 test file created: tests/security-verify-otp.test.ts (16 tests)
+- Net test gain: +16 tests (1802 → 1818)
+- Zero regressions
+- Both auth paths now produce identical valid state: DB Session row + httpOnly cookie
+- createSession() is now the single source of truth for session creation
+- Ready for Batch 2: YES

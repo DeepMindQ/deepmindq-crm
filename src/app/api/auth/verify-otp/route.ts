@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { cookies } from 'next/headers';
+import { db } from '@/lib/db';
+import { createSession } from '@/lib/session';
 import { logger } from '@/lib/logger';
 
 // ═══════════════════════════════════════════════════════════════
@@ -30,9 +32,15 @@ async function hashOtp(code: string): Promise<string> {
   return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
 }
 
-function generateToken(): string {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  return Array.from(bytes).map((b) => b.toString(16).padStart(2, '0')).join('');
+/**
+ * Look up the actual User record by email.
+ * Returns null if no active user found — session creation must be aborted.
+ */
+async function lookupUser(email: string) {
+  return db.user.findUnique({
+    where: { email },
+    select: { id: true, email: true, name: true, phone: true, company: true, designation: true, role: true, hasPassword: true, avatarUrl: true, isActive: true },
+  });
 }
 
 export async function POST(request: NextRequest) {
@@ -82,70 +90,63 @@ export async function POST(request: NextRequest) {
     const submittedHash = await hashOtp(code);
 
     if (submittedHash !== storedHash) {
-      // Also try DB as secondary check
+      // Also try DB as secondary check (PATH B: database OTP fallback)
       try {
-        const { db } = await import('@/lib/db');
         const otp = await db.otpCode.findFirst({
           where: { email: normalizedEmail, code, purpose, verified: false, expiresAt: { gt: new Date() } },
           include: { user: true },
         });
         if (otp) {
           await db.otpCode.update({ where: { id: otp.id }, data: { verified: true } });
-          // Clear OTP cookies and create session
+          // Resolve the actual user — prefer otp.user relation, fallback to email lookup
+          const user = otp.user?.isActive ? otp.user : await lookupUser(normalizedEmail);
+          if (!user || !user.isActive) {
+            logger.warn('[auth/verify-otp] OTP verified but no active user found', { email: normalizedEmail });
+            return NextResponse.json({ error: 'User account not found or inactive' }, { status: 403 });
+          }
+          // Clear OTP cookies
           cookieStore.delete('dmq_otp_hash');
           cookieStore.delete('dmq_otp_attempts');
-          const token = generateToken();
-          cookieStore.set('dmq_session', token, {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            sameSite: 'lax',
-            path: '/',
-            maxAge: 30 * 24 * 60 * 60,
-          });
+          // Create valid session using the session abstraction
+          await createSession(user.id);
           return NextResponse.json({
             success: true,
-            needsPassword: !otp.user?.hasPassword,
-            user: { id: otp.userId || 'shanker-001', email: normalizedEmail },
+            needsPassword: !user.hasPassword,
+            user: { id: user.id, email: user.email },
           });
         }
-      } catch { /* DB failed */ }
+      } catch (dbErr) {
+        logger.error('[auth/verify-otp] DB fallback lookup failed', { error: dbErr });
+      }
 
       return NextResponse.json({ error: 'Invalid or expired code' }, { status: 401 });
     }
 
-    // === CODE MATCHES — create session ===
+    // === CODE MATCHES — create session (PATH A: cookie hash validation) ===
+    // Resolve the actual user by email
+    const user = await lookupUser(normalizedEmail);
+    if (!user || !user.isActive) {
+      logger.warn('[auth/verify-otp] OTP matched but no active user found', { email: normalizedEmail });
+      return NextResponse.json({ error: 'User account not found or inactive' }, { status: 403 });
+    }
+
+    // Clear OTP cookies
     cookieStore.delete('dmq_otp_hash');
     cookieStore.delete('dmq_otp_attempts');
 
-    const token = generateToken();
-    cookieStore.set('dmq_session', token, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 30 * 24 * 60 * 60,
-    });
+    // Mark OTP as verified in DB
+    await db.otpCode.updateMany({
+      where: { email: normalizedEmail, code, purpose, verified: false },
+      data: { verified: true },
+    }).catch(() => { /* non-critical: OTP already verified or record absent */ });
 
-    // Also mark in DB (best effort)
-    try {
-      const { db } = await import('@/lib/db');
-      await db.otpCode.updateMany({
-        where: { email: normalizedEmail, code, purpose, verified: false },
-        data: { verified: true },
-      });
-      await db.session.create({
-        data: {
-          userId: 'shanker-001',
-          token,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
-        },
-      });
-    } catch { /* non-critical */ }
+    // Create valid session using the session abstraction
+    await createSession(user.id);
 
     return NextResponse.json({
       success: true,
-      needsPassword: false,
-      user: { id: 'shanker-001', email: normalizedEmail },
+      needsPassword: !user.hasPassword,
+      user: { id: user.id, email: user.email },
     });
   } catch (error) {
     logger.error('[auth/verify-otp] Error:', { error: error });

@@ -13,6 +13,14 @@ export { ActionCTA, type ActionCTAProps, type ActionVariant, type ActionPriority
 // Design tokens — single source of truth
 export { tokens, getConfidenceTier, getPriorityTier, spacing, radius, typography, motion, elevation } from './design-tokens';
 
+// ── Phase 1B Extracted Components ──
+export { HeroNarrative, type HeroNarrativeProps } from './hero-narrative';
+export { StatusMetricsBar, type StatusMetricsBarProps, type StatusMetricsKPIs, type SystemHealth } from './status-metrics-bar';
+export { IntelligenceQueue, type IntelligenceQueueProps } from './intelligence-queue';
+export { ActionQueue, type ActionQueueProps, type ExtractedAction } from './action-queue';
+export { InlineReasoning, type InlineReasoningProps } from './inline-reasoning';
+export { AccountDeltaTracker, type AccountDeltaTrackerProps, type AccountDelta, type DeltaType } from './account-delta-tracker';
+
 // Existing components
 export { ActivationWorkspace } from './activation-workspace';
 export { CommandCenter } from './command-center';

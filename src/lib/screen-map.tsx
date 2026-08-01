@@ -113,6 +113,7 @@ const IntelligenceInboxScreen = lazy(() => import('@/components/screens/intellig
 const IntelligenceKnowledgeScreen = lazy(() => import('@/components/screens/intelligence-knowledge-screen'));
 const AIStrategyScreen = lazy(() => import('@/components/screens/ai-strategy-screen'));
 const DemoExperienceScreen = lazy(() => import('@/components/screens/demo-experience-screen'));
+const DataImportScreen = lazy(() => import('@/components/screens/data-import-screen'));
 const RevenueIntelligenceBriefScreen = lazy(() => import('@/components/screens/revenue-intelligence-brief-screen'));
 const RevenueIntelligenceOpportunitiesScreen = lazy(() => import('@/components/screens/revenue-intelligence-opportunities-screen'));
 const RevenueIntelligenceRecommendationsScreen = lazy(() => import('@/components/screens/revenue-intelligence-recommendations-screen'));
@@ -148,6 +149,7 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   accounts: withScreenErrorBoundary(CompaniesScreen, 'accounts'),
   // ── ADMINISTRATION nav ──
   import: withScreenErrorBoundary(ImportScreen, 'import'),
+  'data-import': withScreenErrorBoundary(DataImportScreen, 'data-import'),
   analytics: withScreenErrorBoundary(AnalyticsScreen, 'analytics'),
   settings: withScreenErrorBoundary(SettingsScreen, 'settings'),
   'data-health': withScreenErrorBoundary(DataHealthScreen, 'data-health'),

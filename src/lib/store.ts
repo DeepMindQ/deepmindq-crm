@@ -82,6 +82,7 @@ export type ViewId =
   | 'ai-strategy'
   | 'demo-experience'
   | 'duplicates'
+  | 'data-import'
   | 'builder';
 
 interface AppState {

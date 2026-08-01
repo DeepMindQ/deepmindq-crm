@@ -33,6 +33,15 @@ export async function POST(request: NextRequest) {
     const { name, email, password } = parsed.data;
     const normalizedEmail = email.trim().toLowerCase();
 
+    // Single-user enforcement: reject registration for unauthorized emails
+    const AUTHORIZED_EMAIL = 'shanker001@gmail.com';
+    if (normalizedEmail !== AUTHORIZED_EMAIL) {
+      return NextResponse.json(
+        { error: 'Registration is restricted to authorized personnel only.' },
+        { status: 403 }
+      );
+    }
+
     // Check if user already exists
     const existing = await db.user.findUnique({ where: { email: normalizedEmail } });
     if (existing) {
@@ -59,7 +68,7 @@ export async function POST(request: NextRequest) {
     // Send OTP for email verification
     const otpResult = await requestOtp(normalizedEmail, 'login');
 
-    const isDev = process.env.NODE_ENV === 'development';
+    const devOtpAllowed = process.env.ALLOW_DEV_OTP === 'true';
     return NextResponse.json({
       success: true,
       data: {
@@ -67,10 +76,10 @@ export async function POST(request: NextRequest) {
         name: user.name,
         email: user.email,
       },
-      message: isDev && otpResult.devCode
+      message: devOtpAllowed && otpResult.devCode
         ? 'Account created. OTP generated (dev mode).'
         : 'Account created. Please verify your email with the OTP sent.',
-      ...(isDev && otpResult.devCode ? { devCode: otpResult.devCode } : {}),
+      ...(devOtpAllowed && otpResult.devCode ? { devCode: otpResult.devCode } : {}),
     });
   } catch (error) {
     logger.error('[auth/register] Error:', { error: error });

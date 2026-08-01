@@ -137,20 +137,30 @@ export async function POST(request: Request) {
   try {
     const rawBody = await request.text();
 
-    // Verify webhook signature if RESEND_WEBHOOK_SECRET is set
+    // Verify webhook signature — mandatory for security (fail-closed)
     const webhookSecret = process.env.RESEND_WEBHOOK_SECRET;
-    if (webhookSecret) {
-      const signature = request.headers.get('resend-signature') || request.headers.get('x-webhook-signature');
-      if (signature) {
-        const expected = crypto
-          .createHmac('sha256', webhookSecret)
-          .update(rawBody)
-          .digest('hex');
-        if (signature !== expected) {
-          logger.warn('[Webhook:Bounce] Invalid signature');
-          return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-        }
-      }
+    if (!webhookSecret) {
+      logger.error('[Webhook:Bounce] RESEND_WEBHOOK_SECRET is not configured — rejecting request');
+      return NextResponse.json(
+        { error: 'Webhook not configured. Set RESEND_WEBHOOK_SECRET.' },
+        { status: 503 }
+      );
+    }
+    const signature = request.headers.get('resend-signature') || request.headers.get('x-webhook-signature');
+    if (!signature) {
+      logger.warn('[Webhook:Bounce] Missing signature header');
+      return NextResponse.json({ error: 'Missing webhook signature' }, { status: 401 });
+    }
+    const expected = crypto
+      .createHmac('sha256', webhookSecret)
+      .update(rawBody)
+      .digest('hex');
+    // Timing-safe comparison to prevent side-channel attacks
+    const sigBuf = Buffer.from(signature, 'utf8');
+    const expBuf = Buffer.from(expected, 'utf8');
+    if (sigBuf.length !== expBuf.length || !crypto.timingSafeEqual(sigBuf, expBuf)) {
+      logger.warn('[Webhook:Bounce] Invalid signature');
+      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
     }
 
     let body: any;

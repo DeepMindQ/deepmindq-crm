@@ -506,7 +506,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                     </InputOTP>
                   </div>
 
-                  {devCode && process.env.NODE_ENV === 'development' && (
+                  {devCode && (
                     <motion.div
                       initial={{ opacity: 0, scale: 0.95 }}
                       animate={{ opacity: 1, scale: 1 }}

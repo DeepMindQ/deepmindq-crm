@@ -49,14 +49,5 @@ export function rateLimit(options: RateLimitOptions): RateLimitResult {
 export const apiRateLimit = (ip: string, endpoint: string) =>
   rateLimit({ key: `api:${ip}:${endpoint}`, limit: 100, windowMs: 60_000 })
 
-export const authRateLimit = (ip: string) =>
-  rateLimit({ key: `auth:${ip}`, limit: 5, windowMs: 60_000 })
-
-export const aiRateLimit = (userId: string) =>
-  rateLimit({ key: `ai:${userId}`, limit: 20, windowMs: 60_000 })
-
-export const importRateLimit = (userId: string) =>
-  rateLimit({ key: `import:${userId}`, limit: 3, windowMs: 60_000 * 60 }) // 3 per hour
-
 export const emailSendRateLimit = (userId: string) =>
   rateLimit({ key: `email:send:${userId}`, limit: 50, windowMs: 60_000 * 60 }) // 50 per hour per user

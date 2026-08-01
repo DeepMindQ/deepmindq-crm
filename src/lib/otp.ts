@@ -217,10 +217,10 @@ export async function requestOtp(
 
   // If email was NOT sent
   if (!emailSent) {
-    const isDev = process.env.NODE_ENV === 'development';
-    if (isDev) {
-      // Local dev: return code for convenience
-      logger.info(`[OTP] DEV — Email not configured. Returning code: ${code}`);
+    const devOtpAllowed = process.env.ALLOW_DEV_OTP === 'true';
+    if (devOtpAllowed) {
+      // Explicit dev OTP bypass: return code for local development convenience
+      logger.info(`[OTP] DEV — ALLOW_DEV_OTP enabled. Returning code: ${code}`);
       return { success: true, devCode: code };
     }
     // Production: email MUST work — don't expose the code

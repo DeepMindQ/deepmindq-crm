@@ -10,7 +10,8 @@ export async function logAction(
   action: string,
   entity: string,
   entityId: string,
-  details?: Record<string, unknown>
+  details?: Record<string, unknown>,
+  userId?: string
 ): Promise<void> {
   try {
     await db.auditLog.create({
@@ -18,6 +19,7 @@ export async function logAction(
         action,
         entity,
         entityId,
+        userId: userId || undefined,
         details: details ? JSON.stringify(details) : undefined,
       },
     });

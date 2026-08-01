@@ -244,13 +244,13 @@ async function exportSignals(format: ExportFormat): Promise<{ data: string; coun
 
 // ── Export History (audit) ──
 
-async function logExport(entity: ExportEntity, format: ExportFormat, rowCount: number) {
+async function logExport(entity: ExportEntity, format: ExportFormat, rowCount: number, userId: string) {
   try {
     await db.auditLog.create({
       data: {
         action: 'export',
         entity: entity,
-        userId: 'system',
+        userId,
         details: `Exported ${rowCount} ${entity} records as ${format.toUpperCase()}`,
       },
     });
@@ -284,7 +284,7 @@ export async function GET() {
 
     // Export history from audit log
     const exportHistory = await db.auditLog.findMany({
-      where: { action: 'export', entity: 'export' },
+      where: { action: 'export' },
       orderBy: { createdAt: 'desc' },
       take: 20,
     });
@@ -349,7 +349,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Log export for audit
-    await logExport(entity, format, result.count);
+    await logExport(entity, format, result.count, session!.id);
 
     const contentType = format === 'json' ? 'application/json' : 'text/csv';
     const filename = `deepmindq_${entity}_${new Date().toISOString().split('T')[0]}.${format}`;

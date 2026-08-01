@@ -7,6 +7,7 @@ import { sendEmail, type SendEmailResult } from '@/lib/email-provider'
 import { registerTrackingEvent } from '@/lib/email-tracking'
 import { eventBus } from '@/lib/event-bus'
 import { logAction } from '@/lib/audit'
+import { emailSendRateLimit } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger';
 
 // ── Validation ───────────────────────────────────────────────────────
@@ -59,8 +60,14 @@ function injectClickTracking(html: string, eventId: string, origin: string): str
 
 export async function POST(request: NextRequest) {
   // Auth gate: authenticated users only for email sending
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
+
+  // Rate limit: 50 emails per hour per user
+  const rl = emailSendRateLimit(session!.id);
+  if (!rl.success) {
+    return apiError('Email sending rate limit exceeded. Please try again later.', 429);
+  }
 
   try {
     const body = await request.json()
@@ -166,6 +173,7 @@ export async function POST(request: NextRequest) {
       data: {
         action: 'email_sent',
         entity: 'Email',
+        userId: session!.id,
         details: JSON.stringify(notificationDetails),
       },
     })
@@ -185,7 +193,7 @@ export async function POST(request: NextRequest) {
       subject,
       contactId: contactId ?? null,
       draftId: draftId ?? null,
-    })
+    }, session!.id)
 
     return apiSuccess({
       success: true,

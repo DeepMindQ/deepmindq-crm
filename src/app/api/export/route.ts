@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { apiError } from "@/lib/apiHelpers";
 import { sanitizeString } from "@/lib/sanitize";
+import { logAction } from '@/lib/audit';
 
 // ---------------------------------------------------------------------------
 // CSV helpers
@@ -114,6 +115,8 @@ export async function GET(request: NextRequest) {
 
     if (type === "contacts") {
       const csv = await buildContactsCSV();
+      // Audit log (fire-and-forget)
+      logAction('export', 'contacts', 'bulk', { format: 'csv' }, session!.id).catch(() => {});
       return new Response(BOM + csv, {
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
@@ -124,6 +127,8 @@ export async function GET(request: NextRequest) {
 
     // type === "companies" or default (no type)
     const csv = await buildCompaniesCSV();
+    // Audit log (fire-and-forget)
+    logAction('export', 'companies', 'bulk', { format: 'csv' }, session!.id).catch(() => {});
     return new Response(BOM + csv, {
       headers: {
         "Content-Type": "text/csv; charset=utf-8",

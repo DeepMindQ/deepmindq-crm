@@ -164,3 +164,50 @@ Work Log:
 - auth/reset-password and auth/reset-password/confirm identified as dead stubs (always return success without action)
 - Dead ADMIN_ROLES constant in auth-helpers.ts noted as cleanup item
 - Final regression: 53 files / 1822 pass / 14 skip / 0 fail, tsc clean, next build successful
+
+---
+Task ID: 3a
+Agent: Super Z (main)
+Task: Phase 3A — Audit Accountability & Security Fix (Adversarial Audit Remediation)
+
+Work Log:
+- Created branch: phase-3a-audit-fixes (from main)
+- Baseline captured: 53 files / 1822 pass / 14 skip / 0 fail, tsc clean
+- P0: Deleted src/app/api/auth/reset-password/ (2 files: route.ts + confirm/route.ts) — no references found elsewhere
+- P1: Updated logAction() in src/lib/audit.ts — added optional userId parameter (5th param), backward compatible
+- P1: Fixed src/app/api/emails/send/route.ts:
+  - db.auditLog.create now includes userId: session!.id
+  - logAction() call now passes session!.id as 5th argument
+- P1: Fixed src/app/api/export-center/route.ts:
+  - logExport() now accepts userId parameter instead of hardcoded 'system'
+  - POST handler passes session!.id to logExport()
+  - GET handler: fixed history query from { action: 'export', entity: 'export' } to { action: 'export' }
+- P1: Added audit logging to src/app/api/export/route.ts:
+  - Added logAction import
+  - Both export paths (companies, contacts) now call logAction() with fire-and-forget (.catch(() => {}))
+  - Records entity, format, and session!.id
+- P2: Added email sending rate limiting:
+  - Added emailSendRateLimit() to src/lib/rate-limit.ts (50 emails/hour/user)
+  - Integrated rate limit check in emails/send after auth, before business logic
+  - Returns 429 with message when exceeded
+- Created tests/security-phase3a-audit-fixes.test.ts: 10 tests covering:
+  - logAction userId pass-through (3 tests: with userId, without userId, minimal params)
+  - emails/send records userId in audit (1 test)
+  - export-center history query filter correctness (1 test)
+  - export/route.ts audit logging (1 test)
+  - email rate limiting: limit exceeded + per-user isolation (2 tests)
+  - Dead stub removal via filesystem check (2 tests)
+- Full regression: 54 files / 1832 pass / 14 skip / 0 fail, tsc clean, next build successful
+
+Stage Summary:
+- 2 files deleted (dead reset-password stubs)
+- 4 production files modified: audit.ts, emails/send, export-center, export/route.ts, rate-limit.ts
+- 1 test file created: tests/security-phase3a-audit-fixes.test.ts (10 tests)
+- Net test gain: +10 (1822 → 1832)
+- Zero test regressions
+- Zero type errors
+- Build successful
+- Audit trail now captures authenticated user identity for: email sends, export operations
+- Email sending now rate-limited to 50/hour per user
+- Export center history query now returns actual export records
+- All adversarial audit P0/P1/P2 findings addressed

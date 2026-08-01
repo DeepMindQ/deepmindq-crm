@@ -57,3 +57,6 @@ export const aiRateLimit = (userId: string) =>
 
 export const importRateLimit = (userId: string) =>
   rateLimit({ key: `import:${userId}`, limit: 3, windowMs: 60_000 * 60 }) // 3 per hour
+
+export const emailSendRateLimit = (userId: string) =>
+  rateLimit({ key: `email:send:${userId}`, limit: 50, windowMs: 60_000 * 60 }) // 50 per hour per user

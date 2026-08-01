@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Brain, TrendingUp, AlertTriangle, Zap,
-  ArrowRight, Loader2, RefreshCw, Target, Users,
+  ArrowRight, Loader2, RefreshCw, Target,
   ChevronRight, Plus, Sparkles, Search, Clock,
   Layers, Lightbulb,
 } from 'lucide-react';
@@ -13,6 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/lib/store';
 import { ProgressiveDisclosure } from './progressive-disclosure';
 import { IntelligenceNarrative, type NarrativeVariant } from './intelligence-narrative';
+import { ConfidenceIndicator } from './confidence-indicator';
+import { useIntelligenceNarratives } from './use-intelligence-narratives';
 import { tokens } from './design-tokens';
 import { logger } from '@/lib/logger';
 
@@ -151,6 +153,60 @@ export function CommandCenter() {
   const [briefingLoading, setBriefingLoading] = useState(true);
   const [insights, setInsights] = useState<CommandCenterInsights | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // ═══════════════════════════════════════════════════
+  // REAL INTELLIGENCE PIPELINE — The Core Integration
+  // ═══════════════════════════════════════════════════
+  // This hook connects the Command Center to the full
+  // intelligence engine: Signal → Grounding → Evidence →
+  // Confidence → Recommendation → Narrative
+  //
+  // Data flow:
+  //   useIntelligenceNarratives (hook)
+  //     → /api/intelligence/narratives (API)
+  //       → IntelligenceNarrativeService (service)
+  //         → GroundingEngine + confidence-explainability (engines)
+  //           → IntelligenceNarrativeData (structured output)
+  // ═══════════════════════════════════════════════════
+  const {
+    narratives: intelligenceNarratives,
+    isLoading: narrativesLoading,
+    error: narrativesError,
+    meta: narrativesMeta,
+    refetch: refetchNarratives,
+  } = useIntelligenceNarratives({
+    limit: 8,
+    minConfidence: 30,
+    enabled: intelligenceActivated,
+  });
+
+  // Narratives ranked by confidence × priority for briefing order
+  const rankedNarratives = useMemo(() => {
+    if (!intelligenceNarratives.length) return [];
+    const priorityWeight: Record<string, number> = { critical: 4, high: 3, medium: 2, low: 1 };
+    return [...intelligenceNarratives].sort((a, b) => {
+      const scoreA = (a.confidence?.score ?? 0) * (priorityWeight[a.priority || 'medium'] ?? 1);
+      const scoreB = (b.confidence?.score ?? 0) * (priorityWeight[b.priority || 'medium'] ?? 1);
+      return scoreB - scoreA;
+    });
+  }, [intelligenceNarratives]);
+
+  // Aggregate confidence from all active narratives
+  const aggregatedConfidence = useMemo(() => {
+    if (!intelligenceNarratives.length) return null;
+    const avgConfidence = Math.round(
+      intelligenceNarratives.reduce((sum, n) => sum + (n.confidence?.score ?? 0), 0) / intelligenceNarratives.length
+    );
+    const highConfidence = intelligenceNarratives.filter(n => (n.confidence?.score ?? 0) >= 70).length;
+    return {
+      average: avgConfidence,
+      total: intelligenceNarratives.length,
+      highConfidence,
+      factors: intelligenceNarratives[0]?.confidence?.breakdown
+        ? intelligenceNarratives[0].confidence.breakdown
+        : null,
+    };
+  }, [intelligenceNarratives]);
 
   const fetchIntelligence = useCallback(async () => {
     setLoading(true);
@@ -484,6 +540,15 @@ export function CommandCenter() {
           <Button
             variant="outline"
             size="sm"
+            onClick={() => { refetchNarratives(); fetchIntelligence(); fetchBriefings(); fetchUnifiedInsights(); }}
+            className="gap-1.5 text-xs"
+          >
+            <Brain className="w-3.5 h-3.5" />
+            Refresh Intelligence
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
             onClick={() => setActiveView('activation-workspace')}
             className="gap-1.5 text-xs"
           >
@@ -610,9 +675,142 @@ export function CommandCenter() {
         </div>
       )}
 
-      {/* Cross-Account Intelligence Insights */}
+      {/* ═══════════════════════════════════════════════
+          INTELLIGENCE BRIEFINGS — Real AI Pipeline Output
+          ═══════════════════════════════════════════════
+          This section renders narratives produced by the
+          full intelligence engine pipeline:
+
+          Signal Detection → GroundingEngine → Evidence Chain →
+          Confidence Computation → Narrative Construction
+
+          Every narrative carries:
+          • Multi-factor confidence (NOT hardcoded)
+          • Traceable evidence from real sources
+          • AI reasoning from signal analysis
+          • Actionable recommendations
+          ═══════════════════════════════════════════════ */}
       <AnimatePresence>
-        {crossInsights.length > 0 && (
+        {rankedNarratives.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            className="space-y-3"
+          >
+            <div className="flex items-center justify-between mb-1">
+              <div className="flex items-center gap-2">
+                <Brain className="w-4 h-4" style={{ color: tokens.accent.bright }} />
+                <h2 className="text-sm font-semibold text-foreground">Intelligence Briefings</h2>
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0" style={{ background: tokens.accent.ghost, color: tokens.accent.bright, border: 0 }}>
+                  {rankedNarratives.length} active
+                </Badge>
+              </div>
+              {narrativesMeta && (
+                <span className="text-[10px] tabular-nums" style={{ color: tokens.text.muted }}>
+                  Pipeline: {narrativesMeta.computationTimeMs ?? 0}ms · {narrativesMeta.engineCalls ?? 0} engine calls
+                </span>
+              )}
+            </div>
+
+            {/* Aggregate Intelligence Health Bar */}
+            {aggregatedConfidence && (
+              <div className="rounded-xl border p-4" style={{ background: tokens.surface.card, borderColor: tokens.border.subtle }}>
+                <div className="flex items-center gap-4">
+                  <ConfidenceIndicator
+                    value={aggregatedConfidence.average}
+                    mode="ring"
+                    size="md"
+                    label="Avg Confidence"
+                    showPercentage={true}
+                  />
+                  <div className="flex-1">
+                    <p className="text-xs font-semibold" style={{ color: tokens.text.primary }}>
+                      {aggregatedConfidence.highConfidence} of {aggregatedConfidence.total} signals high-confidence
+                    </p>
+                    <p className="text-[10px] mt-0.5" style={{ color: tokens.text.secondary }}>
+                      AI has analyzed {aggregatedConfidence.total} intelligence signals across your accounts
+                    </p>
+                    {aggregatedConfidence.factors && (
+                      <div className="flex items-center gap-3 mt-2">
+                        <span className="text-[10px]" style={{ color: tokens.text.muted }}>Breakdown:</span>
+                        <span className="text-[10px] font-medium" style={{ color: tokens.confidence.high.value }}>Signal {aggregatedConfidence.factors.signalQuality || 0}%</span>
+                        <span className="text-[10px] font-medium" style={{ color: tokens.confidence.high.value }}>Evidence {aggregatedConfidence.factors.evidenceQuality || 0}%</span>
+                        <span className="text-[10px] font-medium" style={{ color: tokens.confidence.medium.value }}>Capability {aggregatedConfidence.factors.capabilityFit || 0}%</span>
+                        <span className="text-[10px] font-medium" style={{ color: tokens.text.secondary }}>Data {aggregatedConfidence.factors.dataCompleteness || 0}%</span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Individual Intelligence Narratives — each from real pipeline */}
+            {rankedNarratives.map((narrative, i) => {
+              return (
+                <ProgressiveDisclosure
+                  key={narrative.id || i}
+                  title={narrative.headline}
+                  subtitle={narrative.subtitle}
+                  confidence={narrative.confidence?.score ?? 0}
+                  confidenceLabel="AI Confidence"
+                  badge={narrative.priority ? { label: narrative.priority, variant: narrative.priority === 'critical' ? 'high' : narrative.priority } : undefined}
+                  timestamp={narrative.timestamp}
+                  reasoning={narrative.reasoning}
+                  reasoningItems={narrative.reasoningPoints}
+                  evidence={narrative.evidence.map(e => ({
+                    source: e.source,
+                    url: e.url,
+                    snippet: e.snippet,
+                    date: e.date,
+                  }))}
+                  impactStatement={narrative.impactStatement}
+                  relatedSignals={narrative.relatedSignals}
+                  relatedActions={narrative.secondaryActions.map(a => ({
+                    title: a.label,
+                    priority: a.priority === 'critical' ? 'high' : a.priority,
+                  }))}
+                  defaultExpanded={0}
+                  onAction={narrative.primaryAction ? () => {
+                    if (narrative.entityType === 'company') {
+                      setSelectedCompanyId(narrative.entityId);
+                      setActiveView('company-workspace');
+                    }
+                  } : undefined}
+                  actionLabel={narrative.primaryAction?.label}
+                />
+              );
+            })}
+
+            {/* Pipeline loading state */}
+            {narrativesLoading && (
+              <div className="flex items-center gap-3 rounded-xl border p-4" style={{ background: tokens.surface.card, borderColor: tokens.border.subtle }}>
+                <Loader2 className="w-4 h-4 animate-spin" style={{ color: tokens.accent.bright }} />
+                <span className="text-xs" style={{ color: tokens.text.secondary }}>Intelligence pipeline processing...</span>
+              </div>
+            )}
+
+            {/* Pipeline error state */}
+            {narrativesError && (
+              <div className="flex items-center gap-3 rounded-xl border p-4" style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.15)' }}>
+                <AlertTriangle className="w-4 h-4" style={{ color: '#ef4444' }} />
+                <span className="text-xs" style={{ color: tokens.text.secondary }}>{narrativesError}</span>
+                <button
+                  onClick={() => refetchNarratives()}
+                  className="ml-auto text-[10px] font-medium"
+                  style={{ color: tokens.accent.bright }}
+                >
+                  Retry pipeline
+                </button>
+              </div>
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Cross-Account Intelligence Insights (compositional layer) */}
+      <AnimatePresence>
+        {crossInsights.length > 0 && rankedNarratives.length === 0 && (
           <motion.div
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}

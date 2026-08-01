@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════════════════
    Ticket 8 — Signal Evidence Detail API
@@ -17,7 +18,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params;
 
     if (!id || typeof id !== 'string' || id.length < 1) {

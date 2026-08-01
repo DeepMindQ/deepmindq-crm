@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scoreOpportunity, scoreAllOpportunities } from '@/lib/scoring/opportunity-probability-engine';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { opportunityId, scoreAll } = body;
 

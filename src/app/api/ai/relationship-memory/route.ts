@@ -3,6 +3,7 @@ import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { format } from 'date-fns'
 import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -863,7 +864,11 @@ No text outside the JSON object.`
 // ---------------------------------------------------------------------------
 
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     // Return cached result if still fresh
     if (cachedResult && Date.now() - cachedResult.ts < CACHE_TTL) {
       return apiSuccess(cachedResult.data)

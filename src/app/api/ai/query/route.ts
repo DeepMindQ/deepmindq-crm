@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { extractJSON } from '@/lib/llm-client'
 import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ---------------------------------------------------------------------------
 // Safe Prisma query builder
@@ -95,7 +96,11 @@ Examples:
 - "invalid emails" → { "entityType": "contact", "filters": { "emailHealth": "invalid" }, "sortBy": "createdAt", "sortOrder": "desc" }`
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json() as Record<string, unknown>
     const { query } = body as { query?: unknown }
 

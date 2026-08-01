@@ -13,6 +13,7 @@ import { companyIdSchema } from '@/lib/intelligence-api/validators';
 import { getFreshnessStatus, getCompaniesNeedingRefresh, batchUpdateFreshness } from '@/lib/intelligence-sources/freshness-manager';
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const refreshGetQuerySchema = z.object({
   companyId: companyIdSchema.optional(),
@@ -31,6 +32,10 @@ const refreshPostBodySchema = z.object({
 export async function GET(req: NextRequest) {
   let correlationId;
   let responseHeaders;
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const ctx = utilityGuard(req, 'refresh');
     correlationId = ctx.correlationId;
@@ -72,6 +77,10 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let correlationId;
   let responseHeaders;
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const ctx = utilityGuard(req, 'refresh');
     correlationId = ctx.correlationId;

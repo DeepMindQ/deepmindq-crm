@@ -10,6 +10,7 @@ import {
   RateLimitedError,
 } from '@/lib/intelligence-api/guard';
 import { z } from 'zod';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    COMMAND CENTER — Unified Insights Endpoint (Ticket 5)
@@ -285,7 +286,11 @@ Return ONLY valid JSON.`;
 // ═══════════════════════════════════════════════════════════════════════════
 
 export async function GET(request: NextRequest) {
-  const startedAt = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startedAt = Date.now();
 
   // ── Guard: rate limiting + correlation-id + response headers ──
   let ctx: ReturnType<typeof utilityGuard>;

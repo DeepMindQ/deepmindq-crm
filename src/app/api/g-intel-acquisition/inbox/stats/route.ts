@@ -1,5 +1,6 @@
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
 import { getInboxStats } from '@/lib/intelligence-sources/human-intelligence';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════════════════
    Ticket 10 — Intelligence Inbox Stats API
@@ -9,7 +10,11 @@ import { getInboxStats } from '@/lib/intelligence-sources/human-intelligence';
    ═══════════════════════════════════════════════════════════════ */
 
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const stats = await getInboxStats();
     return apiSuccess(stats);
   } catch (err) {

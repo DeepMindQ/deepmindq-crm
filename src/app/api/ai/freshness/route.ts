@@ -6,9 +6,14 @@
  */
 
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
+import { checkApiAuth } from '@/lib/api-auth'
 import { runFreshnessScan, getFreshnessStats } from '@/lib/intelligence-sources/freshness-decay'
 
 export async function POST() {
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth()
+  if (errorResponse) return errorResponse
+
   try {
     const result = await runFreshnessScan()
     return apiSuccess({ scanCompleted: true, timestamp: new Date().toISOString(), ...result })
@@ -18,6 +23,10 @@ export async function POST() {
 }
 
 export async function GET() {
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth()
+  if (errorResponse) return errorResponse
+
   try {
     const stats = await getFreshnessStats()
     return apiSuccess({ timestamp: new Date().toISOString(), ...stats })

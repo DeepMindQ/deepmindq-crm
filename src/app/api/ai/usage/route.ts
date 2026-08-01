@@ -18,6 +18,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ── Query Params ──
 
@@ -93,7 +94,11 @@ function estimateTokensFromSummary(summary: string | null): number {
 // ── GET Handler ──
 
 export async function GET(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const daysParam = searchParams.get('days');
     let days = DAYS_DEFAULT;

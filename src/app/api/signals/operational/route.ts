@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
+import { checkApiAuth } from '@/lib/api-auth';
 import {
   utilityGuard,
   utilityCatchError,
@@ -30,7 +31,11 @@ const dismissedIds = new Set<string>();
    GET /api/signals/operational — Detect signals from lead data
    ═══════════════════════════════════════════════════════════════ */
 export async function GET(request: NextRequest) {
-  const startedAt = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startedAt = Date.now();
 
   let ctx: ReturnType<typeof utilityGuard>;
   try {
@@ -320,7 +325,11 @@ export async function GET(request: NextRequest) {
    POST /api/signals/operational — Dismiss a signal (in-memory)
    ═══════════════════════════════════════════════════════════════ */
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json() as { id?: string; action?: string };
 
     if (body.action === 'dismiss' && body.id) {

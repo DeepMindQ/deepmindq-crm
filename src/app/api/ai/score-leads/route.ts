@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { z } from 'zod'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
+import { checkApiAuth } from '@/lib/api-auth'
 
 // ---------------------------------------------------------------------------
 // Types — Wave 8A: Evidence-Linked Decomposed Scoring
@@ -539,6 +540,10 @@ async function scoreContact(
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth()
+  if (errorResponse) return errorResponse
+
   try {
     const body = await request.json()
     const parsed = validateBody(scoreLeadsSchema, body)

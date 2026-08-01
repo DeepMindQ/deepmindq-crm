@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError, safeInt, sanitize } from '@/lib/apiHelpers';
+import { checkApiAuth } from '@/lib/api-auth';
 import {
   getInboxItems,
   getInboxStats,
@@ -25,7 +26,11 @@ const VALID_CATEGORIES = [
 ];
 
 export async function GET(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
 
     const page = Math.max(1, safeInt(searchParams.get('page'), 1, 1));
@@ -84,7 +89,11 @@ export async function GET(request: NextRequest) {
    ═══════════════════════════════════════════════════════════════ */
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { companyId, submittedBy, content } = body;
 

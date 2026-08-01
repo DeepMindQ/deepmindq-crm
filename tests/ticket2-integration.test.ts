@@ -27,6 +27,21 @@ import { computeFreshness } from '@/lib/intelligence-api/middleware';
 //  Mocks
 // ═══════════════════════════════════════════════════════════════════════════
 
+// ── Auth mock — these routes now require authentication ──
+vi.mock('@/lib/session', () => ({
+  getCurrentSession: vi.fn().mockResolvedValue({
+    id: 'test-user',
+    email: 'test@deepmindq.com',
+    name: 'Test User',
+    phone: null,
+    company: 'DeepMindQ',
+    designation: 'Admin',
+    role: 'admin',
+    hasPassword: true,
+    avatarUrl: null,
+  }),
+}));
+
 vi.mock('@/lib/db', () => ({
   db: {
     company: { findUnique: vi.fn() },

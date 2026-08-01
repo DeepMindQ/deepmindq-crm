@@ -27,6 +27,7 @@ import {
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
 import { classifyIntelligenceTier, parseRevenueBreakdown } from '@/lib/intelligence-api/middleware';
 import { normalizeTierForDisplay } from '@/lib/intelligence-api/types';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ── Canonical Response Types (single source of truth) ──
 // These types are also consumed by the frontend ScoreTriple component.
@@ -126,7 +127,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const startedAt = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startedAt = Date.now();
 
   // ── Guard: rate limiting + correlation-id + response headers ──
   // Initialize with a safe fallback so ctx is always assigned

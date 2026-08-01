@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
 import { recordSignalFeedback, computeLearningInsights } from '@/lib/intelligence-sources/learning-loop';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const feedbackPostBodySchema = z.object({
   signalId: z.string().min(1, 'signalId is required'),
@@ -22,7 +23,11 @@ const feedbackPostBodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
     ctx = utilityGuard(request, 'feedback');
   } catch (rlErr) {
@@ -50,7 +55,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
     ctx = utilityGuard(request, 'feedback');
   } catch (rlErr) {

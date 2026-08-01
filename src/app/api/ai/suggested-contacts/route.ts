@@ -4,6 +4,7 @@ import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { sdkWebSearch } from '@/lib/llm-client';
 import { governedAICall } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ── Types ──
 
@@ -90,7 +91,11 @@ function validateContacts(arr: unknown[]): SuggestedContact[] {
 // GET /api/ai/suggested-contacts?companyId=xxx
 
 export async function GET(request: NextRequest) {
-  const companyId = request.nextUrl.searchParams.get('companyId');
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const companyId = request.nextUrl.searchParams.get('companyId');
   if (!companyId) return apiError('companyId query parameter is required', 400);
 
   const cached = getCached(companyId);

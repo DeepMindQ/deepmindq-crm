@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
 import { batchDismissInboxItems } from '@/lib/intelligence-sources/human-intelligence';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════════════════
    Ticket 10 — Intelligence Inbox Batch Dismiss API
@@ -11,7 +12,11 @@ import { batchDismissInboxItems } from '@/lib/intelligence-sources/human-intelli
    ═══════════════════════════════════════════════════════════════ */
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { ids, reviewerId } = body;
 

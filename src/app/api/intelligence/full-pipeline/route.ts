@@ -27,6 +27,7 @@ import { createInsight } from '@/lib/ai-insight-service';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ── Types ──
 
@@ -91,6 +92,10 @@ async function aiCall(
 
 export async function GET(request: NextRequest) {
   let ctx: ReturnType<typeof utilityGuard>;
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     ctx = utilityGuard(request, 'full-pipeline');
   } catch (rlErr) {
@@ -210,6 +215,10 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   let ctx: ReturnType<typeof utilityGuard>;
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     ctx = utilityGuard(request, 'full-pipeline');
   } catch (rlErr) {

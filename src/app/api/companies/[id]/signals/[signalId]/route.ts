@@ -1,14 +1,18 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    PATCH — Update a signal (mark as read, etc.)
-   ═══════════════════════════════════════════════════ */
+   ═══════════════════════════════════════ */
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; signalId: string }> }
 ) {
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const { id: companyId, signalId } = await params;
     const body = await request.json();
@@ -60,11 +64,14 @@ export async function PATCH(
 
 /* ═══════════════════════════════════════════════════
    DELETE — Delete a signal
-   ═══════════════════════════════════════════════════ */
+   ═══════════════════════════════════════ */
 export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string; signalId: string }> }
 ) {
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const { id: companyId, signalId } = await params;
 

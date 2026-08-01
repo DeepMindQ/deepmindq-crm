@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { sdkWebSearch } from '@/lib/llm-client';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // POST /api/research-agent — Deep research on company or person
 export async function POST(req: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await req.json();
     const { query, type } = body;
 

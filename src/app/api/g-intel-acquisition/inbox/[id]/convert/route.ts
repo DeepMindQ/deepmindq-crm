@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
 import { convertApprovedItem } from '@/lib/intelligence-sources/human-intelligence';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════════════════
    Ticket 10 — Intelligence Inbox Convert API
@@ -13,7 +14,11 @@ export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params;
 
     const result = await convertApprovedItem(id);

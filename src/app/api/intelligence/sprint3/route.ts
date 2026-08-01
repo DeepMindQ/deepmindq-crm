@@ -26,6 +26,7 @@ import { detectPeopleChanges } from '@/lib/intelligence-sources/people-change-de
 import { queryUnifiedMemory } from '@/lib/intelligence-sources/unified-memory-query'
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const sprint3BodySchema = z.object({
   mode: z.string().min(1),
@@ -301,7 +302,11 @@ async function seedValidationData() {
 // ═══════════════════════════════════════════════════════════════
 
 export async function POST(request: NextRequest) {
-  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
     ctx = utilityGuard(request, 'sprint3');
   } catch (rlErr) {

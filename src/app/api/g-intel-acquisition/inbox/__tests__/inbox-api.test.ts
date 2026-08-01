@@ -12,6 +12,21 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
+// ── Auth mock — these routes now require authentication ──
+vi.mock('@/lib/session', () => ({
+  getCurrentSession: vi.fn().mockResolvedValue({
+    id: 'test-user',
+    email: 'test@deepmindq.com',
+    name: 'Test User',
+    phone: null,
+    company: 'DeepMindQ',
+    designation: 'Admin',
+    role: 'admin',
+    hasPassword: true,
+    avatarUrl: null,
+  }),
+}))
+
 // ═══════════════════════════════════════════════════════════════
 // Mock the business logic layer
 // ═══════════════════════════════════════════════════════════════

@@ -4,6 +4,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { createInsights } from '@/lib/ai-insight-service'
 import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -361,7 +362,11 @@ async function enhanceWithAI(recs: Recommendation[]): Promise<Recommendation[]> 
 // ---------------------------------------------------------------------------
 
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     // Phase 1: Run all rule-based generators in parallel
     const [
       stale,

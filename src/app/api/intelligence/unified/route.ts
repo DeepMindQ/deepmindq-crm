@@ -20,6 +20,7 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const unifiedBodySchema = z.object({
   companyId: companyIdSchema,
@@ -29,6 +30,10 @@ const unifiedBodySchema = z.object({
 export async function POST(request: NextRequest) {
   let correlationId;
   let responseHeaders;
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const ctx = utilityGuard(request, 'unified');
     correlationId = ctx.correlationId;

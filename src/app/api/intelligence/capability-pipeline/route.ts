@@ -17,11 +17,16 @@ import { CapabilityIntelligenceEngine, type CapabilityInput } from '@/lib/capabi
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const EP = 'capability-pipeline';
 
 export async function POST(request: NextRequest) {
-  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
     ctx = utilityGuard(request, EP);
   } catch (rlErr) {
@@ -103,7 +108,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
     ctx = utilityGuard(request, EP);
   } catch (rlErr) {

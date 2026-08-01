@@ -16,13 +16,18 @@ import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
 import { z } from 'zod';
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const internalMemoryBodySchema = z.object({
   companyId: companyIdSchema,
 });
 
 export async function POST(request: NextRequest) {
-  let ctx: Awaited<ReturnType<typeof utilityGuard>>;
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: Awaited<ReturnType<typeof utilityGuard>>;
   try {
     ctx = utilityGuard(request, 'internal-memory');
   } catch (rlErr) {

@@ -16,6 +16,48 @@
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { NextRequest } from 'next/server';
+
+// ── Auth mock — these routes now require authentication ──
+vi.mock('@/lib/session', () => ({
+  getCurrentSession: vi.fn().mockResolvedValue({
+    id: 'test-user',
+    email: 'test@deepmindq.com',
+    name: 'Test User',
+    phone: null,
+    company: 'DeepMindQ',
+    designation: 'Admin',
+    role: 'admin',
+    hasPassword: true,
+    avatarUrl: null,
+  }),
+}));
+
+vi.mock('@/lib/logger', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+
+vi.mock('@/lib/rate-limit', () => ({
+  rateLimit: vi.fn().mockReturnValue({ success: true, remaining: 100, resetAt: Date.now() + 60000 }),
+}));
+
+vi.mock('@/lib/db', () => ({
+  db: {
+    company: { findUnique: vi.fn().mockResolvedValue(null) },
+    companySignal: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
+    contact: { findMany: vi.fn().mockResolvedValue([]), count: vi.fn().mockResolvedValue(0) },
+    companyTimelineEvent: { findMany: vi.fn().mockResolvedValue([]) },
+    fusionResult: { findMany: vi.fn().mockResolvedValue([]) },
+    capabilityAsset: { findMany: vi.fn().mockResolvedValue([]) },
+    companyResearchCard: { findUnique: vi.fn().mockResolvedValue(null) },
+    reasoningStep: { findMany: vi.fn().mockResolvedValue([]) },
+    learningEvent: { findMany: vi.fn().mockResolvedValue([]) },
+    knowledgeEntry: { findMany: vi.fn().mockResolvedValue([]) },
+    accountScore: { findUnique: vi.fn().mockResolvedValue(null) },
+    session: { findUnique: vi.fn().mockResolvedValue(null) },
+    otpCode: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+  },
+}));
+
 import { GET as companyGET } from '@/app/api/intelligence/company/[id]/route';
 import { GET as reasoningGET } from '@/app/api/intelligence/reasoning/[id]/route';
 import { GET as opportunityGET } from '@/app/api/intelligence/opportunity/[id]/route';

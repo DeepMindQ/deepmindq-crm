@@ -14,6 +14,7 @@ import { z } from 'zod';
 import { collectCompetitiveIntel, runCompetitiveScan } from '@/lib/intelligence-sources/competitive-intel/engine';
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const competitiveBodySchema = z.object({
   competitorName: z.string().min(1).optional(),
@@ -23,7 +24,11 @@ const competitiveBodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  let ctx: Awaited<ReturnType<typeof utilityGuard>>;
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: Awaited<ReturnType<typeof utilityGuard>>;
   try {
     ctx = utilityGuard(req, 'competitive');
   } catch (rlErr) {

@@ -10,6 +10,7 @@ import {
   RateLimitedError,
 } from '@/lib/intelligence-api/guard';
 import { z } from 'zod';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════════════════════
    AI Command Center — Natural Language Query (v2)
@@ -555,7 +556,11 @@ async function legacyKeywordQuery(query: string): Promise<QueryResult> {
 // ── Main Route Handler ────────────────────────────────────────────
 
 export async function POST(req: NextRequest) {
-  const startedAt = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startedAt = Date.now();
 
   // ── Guard ──
   let ctx: ReturnType<typeof utilityGuard>;

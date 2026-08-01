@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
+import { checkApiAuth } from '@/lib/api-auth';
 import {
   utilityGuard,
   utilityCatchError,
@@ -25,7 +26,11 @@ const schema = z.object({
 // ── POST /api/ai/revenue-score ──
 
 export async function POST(request: NextRequest) {
-  const startedAt = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startedAt = Date.now();
 
   // ── Guard: rate limiting + correlation-id + response headers ──
   let ctx: ReturnType<typeof utilityGuard>;

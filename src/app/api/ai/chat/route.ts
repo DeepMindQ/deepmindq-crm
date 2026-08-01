@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -172,7 +173,11 @@ function generateTemplateResponse(message: string): string {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json()
     const { message, context, conversationHistory } = body
 

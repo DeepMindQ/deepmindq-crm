@@ -13,13 +13,18 @@ import { db } from '@/lib/db';
 import { generatePredictions } from '@/lib/intelligence-sources/predictive-intelligence';
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const predictionsQuerySchema = z.object({
   companyId: companyIdSchema,
 });
 
 export async function GET(request: NextRequest) {
-  let ctx: Awaited<ReturnType<typeof utilityGuard>>;
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: Awaited<ReturnType<typeof utilityGuard>>;
   try {
     ctx = utilityGuard(request, 'predictions');
   } catch (rlErr) {

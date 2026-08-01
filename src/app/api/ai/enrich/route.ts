@@ -5,6 +5,7 @@ import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { createInsight } from '@/lib/ai-insight-service'
 import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger'
+import { checkApiAuth } from '@/lib/api-auth'
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -327,6 +328,10 @@ Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence":
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth()
+  if (errorResponse) return errorResponse
+
   try {
     const body = await request.json()
     const parsed = validateBody(enrichSchema, body)

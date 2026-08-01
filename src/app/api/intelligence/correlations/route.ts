@@ -12,9 +12,14 @@ import { detectCorrelations } from '@/lib/intelligence-sources/cross-signal-corr
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
-  let ctx: Awaited<ReturnType<typeof utilityGuard>>;
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: Awaited<ReturnType<typeof utilityGuard>>;
   try {
     ctx = utilityGuard(request, 'correlations');
   } catch (rlErr) {

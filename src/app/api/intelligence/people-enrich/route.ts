@@ -15,6 +15,7 @@ import { companyIdSchema } from '@/lib/intelligence-api/validators';
 import { enrichContactProfile, enrichCompanyContacts } from '@/lib/intelligence-sources/people-enrichment/engine';
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const peopleEnrichBodySchema = z.object({
   contactId: z.string().min(1).optional(),
@@ -24,7 +25,11 @@ const peopleEnrichBodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-  let ctx: Awaited<ReturnType<typeof utilityGuard>>;
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: Awaited<ReturnType<typeof utilityGuard>>;
   try {
     ctx = utilityGuard(req, 'people-enrich');
   } catch (rlErr) {

@@ -14,6 +14,7 @@ import { db } from '@/lib/db';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const batchSchema = z.object({
   companyIds: z.array(z.string().min(1)).min(1).max(100),
@@ -23,6 +24,10 @@ const batchSchema = z.object({
 export async function POST(request: NextRequest) {
   let correlationId;
   let responseHeaders;
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const ctx = utilityGuard(request, 'enrich-batch');
     correlationId = ctx.correlationId;
@@ -89,7 +94,11 @@ export async function POST(request: NextRequest) {
 }
 
 export async function GET(request: NextRequest) {
-  let correlationId: string;
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let correlationId: string;
   let responseHeaders: Record<string, string>;
   try {
     const ctx = utilityGuard(request, 'enrich-batch');

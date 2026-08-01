@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
 import type { SignalType, SignalSeverity, SignalStatus, SignalMeaningCategory } from '@prisma/client';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════════════════
    Ticket 8 — Signal Intelligence Screen API
@@ -26,7 +27,11 @@ const VALID_STATUSES: string[] = ['detected', 'validated', 'active', 'aging', 'e
 const PAGE_SIZE = 20;
 
 export async function GET(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
 
     /* ── Parse query params ── */

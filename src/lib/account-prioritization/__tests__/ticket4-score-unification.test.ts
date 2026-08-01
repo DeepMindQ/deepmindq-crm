@@ -10,6 +10,21 @@ import type { NextRequest } from 'next/server';
 
 // ── Mocks (must precede any import that touches these modules) ──
 
+// ── Auth mock — these routes now require authentication ──
+vi.mock('@/lib/session', () => ({
+  getCurrentSession: vi.fn().mockResolvedValue({
+    id: 'test-user',
+    email: 'test@deepmindq.com',
+    name: 'Test User',
+    phone: null,
+    company: 'DeepMindQ',
+    designation: 'Admin',
+    role: 'admin',
+    hasPassword: true,
+    avatarUrl: null,
+  }),
+}));
+
 vi.mock('@/lib/intelligence-api/guard', () => ({
   utilityGuard: () => ({
     correlationId: 'test-corr-id',

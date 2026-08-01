@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { EnterpriseReasoningEngine } from '@/lib/enterprise-reasoning-engine';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // POST /api/reasoning — Build reasoning context for a company
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { companyId } = body;
     if (!companyId) return apiError('companyId is required', 400);
@@ -18,7 +23,11 @@ export async function POST(request: NextRequest) {
 
 // GET /api/reasoning?companyId=xxx — Get reasoning context
 export async function GET(request: NextRequest) {
-  const companyId = new URL(request.url).searchParams.get('companyId');
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const companyId = new URL(request.url).searchParams.get('companyId');
   if (!companyId) return apiError('companyId query parameter required', 400);
 
   try {

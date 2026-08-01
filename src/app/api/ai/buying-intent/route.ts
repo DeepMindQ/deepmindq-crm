@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { scoreBuyingIntent } from '@/lib/scoring/buying-intent-engine';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { companyId } = body;
 

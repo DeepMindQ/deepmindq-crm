@@ -34,6 +34,7 @@ import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const VALID_BRIEF_TYPES = new Set<BriefType>([
   'account_brief',
@@ -66,7 +67,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const startedAt = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startedAt = Date.now();
   const requestedAt = new Date();
 
   // ── Intelligence Guard: validation + rate limiting + correlation-id ─────

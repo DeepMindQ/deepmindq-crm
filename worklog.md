@@ -87,3 +87,37 @@ Stage Summary:
 - Both auth paths now produce identical valid state: DB Session row + httpOnly cookie
 - createSession() is now the single source of truth for session creation
 - Ready for Batch 2: YES
+
+---
+Task ID: 2b
+Agent: Super Z (main)
+Task: Phase 2 Batch 2 — Intelligence/AI/Research/G-intel Route Protection
+
+Work Log:
+- Baseline: 52 files / 1818 pass / 14 skip / 0 fail, tsc clean
+- Inventory: 81 unprotected routes across 10 categories (intelligence: 29, ai: 31, research: 2, reasoning: 1, g-intel: 6, signals: 3, command-center: 2, company-intel: 5, contact-intel: 2)
+- 4 engine routes already had auth (engines/brief, score, conversation, actions)
+- Identified 3 route patterns: intelligenceGuard (async, Response return), utilityGuard (sync, throws RateLimitedError), no-guard (raw try/catch)
+- Created batch2-add-auth.js script: injected checkApiAuth() as FIRST operation in each handler
+- Fixed 23 files where script incorrectly placed auth inside function parameter destructuring
+- Manually fixed companies/[id]/signals/route.ts (preserved SignalType validation)
+- Manually fixed 4 no-semicolon files (ai/enrich, ai/freshness, ai/governance/check, ai/score-leads)
+- Updated 5 failing test files with session mocks:
+  - tests/ticket1-intelligence-integration.test.ts (added session + logger + rate-limit + db mocks)
+  - tests/ticket2-integration.test.ts (added session mock)
+  - src/app/api/g-intel-acquisition/inbox/__tests__/inbox-api.test.ts (added session mock)
+  - src/app/api/g-intel-acquisition/inbox/batch-dismiss/__tests__/batch-dismiss-api.test.ts (added session mock)
+  - src/lib/account-prioritization/__tests__/ticket4-score-unification.test.ts (added session mock)
+- Created tests/security-batch2-authenticated-access.test.ts: 4 tests proving authenticated happy path
+- Auth check ordering verified: checkApiAuth() → existing guard → business logic
+
+Stage Summary:
+- 81 production route files modified with auth guards
+- 5 existing test files updated with session mocks
+- 1 new test file created (4 authenticated access tests)
+- Net test change: +4 (1818 → 1822)
+- Zero test regressions
+- Zero type errors
+- Auth placed BEFORE all existing guards (intelligenceGuard, utilityGuard)
+- Auth placed BEFORE Zod validation, AI execution, and DB queries
+- All 81 routes verified to contain checkApiAuth

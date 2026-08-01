@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
+import { checkApiAuth } from '@/lib/api-auth';
 import {
   utilityGuard,
   utilityCatchError,
@@ -12,7 +13,11 @@ import {
  * Returns metrics about AI quality across the platform.
  */
 export async function GET(request: NextRequest) {
-  const startedAt = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startedAt = Date.now();
 
   let ctx: ReturnType<typeof utilityGuard>;
   try {

@@ -4,13 +4,18 @@ import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { calculateLeadScore } from '@/lib/lead-scoring';
 import { createInsights } from '@/lib/ai-insight-service';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /**
  * Wave 5.1 — Contact Intelligence Score API
  */
 
 export async function GET(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
     const contactId = searchParams.get('contactId');
@@ -114,7 +119,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { companyId } = body;
     if (!companyId) return apiError('companyId required', 400);

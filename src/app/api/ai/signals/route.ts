@@ -5,6 +5,7 @@ import { randomUUID } from 'crypto'
 import { sdkWebSearch, type WebSearchResult } from '@/lib/llm-client'
 import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -377,7 +378,11 @@ async function persistSignalsToDb(signals: ParsedSignal[]): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = request.nextUrl
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const { searchParams } = request.nextUrl
   const companyId = searchParams.get('company') || null
   const limit = safeInt(searchParams.get('limit'), 10, 1)
 

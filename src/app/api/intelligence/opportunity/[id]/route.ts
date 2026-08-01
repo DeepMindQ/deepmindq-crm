@@ -39,12 +39,17 @@ import type {
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const startedAt = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startedAt = Date.now();
   const requestedAt = new Date();
 
   const guardResult = await intelligenceGuard(request, params, 'opportunity');

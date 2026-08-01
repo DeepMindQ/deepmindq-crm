@@ -5,6 +5,7 @@ import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
 import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -181,7 +182,11 @@ function summarizeOpportunity(data: {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json()
     const parsed = validateBody(summarizeSchema, body)
     if (parsed instanceof Response) return parsed

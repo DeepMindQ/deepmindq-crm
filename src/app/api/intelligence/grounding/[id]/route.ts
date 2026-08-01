@@ -28,12 +28,17 @@ import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
 import { runGovernanceChecks } from '@/lib/ai-governance';
 import { getResearchContext } from '@/lib/intelligence-contract';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const startedAt = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startedAt = Date.now();
   const requestedAt = new Date();
 
   // ── Intelligence Guard: validation + rate limiting + correlation-id ─────

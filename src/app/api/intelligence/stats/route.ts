@@ -9,9 +9,14 @@
 import { NextRequest } from 'next/server';
 import { IntelligencePipeline } from '@/lib/intelligence-pipeline';
 import { utilityGuard, RateLimitedError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
-  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
     ctx = utilityGuard(request, 'stats');
   } catch (rlErr) {

@@ -15,6 +15,7 @@ import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
 import { z } from 'zod';
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const monitorBodySchema = z.object({
   companyId: companyIdSchema.optional(),
@@ -24,7 +25,11 @@ const monitorBodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
     ctx = utilityGuard(request, 'monitor');
   } catch (rlErr) {

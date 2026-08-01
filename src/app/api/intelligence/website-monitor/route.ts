@@ -15,13 +15,18 @@ import { monitorCompanyWebsite } from '@/lib/intelligence-sources/website-monito
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const websiteMonitorBodySchema = z.object({
   companyId: companyIdSchema,
 });
 
 export async function POST(req: NextRequest) {
-  let ctx: { correlationId: string; responseHeaders: Record<string, string> };
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: { correlationId: string; responseHeaders: Record<string, string> };
   try {
     ctx = utilityGuard(req, 'website-monitor');
   } catch (rlErr) {

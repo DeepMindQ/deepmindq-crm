@@ -4,6 +4,7 @@ import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
 import { sdkWebSearch } from '@/lib/llm-client';
 import { governedAICall } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -207,7 +208,11 @@ Generate a highly specific, actionable conversation plan. Use the web research t
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const parsed = validateBody(conversationPlanSchema, body);
     if (parsed instanceof Response) return parsed;

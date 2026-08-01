@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { governedAICall } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ---------------------------------------------------------------------------
 // LLM helper — governed call (high-stakes: email generation)
@@ -126,7 +127,11 @@ function calculateScores(
 // ---------------------------------------------------------------------------
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params
     const body = await req.json()
     const { tone: requestTone, emailLength: requestLength, ctaStyle: requestCta } = body

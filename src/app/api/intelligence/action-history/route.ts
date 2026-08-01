@@ -12,6 +12,7 @@ import { companyIdSchema } from '@/lib/intelligence-api/validators';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const actionHistoryQuerySchema = z.object({
   companyId: companyIdSchema,
@@ -20,7 +21,11 @@ const actionHistoryQuerySchema = z.object({
 });
 
 export async function GET(req: NextRequest) {
-  let ctx: Awaited<ReturnType<typeof utilityGuard>>;
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: Awaited<ReturnType<typeof utilityGuard>>;
   try {
     ctx = utilityGuard(req, 'action-history');
   } catch (rlErr) {

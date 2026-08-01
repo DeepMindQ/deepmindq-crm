@@ -54,6 +54,7 @@ interface PipelineStats {
 import { sdkWebSearch } from '@/lib/llm-client'
 import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /**
  * Fetch live industry trend context via web search.
@@ -539,7 +540,11 @@ async function fetchRecentInsights(limit: number) {
    ══════════════════════════════════════════════════════════════════════════ */
 
 export async function GET(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url)
     const limit = Math.min(Math.max(parseInt(searchParams.get('limit') || '6', 10) || 6, 1), 50)
 

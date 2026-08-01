@@ -9,6 +9,7 @@ import {
   RateLimitedError,
 } from '@/lib/intelligence-api/guard';
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Types — AI Evidence Framework Compliant
@@ -466,7 +467,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const startedAt = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startedAt = Date.now();
 
   // ── Guard: rate limiting + correlation-id + response headers ──
   let ctx: ReturnType<typeof utilityGuard>;

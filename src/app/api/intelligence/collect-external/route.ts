@@ -16,6 +16,7 @@ import { companyIdSchema } from '@/lib/intelligence-api/validators';
 import { collectIntelligenceForCompany, collectIntelligenceBatch } from '@/lib/intelligence-sources/external-intelligence-collector';
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const collectExternalBodySchema = z.object({
   companyId: companyIdSchema.optional(),
@@ -26,7 +27,11 @@ const collectExternalBodySchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
-  let ctx: Awaited<ReturnType<typeof utilityGuard>>;
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+let ctx: Awaited<ReturnType<typeof utilityGuard>>;
   try {
     ctx = utilityGuard(request, 'collect-external');
   } catch (rlErr) {

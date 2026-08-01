@@ -17,6 +17,7 @@ import { apiSuccess, apiError } from '@/lib/apiHelpers'
 import { getGovernanceConfig, type GovernanceConfig, GOVERNANCE_PROMPT_VERSION, getRegisteredGenerationTypes } from '@/lib/ai-governance'
 // eslint-disable-next-line no-ungoverned-llm/no-ungoverned-llm -- governance check endpoint needs health status
 import { ModelRouter } from '@/lib/engines/model-router'
+import { checkApiAuth } from '@/lib/api-auth'
 
 function getAllGenerationTypes(): readonly string[] {
   return [...getRegisteredGenerationTypes()]
@@ -42,6 +43,10 @@ interface AuditSummary {
 }
 
 export async function GET(_request: NextRequest) {
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth()
+  if (errorResponse) return errorResponse
+
   try {
     // 1. All generation type configs (dynamic from registered types)
     const generationTypes: GenerationTypeInfo[] = getAllGenerationTypes().map((type) => ({

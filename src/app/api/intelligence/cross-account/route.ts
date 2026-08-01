@@ -11,6 +11,7 @@ import { z } from 'zod';
 import { db } from '@/lib/db';
 import { detectCrossAccountPatterns } from '@/lib/intelligence-sources/cross-account-intelligence';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const companyIdsParamSchema = z.string().min(1).refine(
   (val) => val.split(',').filter(Boolean).length >= 2,
@@ -20,6 +21,10 @@ const companyIdsParamSchema = z.string().min(1).refine(
 export async function GET(request: NextRequest) {
   let correlationId;
   let responseHeaders;
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const ctx = utilityGuard(request, 'cross-account');
     correlationId = ctx.correlationId;

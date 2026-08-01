@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { createInsights } from '@/lib/ai-insight-service';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // Stage-specific coaching config
 const STAGE_COACHING: Record<string, {
@@ -61,7 +62,11 @@ const STAGE_COACHING: Record<string, {
 };
 
 export async function GET(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const pursuitId = searchParams.get('pursuitId');
     const companyId = searchParams.get('companyId');

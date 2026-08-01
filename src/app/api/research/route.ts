@@ -3,6 +3,7 @@ import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
 import { logger } from '@/lib/logger';
 import { governedAICall } from '@/lib/ai-governance';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ---------------------------------------------------------------------------
 // JSON extraction from LLM output (tolerant of markdown fences)
@@ -155,7 +156,11 @@ function generateFallbackResearch(company: {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { companyId, action } = body;
 

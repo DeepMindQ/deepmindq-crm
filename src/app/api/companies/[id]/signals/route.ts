@@ -2,14 +2,18 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import type { SignalType } from '@prisma/client';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    GET — List signals for a company
-   ═══════════════════════════════════════════════════ */
+   ═══════════════════════════════════════ */
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const { id: companyId } = await params;
     const { searchParams } = new URL(request.url);
@@ -40,11 +44,14 @@ export async function GET(
 
 /* ═══════════════════════════════════════════════════
    POST — Create a signal for a company
-   ═══════════════════════════════════════════════════ */
+   ═══════════════════════════════════════ */
 export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const { id: companyId } = await params;
     const body = await request.json();
@@ -58,16 +65,14 @@ export async function POST(
       return NextResponse.json({ error: 'title is required' }, { status: 400 });
     }
 
-    // Verify company exists
-    const company = await db.company.findUnique({ where: { id: companyId } });
-    if (!company) {
-      return NextResponse.json({ error: 'Company not found' }, { status: 404 });
-    }
-
-    const validTypes: SignalType[] = ['funding', 'hiring', 'leadership_change', 'tech_change', 'news', 'mention', 'partnership', 'expansion'];
+    // Validate severity if provided
     const validSeverities = ['low', 'medium', 'high', 'critical'];
+    const validSeverity = severity && validSeverities.includes(severity) ? severity : 'medium';
 
+    // Validate signal type
+    const validTypes: SignalType[] = ['funding', 'hiring', 'leadership_change', 'tech_change', 'news', 'mention', 'partnership', 'expansion'];
     const resolvedType = validTypes.includes(signalType as SignalType) ? signalType as SignalType : 'news';
+
     const signal = await db.companySignal.create({
       data: {
         companyId,
@@ -76,14 +81,13 @@ export async function POST(
         description: description?.trim() || null,
         source: source?.trim() || null,
         sourceUrl: sourceUrl?.trim() || null,
-        severity: validSeverities.includes(severity) ? severity : 'medium',
-        isRead: false,
+        severity: validSeverity,
       },
     });
 
     return NextResponse.json({ signal }, { status: 201 });
   } catch (error) {
-    logger.error('Company signal create error:', { error: error });
+    logger.error('Company signal creation error:', { error: error });
     return NextResponse.json({ error: 'Failed to create signal' }, { status: 500 });
   }
 }

@@ -15,6 +15,7 @@ import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
 import { z } from 'zod';
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const enrichBodySchema = z.object({
   companyId: companyIdSchema,
@@ -23,6 +24,10 @@ const enrichBodySchema = z.object({
 export async function POST(request: NextRequest) {
   let correlationId;
   let responseHeaders;
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const guardCtx = utilityGuard(request, 'enrich');
     correlationId = guardCtx.correlationId;

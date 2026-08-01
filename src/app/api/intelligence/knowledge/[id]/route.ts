@@ -32,6 +32,7 @@ import { scrubError } from '@/lib/intelligence-api/handler';
 import { KnowledgeIngestionPipeline } from '@/lib/knowledge-ingestion-pipeline';
 import { runGovernanceChecks } from '@/lib/ai-governance';
 import { getResearchContext } from '@/lib/intelligence-contract';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ── GET ─────────────────────────────────────────────────────────────────────
 
@@ -39,7 +40,11 @@ export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
-  const started = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const started = Date.now();
   const requestedAt = new Date();
 
   // ── Intelligence Guard: validation + rate limiting + correlation-id ─────

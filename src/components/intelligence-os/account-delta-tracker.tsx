@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Building2, TrendingUp, TrendingDown, AlertTriangle,
+  Building2, Brain, TrendingUp, TrendingDown, AlertTriangle,
   ArrowRight, Clock, Zap, RefreshCw, Loader2,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -224,8 +224,12 @@ export function AccountDeltaTracker({
       {/* Delta list */}
       {!isLoading && filteredDeltas.length === 0 && (
         <div className="text-center py-6 rounded-xl border" style={{ background: tokens.surface.card, borderColor: tokens.border.subtle }}>
+          <Brain className="w-5 h-5 mx-auto mb-2" style={{ color: tokens.text.muted }} />
           <p className="text-xs" style={{ color: tokens.text.muted }}>
             No intelligence changes detected since your last session.
+          </p>
+          <p className="text-[9px] mt-1" style={{ color: tokens.text.muted }}>
+            Deltas are computed from intelligence snapshots.
           </p>
         </div>
       )}

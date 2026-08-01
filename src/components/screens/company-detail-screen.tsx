@@ -32,10 +32,15 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { logger } from '@/lib/logger';
+import { useIntelligenceNarratives } from '@/components/intelligence-os/use-intelligence-narratives';
+import { HeroNarrative } from '@/components/intelligence-os/hero-narrative';
+import { InlineReasoning } from '@/components/intelligence-os/inline-reasoning';
+import { EvidenceChain } from '@/components/intelligence-os/evidence-chain';
+import type { IntelligenceNarrativeData } from '@/lib/intelligence-narrative-service';
 
-/* ═══════════════════════════════════════════════════
+/* ===================================================
    Constants & Colors
-   ═══════════════════════════════════════════════════ */
+   =================================================== */
 const INTEL = '#2563eb';
 const GOLD = '#D4AF37';
 const INTEL_GRADIENT = 'linear-gradient(135deg, #1e40af, #2563eb, #3b82f6)';
@@ -57,9 +62,9 @@ const SEVERITY_COLORS: Record<string, string> = {
   low: 'bg-green-500/20 text-green-400 border-green-500/30',
 };
 
-/* ═══════════════════════════════════════════════════
-   Score Ring — SVG circular score indicator
-   ═══════════════════════════════════════════════════ */
+/* ===================================================
+   Score Ring - SVG circular score indicator
+   =================================================== */
 function ScoreRing({ score, size = 72, strokeWidth = 5, label, color }: {
   score: number; size?: number; strokeWidth?: number; label?: string; color?: string;
 }) {
@@ -93,9 +98,9 @@ function ScoreRing({ score, size = 72, strokeWidth = 5, label, color }: {
   );
 }
 
-/* ═══════════════════════════════════════════════════
+/* ===================================================
    Mini Score Bar
-   ═══════════════════════════════════════════════════ */
+   =================================================== */
 function MiniBar({ label, value, max = 100, color = INTEL }: { label: string; value: number; max?: number; color?: string }) {
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
   return (
@@ -115,9 +120,9 @@ function MiniBar({ label, value, max = 100, color = INTEL }: { label: string; va
   );
 }
 
-/* ═══════════════════════════════════════════════════
+/* ===================================================
    Intelligence Pulse Dot
-   ═══════════════════════════════════════════════════ */
+   =================================================== */
 function PulseDot({ color = INTEL, size = 8 }: { color?: string; size?: number }) {
   return (
     <span className="relative flex h-2.5 w-2.5">
@@ -127,9 +132,9 @@ function PulseDot({ color = INTEL, size = 8 }: { color?: string; size?: number }
   );
 }
 
-/* ═══════════════════════════════════════════════════
+/* ===================================================
    Intelligence Summary Card (Hero)
-   ═══════════════════════════════════════════════════ */
+   =================================================== */
 function IntelligenceHero({
   company, aiScore, aiActions, signalCount, contactCount, oppCount,
   loadingScore, onRefreshScore, onRefreshActions, onNavigateActions,
@@ -272,9 +277,9 @@ function IntelligenceHero({
   );
 }
 
-/* ═══════════════════════════════════════════════════
+/* ===================================================
    KPI Chip
-   ═══════════════════════════════════════════════════ */
+   =================================================== */
 function KPIChip({ icon: Icon, label, value, color }: { icon: any; label: string; value: number; color: string }) {
   return (
     <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50/80 border border-gray-100">
@@ -287,9 +292,9 @@ function KPIChip({ icon: Icon, label, value, color }: { icon: any; label: string
   );
 }
 
-/* ═══════════════════════════════════════════════════
+/* ===================================================
    Signal Card
-   ═══════════════════════════════════════════════════ */
+   =================================================== */
 function SignalCard({ signal, onToggleRead }: { signal: any; onToggleRead: () => void }) {
   const severity = signal.severity || 'low';
   return (
@@ -315,9 +320,9 @@ function SignalCard({ signal, onToggleRead }: { signal: any; onToggleRead: () =>
   );
 }
 
-/* ═══════════════════════════════════════════════════
+/* ===================================================
    Contact Mini Card
-   ═══════════════════════════════════════════════════ */
+   =================================================== */
 function ContactMiniCard({ contact, onSelect }: { contact: any; onSelect: () => void }) {
   const roleColor = contact.roleBucket === 'Executive' ? '#7c3aed' : contact.roleBucket === 'Manager' ? '#2563eb' : '#059669';
   return (
@@ -344,9 +349,9 @@ function ContactMiniCard({ contact, onSelect }: { contact: any; onSelect: () => 
   );
 }
 
-/* ═══════════════════════════════════════════════════
+/* ===================================================
    AI Insight Card (inline)
-   ═══════════════════════════════════════════════════ */
+   =================================================== */
 function IntelInsightItem({ insight, index }: { insight: any; index: number }) {
   return (
     <motion.div
@@ -376,9 +381,9 @@ function IntelInsightItem({ insight, index }: { insight: any; index: number }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════
+/* ===================================================
    Evidence Row
-   ═══════════════════════════════════════════════════ */
+   =================================================== */
 function EvidenceRow({ evidence }: { evidence: any }) {
   return (
     <a
@@ -402,9 +407,9 @@ function EvidenceRow({ evidence }: { evidence: any }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════
+/* ===================================================
    Action Card
-   ═══════════════════════════════════════════════════ */
+   =================================================== */
 function ActionCard({ action, index }: { action: any; index: number }) {
   const priorityColor = action.priority === 'critical' ? '#dc2626' : action.priority === 'high' ? '#ea580c' : action.priority === 'medium' ? '#d97706' : '#059669';
   return (
@@ -443,9 +448,9 @@ function ActionCard({ action, index }: { action: any; index: number }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════
+/* ===================================================
    Timeline Entry
-   ═══════════════════════════════════════════════════ */
+   =================================================== */
 function TimelineItem({ entry }: { entry: any }) {
   const icons: Record<string, any> = {
     email_sent: <Send size={13} className="text-blue-600" />,
@@ -468,9 +473,9 @@ function TimelineItem({ entry }: { entry: any }) {
   );
 }
 
-/* ═══════════════════════════════════════════════════
+/* ===================================================
    Section Panel (reusable)
-   ═══════════════════════════════════════════════════ */
+   =================================================== */
 function SectionPanel({ title, icon, accent, count, children, collapsible, defaultOpen = true, onRefresh }: {
   title: string; icon: any; accent?: string; count?: number; children: React.ReactNode;
   collapsible?: boolean; defaultOpen?: boolean; onRefresh?: () => void;
@@ -501,9 +506,9 @@ function SectionPanel({ title, icon, accent, count, children, collapsible, defau
   );
 }
 
-/* ═══════════════════════════════════════════════════
-   Main Component — AI Account Intelligence Workspace
-   ═══════════════════════════════════════════════════ */
+/* ===================================================
+   Main Component - AI Account Intelligence Workspace
+   =================================================== */
 export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: any) {
   const store = useAppStore;
   const setSelectedContactId = useAppStore((s: any) => s.setSelectedContactId);
@@ -539,6 +544,18 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
 
   // View state
   const [activeView, setActiveView] = useState<'intelligence' | 'profile' | 'mindmap' | 'timeline' | 'evidence'>('intelligence');
+
+  /* ── Company Intelligence Narrative (Phase 1C) ── */
+  const {
+    narratives: companyNarratives,
+    isLoading: narrativeLoading,
+  } = useIntelligenceNarratives({
+    companyId,
+    limit: 1,
+    minConfidence: 20,
+    enabled: !!companyId,
+  });
+  const companyNarrative: IntelligenceNarrativeData | null = companyNarratives[0] || null;
 
   /* ── Fetch Company ── */
   const fetchCompany = useCallback(async () => {
@@ -708,9 +725,9 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
   const techStack = parseTechStack(company?.researchCard?.techStack);
   const researchCard = company?.researchCard;
 
-  /* ═══════════════════════════════════════════════════
+  /* ===================================================
      Loading State
-     ═══════════════════════════════════════════════════ */
+     =================================================== */
   if (loading) {
     return (
       <div className="p-6 space-y-6 bg-gray-50 min-h-screen">
@@ -724,9 +741,9 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
 
   const companyName = company?.rawName || company?.name || 'Unknown';
 
-  /* ═══════════════════════════════════════════════════
-     Render — AI Account Intelligence Workspace
-     ═══════════════════════════════════════════════════ */
+  /* ===================================================
+     Render - AI Account Intelligence Workspace
+     =================================================== */
   return (
     <div className="min-h-screen bg-gray-50">
       <PageTransition>
@@ -765,7 +782,18 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
         </div>
 
         <div className="max-w-[1600px] mx-auto px-5 py-5">
-          {/* ── Intelligence Hero ── */}
+          {/* === Phase 1C: Intelligence Narrative - AI speaks first === */}
+          <HeroNarrative
+            narrative={companyNarrative}
+            isLoading={narrativeLoading}
+            onAction={(narrative) => {
+              if (narrative.primaryAction?.companyId) {
+                // Action handled within HeroNarrative component
+              }
+            }}
+          />
+
+          {/* ── Intelligence Metrics (demoted below narrative) ── */}
           <IntelligenceHero
             company={company}
             aiScore={aiScore}
@@ -801,12 +829,12 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
             ))}
           </div>
 
-          {/* ═════════════════════════════════════════════
+          {/* =============================================
               VIEW: AI Intelligence (Default)
-              ═════════════════════════════════════════════ */}
+              ============================================= */}
           {activeView === 'intelligence' && (
             <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-5">
-              {/* LEFT COLUMN — Signals + Contacts */}
+              {/* LEFT COLUMN - Signals + Contacts */}
               <div className="space-y-5">
                 {/* AI Signals */}
                 <SectionPanel title="Active Signals" icon={Bell} accent="#ea580c" count={signals.length} onRefresh={fetchSignals}>
@@ -851,7 +879,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                 </Button>
               </div>
 
-              {/* CENTER COLUMN — AI Insights + Actions */}
+              {/* CENTER COLUMN - AI Insights + Actions */}
               <div className="space-y-5">
                 {/* AI Intelligence Insights */}
                 <SectionPanel title="AI Intelligence Insights" icon={Brain} accent={INTEL} onRefresh={fetchIntelligence}>
@@ -901,7 +929,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                 </SectionPanel>
               </div>
 
-              {/* RIGHT COLUMN — Score Breakdown + Evidence + Notes */}
+              {/* RIGHT COLUMN - Score Breakdown + Evidence + Notes */}
               <div className="space-y-5">
                 {/* Score Breakdown */}
                 {aiScore && (
@@ -929,14 +957,15 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                         </div>
                       ))}
                     </div>
-                    {aiScore.narrative && (
-                      <div className="mt-3 p-3 rounded-lg bg-blue-50/50 border border-blue-100">
-                        <div className="flex items-center gap-1.5 mb-1.5">
-                          <Sparkles size={11} className="text-blue-600" />
-                          <span className="text-[11px] font-semibold text-blue-600 uppercase tracking-wider">AI Analysis</span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground leading-relaxed">{aiScore.narrative}</p>
-                      </div>
+
+                    {aiScore && (
+                      <InlineReasoning
+                        reasoning={aiScore.narrative}
+                        positiveFactors={aiScore.factors?.positive?.slice(0, 3) || []}
+                        negativeFactors={aiScore.factors?.negative?.slice(0, 2) || []}
+                        compact={false}
+                        showExpandLink={false}
+                      />
                     )}
                   </SectionPanel>
                 )}
@@ -980,9 +1009,9 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
             </div>
           )}
 
-          {/* ═════════════════════════════════════════════
+          {/* =============================================
               VIEW: Company Profile
-              ═════════════════════════════════════════════ */}
+              ============================================= */}
           {activeView === 'profile' && (
             <div className="mt-5 grid grid-cols-1 lg:grid-cols-3 gap-5">
               <div className="space-y-5">
@@ -1095,9 +1124,9 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
             </div>
           )}
 
-          {/* ═════════════════════════════════════════════
+          {/* =============================================
               VIEW: Org Chart
-              ═════════════════════════════════════════════ */}
+              ============================================= */}
           {activeView === 'mindmap' && (
             <div className="mt-5">
               <SectionPanel title="Organization Hierarchy" icon={Network} accent={INTEL}>
@@ -1106,9 +1135,9 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
             </div>
           )}
 
-          {/* ═════════════════════════════════════════════
+          {/* =============================================
               VIEW: Activity Timeline
-              ═════════════════════════════════════════════ */}
+              ============================================= */}
           {activeView === 'timeline' && (
             <div className="mt-5">
               <SectionPanel title="Activity Timeline" icon={Clock} accent="#3b82f6" count={timeline.length} onRefresh={fetchTimeline}>
@@ -1126,9 +1155,9 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
             </div>
           )}
 
-          {/* ═════════════════════════════════════════════
+          {/* =============================================
               VIEW: Evidence Sources
-              ═════════════════════════════════════════════ */}
+              ============================================= */}
           {activeView === 'evidence' && (
             <div className="mt-5">
               <SectionPanel title="Evidence Sources" icon={Database} accent="#7c3aed" count={evidence.length} onRefresh={fetchEvidence}>

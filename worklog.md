@@ -682,3 +682,60 @@ Stage Summary:
 - Options identified (see Track B recommendation below in chat)
 - This is a deployment architecture decision, not a product/Phase issue
 - Does NOT impact Phase 1C product roadmap
+
+---
+Task ID: phase-1c-wi1-delta-backend
+Agent: Super Z (main)
+Task: Phase 1C WI-1 — AccountDeltaTracker Backend Implementation
+
+Work Log:
+- Added IntelligenceSnapshot model to schema.prisma (25 lines)
+  - Fields: companyId, intelligenceScore, priorityTier, activeSignalCount, activeEvidenceCount, highSeverityCount, topSignalTypes, topSignalIds, captureReason, capturedAt
+  - Indexes: companyId, companyId+capturedAt(desc), capturedAt, captureReason
+- Created intelligence-delta-service.ts (440 lines)
+  - computeIntelligenceDeltas(): Compares consecutive snapshots per company
+  - 5 delta types: score_change (>=5pts), new_signal (>=2 new), evidence_update (>=3 new), priority_shift, confidence_change
+  - captureIntelligenceSnapshot(): Point-in-time capture after enrichment/score refresh/signal detection
+  - Thresholds: SCORE_CHANGE_THRESHOLD=5, SIGNAL_COUNT_THRESHOLD=2, EVIDENCE_COUNT_THRESHOLD=3
+- Created /api/intelligence/deltas route (131 lines)
+  - GET: Compute and return deltas (limit, companyId, minMagnitude params)
+  - POST: Capture a snapshot for a company
+  - Auth guard, JSON envelope, non-throwing contract
+- Updated account-delta-tracker.tsx: Added Brain icon import, improved empty state
+- Fixed 3 TypeScript errors: NextResponse import, Brain import, aggregate _orderBy
+- Prisma generate successful, migration deferred (no DB connection in sandbox)
+
+Stage Summary:
+- 3 files created/modified: intelligence-delta-service.ts (new), deltas/route.ts (new), account-delta-tracker.tsx (updated)
+- 1 file modified: schema.prisma (+25 lines for IntelligenceSnapshot model)
+- tsc --noEmit: CLEAN
+- next build: SUCCESS (new /api/intelligence/deltas route visible)
+- vitest: 57 files, 1888 passed, 14 skipped, ZERO FAILURES
+- AccountDeltaTracker is now PRODUCTION-CONNECTED when snapshots exist
+- Demo fallback still works when <2 snapshots per company
+
+---
+Task ID: phase-1c-wi2-company-detail-intelligence
+Agent: Super Z (main)
+Task: Phase 1C WI-2 — Company Detail Intelligence Transformation
+
+Work Log:
+- Added imports: useIntelligenceNarratives hook, HeroNarrative, InlineReasoning, EvidenceChain, IntelligenceNarrativeData type
+- Added company-level narrative fetch: useIntelligenceNarratives({ companyId, limit: 1, minConfidence: 20 })
+- Inserted HeroNarrative component ABOVE the existing IntelligenceHero as the FIRST element
+- HeroNarrative: Shows company-specific intelligence narrative → confidence ring → reasoning → action CTA → evidence panel (L1-L4)
+- Existing IntelligenceHero (Score Ring + KPIs + Sub-scores) demoted below narrative
+- Replaced static AI narrative box (small blue p tag) with InlineReasoning component
+- InlineReasoning: Shows reasoning text + positive/negative confidence factors from real AI score
+- Fixed TypeScript error: Multi-byte UTF-8 em-dash in JSX comment causing parse failure
+- Fixed comment: Removed problematic JSX comment with special characters
+
+Stage Summary:
+- 1 file modified: company-detail-screen.tsx (1204 → 1232 lines, +28 lines net)
+- 0 files created, 0 files deleted
+- tsc --noEmit: CLEAN
+- next build: SUCCESS
+- vitest: 57 files, 1888 passed, 14 skipped, ZERO FAILURES
+- BEFORE: Score Ring + KPI chips + sub-score bars (data-first)
+- AFTER: HeroNarrative (intelligence-first) → Score Ring + KPIs (demoted) → InlineReasoning (why?)
+- User journey: Command Center → Company Detail now maintains Intelligence Command System experience

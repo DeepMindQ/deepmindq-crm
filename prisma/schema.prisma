@@ -2907,3 +2907,29 @@ model CompetitiveSignal {
   @@index([status])
   @@index([createdAt])
 }
+
+// ── Phase 1C: Intelligence Snapshot — Delta Detection ──
+// Periodic point-in-time captures of account intelligence state.
+// Used by AccountDeltaTracker to compute: "What changed since I last looked?"
+// Captured during enrichment, score refresh, and signal detection.
+// Design: Leverages existing PriorityScoreHistory for score-based deltas,
+// this model supplements with signal/event-level tracking.
+
+model IntelligenceSnapshot {
+  id                  String   @id @default(cuid())
+  companyId           String
+  intelligenceScore   Int      @default(0)   // Company.intelligenceScore at capture time
+  priorityTier        String?               // Company.priorityTier at capture time
+  activeSignalCount   Int      @default(0)   // Count of active (non-expired) signals
+  activeEvidenceCount Int      @default(0)   // Count of active evidence records
+  highSeverityCount   Int      @default(0)   // Count of high/critical severity signals
+  topSignalTypes      String?               // JSON array of top signal types, e.g. ["funding","hiring"]
+  topSignalIds        String?               // JSON array of signal IDs for latest signals
+  captureReason       String   @default("scheduled") // enrichment | score_refresh | signal_detected | scheduled
+  capturedAt          DateTime @default(now())
+
+  @@index([companyId])
+  @@index([companyId, capturedAt(sort: Desc)])
+  @@index([capturedAt])
+  @@index([captureReason])
+}

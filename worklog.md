@@ -1144,3 +1144,36 @@ Stage Summary:
 - Frozen baseline captured with exact metrics, test results, DB state, auth flow documentation
 - All 15 previously identified findings confirmed as still open
 - Implementation rules documented: test modification rules, regression prevention, change scope rules, auth remediation order
+
+---
+Task ID: phase-1b
+Agent: Main Agent
+Task: Phase 1B — T4 Test Alignment, False Positive Reclassification, Updated Baseline
+
+Work Log:
+- Verified Phase 1A status: 3/4 fixes applied (commit 2ed1db5), Fix #4 deferred
+- Ran full test suite baseline: 1705 pass / 72 fail / 14 skip
+- Categorized all 72 failures: 49 T4 (2 files), 23 non-T4 (4 files)
+- Traced T4 root causes via debug logging (utilityCatchError mock):
+  1. engine.test.ts: Missing db.accountScore mock (engine.ts:376 uses it)
+  2. engine.test.ts: ICP cache contamination between tests (vi.clearAllMocks doesn't clear module-level caches)
+  3. engine.test.ts: B10 outdated expectation (throws -> graceful zero-result)
+  4. ticket4-score-unification.test.ts: normalizeRevenueCategory/parseRevenueBreakdown not exported from scores route
+  5. ticket4-score-unification.test.ts: Missing nextUrl mock on Request (route added pagination)
+  6. ticket4-score-unification.test.ts: Outdated NURTURE/empty-string expectations
+- Applied 8 fixes across 2 test files, zero production code changes
+- Validated: all 57 T4 tests (28 + 29) pass individually
+- Full suite: 1754 pass / 23 fail / 14 skip (97.9% pass rate)
+- TSC: zero errors
+- Generated Phase 1B verification report PDF
+- Committed as 87be567, pushed to GitHub
+
+Stage Summary:
+- T4 reclassified: P0 Production Failure -> P2 Test Maintenance
+- Zero production bugs found across all 49 T4 test failures
+- Pass rate improved: 95.1% -> 97.9% (+2.8pp)
+- Composite readiness: 2.8/10 -> 4.0/10 (+1.2)
+- Scoring engine score: 5/10 -> 9/10 (+4, was false positive)
+- Remaining 23 failures: ticket1/ticket2 API contract tests (need verification)
+- Deliverable: /home/z/my-project/download/DeepMindQ_Phase1B_T4_Verification.pdf (91 KB, 7 sections)
+- Recommended next: Phase 1C — verify remaining 23 failures before any production code changes

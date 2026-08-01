@@ -12,6 +12,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { useAppStore } from '@/lib/store';
 import { ProgressiveDisclosure } from './progressive-disclosure';
+import { IntelligenceNarrative, type NarrativeVariant } from './intelligence-narrative';
+import { tokens } from './design-tokens';
 import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
@@ -621,24 +623,31 @@ export function CommandCenter() {
               <Lightbulb className="w-4 h-4 text-amber-500" />
               <h2 className="text-sm font-semibold text-foreground">Intelligence Insights</h2>
             </div>
-            {crossInsights.map((insight, i) => (
-              <ProgressiveDisclosure
-                key={i}
-                title={insight.title}
-                confidence={insight.confidence}
-                confidenceLabel="Insight confidence"
-                badge={{
-                  label: insight.type,
-                  variant: insight.type === 'opportunity' ? 'high' : insight.type === 'risk' ? 'high' : 'medium',
-                }}
-                reasoning={insight.description}
-                evidence={insight.accounts.map(a => ({
-                  source: 'Cross-account analysis',
-                  snippet: a,
-                }))}
-                defaultExpanded={1}
-              />
-            ))}
+            {crossInsights.map((insight, i) => {
+              const variantMap: Record<string, NarrativeVariant> = {
+                opportunity: 'opportunity', risk: 'risk', pattern: 'signal', trend: 'reasoning',
+              };
+              return (
+                <IntelligenceNarrative
+                  key={i}
+                  headline={insight.title}
+                  variant={variantMap[insight.type] || 'signal'}
+                  confidence={insight.confidence}
+                  confidenceLabel="Insight confidence"
+                  priority={insight.type === 'opportunity' ? 'high' : insight.type === 'risk' ? 'critical' : 'medium'}
+                  reasoning={insight.description}
+                  reasoningPoints={insight.accounts.map(a => `${a} shows alignment pattern`)}
+                  evidence={insight.accounts.map(a => ({
+                    source: 'Cross-account analysis',
+                    snippet: `Account "${a}" contributes to this intelligence pattern`,
+                  }))}
+                  primaryAction={{
+                    label: 'Explore Accounts',
+                    onClick: () => setActiveView('accounts'),
+                  }}
+                />
+              );
+            })}
           </motion.div>
         )}
       </AnimatePresence>

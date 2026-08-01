@@ -4,9 +4,14 @@ import { Prisma, ContactStatus, ContactEmailHealth } from "@prisma/client";
 import { apiError, apiSuccess, validateBody, sanitizeFields, safeInt } from "@/lib/apiHelpers";
 import { createContactSchema } from "@/lib/validations";
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     let search = searchParams.get("search") || "";
     search = search.replace(/<[^>]*>/g, '').trim();
@@ -119,7 +124,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const data = validateBody(createContactSchema, body);
     if (data instanceof Response) return data;

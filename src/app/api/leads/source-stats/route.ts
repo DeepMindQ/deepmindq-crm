@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    GET /api/leads/source-stats
@@ -8,7 +9,11 @@ import { logger } from '@/lib/logger';
    ═══════════════════════════════════════════════════ */
 
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const contacts = await db.contact.findMany({
       where: { source: { not: null } },
       select: {

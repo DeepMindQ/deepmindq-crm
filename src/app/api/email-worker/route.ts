@@ -19,11 +19,16 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { sendEmail, getProviderInfo } from '@/lib/email-provider';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const MAX_RETRIES = 3;
 
 export async function POST() {
-  const summary = { processed: 0, sent: 0, failed: 0, skipped: 0 };
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const summary = { processed: 0, sent: 0, failed: 0, skipped: 0 };
 
   try {
     const providerInfo = getProviderInfo();

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const EMPTY_RESPONSE = {
   kpis: { totalSent: 0, replyRate: 0, bounceRate: 0, avgHealthScore: 0, totalSentTrend: 0, replyRateTrend: 0, bounceRateTrend: 0, avgHealthScoreTrend: 0 },
@@ -12,7 +13,11 @@ const EMPTY_RESPONSE = {
 };
 
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     // ── Fetch all needed data in parallel ──
     const now = new Date();
     const sevenDaysAgo = new Date(now.getTime() - 7 * 86400000);

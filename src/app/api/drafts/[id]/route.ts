@@ -3,12 +3,17 @@ import { db } from "@/lib/db";
 import { apiError, apiSuccess, validateBody, sanitize } from "@/lib/apiHelpers";
 import { updateDraftSchema } from "@/lib/validations";
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params;
     const raw = await request.json();
 
@@ -88,7 +93,11 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params;
 
     const existing = await db.draft.findUnique({ where: { id } });

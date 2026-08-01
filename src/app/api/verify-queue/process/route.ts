@@ -4,6 +4,7 @@ import { NextResponse } from 'next/server';
 import { checkSyntax, checkDisposable, checkRoleBased, checkFreeProvider } from '@/lib/email-verify';
 import { logAction } from '@/lib/audit';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    POST /api/verify-queue/process
@@ -48,7 +49,11 @@ async function verifySingleContact(contact: any): Promise<{ health: string; scor
 }
 
 export async function POST() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const contacts = await db.contact.findMany({
       where: {
         email: { not: '' },

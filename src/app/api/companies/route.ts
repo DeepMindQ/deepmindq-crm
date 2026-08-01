@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma, CompanyStatus, CompanyPriorityTier } from '@prisma/client';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    GET — List companies with search, filter, sort, paginate
@@ -15,7 +16,11 @@ import { logger } from '@/lib/logger';
    }
    ═══════════════════════════════════════════════════ */
 export async function GET(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const search = searchParams.get('search')?.trim();
     const industry = searchParams.get('industry');
@@ -194,7 +199,11 @@ export async function GET(request: Request) {
    POST — Create a new company
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { rawName, domain, industry, sizeRange, location, country, website } = body;
 

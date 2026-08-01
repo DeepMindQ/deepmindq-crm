@@ -1,13 +1,18 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    POST /api/capabilities/dedup-check
    C-06: Scan all assets for duplicates by contentHash
    ═══════════════════════════════════════════════════ */
 export async function POST() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const assets = await db.capabilityAsset.findMany({
       select: { id: true, title: true, contentHash: true, category: true, version: true },
     });

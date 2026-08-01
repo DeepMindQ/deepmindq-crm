@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { generateEmailDraft } from '@/lib/email-generation';
 import { generateMessageId } from '@/lib/email-tracking';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    POST /api/sequences/process
@@ -15,7 +16,11 @@ import { logger } from '@/lib/logger';
    Body: {} (no params needed — processes all due enrollments)
    ═══════════════════════════════════════════════════ */
 export async function POST() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const now = new Date();
 
     // Find all due enrollments

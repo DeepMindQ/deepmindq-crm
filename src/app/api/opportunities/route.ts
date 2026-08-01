@@ -3,9 +3,14 @@ import { db } from "@/lib/db";
 import { apiError, apiSuccess, safeInt, validateBody, sanitize } from "@/lib/apiHelpers";
 import { createOpportunitySchema } from "@/lib/validations";
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get("companyId");
     const page = Math.max(1, safeInt(searchParams.get("page"), 1, 10));
@@ -40,7 +45,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const raw = await request.json();
     const parsed = validateBody(createOpportunitySchema, raw);
     if (parsed instanceof Response) {

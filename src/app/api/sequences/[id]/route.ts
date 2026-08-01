@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { updateSequenceSchema } from '@/lib/validations'
+import { checkApiAuth } from '@/lib/api-auth'
 
 // ---------------------------------------------------------------------------
 // GET /api/sequences/[id] — Single sequence with steps
@@ -10,7 +11,11 @@ export async function GET(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params
     const sequence = await db.emailSequence.findUnique({
       where: { id },
@@ -32,7 +37,11 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params
     const body = await req.json()
     const data = validateBody(updateSequenceSchema, body)
@@ -66,7 +75,11 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params
     const existing = await db.emailSequence.findUnique({ where: { id } })
     if (!existing) return apiError('Sequence not found', 404)

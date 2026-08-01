@@ -1,11 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ── GET /api/compliance ──────────────────────────────────
 // GDPR compliance metrics and risk flags
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     // 1. Consent distribution
     const consentGroups = await db.contact.groupBy({
       by: ['consentStatus'],
@@ -170,7 +175,11 @@ export async function GET() {
 // ── POST /api/compliance ─────────────────────────────────
 // GDPR compliance actions
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { action } = body;
 

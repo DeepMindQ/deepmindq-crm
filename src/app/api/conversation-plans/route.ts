@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const plans = await db.conversationPlan.findMany({
       orderBy: { createdAt: 'desc' },
       take: 50,
@@ -22,7 +27,11 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { companyName, executiveRole, executiveName, industry, context, capabilities, plan } = body;
 

@@ -2,13 +2,18 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    GET /api/templates
    List all templates with optional filters
    ═══════════════════════════════════════════════════ */
 export async function GET(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const serviceLine = searchParams.get('serviceLine') || '';
     const tone = searchParams.get('tone') || '';
@@ -36,7 +41,11 @@ export async function GET(request: Request) {
    Create a new email template
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { name, subject, body: templateBody, cta, serviceLine, tone, category } = body;
 
@@ -81,7 +90,11 @@ export async function POST(request: Request) {
    Update an existing template
    ═══════════════════════════════════════════════════ */
 export async function PUT(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { id, name, subject, body: templateBody, cta, serviceLine, tone, category, isActive } = body;
 
@@ -127,7 +140,11 @@ export async function PUT(request: Request) {
    Soft-delete (deactivate) a template
    ═══════════════════════════════════════════════════ */
 export async function DELETE(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

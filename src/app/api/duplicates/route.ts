@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════════════════
    Duplicates API — Real fuzzy matching against DB contacts
@@ -127,7 +128,11 @@ function calculateScore(rule: 'email' | 'name+company' | 'linkedin', existing: F
 
 /* ── GET Handler ──────────────────────────────────────────────────── */
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     // Fetch all contacts with company and batch info
     const contacts = await db.contact.findMany({
       where: {

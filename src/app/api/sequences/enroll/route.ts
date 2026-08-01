@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    POST /api/sequences/enroll
@@ -9,7 +10,11 @@ import { logger } from '@/lib/logger';
    Body: { sequenceId, contactIds: string[] }
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { sequenceId, contactIds } = body;
 

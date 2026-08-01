@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { createSequenceStepSchema, updateSequenceStepSchema } from '@/lib/validations'
+import { checkApiAuth } from '@/lib/api-auth'
 
 // ---------------------------------------------------------------------------
 // POST /api/sequences/[id]/steps/[stepId] — Add a step
@@ -11,7 +12,11 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; stepId: string }> },
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id: sequenceId } = await params
     const body = await req.json()
     const data = validateBody(createSequenceStepSchema, body)
@@ -54,7 +59,11 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string; stepId: string }> },
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id: sequenceId, stepId } = await params
     const body = await req.json()
     const data = validateBody(updateSequenceStepSchema, body)
@@ -95,7 +104,11 @@ export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string; stepId: string }> },
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id: sequenceId, stepId } = await params
     const existing = await db.sequenceStep.findFirst({
       where: { id: stepId, sequenceId },

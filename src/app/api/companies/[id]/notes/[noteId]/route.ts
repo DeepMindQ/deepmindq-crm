@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    PATCH — Update a specific note
@@ -9,7 +10,11 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; noteId: string }> }
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id: companyId, noteId } = await params;
     const body = await request.json();
 
@@ -60,7 +65,11 @@ export async function DELETE(
   _request: Request,
   { params }: { params: Promise<{ id: string; noteId: string }> }
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id: companyId, noteId } = await params;
 
     // Verify note belongs to company

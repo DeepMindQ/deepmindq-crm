@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 function safeJsonParse(str: string | null | undefined, fallback: any) {
   if (!str) return fallback;
@@ -10,7 +11,11 @@ function safeJsonParse(str: string | null | undefined, fallback: any) {
 
 // GET /api/playbooks — list all playbooks
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     let playbooks: any[];
     try {
       playbooks = await db.playbook.findMany({
@@ -31,7 +36,11 @@ export async function GET() {
 
 // POST /api/playbooks — create playbook (with optional AI generation)
 export async function POST(req: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await req.json();
     const { name, description, category, targetIndustry, targetRole, aiGenerate, steps, aiTips } = body;
 

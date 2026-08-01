@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logAction } from '@/lib/audit';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    In-memory verification queue
@@ -11,7 +12,11 @@ import { logger } from '@/lib/logger';
 
 /* POST /api/verify-queue — Add contacts to verification queue */
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { contactIds, verifyAll } = body;
 
@@ -55,7 +60,11 @@ export async function POST(request: Request) {
 
 /* GET /api/verify-queue — Returns queue status */
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const [pending, completed, failed, inProgress] = await Promise.all([
       db.contact.count({
         where: { emailHealth: 'unknown' },

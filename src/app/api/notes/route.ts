@@ -4,6 +4,7 @@ import { Prisma } from "@prisma/client";
 import { apiError, apiSuccess, safeInt, validateBody, sanitize } from "@/lib/apiHelpers";
 import { createNoteSchema } from "@/lib/validations";
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 type NoteWithCompany = Prisma.CompanyNoteGetPayload<{ include: { company: true } }>;
 type NoteWithContact = Prisma.ContactNoteGetPayload<{ include: { contact: true } }>;
@@ -14,7 +15,11 @@ type NoteListItem = NoteWithCompany & { _type: "company" } | (NoteWithContact & 
 // Returns notes with their company or contact relation included.
 // If BOTH companyId AND contactId are provided, uses OR condition (fixes MEDIUM-04).
 export async function GET(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get("companyId");
     const contactId = searchParams.get("contactId");
@@ -102,7 +107,11 @@ export async function GET(request: NextRequest) {
 // Create a note. Body: { companyId | contactId, body (required), noteType? }
 // Creates a TimelineEntry after note creation.
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const raw = await request.json();
     const parsed = validateBody(createNoteSchema, raw);
     if (parsed instanceof Response) {
@@ -178,7 +187,11 @@ export async function POST(request: NextRequest) {
 // Auto-detects whether it's a CompanyNote or ContactNote.
 // Creates a TimelineEntry for the deletion.
 export async function DELETE(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
 

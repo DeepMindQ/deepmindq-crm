@@ -121,3 +121,27 @@ Stage Summary:
 - Auth placed BEFORE all existing guards (intelligenceGuard, utilityGuard)
 - Auth placed BEFORE Zod validation, AI execution, and DB queries
 - All 81 routes verified to contain checkApiAuth
+
+---
+Task ID: 2c
+Agent: Super Z (main)
+Task: Phase 2 Batch 3 — Business CRUD / PII / Financial / Destructive Route Protection
+
+Work Log:
+- Baseline: 53 files / 1822 pass / 14 skip / 0 fail, tsc clean
+- Full inventory: 103 unprotected routes found (some already had alternative auth)
+- Classified 25 routes as legitimately exempt (auth flow, HMAC tokens, cron secrets, health checks, requireAuth)
+- Remaining 78 routes targeted across 6 risk tiers: PII(23), DESTRUCTIVE(19), FINANCIAL(8), INTERNAL(4), CRUD(17), Company(7)
+- Created batch3-add-auth.js script with improved multi-line param handling (paren-depth tracking)
+- Script modified 99 files, 0 errors on first pass
+- Fixed 4 import insertion errors (auth import placed inside multi-line import blocks): dashboard/stats, stats, dashboard, companies/[id]/alignment
+- Zero test regressions — all 99 routes had no existing test files that tested without auth
+- Post-fix: 53 files / 1822 pass / 14 skip / 0 fail, tsc clean
+
+Stage Summary:
+- 99 production route files modified with auth guards
+- 0 test files modified (no existing tests for these routes)
+- Zero test regressions
+- Zero type errors
+- Remaining unprotected: 25 (all legitimately exempt with alternative auth)
+- Security coverage: 198/223 routes (89%) have some form of authentication

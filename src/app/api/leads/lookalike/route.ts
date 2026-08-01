@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    POST /api/leads/lookalike — Find leads similar to
@@ -29,7 +30,11 @@ function getMostCommon<T>(items: T[], topN = 5): T[] {
 }
 
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { contactIds, limit, minScore } = body as {
       contactIds: string[];

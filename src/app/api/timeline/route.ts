@@ -5,9 +5,14 @@ import { apiError, apiSuccess, safeInt, validateBody, sanitize } from "@/lib/api
 import { createTimelineSchema } from "@/lib/validations";
 import { TIMELINE_ACTIONS } from "@/lib/constants";
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const limit = Math.min(100, Math.max(1, safeInt(searchParams.get("limit"), 50, 10)));
     const companyId = searchParams.get("companyId");
@@ -32,7 +37,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const raw = await request.json();
     const parsed = validateBody(createTimelineSchema, raw);
     if (parsed instanceof Response) {

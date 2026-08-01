@@ -3,6 +3,7 @@ import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { updateEmailTemplateSchema } from '@/lib/validations'
 import { db } from '@/lib/db'
 import type { EmailTemplate } from '@/lib/types'
+import { checkApiAuth } from '@/lib/api-auth'
 
 const BUILTIN_TEMPLATES: EmailTemplate[] = [
   { id: 'builtin-cold-outreach', name: 'Cold Outreach', category: 'outreach', subject: 'Quick question about {{company}}', body: 'Hi {{firstName}},\n\nI noticed {{company}} is doing some interesting work in your space.\n\n{{cta}}', description: 'Initial cold outreach', isBuiltIn: true },
@@ -19,7 +20,11 @@ function dbToTemplate(r: { id: string; name: string; subject: string; body: stri
 
 // GET /api/email-templates/[id]
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params
     const builtin = BUILTIN_TEMPLATES.find((t) => t.id === id)
     if (builtin) return apiSuccess(builtin)
@@ -34,7 +39,11 @@ export async function GET(_req: NextRequest, { params }: { params: Promise<{ id:
 
 // PATCH /api/email-templates/[id]
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params
     const body = await req.json()
     const data = validateBody(updateEmailTemplateSchema, body)
@@ -62,7 +71,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
 
 // DELETE /api/email-templates/[id]
 export async function DELETE(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params
     const builtin = BUILTIN_TEMPLATES.find((t) => t.id === id)
     if (builtin) return apiError('Cannot delete built-in templates', 403)

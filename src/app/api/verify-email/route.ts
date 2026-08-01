@@ -2,6 +2,7 @@ import { promises as dns } from 'dns';
 import { NextResponse } from 'next/server';
 import { checkSyntax, checkDisposable, checkRoleBased, checkFreeProvider } from '@/lib/email-verify';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    Email Verification Engine (with DNS MX lookup)
@@ -71,7 +72,11 @@ function checkCompanyMatch(email: string, companyDomain?: string): { pass: boole
    Returns: VerifyResult
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { email, companyDomain } = body;
 
@@ -154,7 +159,11 @@ export async function POST(request: Request) {
    Returns: { results: VerifyResult[] }
    ═══════════════════════════════════════════════════ */
 export async function PUT(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { emails, companyDomains } = body;
 

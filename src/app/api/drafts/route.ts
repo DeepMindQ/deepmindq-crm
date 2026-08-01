@@ -4,6 +4,7 @@ import { Prisma, DraftStatus } from '@prisma/client';
 import { generateEmailDraft } from '@/lib/email-generation';
 import { generateMessageId, signQueueId } from '@/lib/email-tracking';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    Demo drafts — shown when no real DB data exists
@@ -63,7 +64,11 @@ const DEMO_DRAFTS = [
    GET — List drafts with optional status filter
    ═══════════════════════════════════════════════════ */
 export async function GET(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status') || '';
 
@@ -129,7 +134,11 @@ function deriveRole(title: string): string {
          if inReplyToDraftId is provided (follow-up).
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { contactId, inReplyToDraftId } = body;
 
@@ -420,7 +429,11 @@ export async function POST(request: Request) {
    Bulk:   { ids: string[], action: "approve" | "reject" | "regenerate" | "delete" }
    ═══════════════════════════════════════════════════ */
 export async function PATCH(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
 
     // ── E-12: Bulk operations ──
@@ -601,7 +614,11 @@ export async function PATCH(request: Request) {
    DELETE — Remove a draft
    ═══════════════════════════════════════════════════ */
 export async function DELETE(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

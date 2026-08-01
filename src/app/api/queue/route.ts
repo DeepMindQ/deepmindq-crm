@@ -2,9 +2,14 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const queue = await db.sendQueue.findMany({
       include: {
         draft: {
@@ -43,7 +48,11 @@ export async function GET() {
      - if neither, applies to all matching items
    ═══════════════════════════════════════════════════ */
 export async function PATCH(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json() as {
       action: string;
       id?: string;

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 import {
   utilityGuard,
   utilityCatchError,
@@ -19,7 +20,11 @@ import {
  * Returns proper error responses instead of masking 500 as 200.
  */
 export async function GET(request: NextRequest) {
-  const startedAt = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startedAt = Date.now();
 
   // ── Guard ──
   let ctx: ReturnType<typeof utilityGuard>;

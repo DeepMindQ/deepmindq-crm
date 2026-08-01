@@ -12,6 +12,7 @@ import { db } from "@/lib/db";
 import { logger } from '@/lib/logger';
 import { apiError, apiSuccess, validateBody, sanitize, safeInt } from "@/lib/apiHelpers";
 import { createKnowledgeDocSchema } from "@/lib/validations";
+import { checkApiAuth } from '@/lib/api-auth';
 
 const MAX_PAGE_SIZE = 50;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -21,7 +22,11 @@ const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
-  const started = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const started = Date.now();
   try {
     const { searchParams } = new URL(request.url);
     const page = Math.max(1, safeInt(searchParams.get("page"), 1));
@@ -65,7 +70,11 @@ export async function GET(request: NextRequest) {
 // ---------------------------------------------------------------------------
 
 export async function POST(req: NextRequest) {
-  const started = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const started = Date.now();
   try {
     const fd = await req.formData();
     const file = fd.get("file") as File | null;

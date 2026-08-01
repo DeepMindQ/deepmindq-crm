@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { transitionStatus, getValidTransitions } from '@/lib/lead-workflow';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    L-07: Lead Status Transition API
@@ -11,7 +12,11 @@ import { logger } from '@/lib/logger';
    ═══════════════════════════════════════════════════ */
 
 export async function PATCH(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { id, ids, status, reason } = body as {
       id?: string;
@@ -61,7 +66,11 @@ export async function PATCH(request: Request) {
 }
 
 export async function GET(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 

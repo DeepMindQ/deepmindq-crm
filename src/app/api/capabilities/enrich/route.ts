@@ -2,13 +2,18 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    POST /api/capabilities/enrich
    C-12: Auto-enrich knowledge base from a website URL
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { url, serviceLine: suggestedServiceLine } = body;
 

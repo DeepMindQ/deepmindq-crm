@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    Company Mind Map API — Clean Tree Hierarchy
@@ -162,7 +163,11 @@ function buildCompanyNodes(
    GET handler
    ═══════════════════════════════════════════════════ */
 export async function GET(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const companyId = searchParams.get('companyId');
     const search = searchParams.get('search');

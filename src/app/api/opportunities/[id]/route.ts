@@ -5,12 +5,17 @@ import { apiError, apiSuccess, validateBody, sanitize } from "@/lib/apiHelpers";
 import { updateOpportunitySchema } from "@/lib/validations";
 import { OPPORTUNITY_STATUSES } from "@/lib/constants";
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params;
     const opp = await db.opportunityRecommendation.findUnique({
       where: { id },
@@ -30,7 +35,11 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params;
     const raw = await request.json();
     const parsed = validateBody(updateOpportunitySchema, raw);
@@ -93,7 +102,11 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params;
 
     const existing = await db.opportunityRecommendation.findUnique({ where: { id } });

@@ -4,6 +4,7 @@ import { Prisma } from '@prisma/client';
 import { getVectorIndex } from '@/lib/vector-index';
 import { CapabilityIntelligenceEngine } from '@/lib/capability-intelligence-engine';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /**
  * Parse tags to JSON string for storage.
@@ -32,7 +33,11 @@ function parseTagsField(tagsStr: string | null | undefined): string[] {
    Returns empty array if no capabilities exist (empty engine).
    ═══════════════════════════════════════════════════ */
 export async function GET(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const category = searchParams.get('category') || '';
     const tag = searchParams.get('tag') || '';
@@ -69,7 +74,11 @@ export async function GET(request: Request) {
    POST — Create a new capability asset + auto-embed
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { title, summary, category, serviceLine, targetIndustries, targetRoles,
             problems, evidence, content, tags, targetCompanySizes, parentAssetId,
@@ -138,7 +147,11 @@ export async function POST(request: Request) {
    PUT — Update capability + re-embed on version-worthy changes
    ═══════════════════════════════════════════════════ */
 export async function PUT(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { id, ...fields } = body;
 
@@ -219,7 +232,11 @@ export async function PUT(request: Request) {
    Body: { ids: string[], action: "activate"|"deactivate"|"delete"|"setCategory", category?: string }
    ═══════════════════════════════════════════════════ */
 export async function PATCH(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { ids, action, category } = body;
 
@@ -268,7 +285,11 @@ export async function PATCH(request: Request) {
    DELETE — Remove a capability
    ═══════════════════════════════════════════════════ */
 export async function DELETE(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { id } = body;
 

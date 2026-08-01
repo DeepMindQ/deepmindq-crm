@@ -10,10 +10,15 @@
 import { NextRequest } from 'next/server';
 import { KnowledgeIngestionPipeline } from '@/lib/knowledge-ingestion-pipeline';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // POST — Ingest a document
 export async function POST(request: NextRequest) {
-  const started = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const started = Date.now();
   try {
     const body = await request.json();
     const { title, documentType, content, sourceUrl, sourceType, metadata, capabilityAssetId } = body;
@@ -51,7 +56,11 @@ export async function POST(request: NextRequest) {
 
 // GET — Ingestion statistics
 export async function GET() {
-  const started = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const started = Date.now();
   try {
     const stats = await KnowledgeIngestionPipeline.getStats();
     return Response.json({

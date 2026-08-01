@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    L-06: Lead Deduplication & Merge
@@ -24,7 +25,11 @@ function jaccard(a: string, b: string): number {
 
 /* ── GET: Find Duplicates ── */
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const contacts = await db.contact.findMany({
       include: {
         company: { select: { id: true, rawName: true, domain: true } },
@@ -103,7 +108,11 @@ export async function GET() {
 
 /* ── POST: Merge Leads ── */
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { primaryId, secondaryIds, fieldOverrides } = body as {
       primaryId: string;

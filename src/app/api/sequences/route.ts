@@ -1,13 +1,18 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    GET /api/sequences
    List sequences with step counts and enrollment counts
    ═══════════════════════════════════════════════════ */
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const sequences = await db.emailSequence.findMany({
       where: { isActive: true },
       include: {
@@ -50,7 +55,11 @@ export async function GET() {
    Body: { name, description?, serviceLine?, steps: [{stepNumber, delayDays, subject, body, cta?}] }
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { name, description, serviceLine, steps } = body;
 
@@ -94,7 +103,11 @@ export async function POST(request: Request) {
    Body (step):      { id, stepId, subject?, body?, cta?, delayDays? }
    ═══════════════════════════════════════════════════ */
 export async function PUT(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { id, stepId, ...updates } = body;
 
@@ -144,7 +157,11 @@ export async function PUT(request: Request) {
    Archive (soft-delete) a sequence
    ═══════════════════════════════════════════════════ */
 export async function DELETE(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

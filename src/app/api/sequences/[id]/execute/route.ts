@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
+import { checkApiAuth } from '@/lib/api-auth'
 
 // ---------------------------------------------------------------------------
 // POST /api/sequences/[id]/execute — Execute a sequence
@@ -10,7 +11,11 @@ export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id: sequenceId } = await params
     const body = await req.json().catch(() => ({}))
     const contactId = body.contactId as string | undefined

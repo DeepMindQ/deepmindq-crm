@@ -5,6 +5,7 @@
  */
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const DEMO_COMPANIES = [
   { rawName: 'Acme Financial Services', domain: 'acmefinancial.com', website: 'https://acmefinancial.com', industry: 'Financial Services', sizeRange: 'Enterprise (10,000+)', country: 'United States', description: 'Leading global financial services firm offering banking, investment, and insurance products across 40+ countries. Recently announced a $500M digital transformation initiative focused on AI and cloud modernization.' },
@@ -20,7 +21,11 @@ const DEMO_COMPANIES = [
 ];
 
 export async function POST() {
-  const startTime = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startTime = Date.now();
   const results: Array<{ name: string; companyId: string; status: string; error?: string }> = [];
 
   try {
@@ -64,7 +69,11 @@ export async function POST() {
 }
 
 export async function GET() {
-  const capabilities = await db.capabilityAsset.count();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const capabilities = await db.capabilityAsset.count();
   const companies = await db.company.count({ where: { source: 'demo' } });
   const signals = await db.companySignal.count();
   const matches = await db.signalCapabilityMatch.count();

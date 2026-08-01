@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { templates as _templatesStore } from '@/lib/prompt-templates-store';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════════════════
    PATCH — Update a template by ID
@@ -9,7 +10,11 @@ export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params;
     const body = await request.json();
 
@@ -47,7 +52,11 @@ export async function DELETE(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params;
 
     const index = _templatesStore.findIndex((t) => t.id === id);

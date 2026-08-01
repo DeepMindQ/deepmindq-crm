@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { templates, generateId } from '@/lib/prompt-templates-store';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const now = () => new Date().toISOString();
 
 export async function GET(request: NextRequest) {
-  const { searchParams } = request.nextUrl;
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const { searchParams } = request.nextUrl;
   const category = searchParams.get('category');
 
   let result = templates;
@@ -16,7 +21,11 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
 
     if (!body.name?.trim() || !body.systemPrompt?.trim() || !body.userPromptTemplate?.trim()) {

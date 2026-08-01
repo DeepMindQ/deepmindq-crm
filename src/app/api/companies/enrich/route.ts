@@ -2,13 +2,18 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { governedAICall } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    L-03: Company Data Enrichment via AI
    ═══════════════════════════════════════════════════ */
 
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { companyId, domain } = body as { companyId?: string; domain?: string };
 

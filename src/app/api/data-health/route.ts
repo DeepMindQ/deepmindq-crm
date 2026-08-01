@@ -3,6 +3,7 @@ import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { formatDistanceToNow } from 'date-fns'
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ── In-memory cache (5 minutes) ── */
 let cachedResult: { data: DataHealthResponse; ts: number } | null = null
@@ -110,7 +111,11 @@ function parseJSONArray<T>(text: string): T[] {
 
 /* ── GET handler ── */
 export async function GET() {
-  // Return cached result if still fresh
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+// Return cached result if still fresh
   if (cachedResult && Date.now() - cachedResult.ts < CACHE_TTL) {
     return apiSuccess(cachedResult.data)
   }

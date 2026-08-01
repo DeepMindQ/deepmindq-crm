@@ -1,9 +1,14 @@
 import { NextResponse } from 'next/server';
 import { recalculateAllScores, getScoreBreakdown } from '@/lib/lead-scoring';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { contactId } = body;
 

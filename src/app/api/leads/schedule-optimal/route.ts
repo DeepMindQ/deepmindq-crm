@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════════════════
    Timezone Mapping — location string → UTC offset in hours
@@ -119,7 +120,11 @@ function getNextOptimalSlot(tzOffsetHours: number): { day: string; time: string;
    POST /api/leads/schedule-optimal
    ═══════════════════════════════════════════════════════════════ */
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { contactIds } = body;
 

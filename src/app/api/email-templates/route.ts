@@ -3,6 +3,7 @@ import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { createEmailTemplateSchema } from '@/lib/validations'
 import { db } from '@/lib/db'
 import type { EmailTemplate } from '@/lib/types'
+import { checkApiAuth } from '@/lib/api-auth'
 
 // Built-in templates (read-only, always returned)
 const BUILTIN_TEMPLATES: EmailTemplate[] = [
@@ -68,7 +69,11 @@ function dbToTemplate(r: { id: string; name: string; subject: string; body: stri
 
 // GET /api/email-templates
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const customs = await db.customEmailTemplate.findMany({ orderBy: { createdAt: 'desc' } })
     const all: EmailTemplate[] = [...BUILTIN_TEMPLATES, ...customs.map(dbToTemplate)]
     return apiSuccess({ templates: all, total: all.length })
@@ -79,7 +84,11 @@ export async function GET() {
 
 // POST /api/email-templates
 export async function POST(req: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await req.json()
     const data = validateBody(createEmailTemplateSchema, body)
     if (data instanceof Response) return data

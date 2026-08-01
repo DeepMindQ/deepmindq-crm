@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    GET /api/team/performance — Per-member KPIs
@@ -28,7 +29,11 @@ function getInitials(name: string): string {
 }
 
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     // ── 1. Get all team members from distinct assignedTo values ──
     const teamMembers = await db.contact.groupBy({
       by: ['assignedTo'],

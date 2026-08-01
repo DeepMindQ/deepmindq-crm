@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logAction } from '@/lib/audit';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    POST /api/leads/assign — Smart lead assignment
@@ -106,7 +107,11 @@ async function assignIndustry(contactIds: string[]) {
 
 /* POST — Assign leads */
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { contactIds, assignTo, method } = body;
 
@@ -161,7 +166,11 @@ export async function POST(request: Request) {
 
 /* GET — Assignment summary */
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const assignees = await db.contact.groupBy({
       by: ['assignedTo'],
       where: { assignedTo: { not: null } },

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server';
 import { db } from "@/lib/db";
 import { apiError, apiSuccess, safeInt } from "@/lib/apiHelpers";
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const STAGE_PROBABILITY: Record<string, number> = {
   researching: 0.1,
@@ -17,7 +18,11 @@ function getMonthLabel(date: Date): string {
 }
 
 export async function GET(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const months = safeInt(searchParams.get("months"), 6, 1);
     const cappedMonths = Math.min(months, 24);

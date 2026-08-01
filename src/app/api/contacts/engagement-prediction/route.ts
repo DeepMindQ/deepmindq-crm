@@ -12,9 +12,14 @@ import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { predictEngagement, type EngagementPrediction } from '@/lib/engagement-prediction-engine';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function GET(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const contactId = searchParams.get('contactId');
     const companyId = searchParams.get('companyId');

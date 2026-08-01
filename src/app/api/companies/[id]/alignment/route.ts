@@ -8,6 +8,7 @@ import type {
   EvidenceSource,
   TemporalConfidence,
 } from '@/lib/intelligence-types';
+import { checkApiAuth } from '@/lib/api-auth';
 import {
   computeIntelligenceRanking,
   computeFreshnessState,
@@ -99,7 +100,11 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id: companyId } = await params;
 
     const company = await db.company.findUnique({

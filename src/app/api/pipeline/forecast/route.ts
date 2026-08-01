@@ -15,9 +15,14 @@ import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { buildScoreBreakdown, factor, persistScoreAsInsight } from '@/lib/ai-evidence-framework';
 import { trackGeneration, assessHallucinationRisk, assessFreshness, calibrateConfidence } from '@/lib/ai-reliability';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function GET() {
-  const startMs = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startMs = Date.now();
 
   try {
     // ── 1. Fetch all pursuits (active + closed) ──

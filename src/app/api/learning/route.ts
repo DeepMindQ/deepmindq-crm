@@ -2,10 +2,15 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ContinuousLearningLoop } from '@/lib/continuous-learning-loop';
 import { db } from '@/lib/db';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // POST /api/learning — Record a learning event
 export async function POST(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { companyId, eventType, source, description, learnedInsight, applicableContext, applicableTags, confidence } = body;
     if (!eventType || !learnedInsight) {
@@ -30,7 +35,11 @@ export async function POST(request: NextRequest) {
 
 // GET /api/learning?companyId=xxx — Find reusable learnings
 export async function GET(request: NextRequest) {
-  const companyId = new URL(request.url).searchParams.get('companyId');
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const companyId = new URL(request.url).searchParams.get('companyId');
   if (!companyId) return apiError('companyId query parameter required', 400);
 
   try {

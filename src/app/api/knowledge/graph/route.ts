@@ -11,13 +11,18 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ---------------------------------------------------------------------------
 // GET – graph data or version history
 // ---------------------------------------------------------------------------
 
 export async function GET(request: NextRequest) {
-  const started = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const started = Date.now();
   const { searchParams } = new URL(request.url);
   const assetId = searchParams.get('assetId');
   const versions = searchParams.get('versions');

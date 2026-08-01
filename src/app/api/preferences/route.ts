@@ -2,11 +2,16 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess, validateBody } from "@/lib/apiHelpers";
 import { updatePreferencesSchema } from "@/lib/validations";
+import { checkApiAuth } from '@/lib/api-auth';
 
 // SystemSetting is a key-value store model.
 
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     // SystemSetting is a key-value store; preferences are stored under a special key.
     // Find the preferences record by key.
     const prefs = await db.systemSetting.findFirst({
@@ -25,7 +30,11 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
 
     // Validate with Zod schema

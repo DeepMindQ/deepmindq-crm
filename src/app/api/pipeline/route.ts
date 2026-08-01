@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // Map of DB status values to pipeline stage keys
 const STAGE_STATUS_MAP: Record<string, string> = {
@@ -15,7 +16,11 @@ const STAGE_STATUS_MAP: Record<string, string> = {
 };
 
 export async function GET() {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     // Fetch status counts from the database
     const statusGroups = await db.contact.groupBy({
       by: ['status'],

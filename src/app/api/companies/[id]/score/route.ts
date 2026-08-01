@@ -1,6 +1,7 @@
 import { ScoringEngine } from '@/lib/engines/scoring-engine';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /**
  * POST /api/companies/[id]/score
@@ -11,7 +12,11 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { id } = await params;
     const body = await request.json().catch(() => ({}));
 

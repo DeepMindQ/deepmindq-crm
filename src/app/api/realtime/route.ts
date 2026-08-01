@@ -1,4 +1,5 @@
 import { eventBus } from '@/lib/event-bus'
+import { checkApiAuth } from '@/lib/api-auth'
 
 // ── Event types we forward over SSE ──────────────────────────────────
 const FORWARDED_EVENTS = ['notification', 'email_opened', 'email_clicked'] as const
@@ -9,7 +10,11 @@ export const dynamic = 'force-dynamic'
 // ── GET handler (SSE stream) ─────────────────────────────────────────
 
 export async function GET() {
-  const encoder = new TextEncoder()
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const encoder = new TextEncoder()
 
   const stream = new ReadableStream({
     start(controller) {

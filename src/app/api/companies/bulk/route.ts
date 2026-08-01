@@ -2,13 +2,18 @@ import { db } from '@/lib/db';
 import type { CompanyStatus } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    POST — Bulk operations on companies
    Actions: updateStatus, addTag, removeTag, delete, assign
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { action, companyIds } = body as { action: string; companyIds?: string[] };
 

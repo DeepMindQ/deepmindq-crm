@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    L-04: Lead Segments API
@@ -43,7 +44,11 @@ function buildWhereClause(filters: SegmentFilters): any {
 
 /* ── GET ── */
 export async function GET(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const evaluateId = searchParams.get('evaluate');
 
@@ -117,7 +122,11 @@ export async function GET(request: Request) {
 
 /* ── POST: Create Segment ── */
 export async function POST(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { name, description, filters, isStatic } = body as {
       name: string;
@@ -171,7 +180,11 @@ export async function POST(request: Request) {
 
 /* ── PUT: Update Segment ── */
 export async function PUT(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const body = await request.json();
     const { id, name, description, filters } = body as {
       id: string;
@@ -219,7 +232,11 @@ export async function PUT(request: Request) {
 
 /* ── DELETE: Archive Segment ── */
 export async function DELETE(request: Request) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const id = searchParams.get('id');
 

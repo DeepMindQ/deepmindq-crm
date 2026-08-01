@@ -12,9 +12,14 @@
 import { NextResponse } from 'next/server';
 import { computeAllAccountPriorities, invalidateSupportingDataCache } from '@/lib/account-prioritization/engine';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function POST(request: Request) {
-  const startedAt = Date.now();
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+const startedAt = Date.now();
 
   try {
     const body = await request.json().catch(() => ({}));

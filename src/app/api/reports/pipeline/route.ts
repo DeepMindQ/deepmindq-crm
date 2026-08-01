@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 const STAGE_ORDER = ["researching", "qualified", "proposal", "negotiation", "won", "lost"];
 const STAGE_LABELS: Record<string, string> = {
@@ -20,7 +21,11 @@ function parseDateParam(val: string | null): Date | null {
 }
 
 export async function GET(request: NextRequest) {
-  try {
+    // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+try {
     const { searchParams } = new URL(request.url);
     const from = parseDateParam(searchParams.get("from"));
     const to = parseDateParam(searchParams.get("to"));

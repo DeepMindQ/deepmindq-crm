@@ -10,7 +10,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { logger } from '@/lib/logger';
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 
 // ---------------------------------------------------------------------------
 // GET – single capability asset
@@ -62,8 +62,10 @@ export async function DELETE(
   { params }: { params: Promise<{ id: string }> },
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
+  const adminError = requireAdminRole(session!);
+  if (adminError) return adminError;
 
 const started = Date.now();
   try {

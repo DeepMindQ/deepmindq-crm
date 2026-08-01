@@ -12,7 +12,7 @@ import { db } from "@/lib/db";
 import { logger } from '@/lib/logger';
 import { apiError, apiSuccess, validateBody, sanitize, safeInt } from "@/lib/apiHelpers";
 import { createKnowledgeDocSchema } from "@/lib/validations";
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 
 const MAX_PAGE_SIZE = 50;
 const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10 MB
@@ -71,8 +71,10 @@ const started = Date.now();
 
 export async function POST(req: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
+  const adminError = requireAdminRole(session!);
+  if (adminError) return adminError;
 
 const started = Date.now();
   try {

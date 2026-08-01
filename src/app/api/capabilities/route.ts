@@ -4,7 +4,7 @@ import { Prisma } from '@prisma/client';
 import { getVectorIndex } from '@/lib/vector-index';
 import { CapabilityIntelligenceEngine } from '@/lib/capability-intelligence-engine';
 import { logger } from '@/lib/logger';
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 
 /**
  * Parse tags to JSON string for storage.
@@ -75,8 +75,10 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
+  const adminError = requireAdminRole(session!);
+  if (adminError) return adminError;
 
 try {
     const body = await request.json();
@@ -148,8 +150,10 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function PUT(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
+  const adminError = requireAdminRole(session!);
+  if (adminError) return adminError;
 
 try {
     const body = await request.json();
@@ -233,8 +237,10 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function PATCH(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
+  const adminError = requireAdminRole(session!);
+  if (adminError) return adminError;
 
 try {
     const body = await request.json();
@@ -286,8 +292,10 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function DELETE(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
+  const adminError = requireAdminRole(session!);
+  if (adminError) return adminError;
 
 try {
     const body = await request.json();

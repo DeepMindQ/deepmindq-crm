@@ -2,7 +2,7 @@ import { db } from '@/lib/db';
 import type { CompanyStatus } from '@prisma/client';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    POST — Bulk operations on companies
@@ -10,8 +10,10 @@ import { checkApiAuth } from '@/lib/api-auth';
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
+  const adminError = requireAdminRole(session!);
+  if (adminError) return adminError;
 
 try {
     const body = await request.json();

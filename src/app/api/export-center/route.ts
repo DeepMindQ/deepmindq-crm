@@ -14,7 +14,7 @@
 
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { sanitizeString } from '@/lib/sanitize';
 import { logger } from '@/lib/logger';
@@ -262,9 +262,11 @@ async function logExport(entity: ExportEntity, format: ExportFormat, rowCount: n
 // ── Route Handlers ──
 
 export async function GET() {
-  // Auth gate: authenticated users only for export center
-  const { errorResponse } = await checkApiAuth();
+  // Auth gate: admin-only for export center
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
+  const adminError = requireAdminRole(session!);
+  if (adminError) return adminError;
 
   try {
     const availableExports: Array<{ entity: ExportEntity; label: string; description: string }> = [
@@ -305,9 +307,11 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  // Auth gate: authenticated users only for data export
-  const { errorResponse } = await checkApiAuth();
+  // Auth gate: admin-only for data export
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
+  const adminError = requireAdminRole(session!);
+  if (adminError) return adminError;
 
   try {
     const body = await request.json();

@@ -1177,3 +1177,58 @@ Stage Summary:
 - Remaining 23 failures: ticket1/ticket2 API contract tests (need verification)
 - Deliverable: /home/z/my-project/download/DeepMindQ_Phase1B_T4_Verification.pdf (91 KB, 7 sections)
 - Recommended next: Phase 1C — verify remaining 23 failures before any production code changes
+
+---
+Task ID: phase-1c
+Agent: Main Agent
+Task: Phase 1C — Remaining 23 Failures Root Cause Analysis
+
+Work Log:
+- Ran full test suite: 1754 pass / 23 fail / 14 skip (97.9%) across 4 failing test files
+- Traced all 23 failures to root causes via source code analysis
+- Classified into 5 failure groups (A-E) with production impact assessment
+
+Failure Group A: very_stale freshness level (14 failures)
+- Root cause: Tests written before very_stale was added to FreshnessInfo type
+- Tests expect 5 levels, implementation correctly returns 6 (including very_stale for >168h data)
+- Type definition (types.ts:111) includes very_stale; frontend handles it; implementation correct
+- Classification: P2 Stale Test Expectation
+- Production impact: None
+
+Failure Group B: includeSchema throw-in-refine (6 failures)
+- Root cause: validators.ts:46 throws ZodError inside .refine() callback
+- Zod v4 safeParse does not catch thrown errors from refine — they propagate uncaught
+- intelligenceGuard expects safeParse to return { success: false }, never catches the throw
+- Invalid include params cause 500 instead of intended 400 with INVALID_INCLUDE code
+- Classification: P1 Production Defect (LOW)
+- Production impact: Wrong HTTP status for invalid input; input IS rejected, just with wrong format
+- Fix: Replace throw with return false or use .superRefine() + ctx.addIssue()
+
+Failure Group C: Brief route contradictory logic (1 failure)
+- Root cause: brief/[id]/route.ts lines 78-79 default briefType, then lines 102-107 reject same condition
+- Dead code: default is assigned but execution halts at rejection before using the default
+- Missing optional briefType returns 400 instead of using 'account_brief' default
+- Classification: P2 Production Defect (LOW)
+- Production impact: Missing optional param rejected instead of defaulted; workaround: always include param
+- Fix: Remove lines 102-107 or guard with searchParams.has('briefType')
+
+Failure Group D: talkingPoints mock field mismatch (1 failure)
+- Root cause: Test mock uses field 'topic', real TalkingPoint interface uses 'point'
+- Route reads tp.point (correct per interface), gets undefined from mock, filters to empty array
+- Classification: P2 Test Mock Issue
+- Production impact: None — route handler is correct
+
+Failure Group E: companyIdSchema message mismatch (1 failure)
+- Root cause: Test expects 'required' in message, schema produces 'at least 3 characters'
+- Classification: P2 Stale Test Expectation
+- Production impact: None — validation correctly rejects empty strings
+
+Stage Summary:
+- 23 failures classified: 2 production defects (LOW) + 21 test-only issues
+- 91% of failures (21/23) are test infrastructure issues, not production bugs
+- Projected pass rate after fixes: 99.2% (1775/1791)
+- Composite readiness: 4.0/10 -> 4.5/10 projected (+0.5)
+- Total fix time: ~34 minutes, all localized single-location changes
+- Deliverable: /home/z/my-project/download/DeepMindQ_Phase1C_Failure_Analysis.pdf (71 KB, 10 sections)
+- Zero production code changes made during analysis (verification-first methodology preserved)
+- Recommended next: Apply fixes in priority order (validators.ts -> brief route -> test updates)

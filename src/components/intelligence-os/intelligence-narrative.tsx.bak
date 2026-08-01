@@ -234,12 +234,12 @@ function ConfidenceBreakdownTooltip({
         Confidence Breakdown
       </p>
 
-      {/* Formula */}
+      {/* Formula */
       <p className="text-[10px] font-mono mb-3 leading-relaxed" style={{ color: tokens.text.secondary }}>
         {data.formula}
       </p>
 
-      {/* Dimension bars */}
+      {/* Dimension bars */
       {[
         { label: 'Signal Quality', value: data.breakdown.signalQuality, weight: '30%' },
         { label: 'Evidence Quality', value: data.breakdown.evidenceQuality, weight: '30%' },

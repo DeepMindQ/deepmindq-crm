@@ -2,7 +2,8 @@
 // These are NOT UI components. They are EXPERIENCE PATTERNS that
 // embody the DeepMindQ Intelligence Design DNA.
 
-export { IntelligenceNarrative, type IntelligenceNarrativeProps, type EvidenceItem, type NarrativeAction, type NarrativeVariant } from './intelligence-narrative';
+export { IntelligenceNarrative, type IntelligenceNarrativeProps, type EvidenceItem, type NarrativeAction, type NarrativeVariant, type RelatedSignal } from './intelligence-narrative';
+export { useIntelligenceNarratives, type UseIntelligenceNarrativesOptions, type UseIntelligenceNarrativesReturn } from './use-intelligence-narratives';
 export { IntelligenceCard, type IntelligenceCardProps, type CardVariant } from './intelligence-card';
 export { EvidenceChain, type EvidenceChainProps, type EvidenceChainItem } from './evidence-chain';
 export { IntelligencePanel, type IntelligencePanelProps, type IntelligencePanelSection } from './intelligence-panel';

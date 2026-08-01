@@ -1,4 +1,33 @@
 ---
+Task ID: phase-1a-correction
+Agent: Super Z (main)
+Task: Phase 1A Correction Cycle — Intelligence Foundation Real, Not Visual
+
+Work Log:
+- Audited full codebase: 165 API routes, 6 engine files, 59 DB models, 7 intelligence components
+- Discovered the intelligence engine backend is extraordinarily rich (GroundingEngine, SynthesisEngine, ScoringEngine, ActionEngine, multi-layer confidence, 30-step reasoning) but UI components consume NONE of it
+- Created intelligence-narrative-service.ts: Bridge layer composing existing engines into narrative-ready data
+  - computeNarrativeConfidence(): Real 4-factor formula (Signal 30% + Evidence 30% + Capability 25% + Data 15%)
+  - computeConfidenceFactors(): Human-readable positive/negative factors explaining WHY
+  - buildNarrativeEvidence(): Maps GroundingEngine evidence chain to UI-ready evidence items
+  - buildNarrativeFromSignal(): Full pipeline: Signal → GroundingEngine → Confidence → Evidence → Action
+  - generateCommandCenterNarratives(): Batch narrative generation with Promise.allSettled error handling
+- Created /api/intelligence/narratives route: Dedicated API endpoint with 3 modes
+  - Default: command center narratives (limit, companyId, minConfidence, minSeverity)
+  - Single signal drill-down (?signalId=)
+  - Confidence detail drill-down (?confidenceDetail=)
+- Created use-intelligence-narratives.ts hook: Client-side data fetching
+- Enhanced IntelligenceNarrative component with data prop, ConfidenceBreakdownTooltip, EnhancedConfidenceRing
+- Created 20 tests: confidence formula, data structure, API shape, props integration, VP Sales Q1-Q5, data flow
+- Zero regressions: 1888 pass, 14 skip, tsc clean, lint clean
+
+Stage Summary:
+- 4 new files: intelligence-narrative-service.ts, narratives API route, use-intelligence-narratives hook, 20 tests
+- 2 files modified: intelligence-narrative.tsx (data prop, confidence tooltip), index.ts (exports)
+- Net test gain: +20 (1868 → 1888)
+- Key transformation: Components now consume real engine output, not template data
+
+---
 Task ID: 2-0
 Agent: Super Z (main)
 Task: Phase 2 Batch 1 — Security Hardening

@@ -142,7 +142,7 @@ export async function callAI(options: CallAIOptions): Promise<CallAIResult> {
       const completion = await Promise.race([
         zai.chat.completions.create({
           messages: [
-            { role: 'assistant', content: systemPrompt },
+            { role: 'system', content: systemPrompt },
             { role: 'user', content: userPrompt },
           ],
           thinking: { type: 'disabled' },

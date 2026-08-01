@@ -247,7 +247,7 @@ async function executeStep(
 
       case 'risk_signals': {
         const signals = await db.companySignal.findMany({ where: { companyId, impact: { in: ['low', 'medium'] }, status: { not: 'archived' } }, take: 20, orderBy: { createdAt: 'desc' } });
-        const riskSignals = signals.filter(s => s.severity === 'high' || s.severity === 'critical' || s.meaningCategory === 'budget_available' === false);
+        const riskSignals = signals.filter(s => s.severity === 'high' || s.severity === 'critical' || s.meaningCategory !== 'budget_available');
         const output = { totalSignals: signals.length, riskSignals: riskSignals.map(s => ({ type: s.signalType, title: s.title, severity: s.severity, meaning: s.meaningCategory })) };
         return { output: JSON.stringify(output), summary: `${riskSignals.length} risk signals from ${signals.length} total`, confidence: signals.length > 0 ? 0.6 : 0.3, evidenceIds: signals.map(s => s.id), knowledgeIds: [], aiCalls: 0, tokensUsed: 0, costUsd: 0, durationMs: Date.now() - started };
       }

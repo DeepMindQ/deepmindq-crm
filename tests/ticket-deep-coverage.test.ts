@@ -124,12 +124,12 @@ function makeRejectingParams(): Promise<{ id: string }> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-//  1. VALID_INCLUDES — All 22 keys present
+//  1. VALID_INCLUDES — All 23 keys present (matches IntelligenceInclude union in types.ts)
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('VALID_INCLUDES set', () => {
-  it('has exactly 22 valid include keys', () => {
-    expect(VALID_INCLUDES.size).toBe(22);
+  it('has exactly 23 valid include keys', () => {
+    expect(VALID_INCLUDES.size).toBe(23);
   });
 
   it('contains all company endpoint includes', () => {

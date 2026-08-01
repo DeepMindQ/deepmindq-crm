@@ -5,9 +5,8 @@ import { logger } from '@/lib/logger';
 // ═══════════════════════════════════════════════════════════════
 // Current User — DeepMindQ Enterprise
 //
-// Checks session via cookie. Tries DB first, then validates
-// cookie format as fallback (safe: single-user system).
-// Never returns 503 — if cookie exists, user is authenticated.
+// Checks session via cookie. Validates against DB.
+// Returns 401 if session cannot be validated — no hardcoded fallbacks.
 // ═══════════════════════════════════════════════════════════════
 
 export async function GET() {
@@ -35,21 +34,13 @@ export async function GET() {
       logger.warn('[auth/me] DB session check failed, using cookie-based auth:', { error: dbErr instanceof Error ? dbErr.message : dbErr });
     }
 
-    // Fallback: if cookie exists and looks valid, user is authenticated
-    // (Safe for single-user system — only shanker001@gmail.com can get a cookie)
-    return NextResponse.json({
-      user: {
-        id: 'shanker-001',
-        email: 'shanker001@gmail.com',
-        name: 'Shanker',
-        phone: null,
-        company: null,
-        designation: null,
-        role: 'admin',
-        hasPassword: false,
-        avatarUrl: null,
-      },
-    });
+    // If DB session lookup fails, we cannot authenticate the user.
+    // Previously this returned a hardcoded admin identity — a P0 security hole.
+    // Now we return 401 (not authenticated) when DB validation is unavailable.
+    return NextResponse.json(
+      { error: 'Session validation unavailable', code: 'SESSION_DB_ERROR' },
+      { status: 401 },
+    );
   } catch (error) {
     logger.error('[auth/me] Error:', { error: error });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

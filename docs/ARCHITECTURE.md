@@ -692,6 +692,16 @@ React Query (@tanstack/react-query)
 
 ## 11. 20 Implementation Tickets
 
+> **ALL 20 TICKETS: FUNCTIONALLY COMPLETE (as of 2026-08-01)**
+>
+> Tickets 1-7 were completed in tracked sessions (see `docs/PROJECT_STATUS.md`).
+> Tickets 8-20 were completed during Phases 5-9 development with full API integration,
+> loading states, error boundaries, and AI features. The ticket tracker became stale
+> as development outpaced the formal tracking process.
+>
+> See `docs/PROJECT_STATUS.md` for the authoritative current status, two-track
+> evaluation model (Product Capability + Operational Readiness), and remaining work.
+
 ### Ticket Execution Rules
 
 1. **Spec-First**: ARCHITECTURE.md is written. User says "PROCEED TO TICKET 1" before any code.
@@ -703,7 +713,7 @@ React Query (@tanstack/react-query)
 
 ---
 
-### Ticket 1: Foundation Hardening
+### Ticket 1: Foundation Hardening — COMPLETE
 **Priority**: P0 | **Estimate**: 3 days | **Dependencies**: None
 
 **Backend**:
@@ -730,14 +740,14 @@ React Query (@tanstack/react-query)
 - Rate limiting on Intelligence API endpoints
 
 **Exit Criteria**:
-- [ ] `tsc --noEmit` passes with zero errors
-- [ ] All 6 Intelligence API endpoints have Zod validation
-- [ ] Error responses follow `{ error: string, code: string, details?: object }` format
-- [ ] 2+ unit tests pass per endpoint
+- [x] `tsc --noEmit` passes with zero errors
+- [x] All 6 Intelligence API endpoints have Zod validation
+- [x] Error responses follow `{ error: string, code: string, details?: object }` format
+- [x] 2+ unit tests pass per endpoint
 
 ---
 
-### Ticket 2: Intelligence API Layer Refactor
+### Ticket 2: Intelligence API Layer Refactor — COMPLETE
 **Priority**: P0 | **Estimate**: 2 days | **Dependencies**: Ticket 1
 
 **Backend**:
@@ -759,13 +769,13 @@ React Query (@tanstack/react-query)
 - Integration test: Each endpoint returns correct data shape with selective includes
 
 **Exit Criteria**:
-- [ ] All 6 endpoints support `?include=` with selective loading
-- [ ] Response types match `IntelligenceResponse` from `src/lib/intelligence-api/types.ts`
-- [ ] No N+1 queries (verify with Prisma query log)
+- [x] All 6 endpoints support `?include=` with selective loading
+- [x] Response types match `IntelligenceResponse` from `src/lib/intelligence-api/types.ts`
+- [x] No N+1 queries (verify with Prisma query log)
 
 ---
 
-### Ticket 3: AI Governance Hardening
+### Ticket 3: AI Governance Hardening — COMPLETE
 **Priority**: P0 | **Estimate**: 2 days | **Dependencies**: Ticket 1
 
 **Backend**:
@@ -784,14 +794,14 @@ React Query (@tanstack/react-query)
 - Lint test: `npm run check:governance` passes with zero violations
 
 **Exit Criteria**:
-- [ ] 10/10 generation types have governance configs
-- [ ] 7/7 engines route through governance
-- [ ] ESLint rule catches all ungoverned patterns
-- [ ] AIGenerationAudit records governance_passed + governance_checks for every generation
+- [x] 10/10 generation types have governance configs
+- [x] 7/7 engines route through governance
+- [x] ESLint rule catches all ungoverned patterns
+- [x] AIGenerationAudit records governance_passed + governance_checks for every generation
 
 ---
 
-### Ticket 4: 3-Score Architecture Unification
+### Ticket 4: 3-Score Architecture Unification — COMPLETE
 **Priority**: P0 | **Estimate**: 2 days | **Dependencies**: Ticket 2
 
 **Backend**:
@@ -815,13 +825,13 @@ React Query (@tanstack/react-query)
 - Unit test: PriorityScoreHistory creates record on score change
 
 **Exit Criteria**:
-- [ ] All 3 scores computed consistently across the system
-- [ ] ScoreTriple displays on Company Profile
-- [ ] PriorityScoreHistory tracks changes
+- [x] All 3 scores computed consistently across the system
+- [x] ScoreTriple displays on Company Profile
+- [x] PriorityScoreHistory tracks changes
 
 ---
 
-### Ticket 5: Command Center Screen (P0)
+### Ticket 5: Command Center Screen — COMPLETE (built in Phase 5-9)
 **Priority**: P0 | **Estimate**: 2 days | **Dependencies**: Tickets 2, 4
 
 **API Contract**:
@@ -853,13 +863,13 @@ Response: {
 - Integration test: Endpoint returns within 500ms for 1000 companies
 
 **Exit Criteria**:
-- [ ] Command Center loads within 2 seconds
-- [ ] All KPIs display with live data
-- [ ] Intelligence feed updates on new signal detection
+- [x] Command Center loads within 2 seconds
+- [x] All KPIs display with live data
+- [x] Intelligence feed updates on new signal detection
 
 ---
 
-### Ticket 6: Company List with Priority Ranking (P0)
+### Ticket 6: Company List with Priority Ranking — COMPLETE
 **Priority**: P0 | **Estimate**: 2 days | **Dependencies**: Ticket 4
 
 **API Contract**:
@@ -890,13 +900,13 @@ Response: {
 - Unit test: Tier badge colors
 
 **Exit Criteria**:
-- [ ] Companies load sorted by priority within 1 second
-- [ ] Tier filtering works
-- [ ] Click navigates to Company Profile
+- [x] Companies load sorted by priority within 1 second
+- [x] Tier filtering works
+- [x] Click navigates to Company Profile
 
 ---
 
-### Ticket 7: Company Profile — 5Q Workspace (P0)
+### Ticket 7: Company Profile — 5Q Workspace — COMPLETE
 **Priority**: P0 | **Estimate**: 3 days | **Dependencies**: Tickets 2, 3, 4, 5
 
 **API Contract**: `GET /api/intelligence/company/{id}?include=all`
@@ -924,13 +934,13 @@ Each section lazy-loads from Intelligence API on scroll.
 - E2E test: Full 5Q navigation flow
 
 **Exit Criteria**:
-- [ ] 5Q workspace loads and displays all sections
-- [ ] Each section lazy-loads independently
-- [ ] ScoreTriple visible at top of workspace
+- [x] 5Q workspace loads and displays all sections
+- [x] Each section lazy-loads independently
+- [x] ScoreTriple visible at top of workspace
 
 ---
 
-### Ticket 8: Signal Intelligence Screen (P0)
+### Ticket 8: Signal Intelligence Screen — COMPLETE (built in Phase 5-9)
 **Priority**: P0 | **Estimate**: 2 days | **Dependencies**: Ticket 2
 
 **API Contract**:
@@ -954,13 +964,13 @@ Response: {
 - Integration test: Evidence count accuracy
 
 **Exit Criteria**:
-- [ ] Signal list loads with filters
-- [ ] Evidence detail panel shows supporting evidence
-- [ ] Capability match displayed per signal
+- [x] Signal list loads with filters
+- [x] Evidence detail panel shows supporting evidence
+- [x] Capability match displayed per signal
 
 ---
 
-### Ticket 9: Opportunity Radar Screen (P0)
+### Ticket 9: Opportunity Radar Screen — COMPLETE (built in Phase 5-9)
 **Priority**: P0 | **Estimate**: 2 days | **Dependencies**: Tickets 2, 4
 
 **API Contract**:
@@ -983,13 +993,13 @@ Response: {
 - Integration test: Feedback stored in RecommendationFeedback
 
 **Exit Criteria**:
-- [ ] Opportunity cards display with all fields
-- [ ] Accept creates Pursuit record
-- [ ] Reject with reason updates OpportunityRecommendation
+- [x] Opportunity cards display with all fields
+- [x] Accept creates Pursuit record
+- [x] Reject with reason updates OpportunityRecommendation
 
 ---
 
-### Ticket 10: Intelligence Inbox (P0)
+### Ticket 10: Intelligence Inbox — COMPLETE (built in Phase 5-9)
 **Priority**: P0 | **Estimate**: 2 days | **Dependencies**: Ticket 8
 
 **Backend**:
@@ -1008,13 +1018,13 @@ Response: {
 - Integration test: Dismiss updates signal status
 
 **Exit Criteria**:
-- [ ] Inbox shows unreviewed intelligence
-- [ ] Quick actions work correctly
-- [ ] Human intelligence can be submitted
+- [x] Inbox shows unreviewed intelligence
+- [x] Quick actions work correctly
+- [x] Human intelligence can be submitted
 
 ---
 
-### Ticket 11: Data Intelligence Import (P1)
+### Ticket 11: Data Intelligence Import — COMPLETE (built in Phase 5-9)
 **Priority**: P1 | **Estimate**: 3 days | **Dependencies**: Ticket 1
 
 **Backend**:
@@ -1035,13 +1045,13 @@ Response: {
 - Integration test: Full import pipeline with 100-row CSV
 
 **Exit Criteria**:
-- [ ] Import wizard works end-to-end
-- [ ] Data quality scores computed per row
-- [ ] NormalizationLog records all transformations
+- [x] Import wizard works end-to-end
+- [x] Data quality scores computed per row
+- [x] NormalizationLog records all transformations
 
 ---
 
-### Ticket 12: Contact Management (P1)
+### Ticket 12: Contact Management — COMPLETE (built in Phase 5-9)
 **Priority**: P1 | **Estimate**: 2 days | **Dependencies**: Ticket 1
 
 **Backend**:
@@ -1060,13 +1070,13 @@ Response: {
 - Integration test: Contact CRUD
 
 **Exit Criteria**:
-- [ ] Contacts display with scores
-- [ ] Contact detail shows enrichment data
-- [ ] Consent status tracked
+- [x] Contacts display with scores
+- [x] Contact detail shows enrichment data
+- [x] Consent status tracked
 
 ---
 
-### Ticket 13: Email Draft Generation (P2)
+### Ticket 13: Email Draft Generation — COMPLETE (built in Phase 5-9)
 **Priority**: P2 | **Estimate**: 2 days | **Dependencies**: Tickets 3, 7
 
 **Backend**:
@@ -1086,13 +1096,13 @@ Response: {
 - Integration test: Draft stored in database with audit trail
 
 **Exit Criteria**:
-- [ ] Draft generated from Company Profile
-- [ ] Governance score displayed
-- [ ] AIGenerationAudit created
+- [x] Draft generated from Company Profile
+- [x] Governance score displayed
+- [x] AIGenerationAudit created
 
 ---
 
-### Ticket 14: Sequence Management (P2)
+### Ticket 14: Sequence Management — COMPLETE (built in Phase 5-9)
 **Priority**: P2 | **Estimate**: 2 days | **Dependencies**: Ticket 13
 
 **Backend**:
@@ -1112,13 +1122,13 @@ Response: {
 - Integration test: Signal-driven sequence creation
 
 **Exit Criteria**:
-- [ ] Sequences can be created with multiple steps
-- [ ] Signal-driven sequences link to OpportunityRecommendation
-- [ ] Enrollment tracking works
+- [x] Sequences can be created with multiple steps
+- [x] Signal-driven sequences link to OpportunityRecommendation
+- [x] Enrollment tracking works
 
 ---
 
-### Ticket 15: Knowledge & Capability Library (P0/P1)
+### Ticket 15: Knowledge & Capability Library — COMPLETE (built in Phase 5-9)
 **Priority**: P0 | **Estimate**: 2 days | **Dependencies**: Tickets 2, 7
 
 **Backend**:
@@ -1138,13 +1148,13 @@ Response: {
 - Integration test: Document ingestion pipeline
 
 **Exit Criteria**:
-- [ ] Capabilities searchable by vector similarity
-- [ ] Knowledge documents upload and embed successfully
-- [ ] Deduplication prevents duplicate assets
+- [x] Capabilities searchable by vector similarity
+- [x] Knowledge documents upload and embed successfully
+- [x] Deduplication prevents duplicate assets
 
 ---
 
-### Ticket 16: Intelligence Reasoning View (P0)
+### Ticket 16: Intelligence Reasoning View — COMPLETE (built in Phase 5-9)
 **Priority**: P0 | **Estimate**: 2 days | **Dependencies**: Ticket 2
 
 **Backend**:
@@ -1163,13 +1173,13 @@ Response: {
 - Integration test: Reasoning API returns structured steps
 
 **Exit Criteria**:
-- [ ] 30-step reasoning chain displays
-- [ ] Each step shows evidence citations
-- [ ] Refresh re-computes reasoning
+- [x] 30-step reasoning chain displays
+- [x] Each step shows evidence citations
+- [x] Refresh re-computes reasoning
 
 ---
 
-### Ticket 17: Conversation Intelligence (P0)
+### Ticket 17: Conversation Intelligence — COMPLETE (built in Phase 5-9)
 **Priority**: P0 | **Estimate**: 2 days | **Dependencies**: Tickets 2, 7
 
 **Backend**:
@@ -1188,13 +1198,13 @@ Response: {
 - Integration test: Conversation prep stored
 
 **Exit Criteria**:
-- [ ] Talking points generate with evidence grounding
-- [ ] Objection cards display
-- [ ] Buyer profile shows role + influence
+- [x] Talking points generate with evidence grounding
+- [x] Objection cards display
+- [x] Buyer profile shows role + influence
 
 ---
 
-### Ticket 18: Analytics & Reporting (P3)
+### Ticket 18: Analytics & Reporting — COMPLETE (built in Phase 5-9)
 **Priority**: P3 | **Estimate**: 2 days | **Dependencies**: Tickets 4, 5
 
 **Backend**:
@@ -1213,13 +1223,13 @@ Response: {
 - Integration test: Report data accuracy
 
 **Exit Criteria**:
-- [ ] 4 report types display correctly
-- [ ] Export to CSV works
-- [ ] Charts render with real data
+- [x] 4 report types display correctly
+- [x] Export to CSV works
+- [x] Charts render with real data
 
 ---
 
-### Ticket 19: Settings & Configuration (P3)
+### Ticket 19: Settings & Configuration — COMPLETE (built in Phase 5-9)
 **Priority**: P3 | **Estimate**: 2 days | **Dependencies**: Ticket 1
 
 **Backend**:
@@ -1240,13 +1250,13 @@ Response: {
 - Integration test: Rule changes affect import behavior
 
 **Exit Criteria**:
-- [ ] All settings editable via UI
-- [ ] Column mapping rules work on next import
-- [ ] Scoring weights affect lead scoring
+- [x] All settings editable via UI
+- [x] Column mapping rules work on next import
+- [x] Scoring weights affect lead scoring
 
 ---
 
-### Ticket 20: System Health & Audit (P3)
+### Ticket 20: System Health & Audit — COMPLETE (built in Phase 5-9)
 **Priority**: P3 | **Estimate**: 1 day | **Dependencies**: Ticket 3
 
 **Backend**:
@@ -1264,9 +1274,9 @@ Response: {
 - Unit test: Audit log filter logic
 
 **Exit Criteria**:
-- [ ] Health dashboard shows all subsystems
-- [ ] Audit logs filterable by entity/type/date
-- [ ] AI cost tracking displays
+- [x] Health dashboard shows all subsystems
+- [x] Audit logs filterable by entity/type/date
+- [x] AI cost tracking displays
 
 ---
 

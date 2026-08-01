@@ -14,6 +14,7 @@
 
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
+import { checkApiAuth } from '@/lib/api-auth';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { sanitizeString } from '@/lib/sanitize';
 import { logger } from '@/lib/logger';
@@ -261,6 +262,10 @@ async function logExport(entity: ExportEntity, format: ExportFormat, rowCount: n
 // ── Route Handlers ──
 
 export async function GET() {
+  // Auth gate: authenticated users only for export center
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const availableExports: Array<{ entity: ExportEntity; label: string; description: string }> = [
       { entity: 'companies', label: 'Companies', description: 'All company accounts with industry, size, and intelligence data' },
@@ -300,6 +305,10 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  // Auth gate: authenticated users only for data export
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const body = await request.json();
     const { entity, format = 'csv' } = body;

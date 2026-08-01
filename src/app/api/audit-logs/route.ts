@@ -1,9 +1,16 @@
 import { db } from '@/lib/db';
 import { NextRequest, NextResponse } from 'next/server';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { Prisma } from '@prisma/client';
 import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
+  // Auth gate: admin-only for audit logs
+  const { session, errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+  const adminCheck = requireAdminRole(session!);
+  if (adminCheck) return adminCheck;
+
   try {
     const { searchParams } = request.nextUrl;
 

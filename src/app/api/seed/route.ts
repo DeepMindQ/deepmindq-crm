@@ -1,8 +1,15 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { logger } from '@/lib/logger';
 
 export async function POST() {
+  // Auth gate: admin-only for destructive data seeding
+  const { session, errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+  const adminCheck = requireAdminRole(session!);
+  if (adminCheck) return adminCheck;
+
   try {
     const existingCount = await db.contact.count();
     if (existingCount > 0) {

@@ -1,10 +1,17 @@
 import { db } from '@/lib/db';
 import { NextRequest } from 'next/server';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { logger } from '@/lib/logger';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
 
-// GET /api/audit — returns audit entries in the shape audit-screen.tsx expects
+// GET /api/audit — returns audit entries (admin-only)
 export async function GET(request: NextRequest) {
+  // Auth gate: admin-only for audit data
+  const { session, errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+  const adminCheck = requireAdminRole(session!);
+  if (adminCheck) return adminCheck;
+
   try {
     const limit = parseInt(request.nextUrl.searchParams.get('limit') || '200', 10);
 

@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/lib/db";
+import { checkApiAuth } from '@/lib/api-auth';
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
 import crypto from "crypto";
 import * as XLSX from "xlsx";
@@ -125,6 +126,10 @@ function parseCSV(buffer: Buffer): ParsedFile {
 // ---------------------------------------------------------------------------
 
 export async function GET() {
+  // Auth gate: authenticated users only for import batches
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const batches = await db.importBatch.findMany({
       orderBy: { createdAt: "desc" },
@@ -140,6 +145,10 @@ export async function GET() {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest) {
+  // Auth gate: authenticated users only for imports
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const contentType = request.headers.get("content-type") ?? "";
 

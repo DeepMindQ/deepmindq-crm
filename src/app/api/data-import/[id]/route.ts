@@ -5,12 +5,17 @@
  */
 
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
+import { checkApiAuth } from '@/lib/api-auth';
 import { getUploadWithDetails } from '@/lib/data-import/pipeline';
 
 export async function GET(
   _req: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  // Auth gate: authenticated users only for data import detail
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const { id } = await params;
 

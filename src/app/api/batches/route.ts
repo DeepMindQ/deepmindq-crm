@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { checkApiAuth } from '@/lib/api-auth';
 import * as XLSX from 'xlsx';
 import { createHash } from 'crypto';
 import { scoreEmail } from '@/lib/email-verify';
@@ -77,6 +78,10 @@ const CHUNK_SIZE = 100;
 const LARGE_FILE_THRESHOLD = 500;
 
 export async function GET() {
+  // Auth gate: authenticated users only for batch operations
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const batches = await db.importBatch.findMany({
       orderBy: { createdAt: 'desc' },
@@ -235,6 +240,10 @@ async function processChunk(
    POST /api/batches — Upload & import
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
+  // Auth gate: authenticated users only for file import
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;

@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════════════════════════════
@@ -21,6 +22,12 @@ const NOW = new Date();
 const DAYS_AGO = (n: number) => new Date(NOW.getTime() - n * 86400000);
 
 export async function POST() {
+  // Auth gate: admin-only for destructive gold standard seeding
+  const { session, errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+  const adminCheck = requireAdminRole(session!);
+  if (adminCheck) return adminCheck;
+
   try {
     // ── Clean up any existing Microsoft data ──
     const existing = await db.company.findFirst({

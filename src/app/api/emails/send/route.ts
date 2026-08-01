@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 import { db } from '@/lib/db'
+import { checkApiAuth } from '@/lib/api-auth'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { sendEmail, type SendEmailResult } from '@/lib/email-provider'
 import { registerTrackingEvent } from '@/lib/email-tracking'
@@ -57,6 +58,10 @@ function injectClickTracking(html: string, eventId: string, origin: string): str
 // ── POST handler ─────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  // Auth gate: authenticated users only for email sending
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const body = await request.json()
     const parsed = validateBody(sendSchema, body)

@@ -70,6 +70,22 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
+// Mock session for auth guards (Phase 2 security hardening)
+// These tests focus on business logic, not auth — auth is separately tested in security-auth.test.ts
+vi.mock('@/lib/session', () => ({
+  getCurrentSession: vi.fn().mockResolvedValue({
+    id: 'test-user',
+    email: 'test@deepmindq.com',
+    name: 'Test User',
+    phone: null,
+    company: 'DeepMindQ',
+    designation: 'Admin',
+    role: 'admin',
+    hasPassword: true,
+    avatarUrl: null,
+  }),
+}));
+
 // ═══════════════════════════════════════════════════════════════
 // GET /api/data-import — List uploads
 // ═══════════════════════════════════════════════════════════════

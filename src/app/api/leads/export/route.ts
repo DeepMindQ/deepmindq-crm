@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { checkApiAuth } from '@/lib/api-auth';
 import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
@@ -7,6 +8,10 @@ import { logger } from '@/lib/logger';
    ═══════════════════════════════════════════════════ */
 
 export async function GET(request: Request) {
+  // Auth gate: authenticated users only for lead export
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const { searchParams } = new URL(request.url);
 

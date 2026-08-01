@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
@@ -128,6 +129,12 @@ function deepMerge(target: any, source: any): any {
    GET /api/settings — return current settings
    ═══════════════════════════════════════════════════ */
 export async function GET() {
+  // Auth gate: admin-only for system settings
+  const { session, errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+  const adminCheck = requireAdminRole(session!);
+  if (adminCheck) return adminCheck;
+
   try {
     return NextResponse.json({ settings: currentSettings });
   } catch (error) {
@@ -141,6 +148,12 @@ export async function GET() {
    Accepts a partial settings object and deep-merges
    ═══════════════════════════════════════════════════ */
 export async function PUT(request: Request) {
+  // Auth gate: admin-only for system settings
+  const { session, errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+  const adminCheck = requireAdminRole(session!);
+  if (adminCheck) return adminCheck;
+
   try {
     const body = await request.json();
 

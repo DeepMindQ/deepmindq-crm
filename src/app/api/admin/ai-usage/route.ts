@@ -1,9 +1,17 @@
 import { NextResponse } from 'next/server'
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth'
 import { getDailyCostStatus } from '@/lib/intelligence-sources/ai-cost-governance'
 import { logger } from '@/lib/logger';
 
-// GET /api/admin/ai-usage — AI cost dashboard
+// GET /api/admin/ai-usage — AI cost dashboard (admin-only)
 export async function GET() {
+  // Auth gate: require authenticated admin
+  const { session, errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+  const adminCheck = requireAdminRole(session!);
+  if (adminCheck) return adminCheck;
+
   try {
     const status = await getDailyCostStatus()
     return NextResponse.json({ ok: true, ...status })

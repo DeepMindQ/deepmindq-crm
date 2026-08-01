@@ -45,7 +45,7 @@ export async function checkApiAuth(): Promise<{
  * Require admin role. Call after checkApiAuth succeeds.
  */
 export function requireAdminRole(session: SessionUser): Response | null {
-  if (session.role !== 'ADMIN') {
+  if (session.role !== 'admin') {
     return NextResponse.json(
       { success: false, error: 'Forbidden: Admin access required', timestamp: new Date().toISOString() },
       { status: 403 }

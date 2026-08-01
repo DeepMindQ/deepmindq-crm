@@ -11,6 +11,7 @@
 
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError, safeInt } from '@/lib/apiHelpers';
+import { checkApiAuth } from '@/lib/api-auth';
 import {
   createDataUpload,
   autoMapColumns,
@@ -26,6 +27,10 @@ import { db } from '@/lib/db';
 // ═══════════════════════════════════════════════════════════════
 
 export async function GET(req: NextRequest) {
+  // Auth gate: authenticated users only for data import
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, safeInt(searchParams.get('page'), 1));
@@ -53,6 +58,10 @@ export async function GET(req: NextRequest) {
 // ═══════════════════════════════════════════════════════════════
 
 export async function POST(req: NextRequest) {
+  // Auth gate: authenticated users only for data import
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const body = await req.json();
     const action = body.action;

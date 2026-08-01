@@ -1,5 +1,6 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
+import { checkApiAuth } from '@/lib/api-auth';
 import { computeContentHash } from '@/lib/doc-parsers';
 import { CapabilityIntelligenceEngine } from '@/lib/capability-intelligence-engine';
 import { logger } from '@/lib/logger';
@@ -37,6 +38,10 @@ const VALID_CATEGORIES = [
 ];
 
 export async function POST(request: Request) {
+  // Auth gate: authenticated users only for capability import
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const contentType = request.headers.get('content-type') || '';
 

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
+import { checkApiAuth } from '@/lib/api-auth';
 import { batchProgress } from '@/app/api/batches/route';
 import { logger } from '@/lib/logger';
 
@@ -11,6 +12,10 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Auth gate: authenticated users only for batch progress
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const { id } = await params;
 
@@ -65,6 +70,10 @@ export async function POST(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
+  // Auth gate: authenticated users only for batch cancel
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const { id } = await params;
     const body = await request.json();

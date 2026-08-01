@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { checkApiAuth } from '@/lib/api-auth';
 import * as XLSX from 'xlsx';
 import { createHash } from 'crypto';
 import { logger } from '@/lib/logger';
@@ -32,6 +33,10 @@ function guessMapping(headers: string[]): Record<string, string> {
 const MAPPING_FIELDS = ['name', 'email', 'company', 'title', 'phone', 'linkedin', 'location', 'industry', 'website', 'domain', '— skip —'];
 
 export async function POST(request: Request) {
+  // Auth gate: authenticated users only for batch preview
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const formData = await request.formData();
     const file = formData.get('file') as File | null;

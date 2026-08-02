@@ -1067,3 +1067,88 @@ Files changed:
 - src/components/shared/command-palette.tsx
 
 Commit: 6170033
+---
+Task ID: p2
+Agent: Super Z (sub)
+Task: WI-15 Phase 2 — Customer First Experience
+
+Work Log:
+- Discovered FirstExperienceGuide component already existed (created in prior phase) with identical content
+- Integrated guide into IntelligenceOperationsCenter empty state
+- Added `hasFetched` state to reliably detect "fetched but no companies" vs "not yet fetched"
+- Guide renders after initial data fetch completes with zero company IDs
+- CTAs navigate to data-import, signal-intelligence, opportunity-radar via setActiveView
+- Added ViewId type import for type-safe navigation
+- tsc clean, lint clean
+
+Stage Summary:
+- 1 file modified: intelligence-operations-center.tsx (+17 lines)
+- 1 file already existed: first-experience-guide.tsx (no changes needed)
+- Integration approach: Insert empty-state guard after loading skeleton, before main dashboard
+- Shows 4-step welcome guide (Import → AI Analyzes → Intelligence → Action) when user has no data
+- Commit: ccd57c3
+---
+Task ID: p5
+Agent: Super Z (sub-agent)
+Task: WI-15 Phase 5 — Enterprise UX Components
+
+Work Log:
+- P5-1: Created EnterpriseLoading component (sm/md/lg/fullScreen variants)
+  - 3 size presets (sm: 4x4 spinner, md: 8x8, lg: 10x10)
+  - Optional fullScreen mode with dark background
+  - Blue accent spinner with rounded container
+  - Customizable message text
+- P5-2: Created EnterpriseErrorState component
+  - Alert icon in red-tinted container
+  - Retry button (blue) + Go Back button (ghost border)
+  - Optional correlation ID footer for enterprise debugging
+  - Customizable title and message
+- P5-3: Created EnterpriseEmptyState component
+  - Note: Existing EmptyState in design-system.tsx is good (light theme, uses Button)
+  - New EnterpriseEmptyState uses dark-theme palette, raw button elements (no shadcn dependency)
+  - Supports icon, title, description, primary/secondary actions
+  - variant prop for future differentiation (default | intelligence)
+- P5-4: Created enterprise/index.ts barrel export
+  - Exports all 10 enterprise components (3 new + 7 existing)
+- P5-5: Adopted components in 3 screens as proof of concept
+  - dashboard-screen: Replaced 2 ad-hoc error divs + 1 Loader2 loading div with EnterpriseLoading/EnterpriseErrorState
+  - icp-settings-screen: Replaced motion-wrapped Loader2 loading block with EnterpriseLoading
+  - import-screen: Replaced bare Loader2 spinner with EnterpriseLoading
+  - Zero business logic changes in any screen
+
+Build: tsc --noEmit clean (0 errors), ESLint clean, pre-commit hooks passed
+
+Files created:
+- src/components/enterprise/EnterpriseLoading.tsx
+- src/components/enterprise/EnterpriseErrorState.tsx
+- src/components/enterprise/EnterpriseEmptyState.tsx
+- src/components/enterprise/index.ts
+
+Files modified:
+- src/components/screens/dashboard-screen.tsx
+- src/components/screens/icp-settings-screen.tsx
+- src/components/screens/import-screen.tsx
+
+Commit: b68f1c6
+
+---
+Task ID: p6p7
+Agent: Super Z (sub-agent)
+Task: Phase 6 (Accessibility Baseline) + Phase 7 (Marketing Landing Page Enhancement)
+
+Work Log:
+- P6-1: Added skip-to-content link (`<a href="#main-content" className="skip-to-content">Skip to content</a>`) as first child in layout.tsx body, wrapped children in `<div id="main-content">` 
+- P6-2: Added `role="main"` + `aria-label` to 3 key screens:
+  - Intelligence Operations Center: `aria-label="Intelligence Operations Center"`
+  - Signal Intelligence Screen: `aria-label="AI Signal Intelligence"` + Escape key handler for signal detail panel
+  - Data Import Screen: `aria-label="Data Import"` + file upload area with `role="button"`, `aria-label`, `tabIndex`, and keyboard activation
+- P6-3: Added global Escape key handler in AppShell (page.tsx) to close sidebar and notifications dropdown
+- P7-1: Added JSON-LD structured data (SoftwareApplication schema) to marketing page
+- P7-2: Updated marketing page description and keywords with Intelligence OS messaging
+- TypeScript check: 0 errors
+- All pre-commit checks passed (ESLint + TSC)
+
+Stage Summary:
+- 6 files changed, 64 insertions, 7 deletions
+- Commit: 06d24ac934d7b3c80fc0385e9e0c03856c9409c9
+- Files: layout.tsx, marketing/page.tsx, page.tsx, intelligence-operations-center.tsx, data-import-screen.tsx, signal-intelligence-screen.tsx

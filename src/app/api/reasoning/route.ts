@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { EnterpriseReasoningEngine } from '@/lib/enterprise-reasoning-engine';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
+import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
 
 // POST /api/reasoning — Build reasoning context for a company
@@ -17,7 +18,8 @@ try {
     const result = await EnterpriseReasoningEngine.build(companyId);
     return apiSuccess(result);
   } catch (err) {
-    return apiError(err instanceof Error ? err.message : 'Unknown error', 500);
+    logger.error(`[reasoning] operation failed: ${err instanceof Error ? err.message : err}`);
+    return apiError('Internal error', 500);
   }
 }
 
@@ -35,6 +37,7 @@ const companyId = new URL(request.url).searchParams.get('companyId');
     if (!context) return apiSuccess({ exists: false });
     return apiSuccess(context);
   } catch (err) {
-    return apiError(err instanceof Error ? err.message : 'Unknown error', 500);
+    logger.error(`[reasoning] operation failed: ${err instanceof Error ? err.message : err}`);
+    return apiError('Internal error', 500);
   }
 }

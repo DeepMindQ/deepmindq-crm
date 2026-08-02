@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { ContinuousLearningLoop } from '@/lib/continuous-learning-loop';
 import { db } from '@/lib/db';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
+import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
 
 // POST /api/learning — Record a learning event
@@ -29,7 +30,8 @@ try {
     });
     return apiSuccess({ eventId });
   } catch (err) {
-    return apiError(err instanceof Error ? err.message : 'Unknown error', 500);
+    logger.error(`[learning] operation failed: ${err instanceof Error ? err.message : err}`);
+    return apiError('Internal error', 500);
   }
 }
 
@@ -53,6 +55,7 @@ const companyId = new URL(request.url).searchParams.get('companyId');
     });
     return apiSuccess(learnings);
   } catch (err) {
-    return apiError(err instanceof Error ? err.message : 'Unknown error', 500);
+    logger.error(`[learning] operation failed: ${err instanceof Error ? err.message : err}`);
+    return apiError('Internal error', 500);
   }
 }

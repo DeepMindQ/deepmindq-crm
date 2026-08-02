@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { cookies } from 'next/headers';
 import { db } from '@/lib/db';
 import { createSession } from '@/lib/session';
+import { otpRateLimit } from '@/lib/auth-helpers';
 import { logger } from '@/lib/logger';
 
 // ═══════════════════════════════════════════════════════════════
@@ -54,6 +55,15 @@ export async function POST(request: NextRequest) {
     }
 
     const { email, code, purpose } = parsed.data;
+
+    // Rate limit OTP verification attempts
+    const rateLimitResult = otpRateLimit(email);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many verification attempts. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)) } }
+      );
+    }
     const normalizedEmail = email.trim().toLowerCase();
 
     if (normalizedEmail !== AUTHORIZED_EMAIL) {

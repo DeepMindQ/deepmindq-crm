@@ -210,7 +210,7 @@ export async function GET(request: NextRequest) {
 
   try {
     // Find contact by email
-    const contact = await db.contact.findFirst({
+    const contact = await db.contact.findUnique({
       where: { email: normalizedEmail },
     });
 
@@ -308,7 +308,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid token' }, { status: 403 });
     }
 
-    const contact = await db.contact.findFirst({
+    const contact = await db.contact.findUnique({
       where: { email: normalizedEmail },
     });
 

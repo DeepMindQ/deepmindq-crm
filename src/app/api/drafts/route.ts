@@ -142,7 +142,7 @@ try {
         }
 
         const existingContact = email
-          ? await db.contact.findFirst({ where: { email } })
+          ? await db.contact.findUnique({ where: { email } })
           : null;
 
         if (existingContact) {

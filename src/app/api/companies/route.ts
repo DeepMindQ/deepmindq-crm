@@ -2,6 +2,8 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { Prisma, CompanyStatus, CompanyPriorityTier } from '@prisma/client';
 import { logger } from '@/lib/logger';
+import { validateBody } from '@/lib/apiHelpers';
+import { createCompanySchema } from '@/lib/validations';
 import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
@@ -205,7 +207,18 @@ export async function POST(request: Request) {
 
 try {
     const body = await request.json();
-    const { rawName, domain, industry, sizeRange, location, country, website } = body;
+    // Validate required fields
+    const parsed = validateBody(createCompanySchema, body);
+    if (parsed instanceof Response) return parsed;
+    const {
+      name: rawName,
+      domain,
+      industry,
+      employeeSize,
+      location,
+      country,
+      website,
+    } = parsed;
 
     if (!rawName || typeof rawName !== 'string' || rawName.trim().length === 0) {
       return NextResponse.json({ error: 'rawName is required' }, { status: 400 });
@@ -235,7 +248,7 @@ try {
         normalizedName,
         domain: domain ? domain.trim().toLowerCase() : null,
         industry: industry || null,
-        sizeRange: sizeRange || null,
+        sizeRange: employeeSize || null,
         location: location || null,
         country: country || null,
         website: website || null,

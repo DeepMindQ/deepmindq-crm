@@ -221,7 +221,7 @@ async function enrichContact(
   entityId: string,
   autoFill: boolean,
 ) {
-  const contact = await db.contact.findFirst({
+  const contact = await db.contact.findUnique({
     where: { id: entityId },
     include: {
       company: {

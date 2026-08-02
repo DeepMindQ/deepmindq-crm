@@ -285,7 +285,7 @@ export async function POST(request: Request) {
     }
 
     // Find contact by email
-    const contact = await db.contact.findFirst({
+    const contact = await db.contact.findUnique({
       where: { email: parsed.fromEmail },
     });
 

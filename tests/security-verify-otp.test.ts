@@ -16,6 +16,13 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/verify-otp/route'
 
+// ── Mock auth-helpers rate limiting ──────────────────
+vi.mock('@/lib/auth-helpers', () => ({
+  ...vi.importActual('@/lib/auth-helpers'),
+  otpRateLimit: () => ({ success: true, remaining: 5, resetAt: Date.now() + 60000 }),
+  generalApiRateLimit: () => ({ success: true, remaining: 100, resetAt: Date.now() + 60000 }),
+}))
+
 // ── Mock next/server ──────────────────────────────────────
 vi.mock('next/server', () => ({
   NextResponse: {

@@ -192,7 +192,7 @@ export async function POST(request: Request) {
     const recipientEmail = parsed.recipientEmail.toLowerCase().trim();
 
     // Find contact by email
-    const contact = await db.contact.findFirst({
+    const contact = await db.contact.findUnique({
       where: { email: recipientEmail },
     });
 

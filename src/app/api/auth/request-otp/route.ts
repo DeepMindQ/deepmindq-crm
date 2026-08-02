@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { otpRateLimit } from '@/lib/auth-helpers';
 import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
 
@@ -35,6 +36,15 @@ export async function POST(request: NextRequest) {
 
     if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       return NextResponse.json({ error: 'Please enter a valid email address' }, { status: 400 });
+    }
+
+    // Rate limit OTP requests
+    const rateLimitResult = otpRateLimit(email);
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many OTP requests. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)) } }
+      );
     }
 
     if (email !== AUTHORIZED_EMAIL) {

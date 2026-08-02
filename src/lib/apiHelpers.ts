@@ -31,7 +31,7 @@ export function validateBody<T extends z.ZodTypeAny>(schema: T, body: unknown): 
   const result = schema.safeParse(body)
   if (!result.success) {
     const first = result.error.issues[0]
-    return NextResponse.json({ error: first?.message ?? 'Validation failed' }, { status: 400 })
+    return NextResponse.json({ success: false, error: first?.message ?? 'Validation failed', timestamp: new Date().toISOString() }, { status: 400 })
   }
   return result.data as z.infer<T>
 }

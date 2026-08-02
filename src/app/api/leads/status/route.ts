@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { transitionStatus, getValidTransitions } from '@/lib/lead-workflow';
 import { db } from '@/lib/db';
+import { z } from 'zod';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
 
@@ -11,6 +12,13 @@ import { checkApiAuth } from '@/lib/api-auth';
    GET:  Get valid transitions for a status
    ═══════════════════════════════════════════════════ */
 
+const statusTransitionSchema = z.object({
+  id: z.string().optional(),
+  ids: z.array(z.string()).optional(),
+  status: z.string().min(1, 'Status is required'),
+  reason: z.string().max(500).optional(),
+});
+
 export async function PATCH(request: Request) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth();
@@ -18,12 +26,11 @@ export async function PATCH(request: Request) {
 
 try {
     const body = await request.json();
-    const { id, ids, status, reason } = body as {
-      id?: string;
-      ids?: string[];
-      status: string;
-      reason?: string;
-    };
+    const parsed = statusTransitionSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json({ error: parsed.error.issues[0]?.message || 'Validation failed' }, { status: 400 });
+    }
+    const { id, ids, status, reason } = parsed.data;
 
     if (!status) {
       return NextResponse.json({ error: 'Status is required' }, { status: 400 });

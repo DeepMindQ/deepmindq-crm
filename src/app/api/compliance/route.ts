@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { validateBody } from '@/lib/apiHelpers';
+import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
 
 // ── GET /api/compliance ──────────────────────────────────
@@ -174,6 +176,12 @@ try {
 
 // ── POST /api/compliance ─────────────────────────────────
 // GDPR compliance actions
+const complianceActionSchema = z.object({
+  action: z.enum(['export_contact_data', 'delete_contact', 'export_all_consented', 'clean_stale_suppressions']),
+  contactId: z.string().optional(),
+  reason: z.string().max(500).optional(),
+});
+
 export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth();
@@ -181,7 +189,9 @@ export async function POST(request: NextRequest) {
 
 try {
     const body = await request.json();
-    const { action } = body;
+    const parsed = validateBody(complianceActionSchema, body);
+    if (parsed instanceof Response) return parsed;
+    const { action, contactId, reason } = parsed;
 
     switch (action) {
       // ── Right to Access: export all contact data ────────

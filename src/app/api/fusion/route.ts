@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { FusionEngine } from '@/lib/fusion-engine';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
+import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
 
 // POST /api/fusion — Fuse external + internal intelligence for a company
@@ -23,7 +24,8 @@ try {
     });
     return apiSuccess(result);
   } catch (err) {
-    return apiError(err instanceof Error ? err.message : 'Unknown error', 500);
+    logger.error(`[fusion] operation failed: ${err instanceof Error ? err.message : err}`);
+    return apiError('Internal error', 500);
   }
 }
 
@@ -40,6 +42,7 @@ const companyId = new URL(request.url).searchParams.get('companyId');
     const results = await FusionEngine.getFusions(companyId);
     return apiSuccess({ companyId, fusions: results, totalFusions: results.length });
   } catch (err) {
-    return apiError(err instanceof Error ? err.message : 'Unknown error', 500);
+    logger.error(`[fusion/trigger] operation failed: ${err instanceof Error ? err.message : err}`);
+    return apiError('Internal error', 500);
   }
 }

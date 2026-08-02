@@ -4,6 +4,7 @@ import { db } from '@/lib/db';
 import { hashPassword } from '@/lib/password';
 import { requestOtp } from '@/lib/otp';
 import { logger } from '@/lib/logger';
+import { generalApiRateLimit } from '@/lib/auth-helpers';
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
@@ -22,6 +23,16 @@ const schema = z.object({
  */
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit registration attempts by IP
+    const ip = request.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const rateLimitResult = generalApiRateLimit(ip, 'register');
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many registration attempts. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)) } }
+      );
+    }
+
     const body = await request.json();
     const parsed = schema.safeParse(body);
 

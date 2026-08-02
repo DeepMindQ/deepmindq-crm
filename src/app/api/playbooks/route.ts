@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
+import { validateBody } from '@/lib/apiHelpers';
+import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
 
 function safeJsonParse(str: string | null | undefined, fallback: any) {
@@ -41,10 +43,23 @@ export async function POST(req: NextRequest) {
   if (errorResponse) return errorResponse;
 
 try {
-    const body = await req.json();
-    const { name, description, category, targetIndustry, targetRole, aiGenerate, steps, aiTips } = body;
+    const createPlaybookSchema = z.object({
+      name: z.string().trim().min(1, 'Name is required').max(200),
+      description: z.string().max(2000).optional(),
+      category: z.string().optional(),
+      targetIndustry: z.string().optional(),
+      targetRole: z.string().optional(),
+      aiGenerate: z.boolean().optional(),
+      steps: z.string().optional(),
+      aiTips: z.string().optional(),
+    });
 
-    let finalSteps = steps || [];
+    const body = await req.json();
+    const parsed = validateBody(createPlaybookSchema, body);
+    if (parsed instanceof Response) return parsed;
+    const { name, description, category, targetIndustry, targetRole, aiGenerate, steps, aiTips } = parsed;
+
+    let finalSteps: any[] = Array.isArray(steps) ? steps : (typeof steps === 'string' ? safeJsonParse(steps, []) : []);
     let finalAiTips = aiTips || null;
 
     // AI generation

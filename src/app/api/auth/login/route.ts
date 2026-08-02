@@ -4,6 +4,7 @@ import { verifyPassword } from '@/lib/password';
 import { requestOtp } from '@/lib/otp';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { generalApiRateLimit } from '@/lib/auth-helpers';
 
 const schema = z.object({
   email: z.string().email('Invalid email address'),
@@ -12,6 +13,16 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit login attempts by IP
+    const ip = request.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const rateLimitResult = generalApiRateLimit(ip, 'login');
+    if (!rateLimitResult.success) {
+      return NextResponse.json(
+        { error: 'Too many login attempts. Please try again later.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)) } }
+      );
+    }
+
     const body = await request.json();
     const parsed = schema.safeParse(body);
 

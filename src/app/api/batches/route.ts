@@ -126,7 +126,7 @@ async function processChunk(
     if (rawEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) { invalid++; continue; }
 
     if (rawEmail) {
-      const existingEmail = await db.contact.findFirst({ where: { email: rawEmail } });
+      const existingEmail = await db.contact.findUnique({ where: { email: rawEmail } });
       if (existingEmail) { duplicates++; continue; }
     }
 

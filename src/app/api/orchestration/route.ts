@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MultiAgentOrchestrator } from '@/lib/multi-agent-orchestrator';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
+import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
 
 // POST /api/orchestration — Run full multi-agent orchestration
@@ -17,7 +18,8 @@ try {
     const result = await MultiAgentOrchestrator.orchestrate(companyId, triggerType);
     return apiSuccess(result);
   } catch (err) {
-    return apiError(err instanceof Error ? err.message : 'Unknown error', 500);
+    logger.error(`[orchestration] operation failed: ${err instanceof Error ? err.message : err}`);
+    return apiError('Internal error', 500);
   }
 }
 
@@ -34,6 +36,7 @@ const companyId = new URL(request.url).searchParams.get('companyId');
     const history = await MultiAgentOrchestrator.getHistory(companyId);
     return apiSuccess(history);
   } catch (err) {
-    return apiError(err instanceof Error ? err.message : 'Unknown error', 500);
+    logger.error(`[orchestration] operation failed: ${err instanceof Error ? err.message : err}`);
+    return apiError('Internal error', 500);
   }
 }

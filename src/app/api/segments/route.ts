@@ -1,6 +1,8 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { validateBody } from '@/lib/apiHelpers';
+import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
@@ -121,6 +123,13 @@ try {
 }
 
 /* ── POST: Create Segment ── */
+const createSegmentSchema = z.object({
+  name: z.string().trim().min(1, 'Name is required').max(100),
+  description: z.string().max(500).optional(),
+  filters: z.record(z.string(), z.unknown()).optional(),
+  isStatic: z.boolean().optional(),
+});
+
 export async function POST(request: Request) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth();
@@ -128,12 +137,9 @@ export async function POST(request: Request) {
 
 try {
     const body = await request.json();
-    const { name, description, filters, isStatic } = body as {
-      name: string;
-      description?: string;
-      filters: SegmentFilters;
-      isStatic?: boolean;
-    };
+    const parsed = validateBody(createSegmentSchema, body);
+    if (parsed instanceof Response) return parsed;
+    const { name, description, filters, isStatic } = parsed;
 
     if (!name || !filters) {
       return NextResponse.json({ error: 'Name and filters are required' }, { status: 400 });

@@ -1,6 +1,8 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { validateBody } from '@/lib/apiHelpers';
+import { updateCompanySchema } from '@/lib/validations';
 import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
@@ -61,6 +63,8 @@ export async function PATCH(
 try {
     const { id } = await params;
     const body = await request.json();
+    const parsed = validateBody(updateCompanySchema, body);
+    if (parsed instanceof Response) return parsed;
 
     // Verify company exists
     const existing = await db.company.findUnique({ where: { id } });

@@ -2,6 +2,8 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { governedAICall } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
+import { validateBody } from '@/lib/apiHelpers';
+import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
@@ -14,12 +16,15 @@ export async function POST(request: Request) {
   if (errorResponse) return errorResponse;
 
 try {
-    const body = await request.json();
-    const { companyId, domain } = body as { companyId?: string; domain?: string };
+    const enrichSchema = z.object({
+      companyId: z.string().min(1).optional(),
+      domain: z.string().min(1).optional(),
+    }).refine(d => d.companyId || d.domain, { message: 'companyId or domain is required' });
 
-    if (!companyId && !domain) {
-      return NextResponse.json({ error: 'Provide companyId or domain' }, { status: 400 });
-    }
+    const body = await request.json();
+    const parsed = validateBody(enrichSchema, body);
+    if (parsed instanceof Response) return parsed;
+    const { companyId, domain } = parsed;
 
     // Find company
     let company: any = null;

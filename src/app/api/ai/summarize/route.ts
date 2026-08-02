@@ -272,7 +272,7 @@ Respond as JSON: { "summary": "...", "keyPoints": ["...", "...", "..."] }`
 
     // ── Contact ──
     if (entityType === 'contact') {
-      const contact = await db.contact.findFirst({
+      const contact = await db.contact.findUnique({
         where: { id: entityId },
         include: {
           company: { select: { rawName: true } },

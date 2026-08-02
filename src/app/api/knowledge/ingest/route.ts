@@ -10,6 +10,8 @@
 import { NextRequest } from 'next/server';
 import { KnowledgeIngestionPipeline } from '@/lib/knowledge-ingestion-pipeline';
 import { logger } from '@/lib/logger';
+import { validateBody } from '@/lib/apiHelpers';
+import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
 
 // POST — Ingest a document
@@ -20,14 +22,20 @@ export async function POST(request: NextRequest) {
 
 const started = Date.now();
   try {
+    const ingestSchema = z.object({
+      title: z.string().trim().min(1, 'Title is required').max(500),
+      documentType: z.string().min(1, 'Document type is required').max(100),
+      content: z.string().min(1, 'Content is required').max(100_000, 'Content exceeds maximum size'),
+      sourceUrl: z.string().max(2000).optional(),
+      sourceType: z.string().max(50).optional(),
+      metadata: z.record(z.string(), z.unknown()).optional(),
+      capabilityAssetId: z.string().max(100).optional(),
+    });
+
     const body = await request.json();
-    const { title, documentType, content, sourceUrl, sourceType, metadata, capabilityAssetId } = body;
-    if (!title || !documentType || !content) {
-      return Response.json(
-        { success: false, data: null, error: 'title, documentType, and content are required', meta: { endpoint: 'knowledge:ingest', durationMs: Date.now() - started } },
-        { status: 400 },
-      );
-    }
+    const parsed = validateBody(ingestSchema, body);
+    if (parsed instanceof Response) return parsed;
+    const { title, documentType, content, sourceUrl, sourceType, metadata, capabilityAssetId } = parsed;
 
     const result = await KnowledgeIngestionPipeline.ingest({
       title,

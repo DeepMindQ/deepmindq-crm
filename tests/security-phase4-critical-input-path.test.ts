@@ -15,6 +15,16 @@ import { existsSync, readFileSync } from 'fs'
 import { resolve } from 'path'
 import crypto from 'crypto'
 
+// ── Mock auth-helpers to avoid cross-test rate limit state ──
+vi.mock('@/lib/auth-helpers', async () => {
+  const actual = await vi.importActual('@/lib/auth-helpers')
+  return {
+    ...actual,
+    generalApiRateLimit: () => ({ success: true, remaining: 100, resetAt: Date.now() + 60000 }),
+    otpRateLimit: () => ({ success: true, remaining: 5, resetAt: Date.now() + 60000 }),
+  }
+})
+
 // ── Helpers ──────────────────────────────────────────────────────────
 
 const SRC_DIR = resolve(__dirname, '../src/lib')

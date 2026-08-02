@@ -14,7 +14,7 @@ export async function GET() {
 try {
     // SystemSetting is a key-value store; preferences are stored under a special key.
     // Find the preferences record by key.
-    const prefs = await db.systemSetting.findFirst({
+    const prefs = await db.systemSetting.findUnique({
       where: { key: 'user_preferences' },
     });
 
@@ -45,28 +45,17 @@ try {
 
     const valueJson = JSON.stringify(parsed);
 
-    // H5: Use upsert to fix race condition
-    const existing = await db.systemSetting.findFirst({
+    // Use upsert to prevent race condition on concurrent writes
+    const result = await db.systemSetting.upsert({
       where: { key: 'user_preferences' },
+      update: { value: valueJson },
+      create: {
+        key: 'user_preferences',
+        value: valueJson,
+      },
     });
 
-    if (existing) {
-      const result = await db.systemSetting.update({
-        where: { id: existing.id },
-        data: { value: valueJson },
-      });
-
-      return apiSuccess(result);
-    } else {
-      const result = await db.systemSetting.create({
-        data: {
-          key: 'user_preferences',
-          value: valueJson,
-        },
-      });
-
-      return apiSuccess(result);
-    }
+    return apiSuccess(result);
   } catch {
     return apiError("Failed to update preferences");
   }

@@ -146,7 +146,7 @@ try {
     }
 
     // 2. Read user preferences (singleton)
-    const prefs = await db.systemSetting.findFirst()
+    const prefs = await db.systemSetting.findUnique({ where: { key: 'user_preferences' } });
     let prefsData: Record<string, string> = {}
     if (prefs?.value) { try { prefsData = JSON.parse(prefs.value) } catch { /* ignore */ } }
     const tone = requestTone || prefsData?.tone || 'professional-casual'

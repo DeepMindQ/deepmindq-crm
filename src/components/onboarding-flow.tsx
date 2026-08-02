@@ -437,7 +437,7 @@ export function OnboardingFlow() {
   const handleComplete = async () => {
     setSubmitting(true);
     try {
-      await fetch('/api/g-auth/update-profile', {
+      await fetch('/api/auth/update-profile', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),

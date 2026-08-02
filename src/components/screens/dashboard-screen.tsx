@@ -7,7 +7,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import {
   Building2, Users, FileText, Send, Mail, TrendingUp, TrendingDown,
   ChevronRight, Zap, UserPlus, Eye, MessageSquare, AlertTriangle,
-  Sparkles, Brain, RefreshCw, Layers,
+  Sparkles, Brain, RefreshCw, Layers, Loader2,
   Upload, GitBranch, MailPlus, Radar, Activity, Shield,
   Target, ShieldAlert,
 } from 'lucide-react';
@@ -329,6 +329,27 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   // Safe access — if dashData is undefined despite passing loading/error guards,
   // return the error fallback with retry. This prevents downstream crashes.
   const dd = dashData;
+
+  // Loading guard — must come BEFORE the !dd check to avoid showing error during
+  // transient loading states where dashData is undefined but isLoading is true.
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <Loader2 className="h-8 w-8 animate-spin" style={{ color: gold }} />
+      </div>
+    );
+  }
+
+  if (dashError) return (
+    <div className="flex flex-col items-center justify-center py-16 text-center">
+      <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mb-3"><AlertTriangle className="w-6 h-6 text-red-400" /></div>
+      <p className="text-sm font-medium text-foreground">Failed to load dashboard</p>
+      <button onClick={() => refetchDash()} className="mt-3 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: gold }}>
+        <RefreshCw className="w-3 h-3" /> Retry
+      </button>
+    </div>
+  );
+
   if (!dd) return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mb-3"><AlertTriangle className="w-6 h-6 text-red-400" /></div>
@@ -410,18 +431,6 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
         <Skeleton className="h-72 rounded-xl" />
         <Skeleton className="h-72 rounded-xl" />
       </div>
-    </div>
-  );
-
-  /* ── Error state with retry ── */
-  if (dashError && !dashData) return (
-    <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="w-12 h-12 rounded-xl bg-red-50 flex items-center justify-center mb-3"><AlertTriangle className="w-6 h-6 text-red-400" /></div>
-      <p className="text-sm font-medium text-foreground">Failed to load dashboard data</p>
-      <p className="text-xs text-muted-foreground mt-1">Check your connection and try again</p>
-      <button onClick={() => refetchDash()} className="mt-3 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: gold }}>
-        <RefreshCw className="w-3 h-3" /> Retry
-      </button>
     </div>
   );
 

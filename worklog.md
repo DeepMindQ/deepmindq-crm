@@ -974,3 +974,27 @@ Stage Summary:
 - 39 files changed, 5253 insertions(+), 313 deletions(-)
 - 15 new files created, 12 files archived, 3 files updated, 4 packages removed
 - Full WI baseline chain: wi-3 → wi-4 → wi-5 → wi-6 → wi-7 → wi-8 → wi-9a → wi-10 → wi-11 → wi-12 → wi-13 → wi-14
+
+---
+Task ID: p1
+Agent: Phase 1 Sub-Agent
+Task: WI-15 Phase 1 — Product Identity & Brand Unification
+
+Work Log:
+- P1-1: Fixed color-scheme in globals.css from `light` to `dark` (was contradicting #0a0c10 background). Added explanatory comment.
+- P1-2: Replaced loading.tsx entirely: dark background (#0a0c10), Intelligence Blue spinner gradient, ios-text-secondary color (#8892a8).
+- P1-3: Standardized product name to "Enterprise Intelligence OS" across demo/page.tsx (title, description, footer), marketing/page.tsx (title, description, OG, twitter), layout.tsx (title, OG, twitter), landing-page.tsx (iframe title).
+- P1-4: Updated enterprise-theme.ts header comment: "DeepMindQ CRM" → "DeepMindQ Enterprise Intelligence OS", design language description updated.
+- TypeScript check: 0 errors. ESLint: passed. Pre-commit hooks: all green.
+
+Files changed (7):
+- src/app/globals.css
+- src/app/loading.tsx
+- src/app/demo/page.tsx
+- src/app/marketing/page.tsx
+- src/app/layout.tsx
+- src/app/landing-page.tsx
+- src/components/shared/enterprise-theme.ts
+
+Commit: fb025db53da0582a617022ddd97783ec1e26cefd
+---

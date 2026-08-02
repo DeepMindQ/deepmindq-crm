@@ -39,10 +39,12 @@ export function KnowledgeWorkspace() {
   const [capabilities, setCapabilities] = useState<CapabilityItem[]>([]);
   const [knowledge, setKnowledge] = useState<KnowledgeItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
 
   const fetchData = useCallback(async () => {
     setLoading(true);
+    setFetchError(null);
     try {
       const [capRes, knRes] = await Promise.all([
         fetch('/api/capabilities'),
@@ -56,7 +58,10 @@ export function KnowledgeWorkspace() {
         const d = await knRes.json();
         setKnowledge(Array.isArray(d) ? d : d.data ?? []);
       }
-    } catch (e) { logger.error('Knowledge fetch error:', { error: e }); }
+    } catch (e) {
+      logger.error('Knowledge fetch error:', { error: e });
+      setFetchError(e instanceof Error ? e.message : 'Failed to load knowledge data');
+    }
     finally { setLoading(false); }
   }, []);
 
@@ -100,8 +105,23 @@ export function KnowledgeWorkspace() {
     );
   }
 
+  if (fetchError && capabilities.length === 0 && knowledge.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 text-center">
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+          <FolderOpen className="w-6 h-6 text-red-500" />
+        </div>
+        <h3 className="text-sm font-semibold text-foreground mb-1">Failed to load knowledge</h3>
+        <p className="text-xs text-muted-foreground mb-4 max-w-xs">{fetchError}</p>
+        <Button variant="outline" size="sm" className="text-xs" onClick={fetchData}>
+          <RefreshCw className="w-3.5 h-3.5 mr-1.5" /> Retry
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div className="space-y-5">
+    <div role="main" aria-label="Knowledge Intelligence" className="space-y-5">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
@@ -125,6 +145,7 @@ export function KnowledgeWorkspace() {
       <div className="relative max-w-md">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground/50" />
         <Input
+          aria-label="Search knowledge and capabilities"
           type="search"
           placeholder="Search capabilities and knowledge..."
           value={searchQuery}
@@ -136,9 +157,9 @@ export function KnowledgeWorkspace() {
       {/* Summary Stats */}
       <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
         {[
-          { label: 'Capabilities', value: capabilities.length, icon: Sparkles, color: '#8B5CF6' },
-          { label: 'Knowledge Items', value: knowledge.length, icon: BookOpen, color: '#2563EB' },
-          { label: 'Categories', value: Object.keys(capCategories).length + Object.keys(knCategories).length, icon: Tag, color: '#F59E0B' },
+          { label: 'Capabilities', value: capabilities.length, icon: Sparkles, color: 'var(--ios-opportunity)' },
+          { label: 'Knowledge Items', value: knowledge.length, icon: BookOpen, color: 'var(--ios-accent-dim)' },
+          { label: 'Categories', value: Object.keys(capCategories).length + Object.keys(knCategories).length, icon: Tag, color: 'var(--ios-confidence-medium)' },
         ].map(stat => (
           <div key={stat.label} className="stat-card">
             <div className="flex items-center gap-2 mb-2">

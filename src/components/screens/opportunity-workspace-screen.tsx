@@ -33,9 +33,9 @@ import {
 /* ═══════════════════════════════════════════════════
    Constants
    ═══════════════════════════════════════════════════ */
-const GOLD = '#D4AF37';
-const GOLD_GRAD = 'linear-gradient(135deg, #9A8340, #D4AF37, #E8C860)';
-const INTEL = '#2563eb';
+const GOLD = 'var(--color-gold-dim)';
+const GOLD_GRAD = 'linear-gradient(135deg, var(--ios-gold-dark), var(--color-gold-dim), var(--color-gold))';
+const INTEL = 'var(--ios-accent-dim)';
 
 /* ═══════════════════════════════════════════════════
    Types
@@ -118,10 +118,10 @@ const REJECTION_REASONS = [
 
 const SCORING_DIMENSIONS = [
   { key: 'signalConfidence' as const, label: 'Signal Confidence', color: 'var(--color-gold)' },
-  { key: 'capabilityMatch' as const, label: 'Capability Match', color: '#059669' },
-  { key: 'freshnessScore' as const, label: 'Freshness', color: '#2563EB' },
-  { key: 'evidenceQuality' as const, label: 'Evidence Quality', color: '#9333EA' },
-  { key: 'businessImpact' as const, label: 'Business Impact', color: '#DC2626' },
+  { key: 'capabilityMatch' as const, label: 'Capability Match', color: 'var(--ios-status-green-text)' },
+  { key: 'freshnessScore' as const, label: 'Freshness', color: 'var(--ios-accent-dim)' },
+  { key: 'evidenceQuality' as const, label: 'Evidence Quality', color: 'var(--ios-violet)' },
+  { key: 'businessImpact' as const, label: 'Business Impact', color: 'var(--ios-status-red-text)' },
 ] as const;
 
 const PRIORITY_STYLES: Record<string, { bg: string; text: string; label: string }> = {
@@ -137,12 +137,12 @@ function ScoreRing({ score, size = 72, strokeWidth = 5 }: { score: number; size?
   const radius = (size - strokeWidth) / 2;
   const circ = 2 * Math.PI * radius;
   const offset = circ - (score / 100) * circ;
-  const color = score >= 80 ? '#10B981' : score >= 60 ? '#F59E0B' : score >= 40 ? '#EF4444' : '#9CA3AF';
+  const color = score >= 80 ? 'var(--ios-confidence-high)' : score >= 60 ? 'var(--ios-confidence-medium)' : score >= 40 ? 'var(--ios-confidence-low)' : 'var(--ios-status-muted)';
 
   return (
     <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
       <svg aria-hidden="true" width={size} height={size} className="-rotate-90">
-        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
+        <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--ios-track)" strokeWidth={strokeWidth} />
         <motion.circle cx={size/2} cy={size/2} r={radius}
           fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round"
           strokeDasharray={circ} initial={{ strokeDashoffset: circ }}
@@ -222,7 +222,7 @@ function DealIntelPanel({ intel, loading }: { intel: any | null; loading: boolea
           <p className="text-[11px] text-muted-foreground uppercase">Confidence</p>
         </div>
         <div className="p-3 rounded-lg bg-gray-50 border border-gray-100 text-center">
-          <p className="text-xl font-black" style={{ color: intel.buyerReadiness >= 70 ? '#059669' : '#d97706' }}>{intel.buyerReadiness}%</p>
+          <p className="text-xl font-black" style={{ color: intel.buyerReadiness >= 70 ? 'var(--ios-status-green-text)' : 'var(--ios-status-amber-text)' }}>{intel.buyerReadiness}%</p>
           <p className="text-[11px] text-muted-foreground uppercase">Buyer Ready</p>
         </div>
         <div className="p-3 rounded-lg bg-gray-50 border border-gray-100 text-center">
@@ -477,7 +477,7 @@ function DealRoomCard({
                   <h3 className="text-sm font-bold text-foreground">Deal Intelligence Room</h3>
                   {!dealIntel && !dealIntelLoading && (
                     <Button size="sm" onClick={(e) => { e.stopPropagation(); onLoadIntel(); }}
-                      className="gap-1.5 h-7 text-[11px] ml-auto" style={{ background: GOLD, color: '#060910' }}>
+                      className="gap-1.5 h-7 text-[11px] ml-auto" style={{ background: GOLD, color: 'var(--ios-gold-text)' }}>
                       <Sparkles size={11} /> Analyze Deal
                     </Button>
                   )}
@@ -705,7 +705,7 @@ export default function OpportunityWorkspaceScreen() {
 
   return (
     <PageTransition>
-      <div className="space-y-6 p-4 md:p-6 max-w-[1200px] mx-auto">
+      <div role="main" aria-label="Opportunity Intelligence" className="space-y-6 p-4 md:p-6 max-w-[1200px] mx-auto">
         {/* ─── Header ─── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
@@ -716,7 +716,7 @@ export default function OpportunityWorkspaceScreen() {
             <p className="text-sm text-muted-foreground ml-5">AI-analyzed opportunities with full deal intelligence</p>
           </div>
           <Button onClick={fetchOpportunities}
-            className="gap-2 shadow-md shadow-amber-500/20" style={{ background: GOLD_GRAD, color: '#060910' }}>
+            className="gap-2 shadow-md shadow-amber-500/20" style={{ background: GOLD_GRAD, color: 'var(--ios-gold-text)' }}>
             <Sparkles className="w-4 h-4" /> Generate Deals
           </Button>
         </div>
@@ -724,10 +724,10 @@ export default function OpportunityWorkspaceScreen() {
         {/* ─── Stats ─── */}
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-4">
           <StatCard label="Total Deals" value={counts.total} icon={BarChart3} color={GOLD} delay={0} />
-          <StatCard label="Pending Review" value={counts.pending_review} icon={Clock} color="#d97706" delay={0.05} />
-          <StatCard label="Accepted" value={counts.accepted} icon={CheckCircle2} color="#059669" delay={0.1} />
-          <StatCard label="Monitored" value={counts.monitored} icon={Eye} color="#2563EB" delay={0.15} />
-          <StatCard label="Avg Score" value={allOpportunities.length > 0 ? Math.round(allOpportunities.reduce((s, o) => s + o.opportunityScore, 0) / allOpportunities.length) : 0} icon={Gauge} color="#7c3aed" delay={0.2} />
+          <StatCard label="Pending Review" value={counts.pending_review} icon={Clock} color="var(--ios-status-amber-text)" delay={0.05} />
+          <StatCard label="Accepted" value={counts.accepted} icon={CheckCircle2} color="var(--ios-status-green-text)" delay={0.1} />
+          <StatCard label="Monitored" value={counts.monitored} icon={Eye} color="var(--ios-accent-dim)" delay={0.15} />
+          <StatCard label="Avg Score" value={allOpportunities.length > 0 ? Math.round(allOpportunities.reduce((s, o) => s + o.opportunityScore, 0) / allOpportunities.length) : 0} icon={Gauge} color="var(--ios-status-purple-text)" delay={0.2} />
         </div>
 
         {/* ─── Tab Bar ─── */}

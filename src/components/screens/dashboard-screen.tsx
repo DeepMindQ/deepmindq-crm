@@ -473,7 +473,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   const statsFailed = statsError && !dashStats;
 
   return (
-    <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-5 pr-1">
+    <div role="main" aria-label="Executive Dashboard" className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-5 pr-1">
 
       {/* ═══════ T6.5: Stats error banner — inline warning when intelligence stats unavailable ═══════ */}
       {statsFailed && (
@@ -514,7 +514,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
         </motion.div>
       ) : (
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="relative rounded-xl overflow-hidden" style={{ ...glassPanel, borderLeft: '3px solid #D4AF37', boxShadow: `0 0 24px ${goldAlpha(0.06)}, 0 1px 3px ${blackAlpha(0.04)}` }}>
+          className="relative rounded-xl overflow-hidden" style={{ ...glassPanel, borderLeft: '3px solid var(--color-gold-dim)', boxShadow: `0 0 24px ${goldAlpha(0.06)}, 0 1px 3px ${blackAlpha(0.04)}` }}>
           <div className="p-5 space-y-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
@@ -596,7 +596,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
       </div>
       {/* ═══════ 1b. INTELLIGENCE SCORE + SECONDARY KPIs ═══════ */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="relative rounded-xl overflow-hidden group cursor-default" style={{ background: card, backdropFilter: 'blur(20px)', border: `1px solid ${border}`, borderLeft: '3px solid #8B5CF6' }}>
+        <div className="relative rounded-xl overflow-hidden group cursor-default" style={{ background: card, backdropFilter: 'blur(20px)', border: `1px solid ${border}`, borderLeft: '3px solid var(--ios-opportunity)' }}>
           <div className="p-4 space-y-2">
             <div className="flex items-center gap-2">
               <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${violetAlpha(0.1)}` }}><Brain className="w-4 h-4" style={{ color: colors.purple }} /></div>

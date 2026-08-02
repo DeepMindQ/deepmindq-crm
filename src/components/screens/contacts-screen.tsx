@@ -538,7 +538,7 @@ export default function ContactsScreen() {
 
   /* ── Render ── */
   return (
-    <div className="space-y-4">
+    <div role="main" aria-label="Contact Intelligence" className="space-y-4">
       {/* ═══ Company Filter Banner ═══ */}
       {navFilterCompanyId && (
         <div className="flex items-center gap-2.5 px-4 py-2.5 rounded-xl bg-amber-50 border border-amber-200/80">
@@ -621,7 +621,7 @@ export default function ContactsScreen() {
               onClick={handleAiSuggestContacts}
               disabled={aiSuggesting}
               className="rounded-lg press-scale shadow-xs shrink-0 text-white font-medium"
-              style={{ background: 'linear-gradient(135deg, #D4AF37, #B8960F)' }}
+              style={{ background: 'linear-gradient(135deg, var(--color-gold-dim), var(--ios-gold-mid))' }}
             >
               {aiSuggesting ? <Loader2 className="size-4 animate-spin" /> : <Sparkles className="size-4" />}
               <span className="hidden sm:inline ml-1.5">{aiSuggesting ? 'AI Scanning...' : 'AI Find Stakeholders'}</span>
@@ -651,6 +651,7 @@ export default function ContactsScreen() {
         <div className="relative flex-1 sm:min-w-[200px] sm:max-w-xs">
           <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-gray-600" />
           <Input
+            aria-label="Search contacts"
             placeholder="Search contacts..."
             value={search}
             onChange={e => updateSearch(e.target.value)}
@@ -825,6 +826,7 @@ export default function ContactsScreen() {
                 return (
                   <TableRow
                     key={c.id}
+                    role="link" tabIndex={0}
                     className="table-row-hover border-b border-gray-50 last:border-b-0 group cursor-pointer"
                     onClick={() => navigateToContact(c.id)}
                   >
@@ -1459,7 +1461,7 @@ export default function ContactsScreen() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                      style={{ background: s.influence === 'Decision Maker' ? 'rgba(212,175,55,0.12)' : 'rgba(99,102,241,0.08)', color: s.influence === 'Decision Maker' ? '#9A8340' : '#6366F1' }}>
+                      style={{ background: s.influence === 'Decision Maker' ? 'rgba(212,175,55,0.12)' : 'rgba(99,102,241,0.08)', color: s.influence === 'Decision Maker' ? 'var(--ios-gold-dark)' : 'var(--ios-indigo)' }}>
                       {s.influence}
                     </span>
                     <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">

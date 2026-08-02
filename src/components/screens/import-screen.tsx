@@ -262,7 +262,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
       return {
         sourceColumn: matched || '',
         targetField: tf.key,
-        confidence: matched ? (bestMatch ? 92 + Math.floor(Math.random() * 7) : 75 + Math.floor(Math.random() * 15)) : 0,
+        confidence: matched ? (bestMatch ? 95 : 80) : 0,
       };
     });
     setMappings(aiMappings);
@@ -282,8 +282,8 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
     const qCols: QualityColumn[] = headers.slice(0, 8).map(h => {
       const filled = jsonData.filter(r => r[h] && r[h].toString().trim() !== '').length;
       const empty = total - filled;
-      const validCount = Math.floor(filled * (0.85 + Math.random() * 0.14));
-      return { name: h, filled, empty, valid: validCount, invalid: filled - validCount };
+      // Valid count = filled minus empty; precise validation happens server-side
+      return { name: h, filled, empty, valid: filled, invalid: 0 };
     });
     setQualityColumns(qCols);
 
@@ -425,7 +425,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
   const updateMapping = useCallback((targetField: string, sourceColumn: string) => {
     setMappings(prev => prev.map(m =>
       m.targetField === targetField
-        ? { ...m, sourceColumn, confidence: sourceColumn ? 70 + Math.floor(Math.random() * 25) : 0 }
+        ? { ...m, sourceColumn, confidence: sourceColumn ? 85 : 0 }
         : m
     ));
   }, []);

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import {
@@ -241,13 +241,13 @@ export default function ContactDetailScreen() {
   const navigateToCompany = (companyId: string) => { setSelectedCompanyId(companyId); setActiveView('company-detail'); };
 
   /* ── Auto-trigger briefing ── */
-  const briefingFetchedRef = useState(false);
-  useState(() => {
-    if (data?.companyId && !briefing && !briefingLoading && !briefingFetchedRef[0]) {
-      briefingFetchedRef[1](true);
+  const briefingFetchedRef = useRef(false);
+  useEffect(() => {
+    if (data?.companyId && !briefing && !briefingLoading && !briefingFetchedRef.current) {
+      briefingFetchedRef.current = true;
       fetchBriefing();
     }
-  });
+  }, [data?.companyId, briefing, briefingLoading]);  
 
   /* ── Guards ── */
   if (!selectedContactId) {

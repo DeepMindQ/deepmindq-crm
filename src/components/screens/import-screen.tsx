@@ -159,7 +159,9 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
   const [parsedRows, setParsedRows] = useState<Record<string, string>[]>([]);
 
   // ── Quality state ──
-  const [qualitySummary, setQualitySummary] = useState({
+  const [qualitySummary, setQualitySummary] = useState<{
+    totalRows: number; valid: number | null; duplicates: number | null; missing: number | null; qualityScore: number | null;
+  }>({
     totalRows: 0, valid: 0, duplicates: 0, missing: 0, qualityScore: 0,
   });
   const [qualityColumns, setQualityColumns] = useState<QualityColumn[]>([]);
@@ -265,13 +267,16 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
     setMappings(aiMappings);
     setParsedRows(jsonData);
 
-    // Generate quality data
+    // Quality analysis is performed server-side during import processing.
+    // Client-side analysis shows row/column counts only — no fabricated scores.
     const total = jsonData.length;
-    const dupes = Math.floor(total * 0.03);
-    const missing = Math.floor(total * 0.08);
-    const valid = total - dupes - Math.floor(missing * 0.5);
-    const score = Math.round((valid / total) * 100);
-    setQualitySummary({ totalRows: total, valid, duplicates: dupes, missing, qualityScore: score });
+    setQualitySummary({ 
+      totalRows: total, 
+      valid: null,  // Will be populated after server processing
+      duplicates: null,
+      missing: null, 
+      qualityScore: null  // Requires server-side analysis
+    });
 
     const qCols: QualityColumn[] = headers.slice(0, 8).map(h => {
       const filled = jsonData.filter(r => r[h] && r[h].toString().trim() !== '').length;
@@ -367,12 +372,13 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
       setExecutionProgress(100);
       setIntelSteps(s => s.map(st => ({ ...st, status: 'complete' as const })));
 
-      const companiesCreated = result.companiesCreated ?? Math.floor(qualitySummary.valid * 0.4);
-      const contactsImported = result.contactsImported ?? (qualitySummary.valid - companiesCreated);
+      const fallbackValid = qualitySummary.valid ?? qualitySummary.totalRows;
+      const companiesCreated = result.companiesCreated ?? Math.floor(fallbackValid * 0.4);
+      const contactsImported = result.contactsImported ?? (fallbackValid - companiesCreated);
       setCompletionSummary({
         companiesCreated,
         contactsImported,
-        duplicatesFound: result.duplicatesFound ?? qualitySummary.duplicates,
+        duplicatesFound: result.duplicatesFound ?? qualitySummary.duplicates ?? 0,
       });
 
       await new Promise(r => setTimeout(r, 300));
@@ -383,7 +389,8 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
       setExecutionProgress(100);
       setIntelSteps(s => s.map(st => ({ ...st, status: 'complete' as const })));
       setCompletionSummary({ companiesCreated: 0, contactsImported: 0, duplicatesFound: 0 });
-      setStep('complete');
+      // Do NOT set step to 'complete' on error — that would show the success screen.
+      // Stay on 'executing' so the user sees the error toast and can retry.
       toast.error(err instanceof Error ? err.message : 'Import failed');
     }
   }, [qualitySummary, parsedRows, mappings, batchId]);
@@ -662,20 +669,20 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
           <p className="exec-stat-label">Total Rows</p>
         </div>
         <div className="stat-card text-center">
-          <p className="exec-stat-value text-emerald-600">{qualitySummary.valid.toLocaleString()}</p>
+          <p className="exec-stat-value text-emerald-600">{qualitySummary.valid != null ? qualitySummary.valid.toLocaleString() : '—'}</p>
           <p className="exec-stat-label">Valid</p>
         </div>
         <div className="stat-card text-center">
-          <p className="exec-stat-value text-amber-600">{qualitySummary.duplicates}</p>
+          <p className="exec-stat-value text-amber-600">{qualitySummary.duplicates != null ? qualitySummary.duplicates : '—'}</p>
           <p className="exec-stat-label">Duplicates</p>
         </div>
         <div className="stat-card text-center">
-          <p className="exec-stat-value text-red-500">{qualitySummary.missing}</p>
+          <p className="exec-stat-value text-red-500">{qualitySummary.missing != null ? qualitySummary.missing : '—'}</p>
           <p className="exec-stat-label">Missing Data</p>
         </div>
         <div className="stat-card text-center col-span-2 md:col-span-1">
-          <p className={`exec-stat-value ${qualitySummary.qualityScore >= 85 ? 'text-emerald-600' : qualitySummary.qualityScore >= 70 ? 'text-amber-600' : 'text-red-500'}`}>
-            {qualitySummary.qualityScore}%
+          <p className={qualitySummary.qualityScore != null ? `exec-stat-value ${qualitySummary.qualityScore >= 85 ? 'text-emerald-600' : qualitySummary.qualityScore >= 70 ? 'text-amber-600' : 'text-red-500'}` : 'exec-stat-value text-slate-400'}>
+            {qualitySummary.qualityScore != null ? `${qualitySummary.qualityScore}%` : 'Pending Analysis'}
           </p>
           <p className="exec-stat-label">Quality Score</p>
         </div>
@@ -685,16 +692,16 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
       <div className="p-4 rounded-xl bg-white border border-slate-200 mb-6">
         <div className="flex items-center justify-between mb-2">
           <span className="text-sm font-medium text-slate-700">Overall Quality</span>
-          <span className={`text-sm font-bold tabular-nums ${qualitySummary.qualityScore >= 85 ? 'text-emerald-600' : qualitySummary.qualityScore >= 70 ? 'text-amber-600' : 'text-red-500'}`}>
-            {qualitySummary.qualityScore}%
+          <span className={qualitySummary.qualityScore != null ? `text-sm font-bold tabular-nums ${qualitySummary.qualityScore >= 85 ? 'text-emerald-600' : qualitySummary.qualityScore >= 70 ? 'text-amber-600' : 'text-red-500'}` : 'text-sm font-medium text-slate-400'}>
+            {qualitySummary.qualityScore != null ? `${qualitySummary.qualityScore}%` : 'Pending Analysis'}
           </span>
         </div>
         <div className="h-3 bg-slate-100 rounded-full overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
-            animate={{ width: `${qualitySummary.qualityScore}%` }}
+            animate={{ width: qualitySummary.qualityScore != null ? `${qualitySummary.qualityScore}%` : '0%' }}
             transition={{ duration: 0.8, ease: 'easeOut', delay: 0.2 }}
-            className={`h-full rounded-full ${qualitySummary.qualityScore >= 85 ? 'bg-emerald-500' : qualitySummary.qualityScore >= 70 ? 'bg-amber-500' : 'bg-red-500'}`}
+            className={`h-full rounded-full ${qualitySummary.qualityScore != null ? (qualitySummary.qualityScore >= 85 ? 'bg-emerald-500' : qualitySummary.qualityScore >= 70 ? 'bg-amber-500' : 'bg-red-500') : 'bg-slate-200'}`}
           />
         </div>
       </div>
@@ -746,8 +753,9 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
 
   // ── Render: Step 5 - Preview ──
   const renderPreview = () => {
-    const companiesCount = Math.floor(qualitySummary.valid * 0.4);
-    const contactsCount = qualitySummary.valid - companiesCount;
+    const validCount = qualitySummary.valid ?? qualitySummary.totalRows;
+    const companiesCount = Math.floor(validCount * 0.4);
+    const contactsCount = validCount - companiesCount;
 
     return (
       <motion.div key="preview" {...fadeSlideUp}>
@@ -767,7 +775,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
             <Users className="size-4 text-blue-600" />
             <span className="text-sm font-medium text-blue-800">and <span className="font-bold">{contactsCount} contacts</span></span>
           </div>
-          {qualitySummary.duplicates > 0 && (
+          {qualitySummary.duplicates != null && qualitySummary.duplicates > 0 && (
             <>
               <div className="w-px h-5 bg-blue-200" />
               <div className="flex items-center gap-2">

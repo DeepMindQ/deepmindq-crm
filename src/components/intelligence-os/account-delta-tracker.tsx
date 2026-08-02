@@ -118,16 +118,9 @@ export function AccountDeltaTracker({
         const json = await res.json();
         if (json.success && Array.isArray(json.data)) {
           setDeltas(json.data);
-        } else {
-          // Demo-only: Generate representative deltas if no API data
-          setDeltas(generateDemoDeltas());
         }
-      } else {
-        // Fallback to demo data when API not available
-        setDeltas(generateDemoDeltas());
       }
     } catch {
-      setDeltas(generateDemoDeltas());
     } finally {
       setIsLoading(false);
     }
@@ -360,72 +353,4 @@ export function AccountDeltaTracker({
       </div>
     </motion.div>
   );
-}
-
-/* ═══════════════════════════════════════════════════════════════
-   Demo Deltas — Clearly marked as placeholder
-   
-   In production, /api/intelligence/deltas will replace this
-   with real delta computations from the intelligence engine.
-   ═══════════════════════════════════════════════════════════════ */
-
-function generateDemoDeltas(): AccountDelta[] {
-  return [
-    {
-      id: 'demo-1',
-      companyId: 'demo-co-1',
-      companyName: 'Acme Corp',
-      deltaType: 'score_change',
-      direction: 'up',
-      previousValue: 62,
-      newValue: 78,
-      magnitude: 16,
-      reasoning: 'Intelligence score increased due to 3 new signals detected from SEC filings and news articles. GroundingEngine found strong evidence of technology expansion.',
-      confidence: 85,
-      signalIds: ['demo-sig-1', 'demo-sig-2'],
-      evidence: [
-        { source: 'SEC Filing 10-K', snippet: 'Acme Corp reported 40% increase in R&D spending for Q4 2024' },
-        { source: 'TechCrunch', snippet: 'Acme Corp announces new AI platform targeting enterprise customers' },
-      ],
-      detectedAt: '2 min ago',
-      acknowledged: false,
-    },
-    {
-      id: 'demo-2',
-      companyId: 'demo-co-2',
-      companyName: 'Globex Inc',
-      deltaType: 'new_signal',
-      direction: 'new',
-      previousValue: 0,
-      newValue: 45,
-      magnitude: 45,
-      reasoning: 'New signal detected: CTO appointment indicates technology leadership change. Historical analysis shows CTO changes correlate with purchasing patterns.',
-      confidence: 62,
-      signalIds: ['demo-sig-3'],
-      evidence: [
-        { source: 'LinkedIn', snippet: 'Sarah Chen appointed as CTO of Globex Inc, bringing 15 years of enterprise AI experience' },
-      ],
-      detectedAt: '18 min ago',
-      acknowledged: false,
-    },
-    {
-      id: 'demo-3',
-      companyId: 'demo-co-3',
-      companyName: 'Stark Industries',
-      deltaType: 'priority_shift',
-      direction: 'up',
-      previousValue: 3,
-      newValue: 1,
-      magnitude: 2,
-      reasoning: 'Priority elevated from Medium to Critical based on convergence of 3 intelligence signals indicating active vendor evaluation.',
-      confidence: 71,
-      signalIds: ['demo-sig-4', 'demo-sig-5', 'demo-sig-6'],
-      evidence: [
-        { source: 'Job Posting', snippet: 'Stark Industries hiring for "AI Integration Specialist" — signals active technology evaluation' },
-        { source: 'Press Release', snippet: 'Stark Industries announces digital transformation initiative with $2M budget allocation' },
-      ],
-      detectedAt: '45 min ago',
-      acknowledged: false,
-    },
-  ];
 }

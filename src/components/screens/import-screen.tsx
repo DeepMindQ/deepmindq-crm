@@ -94,13 +94,8 @@ const staggerContainer = {
   animate: { transition: { staggerChildren: 0.06 } },
 };
 
-// ── Mock history data ──
-const MOCK_HISTORY: ImportHistoryItem[] = [
-  { id: 'h1', fileName: 'sales_leads_q4.csv', date: '2025-01-15 14:32', totalRows: 1247, accepted: 1189, duplicates: 38, invalid: 20, status: 'completed' },
-  { id: 'h2', fileName: 'partner_contacts.xlsx', date: '2025-01-14 09:17', totalRows: 523, accepted: 510, duplicates: 8, invalid: 5, status: 'completed' },
-  { id: 'h3', fileName: 'trade_show_leads.csv', date: '2025-01-13 16:45', totalRows: 342, accepted: 298, duplicates: 32, invalid: 12, status: 'partial' },
-  { id: 'h4', fileName: 'webinar_registrants.csv', date: '2025-01-12 11:03', totalRows: 891, accepted: 0, duplicates: 0, invalid: 891, status: 'failed' },
-];
+// Import history (empty — history entries will appear after imports)
+const INITIAL_HISTORY: ImportHistoryItem[] = [];
 
 // ── Confidence color helper ──
 function confidenceColor(confidence: number): string {
@@ -167,7 +162,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
   const [completionSummary, setCompletionSummary] = useState({ companiesCreated: 0, contactsImported: 0, duplicatesFound: 0 });
 
   // ── History state ──
-  const [history, setHistory] = useState<ImportHistoryItem[]>(MOCK_HISTORY);
+  const [history, setHistory] = useState<ImportHistoryItem[]>(INITIAL_HISTORY);
 
   // ── Refs ──
   const fileInputRef = useRef<HTMLInputElement>(null);

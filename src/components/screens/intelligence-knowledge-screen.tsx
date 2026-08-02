@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   Search, Database, Sparkles, BookOpen, Layers, Tag,
   ChevronRight, ExternalLink, Clock, Brain, Building2,
@@ -59,16 +59,6 @@ const KNOWLEDGE_GROUPS: Record<string, { icon: typeof BookOpen; color: string; c
 };
 
 const ALL_CATEGORIES = Object.values(KNOWLEDGE_GROUPS).flatMap(g => g.categories);
-
-// Mock data for demonstration
-const MOCK_KNOWLEDGE: KnowledgeEntry[] = [
-  { id: 'ke-1', companyId: 'comp-1', companyName: 'Acme Corp', category: 'Strategy', subCategory: null, content: 'Acme Corp is pursuing a cloud-first strategy with a $50M investment in AWS infrastructure. Their digital transformation roadmap focuses on AI-driven customer analytics by Q3 2025.', source: 'news', confidence: 87, version: 3, updatedAt: '2025-01-15T10:30:00Z' },
-  { id: 'ke-2', companyId: 'comp-1', companyName: 'Acme Corp', category: 'Technology', subCategory: 'Cloud', content: 'The engineering team recently adopted Kubernetes for container orchestration. They are hiring 15 cloud architects and DevOps engineers, signaling a major infrastructure modernization effort.', source: 'web', confidence: 82, version: 2, updatedAt: '2025-01-14T08:00:00Z' },
-  { id: 'ke-3', companyId: 'comp-2', companyName: 'TechVenture Inc', category: 'Competitors', subCategory: null, content: 'TechVenture Inc has formed a strategic partnership with CloudScale Technologies for joint product development in the SaaS space. This partnership targets mid-market enterprises in the fintech vertical.', source: 'filing', confidence: 94, version: 1, updatedAt: '2025-01-13T14:20:00Z' },
-  { id: 'ke-4', companyId: 'comp-1', companyName: 'Acme Corp', category: 'Leadership', subCategory: 'C-Suite', content: 'Sarah Chen appointed as new CTO. Previous VP Engineering at Microsoft Azure division. Brings 15+ years of enterprise cloud experience and is expected to drive the cloud migration initiative.', source: 'social', confidence: 91, version: 1, updatedAt: '2025-01-12T16:45:00Z' },
-  { id: 'ke-5', companyId: 'comp-3', companyName: 'GlobalData Ltd', category: 'Market', subCategory: null, content: 'The enterprise data analytics market is projected to grow at 25% CAGR through 2028. GlobalData Ltd is positioned as a key player with their proprietary ML-powered analytics platform.', source: 'analytics', confidence: 76, version: 4, updatedAt: '2025-01-11T09:15:00Z' },
-  { id: 'ke-6', companyId: 'comp-2', companyName: 'TechVenture Inc', category: 'Opportunities', subCategory: null, content: 'TechVenture is expanding into the healthcare SaaS market. Their product roadmap includes HIPAA-compliant data management tools, creating a partnership opportunity for compliance-focused integrations.', source: 'news', confidence: 85, version: 2, updatedAt: '2025-01-10T11:30:00Z' },
-];
 
 /* ═══════════════════════════════════════════════════════════════
    Knowledge Card Component
@@ -144,10 +134,36 @@ function KnowledgeCard({ entry }: { entry: KnowledgeEntry }) {
 /* ═══════════════════════════════════════════════════════════════
    Main Component
    ═══════════════════════════════════════════════════════════════ */
-export default function IntelligenceKnowledgeScreen() {
+export default function IntelligenceKnowledgeScreen({ companyId }: { companyId?: string }) {
+  const [entries, setEntries] = useState<KnowledgeEntry[]>([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedTab, setSelectedTab] = useState<string>('browse');
+
+  // ── Fetch knowledge entries ──
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        setLoading(true);
+        if (companyId) {
+          const res = await fetch(`/api/intelligence/knowledge/${encodeURIComponent(companyId)}`);
+          if (res.ok) {
+            const json = await res.json();
+            if (json.data?.entries) {
+              setEntries(json.data.entries);
+            }
+          }
+        }
+      } catch (err) {
+        logger.error('Failed to fetch knowledge entries:', { error: err });
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [companyId]);
 
   // Version history state
   const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
@@ -217,7 +233,7 @@ export default function IntelligenceKnowledgeScreen() {
   };
 
   // Filter knowledge entries
-  const filteredEntries = MOCK_KNOWLEDGE.filter(entry => {
+  const filteredEntries = entries.filter(entry => {
     const matchesCategory = !selectedCategory || entry.category === selectedCategory;
     const matchesSearch = !searchQuery.trim() ||
       entry.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -248,7 +264,7 @@ export default function IntelligenceKnowledgeScreen() {
           </div>
         </div>
         <Badge variant="outline" className="self-start text-xs bg-blue-50 text-blue-700 border-blue-200">
-          {MOCK_KNOWLEDGE.length} entries
+          {entries.length} entries
         </Badge>
       </div>
 
@@ -302,7 +318,7 @@ export default function IntelligenceKnowledgeScreen() {
       {/* ── Category Group Cards (compact) ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {Object.entries(KNOWLEDGE_GROUPS).map(([groupName, group]) => {
-          const count = MOCK_KNOWLEDGE.filter(e => group.categories.includes(e.category)).length;
+          const count = entries.filter(e => group.categories.includes(e.category)).length;
           return (
             <div
               key={groupName}
@@ -336,11 +352,23 @@ export default function IntelligenceKnowledgeScreen() {
           <span className="text-xs text-slate-400">{filteredEntries.length} result{filteredEntries.length !== 1 ? 's' : ''}</span>
         </div>
 
-        {filteredEntries.length === 0 ? (
+        {loading ? (
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {Array.from({ length: 4 }).map((_, i) => (
+              <div key={i} className="rounded-xl border border-slate-200 bg-white p-5 space-y-3">
+                <Skeleton className="h-4 w-24" />
+                <Skeleton className="h-3 w-full" />
+                <Skeleton className="h-3 w-3/4" />
+              </div>
+            ))}
+          </div>
+        ) : filteredEntries.length === 0 ? (
           <EmptyState
             icon={BookOpen}
             title="No knowledge entries found"
-            description="Try adjusting your search or category filter to find relevant intelligence."
+            description={companyId
+              ? 'Knowledge entries will appear here once intelligence data is gathered for this account.'
+              : 'Select a company to view its knowledge entries, or adjust your search and category filters.'}
           />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">

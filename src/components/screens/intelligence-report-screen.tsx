@@ -160,12 +160,8 @@ export default function IntelligenceReportScreen({
   const [dateFrom, setDateFrom] = useState('2024-01-01');
   const [dateTo, setDateTo] = useState(new Date().toISOString().split('T')[0]);
 
-  // Mock generated reports
-  const [generatedReports] = useState<GeneratedReport[]>([
-    { id: 'r-1', companyId: 'comp-1', companyName: 'Acme Corp', template: 'Executive Brief', dateRange: { from: '2024-01-01', to: '2025-01-15' }, createdAt: '2025-01-15T10:00:00Z', status: 'completed' },
-    { id: 'r-2', companyId: 'comp-2', companyName: 'TechVenture Inc', template: 'Detailed Analysis', dateRange: { from: '2024-06-01', to: '2025-01-15' }, createdAt: '2025-01-14T14:00:00Z', status: 'completed' },
-    { id: 'r-3', companyId: 'comp-1', companyName: 'Acme Corp', template: 'Opportunity Assessment', dateRange: { from: '2024-01-01', to: '2025-01-10' }, createdAt: '2025-01-10T08:00:00Z', status: 'completed' },
-  ]);
+  // Generated reports (empty — reports will appear after generation)
+  const [generatedReports] = useState<GeneratedReport[]>([]);
 
   useEffect(() => {
     async function fetchBrief() {

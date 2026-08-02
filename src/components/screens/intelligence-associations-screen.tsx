@@ -140,31 +140,6 @@ function EntityNodeCard({ node, isSelected, onClick }: {
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Mock data for entity relationships
-   ═══════════════════════════════════════════════════════════════ */
-const MOCK_NODES: EntityNode[] = [
-  { id: 'n-1', name: 'Acme Corp', type: 'company', description: 'Enterprise cloud services provider with $2B revenue' },
-  { id: 'n-2', name: 'TechVenture Inc', type: 'company', description: 'SaaS platform for healthcare analytics' },
-  { id: 'n-3', name: 'GlobalData Ltd', type: 'company', description: 'Data analytics company with ML-powered platform' },
-  { id: 'n-4', name: 'Sarah Chen', type: 'person', description: 'CTO at Acme Corp, ex-Microsoft Azure VP' },
-  { id: 'n-5', name: 'John Park', type: 'person', description: 'VP Engineering at TechVenture, former colleague of Sarah Chen' },
-  { id: 'n-6', name: 'Cloud Hiring Surge', type: 'signal', description: '300% increase in cloud architect roles at Acme Corp' },
-  { id: 'n-7', name: 'AWS Partnership', type: 'signal', description: 'Acme Corp selects AWS as preferred cloud provider' },
-  { id: 'n-8', name: 'Healthcare SaaS Expansion', type: 'opportunity', description: 'TechVenture expanding into healthcare vertical with HIPAA tools' },
-  { id: 'n-9', name: 'Joint Product Development', type: 'opportunity', description: 'Partnership opportunity for compliance-focused SaaS integration' },
-];
-
-const MOCK_LINKS: EntityLink[] = [
-  { id: 'l-1', sourceId: 'n-1', targetId: 'n-2', type: 'company-to-company', label: 'Strategic Partnership', confidence: 0.82 },
-  { id: 'l-2', sourceId: 'n-4', targetId: 'n-5', type: 'people-to-people', label: 'Former Colleagues', confidence: 0.91 },
-  { id: 'l-3', sourceId: 'n-6', targetId: 'n-8', type: 'signal-to-opportunity', label: 'Signal-derived', confidence: 0.78 },
-  { id: 'l-4', sourceId: 'n-1', targetId: 'n-4', type: 'company-to-person', label: 'Employment', confidence: 0.95 },
-  { id: 'l-5', sourceId: 'n-2', targetId: 'n-5', type: 'company-to-person', label: 'Employment', confidence: 0.95 },
-  { id: 'l-6', sourceId: 'n-1', targetId: 'n-3', type: 'company-to-company', label: 'Competitor Intelligence', confidence: 0.65 },
-  { id: 'l-7', sourceId: 'n-7', targetId: 'n-9', type: 'signal-to-opportunity', label: 'AWS Integration', confidence: 0.72 },
-];
-
-/* ═══════════════════════════════════════════════════════════════
    Main Component
    ═══════════════════════════════════════════════════════════════ */
 export default function IntelligenceAssociationsScreen({
@@ -251,15 +226,11 @@ export default function IntelligenceAssociationsScreen({
     finally { setActionLoading(null); }
   };
 
-  // Filter nodes by search
-  const filteredNodes = searchQuery.trim()
-    ? MOCK_NODES.filter(n => n.name.toLowerCase().includes(searchQuery.toLowerCase()) || n.type.toLowerCase().includes(searchQuery.toLowerCase()))
-    : MOCK_NODES;
+  // Filter nodes by search (empty — entity graph data will come from associations API)
+  const filteredNodes: EntityNode[] = [];
 
   // Get connections for selected node
-  const selectedNodeLinks = selectedNodeId
-    ? MOCK_LINKS.filter(l => l.sourceId === selectedNodeId || l.targetId === selectedNodeId)
-    : [];
+  const selectedNodeLinks: EntityLink[] = [];
 
   // ── Render ──
   return (
@@ -320,15 +291,9 @@ export default function IntelligenceAssociationsScreen({
           </div>
 
           {/* Entity nodes grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-            {filteredNodes.map(node => (
-              <EntityNodeCard
-                key={node.id}
-                node={node}
-                isSelected={selectedNodeId === node.id}
-                onClick={() => setSelectedNodeId(selectedNodeId === node.id ? null : node.id)}
-              />
-            ))}
+          <div className="py-12 text-center">
+            <GitBranch className="h-10 w-10 text-slate-300 mx-auto mb-3" />
+            <p className="text-sm text-slate-500">Entity relationships will appear here once association data is gathered for this account.</p>
           </div>
 
           {/* Selected node connections */}
@@ -336,17 +301,17 @@ export default function IntelligenceAssociationsScreen({
             <div className="rounded-xl border border-blue-200 bg-blue-50/50 p-4 mt-4">
               <h3 className="text-sm font-semibold text-blue-800 mb-3 flex items-center gap-2">
                 <ArrowRight className="h-4 w-4" />
-                Connections for {MOCK_NODES.find(n => n.id === selectedNodeId)?.name}
+                Connections for {selectedNodeId}
               </h3>
               <div className="space-y-2">
                 {selectedNodeLinks.map(link => {
-                  const target = MOCK_NODES.find(n => n.id === (link.sourceId === selectedNodeId ? link.targetId : link.sourceId));
+                  const targetId = link.sourceId === selectedNodeId ? link.targetId : link.sourceId;
                   const linkCfg = LINK_TYPE_CONFIG[link.type] ?? LINK_TYPE_CONFIG['company-to-company'];
                   return (
                     <div key={link.id} className="flex items-center gap-3 p-3 rounded-lg border border-blue-200 bg-white">
                       <div className="h-8 w-0.5 rounded-full" style={{ backgroundColor: linkCfg.color }} />
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-slate-800">{target?.name}</p>
+                        <p className="text-sm font-medium text-slate-800">{targetId}</p>
                         <p className="text-xs text-slate-400">{link.label}</p>
                       </div>
                       <div className="text-right">

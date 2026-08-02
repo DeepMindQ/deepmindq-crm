@@ -81,7 +81,6 @@ export type ViewId =
   | 'intelligence-inbox'
   | 'intelligence-knowledge'
   | 'ai-strategy'
-  | 'demo-experience'
   | 'duplicates'
   | 'data-import'
   | 'builder';

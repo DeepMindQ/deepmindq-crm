@@ -27,6 +27,7 @@ export const PUBLIC_PATH_PREFIXES: string[] = [
   '/api/cron/',
   '/login',
   '/demo',
+  '/marketing',
   '/favicon.ico',
   '/_next/static',
   '/_next/image',

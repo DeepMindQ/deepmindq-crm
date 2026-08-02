@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
-import { Lock, X } from 'lucide-react';
+import { Lock } from 'lucide-react';
 
 interface LandingPageProps {
   onLogin?: () => void;
@@ -12,6 +12,11 @@ interface LandingPageProps {
  * The actual marketing content lives in the static HTML file for easy editing
  * without touching the React codebase. A floating Login button provides
  * access to the DeepMindQ app.
+ *
+ * NOTE: The iframe approach is intentional for maintaining separation between
+ * the marketing site (static HTML, easy to edit) and the application (React/Next.js).
+ * SEO metadata is handled by the root layout's metadata export, which applies
+ * to the / route regardless of what's rendered in the body.
  */
 export default function LandingPage({ onLogin }: LandingPageProps) {
   const [showLoginHint, setShowLoginHint] = useState(false);

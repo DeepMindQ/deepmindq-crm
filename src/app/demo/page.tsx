@@ -1,8 +1,8 @@
 import { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: 'DeepMindQ — Enterprise Revenue Intelligence OS',
-  description: 'AI-powered revenue intelligence that transforms how enterprise sales teams identify, engage, and win. See live intelligence in action.',
+  title: 'DeepMindQ — Enterprise Intelligence OS',
+  description: 'AI-powered intelligence that transforms how enterprise sales teams identify, engage, and win. See live intelligence in action.',
 };
 
 export default function DemoLandingPage() {
@@ -172,7 +172,7 @@ export default function DemoLandingPage() {
 
         {/* Footer */}
         <div className="mt-16 text-center text-gray-500 text-sm">
-          <p>DeepMindQ — Enterprise Revenue Intelligence Operating System</p>
+          <p>DeepMindQ — Enterprise Intelligence OS</p>
           <p className="mt-1">Confidential Investor Demo</p>
         </div>
       </div>

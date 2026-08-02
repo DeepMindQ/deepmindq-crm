@@ -1,8 +1,8 @@
 /* ═══════════════════════════════════════════════════
-   Enterprise Design System — DeepMindQ CRM
+   Enterprise Design System — DeepMindQ Enterprise Intelligence OS
    
    Single source of truth for ALL screen styling.
-   Glass-morphism + gold accent design language.
+   Intelligence Blue + Enterprise Dark design language.
    ═══════════════════════════════════════════════════ */
 
 /* ── Color Tokens ── */

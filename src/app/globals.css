@@ -77,7 +77,8 @@
 
 :root {
   --radius: 0.5rem;
-  color-scheme: light;
+  /* Enterprise Intelligence OS — premium dark default */
+  color-scheme: dark;
 
   /* Core — Intelligence OS Dark */
   --background: #0a0c10;

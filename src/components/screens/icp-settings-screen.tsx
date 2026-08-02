@@ -26,6 +26,7 @@ import {
   Info,
   X,
 } from 'lucide-react';
+import { EnterpriseLoading } from '@/components/enterprise';
 
 /* ═══════════════════════════════════════════════════════════
    Types
@@ -311,14 +312,7 @@ export default function ICPSettingsScreen() {
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex flex-col items-center gap-4"
-        >
-          <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--color-gold)' }} />
-          <p className="text-sm text-muted-foreground">Loading ICP configuration...</p>
-        </motion.div>
+        <EnterpriseLoading message="Loading ICP configuration..." size="md" />
       </div>
     );
   }

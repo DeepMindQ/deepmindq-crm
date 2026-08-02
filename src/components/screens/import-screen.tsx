@@ -23,6 +23,7 @@ import {
   ChevronRight, RotateCcw, FileText, TrendingUp, XCircle,
   CheckCircle, Eye, Zap, Trash2, History,
 } from 'lucide-react';
+import { EnterpriseLoading } from '@/components/enterprise';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
 
@@ -132,7 +133,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
   if (!isReady) {
     return (
       <div className="flex items-center justify-center h-full" style={{ minHeight: '60vh' }}>
-        <Loader2 className="h-8 w-8 animate-spin text-amber-500/70" />
+        <EnterpriseLoading message="Preparing import wizard..." size="md" />
       </div>
     );
   }

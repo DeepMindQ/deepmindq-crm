@@ -123,7 +123,12 @@ async function handleUpload(body: Record<string, unknown>) {
   // Create UploadRow records (if rows provided)
   let createdRows = 0;
   if (Array.isArray(rows)) {
-    const createData = (rows as Record<string, string>[]).map(
+    // Safety cap on rows
+    const rowsData = rows as Record<string, string>[];
+    if (rowsData.length > 50_000) {
+      return apiError('Maximum 50,000 rows per upload', 400);
+    }
+    const createData = rowsData.map(
       (row: Record<string, string>, index: number) => ({
         uploadId: upload.id,
         rowIndex: index,

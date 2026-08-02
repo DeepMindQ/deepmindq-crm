@@ -7,6 +7,7 @@
    ═══════════════════════════════════════════════════ */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { registerTimer } from '@/lib/timer-registry';
 
 // ── Constants ───────────────────────────────────────────
 export const SESSION_COOKIE_NAME = 'dmq_session';
@@ -184,12 +185,12 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 
 // Cleanup every 5 minutes
 if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
+  registerTimer(setInterval(() => {
     const now = Date.now();
     for (const [key, entry] of rateLimitStore.entries()) {
       if (entry.resetAt <= now) rateLimitStore.delete(key);
     }
-  }, 5 * 60 * 1000);
+  }, 5 * 60 * 1000));
 }
 
 /** Evict oldest entries when store exceeds max size */

@@ -123,7 +123,10 @@ export async function requestOtp(
   }
 
   // Single-user enforcement: only allow authorized email
-  const AUTHORIZED_EMAIL = process.env.AUTHORIZED_EMAIL || 'shanker001@gmail.com';
+  const AUTHORIZED_EMAIL = process.env.AUTHORIZED_EMAIL;
+  if (!AUTHORIZED_EMAIL) {
+    return { success: false, error: 'AUTHORIZED_EMAIL is not configured.' };
+  }
   if (normalizedEmail !== AUTHORIZED_EMAIL) {
     return { success: false, error: 'This workspace is restricted to authorized personnel only.' };
   }
@@ -136,7 +139,7 @@ export async function requestOtp(
     user = await db.user.create({
       data: {
         email: normalizedEmail,
-        name: 'Shanker',
+        name: AUTHORIZED_EMAIL.split('@')[0] || 'Admin',
         role: 'admin',
         isActive: true,
       },

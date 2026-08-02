@@ -6,6 +6,7 @@ import { verifyOtp } from '@/lib/otp';
 import { db } from '@/lib/db';
 import { AuthError, requireAuth } from '@/lib/session';
 import { logger } from '@/lib/logger';
+import { generalApiRateLimit } from '@/lib/auth-helpers';
 
 const schema = z.object({
   email: z.string().email(),
@@ -15,6 +16,12 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const rl = generalApiRateLimit(ip, 'set-password');
+    if (!rl.success) {
+      return NextResponse.json({ error: 'Too many attempts. Please try again later.' }, { status: 429 });
+    }
+
     const body = await request.json();
     const parsed = schema.safeParse(body);
 

@@ -2,6 +2,8 @@
 // Usage: const limited = rateLimit({ key: 'api-companies', limit: 100, windowMs: 60000 })
 // Returns { success: boolean, remaining: number, resetAt: number }
 
+import { registerTimer } from '@/lib/timer-registry';
+
 export interface RateLimitResult {
   success: boolean
   remaining: number
@@ -19,12 +21,12 @@ const MAX_STORE_SIZE = 100_000
 const store = new Map<string, { count: number; resetAt: number }>()
 
 // Cleanup old entries every 5 minutes
-setInterval(() => {
+registerTimer(setInterval(() => {
   const now = Date.now()
   for (const [key, entry] of store.entries()) {
     if (entry.resetAt <= now) store.delete(key)
   }
-}, 5 * 60 * 1000)
+}, 5 * 60 * 1000))
 
 export function rateLimit(options: RateLimitOptions): RateLimitResult {
   const now = Date.now()

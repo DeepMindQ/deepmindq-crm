@@ -17,6 +17,8 @@ export default function GlobalError({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  // Note: Sentry capture not possible here — global-error runs outside of React lifecycle.
+  // Errors are captured by the Sentry server config's error handler instead.
   return (
     <html lang="en">
       <body style={{ background: C.bg, margin: 0 }}>

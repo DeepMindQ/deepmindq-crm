@@ -17,7 +17,11 @@ import { logger } from '@/lib/logger';
 // all serverless instances. OTP only ever goes to email.
 // ═══════════════════════════════════════════════════════════════
 
-const AUTHORIZED_EMAIL = process.env.AUTHORIZED_EMAIL || 'shanker001@gmail.com';
+const AUTHORIZED_EMAIL = process.env.AUTHORIZED_EMAIL;
+if (!AUTHORIZED_EMAIL) {
+  // Log once at module level — will be caught by validateEnv() at startup in production
+  console.warn('[auth/verify-otp] AUTHORIZED_EMAIL is not set. OTP login will be restricted.');
+}
 const MAX_ATTEMPTS = 5;
 
 const schema = z.object({
@@ -65,6 +69,13 @@ export async function POST(request: NextRequest) {
       );
     }
     const normalizedEmail = email.trim().toLowerCase();
+
+    if (!AUTHORIZED_EMAIL) {
+      return NextResponse.json(
+        { error: 'Authentication is not configured.' },
+        { status: 503 }
+      );
+    }
 
     if (normalizedEmail !== AUTHORIZED_EMAIL) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });

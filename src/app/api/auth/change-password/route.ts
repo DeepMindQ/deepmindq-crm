@@ -5,6 +5,7 @@ import { hashPassword } from '@/lib/password';
 import { requireAuth, AuthError } from '@/lib/session';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { generalApiRateLimit } from '@/lib/auth-helpers';
 
 const schema = z.object({
   email: z.string().email(),
@@ -14,6 +15,12 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
   try {
+    const ip = request.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
+    const rl = generalApiRateLimit(ip, 'change-password');
+    if (!rl.success) {
+      return NextResponse.json({ error: 'Too many attempts. Please try again later.' }, { status: 429 });
+    }
+
     const user = await requireAuth();
 
     const body = await request.json();
@@ -48,11 +55,13 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    // Destroy all other sessions (force re-login on other devices)
+    // Destroy all OTHER sessions (force re-login on other devices)
+    const currentToken = (await import('next/headers')).cookies().then(c => c.get('dmq_session')?.value || null);
+    const token = await currentToken;
     await db.session.deleteMany({
       where: {
         userId: user.id,
-        // Don't delete current session — it'll be refreshed
+        ...(token ? { token: { not: token } } : {}),
       },
     });
 

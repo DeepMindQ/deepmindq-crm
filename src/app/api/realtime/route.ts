@@ -1,5 +1,6 @@
 import { eventBus } from '@/lib/event-bus'
 import { checkApiAuth } from '@/lib/api-auth'
+import { NextRequest, NextResponse } from 'next/server'
 
 // ── Event types we forward over SSE ──────────────────────────────────
 const FORWARDED_EVENTS = ['notification', 'email_opened', 'email_clicked'] as const
@@ -7,12 +8,26 @@ const FORWARDED_EVENTS = ['notification', 'email_opened', 'email_clicked'] as co
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
+// Per-user connection tracking
+const sseConnections = new Map<string, number>();
+const MAX_SSE_CONNECTIONS_PER_USER = 3;
+
 // ── GET handler (SSE stream) ─────────────────────────────────────────
 
-export async function GET() {
+export async function GET(request: NextRequest) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
+
+  // Check per-user connection limit
+  const sessionToken = request.cookies.get('dmq_session')?.value || crypto.randomUUID();
+  if ((sseConnections.get(sessionToken) || 0) >= MAX_SSE_CONNECTIONS_PER_USER) {
+    return NextResponse.json(
+      { error: `Maximum ${MAX_SSE_CONNECTIONS_PER_USER} concurrent SSE connections allowed` },
+      { status: 429 }
+    );
+  }
+  sseConnections.set(sessionToken, (sseConnections.get(sessionToken) || 0) + 1);
 
 const encoder = new TextEncoder()
 
@@ -55,6 +70,7 @@ const encoder = new TextEncoder()
       ;(stream as unknown as { _cleanup: () => void })._cleanup = () => {
         clearInterval(heartbeat)
         unsubscribers.forEach((unsub) => unsub())
+        sseConnections.set(sessionToken, Math.max(0, (sseConnections.get(sessionToken) || 0) - 1));
       }
     },
 

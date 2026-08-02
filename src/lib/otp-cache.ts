@@ -5,6 +5,8 @@
    Safe for single-user system (one authorized email).
    ═══════════════════════════════════════════════════ */
 
+import { registerTimer } from '@/lib/timer-registry';
+
 interface OtpCacheEntry {
   code: string;
   expiresAt: number;
@@ -29,7 +31,7 @@ export function cleanupExpired() {
 
 // Periodic cleanup every 5 minutes to prevent stale entries accumulating
 if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
+  registerTimer(setInterval(() => {
     cleanupExpired();
-  }, 5 * 60 * 1000);
+  }, 5 * 60 * 1000));
 }

@@ -12,6 +12,12 @@ export async function GET(request: Request) {
   const { errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
 
+    // Admin-only: only admins can export leads
+    const session = await (await import('@/lib/session')).getCurrentSession();
+    if (!session || session.role !== 'admin') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
   try {
     const { searchParams } = new URL(request.url);
 

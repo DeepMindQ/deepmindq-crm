@@ -141,6 +141,12 @@ export async function DELETE(
   const { errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
 
+    // Admin-only: only admins can delete companies
+    const session = await (await import('@/lib/session')).getCurrentSession();
+    if (!session || session.role !== 'admin') {
+      return NextResponse.json({ error: 'Admin access required' }, { status: 403 });
+    }
+
 try {
     const { id } = await params;
 
@@ -149,6 +155,12 @@ try {
     if (!existing) {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
+
+      // Audit log before destructive operation
+      try {
+        const { logAction } = await import('@/lib/audit');
+        await logAction('company_deleted', 'company', id, { companyName: existing.rawName });
+      } catch { /* non-critical */ }
 
     // Cascade delete is handled by Prisma schema (onDelete: Cascade)
     await db.company.delete({ where: { id } });

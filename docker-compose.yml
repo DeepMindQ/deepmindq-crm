@@ -17,8 +17,8 @@ services:
     image: postgres:16-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: ${POSTGRES_USER:-deepmindq}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-deepmindq_secret}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
       POSTGRES_DB: ${POSTGRES_DB:-deepmindq}
     ports:
       - "${DB_PORT:-5432}:5432"
@@ -40,10 +40,10 @@ services:
       - "${APP_PORT:-3000}:3000"
     environment:
       # Database
-      DATABASE_URL: postgresql://${POSTGRES_USER:-deepmindq}:${POSTGRES_PASSWORD:-deepmindq_secret}@postgres:5432/${POSTGRES_DB:-deepmindq}?schema=public
-      DIRECT_DATABASE_URL: postgresql://${POSTGRES_USER:-deepmindq}:${POSTGRES_PASSWORD:-deepmindq_secret}@postgres:5432/${POSTGRES_DB:-deepmindq}?schema=public
+      DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-deepmindq}?schema=public
+      DIRECT_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-deepmindq}?schema=public
       # Auth
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-change-me-in-production-min-32-chars}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required (min 32 chars)}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       # Node
       NODE_ENV: production
@@ -60,6 +60,14 @@ services:
       SMTP_PORT: ${SMTP_PORT:-587}
       SMTP_USER: ${SMTP_USER:-}
       SMTP_PASS: ${SMTP_PASS:-}
+      # Required secrets
+      AUTHORIZED_EMAIL: ${AUTHORIZED_EMAIL:?AUTHORIZED_EMAIL is required}
+      TRACKING_SECRET: ${TRACKING_SECRET:?TRACKING_SECRET is required}
+      CRON_SECRET: ${CRON_SECRET:-}
+      RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
+      EMAIL_API_KEY: ${EMAIL_API_KEY:-}
+      EMAIL_FROM: ${EMAIL_FROM:-noreply@deepmindq.com}
+      NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -70,6 +78,38 @@ services:
       start_period: 20s
       retries: 3
 
+  # ── Scheduled Backup (daily at 2 AM) ─────────────────
+  backup:
+    image: postgres:16-alpine
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    volumes:
+      - postgres_data:/var/lib/postgresql/data:ro
+      - backup_data:/backups
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_PORT: 5432
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-deepmindq}
+      BACKUP_DIR: /backups
+      DB_NAME: ${POSTGRES_DB:-deepmindq}
+    entrypoint: >
+      sh -c "
+        echo 'Waiting for postgres...' && sleep 10 &&
+        echo 'Running backup...' &&
+        BACKUP_FILE=/backups/deepmindq-$$(date +%Y%m%d-%H%M%S).sql.gz &&
+        pg_dump -h postgres -U $${POSTGRES_USER} -d $${POSTGRES_DB} --compress=9 > $${BACKUP_FILE} &&
+        echo 'Backup created:' $${BACKUP_FILE} &&
+        echo 'Keeping last 30 backups...' &&
+        ls -t /backups/deepmindq-*.sql.gz | tail -n +31 | xargs rm -f 2>/dev/null || true &&
+        echo 'Done.'
+      "
+
 volumes:
   postgres_data:
+    driver: local
+  backup_data:
     driver: local

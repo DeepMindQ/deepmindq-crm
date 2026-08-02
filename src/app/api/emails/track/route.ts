@@ -78,14 +78,18 @@ export async function GET(request: NextRequest) {
         const decoded = decodeURIComponent(targetUrl)
         // Basic validation — only allow http/https
         if (decoded.startsWith('http://') || decoded.startsWith('https://')) {
-          return NextResponse.redirect(decoded, 302)
+          const parsed = new URL(decoded)
+          if (parsed.protocol === 'https:' || parsed.protocol === 'http:') {
+            return NextResponse.redirect(decoded, 302)
+          }
         }
       } catch {
-        // fall through to error
+        // fall through to fallback
       }
     }
 
-    return new NextResponse('Invalid or missing redirect URL', { status: 400 })
+    // Fallback: redirect to home instead of exposing the URL
+    return NextResponse.redirect('/', 302)
   }
 
   return new NextResponse('Unknown tracking type', { status: 400 })

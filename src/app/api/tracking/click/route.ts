@@ -77,6 +77,6 @@ export async function GET(request: Request) {
     logger.error('Click tracking error:', { error: err });
   }
 
-  // Always redirect to the target URL
-  return NextResponse.redirect(targetUrl, 302);
+  // Redirect to home — never to user-provided URL to prevent open redirects
+  return NextResponse.redirect('/', 302);
 }

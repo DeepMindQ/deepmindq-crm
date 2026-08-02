@@ -92,6 +92,49 @@ const DEFAULT_PROVIDERS: Record<string, AIProviderConfig> = {
 
 const DEFAULT_LLM_PRIORITY = ['nvidia', 'fireworks', 'groq', 'gemini'];
 const DEFAULT_SEARCH_PROVIDER = 'tavily';
+
+/* ── API Key Encryption ─────────────────────────────────── */
+const ENCRYPTION_KEY_ENV = 'ENCRYPTION_KEY';
+
+function getEncryptionKey(): string | null {
+  const key = process.env[ENCRYPTION_KEY_ENV];
+  if (!key || key.length < 32) return null;
+  return key.slice(0, 32); // AES-256 needs 32 bytes
+}
+
+async function encrypt(text: string): Promise<string> {
+  const key = getEncryptionKey();
+  if (!key) return text; // No encryption key = store as-is (dev mode)
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(key);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'AES-GCM' }, false, ['encrypt']);
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, encoder.encode(text));
+  // Combine iv + ciphertext as base64
+  const combined = new Uint8Array(iv.length + encrypted.byteLength);
+  combined.set(iv);
+  combined.set(new Uint8Array(encrypted), iv.length);
+  return Buffer.from(combined).toString('base64');
+}
+
+async function decrypt(encryptedText: string): Promise<string> {
+  const key = getEncryptionKey();
+  if (!key) return encryptedText; // Not encrypted
+  try {
+    const combined = Buffer.from(encryptedText, 'base64');
+    const iv = combined.subarray(0, 12);
+    const ciphertext = combined.subarray(12);
+    const encoder = new TextEncoder();
+    const keyData = encoder.encode(key);
+    const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'AES-GCM' }, false, ['decrypt']);
+    const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, cryptoKey, ciphertext);
+    return new TextDecoder().decode(decrypted);
+  } catch {
+    // If decryption fails, treat as plaintext (backward compatibility for existing unencrypted values)
+    return encryptedText;
+  }
+}
+
 const AI_CONFIG_KEY = 'ai_config';
 
 /* ── In-memory runtime store ─────────────────────────────── */
@@ -152,7 +195,7 @@ async function ensureLoaded(): Promise<void> {
             const sp = savedProvider as Partial<AIProviderConfig>;
             // Only update fields that were explicitly saved (not empty defaults)
             if (sp.apiKey && !sp.apiKey.startsWith('•')) {
-              runtimeConfig.providers[key].apiKey = sp.apiKey;
+              runtimeConfig.providers[key].apiKey = await decrypt(sp.apiKey);
             }
             if (sp.model) runtimeConfig.providers[key].model = sp.model;
             if (sp.baseUrl) runtimeConfig.providers[key].baseUrl = sp.baseUrl;
@@ -232,7 +275,22 @@ export async function updateAIConfig(updates: Partial<AIFullConfig>): Promise<AI
           existing.apiKey = newConfig.apiKey;
         }
         if (newConfig.model !== undefined) existing.model = newConfig.model;
-        if (newConfig.baseUrl !== undefined) existing.baseUrl = newConfig.baseUrl;
+        if (newConfig.baseUrl !== undefined) {
+          // Validate baseUrl — only allow known AI provider domains
+          const ALLOWED_BASE_URL_PATTERNS = [
+            /^https:\/\/integrate\.api\.nvidia\.com/,
+            /^https:\/\/api\.fireworks\.ai/,
+            /^https:\/\/api\.groq\.com/,
+            /^https:\/\/generativelanguage\.googleapis\.com/,
+            /^https:\/\/api\.tavily\.com/,
+            /^https:\/\/api\.openai\.com/,
+          ];
+          if (newConfig.baseUrl && !ALLOWED_BASE_URL_PATTERNS.some(p => p.test(newConfig.baseUrl))) {
+            logger.warn(`[ai-config] Rejected baseUrl for ${key}: ${newConfig.baseUrl} (not in allowlist)`);
+            continue; // Skip this provider update
+          }
+          existing.baseUrl = newConfig.baseUrl;
+        }
         if (newConfig.enabled !== undefined) existing.enabled = newConfig.enabled;
         if (newConfig.label !== undefined) existing.label = newConfig.label;
       }
@@ -247,10 +305,17 @@ export async function updateAIConfig(updates: Partial<AIFullConfig>): Promise<AI
 
   // Persist to DB (fire-and-forget, don't block the response)
   try {
+    // Encrypt API keys before persisting to DB
+    const configToSave: AIFullConfig = { ...runtimeConfig! };
+    for (const [k, provider] of Object.entries(configToSave.providers)) {
+      if (provider.apiKey && !provider.apiKey.startsWith('•')) {
+        configToSave.providers[k] = { ...provider, apiKey: await encrypt(provider.apiKey) };
+      }
+    }
     await db.systemSetting.upsert({
       where: { key: AI_CONFIG_KEY },
-      update: { value: JSON.stringify(runtimeConfig) },
-      create: { key: AI_CONFIG_KEY, value: JSON.stringify(runtimeConfig) },
+      update: { value: JSON.stringify(configToSave) },
+      create: { key: AI_CONFIG_KEY, value: JSON.stringify(configToSave) },
     });
   } catch {
     // Log but don't fail — in-memory still works

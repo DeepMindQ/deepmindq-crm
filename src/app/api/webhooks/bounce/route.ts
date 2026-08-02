@@ -318,12 +318,3 @@ export async function POST(request: Request) {
     return NextResponse.json({ received: true, error: 'Processing failed' });
   }
 }
-
-// Health check
-export async function GET() {
-  return NextResponse.json({
-    endpoint: '/api/webhooks/bounce',
-    status: 'active',
-    supportedProviders: ['resend', 'sendgrid', 'ses', 'postmark', 'generic'],
-  });
-}

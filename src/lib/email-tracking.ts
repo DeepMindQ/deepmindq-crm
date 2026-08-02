@@ -7,7 +7,10 @@ import crypto from 'crypto';
    E-11: Open pixel URLs, click link wrapping, HMAC signing
    ═══════════════════════════════════════════════════ */
 
-const TRACKING_SECRET = process.env.TRACKING_SECRET || 'deepmindq-tracking-hmac-secret-2024';
+const TRACKING_SECRET = process.env.TRACKING_SECRET;
+if (!TRACKING_SECRET) {
+  console.warn('[email-tracking] TRACKING_SECRET is not set. Email tracking signatures will be invalid.');
+}
 
 /* ── E-06: Generate a unique Message-ID ── */
 export function generateMessageId(): string {
@@ -18,6 +21,9 @@ export function generateMessageId(): string {
 
 /* ── E-11: HMAC sign a queueId to prevent abuse ── */
 export function signQueueId(queueId: string): string {
+  if (!TRACKING_SECRET) {
+    throw new Error('TRACKING_SECRET is not configured — cannot sign tracking tokens');
+  }
   const payload = `${queueId}:${Date.now()}`;
   const signature = crypto
     .createHmac('sha256', TRACKING_SECRET)
@@ -36,12 +42,18 @@ export function verifyQueueId(token: string): string | null {
     const signature = decoded.slice(lastColonIdx + 1);
     const payload = decoded.slice(0, lastColonIdx);
 
+    if (!TRACKING_SECRET) return null;
     const expected = crypto
       .createHmac('sha256', TRACKING_SECRET)
       .update(payload)
       .digest('hex');
 
-    if (signature !== expected) return null;
+    if (signature.length !== expected.length) return null;
+    let result = 0;
+    for (let i = 0; i < signature.length; i++) {
+      result |= signature.charCodeAt(i) ^ expected.charCodeAt(i);
+    }
+    if (result !== 0) return null;
 
     // Extract queueId (first part before ':')
     const queueId = payload.split(':')[0];

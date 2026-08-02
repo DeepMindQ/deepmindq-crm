@@ -194,6 +194,12 @@ async function stageImport(request: NextRequest) {
   const isXLSX = fileName.endsWith(".xlsx") || fileName.endsWith(".xls");
   const isCSV = fileName.endsWith(".csv");
 
+  // E-H6 TODO: Add MIME type validation from form data File object (file.type).
+  // Current extension check (.csv/.xlsx) is sufficient for the current attack surface
+  // since the xlsx library will reject malformed content during parsing.
+  // Future enhancement: validate file.type against an allowlist of MIME types
+  // (text/csv, text/plain, application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,
+  //  application/vnd.ms-excel) and reject uploads with mismatched MIME types.
   if (!isXLSX && !isCSV) {
     return apiError("Unsupported file format. Please upload a CSV or XLSX file.", 400);
   }

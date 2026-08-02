@@ -2,12 +2,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSecurityHeaders, isPublicPath, isApiRoute, validateCsrf } from '@/lib/auth-helpers';
 import { generateCsrfToken, CSRF_COOKIE_NAME, CSRF_TOKEN_HEADER } from '@/lib/csrf';
 
-// ── Allowed domains for redirect targets ──
-const ALLOWED_REDIRECT_DOMAINS = [
-  'localhost',
-  '127.0.0.1',
-  // Add production domain(s) here when deploying
-];
+// NOTE (E-H1): Global per-IP rate limiting is not implemented in Edge middleware due to
+// Next.js Edge Runtime limitations (no shared state across instances, no Redis).
+// Rate limiting is handled per-route in individual API handlers instead.
+// Auth endpoints (login, register, request-otp, verify-otp, set-password, change-password)
+// are all already rate-limited via edgeRateLimit() in auth-helpers.ts.
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
@@ -53,10 +52,10 @@ export function middleware(request: NextRequest) {
   if (isApiRoute(pathname) && !isPublicPath(pathname) && ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method)) {
     const csrfValid = validateCsrf(request);
     if (!csrfValid) {
-      // Log but don't block yet — this is the activation phase.
-      // Routes will be migrated to enforce CSRF in a future WI.
-      // For now, the middleware sets a header so routes can check it.
-      response.headers.set('x-csrf-status', 'missing');
+      return new NextResponse(
+        JSON.stringify({ success: false, error: 'CSRF validation failed' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
     }
   }
 

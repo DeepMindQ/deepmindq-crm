@@ -22,6 +22,9 @@ export default function Error({
 }) {
   useEffect(() => {
     console.error('[DeepMindQ] Unhandled error:', error);
+    import('@sentry/nextjs').then((mod) => {
+      mod.default.captureException(error);
+    }).catch(() => { /* Sentry not configured */ });
   }, [error]);
 
   return (

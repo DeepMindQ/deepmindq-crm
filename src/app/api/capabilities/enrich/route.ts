@@ -17,6 +17,33 @@ try {
     const body = await request.json();
     const { url, serviceLine: suggestedServiceLine } = body;
 
+    // Validate URL — HTTPS only, block private/internal IPs
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(url);
+    } catch {
+      return NextResponse.json({ error: 'Invalid URL format' }, { status: 400 });
+    }
+    if (parsedUrl.protocol !== 'https:') {
+      return NextResponse.json({ error: 'Only HTTPS URLs are allowed' }, { status: 400 });
+    }
+    const hostname = parsedUrl.hostname;
+    // Block private IPs, loopback, link-local, and metadata endpoints
+    const blockedPatterns = [
+      /^localhost$/i,
+      /^127\./,
+      /^10\./,
+      /^172\.(1[6-9]|2[0-9]|3[01])\./,
+      /^192\.168\./,
+      /^169\.254\./,
+      /^0\./,
+      /^\[::1\]$/,
+      /^metadata\.google\.internal$/i,
+    ];
+    if (blockedPatterns.some(pattern => pattern.test(hostname))) {
+      return NextResponse.json({ error: 'URL points to a private or internal address' }, { status: 400 });
+    }
+
     if (!url) {
       return NextResponse.json({ error: 'url is required' }, { status: 400 });
     }

@@ -14,7 +14,11 @@ import { logger } from '@/lib/logger';
 // Authorized email configured via AUTHORIZED_EMAIL env var
 // ═══════════════════════════════════════════════════════════════
 
-const AUTHORIZED_EMAIL = process.env.AUTHORIZED_EMAIL || 'shanker001@gmail.com';
+const AUTHORIZED_EMAIL = process.env.AUTHORIZED_EMAIL;
+if (!AUTHORIZED_EMAIL) {
+  // Log once at module level — will be caught by validateEnv() at startup in production
+  console.warn('[auth/request-otp] AUTHORIZED_EMAIL is not set. OTP login will be restricted.');
+}
 
 async function hashOtp(code: string): Promise<string> {
   const encoder = new TextEncoder();
@@ -44,6 +48,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: 'Too many OTP requests. Please try again later.' },
         { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)) } }
+      );
+    }
+
+    if (!AUTHORIZED_EMAIL) {
+      return NextResponse.json(
+        { error: 'Authentication is not configured. AUTHORIZED_EMAIL must be set.' },
+        { status: 503 }
       );
     }
 
@@ -134,10 +145,10 @@ export async function POST(request: NextRequest) {
       });
       const user = await db.user.findUnique({ where: { email } });
       if (!user) {
-        await db.user.create({ data: { email, name: 'Shanker', role: 'admin', isActive: true } });
+        await db.user.create({ data: { email, name: AUTHORIZED_EMAIL ? AUTHORIZED_EMAIL.split('@')[0] : 'Admin', role: 'admin', isActive: true } });
       }
       await db.otpCode.create({
-        data: { email, code, purpose: 'login', expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
+        data: { email, code: await hashOtp(code), purpose: 'login', expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
       });
     } catch (dbErr) {
       logger.warn('[auth/request-otp] DB failed (cookie is primary):', { error: dbErr instanceof Error ? dbErr.message : dbErr });

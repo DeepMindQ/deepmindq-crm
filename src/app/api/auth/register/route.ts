@@ -45,7 +45,13 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = email.trim().toLowerCase();
 
     // Single-user enforcement: reject registration for unauthorized emails
-    const AUTHORIZED_EMAIL = process.env.AUTHORIZED_EMAIL || 'shanker001@gmail.com';
+    const AUTHORIZED_EMAIL = process.env.AUTHORIZED_EMAIL;
+    if (!AUTHORIZED_EMAIL) {
+      return NextResponse.json(
+        { error: 'Registration is not configured. AUTHORIZED_EMAIL must be set.' },
+        { status: 503 }
+      );
+    }
     if (normalizedEmail !== AUTHORIZED_EMAIL) {
       return NextResponse.json(
         { error: 'Registration is restricted to authorized personnel only.' },

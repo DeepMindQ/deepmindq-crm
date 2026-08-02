@@ -15,6 +15,7 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { registerTimer } from '@/lib/timer-registry';
 import { Prisma } from '@prisma/client';
 
 // ── Types ──
@@ -83,14 +84,14 @@ const SUPPORTING_DATA_CACHE_MAX = 500;
 
 // Periodic cleanup of expired cache entries
 if (typeof setInterval !== 'undefined') {
-  setInterval(() => {
+  registerTimer(setInterval(() => {
     const now = Date.now();
     for (const [key, entry] of _supportingDataCache.entries()) {
       if (now - entry.fetchedAt > SUPPORTING_DATA_CACHE_TTL) {
         _supportingDataCache.delete(key);
       }
     }
-  }, 5 * 60 * 1000);
+  }, 5 * 60 * 1000));
 }
 
 /** Invalidate supporting data cache (call after data mutations) */

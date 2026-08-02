@@ -22,6 +22,15 @@ const envSchema = z.object({
   S3_REGION: z.string().optional(),
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
+  // Required for core features
+  AUTHORIZED_EMAIL: z.string().min(1, 'AUTHORIZED_EMAIL is required for login').optional(),
+  TRACKING_SECRET: z.string().min(16, 'TRACKING_SECRET must be at least 16 characters').optional(),
+  EMAIL_API_KEY: z.string().optional(),
+  EMAIL_FROM: z.string().optional(),
+  CRON_SECRET: z.string().optional(),
+  RESEND_WEBHOOK_SECRET: z.string().optional(),
+  SETUP_TOKEN: z.string().optional(),
+  DIRECT_DATABASE_URL: z.string().optional(),
 })
 
 export type EnvConfig = z.infer<typeof envSchema>
@@ -68,6 +77,7 @@ export function getAIProviderStatus(): { providers: string[]; count: number } {
 export function getEnvHealthReport(): {
   database: boolean;
   auth: { secret: boolean; minLength: boolean };
+  secrets: { trackingSecret: boolean; authorizedEmail: boolean };
   ai: { providers: string[]; count: number; tavily: boolean };
   smtp: boolean;
   status: 'healthy' | 'degraded' | 'critical';
@@ -85,6 +95,12 @@ export function getEnvHealthReport(): {
   if (!secret) warnings.push('NEXTAUTH_SECRET is not set — auth will fail')
   if (secret && !minLength) warnings.push('NEXTAUTH_SECRET is less than 32 characters')
 
+  // Critical secrets
+  const trackingSecret = !!env.TRACKING_SECRET
+  const authorizedEmail = !!env.AUTHORIZED_EMAIL
+  if (!trackingSecret) warnings.push('TRACKING_SECRET is not set — email tracking will be insecure')
+  if (!authorizedEmail) warnings.push('AUTHORIZED_EMAIL is not set — login will be restricted')
+
   // AI
   const ai = getAIProviderStatus()
   if (ai.count === 0) warnings.push('No AI providers configured — AI features will use template fallback')
@@ -95,10 +111,10 @@ export function getEnvHealthReport(): {
 
   // Overall status
   let status: 'healthy' | 'degraded' | 'critical' = 'healthy'
-  if (!database || !secret) status = 'critical'
+  if (!database || !secret || !trackingSecret || !authorizedEmail) status = 'critical'
   else if (ai.count === 0 || !minLength) status = 'degraded'
 
-  return { database, auth: { secret, minLength }, ai: { ...ai, tavily }, smtp, status, warnings }
+  return { database, auth: { secret, minLength }, secrets: { trackingSecret, authorizedEmail }, ai: { ...ai, tavily }, smtp, status, warnings }
 }
 
 // Validate env on import (warn only in dev, throw in prod)
@@ -110,6 +126,15 @@ export function validateEnv() {
     }
     if (!process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL must be set in production')
+    }
+    if (!process.env.TRACKING_SECRET) {
+      throw new Error('TRACKING_SECRET must be set in production (min 16 chars)')
+    }
+    if (!process.env.AUTHORIZED_EMAIL) {
+      throw new Error('AUTHORIZED_EMAIL must be set in production')
+    }
+    if (process.env.TRACKING_SECRET && process.env.TRACKING_SECRET.length < 16) {
+      throw new Error('TRACKING_SECRET must be at least 16 characters')
     }
   }
 

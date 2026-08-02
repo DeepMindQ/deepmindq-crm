@@ -920,3 +920,32 @@ Stage Summary:
 - All 10 security items implemented
 - No Prisma schema changes, no engine changes, no new API routes
 - Committed as 86f4371, tagged wi-10-baseline, pushed to origin
+
+---
+## WI-13 Phase 1: Secret & Environment Hardening (E-S1 through E-S7)
+
+**Date**: $(date -u '+%Y-%m-%d %H:%M UTC')
+
+### Changes
+
+- **E-S1**: Removed hardcoded `AUTHORIZED_EMAIL` fallback (`'shanker001@gmail.com'`) from 4 files:
+  - `src/app/api/auth/request-otp/route.ts` — module-level warn + 503 guard + dynamic name from email
+  - `src/app/api/auth/verify-otp/route.ts` — module-level warn + 503 guard
+  - `src/app/api/auth/register/route.ts` — 503 guard before comparison
+  - `src/lib/otp.ts` — early return error + dynamic name from email
+
+- **E-S2**: Removed hardcoded `TRACKING_SECRET` fallback (`'deepmindq-tracking-hmac-secret-2024'`) from `src/lib/email-tracking.ts`. Added module-level warn, runtime guards in `signQueueId` (throws) and `verifyQueueId` (returns null).
+
+- **E-S3**: Hardened `docker-compose.yml` — `POSTGRES_USER` and `POSTGRES_PASSWORD` now use `${:?}` required syntax, `DATABASE_URL`/`DIRECT_DATABASE_URL` reference vars without defaults, `NEXTAUTH_SECRET` uses `${:?}`, added 7 missing env var pass-throughs (AUTHORIZED_EMAIL, TRACKING_SECRET, CRON_SECRET, RESEND_WEBHOOK_SECRET, EMAIL_API_KEY, EMAIL_FROM, NEXT_PUBLIC_APP_URL).
+
+- **E-S4**: Activated `validateEnv()` at startup in `src/instrumentation.ts` — imports and calls `validateEnv()`, exits process in production on failure, warns in dev.
+
+- **E-S5**: Added 8 missing env vars to `src/lib/validate-env.ts` Zod schema (AUTHORIZED_EMAIL, TRACKING_SECRET, EMAIL_API_KEY, EMAIL_FROM, CRON_SECRET, RESEND_WEBHOOK_SECRET, SETUP_TOKEN, DIRECT_DATABASE_URL). Added production throws for TRACKING_SECRET and AUTHORIZED_EMAIL. Updated `getEnvHealthReport()` return type and status calculation to include `secrets` field.
+
+- **E-S6**: Updated `.env.example` with all missing variable sections: AUTHORIZED_EMAIL, TRACKING_SECRET, CRON_SECRET, RESEND_WEBHOOK_SECRET, SETUP_TOKEN, NEXT_PUBLIC_APP_URL, SENTRY_DSN, NEXT_PUBLIC_SENTRY_DSN.
+
+- **E-S7**: Ran `git rm --cached .env` (already untracked).
+
+### Verification
+- `npx tsc --noEmit` passes with zero errors
+- No schema, engine, UI, or logic changes outside scope

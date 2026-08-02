@@ -410,21 +410,12 @@ function detectProvider(body: any): string {
 }
 
 async function isAutoSuppressNegativeReplies(): Promise<boolean> {
+  // Auto-suppression requires explicit configuration via SystemSetting
   try {
-    const settingsRes = await fetch('http://internal/api/settings');
-    if (!settingsRes.ok) return false;
-    const data = await settingsRes.json();
-    return data.settings?.suppressionRules?.autoSuppressNegativeReplies ?? false;
+    const setting = await db.systemSetting.findUnique({ where: { key: 'suppression_rules' } });
+    return setting?.value ? JSON.parse(setting.value)?.autoSuppressNegativeReplies === true : false;
   } catch {
     return false;
   }
 }
 
-// Health check for webhook endpoint
-export async function GET() {
-  return NextResponse.json({
-    endpoint: '/api/webhooks/reply',
-    status: 'active',
-    supportedProviders: ['resend', 'sendgrid', 'generic'],
-  });
-}

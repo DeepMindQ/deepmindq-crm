@@ -159,7 +159,7 @@ export async function GET(request: Request) {
     }
 
     const duration = Date.now() - startTime;
-    logger.info(`[cron/job-processor] Complete in ${duration}ms`, { error: JSON.stringify(results) });
+    logger.info(`[cron/job-processor] Complete in ${duration}ms`, { results: JSON.stringify(results) });
 
     return NextResponse.json({
       ok: true,

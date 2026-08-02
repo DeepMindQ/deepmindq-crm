@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
 
     const command = hasMigrations
       ? `"${prismaBin}" migrate deploy`
-      : `"${prismaBin}" db push --accept-data-loss`;
+      : `"${prismaBin}" db push`;
 
     const result = execSync(command, {
       cwd,

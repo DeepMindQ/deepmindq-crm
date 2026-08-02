@@ -1114,6 +1114,8 @@ export async function preFlightCheck(context: GovernanceContext): Promise<{
 // Move all imports to top of file (F10 fix)
 import { logger } from '@/lib/logger';
 import { ModelRouter } from '@/lib/engines/model-router';
+import { runHallucinationCheck, buildEvidenceContextFromChain, formatHallucinationReportForLog } from '@/lib/ai-hallucination-prevention';
+import type { HallucinationCheckResult, EvidenceContext } from '@/lib/ai-hallucination-prevention';
 
 interface GovernedAICallParams {
   /** Generation type for governance config lookup (e.g. 'email_draft', 'insights') */
@@ -1148,6 +1150,10 @@ interface GovernedAICallParams {
   capabilityAssetIds?: string[];
   /** Input parameters for audit trail (sanitized, no PII) */
   inputParams?: Record<string, unknown>;
+  /** Evidence items for post-generation hallucination check (WI-16B). */
+  evidenceItems?: Array<{ id: string; source: string; url: string | null; snippet: string; content: string; reliability: number; confidence: number }>;
+  /** Whether to run post-generation hallucination check (default: true for company-specific, false for aggregate). */
+  enableHallucinationCheck?: boolean;
 }
 
 export interface GovernedAIResult {
@@ -1163,6 +1169,8 @@ export interface GovernedAIResult {
   groundingNote: string;
   /** Governance warning addon injected into the prompt */
   promptAddon: string;
+  /** Post-generation hallucination check result (WI-16B). */
+  hallucinationCheck: HallucinationCheckResult | null;
 }
 
 /**
@@ -1243,6 +1251,7 @@ export async function governedAICall(
       rejectionReason: governanceResult.rejectionReason,
       groundingNote,
       promptAddon,
+      hallucinationCheck: null,
     };
   }
 
@@ -1315,7 +1324,28 @@ export async function governedAICall(
       rejectionReason: `LLM call failed: ${llmErr instanceof Error ? llmErr.message : 'Unknown error'}`,
       groundingNote,
       promptAddon,
+      hallucinationCheck: null,
     };
+  }
+
+  // ── Step 4b: Post-generation hallucination check (WI-16B) ──
+  let hallucinationCheck: HallucinationCheckResult | null = null;
+  const shouldCheckHallucination = params.enableHallucinationCheck !== false;
+  if (shouldCheckHallucination && response && params.evidenceItems && params.evidenceItems.length > 0) {
+    try {
+      const evidenceContext = buildEvidenceContextFromChain({
+        evidences: params.evidenceItems,
+        fieldConfidence: ctx?.fieldConfidence,
+      });
+      hallucinationCheck = runHallucinationCheck(response, evidenceContext);
+      if (hallucinationCheck.riskLevel === 'high' || hallucinationCheck.riskLevel === 'critical') {
+        logger.warn(`[ai-governance] Post-generation hallucination check: ${hallucinationCheck.riskLevel} risk (${hallucinationCheck.hallucinationRiskScore}/100) for ${generationType}`);
+      }
+      logger.info(formatHallucinationReportForLog(hallucinationCheck));
+    } catch (hallCheckErr) {
+      // Hallucination check failure should NOT break the flow
+      logger.error('[ai-governance] Hallucination check failed (non-blocking):', { error: hallCheckErr instanceof Error ? hallCheckErr.message : hallCheckErr });
+    }
   }
 
   // ── Step 5: Record successful generation ──
@@ -1340,6 +1370,7 @@ export async function governedAICall(
     rejectionReason: null,
     groundingNote,
     promptAddon,
+    hallucinationCheck,
   };
 }
 
@@ -1418,6 +1449,7 @@ export async function governedAICallAggregate(params: {
       rejectionReason: `LLM call failed: ${llmErr instanceof Error ? llmErr.message : 'Unknown error'}`,
       groundingNote: '',
       promptAddon: '',
+      hallucinationCheck: null,
     };
   }
 
@@ -1436,5 +1468,6 @@ export async function governedAICallAggregate(params: {
     rejectionReason: null,
     groundingNote: '',
     promptAddon: '',
+    hallucinationCheck: null,
   };
 }

@@ -12,11 +12,6 @@ const config: Config = {
     '^@/(.*)$': '<rootDir>/src/$1',
   },
   testPathIgnorePatterns: ['<rootDir>/node_modules/', '<rootDir>/.next/', '<rootDir>/src/app/'],
-  transform: {
-    '^.+\\.(ts|tsx)$': ['ts-jest', {
-      tsconfig: 'tsconfig.json',
-    }],
-  },
 };
 
 export default createJestConfig(config);

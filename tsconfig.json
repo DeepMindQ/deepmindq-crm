@@ -45,6 +45,7 @@
     "tests",
     "**/__tests__",
     "vitest.config.ts",
+    "jest.config.ts",
     ".next"
   ]
 }

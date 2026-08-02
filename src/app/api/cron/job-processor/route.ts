@@ -11,6 +11,8 @@ import { logger } from '@/lib/logger';
  * 4. Run evidence lifecycle management
  * 5. Propagate cross-account signals
  * 6. Run scheduled intelligence connectors
+ * 7. Run autonomous monitoring with persistence (WI-3)
+ * 8. Generate operational pipeline alerts (WI-3)
  *
  * Vercel Cron config is in vercel.json (crons array).
  * Set CRON_SECRET env var in Vercel to secure this endpoint.
@@ -66,6 +68,40 @@ export async function GET(request: Request) {
     } catch (err) {
       logger.warn('[cron] Connector scheduling failed:', { error: err });
       results.connectors = { error: 'Connector scheduler not available' };
+    }
+
+    // Step 6: Run autonomous monitoring with persistence (WI-3)
+    try {
+      const { runMonitoringBatchWithPersistence } = await import('@/lib/intelligence-sources/autonomous-monitor');
+      const activeCompanies = await (await import('@/lib/db')).db.company.findMany({
+        where: { status: 'active' },
+        select: { id: true },
+      });
+      const companyIds = activeCompanies.map((c: { id: string }) => c.id);
+      // Batch in groups of 10 to avoid Vercel function timeout
+      const BATCH_SIZE = 10;
+      let totalPersisted = 0;
+      let totalScanned = 0;
+      for (let i = 0; i < companyIds.length; i += BATCH_SIZE) {
+        const batch = companyIds.slice(i, i + BATCH_SIZE);
+        const { persistedCount } = await runMonitoringBatchWithPersistence(batch);
+        totalScanned += batch.length;
+        totalPersisted += persistedCount;
+      }
+      results.monitoring = { companiesScanned: totalScanned, alertsGenerated: totalPersisted };
+    } catch (err) {
+      logger.warn('[cron] Monitoring analysis failed:', { error: err });
+      results.monitoring = { error: 'Monitoring engine not available' };
+    }
+
+    // Step 7: Generate operational pipeline alerts (WI-3)
+    try {
+      const { autoGenerateAlerts } = await import('@/lib/intelligence-sources/intelligence-alerts');
+      const opResult = await autoGenerateAlerts();
+      results.operationalAlerts = { created: opResult.created };
+    } catch (err) {
+      logger.warn('[cron] Operational alert generation failed:', { error: err });
+      results.operationalAlerts = { error: 'Operational alert engine not available' };
     }
 
     const duration = Date.now() - startTime;

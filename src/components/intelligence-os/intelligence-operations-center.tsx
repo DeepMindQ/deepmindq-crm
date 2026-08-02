@@ -196,6 +196,7 @@ export function IntelligenceOperationsCenter() {
   const [predictions, setPredictions] = useState<IntelligencePrediction[]>([]);
   const [insights, setInsights] = useState<CommandCenterInsights | null>(null);
   const [companyIds, setCompanyIds] = useState<string[]>([]);
+  const [alertSummary, setAlertSummary] = useState<{ bySeverity: Record<string, number>; byStatus: Record<string, number>; total: number } | null>(null);
 
   // ── Navigation helper ──
   const navigateToCompany = useCallback((companyId: string) => {
@@ -221,34 +222,45 @@ export function IntelligenceOperationsCenter() {
     }
   }, []);
 
-  // ── Fetch alerts from autonomous monitor ──
-  const fetchAlerts = useCallback(async (cIds: string[]) => {
-    if (cIds.length === 0) { setAlerts([]); return; }
+  // ── Fetch alerts from persisted store (WI-3: lightweight DB read) ──
+  const fetchAlerts = useCallback(async (_cIds: string[]) => {
     setAlertsState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const res = await fetch('/api/intelligence/monitor', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyIds: cIds }),
-      });
+      const params = new URLSearchParams({ status: 'active', limit: '20', includeSummary: 'true' });
+      const res = await fetch(`/api/intelligence/monitor?${params}`);
       if (!res.ok) throw new Error(`Monitor returned ${res.status}`);
       const json = await res.json();
-      const data = json.success ? json.data : json;
-      // runMonitoringBatch returns Map<string, IntelligenceAlert[]>
-      // API serializes Map to object with string keys
-      let allAlerts: OperationsAlert[] = [];
-      if (data && typeof data === 'object') {
-        // Check if it's a Map-like structure (batch result)
-        if (!Array.isArray(data) && !data.alerts) {
-          allAlerts = Object.values(data).flat().filter((a: any) => a && a.id) as OperationsAlert[];
-        } else if (Array.isArray(data.alerts)) {
-          allAlerts = data.alerts as OperationsAlert[];
-        } else if (Array.isArray(data)) {
-          allAlerts = data as OperationsAlert[];
-        }
+
+      // Store summary for status indicator
+      if (json.summary) {
+        setAlertSummary({
+          bySeverity: json.summary.bySeverity ?? {},
+          byStatus: json.summary.byStatus ?? {},
+          total: json.summary.total ?? 0,
+        });
       }
+
+      // Map persisted DB alerts to OperationsAlert format
+      const dbAlerts: OperationsAlert[] = (json.alerts ?? []).map((a: Record<string, unknown>) => {
+        const metadata = typeof a.metadata === 'string' ? JSON.parse(a.metadata) : (a.metadata ?? {});
+        return {
+          id: a.id,
+          companyId: a.companyId ?? '',
+          companyName: (a.company as Record<string, string>)?.rawName ?? metadata.companyName ?? 'Unknown',
+          type: a.alertType,
+          severity: metadata.originalSeverity ?? a.severity,
+          title: a.title,
+          description: a.description,
+          signalId: metadata.signalId ?? undefined,
+          correlation: metadata.correlation ?? undefined,
+          prediction: metadata.prediction ?? undefined,
+          actionRequired: metadata.actionRequired ?? '',
+          createdAt: a.createdAt,
+        };
+      });
+
       // Filter: trust over volume — only show alerts with meaningful confidence
-      const filtered = allAlerts.filter(a => {
+      const filtered = dbAlerts.filter(a => {
         const hasConfidence = a.correlation?.confidence ?? a.prediction?.confidence ?? null;
         if (hasConfidence !== null && hasConfidence * 100 < MIN_ALERT_CONFIDENCE) return false;
         return true;
@@ -325,6 +337,22 @@ export function IntelligenceOperationsCenter() {
     } catch (err) {
       logger.error('[OperationsCenter] Insights fetch failed:', { error: err });
       setInsightsState({ loading: false, error: 'System insights unavailable', lastRefresh: null });
+    }
+  }, []);
+
+  // ── Alert lifecycle handler (WI-3) ──
+  const handleAlertAction = useCallback(async (alertId: string, action: 'acknowledge' | 'resolve' | 'dismiss') => {
+    try {
+      const res = await fetch('/api/intelligence/monitor', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ alertId, action }),
+      });
+      if (!res.ok) throw new Error(`Alert ${action} failed: ${res.status}`);
+      // Remove from local state immediately for responsiveness
+      setAlerts(prev => prev.filter(a => a.id !== alertId));
+    } catch (err) {
+      logger.error(`[OperationsCenter] Alert ${action} failed:`, { error: err });
     }
   }, []);
 
@@ -462,6 +490,16 @@ export function IntelligenceOperationsCenter() {
           </p>
         </div>
         <div className="flex items-center gap-2">
+          {alertSummary && (
+            <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ color: tokens.text.muted, background: tokens.surface.secondary }}>
+              {alertSummary.total} total alerts
+            </span>
+          )}
+          {alertsState.lastRefresh && (
+            <span className="text-[10px]" style={{ color: tokens.text.muted }}>
+              Last scan: {new Date(alertsState.lastRefresh).toLocaleTimeString()}
+            </span>
+          )}
           <Button
             variant="outline"
             size="sm"
@@ -607,6 +645,7 @@ export function IntelligenceOperationsCenter() {
                   key={alert.id}
                   alert={alert}
                   onNavigateToCompany={navigateToCompany}
+                  onAlertAction={handleAlertAction}
                 />
               ))}
             </div>
@@ -736,11 +775,13 @@ function SectionErrorBanner({ message, onRetry }: { message: string; onRetry: ()
   );
 }
 
-function AlertCard({ alert, onNavigateToCompany }: {
+function AlertCard({ alert, onNavigateToCompany, onAlertAction }: {
   alert: OperationsAlert;
   onNavigateToCompany: (id: string) => void;
+  onAlertAction: (alertId: string, action: 'acknowledge' | 'resolve' | 'dismiss') => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
   const style = SEVERITY_STYLES[alert.severity] || SEVERITY_STYLES.info;
   const SeverityIcon = style.icon;
   const alertConfidence = Math.round((alert.correlation?.confidence ?? alert.prediction?.confidence ?? 0.5) * 100);
@@ -826,8 +867,8 @@ function AlertCard({ alert, onNavigateToCompany }: {
             </div>
           )}
 
-          {/* Action */}
-          <div className="mt-3">
+          {/* Action + Lifecycle buttons */}
+          <div className="mt-3 flex items-center gap-2">
             <ActionCTA
               label="Investigate Account"
               variant="inline"
@@ -835,6 +876,32 @@ function AlertCard({ alert, onNavigateToCompany }: {
               onClick={() => onNavigateToCompany(alert.companyId)}
               icon={true}
             />
+            <div className="flex items-center gap-1 ml-auto">
+              <button
+                onClick={(e) => { e.stopPropagation(); setActionLoading('acknowledge'); onAlertAction(alert.id, 'acknowledge'); setTimeout(() => setActionLoading(null), 500); }}
+                className="text-[10px] px-2 py-1 rounded-md border transition-colors"
+                style={{ color: tokens.text.muted, background: tokens.surface.secondary, borderColor: tokens.border.subtle }}
+                disabled={actionLoading !== null}
+              >
+                {actionLoading === 'acknowledge' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Acknowledge'}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setActionLoading('resolve'); onAlertAction(alert.id, 'resolve'); setTimeout(() => setActionLoading(null), 500); }}
+                className="text-[10px] px-2 py-1 rounded-md border transition-colors"
+                style={{ color: '#22c55e', background: tokens.surface.secondary, borderColor: tokens.border.subtle }}
+                disabled={actionLoading !== null}
+              >
+                {actionLoading === 'resolve' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Resolve'}
+              </button>
+              <button
+                onClick={(e) => { e.stopPropagation(); setActionLoading('dismiss'); onAlertAction(alert.id, 'dismiss'); setTimeout(() => setActionLoading(null), 500); }}
+                className="text-[10px] px-2 py-1 rounded-md border transition-colors"
+                style={{ color: tokens.text.muted, background: tokens.surface.secondary, borderColor: tokens.border.subtle }}
+                disabled={actionLoading !== null}
+              >
+                {actionLoading === 'dismiss' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Dismiss'}
+              </button>
+            </div>
           </div>
         </div>
       )}

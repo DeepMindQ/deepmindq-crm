@@ -11,6 +11,7 @@
 import { db } from '@/lib/db';
 import { detectCorrelations, type CorrelationInsight } from './cross-signal-correlation';
 import { generatePredictions, type IntelligencePrediction } from './predictive-intelligence';
+import { createAlert, mapMonitorSeverity, hasActiveAlert } from './intelligence-alerts';
 import { logger } from '@/lib/logger';
 
 // ─── Alert Types ───────────────────────────────────────────────
@@ -159,4 +160,61 @@ export async function runMonitoringBatch(
     await new Promise(resolve => setTimeout(resolve, 500));
   }
   return results;
+}
+
+/**
+ * Run monitoring across a batch of companies AND persist generated alerts to DB.
+ *
+ * This is a persistence wrapper — it calls the existing runMonitoringBatch()
+ * detection engine unchanged, then iterates the results and persists each
+ * intelligence alert through the intelligence-alerts.ts persistence layer.
+ *
+ * Deduplication: checks for existing active alerts with same companyId + alertType
+ * within the last 24 hours before creating a new alert.
+ *
+ * Detection engine (runMonitoringCheck / runMonitoringBatch) is NOT modified.
+ * All DB writes go through intelligence-alerts.ts functions.
+ */
+export async function runMonitoringBatchWithPersistence(
+  companyIds: string[],
+  config?: Partial<MonitoringConfig>
+): Promise<{ results: Map<string, IntelligenceAlert[]>; persistedCount: number }> {
+  // Run the existing detection engine — unchanged
+  const results = await runMonitoringBatch(companyIds, config);
+
+  let persistedCount = 0;
+  for (const [companyId, alerts] of results) {
+    for (const alert of alerts) {
+      try {
+        // Deduplication: skip if active alert exists for same company + type
+        const isDuplicate = await hasActiveAlert(companyId, alert.type);
+        if (isDuplicate) continue;
+
+        // Map severity from autonomous-monitor space to DB space
+        const { dbSeverity, original } = mapMonitorSeverity(alert.severity);
+
+        await createAlert({
+          companyId: alert.companyId,
+          severity: dbSeverity,
+          alertType: alert.type,
+          title: alert.title,
+          description: alert.description,
+          metadata: {
+            source: 'autonomous-monitor',
+            originalSeverity: original,
+            signalId: alert.signalId ?? null,
+            actionRequired: alert.actionRequired,
+            correlation: alert.correlation ?? null,
+            prediction: alert.prediction ?? null,
+          },
+        });
+        persistedCount++;
+      } catch (err) {
+        logger.error(`[monitor] Failed to persist alert for ${companyId}:`, { error: err });
+        // Continue persisting other alerts — one failure must not block the batch
+      }
+    }
+  }
+
+  return { results, persistedCount };
 }

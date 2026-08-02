@@ -17,7 +17,7 @@ import type { Prisma } from '@prisma/client';
 // ─── Exported Types ──────────────────────────────────────────
 
 /** Alert severity levels, ordered low → critical */
-export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical';
+export type AlertSeverity = 'low' | 'medium' | 'high' | 'critical' | 'warning' | 'urgent' | 'info';
 
 /** Categorical alert types produced by the intelligence pipeline */
 export type AlertType =
@@ -27,7 +27,14 @@ export type AlertType =
   | 'duplicate_cluster'
   | 'confidence_drop'
   | 'ingestion_failure'
-  | 'schedule_missed';
+  | 'schedule_missed'
+  // Autonomous-monitor intelligence alert types
+  | 'fresh_critical_signal'
+  | 'signal_cluster_detected'
+  | 'correlation_pattern_found'
+  | 'prediction_generated'
+  | 'new_high_confidence_signal'
+  | 'new_signal_type_detected';
 
 /** Alert lifecycle statuses */
 export type AlertStatus = 'active' | 'acknowledged' | 'resolved' | 'dismissed';
@@ -81,9 +88,13 @@ const VALID_SEVERITIES: readonly AlertSeverity[] = [
   'medium',
   'high',
   'critical',
+  'warning',
+  'urgent',
+  'info',
 ] as const;
 
 const VALID_ALERT_TYPES: readonly AlertType[] = [
+  // Operational alert types (Sprint 3)
   'health_degraded',
   'source_stale',
   'conflict_detected',
@@ -91,14 +102,24 @@ const VALID_ALERT_TYPES: readonly AlertType[] = [
   'confidence_drop',
   'ingestion_failure',
   'schedule_missed',
+  // Intelligence alert types (Phase 2C autonomous-monitor)
+  'fresh_critical_signal',
+  'signal_cluster_detected',
+  'correlation_pattern_found',
+  'prediction_generated',
+  'new_high_confidence_signal',
+  'new_signal_type_detected',
 ] as const;
 
 /** Severity ordering for critical-first sorting within the same timestamp */
 const SEVERITY_ORDER: Record<string, number> = {
   critical: 0,
-  high: 1,
-  medium: 2,
-  low: 3,
+  urgent: 1,
+  high: 2,
+  warning: 3,
+  medium: 4,
+  info: 5,
+  low: 6,
 };
 
 const DEFAULT_PAGE_LIMIT = 20;
@@ -619,4 +640,63 @@ export async function autoGenerateAlerts(companyId?: string): Promise<{
   }
 
   return { created: createdCount, alerts: [] };
+}
+
+// ─── 8. Severity Mapping (autonomous-monitor → DB) ────────────
+
+/**
+ * Map autonomous-monitor severity values to DB-compatible IntelligenceAlert severity.
+ *
+ * autonomous-monitor uses: info, warning, urgent, critical
+ * Original intelligence-alerts uses: low, medium, high, critical
+ *
+ * Both are now valid in the extended AlertSeverity type, but this mapping
+ * provides a normalized severity for backward compatibility in DB queries.
+ */
+const SEVERITY_MAP_MONITOR_TO_DB: Record<string, AlertSeverity> = {
+  critical: 'critical',
+  urgent: 'high',
+  warning: 'warning',
+  info: 'low',
+  low: 'low',
+  medium: 'medium',
+  high: 'high',
+};
+
+/**
+ * Map an autonomous-monitor severity to a DB-compatible severity.
+ * Stores the original severity in metadata for display fidelity.
+ */
+export function mapMonitorSeverity(monitorSeverity: string): { dbSeverity: AlertSeverity; original: string } {
+  return {
+    dbSeverity: SEVERITY_MAP_MONITOR_TO_DB[monitorSeverity] ?? 'medium',
+    original: monitorSeverity,
+  };
+}
+
+// ─── 9. Check for Duplicate Active Alert ────────────────────
+
+/**
+ * Check if an active alert already exists for the given companyId + alertType
+ * within the specified time window (default 24 hours).
+ *
+ * Used by the persistence wrapper to avoid creating duplicate intelligence alerts
+ * on consecutive monitoring runs.
+ */
+export async function hasActiveAlert(
+  companyId: string,
+  alertType: string,
+  windowHours: number = 24,
+): Promise<boolean> {
+  const cutoff = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+  const existing = await db.intelligenceAlert.findFirst({
+    where: {
+      companyId,
+      alertType,
+      status: 'active',
+      createdAt: { gte: cutoff },
+    },
+    select: { id: true },
+  });
+  return existing !== null;
 }

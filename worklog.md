@@ -830,3 +830,31 @@ Stage Summary:
 - Zero mock data in new component
 - All intelligence sourced from existing engines via existing APIs
 - Default landing view changed to intelligence-operations
+---
+Task ID: 1d-wi3
+Agent: Main Agent
+Task: WI-3 — Autonomous Monitoring Activation
+
+Work Log:
+- Extended intelligence-alerts.ts: AlertSeverity (7 values), AlertType (13 values), SEVERITY_ORDER, VALID_SEVERITIES, VALID_ALERT_TYPES
+- Added mapMonitorSeverity() helper (bridges autonomous-monitor severity → DB severity, preserves original in metadata)
+- Added hasActiveAlert() deduplication function (checks companyId + alertType + 24h window)
+- Added runMonitoringBatchWithPersistence() wrapper to autonomous-monitor.ts (calls existing runMonitoringBatch unchanged, persists via intelligence-alerts.ts)
+- Extended /api/intelligence/monitor with GET handler (read persisted alerts via getAlerts + getAlertSummary) and PATCH handler (lifecycle: acknowledge/resolve/dismiss)
+- POST /api/intelligence/monitor left completely unchanged
+- Added cron Step 6 (runMonitoringBatchWithPersistence in batches of 10) and Step 7 (autoGenerateAlerts) to job-processor
+- Updated Operations Center: fetchAlerts switched from POST live monitoring to GET persisted DB read
+- Added handleAlertAction handler for alert lifecycle (acknowledge/resolve/dismiss via PATCH)
+- Added lifecycle buttons (Acknowledge, Resolve, Dismiss) to AlertCard with loading states
+- Added monitoring status indicator (total alerts count + last scan timestamp) in Operations Center header
+- No new routes created — all on /api/intelligence/monitor
+- No schema migrations — Prisma IntelligenceAlert model already has all fields
+- Detection engine (runMonitoringCheck/runMonitoringBatch) completely untouched
+
+Stage Summary:
+- Modified: intelligence-alerts.ts (+70 lines), autonomous-monitor.ts (+40 lines), monitor/route.ts (+65 lines), job-processor/route.ts (+30 lines), intelligence-operations-center.tsx (+50 lines), index.ts (barrel export)
+- Total: 6 files modified, 0 files created, 0 files deleted
+- tsc --noEmit: CLEAN (0 errors)
+- next build: SUCCESS
+- vitest: 57/57 files, 1888/1888 tests passing, 14 skipped, 0 failures
+- Architecture: detection engine unchanged, persistence layer single-source, single API route extended

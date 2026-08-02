@@ -1152,3 +1152,34 @@ Stage Summary:
 - 6 files changed, 64 insertions, 7 deletions
 - Commit: 06d24ac934d7b3c80fc0385e9e0c03856c9409c9
 - Files: layout.tsx, marketing/page.tsx, page.tsx, intelligence-operations-center.tsx, data-import-screen.tsx, signal-intelligence-screen.tsx
+
+---
+Task ID: b4
+Agent: Super Z (sub-agent)
+Task: WI-15B Priority 4: Design Token Migration — Top 8 Customer Screens
+
+Work Log:
+- Audited 8 target screen files for hardcoded hex color occurrences
+- 2 files (signal-intelligence-screen.tsx, data-import-screen.tsx) already had 0 hex colors
+- Added 17 new CSS design token variables to globals.css :root block:
+  - Status text variants: --ios-status-green-text, --ios-status-amber-text, --ios-status-red-text, --ios-status-purple-text, --ios-status-neutral-text
+  - Status light variants: --ios-status-blue-light, --ios-status-green-light, --ios-status-amber-light, --ios-status-muted
+  - Accent: --ios-violet, --ios-indigo
+  - UI: --ios-track, --ios-chart-text, --ios-border-light
+  - Gold gradient stops: --ios-gold-dark, --ios-gold-mid, --ios-gold-text
+- Migrated 6 screen files:
+  - dashboard-screen.tsx: 2→0 (border accent colors)
+  - companies-screen.tsx: 18→0 (STATUS_COLORS, TIER_BADGE, scoreColor, scoreGradient, SVG track, button text)
+  - contacts-screen.tsx: 2→0 (AI button gradient, influence badge)
+  - opportunity-workspace-screen.tsx: 16→0 (GOLD/INTEL constants, SCORING_DIMENSIONS, ScoreRing, stat cards, button colors)
+  - knowledge-workspace.tsx: 3→0 (stat icon colors)
+  - settings-screen.tsx: 28→0 (gold focus inputs, icon colors, gradient buttons, chart text, section gradients)
+- Total: 69 hex occurrences migrated to 0
+- tsc --noEmit: clean (only pre-existing jest.config.ts error)
+- ESLint: passed
+
+Stage Summary:
+- 9 files modified (7 source + globals.css + 2 pre-existing untracked)
+- Before: 69 hex occurrences across 6 screens
+- After: 0 hex occurrences
+- Commit: db6cad0

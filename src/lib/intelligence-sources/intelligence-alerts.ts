@@ -39,7 +39,9 @@ export type AlertType =
   | 'cross_account_industry_trend'
   | 'cross_account_technology_wave'
   | 'cross_account_segment_opportunity'
-  | 'high_confidence_prediction';
+  | 'high_confidence_prediction'
+  // Learning loop alert types (WI-5)
+  | 'signal_quality_declining';
 
 /** Alert lifecycle statuses */
 export type AlertStatus = 'active' | 'acknowledged' | 'resolved' | 'dismissed';
@@ -119,6 +121,8 @@ const VALID_ALERT_TYPES: readonly AlertType[] = [
   'cross_account_technology_wave',
   'cross_account_segment_opportunity',
   'high_confidence_prediction',
+  // Learning loop alert types (WI-5)
+  'signal_quality_declining',
 ] as const;
 
 /** Severity ordering for critical-first sorting within the same timestamp */

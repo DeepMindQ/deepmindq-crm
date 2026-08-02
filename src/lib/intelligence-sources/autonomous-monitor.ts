@@ -13,6 +13,7 @@ import { detectCorrelations, type CorrelationInsight } from './cross-signal-corr
 import { generatePredictions, type IntelligencePrediction } from './predictive-intelligence';
 import { detectCrossAccountPatterns, type CrossAccountInsight } from './cross-account-intelligence';
 import { createAlert, mapMonitorSeverity, hasActiveAlert, hasActiveAlertByDedupKey } from './intelligence-alerts';
+import { computeLearningInsights, shouldAlertQualityDecline, type LearningInsight } from './learning-loop';
 import { logger } from '@/lib/logger';
 
 // ─── Alert Types ───────────────────────────────────────────────
@@ -401,4 +402,70 @@ export async function runPredictionBatchWithPersistence(
   }
 
   return { predictions, persistedCount };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WI-5: Learning Loop Persistence Wrapper
+//
+// Follows the same pattern as WI-3/WI-4 wrappers:
+// - computeLearningInsights() is NOT modified (it's in learning-loop.ts)
+// - All DB writes go through intelligence-alerts.ts
+// - Deduplication before every createAlert() call
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Compute learning insights and persist quality-declining alerts.
+ *
+ * Calls computeLearningInsights() (pure analysis, untouched), then
+ * persists alerts for signal types whose accuracy has dropped below
+ * the quality threshold with sufficient feedback.
+ *
+ * @returns Object with insights array and count of persisted alerts
+ */
+export async function runLearningLoopWithPersistence(): Promise<{
+  insights: LearningInsight[];
+  persistedCount: number;
+}> {
+  // Call the existing analysis function — unchanged
+  const insights = await computeLearningInsights();
+
+  let persistedCount = 0;
+
+  for (const insight of insights) {
+    if (!shouldAlertQualityDecline(insight)) continue;
+
+    try {
+      // Deduplication: same signalType + alertType within 48h
+      const dedupKey = `quality:${insight.signalType}`;
+      const isDuplicate = await hasActiveAlertByDedupKey(dedupKey, 'signal_quality_declining', 48);
+      if (isDuplicate) continue;
+
+      // Severity: accuracy < 0.2 → high, else medium
+      const severity = insight.accuracyScore < 0.2 ? 'high' : 'medium';
+
+      await createAlert({
+        severity,
+        alertType: 'signal_quality_declining',
+        title: `Signal quality declining: ${insight.signalType.replace(/_/g, ' ')}`,
+        description: `Signal type "${insight.signalType}" has an accuracy score of ${Math.round(insight.accuracyScore * 100)}% based on ${insight.totalFeedback} feedback responses. Trend: ${insight.trend}. Consider reviewing signal classification rules for this type.`,
+        metadata: {
+          source: 'learning-loop',
+          dedupKey,
+          insight,
+          signalType: insight.signalType,
+          accuracyScore: insight.accuracyScore,
+          relevanceScore: insight.relevanceScore,
+          actionabilityScore: insight.actionabilityScore,
+          totalFeedback: insight.totalFeedback,
+          surpriseScore: insight.surpriseScore,
+          trend: insight.trend,
+        },
+      });
+      persistedCount++;
+    } catch (err) {
+      logger.error(`[monitor] Failed to persist learning quality alert for ${insight.signalType}:`, { error: err });
+    }
+  }
+
+  return { insights, persistedCount };
 }

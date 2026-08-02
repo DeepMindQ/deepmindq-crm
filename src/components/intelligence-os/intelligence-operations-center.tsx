@@ -138,6 +138,17 @@ interface CommandCenterInsights {
   systemHealth: { engines: Array<{ name: string; status: string }>; aiStatus: string };
 }
 
+// WI-5: Learning insight type for Signal Quality section
+interface LearningInsightData {
+  signalType: string;
+  accuracyScore: number;
+  relevanceScore: number;
+  actionabilityScore: number;
+  totalFeedback: number;
+  surpriseScore: number;
+  trend: 'improving' | 'stable' | 'declining';
+}
+
 interface SectionState {
   loading: boolean;
   error: string | null;
@@ -189,6 +200,7 @@ export function IntelligenceOperationsCenter() {
   const [patternsState, setPatternsState] = useState<SectionState>({ loading: false, error: null, lastRefresh: null });
   const [predictionsState, setPredictionsState] = useState<SectionState>({ loading: false, error: null, lastRefresh: null });
   const [insightsState, setInsightsState] = useState<SectionState>({ loading: false, error: null, lastRefresh: null });
+  const [learningState, setLearningState] = useState<SectionState>({ loading: false, error: null, lastRefresh: null });
 
   // ── Data ──
   const [alerts, setAlerts] = useState<OperationsAlert[]>([]);
@@ -197,6 +209,7 @@ export function IntelligenceOperationsCenter() {
   const [insights, setInsights] = useState<CommandCenterInsights | null>(null);
   const [companyIds, setCompanyIds] = useState<string[]>([]);
   const [alertSummary, setAlertSummary] = useState<{ bySeverity: Record<string, number>; byStatus: Record<string, number>; total: number } | null>(null);
+  const [learningInsights, setLearningInsights] = useState<LearningInsightData[]>([]);
 
   // ── Navigation helper ──
   const navigateToCompany = useCallback((companyId: string) => {
@@ -405,6 +418,38 @@ export function IntelligenceOperationsCenter() {
     }
   }, []);
 
+  // ── Fetch learning insights from feedback API (WI-5) ──
+  const fetchLearningInsights = useCallback(async () => {
+    setLearningState(prev => ({ ...prev, loading: true, error: null }));
+    try {
+      const res = await fetch('/api/intelligence/feedback');
+      if (!res.ok) throw new Error(`Feedback returned ${res.status}`);
+      const json = await res.json();
+      const data = json.success ? json.data : json;
+      const result = Array.isArray(data?.insights) ? data.insights : [];
+      setLearningInsights(result);
+      setLearningState({ loading: false, error: null, lastRefresh: Date.now() });
+    } catch (err) {
+      logger.error('[OperationsCenter] Learning insights fetch failed:', { error: err });
+      setLearningState({ loading: false, error: 'Learning insights unavailable', lastRefresh: null });
+    }
+  }, []);
+
+  // ── Signal feedback handler (WI-5) ──
+  const handleSignalFeedback = useCallback(async (signalId: string, companyId: string, type: 'accurate' | 'inaccurate') => {
+    try {
+      await fetch('/api/intelligence/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ signalId, companyId, type }),
+      });
+      // Refresh learning insights after feedback
+      setTimeout(() => fetchLearningInsights(), 1000);
+    } catch (err) {
+      logger.error('[OperationsCenter] Signal feedback failed:', { error: err });
+    }
+  }, [fetchLearningInsights]);
+
   // ── Alert lifecycle handler (WI-3) ──
   const handleAlertAction = useCallback(async (alertId: string, action: 'acknowledge' | 'resolve' | 'dismiss') => {
     try {
@@ -431,8 +476,9 @@ export function IntelligenceOperationsCenter() {
       fetchPatterns(cIds),
       fetchPredictions(cIds),
       fetchInsights(),
+      fetchLearningInsights(),
     ]);
-  }, [fetchCompanyIds, fetchAlerts, fetchPatterns, fetchPredictions, fetchInsights]);
+  }, [fetchCompanyIds, fetchAlerts, fetchPatterns, fetchPredictions, fetchInsights, fetchLearningInsights]);
 
   // ── Initial load + polling ──
   useEffect(() => {
@@ -445,15 +491,16 @@ export function IntelligenceOperationsCenter() {
         fetchInsights();
       }
     }, 60_000);
-    // Patterns & predictions: 5-minute polling
+    // Patterns, predictions & learning: 5-minute polling
     const patternPoll = setInterval(() => {
       if (companyIds.length > 0) {
         fetchPatterns(companyIds);
         fetchPredictions(companyIds);
+        fetchLearningInsights();
       }
     }, 5 * 60_000);
     return () => { clearInterval(alertPoll); clearInterval(patternPoll); };
-  }, [intelligenceActivated, fetchAll, fetchAlerts, fetchPatterns, fetchPredictions, fetchInsights, companyIds]);
+  }, [intelligenceActivated, fetchAll, fetchAlerts, fetchPatterns, fetchPredictions, fetchInsights, fetchLearningInsights, companyIds]);
 
   // ── Derived: Operations summary for hero ──
   const criticalAlertCount = alerts.filter(a => a.severity === 'critical').length;
@@ -711,6 +758,7 @@ export function IntelligenceOperationsCenter() {
                   alert={alert}
                   onNavigateToCompany={navigateToCompany}
                   onAlertAction={handleAlertAction}
+                  onSignalFeedback={handleSignalFeedback}
                 />
               ))}
             </div>
@@ -761,6 +809,61 @@ export function IntelligenceOperationsCenter() {
                   key={`pred-${pred.type}-${i}`}
                   prediction={pred}
                 />
+              ))}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ═══ 3b. SIGNAL QUALITY (WI-5) ═══ */}
+      <AnimatePresence>
+        {learningInsights.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="rounded-xl border p-5"
+            style={{ background: tokens.surface.card, borderColor: tokens.border.subtle }}
+          >
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <Activity className="w-4 h-4" style={{ color: tokens.accent.bright }} />
+                <h2 className="text-sm font-semibold" style={{ color: tokens.text.primary }}>Signal Quality</h2>
+              </div>
+              <Badge variant="secondary" className="text-[10px] px-2">
+                {learningInsights.length} signal type{learningInsights.length !== 1 ? 's' : ''}
+              </Badge>
+            </div>
+            <div className="space-y-2">
+              {learningInsights.slice(0, 5).map((li, i) => (
+                <div
+                  key={`quality-${li.signalType}-${i}`}
+                  className="flex items-center justify-between rounded-lg p-3"
+                  style={{ background: tokens.surface.secondary }}
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{
+                      color: li.accuracyScore >= 0.7 ? '#22c55e' : li.accuracyScore >= 0.4 ? '#f59e0b' : '#ef4444',
+                      background: li.accuracyScore >= 0.7 ? 'rgba(34,197,94,0.1)' : li.accuracyScore >= 0.4 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
+                    }}>
+                      {Math.round(li.accuracyScore * 100)}%
+                    </span>
+                    <div>
+                      <p className="text-xs font-medium" style={{ color: tokens.text.primary }}>
+                        {li.signalType.replace(/_/g, ' ')}
+                      </p>
+                      <p className="text-[10px]" style={{ color: tokens.text.muted }}>
+                        {li.totalFeedback} feedback{li.totalFeedback !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded" style={{
+                    color: li.trend === 'improving' ? '#22c55e' : li.trend === 'declining' ? '#ef4444' : tokens.text.muted,
+                    background: li.trend === 'improving' ? 'rgba(34,197,94,0.08)' : li.trend === 'declining' ? 'rgba(239,68,68,0.08)' : tokens.surface.secondary,
+                  }}>
+                    {li.trend === 'improving' ? '↑ improving' : li.trend === 'declining' ? '↓ declining' : '→ stable'}
+                  </span>
+                </div>
               ))}
             </div>
           </motion.div>
@@ -840,13 +943,15 @@ function SectionErrorBanner({ message, onRetry }: { message: string; onRetry: ()
   );
 }
 
-function AlertCard({ alert, onNavigateToCompany, onAlertAction }: {
+function AlertCard({ alert, onNavigateToCompany, onAlertAction, onSignalFeedback }: {
   alert: OperationsAlert;
   onNavigateToCompany: (id: string) => void;
   onAlertAction: (alertId: string, action: 'acknowledge' | 'resolve' | 'dismiss') => void;
+  onSignalFeedback: (signalId: string, companyId: string, type: 'accurate' | 'inaccurate') => void;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [feedbackGiven, setFeedbackGiven] = useState<string | null>(null);
   const style = SEVERITY_STYLES[alert.severity] || SEVERITY_STYLES.info;
   const SeverityIcon = style.icon;
   const alertConfidence = Math.round((alert.correlation?.confidence ?? alert.prediction?.confidence ?? 0.5) * 100);
@@ -968,6 +1073,30 @@ function AlertCard({ alert, onNavigateToCompany, onAlertAction }: {
               </button>
             </div>
           </div>
+          {/* WI-5: Signal quality feedback — only shown when alert has a signalId */}
+          {alert.signalId && alert.companyId && (
+            <div className="mt-2 pt-2 flex items-center gap-2" style={{ borderTop: `1px solid ${tokens.border.subtle}` }}>
+              <span className="text-[10px]" style={{ color: tokens.text.muted }}>Was this signal useful?</span>
+              {feedbackGiven ? (
+                <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ color: '#22c55e', background: 'rgba(34,197,94,0.1)' }}>Thanks for feedback</span>
+              ) : (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setFeedbackGiven('accurate'); onSignalFeedback(alert.signalId!, alert.companyId, 'accurate'); }}
+                    className="text-[10px] px-2 py-0.5 rounded-full border transition-colors"
+                    style={{ color: '#22c55e', background: 'rgba(34,197,94,0.05)', borderColor: 'rgba(34,197,94,0.2)' }}
+                    title="Accurate"
+                  >&#x1F44D;&#xFE0F; Accurate</button>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); setFeedbackGiven('inaccurate'); onSignalFeedback(alert.signalId!, alert.companyId, 'inaccurate'); }}
+                    className="text-[10px] px-2 py-0.5 rounded-full border transition-colors"
+                    style={{ color: '#ef4444', background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}
+                    title="Inaccurate"
+                  >&#x1F44E;&#xFE0F; Inaccurate</button>
+                </>
+              )}
+            </div>
+          )}
         </div>
       )}
     </motion.div>

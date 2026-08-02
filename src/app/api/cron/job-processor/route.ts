@@ -15,6 +15,7 @@ import { logger } from '@/lib/logger';
  * 8. Generate operational pipeline alerts (WI-3)
  * 9. Run cross-account analysis with persistence (WI-4)
  * 10. Run prediction batch with persistence (WI-4)
+ * 11. Run learning loop with persistence (WI-5)
  *
  * Vercel Cron config is in vercel.json (crons array).
  * Set CRON_SECRET env var in Vercel to secure this endpoint.
@@ -145,6 +146,16 @@ export async function GET(request: Request) {
     } catch (err) {
       logger.warn('[cron] Prediction batch failed:', { error: err });
       results.predictionBatch = { error: 'Prediction engine not available' };
+    }
+
+    // Step 10: Run learning loop with persistence (WI-5)
+    try {
+      const { runLearningLoopWithPersistence } = await import('@/lib/intelligence-sources/autonomous-monitor');
+      const { insights, persistedCount } = await runLearningLoopWithPersistence();
+      results.learningLoop = { insightsAnalyzed: insights.length, qualityAlerts: persistedCount };
+    } catch (err) {
+      logger.warn('[cron] Learning loop failed:', { error: err });
+      results.learningLoop = { error: 'Learning loop engine not available' };
     }
 
     const duration = Date.now() - startTime;

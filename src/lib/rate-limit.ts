@@ -15,6 +15,7 @@ interface RateLimitOptions {
 }
 
 // Store: key -> { count: number, resetAt: number }
+const MAX_STORE_SIZE = 100_000
 const store = new Map<string, { count: number; resetAt: number }>()
 
 // Cleanup old entries every 5 minutes
@@ -34,6 +35,19 @@ export function rateLimit(options: RateLimitOptions): RateLimitResult {
   if (!entry || entry.resetAt <= now) {
     entry = { count: 0, resetAt: now + windowMs }
     store.set(key, entry)
+  }
+
+  // Evict oldest entries if store exceeds max size
+  if (store.size > MAX_STORE_SIZE) {
+    let oldestKey: string | undefined;
+    let oldestReset = Infinity;
+    for (const [k, e] of store.entries()) {
+      if (e.resetAt < oldestReset) {
+        oldestReset = e.resetAt
+        oldestKey = k
+      }
+    }
+    if (oldestKey) store.delete(oldestKey)
   }
 
   entry.count++

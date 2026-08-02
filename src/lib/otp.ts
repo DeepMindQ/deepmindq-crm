@@ -9,6 +9,17 @@ import { db } from './db';
 import { sendEmail } from './email-provider';
 import { logger } from '@/lib/logger';
 
+/**
+ * Hash an OTP code using SHA-256 before database storage.
+ * OTP codes are never stored in plaintext — only the hash persists.
+ */
+async function hashOtp(code: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`dmq:${code}`);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 export type OtpPurpose =
   | 'login'
   | 'set_password'
@@ -112,7 +123,7 @@ export async function requestOtp(
   }
 
   // Single-user enforcement: only allow authorized email
-  const AUTHORIZED_EMAIL = 'shanker001@gmail.com';
+  const AUTHORIZED_EMAIL = process.env.AUTHORIZED_EMAIL || 'shanker001@gmail.com';
   if (normalizedEmail !== AUTHORIZED_EMAIL) {
     return { success: false, error: 'This workspace is restricted to authorized personnel only.' };
   }
@@ -172,11 +183,14 @@ export async function requestOtp(
   const code = generateOtpCode();
   const expiresAt = new Date(Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000);
 
+  // Hash OTP before storage — never store plaintext
+  const codeHash = await hashOtp(code);
+
   await db.otpCode.create({
     data: {
       userId: user.id,
       email: normalizedEmail,
-      code,
+      code: codeHash,
       purpose,
       expiresAt,
     },
@@ -217,7 +231,7 @@ export async function requestOtp(
 
   // If email was NOT sent
   if (!emailSent) {
-    const devOtpAllowed = process.env.ALLOW_DEV_OTP === 'true';
+    const devOtpAllowed = process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_OTP === 'true';
     if (devOtpAllowed) {
       // Explicit dev OTP bypass: return code for local development convenience
       logger.info(`[OTP] DEV — ALLOW_DEV_OTP enabled. Returning code: ${code}`);
@@ -253,10 +267,13 @@ export async function verifyOtp(
     return { success: false, error: 'Invalid code format', needsPassword: false };
   }
 
+  // Hash submitted code to compare against stored hash
+  const codeHash = await hashOtp(code);
+
   const otp = await db.otpCode.findFirst({
     where: {
       email: normalizedEmail,
-      code,
+      code: codeHash,
       purpose,
       verified: false,
       expiresAt: { gt: new Date() },

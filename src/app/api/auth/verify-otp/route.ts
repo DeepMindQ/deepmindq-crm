@@ -16,7 +16,7 @@ import { logger } from '@/lib/logger';
 // all serverless instances. OTP only ever goes to email.
 // ═══════════════════════════════════════════════════════════════
 
-const AUTHORIZED_EMAIL = 'shanker001@gmail.com';
+const AUTHORIZED_EMAIL = process.env.AUTHORIZED_EMAIL || 'shanker001@gmail.com';
 const MAX_ATTEMPTS = 5;
 
 const schema = z.object({
@@ -92,8 +92,9 @@ export async function POST(request: NextRequest) {
     if (submittedHash !== storedHash) {
       // Also try DB as secondary check (PATH B: database OTP fallback)
       try {
+        const submittedHash = await hashOtp(code);
         const otp = await db.otpCode.findFirst({
-          where: { email: normalizedEmail, code, purpose, verified: false, expiresAt: { gt: new Date() } },
+          where: { email: normalizedEmail, code: submittedHash, purpose, verified: false, expiresAt: { gt: new Date() } },
           include: { user: true },
         });
         if (otp) {

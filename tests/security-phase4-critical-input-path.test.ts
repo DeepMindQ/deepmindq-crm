@@ -33,7 +33,7 @@ describe('Phase 4 — Critical Input Path Hardening', () => {
       const content = readFileSync(filePath, 'utf-8')
 
       // Must have the AUTHORIZED_EMAIL constant
-      expect(content).toContain("AUTHORIZED_EMAIL = 'shanker001@gmail.com'")
+      expect(content).toMatch(/AUTHORIZED_EMAIL\s*=\s*process\.env\.AUTHORIZED_EMAIL/)
 
       // The guard must appear BEFORE the db.user.create call
       const guardIndex = content.indexOf('Registration is restricted to authorized personnel only')

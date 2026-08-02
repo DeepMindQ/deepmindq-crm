@@ -34,7 +34,7 @@ export async function POST(request: NextRequest) {
     const normalizedEmail = email.trim().toLowerCase();
 
     // Single-user enforcement: reject registration for unauthorized emails
-    const AUTHORIZED_EMAIL = 'shanker001@gmail.com';
+    const AUTHORIZED_EMAIL = process.env.AUTHORIZED_EMAIL || 'shanker001@gmail.com';
     if (normalizedEmail !== AUTHORIZED_EMAIL) {
       return NextResponse.json(
         { error: 'Registration is restricted to authorized personnel only.' },
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
     // Send OTP for email verification
     const otpResult = await requestOtp(normalizedEmail, 'login');
 
-    const devOtpAllowed = process.env.ALLOW_DEV_OTP === 'true';
+    const devOtpAllowed = process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_OTP === 'true';
     return NextResponse.json({
       success: true,
       data: {

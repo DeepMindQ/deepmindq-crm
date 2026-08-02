@@ -23,6 +23,21 @@ export async function GET(request: Request) {
   const queueId = verifyQueueId(token);
   const targetUrl = encodedUrl ? decodeURIComponent(encodedUrl) : '/';
 
+  // Validate target URL — block javascript:, data:, and non-http(s) protocols
+  if (targetUrl !== '/') {
+    let parsedUrl: URL;
+    try {
+      parsedUrl = new URL(targetUrl);
+    } catch {
+      return NextResponse.redirect('/', 302); // Invalid URL, redirect to home
+    }
+    const safeProtocol = parsedUrl.protocol === 'http:' || parsedUrl.protocol === 'https:';
+    const safePath = !parsedUrl.pathname.startsWith('//');
+    if (!safeProtocol || !safePath) {
+      return NextResponse.redirect('/', 302); // Unsafe URL, redirect to home
+    }
+  }
+
   if (!queueId) {
     // Invalid token — still redirect but don't record
     return NextResponse.redirect(targetUrl, 302);

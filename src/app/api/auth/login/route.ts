@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: otpResult.error || 'Failed to send OTP' }, { status: 500 });
     }
 
-    const devOtpAllowed = process.env.ALLOW_DEV_OTP === 'true';
+    const devOtpAllowed = process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_OTP === 'true';
     return NextResponse.json({
       success: true,
       message: devOtpAllowed && otpResult.devCode ? 'Password verified. OTP generated (dev mode).' : 'Password verified. OTP sent to your email.',
@@ -62,10 +62,7 @@ export async function POST(request: NextRequest) {
     });
   } catch (error) {
     logger.error('[auth/login] Error:', { error: error });
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    if (message.includes('prisma') || message.includes('datasource') || message.includes('database') || message.includes('relation')) {
-      return NextResponse.json({ error: 'Database not configured. Please set DATABASE_URL on Render.', detail: message }, { status: 503 });
-    }
-    return NextResponse.json({ error: 'Internal server error', detail: message }, { status: 500 });
+    // Do NOT expose internal error details to clients
+    return NextResponse.json({ error: 'Authentication service is temporarily unavailable. Please try again later.' }, { status: 503 });
   }
 }

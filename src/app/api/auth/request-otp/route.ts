@@ -10,10 +10,10 @@ import { logger } from '@/lib/logger';
 // 3. Store SHA256(code) in httpOnly cookie (survives across serverless)
 // 4. Verify by hashing user input and comparing to cookie
 //
-// Only authorized email: shanker001@gmail.com
+// Authorized email configured via AUTHORIZED_EMAIL env var
 // ═══════════════════════════════════════════════════════════════
 
-const AUTHORIZED_EMAIL = 'shanker001@gmail.com';
+const AUTHORIZED_EMAIL = process.env.AUTHORIZED_EMAIL || 'shanker001@gmail.com';
 
 async function hashOtp(code: string): Promise<string> {
   const encoder = new TextEncoder();

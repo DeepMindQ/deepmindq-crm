@@ -1,12 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  LayoutDashboard, Building2, Users, Upload, Settings, Mail, BookOpen,
-  Sparkles, GitBranch, BarChart3, FileText,
-  Target, Layers, ScrollText, Copy, Kanban, Activity, Radar, Brain,
+  Building2, Users, Upload, Mail, FileText,
 } from 'lucide-react'
 import { useAppStore } from '@/lib/store'
+import { NAV_SECTIONS } from '@/lib/nav-config'
 import {
   CommandDialog,
   CommandInput,
@@ -26,28 +25,20 @@ interface NavCmd {
   section: string
 }
 
-// ── All navigation commands (mirrors NAV_SECTIONS in nav-config.ts) ──
-const ALL_NAV: NavCmd[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, screen: 'dashboard', section: 'Intelligence' },
-  { id: 'revenue-intelligence', label: 'Revenue Intelligence', icon: Sparkles, screen: 'revenue-intelligence', section: 'Intelligence' },
-  { id: 'signal-intelligence', label: 'Signal Intelligence', icon: Radar, screen: 'signal-intelligence', section: 'Intelligence' },
-  { id: 'companies', label: 'Companies', icon: Building2, screen: 'companies', section: 'Accounts' },
-  { id: 'contacts', label: 'Stakeholders', icon: Users, screen: 'contacts', section: 'Accounts' },
-  { id: 'opportunities', label: 'Opportunities', icon: Target, screen: 'opportunities', section: 'Accounts' },
-  { id: 'segments', label: 'Segments', icon: Kanban, screen: 'segments', section: 'Accounts' },
-  { id: 'pipeline', label: 'Pipeline', icon: GitBranch, screen: 'pipeline', section: 'Pipeline & Engagement' },
-  { id: 'sequences', label: 'Sequences', icon: GitBranch, screen: 'sequences', section: 'Pipeline & Engagement' },
-  { id: 'email-studio', label: 'Email Studio', icon: FileText, screen: 'email-studio', section: 'Pipeline & Engagement' },
-  { id: 'inbox', label: 'Replies & Bounces', icon: Mail, screen: 'inbox', section: 'Pipeline & Engagement' },
-  { id: 'import', label: 'Import', icon: Upload, screen: 'import', section: 'Operations' },
-  { id: 'analytics', label: 'Analytics', icon: BarChart3, screen: 'analytics', section: 'Operations' },
-  { id: 'knowledge', label: 'Knowledge Base', icon: Brain, screen: 'knowledge', section: 'Operations' },
-  { id: 'ai-health', label: 'AI Health', icon: Activity, screen: 'ai-health', section: 'Operations' },
-  { id: 'settings', label: 'Settings', icon: Settings, screen: 'settings', section: 'Settings' },
-  { id: 'audit', label: 'Audit Log', icon: ScrollText, screen: 'audit', section: 'Settings' },
-  { id: 'data-health', label: 'Data Health', icon: Layers, screen: 'data-health', section: 'Settings' },
-  { id: 'duplicates', label: 'Duplicates', icon: Copy, screen: 'duplicates', section: 'Settings' },
-]
+// ── Derive navigation commands from NAV_SECTIONS (single source of truth) ──
+function buildNavCommands(): NavCmd[] {
+  return NAV_SECTIONS.flatMap(sec =>
+    sec.items.map(item => ({
+      id: item.key,
+      label: item.label,
+      icon: item.icon,
+      screen: item.key,
+      section: sec.heading,
+    })),
+  )
+}
+
+const ALL_NAV: NavCmd[] = buildNavCommands()
 
 interface SearchCompany { id: string; name: string; rawName?: string; industry?: string | null }
 interface SearchContact { id: string; name: string; email?: string | null; company?: { name: string } | null }
@@ -135,11 +126,13 @@ export function CommandPalette() {
     ? ALL_NAV.filter(c => c.label.toLowerCase().includes(q) || c.section.toLowerCase().includes(q))
     : ALL_NAV
 
-  const grouped = filteredNav.reduce<Record<string, NavCmd[]>>((acc, cmd) => {
-    if (!acc[cmd.section]) acc[cmd.section] = []
-    acc[cmd.section].push(cmd)
-    return acc
-  }, {})
+  const grouped = useMemo(() => {
+    return filteredNav.reduce<Record<string, NavCmd[]>>((acc, cmd) => {
+      if (!acc[cmd.section]) acc[cmd.section] = []
+      acc[cmd.section].push(cmd)
+      return acc
+    }, {})
+  }, [filteredNav])
 
   return (
     <CommandDialog open={open} onOpenChange={setOpen}>
@@ -213,15 +206,15 @@ export function CommandPalette() {
           <>
             <CommandSeparator />
             <CommandGroup heading="Quick Actions">
-              <CommandItem onSelect={() => { navigateToScreen('contacts'); }}>
+              <CommandItem onSelect={() => navigateToScreen('contacts')}>
                 <Users className="size-4 text-muted-foreground" />
-                <span>Add New Contact</span>
+                <span>Go to Contacts</span>
               </CommandItem>
               <CommandItem onSelect={() => navigateToScreen('email-studio')}>
-                <FileText className="size-4 text-muted-foreground" />
+                <Mail className="size-4 text-muted-foreground" />
                 <span>Email Studio</span>
               </CommandItem>
-              <CommandItem onSelect={() => navigateToScreen('import')}>
+              <CommandItem onSelect={() => navigateToScreen('data-import')}>
                 <Upload className="size-4 text-muted-foreground" />
                 <span>Import Data</span>
               </CommandItem>

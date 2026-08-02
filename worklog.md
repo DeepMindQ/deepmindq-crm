@@ -998,3 +998,72 @@ Files changed (7):
 
 Commit: fb025db53da0582a617022ddd97783ec1e26cefd
 ---
+Task ID: p3
+Agent: Super Z (sub-agent)
+Task: WI-15 Phase 3 — Demo Readiness Fixes
+
+Work Log:
+- P3-1: Fixed contact AI briefing auto-trigger in contact-detail-screen.tsx
+  - Replaced misused `useState(false)` + `useState(() => {...})` with proper `useRef(false)` + `useEffect(...)`
+  - Added `useRef` and `useEffect` to React import
+  - Briefing now correctly auto-fires when companyId loads
+
+- P3-2: Fixed dashboard guard ordering in dashboard-screen.tsx
+  - Added `isLoading` early-return with spinner BEFORE the `!dd` guard
+  - Added `dashError` early-return with retry button
+  - Removed redundant downstream `if (dashError && !dashData)` guard (became unreachable, caused TS2349)
+  - Added `Loader2` to lucide-react imports
+
+- P3-3: Removed fabricated import quality metrics in import-screen.tsx
+  - Changed `qualitySummary` state type to accept `number | null` for valid/duplicates/missing/qualityScore
+  - Replaced hardcoded percentage calculations (3% dupes, 8% missing) with null values
+  - UI now shows "Pending Analysis" for score and "—" for null metrics
+  - Fixed preview step to use `qualitySummary.valid ?? totalRows` fallback
+  - Fixed executeImport fallbacks for nullable valid/duplicates
+
+- P3-4: Fixed import error/completion race condition in import-screen.tsx
+  - Removed `setStep('complete')` from catch block — was showing success screen alongside error toast
+  - Error now keeps user on 'executing' step with error toast visible
+
+- P3-5: Fixed onboarding API endpoint typo in onboarding-flow.tsx
+  - Changed `/api/g-auth/update-profile` → `/api/auth/update-profile` (confirmed route exists)
+
+Build: tsc --noEmit clean (0 errors), ESLint clean, pre-commit hooks passed
+
+Files changed:
+- src/components/screens/contact-detail-screen.tsx
+- src/components/screens/dashboard-screen.tsx
+- src/components/screens/import-screen.tsx
+- src/components/onboarding-flow.tsx
+
+Commit: b92d483
+---
+Task ID: p4
+Agent: Super Z (sub-agent)
+Task: WI-15 Phase 4 — Navigation Redesign
+
+Work Log:
+- P4-1: Verified all screen keys exist in SCREEN_MAP (contacts, pipeline, email-studio, data-import, data-health, audit, etc.)
+- P4-1: Rewrote nav-config.ts — consolidated 21 nav items across 3 sections into 14 items across 5 sections
+  - INTELLIGENCE (6): Executive Dashboard, Company Intelligence, Contact Intelligence, AI Insights, Opportunities, Intelligence Search
+  - REVENUE (2): Pipeline, Email Studio
+  - KNOWLEDGE (1): Knowledge Intelligence
+  - DATA (2): Import Data, Data Health
+  - OPERATIONS (4): Analytics, System Health, Settings, Audit & Governance
+- P4-1: Removed all dead `isNew` flags from NavItem interface and all nav items
+- P4-1: Added new icon imports (Users, GitBranch, Mail, FileDown) for new/renamed entries
+- P4-1: Renamed misleading labels: Integrations→Data Health, Data Management→Import Data, AI Health→System Health
+- P4-1: Merged duplicates: 3 dashboards→1, 2 audit screens→1, 2 knowledge screens→1, 2 import screens→1
+- P4-2: Rewrote command-palette.tsx — replaced hardcoded ALL_NAV list with derivation from NAV_SECTIONS
+  - Command palette now shows identical items and labels as sidebar (single source of truth)
+  - Fixed Quick Actions: "Add New Contact"→"Go to Contacts", icon Mail for Email Studio, screen key data-import for Import
+  - Removed stale items (Revenue Intelligence, Segments, Sequences, Replies & Bounces, Knowledge Base, AI Usage, Duplicates)
+- P4-3: No SCREEN_MAP changes needed — all required keys already exist
+
+Build: tsc --noEmit clean (0 errors), ESLint clean, pre-commit hooks passed
+
+Files changed:
+- src/lib/nav-config.ts
+- src/components/shared/command-palette.tsx
+
+Commit: 6170033

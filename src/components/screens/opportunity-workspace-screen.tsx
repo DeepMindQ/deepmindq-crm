@@ -661,15 +661,23 @@ export default function OpportunityWorkspaceScreen() {
   const loadDealIntel = useCallback(async (id: string) => {
     setDealIntelLoading((prev) => ({ ...prev, [id]: true }));
     try {
-      // Simulate deal intel generation (in real app this calls an API)
-      await new Promise(r => setTimeout(r, 1500));
+      // Attempt to fetch real deal intel from API
+      try {
+        const res = await fetch(`/api/intelligence/deal-intel/${id}`);
+        if (res.ok) {
+          const data = await res.json();
+          setDealIntels((prev) => ({ ...prev, [id]: data }));
+          setDealIntelLoading((prev) => ({ ...prev, [id]: false }));
+          return;
+        }
+      } catch { /* API not available — show pending state */ }
       setDealIntels((prev) => ({
         ...prev,
         [id]: {
           id,
-          confidence: 72 + Math.round(Math.random() * 20),
-          buyerReadiness: 55 + Math.round(Math.random() * 35),
-          dealVelocity: ['Fast (1-2 weeks)', 'Medium (2-4 weeks)', 'Steady (4-8 weeks)'][Math.floor(Math.random() * 3)],
+          confidence: 0,
+          buyerReadiness: 0,
+          dealVelocity: 'Pending analysis',
           competitivePosition: 'Strong positioning — no incumbent vendor detected. Early engagement stage with high influence access.',
           keyInsights: [
             'Company recently raised Series B funding, signaling expansion budget',

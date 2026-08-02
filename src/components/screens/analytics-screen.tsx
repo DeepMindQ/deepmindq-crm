@@ -111,15 +111,17 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
   const [timeRange, setTimeRange] = useState('7d');
 
   /* ── Data ── */
-  const { data: _dash } = useQuery<DashboardData>({
+  const { data: _dash, isLoading: dashLoading, isError: dashError, refetch: refetchDash } = useQuery<DashboardData>({
     queryKey: ['analytics-dashboard'], queryFn: () => fetch('/api/dashboard').then(r => r.json()).catch(() => null), staleTime: 60000,
   });
-  const { data: _queue } = useQuery<any[]>({
+  const { data: _queue, isLoading: queueLoading } = useQuery<any[]>({
     queryKey: ['analytics-queue'], queryFn: () => fetch('/api/queue').then(r => r.json()).catch(() => []), staleTime: 60000,
   });
-  const { data: _replies } = useQuery<any[]>({
+  const { data: _replies, isLoading: repliesLoading } = useQuery<any[]>({
     queryKey: ['analytics-replies'], queryFn: () => fetch('/api/replies').then(r => r.json()).catch(() => []), staleTime: 60000,
   });
+
+  const isLoading = dashLoading || queueLoading || repliesLoading;
 
   const d = _dash?.contactsByStatus ? _dash : null;
   const queueItems = Array.isArray(_queue) ? _queue : [];
@@ -203,8 +205,52 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
   /* ═══════════════════════════════════════════════════
      Render
      ═══════════════════════════════════════════════════ */
+
+  /* ── Loading ── */
+  if (isLoading && !d && queueItems.length === 0) {
+    return (
+      <div className={cls.scrollContainer} style={{ ...spacing.sectionGap as React.CSSProperties, gap: '2rem' }}>
+        <div className="flex items-center justify-between">
+          <div><Skeleton className="h-6 w-48 rounded-lg mb-2" /><Skeleton className="h-4 w-64 rounded" /></div>
+          <Skeleton className="h-8 w-32 rounded-lg" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
+        </div>
+        <Skeleton className="h-[380px] rounded-xl" />
+        <Skeleton className="h-[360px] rounded-xl" />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Skeleton className="h-[320px] rounded-xl" />
+          <Skeleton className="h-[320px] rounded-xl" />
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Error (dashboard query failed and no data) ── */
+  if (dashError && !d) {
+    return (
+      <div className={cls.scrollContainer}>
+        <div className="flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+            <Activity className="w-6 h-6" style={{ color: '#EF4444' }} />
+          </div>
+          <h3 className="text-sm font-semibold mb-1" style={{ color: '#e8ecf4' }}>Failed to load analytics</h3>
+          <p className="text-xs mb-5" style={{ color: '#8892a8', maxWidth: '320px' }}>Could not fetch dashboard data. This may be a temporary issue.</p>
+          <button
+            onClick={() => refetchDash()}
+            className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-colors"
+            style={{ background: '#2563EB', color: '#fff' }}
+          >
+            <TrendingUp className="w-3.5 h-3.5" /> Retry
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className={cls.scrollContainer} style={{ ...spacing.sectionGap as React.CSSProperties, gap: '2rem' }}>
+    <div role="main" aria-label="Analytics" className={cls.scrollContainer} style={{ ...spacing.sectionGap as React.CSSProperties, gap: '2rem' }}>
 
       {/* ═══════ HEADER ═══════ */}
       <div className="flex items-center justify-between">
@@ -240,7 +286,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
 
       {/* ═══════ PIPELINE FUNNEL CHART ═══════ */}
       <GlassPanel delay={0.1}>
-        <div className="p-5">
+        <div className="p-5" aria-label="Pipeline funnel chart showing conversion from import through reply">
           <SectionHeader title="Pipeline Funnel" subtitle="Conversion from import through reply" />
           <ResponsiveContainer width="100%" height={320}>
             <BarChart data={funnelData} layout="vertical" margin={{ top: 4, right: 60, left: 80, bottom: 4 }}>
@@ -269,7 +315,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
 
       {/* ═══════ ENGAGEMENT TRENDS ═══════ */}
       <GlassPanel delay={0.15}>
-        <div className="p-5">
+        <div className="p-5" aria-label="Email engagement trends chart showing sent, opened, and clicked over time">
           <SectionHeader title="Email Engagement Trends" subtitle="Sent, opened, and clicked emails over time" />
           <ResponsiveContainer width="100%" height={300}>
             <AreaChart data={trendData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
@@ -304,7 +350,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Reply Categories */}
         <GlassPanel delay={0.2}>
-          <div className="p-5">
+          <div className="p-5" aria-label="Reply categories pie chart showing breakdown of reply sentiment">
             <SectionHeader title="Reply Categories" subtitle="Breakdown of reply sentiment" />
             <ResponsiveContainer width="100%" height={260}>
               <PieChart>
@@ -338,7 +384,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
 
         {/* Email Health */}
         <GlassPanel delay={0.25}>
-          <div className="p-5">
+          <div className="p-5" aria-label="Email health distribution chart showing verification status across contacts">
             <SectionHeader title="Email Health Distribution" subtitle="Verification status across all contacts" />
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={healthData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>

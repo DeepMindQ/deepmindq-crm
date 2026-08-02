@@ -1061,7 +1061,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
   };
 
   return (
-    <div className="p-6 md:p-8 max-w-4xl mx-auto">
+    <div role="main" aria-label="Import Data" className="p-6 md:p-8 max-w-4xl mx-auto">
       {/* Step indicator - hide during analysis/executing/complete */}
       {step !== 'analysis' && step !== 'executing' && step !== 'complete' ? renderStepIndicator() : null}
 

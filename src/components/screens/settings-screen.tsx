@@ -87,7 +87,7 @@ const indigoAlpha = (a: number) => `rgba(99,102,241,${a})`;
 
 // ── Shared gold-focus input className ───────────────────────
 const INPUT_CLS =
-  'bg-input/30 border-border focus:border-[#D4AF37] focus:ring-1 focus:ring-[#D4AF37]/30 transition-all duration-300';
+  'bg-input/30 border-border focus:border-[var(--color-gold-dim)] focus:ring-1 focus:ring-[var(--color-gold-dim)]/30 transition-all duration-300';
 
 // ── Timezone list ──────────────────────────────────────────
 const TIMEZONES = [
@@ -164,7 +164,7 @@ function ToggleRow({
               className="mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
               style={{ background: `${goldAlpha(0.08)}` }}
             >
-              <Icon className="size-4 text-[#D4AF37]" />
+              <Icon className="size-4 text-[var(--color-gold-dim)]" />
             </div>
           )}
           <div className="space-y-0.5 min-w-0">
@@ -312,7 +312,7 @@ function TeamPerformanceSection() {
                   size="sm"
                   variant="outline"
                   disabled={assigning}
-                  className="border-[#D4AF37]/40 text-[#D4AF37] hover:bg-[#D4AF37]/10 transition-all duration-300"
+                  className="border-[var(--color-gold-dim)]/40 text-[var(--color-gold-dim)] hover:bg-[var(--color-gold-dim)]/10 transition-all duration-300"
                   onClick={() => runAssignment('unassigned')}
                 >
                   {assigning ? <RefreshCw className="size-3.5 mr-1.5 animate-spin" /> : <ArrowRightLeft className="size-3.5 mr-1.5" />}
@@ -358,7 +358,7 @@ function TeamPerformanceSection() {
             {/* ── Loading state ────────────────────────────── */}
             {loading ? (
               <div className="flex items-center justify-center py-16">
-                <RefreshCw className="size-5 text-[#D4AF37] animate-spin" />
+                <RefreshCw className="size-5 text-[var(--color-gold-dim)] animate-spin" />
                 <span className="ml-3 text-sm text-muted-foreground">Loading team data…</span>
               </div>
             ) : members.length === 0 ? (
@@ -376,7 +376,7 @@ function TeamPerformanceSection() {
                       <thead className="sticky top-0 z-10">
                         <tr
                           className="text-left text-xs font-medium uppercase tracking-wider text-muted-foreground"
-                          style={{ background: cardSolid, border: '1px solid #E5E7EB', boxShadow: `0 4px 16px ${blackAlpha(0.12)}`, backdropFilter: 'blur(8px)' }}
+                          style={{ background: cardSolid, border: '1px solid var(--ios-border-light)', boxShadow: `0 4px 16px ${blackAlpha(0.12)}`, backdropFilter: 'blur(8px)' }}
                         >
                           <th className="px-4 py-3 whitespace-nowrap">Member</th>
                           <th className="px-4 py-3 text-right whitespace-nowrap">Assigned</th>
@@ -418,7 +418,7 @@ function TeamPerformanceSection() {
                                   <div
                                     className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
                                     style={{
-                                      background: `linear-gradient(135deg, #D4AF37, #9A8340)`,
+                                      background: `linear-gradient(135deg, var(--color-gold-dim), var(--ios-gold-dark))`,
                                       boxShadow: idx === 0 ? `0 0 12px ${goldAlpha(0.4)}` : 'none',
                                     }}
                                   >
@@ -427,7 +427,7 @@ function TeamPerformanceSection() {
                                   <div className="min-w-0">
                                     <p className="text-sm font-medium text-foreground truncate">{m.name}</p>
                                     {idx === 0 && (
-                                      <span className="text-[11px] font-semibold text-[#D4AF37] flex items-center gap-1">
+                                      <span className="text-[11px] font-semibold text-[var(--color-gold-dim)] flex items-center gap-1">
                                         <Trophy className="size-2.5" /> Top Performer
                                       </span>
                                     )}
@@ -494,7 +494,7 @@ function TeamPerformanceSection() {
                             <div className="flex items-center gap-2">
                               <div
                                 className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-white"
-                                style={{ background: 'linear-gradient(135deg, #D4AF37, #9A8340)' }}
+                                style={{ background: 'linear-gradient(135deg, var(--color-gold-dim), var(--ios-gold-dark))' }}
                               >
                                 {m.avatar}
                               </div>
@@ -730,9 +730,9 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                                   background: cardSolid, border: `1px solid ${blackAlpha(0.06)}`, boxShadow: `0 4px 16px ${blackAlpha(0.12)}`,
                                   borderRadius: '8px',
                                   fontSize: '12px',
-                                  color: '#e4e4e7',
+                                  color: 'var(--ios-chart-text)',
                                 }}
-                                itemStyle={{ color: '#e4e4e7' }}
+                                itemStyle={{ color: 'var(--ios-chart-text)' }}
                               />
                             </PieChart>
                           </ResponsiveContainer>
@@ -806,7 +806,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                   <div className="flex items-center gap-2 mb-4">
                     <div
                       className="w-1 h-4 rounded-full"
-                      style={{ background: 'linear-gradient(180deg, #D4AF37, #9A8340)' }}
+                      style={{ background: 'linear-gradient(180deg, var(--color-gold-dim), var(--ios-gold-dark))' }}
                     />
                     <h4 className="text-sm font-semibold text-foreground">Quick Actions</h4>
                   </div>
@@ -853,7 +853,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                   <div className="flex items-center gap-2 mb-4">
                     <div
                       className="w-1 h-4 rounded-full"
-                      style={{ background: 'linear-gradient(180deg, #D4AF37, #9A8340)' }}
+                      style={{ background: 'linear-gradient(180deg, var(--color-gold-dim), var(--ios-gold-dark))' }}
                     />
                     <h4 className="text-sm font-semibold text-foreground">Recent Consent Changes</h4>
                     <span className="text-[11px] text-muted-foreground ml-1">(last 30 days)</span>
@@ -1229,7 +1229,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
 
   return (
     <PageTransition>
-      <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-8 pr-1 pb-8">
+      <div role="main" aria-label="Settings" className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-8 pr-1 pb-8">
         {/* ── Toast notification ─────────────────────────────── */}
         <AnimatePresence>
           {toastMessage && (
@@ -1284,7 +1284,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
             >
               {(() => {
                 const Icon = TAB_ICONS[activeTab];
-                return <Icon className="size-4 text-[#D4AF37]" />;
+                return <Icon className="size-4 text-[var(--color-gold-dim)]" />;
               })()}
             </motion.div>
           )}
@@ -1370,7 +1370,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                           onClick={handleProfileUpdate}
                           disabled={profileOtpCode.length !== 6 || profileLoading}
                           className="gap-1.5"
-                          style={{ background: 'linear-gradient(135deg, #B8860B, #D4A843)', color: '#fff' }}
+                          style={{ background: 'linear-gradient(135deg, var(--ios-gold-mid), var(--color-gold))', color: '#fff' }}
                         >
                           <Save className="w-3.5 h-3.5" /> Save
                         </Button>
@@ -1427,7 +1427,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                       <Button size="sm" onClick={() => { setProfileOtpPurpose('change_email'); handleProfileOtpRequest('change_email'); }} disabled={profileOtpCountdown > 0 || profileLoading} variant="outline" className="gap-1.5">
                         {profileOtpCountdown > 0 ? `${profileOtpCountdown}s` : <><RefreshCw className="w-3.5 h-3.5" /> Send OTP</>}
                       </Button>
-                      <Button size="sm" onClick={handleEmailChange} disabled={profileOtpCode.length !== 6 || profileLoading || profileOtpPurpose !== 'change_email'} className="gap-1.5" style={{ background: 'linear-gradient(135deg, #B8860B, #D4A843)', color: '#fff' }}>
+                      <Button size="sm" onClick={handleEmailChange} disabled={profileOtpCode.length !== 6 || profileLoading || profileOtpPurpose !== 'change_email'} className="gap-1.5" style={{ background: 'linear-gradient(135deg, var(--ios-gold-mid), var(--color-gold))', color: '#fff' }}>
                         <ArrowRightLeft className="w-3.5 h-3.5" /> Update Email
                       </Button>
                     </div>
@@ -1500,7 +1500,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                       <Button size="sm" onClick={() => { setProfileOtpPurpose('change_password'); handleProfileOtpRequest('change_password'); }} disabled={profileOtpCountdown > 0 || profileLoading} variant="outline" className="gap-1.5">
                         {profileOtpCountdown > 0 ? `${profileOtpCountdown}s` : <><RefreshCw className="w-3.5 h-3.5" /> Send OTP</>}
                       </Button>
-                      <Button size="sm" onClick={handlePasswordChange} disabled={profileOtpCode.length !== 6 || profileLoading || profileOtpPurpose !== 'change_password'} className="gap-1.5" style={{ background: 'linear-gradient(135deg, #B8860B, #D4A843)', color: '#fff' }}>
+                      <Button size="sm" onClick={handlePasswordChange} disabled={profileOtpCode.length !== 6 || profileLoading || profileOtpPurpose !== 'change_password'} className="gap-1.5" style={{ background: 'linear-gradient(135deg, var(--ios-gold-mid), var(--color-gold))', color: '#fff' }}>
                         <KeyRound className="w-3.5 h-3.5" /> Update
                       </Button>
                     </div>
@@ -1535,7 +1535,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                       <PulseDot />\n                      <span>{Object.values(aiProviderEnabled).filter(Boolean).length} active</span>
                     </div>
                     <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                      <Button size="sm" onClick={saveAIProviders} disabled={aiSaving} className="gap-1.5" style={{ background: 'linear-gradient(135deg, #B8860B, #D4A843)', color: '#fff' }}>
+                      <Button size="sm" onClick={saveAIProviders} disabled={aiSaving} className="gap-1.5" style={{ background: 'linear-gradient(135deg, var(--ios-gold-mid), var(--color-gold))', color: '#fff' }}>
                         <Save className="size-3.5" />
                         {aiSaving ? 'Saving...' : 'Save All'}
                       </Button>
@@ -1551,9 +1551,9 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                   ) : (
                     <div className="space-y-4">
                       {/* Fallback chain info */}
-                      <div className="rounded-lg border border-[#D4AF37]/20 p-3 mb-6" style={{ background: `${goldAlpha(0.04)}` }}>
+                      <div className="rounded-lg border border-[var(--color-gold-dim)]/20 p-3 mb-6" style={{ background: `${goldAlpha(0.04)}` }}>
                         <div className="flex items-start gap-2">
-                          <Target className="size-4 text-[#D4AF37] mt-0.5 shrink-0" />
+                          <Target className="size-4 text-[var(--color-gold-dim)] mt-0.5 shrink-0" />
                           <div className="text-xs text-muted-foreground leading-relaxed">
                             <p className="font-medium text-foreground mb-1">LLM Fallback Chain</p>
                             <p>AI calls try providers in priority order. If the primary fails, it automatically falls back to the next enabled provider. This ensures your enrichment and AI features never break.</p>
@@ -1639,7 +1639,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                                     variant="outline"
                                     disabled={!aiProviderKeys[providerId] || testResult?.loading}
                                     onClick={() => testAIProvider(providerId)}
-                                    className={testResult?.success ? 'border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10' : testResult?.success === false ? 'border-red-500/40 text-red-500 hover:bg-red-500/10' : 'border-[#D4AF37]/40 text-[#D4AF37] hover:bg-[#D4AF37]/10'}
+                                    className={testResult?.success ? 'border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10' : testResult?.success === false ? 'border-red-500/40 text-red-500 hover:bg-red-500/10' : 'border-[var(--color-gold-dim)]/40 text-[var(--color-gold-dim)] hover:bg-[var(--color-gold-dim)]/10'}
                                   >
                                     {testResult?.loading ? <RefreshCw className="size-3.5 animate-spin" /> : testResult?.success ? <CheckCircle2 className="size-3.5" /> : testResult?.success === false ? <XCircle className="size-3.5" /> : <RefreshCw className="size-3.5" />}
                                     {testResult?.loading ? 'Testing...' : testResult?.message || 'Test'}
@@ -1746,7 +1746,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                         <Button
                           size="sm"
                           variant="outline"
-                          className="border-[#D4AF37]/40 text-[#D4AF37] hover:bg-[#D4AF37]/10 w-fit transition-all duration-300"
+                          className="border-[var(--color-gold-dim)]/40 text-[var(--color-gold-dim)] hover:bg-[var(--color-gold-dim)]/10 w-fit transition-all duration-300"
                           onClick={() => {
                             setGraphConnected(true);
                             showToast('Microsoft Graph connected successfully');
@@ -1808,7 +1808,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                       <Button
                         className="text-primary-foreground hover:opacity-90 transition-all duration-200"
                         style={{
-                          background: 'linear-gradient(135deg, #D4AF37, #B8941F)',
+                          background: 'linear-gradient(135deg, var(--color-gold-dim), var(--ios-gold-mid))',
                           boxShadow: `0 0 20px ${goldAlpha(0.15)}`,
                         }}
                         onClick={() => showToast('Mailbox settings saved')}
@@ -1943,7 +1943,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <h4 className="text-sm font-semibold text-foreground flex items-center gap-2 px-1">
                   <div
                     className="w-1 h-4 rounded-full"
-                    style={{ background: 'linear-gradient(180deg, #D4AF37, #9A8340)' }}
+                    style={{ background: 'linear-gradient(180deg, var(--color-gold-dim), var(--ios-gold-dark))' }}
                   />
                   Enforcement Rules
                 </h4>
@@ -1970,7 +1970,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <Button
                   className="text-primary-foreground hover:opacity-90 transition-all duration-200"
                   style={{
-                    background: 'linear-gradient(135deg, #D4AF37, #B8941F)',
+                    background: 'linear-gradient(135deg, var(--color-gold-dim), var(--ios-gold-mid))',
                     boxShadow: `0 0 20px ${goldAlpha(0.15)}`,
                   }}
                   onClick={() => showToast('Working hours saved')}
@@ -2058,7 +2058,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div className="flex items-center gap-2.5 mb-1">
                   <div
                     className="w-1 h-5 rounded-full"
-                    style={{ background: 'linear-gradient(180deg, #D4AF37, #9A8340)' }}
+                    style={{ background: 'linear-gradient(180deg, var(--color-gold-dim), var(--ios-gold-dark))' }}
                   />
                   <h4 className="text-sm font-semibold text-foreground">Email Health Threshold</h4>
                 </div>
@@ -2085,7 +2085,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                     <Button
                       className="text-primary-foreground hover:opacity-90 transition-all duration-200"
                       style={{
-                        background: 'linear-gradient(135deg, #D4AF37, #B8941F)',
+                        background: 'linear-gradient(135deg, var(--color-gold-dim), var(--ios-gold-mid))',
                         boxShadow: `0 0 20px ${goldAlpha(0.15)}`,
                       }}
                       onClick={() => showToast('Verification settings saved')}
@@ -2200,7 +2200,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                     <Button
                       className="text-primary-foreground hover:opacity-90 transition-all duration-200"
                       style={{
-                        background: 'linear-gradient(135deg, #D4AF37, #B8941F)',
+                        background: 'linear-gradient(135deg, var(--color-gold-dim), var(--ios-gold-mid))',
                         boxShadow: `0 0 20px ${goldAlpha(0.15)}`,
                       }}
                       onClick={saveScoringRules}
@@ -2281,7 +2281,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                     <Button
                       className="text-primary-foreground hover:opacity-90 transition-all duration-200"
                       style={{
-                        background: 'linear-gradient(135deg, #D4AF37, #B8941F)',
+                        background: 'linear-gradient(135deg, var(--color-gold-dim), var(--ios-gold-mid))',
                         boxShadow: `0 0 20px ${goldAlpha(0.15)}`,
                       }}
                       onClick={() => showToast('Suppression rules saved')}

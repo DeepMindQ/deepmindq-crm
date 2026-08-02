@@ -63,20 +63,20 @@ interface CompaniesResponse {
 }
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  prospect: { bg: 'rgba(59,130,246,0.12)', text: '#2563EB' },
-  researching: { bg: 'rgba(245,158,11,0.12)', text: '#D97706' },
-  active: { bg: 'rgba(16,185,129,0.12)', text: '#059669' },
-  engaged: { bg: 'rgba(139,92,246,0.12)', text: '#7C3AED' },
-  paused: { bg: 'rgba(161,161,170,0.12)', text: '#52525B' },
-  closed_won: { bg: 'rgba(34,197,94,0.12)', text: '#16A34A' },
-  closed_lost: { bg: 'rgba(239,68,68,0.12)', text: '#DC2626' },
+  prospect: { bg: 'rgba(59,130,246,0.12)', text: 'var(--ios-accent-dim)' },
+  researching: { bg: 'rgba(245,158,11,0.12)', text: 'var(--ios-status-amber-text)' },
+  active: { bg: 'rgba(16,185,129,0.12)', text: 'var(--ios-status-green-text)' },
+  engaged: { bg: 'rgba(139,92,246,0.12)', text: 'var(--ios-status-purple-text)' },
+  paused: { bg: 'rgba(161,161,170,0.12)', text: 'var(--ios-status-neutral-text)' },
+  closed_won: { bg: 'rgba(34,197,94,0.12)', text: 'var(--ios-status-green-text)' },
+  closed_lost: { bg: 'rgba(239,68,68,0.12)', text: 'var(--ios-status-red-text)' },
 };
 
 const TIER_BADGE: Record<string, { bg: string; text: string; icon: typeof Flame; label: string }> = {
-  HOT: { bg: 'rgba(239,68,68,0.12)', text: '#DC2626', icon: Flame, label: 'HOT' },
-  ACTIVE: { bg: 'rgba(16,185,129,0.12)', text: '#059669', icon: Zap, label: 'ACTIVE' },
-  NURTURE: { bg: 'rgba(245,158,11,0.12)', text: '#D97706', icon: Sprout, label: 'NURTURE' },
-  LOW: { bg: 'rgba(161,161,170,0.12)', text: '#52525B', icon: Minus, label: 'LOW' },
+  HOT: { bg: 'rgba(239,68,68,0.12)', text: 'var(--ios-status-red-text)', icon: Flame, label: 'HOT' },
+  ACTIVE: { bg: 'rgba(16,185,129,0.12)', text: 'var(--ios-status-green-text)', icon: Zap, label: 'ACTIVE' },
+  NURTURE: { bg: 'rgba(245,158,11,0.12)', text: 'var(--ios-status-amber-text)', icon: Sprout, label: 'NURTURE' },
+  LOW: { bg: 'rgba(161,161,170,0.12)', text: 'var(--ios-status-neutral-text)', icon: Minus, label: 'LOW' },
 };
 const TIER_OPTIONS = ['HOT', 'ACTIVE', 'NURTURE', 'LOW'];
 const SIZE_RANGES = ['1-10', '11-50', '51-200', '201-1000', '1001-5000', '5001+'];
@@ -86,9 +86,9 @@ const STATUS_OPTIONS = ['prospect', 'researching', 'active', 'engaged', 'paused'
    Helpers
    ═══════════════════════════════════════════════════════════════ */
 
-const scoreColor = (s: number | null) => s == null || s < 40 ? '#9CA3AF' : s >= 80 ? '#059669' : s >= 60 ? '#D97706' : '#2563EB';
+const scoreColor = (s: number | null) => s == null || s < 40 ? 'var(--ios-status-muted)' : s >= 80 ? 'var(--ios-status-green-text)' : s >= 60 ? 'var(--ios-status-amber-text)' : 'var(--ios-accent-dim)';
 const scoreGradient = (s: number | null) =>
-  s == null || s < 40 ? 'linear-gradient(90deg,#9CA3AF,#D1D5DB)' : s >= 80 ? 'linear-gradient(90deg,#059669,#34D399)' : s >= 60 ? 'linear-gradient(90deg,#D97706,#FBBF24)' : 'linear-gradient(90deg,#2563EB,#60A5FA)';
+  s == null || s < 40 ? 'linear-gradient(90deg,var(--ios-status-muted),var(--ios-track))' : s >= 80 ? 'linear-gradient(90deg,var(--ios-status-green-text),var(--ios-status-green-light))' : s >= 60 ? 'linear-gradient(90deg,var(--ios-status-amber-text),var(--ios-status-amber-light))' : 'linear-gradient(90deg,var(--ios-accent-dim),var(--ios-status-blue-light))';
 
 function statusLabel(s: string) { return s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()); }
 
@@ -137,13 +137,13 @@ function ScoreBar({ score }: { score: number | null }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const c = STATUS_COLORS[status] ?? { bg: 'rgba(100,100,100,.12)', text: '#52525B' };
+  const c = STATUS_COLORS[status] ?? { bg: 'rgba(100,100,100,.12)', text: 'var(--ios-status-neutral-text)' };
   return <span className="inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: c.bg, color: c.text }}>{statusLabel(status)}</span>;
 }
 
 function TierBadge({ tier }: { tier: string | null }) {
   if (!tier) return <span className="text-[11px] text-gray-300">—</span>;
-  const t = TIER_BADGE[tier] ?? { bg: 'rgba(100,100,100,.12)', text: '#52525B', icon: Minus, label: tier };
+  const t = TIER_BADGE[tier] ?? { bg: 'rgba(100,100,100,.12)', text: 'var(--ios-status-neutral-text)', icon: Minus, label: tier };
   const Icon = t.icon;
   return (
     <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: t.bg, color: t.text }}>
@@ -157,7 +157,7 @@ function ScoreCircle({ score }: { score: number | null }) {
   return (
     <div className="relative" style={{ width: 48, height: 48 }}>
       <svg aria-hidden="true" viewBox="0 0 48 48" className="w-full h-full -rotate-90">
-        <circle cx="24" cy="24" r={r} fill="none" stroke="#F3F4F6" strokeWidth="4" />
+        <circle cx="24" cy="24" r={r} fill="none" stroke="var(--ios-track)" strokeWidth="4" />
         <circle cx="24" cy="24" r={r} fill="none" stroke={col} strokeWidth="4" strokeDasharray={circ}
           strokeDashoffset={circ - (v / 100) * circ} strokeLinecap="round" className="transition-all duration-700" />
       </svg>
@@ -281,7 +281,7 @@ function CompanyDialog({ open, onOpenChange, editing, onSubmit, submitting }: {
         <DialogFooter className="gap-2 pt-2">
           <Button variant="outline" size="sm" className="text-xs" onClick={() => onOpenChange(false)}>Cancel</Button>
           <Button size="sm" className="text-xs font-medium" disabled={submitting || !valid} onClick={() => onSubmit(form, editing?.id)}
-            style={{ background: 'var(--color-gold)', color: '#0c1220' }}>
+            style={{ background: 'var(--color-gold)', color: 'var(--ios-gold-text)' }}>
             {submitting ? <Loader2 size={14} className="mr-1.5 animate-spin" /> : <Plus size={14} className="mr-1.5" />}
             {submitting ? 'Saving...' : editing ? 'Update' : 'Add Company'}
           </Button>
@@ -322,7 +322,7 @@ export default function CompaniesScreen() {
   useEffect(() => setPage(1), [industry, status, sizeRange, tier]);
 
   /* ── Queries ── */
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isError, error: queryError, refetch } = useQuery({
     queryKey: ['companies', page, debounced, industry, status, sizeRange, tier, sortBy, sortDir],
     queryFn: async () => {
       const { data: d, error } = await fetchApi('/api/companies', { params: {
@@ -418,7 +418,7 @@ export default function CompaniesScreen() {
      Render
      ═══════════════════════════════════════════════════════════════ */
   return (
-    <div className="flex flex-col gap-5 h-full overflow-hidden">
+    <div role="main" aria-label="Company Intelligence" className="flex flex-col gap-5 h-full overflow-hidden">
       {/* ── Header ── */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between flex-wrap gap-3">
@@ -441,7 +441,7 @@ export default function CompaniesScreen() {
               </DropdownMenuContent>
             </DropdownMenu>
             <Button size="sm" onClick={() => { setEditing(null); setDlgOpen(true); }}
-              className="h-8 px-3 text-xs font-semibold rounded-lg" style={{ background: 'var(--color-gold)', color: '#0c1220' }}>
+              className="h-8 px-3 text-xs font-semibold rounded-lg" style={{ background: 'var(--color-gold)', color: 'var(--ios-gold-text)' }}>
               <Plus size={14} className="mr-1.5" />Add Company
             </Button>
           </div>
@@ -451,7 +451,7 @@ export default function CompaniesScreen() {
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <Input placeholder="Search name, domain, industry…" value={search} onChange={e => updateSearch(e.target.value)} className="h-8 pl-8 pr-8 text-xs rounded-lg" />
+            <Input aria-label="Search companies" placeholder="Search name, domain, industry…" value={search} onChange={e => updateSearch(e.target.value)} className="h-8 pl-8 pr-8 text-xs rounded-lg" />
             {search && <button onClick={() => { setSearch(''); setDebounced(''); setPage(1); }} className="absolute right-2.5 top-1/2 -translate-y-1/2"><X size={12} className="text-gray-400" /></button>}
           </div>
           <FilterSelect value={industry} onChange={v => setIndustry(v)} placeholder="All Industries" items={industries.slice(0, 20)} />
@@ -481,7 +481,16 @@ export default function CompaniesScreen() {
 
       {/* ── Content ── */}
       <div className="flex-1 min-h-0">
-        {showEmpty ? (
+        {isError ? (
+          <div className="flex flex-col items-center justify-center py-16 text-center">
+            <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+              <Flame className="w-6 h-6 text-red-500" />
+            </div>
+            <h3 className="text-sm font-semibold text-gray-900 mb-1">Failed to load companies</h3>
+            <p className="text-xs text-gray-500 mb-4 max-w-xs">{(queryError as Error)?.message || 'An unexpected error occurred. Please try again.'}</p>
+            <Button variant="outline" size="sm" className="text-xs" onClick={() => refetch()}><Zap className="w-3.5 h-3.5 mr-1.5" />Retry</Button>
+          </div>
+        ) : showEmpty ? (
           <EmptyState icon={Building2}
             title={activeFilters > 0 ? 'No companies match your criteria' : 'Your intelligence database is empty'}
             description={activeFilters > 0 ? 'Try adjusting your filters.' : 'Import companies to activate AI-powered signal detection, scoring, and opportunity identification.'}
@@ -517,7 +526,7 @@ export default function CompaniesScreen() {
                   {isLoading ? <TableSkeleton /> : (
                     <AnimatePresence mode="popLayout">
                       {companies.map((c, i) => (
-                        <motion.tr key={c.id} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 6 }}
+                        <motion.tr key={c.id} role="link" tabIndex={0} initial={{ opacity: 0, x: -6 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: 6 }}
                           transition={{ duration: .2, delay: i * .015 }} onClick={() => goTo(c.id)}
                           className="cursor-pointer border-b border-gray-50 hover:bg-gray-50/60 transition-colors">
                           <TableCell onClick={e => e.stopPropagation()}>

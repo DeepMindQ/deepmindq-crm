@@ -595,6 +595,27 @@
   --ios-signal: #3b82f6;
   --ios-opportunity: #8b5cf6;
   --ios-intelligence: #06b6d4;
+
+  /* Status text variants (darker for contrast on light/accent bg) */
+  --ios-status-green-text: #059669;
+  --ios-status-amber-text: #d97706;
+  --ios-status-red-text: #DC2626;
+  --ios-status-purple-text: #7c3aed;
+  --ios-status-neutral-text: #52525B;
+  --ios-status-blue-light: #60A5FA;
+  --ios-status-green-light: #34D399;
+  --ios-status-amber-light: #FBBF24;
+  --ios-status-muted: #9CA3AF;
+  --ios-violet: #9333EA;
+  --ios-indigo: #6366F1;
+  --ios-track: #F3F4F6;
+  --ios-chart-text: #e4e4e7;
+
+  /* Gold gradient stops */
+  --ios-gold-dark: #9A8340;
+  --ios-gold-mid: #B8860B;
+  --ios-gold-text: #0c1220;
+  --ios-border-light: #E5E7EB;
 }
 
 .ios-background {

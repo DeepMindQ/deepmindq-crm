@@ -1,20 +1,23 @@
 /* ═══════════════════════════════════════════════════
    Navigation Configuration
    
-   Intelligence OS — Enterprise-grade 3-section navigation.
+   DeepMindQ — 5-section sidebar navigation.
    Single source of truth for sidebar structure.
    
-   INTELLIGENCE → Business questions, daily operations
-   WORKSPACES   → Deep contextual intelligence
-   ADMIN        → Enterprise operations
+   INTELLIGENCE  → Core intelligence views
+   REVENUE       → Pipeline & outreach
+   KNOWLEDGE     → Capability & knowledge management
+   DATA          → Data import & quality
+   OPERATIONS    → System admin, analytics, governance
    ═══════════════════════════════════════════════════ */
 
 import {
   LayoutDashboard, Cpu, Building2, Search,
   Brain, BookOpen, Layers, Radar, Target,
   Settings, Shield, Database, Plug, Activity,
-  ChevronRight, BarChart3, Inbox, Upload, Radio,
+  BarChart3, Inbox, Upload, Radio,
   TrendingUp, Telescope, ScrollText,
+  Users, GitBranch, Mail, FileDown,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -22,7 +25,6 @@ export interface NavItem {
   label: string;
   icon: React.ElementType;
   badgeCount?: number;
-  isNew?: boolean;
 }
 
 export interface NavSection {
@@ -37,43 +39,53 @@ export const NAV_SECTIONS: NavSection[] = [
     heading: 'INTELLIGENCE',
     defaultOpen: true,
     items: [
-      { key: 'intelligence-operations', label: 'Operations Center', icon: Radio, isNew: true },
-      { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-      { key: 'command-center', label: 'Command Center', icon: LayoutDashboard, isNew: true },
-      { key: 'accounts', label: 'Accounts', icon: Building2 },
-      { key: 'signal-intelligence', label: 'Signal Intelligence', icon: Radar, isNew: true },
-      { key: 'intelligence-inbox', label: 'Intelligence Inbox', icon: Inbox, isNew: true },
-      { key: 'opportunity-radar', label: 'Opportunity Radar', icon: Target, isNew: true },
+      { key: 'intelligence-operations', label: 'Executive Dashboard', icon: LayoutDashboard },
+      { key: 'accounts', label: 'Company Intelligence', icon: Building2 },
+      { key: 'contacts', label: 'Contact Intelligence', icon: Users },
+      { key: 'signal-intelligence', label: 'AI Insights', icon: Radar },
+      { key: 'opportunity-radar', label: 'Opportunities', icon: Target },
       { key: 'intelligence-search', label: 'Intelligence Search', icon: Search },
-      { key: 'research-agent', label: 'Research Agent', icon: Telescope, isNew: true },
     ],
   },
 
-  /* ── WORKSPACES ── */
+  /* ── REVENUE ── */
   {
-    heading: 'WORKSPACES',
+    heading: 'REVENUE',
     defaultOpen: true,
     items: [
-      { key: 'company-workspace', label: 'Company Workspace', icon: Layers, isNew: true },
-      { key: 'knowledge-workspace', label: 'Knowledge & Capabilities', icon: Brain, isNew: true },
-      { key: 'capability-workspace', label: 'Capability Workspace', icon: Cpu, isNew: true },
+      { key: 'pipeline', label: 'Pipeline', icon: GitBranch },
+      { key: 'email-studio', label: 'Email Studio', icon: Mail },
     ],
   },
 
-  /* ── ADMINISTRATION ── */
+  /* ── KNOWLEDGE ── */
   {
-    heading: 'ADMINISTRATION',
+    heading: 'KNOWLEDGE',
     defaultOpen: false,
     items: [
-      { key: 'import', label: 'Data Management', icon: Database },
-      { key: 'data-import', label: 'Intelligence Import', icon: Upload, isNew: true },
+      { key: 'knowledge-workspace', label: 'Knowledge Intelligence', icon: Brain },
+    ],
+  },
+
+  /* ── DATA ── */
+  {
+    heading: 'DATA',
+    defaultOpen: false,
+    items: [
+      { key: 'data-import', label: 'Import Data', icon: FileDown },
+      { key: 'data-health', label: 'Data Health', icon: Activity },
+    ],
+  },
+
+  /* ── OPERATIONS ── */
+  {
+    heading: 'OPERATIONS',
+    defaultOpen: false,
+    items: [
       { key: 'analytics', label: 'Analytics', icon: BarChart3 },
+      { key: 'ai-health', label: 'System Health', icon: Cpu },
       { key: 'settings', label: 'Settings', icon: Settings },
-      { key: 'data-health', label: 'Integrations', icon: Plug },
-      { key: 'ai-health', label: 'System Health', icon: Activity },
-      { key: 'ai-usage', label: 'AI Usage Dashboard', icon: TrendingUp, isNew: true },
-      { key: 'audit', label: 'Audit Log', icon: Shield },
-      { key: 'audit-logs', label: 'Detailed Audit Logs', icon: ScrollText, isNew: true },
+      { key: 'audit', label: 'Audit & Governance', icon: Shield },
     ],
   },
 ];

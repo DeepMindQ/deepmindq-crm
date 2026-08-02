@@ -76,9 +76,28 @@ export interface CommitResult {
 
 // ── In-memory batch dedup state (reset per upload) ──
 const batchProcessedRows = new Map<string, Array<{ row: Record<string, unknown>; index: number }>>();
+const BATCH_STATE_TTL_MS = 2 * 60 * 60 * 1000; // 2 hours — auto-cleanup abandoned uploads
+const batchStateTimers = new Map<string, NodeJS.Timeout>();
 
 function clearBatchState(uploadId: string) {
   batchProcessedRows.delete(uploadId);
+  // Clear any pending TTL timer
+  const timer = batchStateTimers.get(uploadId);
+  if (timer) {
+    clearTimeout(timer);
+    batchStateTimers.delete(uploadId);
+  }
+}
+
+/** Schedule automatic cleanup of batch state for abandoned uploads */
+function scheduleBatchStateCleanup(uploadId: string): void {
+  const timer = setTimeout(() => {
+    if (batchProcessedRows.has(uploadId)) {
+      batchProcessedRows.delete(uploadId);
+      batchStateTimers.delete(uploadId);
+    }
+  }, BATCH_STATE_TTL_MS);
+  batchStateTimers.set(uploadId, timer);
 }
 
 // ═══════════════════════════════════════════════════
@@ -126,8 +145,9 @@ export async function createUploadJob(params: {
     },
   });
 
-  // Initialize batch dedup state
+  // Initialize batch dedup state with TTL cleanup for abandoned uploads
   batchProcessedRows.set(upload.id, []);
+  scheduleBatchStateCleanup(upload.id);
 
   await logAction('data_upload_created', 'DataUpload', upload.id, {
     fileName: params.fileName,

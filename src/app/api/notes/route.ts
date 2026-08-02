@@ -130,23 +130,23 @@ try {
         return apiError("Company not found", 404);
       }
 
-      note = await db.companyNote.create({
-        data: {
-          companyId,
-          body: safeBody,
-          // noteType not a field on CompanyNote; store in metadata if needed
-        },
-        include: { company: true },
-      });
-
-      await db.companyTimelineEvent.create({
-        data: {
-          companyId,
-          eventType: "note_added",
-          title: "Note added",
-          description: `New note added to "${company.rawName}"`,
-        },
-      });
+      [note] = await db.$transaction([
+        db.companyNote.create({
+          data: {
+            companyId,
+            body: safeBody,
+          },
+          include: { company: true },
+        }),
+        db.companyTimelineEvent.create({
+          data: {
+            companyId,
+            eventType: "note_added",
+            title: "Note added",
+            description: `New note added to "${company.rawName}"`,
+          },
+        }),
+      ]);
     } else if (contactId) {
       const contact = await db.contact.findUnique({
         where: { id: contactId },
@@ -156,23 +156,24 @@ try {
         return apiError("Contact not found", 404);
       }
 
-      note = await db.contactNote.create({
-        data: {
-          contactId,
-          body: safeBody,
-        },
-        include: { contact: true },
-      });
-
-      await db.companyTimelineEvent.create({
-        data: {
-          companyId: contact.companyId,
-          eventType: "note_added",
-          title: "Note added",
-          description: `New note added to contact "${contact.rawName}"`,
-          metadata: JSON.stringify({ contactId }),
-        },
-      });
+      [note] = await db.$transaction([
+        db.contactNote.create({
+          data: {
+            contactId,
+            body: safeBody,
+          },
+          include: { contact: true },
+        }),
+        db.companyTimelineEvent.create({
+          data: {
+            companyId: contact.companyId,
+            eventType: "note_added",
+            title: "Note added",
+            description: `New note added to contact "${contact.rawName}"`,
+            metadata: JSON.stringify({ contactId }),
+          },
+        }),
+      ]);
     }
 
     return apiSuccess({ ...note, _type: companyId ? "company" : "contact" }, 201);

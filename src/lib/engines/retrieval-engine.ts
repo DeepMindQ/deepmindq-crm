@@ -118,7 +118,26 @@ interface IndexEntry {
 }
 
 const inMemoryIndex = new Map<string, IndexEntry>();
+const indexTimestamps = new Map<string, number>(); // tracks insertion order for eviction
 let indexLoaded = false;
+
+/** Evict the oldest entry when the index exceeds MAX_INDEX_SIZE */
+function evictOldestIfNeeded(): void {
+  if (inMemoryIndex.size < MAX_INDEX_SIZE) return;
+  // Find and remove the oldest entry by timestamp
+  let oldestKey: string | null = null;
+  let oldestTime = Infinity;
+  for (const [key, ts] of indexTimestamps) {
+    if (ts < oldestTime) {
+      oldestTime = ts;
+      oldestKey = key;
+    }
+  }
+  if (oldestKey) {
+    inMemoryIndex.delete(oldestKey);
+    indexTimestamps.delete(oldestKey);
+  }
+}
 
 // ─── Hashing ────────────────────────────────────────────────────────────
 
@@ -230,6 +249,7 @@ export async function embedEntity(
       if (existing && existing.textHash === textHash) {
         const vector = Float64Array.from(JSON.parse(existing.vector) as number[]);
         // Cache in memory
+        evictOldestIfNeeded();
         inMemoryIndex.set(entityId, {
           entityId,
           entityType,
@@ -237,6 +257,7 @@ export async function embedEntity(
           sourceText,
           snippet: sourceText.slice(0, 200),
         });
+        indexTimestamps.set(entityId, Date.now());
         return {
           entityId,
           entityType,
@@ -284,6 +305,7 @@ export async function embedEntity(
   }
 
   // Cache in memory
+  evictOldestIfNeeded();
   inMemoryIndex.set(entityId, {
     entityId,
     entityType,
@@ -291,6 +313,7 @@ export async function embedEntity(
     sourceText,
     snippet: sourceText.slice(0, 200),
   });
+  indexTimestamps.set(entityId, Date.now());
 
   return result;
 }
@@ -358,6 +381,7 @@ export async function loadIndexFromDB(): Promise<void> {
           sourceText: emb.sourceText,
           snippet: emb.sourceText.slice(0, 200),
         });
+        indexTimestamps.set(emb.entityId, Date.now());
       } catch (err) {
         logger.error(`[retrieval-engine] failed to parse embedding for ${emb.entityId}`);
       }
@@ -435,6 +459,7 @@ export async function buildIndexFromRawEntities(): Promise<void> {
  */
 export async function rebuildIndex(): Promise<RetrievalStats> {
   inMemoryIndex.clear();
+  indexTimestamps.clear();
   indexLoaded = false;
   transformerLoadAttempted = false; // retry transformer load
 

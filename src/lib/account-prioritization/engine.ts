@@ -79,6 +79,19 @@ const ICP_CACHE_TTL_MS = 5 * 60 * 1000;
 // F9: Supporting data cache (2-minute TTL) to avoid 9 repeated DB queries per request
 const _supportingDataCache = new Map<string, { data: unknown[]; fetchedAt: number }>();
 const SUPPORTING_DATA_CACHE_TTL = 2 * 60 * 1000;
+const SUPPORTING_DATA_CACHE_MAX = 500;
+
+// Periodic cleanup of expired cache entries
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    const now = Date.now();
+    for (const [key, entry] of _supportingDataCache.entries()) {
+      if (now - entry.fetchedAt > SUPPORTING_DATA_CACHE_TTL) {
+        _supportingDataCache.delete(key);
+      }
+    }
+  }, 5 * 60 * 1000);
+}
 
 /** Invalidate supporting data cache (call after data mutations) */
 export function invalidateSupportingDataCache(companyId?: string): void {
@@ -378,7 +391,15 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
           select: { score: true, category: true },
         }).catch(() => null),
       ]);
-    // F9: Store in cache
+    // F9: Store in cache (evict expired entries if at max capacity)
+    if (_supportingDataCache.size >= SUPPORTING_DATA_CACHE_MAX) {
+      const now = Date.now();
+      for (const [key, entry] of _supportingDataCache.entries()) {
+        if (now - entry.fetchedAt > SUPPORTING_DATA_CACHE_TTL) {
+          _supportingDataCache.delete(key);
+        }
+      }
+    }
     _supportingDataCache.set(companyId, { data: [researchCard, signals, evidence, contacts, capabilityMatches, opportunities, recentEvents, revenueScoreData], fetchedAt: Date.now() });
   }
 

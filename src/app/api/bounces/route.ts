@@ -16,6 +16,7 @@ try {
         },
       },
       orderBy: { bouncedAt: 'desc' },
+      take: 100,
     });
 
     return NextResponse.json(bounces);

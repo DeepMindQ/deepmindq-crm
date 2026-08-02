@@ -133,6 +133,7 @@ export async function GET() {
   try {
     const batches = await db.importBatch.findMany({
       orderBy: { createdAt: "desc" },
+      take: 100,
     });
     return apiSuccess(batches);
   } catch {

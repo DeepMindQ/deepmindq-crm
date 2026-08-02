@@ -1,18 +1,37 @@
 import { NextResponse } from 'next/server';
+import { db } from '@/lib/db';
 
 /**
- * GET /api/health — Lightweight liveness probe (NO database access, NO auth).
+ * GET /api/health — Lightweight liveness probe (NO auth).
  *
- * Used by Vercel/Render health checks. Returns 200 OK as soon as the
- * Node process is up — does NOT depend on DATABASE_URL being reachable,
- * so it works during initial deploy before the DB is connected.
+ * Used by Vercel/Render health checks. Probes database connectivity
+ * with a lightweight SELECT 1 query. Returns degraded status if DB
+ * is unreachable but still returns 200 so the process is marked alive.
  *
  * For a deeper health view (DB counts, AI provider status, etc.) see
  * GET /api/system-health (requires auth).
  */
 export const dynamic = 'force-dynamic';
 
+const HEALTH_DB_TIMEOUT_MS = 3_000; // 3-second timeout for DB probe
+
 export async function GET() {
+  // Probe DB connectivity with a lightweight query and timeout
+  let dbHealthy = false;
+  if (process.env.DATABASE_URL) {
+    try {
+      await Promise.race([
+        db.$queryRaw<Array<{ _1: number }>>`SELECT 1 as _1`,
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('DB probe timeout')), HEALTH_DB_TIMEOUT_MS)
+        ),
+      ]);
+      dbHealthy = true;
+    } catch {
+      dbHealthy = false;
+    }
+  }
+
   return NextResponse.json(
     {
       status: 'ok',
@@ -27,7 +46,7 @@ export async function GET() {
         gemini: Boolean(process.env.GEMINI_API_KEY),
         tavily: Boolean(process.env.TAVILY_API_KEY),
       },
-      db: Boolean(process.env.DATABASE_URL),
+      db: dbHealthy,
     },
     {
       status: 200,

@@ -85,6 +85,7 @@ export async function GET() {
   try {
     const batches = await db.importBatch.findMany({
       orderBy: { createdAt: 'desc' },
+      take: 100,
     });
     return NextResponse.json(batches);
   } catch (error) {

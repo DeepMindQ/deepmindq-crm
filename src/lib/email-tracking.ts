@@ -86,6 +86,8 @@ const trackingRegistry = new Map<string, TrackingRecord>();
 const TRACKING_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 export function registerTrackingEvent(eventId: string, contactId: string, draftId: string): void {
+  // Purge expired entries before adding new one to bound memory
+  purgeExpired();
   trackingRegistry.set(eventId, { eventId, contactId, draftId, createdAt: Date.now() });
 }
 
@@ -112,10 +114,6 @@ function purgeExpired(): void {
     }
   }
 }
-
-// Override registerTrackingEvent to also purge
-const _origRegister = registerTrackingEvent;
-export { _origRegister as _internalRegisterTrackingEvent };
 
 /* ── 1x1 transparent GIF (43 bytes) ── */
 export const TRACKING_PIXEL_GIF = Buffer.from(

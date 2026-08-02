@@ -26,3 +26,10 @@ export function cleanupExpired() {
     if (val.expiresAt < now) otpCache.delete(key);
   }
 }
+
+// Periodic cleanup every 5 minutes to prevent stale entries accumulating
+if (typeof setInterval !== 'undefined') {
+  setInterval(() => {
+    cleanupExpired();
+  }, 5 * 60 * 1000);
+}

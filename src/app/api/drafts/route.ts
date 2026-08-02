@@ -31,6 +31,7 @@ try {
         },
       },
       orderBy: { createdAt: 'desc' },
+      take: 100,
     });
 
     return NextResponse.json(drafts);
@@ -384,20 +385,23 @@ try {
         try {
           switch (action) {
             case 'approve': {
-              const draft = await db.draft.update({
-                where: { id: draftId },
-                data: { status: 'approved' },
-              });
-              await db.sendQueue.create({
-                data: {
-                  draftId: draft.id,
-                  status: 'pending',
-                  scheduledAt: new Date(),
-                },
-              });
-              await db.contact.update({
-                where: { id: draft.contactId },
-                data: { status: 'queued' },
+              await db.$transaction(async (tx) => {
+                const draft = await tx.draft.findUniqueOrThrow({ where: { id: draftId }, select: { contactId: true } });
+                await tx.draft.update({
+                  where: { id: draftId },
+                  data: { status: 'approved' },
+                });
+                await tx.sendQueue.create({
+                  data: {
+                    draftId,
+                    status: 'pending',
+                    scheduledAt: new Date(),
+                  },
+                });
+                await tx.contact.update({
+                  where: { id: draft.contactId },
+                  data: { status: 'queued' },
+                });
               });
               results.push({ id: draftId, success: true });
               break;

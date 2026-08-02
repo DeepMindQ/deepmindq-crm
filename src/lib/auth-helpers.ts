@@ -178,6 +178,8 @@ interface RateLimitEntry {
   resetAt: number;
 }
 
+const AUTH_RATE_LIMIT_MAX = 50_000;
+
 const rateLimitStore = new Map<string, RateLimitEntry>();
 
 // Cleanup every 5 minutes
@@ -188,6 +190,27 @@ if (typeof setInterval !== 'undefined') {
       if (entry.resetAt <= now) rateLimitStore.delete(key);
     }
   }, 5 * 60 * 1000);
+}
+
+/** Evict oldest entries when store exceeds max size */
+function evictAuthRateLimitEntries(): void {
+  if (rateLimitStore.size <= AUTH_RATE_LIMIT_MAX) return;
+  const excess = rateLimitStore.size - AUTH_RATE_LIMIT_MAX;
+  let evicted = 0;
+  for (const [key, entry] of rateLimitStore.entries()) {
+    if (entry.resetAt <= Date.now()) {
+      rateLimitStore.delete(key);
+      if (++evicted >= excess) break;
+    }
+  }
+  // If still over limit, delete oldest by resetAt
+  if (rateLimitStore.size > AUTH_RATE_LIMIT_MAX) {
+    const entries = Array.from(rateLimitStore.entries()).sort((a, b) => a[1].resetAt - b[1].resetAt);
+    const remaining = rateLimitStore.size - AUTH_RATE_LIMIT_MAX;
+    for (let i = 0; i < remaining; i++) {
+      rateLimitStore.delete(entries[i][0]);
+    }
+  }
 }
 
 /**
@@ -208,6 +231,9 @@ export function edgeRateLimit(
   }
 
   entry.count++;
+
+  // Evict if store exceeds max size (botnet protection)
+  evictAuthRateLimitEntries();
 
   return {
     success: entry.count <= limit,

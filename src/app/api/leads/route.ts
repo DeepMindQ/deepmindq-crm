@@ -281,8 +281,8 @@ async function fetchLeadsFromStatic(params: {
 /* ── DB metadata builder (for filter dropdowns) ── */
 async function fetchDBMeta() {
   const [allContacts, allCompanies] = await Promise.all([
-    db.contact.findMany({ select: { role: true, status: true, location: true, consentStatus: true, assignedTo: true, source: true } }),
-    db.company.findMany({ select: { industry: true, sizeRange: true, location: true } }),
+    db.contact.findMany({ select: { role: true, status: true, location: true, consentStatus: true, assignedTo: true, source: true }, take: 10_000 }),
+    db.company.findMany({ select: { industry: true, sizeRange: true, location: true }, take: 10_000 }),
   ]);
 
   // Count by field values

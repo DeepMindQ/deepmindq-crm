@@ -40,6 +40,20 @@ import {
   Loader2, Zap, Workflow, ChevronDown, ChevronUp, Mail, Lightbulb,
   Hash, Filter, Download, Globe, Link2, GitBranch, Check, Ban,
 } from 'lucide-react';
+import { colors, gold, goldLight } from '@/components/shared/enterprise-theme';
+
+// ── Theme color opacity helpers ─────────────────────
+const goldAlpha = (a: number) => `rgba(212,175,55,${a})`;
+const greenAlpha = (a: number) => `rgba(16,185,129,${a})`;
+const redAlpha = (a: number) => `rgba(239,68,68,${a})`;
+const blueAlpha = (a: number) => `rgba(59,130,246,${a})`;
+const blackAlpha = (a: number) => `rgba(0,0,0,${a})`;
+const purpleAlpha = (a: number) => `rgba(168,85,247,${a})`;
+const amberAlpha = (a: number) => `rgba(245,158,11,${a})`;
+const neutralAlpha = (a: number) => `rgba(113,113,122,${a})`;
+const violetAlpha = (a: number) => `rgba(139,92,246,${a})`;
+const indigoAlpha = (a: number) => `rgba(99,102,241,${a})`;
+
 
 /* -- Types -- */
 interface Capability {
@@ -93,11 +107,11 @@ const CAT_LABEL: Record<string, string> = {
   objection_response: 'Objection Response', cta: 'CTA',
 };
 const CAT_GRADIENT: Record<string, { from: string; to: string; glow: string }> = {
-  service_line: { from: 'rgba(59, 130, 246, 0.3)', to: 'rgba(59, 130, 246, 0.05)', glow: 'rgba(59, 130, 246, 0.12)' },
-  case_study: { from: 'rgba(16, 185, 129, 0.3)', to: 'rgba(16, 185, 129, 0.05)', glow: 'rgba(16, 185, 129, 0.12)' },
-  proof_point: { from: 'rgba(139, 92, 246, 0.3)', to: 'rgba(139, 92, 246, 0.05)', glow: 'rgba(139, 92, 246, 0.12)' },
-  objection_response: { from: 'rgba(239, 68, 68, 0.3)', to: 'rgba(239, 68, 68, 0.05)', glow: 'rgba(239, 68, 68, 0.12)' },
-  cta: { from: 'rgba(245, 158, 11, 0.3)', to: 'rgba(245, 158, 11, 0.05)', glow: 'rgba(245, 158, 11, 0.12)' },
+  service_line: { from: `${blueAlpha(0.3)}`, to: `${blueAlpha(0.05)}`, glow: `${blueAlpha(0.12)}` },
+  case_study: { from: `${greenAlpha(0.3)}`, to: `${greenAlpha(0.05)}`, glow: `${greenAlpha(0.12)}` },
+  proof_point: { from: `${violetAlpha(0.3)}`, to: `${violetAlpha(0.05)}`, glow: `${violetAlpha(0.12)}` },
+  objection_response: { from: `${redAlpha(0.3)}`, to: `${redAlpha(0.05)}`, glow: `${redAlpha(0.12)}` },
+  cta: { from: `${amberAlpha(0.3)}`, to: `${amberAlpha(0.05)}`, glow: `${amberAlpha(0.12)}` },
 };
 
 const EMPTY_FORM = {
@@ -241,7 +255,7 @@ function GlassDialog({ children, onClose, title, subtitle, actions }: {
         {/* Top glow line */}
         <div
           className="absolute top-0 left-8 right-8 h-px"
-          style={{ background: 'linear-gradient(90deg, transparent, rgba(212, 175, 55, 0.4), transparent)' }}
+          style={{ background: `linear-gradient(90deg, transparent, ${goldAlpha(0.4)}, transparent)` }}
         />
         <div className="p-6 sm:p-8">
           {/* Header */}
@@ -347,7 +361,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
           <div className="flex items-center gap-3">
             <div
               className="w-11 h-11 rounded-xl flex items-center justify-center shadow-lg"
-              style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.3), rgba(212,175,55,0.08))', boxShadow: '0 0 20px rgba(212,175,55,0.15)' }}
+              style={{ background: `linear-gradient(135deg, ${goldAlpha(0.3)}, ${goldAlpha(0.08)})`, boxShadow: `0 0 20px ${goldAlpha(0.15)}` }}
             >
               <Brain className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
             </div>
@@ -355,7 +369,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
               <div className="flex items-center gap-2">
                 <p className="text-base font-bold text-foreground">Knowledge Engine</p>
                 <Badge variant="outline" className="text-[9px] border-emerald-500/30 text-emerald-600 bg-emerald-500/5 gap-1 px-1.5">
-                  <PulseDot color="#10B981" />
+                  <PulseDot color={colors.green} />
                   Active
                 </Badge>
               </div>
@@ -380,10 +394,10 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
           {[
             { icon: Database, label: 'Total Assets', value: items.length, color: 'var(--color-gold)' },
-            { icon: Layers, label: 'Service Lines', value: slCount, color: '#3B82F6' },
-            { icon: BookOpen, label: 'Case Studies', value: csCount, color: '#10B981' },
-            { icon: Trophy, label: 'Proof Points', value: ppCount, color: '#8B5CF6' },
-            { icon: Cpu, label: 'Search Modes', value: 3, color: '#F59E0B', isText: true, text: 'K / S / H' },
+            { icon: Layers, label: 'Service Lines', value: slCount, color: colors.blue },
+            { icon: BookOpen, label: 'Case Studies', value: csCount, color: colors.green },
+            { icon: Trophy, label: 'Proof Points', value: ppCount, color: colors.purple },
+            { icon: Cpu, label: 'Search Modes', value: 3, color: colors.amber, isText: true, text: 'K / S / H' },
           ].map((s, idx) => (
             <div key={idx} className="p-3 rounded-lg bg-gray-50 border border-gray-200">
               <div className="flex items-center gap-1.5 mb-1">
@@ -448,7 +462,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                           ? 'text-foreground border border-primary/30 shadow-sm'
                           : 'text-muted-foreground border border-transparent hover:text-foreground hover:bg-gray-50'
                       }`}
-                      style={ragMode === mode ? { background: 'rgba(212,175,55,0.1)' } : {}}
+                      style={ragMode === mode ? { background: `${goldAlpha(0.1)}` } : {}}
                     >
                       {mode}
                     </button>
@@ -498,7 +512,7 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                   ) : (
                     <div className="space-y-2 max-h-[300px] overflow-y-auto pr-1">
                       {ragResults.map((r: any, idx: number) => {
-                        const catColor = CAT_GRADIENT[r.category]?.from || 'rgba(212,175,55,0.2)';
+                        const catColor = CAT_GRADIENT[r.category]?.from || `${goldAlpha(0.2)}`;
                         const CatIcon = CAT_ICON[r.category] || FileText;
                         return (
                           <motion.div
@@ -559,13 +573,13 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                   {/* Overall score */}
                   <div className="flex items-center gap-4 p-4 rounded-lg bg-gray-50 border border-gray-200">
                     <div className="text-center">
-                      <p className="text-3xl font-bold tabular-nums" style={{ color: coverage.overallScore >= 70 ? '#10B981' : coverage.overallScore >= 40 ? '#F59E0B' : '#EF4444' }}>
+                      <p className="text-3xl font-bold tabular-nums" style={{ color: coverage.overallScore >= 70 ? colors.green : coverage.overallScore >= 40 ? colors.amber : colors.red }}>
                         {coverage.overallScore}%
                       </p>
                       <p className="text-[11px] text-muted-foreground">Completeness</p>
                     </div>
                     <div className="flex-1">
-                      <AnimatedBar value={coverage.overallScore} max={100} color={coverage.overallScore >= 70 ? '#10B981' : coverage.overallScore >= 40 ? '#F59E0B' : '#EF4444'} />
+                      <AnimatedBar value={coverage.overallScore} max={100} color={coverage.overallScore >= 70 ? colors.green : coverage.overallScore >= 40 ? colors.amber : colors.red} />
                       <p className="text-[11px] text-muted-foreground mt-1">Service line completeness score (service line + case study + proof point + objection + CTA)</p>
                     </div>
                   </div>
@@ -575,30 +589,30 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                     <div key={sl} className="p-3 rounded-lg bg-gray-50 border border-gray-100">
                       <div className="flex items-center justify-between mb-2">
                         <p className="text-sm font-medium text-foreground">{sl}</p>
-                        <span className="text-xs font-bold tabular-nums" style={{ color: data.score >= 70 ? '#10B981' : data.score >= 40 ? '#F59E0B' : '#EF4444' }}>{data.score}%</span>
+                        <span className="text-xs font-bold tabular-nums" style={{ color: data.score >= 70 ? colors.green : data.score >= 40 ? colors.amber : colors.red }}>{data.score}%</span>
                       </div>
                       <div className="flex gap-2 mb-2">
                         {[
-                          { key: 'hasServiceLine', label: 'Service', c: '#3B82F6' },
-                          { key: 'hasCaseStudy', label: 'Case Study', c: '#10B981' },
-                          { key: 'hasProofPoint', label: 'Proof', c: '#8B5CF6' },
-                          { key: 'hasObjection', label: 'Objection', c: '#EF4444' },
-                          { key: 'hasCTA', label: 'CTA', c: '#F59E0B' },
+                          { key: 'hasServiceLine', label: 'Service', c: colors.blue },
+                          { key: 'hasCaseStudy', label: 'Case Study', c: colors.green },
+                          { key: 'hasProofPoint', label: 'Proof', c: colors.purple },
+                          { key: 'hasObjection', label: 'Objection', c: colors.red },
+                          { key: 'hasCTA', label: 'CTA', c: colors.amber },
                         ].map(item => (
                           <span
                             key={item.key}
                             className="text-[9px] px-2 py-0.5 rounded-full border"
                             style={{
                               background: data[item.key as keyof typeof data] ? `${item.c}15` : 'transparent',
-                              borderColor: data[item.key as keyof typeof data] ? `${item.c}40` : 'rgba(0, 0, 0, 0.05)',
-                              color: data[item.key as keyof typeof data] ? item.c : 'rgba(0, 0, 0, 0.08)',
+                              borderColor: data[item.key as keyof typeof data] ? `${item.c}40` : `${blackAlpha(0.05)}`,
+                              color: data[item.key as keyof typeof data] ? item.c : `${blackAlpha(0.08)}`,
                             }}
                           >
                             {data[item.key as keyof typeof data] ? '' : 'No '}{item.label}
                           </span>
                         ))}
                       </div>
-                      <AnimatedBar value={data.score} max={100} color={data.score >= 70 ? '#10B981' : '#F59E0B'} delay={0.1} />
+                      <AnimatedBar value={data.score} max={100} color={data.score >= 70 ? colors.green : colors.amber} delay={0.1} />
                     </div>
                   ))}
 
@@ -632,11 +646,11 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
                 {/* Flow visualization */}
                 <div className="space-y-0">
                   {[
-                    { step: 1, icon: Upload, title: 'Contact Imported', desc: 'Name, title, company, industry parsed from CSV/Excel', color: '#3B82F6', detail: 'Lead data flows into the CRM with email verification' },
-                    { step: 2, icon: Target, title: 'Query Constructed', desc: 'Industry + role + company size + problems form the search query', color: '#8B5CF6', detail: 'Hybrid mode: keyword matching + TF-IDF semantic similarity' },
+                    { step: 1, icon: Upload, title: 'Contact Imported', desc: 'Name, title, company, industry parsed from CSV/Excel', color: colors.blue, detail: 'Lead data flows into the CRM with email verification' },
+                    { step: 2, icon: Target, title: 'Query Constructed', desc: 'Industry + role + company size + problems form the search query', color: colors.purple, detail: 'Hybrid mode: keyword matching + TF-IDF semantic similarity' },
                     { step: 3, icon: Brain, title: 'Knowledge Retrieved', desc: `Top ${items.length > 0 ? Math.min(8, items.length) : 8} relevant assets scored and ranked by relevance`, color: 'var(--color-gold)', detail: 'Service lines, case studies, proof points, objections, CTAs' },
-                    { step: 4, icon: Sparkles, title: 'Email Generated', desc: 'Retrieved knowledge injected into AI prompt with contact context', color: '#10B981', detail: 'Personalized subject, body, and CTA based on matched knowledge' },
-                    { step: 5, icon: Mail, title: 'Draft Ready for Review', desc: 'Draft appears in Drafts screen with source snippets and confidence scores', color: '#F59E0B', detail: 'You can edit, approve, or regenerate before sending' },
+                    { step: 4, icon: Sparkles, title: 'Email Generated', desc: 'Retrieved knowledge injected into AI prompt with contact context', color: colors.green, detail: 'Personalized subject, body, and CTA based on matched knowledge' },
+                    { step: 5, icon: Mail, title: 'Draft Ready for Review', desc: 'Draft appears in Drafts screen with source snippets and confidence scores', color: colors.amber, detail: 'You can edit, approve, or regenerate before sending' },
                   ].map((item, idx) => (
                     <div key={idx} className="flex gap-4">
                       {/* Step number + connector */}
@@ -682,11 +696,11 @@ function KnowledgeEnginePanel({ items, navigateTo }: { items: Capability[]; navi
       <div className="px-6 py-3 border-t border-gray-200 bg-gray-50/50">
         <div className="flex items-center gap-4">
           {Object.entries({
-            service_line: { label: 'Services', color: '#3B82F6' },
-            case_study: { label: 'Cases', color: '#10B981' },
-            proof_point: { label: 'Proof', color: '#8B5CF6' },
-            objection_response: { label: 'Objections', color: '#EF4444' },
-            cta: { label: 'CTAs', color: '#F59E0B' },
+            service_line: { label: 'Services', color: colors.blue },
+            case_study: { label: 'Cases', color: colors.green },
+            proof_point: { label: 'Proof', color: colors.purple },
+            objection_response: { label: 'Objections', color: colors.red },
+            cta: { label: 'CTAs', color: colors.amber },
           }).map(([cat, { label, color }]) => {
             const count = items.filter(i => i.category === cat).length;
             return (
@@ -1201,21 +1215,21 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
           label="Active"
           value={activeCount}
           icon={CheckCircle2}
-          color="#10B981"
+          color={colors.green}
           delay={0.08}
         />
         <StatCard
           label="Categories Used"
           value={categoryCount}
           icon={Layers}
-          color="#8B5CF6"
+          color={colors.purple}
           delay={0.16}
         />
         <StatCard
           label="Tags"
           value={allTags.length}
           icon={Tag}
-          color="#F59E0B"
+          color={colors.amber}
           delay={0.24}
         />
       </div>
@@ -1318,7 +1332,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -12 }}
             className="flex items-center justify-between gap-4 p-3 rounded-xl border border-primary/20 shadow-lg"
-            style={{ background: 'rgba(212,175,55,0.06)', backdropFilter: 'blur(12px)' }}
+            style={{ background: `${goldAlpha(0.06)}`, backdropFilter: 'blur(12px)' }}
           >
             <div className="flex items-center gap-3">
               <span className="text-sm font-medium text-foreground">{selectedIds.size} selected</span>
@@ -1414,7 +1428,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
                       <span
                         className={`w-2.5 h-2.5 rounded-full mt-2 shrink-0 transition-shadow duration-300 ${
                           cap.isActive
-                            ? 'bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)]'
+                            ? `bg-emerald-500 shadow-[0_0_8px_${greenAlpha(0.5)}]`
                             : 'bg-zinc-600'
                         }`}
                         title={cap.isActive ? 'Active' : 'Inactive'}
@@ -1525,7 +1539,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
               <Badge variant="outline" className={`text-[11px] ${CAT_BADGE[selected.category] || ''}`}>
                 {CAT_LABEL[selected.category] || selected.category}
               </Badge>
-              <span className={`w-2 h-2 rounded-full ${selected.isActive ? 'bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.5)]' : 'bg-zinc-600'}`} />
+              <span className={`w-2 h-2 rounded-full ${selected.isActive ? `bg-emerald-500 shadow-[0_0_6px_${greenAlpha(0.5)}]` : 'bg-zinc-600'}`} />
               <span className="text-[11px] text-muted-foreground">{selected.isActive ? 'Active' : 'Inactive'}</span>
               {/* C-07: Version badge in view */}
               {(selected.version || 0) > 1 && (
@@ -1847,7 +1861,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
               <>
                 <div
                   className="w-14 h-14 rounded-2xl mx-auto mb-4 flex items-center justify-center transition-transform duration-300 group-hover/drop:scale-110"
-                  style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.03))' }}
+                  style={{ background: `linear-gradient(135deg, ${goldAlpha(0.15)}, ${goldAlpha(0.03)})` }}
                 >
                   <Upload className="w-6 h-6" style={{ color: 'var(--color-gold)' }} />
                 </div>
@@ -1866,7 +1880,7 @@ export default function CapabilityScreen({ navigateTo }: CapabilityScreenProps) 
               </p>
               {uploadResults.map((r, idx) => (
                 <div key={idx} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 border border-gray-200">
-                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: r.error ? 'rgba(239,68,68,0.1)' : 'rgba(16,185,129,0.1)' }}>
+                  <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: r.error ? `${redAlpha(0.1)}` : `${greenAlpha(0.1)}` }}>
                     {r.error ? <X className="w-4 h-4 text-red-600" /> : <CheckCircle2 className="w-4 h-4 text-emerald-600" />}
                   </div>
                   <div className="flex-1 min-w-0">

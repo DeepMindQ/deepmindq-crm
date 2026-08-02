@@ -70,6 +70,20 @@ import {
   PieChart,
   Pie,
 } from 'recharts';
+import { cardSolid, colors, gold, goldLight, textSecondary, borderSubtle } from '@/components/shared/enterprise-theme';
+
+// ── Theme color opacity helpers ─────────────────────
+const goldAlpha = (a: number) => `rgba(212,175,55,${a})`;
+const greenAlpha = (a: number) => `rgba(16,185,129,${a})`;
+const redAlpha = (a: number) => `rgba(239,68,68,${a})`;
+const blueAlpha = (a: number) => `rgba(59,130,246,${a})`;
+const blackAlpha = (a: number) => `rgba(0,0,0,${a})`;
+const purpleAlpha = (a: number) => `rgba(168,85,247,${a})`;
+const amberAlpha = (a: number) => `rgba(245,158,11,${a})`;
+const neutralAlpha = (a: number) => `rgba(113,113,122,${a})`;
+const violetAlpha = (a: number) => `rgba(139,92,246,${a})`;
+const indigoAlpha = (a: number) => `rgba(99,102,241,${a})`;
+
 
 // ── Shared gold-focus input className ───────────────────────
 const INPUT_CLS =
@@ -148,7 +162,7 @@ function ToggleRow({
           {Icon && (
             <div
               className="mt-0.5 w-8 h-8 rounded-lg flex items-center justify-center shrink-0"
-              style={{ background: 'rgba(212, 175, 55, 0.08)' }}
+              style={{ background: `${goldAlpha(0.08)}` }}
             >
               <Icon className="size-4 text-[#D4AF37]" />
             </div>
@@ -167,13 +181,13 @@ function ToggleRow({
 // ── Status colors for the stacked bar ──────────────────────
 const STATUS_ORDER = ['imported', 'cleaned', 'drafted', 'queued', 'sent', 'replied', 'bounced'] as const;
 const STATUS_COLORS: Record<string, string> = {
-  imported: '#6b7280',
-  cleaned: '#8b5cf6',
-  drafted: '#3b82f6',
-  queued: '#f59e0b',
+  imported: textSecondary,
+  cleaned: colors.purple,
+  drafted: colors.blue,
+  queued: colors.amber,
   sent: 'var(--color-gold)',
-  replied: '#10b981',
-  bounced: '#ef4444',
+  replied: colors.green,
+  bounced: colors.red,
 };
 
 interface TeamMember {
@@ -274,14 +288,14 @@ function TeamPerformanceSection() {
           <div
             className="px-6 py-4 flex items-center justify-between gap-3 flex-wrap"
             style={{
-              background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06), transparent)',
-              borderBottom: '1px solid rgba(212, 175, 55, 0.1)',
+              background: `linear-gradient(135deg, ${goldAlpha(0.06)}, transparent)`,
+              borderBottom: `1px solid ${goldAlpha(0.1)}`,
             }}
           >
             <div className="flex items-center gap-3">
               <div
                 className="w-9 h-9 rounded-lg flex items-center justify-center"
-                style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}
+                style={{ background: `linear-gradient(135deg, ${goldAlpha(0.2)}, ${goldAlpha(0.06)})` }}
               >
                 <Users className="size-4.5" style={{ color: 'var(--color-gold)' }} />
               </div>
@@ -324,19 +338,19 @@ function TeamPerformanceSection() {
             {/* ── Summary Cards ────────────────────────────── */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard label="Team Size" value={totalTeamSize} icon={Users} color="var(--color-gold)" delay={0} />
-              <StatCard label="Total Assigned" value={totalContacts} icon={Target} color="#3b82f6" delay={0.05} />
+              <StatCard label="Total Assigned" value={totalContacts} icon={Target} color={colors.blue} delay={0.05} />
               <StatCard
                 label="Avg Reply Rate"
                 value={`${teamAvgReplyRate}%`}
                 icon={MessageSquare}
-                color="#10b981"
+                color={colors.green}
                 delay={0.1}
               />
               <StatCard
                 label="Top Performer"
                 value={topPerformer ? topPerformer.name.split(' ')[0] : '—'}
                 icon={Trophy}
-                color="#f59e0b"
+                color={colors.amber}
                 delay={0.15}
               />
             </div>
@@ -362,7 +376,7 @@ function TeamPerformanceSection() {
                       <thead className="sticky top-0 z-10">
                         <tr
                           className="text-left text-xs font-medium uppercase tracking-wider text-muted-foreground"
-                          style={{ background: '#FFFFFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 16px rgba(0,0,0,0.12)', backdropFilter: 'blur(8px)' }}
+                          style={{ background: cardSolid, border: '1px solid #E5E7EB', boxShadow: `0 4px 16px ${blackAlpha(0.12)}`, backdropFilter: 'blur(8px)' }}
                         >
                           <th className="px-4 py-3 whitespace-nowrap">Member</th>
                           <th className="px-4 py-3 text-right whitespace-nowrap">Assigned</th>
@@ -381,7 +395,7 @@ function TeamPerformanceSection() {
                           const bouncedCount = m.statusBreakdown['bounced'] || 0;
 
                           // Reply rate color
-                          const replyColor = m.replyRate > 20 ? '#10b981' : m.replyRate >= 10 ? '#f59e0b' : '#ef4444';
+                          const replyColor = m.replyRate > 20 ? colors.green : m.replyRate >= 10 ? colors.amber : colors.red;
 
                           // Stacked bar data
                           const barData = STATUS_ORDER
@@ -405,7 +419,7 @@ function TeamPerformanceSection() {
                                     className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0"
                                     style={{
                                       background: `linear-gradient(135deg, #D4AF37, #9A8340)`,
-                                      boxShadow: idx === 0 ? '0 0 12px rgba(212, 175, 55, 0.4)' : 'none',
+                                      boxShadow: idx === 0 ? `0 0 12px ${goldAlpha(0.4)}` : 'none',
                                     }}
                                   >
                                     {m.avatar}
@@ -442,7 +456,7 @@ function TeamPerformanceSection() {
                                         animate={{ width: `${pct}%` }}
                                         transition={{ delay: idx * 0.05 + 0.2, duration: 0.6 }}
                                         className="h-full"
-                                        style={{ background: STATUS_COLORS[d.name] || '#6b7280' }}
+                                        style={{ background: STATUS_COLORS[d.name] || textSecondary }}
                                         title={`${d.name}: ${d.value}`}
                                       />
                                     );
@@ -487,7 +501,7 @@ function TeamPerformanceSection() {
                               <span className="text-xs font-medium text-foreground truncate">{m.name}</span>
                             </div>
                             <span className="text-xs font-bold tabular-nums" style={{
-                              color: m.replyRate > 20 ? '#10b981' : m.replyRate >= 10 ? '#f59e0b' : '#ef4444',
+                              color: m.replyRate > 20 ? colors.green : m.replyRate >= 10 ? colors.amber : colors.red,
                             }}>
                               {m.replyRate}% reply
                             </span>
@@ -497,12 +511,12 @@ function TeamPerformanceSection() {
                               <BarChart data={chartData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
                                 <XAxis
                                   dataKey="name"
-                                  tick={{ fontSize: 9, fill: '#6b7280' }}
+                                  tick={{ fontSize: 9, fill: textSecondary }}
                                   axisLine={false}
                                   tickLine={false}
                                 />
                                 <YAxis hide />
-                                <Tooltip content={<ChartTooltip />} cursor={{ fill: 'rgba(0, 0, 0, 0.03)' }} />
+                                <Tooltip content={<ChartTooltip />} cursor={{ fill: `${blackAlpha(0.03)}` }} />
                                 <Bar dataKey="value" radius={[3, 3, 0, 0]} maxBarSize={24}>
                                   {chartData.map((entry, i) => (
                                     <Cell key={i} fill={entry.color} />
@@ -546,9 +560,9 @@ interface ComplianceData {
 }
 
 const CONSENT_COLORS: Record<string, string> = {
-  opted_in: '#10B981',
+  opted_in: colors.green,
   unknown: 'var(--color-gold)',
-  opted_out: '#EF4444',
+  opted_out: colors.red,
 };
 
 function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => void }) {
@@ -589,7 +603,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
   };
 
   const complianceRate = data ? parseFloat(data.summary.complianceRate) : 0;
-  const complianceColor = complianceRate >= 80 ? '#10B981' : complianceRate >= 50 ? '#F59E0B' : '#EF4444';
+  const complianceColor = complianceRate >= 80 ? colors.green : complianceRate >= 50 ? colors.amber : colors.red;
   const complianceLabel = complianceRate >= 80 ? 'Compliant' : complianceRate >= 50 ? 'Needs Attention' : 'Non-Compliant';
 
   const pieData = data
@@ -608,13 +622,13 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
           <div
             className="px-6 py-4 flex items-center gap-3"
             style={{
-              background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.06), rgba(212, 175, 55, 0.04), transparent)',
-              borderBottom: '1px solid rgba(239, 68, 68, 0.1)',
+              background: `linear-gradient(135deg, ${redAlpha(0.06)}, ${goldAlpha(0.04)}, transparent)`,
+              borderBottom: `1px solid ${redAlpha(0.1)}`,
             }}
           >
             <div
               className="w-9 h-9 rounded-lg flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(212, 175, 55, 0.08))' }}
+              style={{ background: `linear-gradient(135deg, ${redAlpha(0.2)}, ${goldAlpha(0.08)})` }}
             >
               <ShieldAlert className="size-4.5 text-red-600" />
             </div>
@@ -713,7 +727,7 @@ function ComplianceSection({ navigateTo }: { navigateTo?: (screen: string) => vo
                               </Pie>
                               <Tooltip
                                 contentStyle={{
-                                  background: '#FFFFFF', border: '1px solid rgba(0, 0, 0, 0.06)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                                  background: cardSolid, border: `1px solid ${blackAlpha(0.06)}`, boxShadow: `0 4px 16px ${blackAlpha(0.12)}`,
                                   borderRadius: '8px',
                                   fontSize: '12px',
                                   color: '#e4e4e7',
@@ -1229,8 +1243,8 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
               <div
                 className="flex items-center gap-2.5 rounded-xl border border-emerald-500/30 px-5 py-3 text-sm text-emerald-700 backdrop-blur-xl"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.12), rgba(16, 185, 129, 0.04))',
-                  boxShadow: '0 4px 30px rgba(0, 0, 0, 0.3), 0 0 20px rgba(16, 185, 129, 0.08)',
+                  background: `linear-gradient(135deg, ${greenAlpha(0.12)}, ${greenAlpha(0.04)})`,
+                  boxShadow: `0 4px 30px ${blackAlpha(0.3)}, 0 0 20px ${greenAlpha(0.08)}`,
                 }}
               >
                 <CheckCircle2 className="size-4" />
@@ -1264,8 +1278,8 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
               transition={{ duration: 0.3 }}
               className="hidden sm:flex w-9 h-9 rounded-lg items-center justify-center shrink-0"
               style={{
-                background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05))',
-                border: '1px solid rgba(212, 175, 55, 0.2)',
+                background: `linear-gradient(135deg, ${goldAlpha(0.15)}, ${goldAlpha(0.05)})`,
+                border: `1px solid ${goldAlpha(0.2)}`,
               }}
             >
               {(() => {
@@ -1287,9 +1301,9 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
             {/* Personal Info Card */}
             <StaggerItem>
               <GlassPanel className="p-0 overflow-hidden">
-                <div className="px-6 py-4 flex items-center justify-between" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06), transparent)', borderBottom: '1px solid rgba(212, 175, 55, 0.1)' }}>
+                <div className="px-6 py-4 flex items-center justify-between" style={{ background: `linear-gradient(135deg, ${goldAlpha(0.06)}, transparent)`, borderBottom: `1px solid ${goldAlpha(0.1)}` }}>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${goldAlpha(0.2)}, ${goldAlpha(0.06)})` }}>
                       <UserCircle className="size-4.5" style={{ color: 'var(--color-gold)' }} />
                     </div>
                     <div>
@@ -1370,8 +1384,8 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
             {/* Email Change Card */}
             <StaggerItem>
               <GlassPanel className="p-0 overflow-hidden">
-                <div className="px-6 py-4 flex items-center gap-3" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06), transparent)', borderBottom: '1px solid rgba(212, 175, 55, 0.1)' }}>
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}>
+                <div className="px-6 py-4 flex items-center gap-3" style={{ background: `linear-gradient(135deg, ${goldAlpha(0.06)}, transparent)`, borderBottom: `1px solid ${goldAlpha(0.1)}` }}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${goldAlpha(0.2)}, ${goldAlpha(0.06)})` }}>
                     <Mail className="size-4.5" style={{ color: 'var(--color-gold)' }} />
                   </div>
                   <div>
@@ -1425,8 +1439,8 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
             {/* Password Change Card */}
             <StaggerItem>
               <GlassPanel className="p-0 overflow-hidden">
-                <div className="px-6 py-4 flex items-center gap-3" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06), transparent)', borderBottom: '1px solid rgba(212, 175, 55, 0.1)' }}>
-                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}>
+                <div className="px-6 py-4 flex items-center gap-3" style={{ background: `linear-gradient(135deg, ${goldAlpha(0.06)}, transparent)`, borderBottom: `1px solid ${goldAlpha(0.1)}` }}>
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${goldAlpha(0.2)}, ${goldAlpha(0.06)})` }}>
                     <Lock className="size-4.5" style={{ color: 'var(--color-gold)' }} />
                   </div>
                   <div>
@@ -1504,9 +1518,9 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
           <StaggerGrid stagger={0.08} className="space-y-6">
             <StaggerItem>
               <GlassPanel className="p-0 overflow-hidden">
-                <div className="px-6 py-4 flex items-center justify-between flex-wrap gap-3" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06), transparent)', borderBottom: '1px solid rgba(212, 175, 55, 0.1)' }}>
+                <div className="px-6 py-4 flex items-center justify-between flex-wrap gap-3" style={{ background: `linear-gradient(135deg, ${goldAlpha(0.06)}, transparent)`, borderBottom: `1px solid ${goldAlpha(0.1)}` }}>
                   <div className="flex items-center gap-3">
-                    <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${goldAlpha(0.2)}, ${goldAlpha(0.06)})` }}>
                       <Plug className="size-4.5" style={{ color: 'var(--color-gold)' }} />
                     </div>
                     <div>
@@ -1537,7 +1551,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                   ) : (
                     <div className="space-y-4">
                       {/* Fallback chain info */}
-                      <div className="rounded-lg border border-[#D4AF37]/20 p-3 mb-6" style={{ background: 'rgba(212, 175, 55, 0.04)' }}>
+                      <div className="rounded-lg border border-[#D4AF37]/20 p-3 mb-6" style={{ background: `${goldAlpha(0.04)}` }}>
                         <div className="flex items-start gap-2">
                           <Target className="size-4 text-[#D4AF37] mt-0.5 shrink-0" />
                           <div className="text-xs text-muted-foreground leading-relaxed">
@@ -1564,7 +1578,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                               {/* Provider header */}
                               <div className="flex items-center justify-between gap-4">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style={{ background: hasKey ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.1)', color: hasKey ? '#10B981' : '#EF4444' }}>
+                                  <div className="w-8 h-8 rounded-lg flex items-center justify-center text-xs font-bold shrink-0" style={{ background: hasKey ? `${greenAlpha(0.12)}` : `${redAlpha(0.1)}`, color: hasKey ? colors.green : colors.red }}>
                                     {idx + 1}
                                   </div>
                                   <div>
@@ -1675,13 +1689,13 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div
                   className="px-6 py-4 flex items-center gap-3"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06), transparent)',
-                    borderBottom: '1px solid rgba(212, 175, 55, 0.1)',
+                    background: `linear-gradient(135deg, ${goldAlpha(0.06)}, transparent)`,
+                    borderBottom: `1px solid ${goldAlpha(0.1)}`,
                   }}
                 >
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}
+                    style={{ background: `linear-gradient(135deg, ${goldAlpha(0.2)}, ${goldAlpha(0.06)})` }}
                   >
                     <Mail className="size-4.5" style={{ color: 'var(--color-gold)' }} />
                   </div>
@@ -1795,7 +1809,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                         className="text-primary-foreground hover:opacity-90 transition-all duration-200"
                         style={{
                           background: 'linear-gradient(135deg, #D4AF37, #B8941F)',
-                          boxShadow: '0 0 20px rgba(212, 175, 55, 0.15)',
+                          boxShadow: `0 0 20px ${goldAlpha(0.15)}`,
                         }}
                         onClick={() => showToast('Mailbox settings saved')}
                       >
@@ -1821,13 +1835,13 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div
                   className="px-6 py-4 flex items-center gap-3"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.06), transparent)',
-                    borderBottom: '1px solid rgba(59, 130, 246, 0.1)',
+                    background: `linear-gradient(135deg, ${blueAlpha(0.06)}, transparent)`,
+                    borderBottom: `1px solid ${blueAlpha(0.1)}`,
                   }}
                 >
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.06))' }}
+                    style={{ background: `linear-gradient(135deg, ${blueAlpha(0.2)}, ${blueAlpha(0.06)})` }}
                   >
                     <Clock className="size-4.5 text-blue-600" />
                   </div>
@@ -1957,7 +1971,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                   className="text-primary-foreground hover:opacity-90 transition-all duration-200"
                   style={{
                     background: 'linear-gradient(135deg, #D4AF37, #B8941F)',
-                    boxShadow: '0 0 20px rgba(212, 175, 55, 0.15)',
+                    boxShadow: `0 0 20px ${goldAlpha(0.15)}`,
                   }}
                   onClick={() => showToast('Working hours saved')}
                 >
@@ -1980,13 +1994,13 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div
                   className="px-6 py-4 flex items-center gap-3"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.06), transparent)',
-                    borderBottom: '1px solid rgba(16, 185, 129, 0.1)',
+                    background: `linear-gradient(135deg, ${greenAlpha(0.06)}, transparent)`,
+                    borderBottom: `1px solid ${greenAlpha(0.1)}`,
                   }}
                 >
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(16, 185, 129, 0.06))' }}
+                    style={{ background: `linear-gradient(135deg, ${greenAlpha(0.2)}, ${greenAlpha(0.06)})` }}
                   >
                     <ShieldCheck className="size-4.5 text-emerald-600" />
                   </div>
@@ -2072,7 +2086,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                       className="text-primary-foreground hover:opacity-90 transition-all duration-200"
                       style={{
                         background: 'linear-gradient(135deg, #D4AF37, #B8941F)',
-                        boxShadow: '0 0 20px rgba(212, 175, 55, 0.15)',
+                        boxShadow: `0 0 20px ${goldAlpha(0.15)}`,
                       }}
                       onClick={() => showToast('Verification settings saved')}
                     >
@@ -2096,13 +2110,13 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div
                   className="px-6 py-4 flex items-center gap-3"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06), transparent)',
-                    borderBottom: '1px solid rgba(212, 175, 55, 0.1)',
+                    background: `linear-gradient(135deg, ${goldAlpha(0.06)}, transparent)`,
+                    borderBottom: `1px solid ${goldAlpha(0.1)}`,
                   }}
                 >
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.2), rgba(212, 175, 55, 0.06))' }}
+                    style={{ background: `linear-gradient(135deg, ${goldAlpha(0.2)}, ${goldAlpha(0.06)})` }}
                   >
                     <Star className="size-4.5" style={{ color: 'var(--color-gold)' }} />
                   </div>
@@ -2151,17 +2165,17 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div
                   className="mx-6 mb-6 rounded-lg px-5 py-4 flex items-center justify-between"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.06), rgba(212, 175, 55, 0.02))',
-                    border: '1px solid rgba(212, 175, 55, 0.1)',
+                    background: `linear-gradient(135deg, ${goldAlpha(0.06)}, ${goldAlpha(0.02)})`,
+                    border: `1px solid ${goldAlpha(0.1)}`,
                   }}
                 >
                   <span className="text-sm text-muted-foreground font-medium">Maximum possible score:</span>
                   <Badge
                     className="font-bold text-sm px-3 py-1"
                     style={{
-                      background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05))',
+                      background: `linear-gradient(135deg, ${goldAlpha(0.15)}, ${goldAlpha(0.05)})`,
                       color: 'var(--color-gold)',
-                      border: '1px solid rgba(212, 175, 55, 0.3)',
+                      border: `1px solid ${goldAlpha(0.3)}`,
                     }}
                   >
                     {scoringRules.reduce((sum, r) => sum + r.points, 0)} pts
@@ -2187,7 +2201,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                       className="text-primary-foreground hover:opacity-90 transition-all duration-200"
                       style={{
                         background: 'linear-gradient(135deg, #D4AF37, #B8941F)',
-                        boxShadow: '0 0 20px rgba(212, 175, 55, 0.15)',
+                        boxShadow: `0 0 20px ${goldAlpha(0.15)}`,
                       }}
                       onClick={saveScoringRules}
                     >
@@ -2211,13 +2225,13 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div
                   className="px-6 py-4 flex items-center gap-3"
                   style={{
-                    background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.06), transparent)',
-                    borderBottom: '1px solid rgba(239, 68, 68, 0.1)',
+                    background: `linear-gradient(135deg, ${redAlpha(0.06)}, transparent)`,
+                    borderBottom: `1px solid ${redAlpha(0.1)}`,
                   }}
                 >
                   <div
                     className="w-9 h-9 rounded-lg flex items-center justify-center"
-                    style={{ background: 'linear-gradient(135deg, rgba(239, 68, 68, 0.2), rgba(239, 68, 68, 0.06))' }}
+                    style={{ background: `linear-gradient(135deg, ${redAlpha(0.2)}, ${redAlpha(0.06)})` }}
                   >
                     <Ban className="size-4.5 text-red-600" />
                   </div>
@@ -2268,7 +2282,7 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
                       className="text-primary-foreground hover:opacity-90 transition-all duration-200"
                       style={{
                         background: 'linear-gradient(135deg, #D4AF37, #B8941F)',
-                        boxShadow: '0 0 20px rgba(212, 175, 55, 0.15)',
+                        boxShadow: `0 0 20px ${goldAlpha(0.15)}`,
                       }}
                       onClick={() => showToast('Suppression rules saved')}
                     >

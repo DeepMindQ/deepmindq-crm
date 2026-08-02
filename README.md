@@ -52,14 +52,14 @@ Every AI output includes these reliability primitives:
 |-------|-----------|
 | **Framework** | Next.js 16 (App Router, React 19, Server Components) |
 | **Language** | TypeScript 5, strict mode |
-| **Database** | Prisma 6 ORM — SQLite (local) / PostgreSQL (Vercel/Neon) |
+| **Database** | Prisma 6 ORM — PostgreSQL 16 (dedicated per-customer deployment) |
 | **UI** | Tailwind CSS 4 + shadcn/ui (49 components) + Radix UI |
 | **State** | Zustand 5 + TanStack React Query 5 |
 | **AI/ML** | @xenova/transformers (local embeddings), Z.ai GLM, Gemini, Groq Llama |
 | **Testing** | Vitest 4 + Testing Library (232 test files) |
 | **Auth** | NextAuth + Resend OTP email authentication |
 | **Monitoring** | Sentry 10 (client + server + edge) |
-| **Deployment** | Vercel (primary), Render (fallback) |
+| **Deployment** | Docker (primary), dedicated per-customer instances |
 
 ---
 
@@ -68,7 +68,7 @@ Every AI output includes these reliability primitives:
 ```
 src/
 ├── app/
-│   ├── api/                    # 166 API routes
+│   ├── api/                    # 224 API routes across 66 directories
 │   │   ├── ai/                 # AI engine endpoints (score, actions, conversation, brief)
 │   │   ├── engines/            # Direct engine access routes
 │   │   ├── companies/          # Company CRUD + intelligence + signals + timeline
@@ -81,14 +81,14 @@ src/
 │   └── layout.tsx              # Root layout with providers
 │
 ├── components/
-│   ├── screens/                # 75 screen components
+│   ├── screens/                # 68 screen components
 │   │   ├── ai-command-center-screen.tsx
 │   │   ├── account-intelligence-screen.tsx
 │   │   ├── company-detail-screen.tsx
 │   │   ├── contact-detail-screen.tsx
 │   │   ├── pipeline-forecast-screen.tsx
 │   │   ├── signal-intelligence-screen.tsx
-│   │   └── ...                 # 75 total screens
+│   │   └── ...                 # 68 total screens
 │   ├── ui/                     # 49 shadcn/ui components
 │   ├── enterprise/              # Enterprise-grade reusable components
 │   └── shared/                 # Design system, AI chat sidebar, command palette
@@ -110,7 +110,7 @@ src/
 │   ├── scoring/                # Sub-engines (opportunity probability, revenue, contact influence, buying intent)
 │   ├── data-intelligence/      # Data validation, normalization, deduplication, quality scoring
 │   ├── workflow-engine/        # Queue, processor, retry logic
-│   └── ...                     # 161 library modules total
+│   └── ...                     # 140 library modules total
 │
 ├── hooks/                      # React hooks (mobile, toast, realtime)
 ├── providers/                  # Auth + Query providers
@@ -121,7 +121,7 @@ src/
 
 ## Database Schema
 
-**75 Prisma models**, 1,959 lines of schema covering:
+**91 Prisma models**, 2,935 lines of schema covering:
 
 - **Core CRM**: Contact, Company, Opportunity, Lead
 - **Intelligence**: CompanySignal, AIInsight, Evidence, SignalCapabilityMatch
@@ -230,7 +230,7 @@ Objections: "We already have a data team" → "Your team is the reason this will
 
 ---
 
-## Key Screens (75 Total)
+## Key Screens (68 Total)
 
 | Screen | Description |
 |--------|-------------|
@@ -283,27 +283,28 @@ SEC.gov (0.95) > Bloomberg (0.92) > Crunchbase (0.85) > LinkedIn (0.75) > TechCr
 | **Phase 7** | Complete | Stabilization + evidence collection |
 | **Phase A** | Complete | Engine architecture: ModelRouter, Grounding, Retrieval |
 | **Phase B** | Complete | Composition engines: Synthesis, Scoring, Action, Conversation |
-| **Phase C** | Planned | Screen upgrades: AI Account Intelligence, Buyer Intelligence, AI Deal Room, AI Forecasting |
+| **WI-10** | Complete | Production Security Hardening Phase 1A |
+| **WI-11** | Complete | Production Infrastructure Hardening Phase 1B |
+| **WI-12** | Complete | API Contract Hardening & Enterprise Reliability |
+| **WI-13** | Complete | Enterprise Production Readiness & Hardening |
+| **WI-14** | Complete | Productization, Engineering Handoff & Enterprise Experience |
 
 ---
 
 ## Deployment
 
-### Vercel (Primary)
-```bash
-npm run build:vercel
-```
-- Automatic deployments via GitHub push
-- Neon PostgreSQL adapter for serverless
-- Edge runtime for auth routes
+DeepMindQ uses **dedicated per-customer enterprise deployments**. Each customer gets their own database, storage, secrets, and domain.
 
-### Render (Fallback)
+See [`docs/DEPLOYMENT_GUIDE.md`](docs/DEPLOYMENT_GUIDE.md) for complete deployment instructions.
+
+### Docker (Primary)
 ```bash
-npm run build
-npm run start
+cp .env.example .env
+# Edit .env with required secrets
+docker compose up -d --build
+# Initialize database
+POST /api/setup-db
 ```
-- `render.yaml` configuration included
-- SQLite for single-instance deployment
 
 ---
 
@@ -323,15 +324,33 @@ npm run test:watch     # Watch mode
 
 ---
 
-## License
+## Documentation
 
-Private — DeepMindQ CRM
+| Document | Purpose |
+|----------|---------|
+| [Architecture](docs/ARCHITECTURE.md) | Complete system architecture (6-layer stack, 7 engines, 91 models) |
+| [Database Design](docs/DATABASE_DESIGN.md) | Prisma schema, ER diagram, entity relationships |
+| [API Reference](docs/API_REFERENCE.md) | All 224 API routes documented by domain |
+| [Deployment Guide](docs/DEPLOYMENT_GUIDE.md) | Docker deployment, backup/restore, upgrades |
+| [Developer Guide](docs/DEVELOPMENT_GUIDE.md) | Local setup, folder ownership, common tasks |
+| [Environment Config](docs/ENVIRONMENT_CONFIGURATION.md) | All environment variables with context |
+| [Testing Strategy](docs/TESTING_STRATEGY.md) | Test architecture, how to run, how to add |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and resolutions |
+| [ADR](docs/ADR.md) | Architecture Decision Records |
+| [Security](SECURITY.md) | Security model, vulnerability reporting |
+| [Contributing](CONTRIBUTING.md) | Branch strategy, commit conventions, PR process |
 
 ---
 
-## Repository
+## Security
 
-**GitHub:** [DeepMindQ/deepmindq-crm](https://github.com/DeepMindQ/deepmindq-crm)
+See [`SECURITY.md`](SECURITY.md) for the complete security model, architecture layers, and vulnerability reporting process.
+
+---
+
+## License
+
+Private — DeepMindQ
 
 ---
 

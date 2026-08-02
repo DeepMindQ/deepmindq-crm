@@ -30,7 +30,7 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
       {/* Full-screen iframe for the marketing landing page */}
       <iframe
         src="/landing-page.html"
-        title="DeepMindQ — Enterprise Intelligence OS"
+        title="DeepMindQ — Enterprise Intelligence Platform"
         style={{
           position: 'absolute',
           inset: 0,

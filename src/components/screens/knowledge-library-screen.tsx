@@ -35,6 +35,20 @@ import {
   Treemap, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, Tooltip, Legend,
 } from 'recharts';
+import { cardSolid, colors, gold, goldLight, borderSubtle } from '@/components/shared/enterprise-theme';
+
+// ── Theme color opacity helpers ─────────────────────
+const goldAlpha = (a: number) => `rgba(212,175,55,${a})`;
+const greenAlpha = (a: number) => `rgba(16,185,129,${a})`;
+const redAlpha = (a: number) => `rgba(239,68,68,${a})`;
+const blueAlpha = (a: number) => `rgba(59,130,246,${a})`;
+const blackAlpha = (a: number) => `rgba(0,0,0,${a})`;
+const purpleAlpha = (a: number) => `rgba(168,85,247,${a})`;
+const amberAlpha = (a: number) => `rgba(245,158,11,${a})`;
+const neutralAlpha = (a: number) => `rgba(113,113,122,${a})`;
+const violetAlpha = (a: number) => `rgba(139,92,246,${a})`;
+const indigoAlpha = (a: number) => `rgba(99,102,241,${a})`;
+
 
 /* ═══════════════════════════════════════════════════
    Types
@@ -93,18 +107,18 @@ const TABS = [
 
 const GRAPH_CATEGORY_COLORS: Record<string, string> = {
   service_line: 'var(--color-gold)',
-  case_study: '#10b981',
-  proof_point: '#3b82f6',
-  objection_response: '#f59e0b',
-  cta: '#a855f7',
+  case_study: colors.green,
+  proof_point: colors.blue,
+  objection_response: colors.amber,
+  cta: colors.purple,
 };
 
 const CATEGORY_CONFIG: Record<string, { icon: typeof Layers; color: string; badge: string }> = {
-  service_line: { icon: Layers, color: '#3B82F6', badge: 'bg-blue-500/15 text-blue-600 border-blue-500/30' },
-  case_study: { icon: BookOpen, color: '#10B981', badge: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' },
-  proof_point: { icon: Trophy, color: '#8B5CF6', badge: 'bg-purple-500/15 text-purple-600 border-purple-500/30' },
-  objection_response: { icon: MessageSquare, color: '#EF4444', badge: 'bg-red-500/15 text-red-600 border-red-500/30' },
-  cta: { icon: Target, color: '#F59E0B', badge: 'bg-amber-500/15 text-amber-600 border-amber-500/30' },
+  service_line: { icon: Layers, color: colors.blue, badge: 'bg-blue-500/15 text-blue-600 border-blue-500/30' },
+  case_study: { icon: BookOpen, color: colors.green, badge: 'bg-emerald-500/15 text-emerald-600 border-emerald-500/30' },
+  proof_point: { icon: Trophy, color: colors.purple, badge: 'bg-purple-500/15 text-purple-600 border-purple-500/30' },
+  objection_response: { icon: MessageSquare, color: colors.red, badge: 'bg-red-500/15 text-red-600 border-red-500/30' },
+  cta: { icon: Target, color: colors.amber, badge: 'bg-amber-500/15 text-amber-600 border-amber-500/30' },
 };
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -502,7 +516,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
             <h1 className="text-2xl font-bold text-foreground tracking-tight flex items-center gap-3">
               <div
                 className="w-10 h-10 rounded-xl flex items-center justify-center"
-                style={{ background: `linear-gradient(135deg, ${gold}, ${goldLight})`, boxShadow: `0 0 20px rgba(212,175,55,0.2)` }}
+                style={{ background: `linear-gradient(135deg, ${gold}, ${goldLight})`, boxShadow: `0 0 20px ${goldAlpha(0.2)}` }}
               >
                 <Brain className="w-5 h-5 text-white" />
               </div>
@@ -724,7 +738,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                   label="Connections"
                   value={graphData?.edges?.length || 0}
                   icon={GitBranch}
-                  color="#10b981"
+                  color={colors.green}
                   delay={0.05}
                 />
               </StaggerItem>
@@ -733,7 +747,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                   label="Service Lines"
                   value={Object.keys(graphData?.serviceLines || {}).length}
                   icon={Layers}
-                  color="#3b82f6"
+                  color={colors.blue}
                   delay={0.1}
                 />
               </StaggerItem>
@@ -742,7 +756,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                   label="Categories"
                   value={Object.keys(graphData?.categories || {}).length}
                   icon={Target}
-                  color="#a855f7"
+                  color={colors.purple}
                   delay={0.15}
                 />
               </StaggerItem>
@@ -780,7 +794,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           data={buildTreemapData(graphData.nodes)}
                           dataKey="size"
                           aspectRatio={4 / 3}
-                          stroke="rgba(0, 0, 0, 0.05)"
+                          stroke="${blackAlpha(0.05)}"
                           content={<CustomTreemapContent />}
                         />
                       </ResponsiveContainer>
@@ -820,7 +834,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             </Pie>
                             <Tooltip
                               contentStyle={{
-                                background: '#FFFFFF', border: '1px solid rgba(0, 0, 0, 0.06)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                                background: cardSolid, border: `1px solid ${blackAlpha(0.06)}`, boxShadow: `0 4px 16px ${blackAlpha(0.12)}`,
                                 borderRadius: '8px',
                                 fontSize: '12px',
                                 color: '#374151',
@@ -847,21 +861,21 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           >
                             <XAxis
                               type="number"
-                              tick={{ fill: 'rgba(0, 0, 0, 0.1)', fontSize: 11 }}
-                              axisLine={{ stroke: 'rgba(0, 0, 0, 0.06)' }}
+                              tick={{ fill: `${blackAlpha(0.1)}`, fontSize: 11 }}
+                              axisLine={{ stroke: `${blackAlpha(0.06)}` }}
                               tickLine={false}
                             />
                             <YAxis
                               type="category"
                               dataKey="name"
-                              tick={{ fill: 'rgba(0, 0, 0, 0.12)', fontSize: 11 }}
+                              tick={{ fill: `${blackAlpha(0.12)}`, fontSize: 11 }}
                               axisLine={false}
                               tickLine={false}
                               width={140}
                             />
                             <Tooltip
                               contentStyle={{
-                                background: '#FFFFFF', border: '1px solid rgba(0, 0, 0, 0.06)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                                background: cardSolid, border: `1px solid ${blackAlpha(0.06)}`, boxShadow: `0 4px 16px ${blackAlpha(0.12)}`,
                                 borderRadius: '8px',
                                 fontSize: '12px',
                                 color: '#374151',
@@ -966,7 +980,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
             {/* Engine info banner */}
             <AnimatedCard delay={0.1}>
               <div className="p-4 flex items-center gap-4">
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.05))' }}>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0" style={{ background: `linear-gradient(135deg, ${goldAlpha(0.2)}, ${goldAlpha(0.05)})` }}>
                   <Cpu className="w-5 h-5" style={{ color: gold }} />
                 </div>
                 <div className="flex-1 min-w-0">
@@ -1204,7 +1218,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                                   <span
                                     key={field}
                                     className="inline-flex items-center text-[11px] px-1.5 py-0.5 rounded"
-                                    style={{ background: 'rgba(212,175,55,0.08)', color: gold }}
+                                    style={{ background: `${goldAlpha(0.08)}`, color: gold }}
                                   >
                                     {MATCHED_FIELD_LABELS[field] || field}
                                   </span>
@@ -1224,7 +1238,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             {/* Rank badge */}
                             <div className="shrink-0 w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold"
                               style={{
-                                background: idx === 0 ? 'linear-gradient(135deg, #D4AF37, #E8C860)' : 'rgba(0, 0, 0, 0.04)',
+                                background: idx === 0 ? 'linear-gradient(135deg, #D4AF37, #E8C860)' : `${blackAlpha(0.04)}`,
                                 color: idx === 0 ? '#000' : 'text-muted-foreground',
                               }}
                             >
@@ -1245,7 +1259,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                 <div className="text-center py-16 space-y-4">
                   <div
                     className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto"
-                    style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.15), rgba(212,175,55,0.05))' }}
+                    style={{ background: `linear-gradient(135deg, ${goldAlpha(0.15)}, ${goldAlpha(0.05)})` }}
                   >
                     <Brain className="w-8 h-8" style={{ color: gold }} />
                   </div>
@@ -1322,13 +1336,13 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-[11px] text-muted-foreground uppercase tracking-wider">{dim.label}</span>
                             <span className="text-xs font-bold tabular-nums" style={{
-                              color: dim.score >= 70 ? '#10B981' : dim.score >= 40 ? '#FBBF24' : '#EF4444'
+                              color: dim.score >= 70 ? colors.green : dim.score >= 40 ? '#FBBF24' : colors.red
                             }}>{dim.score}%</span>
                           </div>
                           <div className="w-full h-2 bg-gray-100 rounded-full overflow-hidden">
                             <motion.div
                               className="h-full rounded-full"
-                              style={{ background: dim.score >= 70 ? '#10B981' : dim.score >= 40 ? '#FBBF24' : '#EF4444' }}
+                              style={{ background: dim.score >= 70 ? colors.green : dim.score >= 40 ? '#FBBF24' : colors.red }}
                               initial={{ width: 0 }}
                               animate={{ width: `${dim.score}%` }}
                               transition={{ duration: 0.8 }}
@@ -1369,7 +1383,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                           <div key={sl.name} className="flex items-center gap-3">
                             <span className="text-xs text-muted-foreground w-40 shrink-0 truncate">{sl.name}</span>
                             <div className="flex-1">
-                              <AnimatedBar value={sl.score} max={100} color={sl.score >= 70 ? '#10B981' : sl.score >= 40 ? '#FBBF24' : '#EF4444'} />
+                              <AnimatedBar value={sl.score} max={100} color={sl.score >= 70 ? colors.green : sl.score >= 40 ? '#FBBF24' : colors.red} />
                             </div>
                             <span className="text-xs tabular-nums text-foreground w-8 text-right">{sl.score}%</span>
                           </div>
@@ -1399,7 +1413,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                   <StaggerItem>
                     <GradientCard gradient="gold">
                       <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.15)' }}>
+                        <div className="w-10 h-10 rounded-lg flex items-center justify-center" style={{ background: `${goldAlpha(0.15)}` }}>
                           <Database className="w-5 h-5" style={{ color: gold }} />
                         </div>
                         <div>
@@ -1569,7 +1583,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             </Pie>
                             <Tooltip
                               contentStyle={{
-                                background: '#FFFFFF', border: '1px solid rgba(0, 0, 0, 0.06)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                                background: cardSolid, border: `1px solid ${blackAlpha(0.06)}`, boxShadow: `0 4px 16px ${blackAlpha(0.12)}`,
                                 borderRadius: '8px',
                                 fontSize: '12px',
                                 color: '#374151',
@@ -1578,7 +1592,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             <Legend
                               iconType="circle"
                               iconSize={8}
-                              wrapperStyle={{ fontSize: '11px', color: 'rgba(0, 0, 0, 0.15)' }}
+                              wrapperStyle={{ fontSize: '11px', color: `${blackAlpha(0.15)}` }}
                             />
                           </PieChart>
                         </ResponsiveContainer>
@@ -1602,21 +1616,21 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                         >
                           <XAxis
                             type="number"
-                            tick={{ fill: 'rgba(0, 0, 0, 0.1)', fontSize: 11 }}
-                            axisLine={{ stroke: 'rgba(0, 0, 0, 0.06)' }}
+                            tick={{ fill: `${blackAlpha(0.1)}`, fontSize: 11 }}
+                            axisLine={{ stroke: `${blackAlpha(0.06)}` }}
                             tickLine={false}
                           />
                           <YAxis
                             type="category"
                             dataKey="name"
-                            tick={{ fill: 'rgba(0, 0, 0, 0.12)', fontSize: 11 }}
+                            tick={{ fill: `${blackAlpha(0.12)}`, fontSize: 11 }}
                             axisLine={false}
                             tickLine={false}
                             width={120}
                           />
                           <Tooltip
                             contentStyle={{
-                              background: '#FFFFFF', border: '1px solid rgba(0, 0, 0, 0.06)', boxShadow: '0 4px 16px rgba(0,0,0,0.12)',
+                              background: cardSolid, border: `1px solid ${blackAlpha(0.06)}`, boxShadow: `0 4px 16px ${blackAlpha(0.12)}`,
                               borderRadius: '8px',
                               fontSize: '12px',
                               color: '#374151',
@@ -1627,7 +1641,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                             {coverage.industries.map((ind, idx) => (
                               <Cell
                                 key={ind.name}
-                                fill={ind.count === 0 ? '#EF4444' : ind.coverage >= 70 ? '#10B981' : ind.coverage >= 40 ? '#FBBF24' : '#F87171'}
+                                fill={ind.count === 0 ? colors.red : ind.coverage >= 70 ? colors.green : ind.coverage >= 40 ? '#FBBF24' : '#F87171'}
                               />
                             ))}
                           </Bar>
@@ -1672,7 +1686,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
             <AnimatedCard delay={0.1}>
               <div className="p-6">
                 <div className="flex items-center gap-3 mb-1">
-                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: 'linear-gradient(135deg, rgba(212,175,55,0.2), rgba(212,175,55,0.05))' }}>
+                  <div className="w-9 h-9 rounded-xl flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${goldAlpha(0.2)}, ${goldAlpha(0.05)})` }}>
                     <Upload className="w-4.5 h-4.5" style={{ color: gold }} />
                   </div>
                   <div>
@@ -1808,7 +1822,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                 <AnimatedCard delay={0.15}>
                   <div className="p-4">
                     <div className="flex items-start gap-3">
-                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: uploadResult.aiExtractionUsed ? 'rgba(16,185,129,0.15)' : 'rgba(212,175,55,0.1)' }}>
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0" style={{ background: uploadResult.aiExtractionUsed ? `${greenAlpha(0.15)}` : `${goldAlpha(0.1)}` }}>
                         {uploadResult.aiExtractionUsed ? (
                           <Sparkles className="w-4.5 h-4.5 text-emerald-600" />
                         ) : (
@@ -1969,9 +1983,9 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
             <StaggerGrid className="grid grid-cols-1 md:grid-cols-4 gap-3" stagger={0.08} delay={0.2}>
               {[
                 { icon: Upload, title: '1. Upload', desc: 'Drop a .txt, .md, .pdf, or .docx file (max 5MB)', color: 'var(--color-gold)' },
-                { icon: FileText, title: '2. Extract', desc: 'Text is automatically extracted from the document content', color: '#3B82F6' },
-                { icon: Sparkles, title: '3. AI Analyze', desc: 'AI identifies service lines, case studies, proof points, and more', color: '#10B981' },
-                { icon: Database, title: '4. Auto-Save', desc: 'Structured assets are saved to the knowledge base for RAG retrieval', color: '#8B5CF6' },
+                { icon: FileText, title: '2. Extract', desc: 'Text is automatically extracted from the document content', color: colors.blue },
+                { icon: Sparkles, title: '3. AI Analyze', desc: 'AI identifies service lines, case studies, proof points, and more', color: colors.green },
+                { icon: Database, title: '4. Auto-Save', desc: 'Structured assets are saved to the knowledge base for RAG retrieval', color: colors.purple },
               ].map(step => (
                 <StaggerItem key={step.title}>
                   <AnimatedCard className="p-4 text-center space-y-2.5">
@@ -2098,7 +2112,7 @@ export default function KnowledgeLibraryScreen({ navigateTo }: KnowledgeScreenPr
                                 <div
                                   className="absolute left-[-17px] top-1.5 w-3.5 h-3.5 rounded-full border-2"
                                   style={{
-                                    borderColor: isCurrent ? gold : 'rgba(0, 0, 0, 0.06)',
+                                    borderColor: isCurrent ? gold : `${blackAlpha(0.06)}`,
                                     background: isCurrent ? `${gold}40` : 'transparent',
                                     boxShadow: isCurrent ? `0 0 8px ${gold}60` : 'none',
                                   }}
@@ -2322,15 +2336,15 @@ function CustomTreemapContent(props: any) {
           y={y}
           width={width}
           height={height}
-          fill="rgba(0, 0, 0, 0.02)"
-          stroke="rgba(0, 0, 0, 0.05)"
+          fill="${blackAlpha(0.02)}"
+          stroke="${blackAlpha(0.05)}"
           rx={6}
         />
         {width > 80 && (
           <text
             x={x + 8}
             y={y + 18}
-            fill="rgba(0, 0, 0, 0.12)"
+            fill="${blackAlpha(0.12)}"
             fontSize={10}
             fontWeight={600}
           >
@@ -2367,7 +2381,7 @@ function CustomTreemapContent(props: any) {
         <text
           x={x + 6}
           y={y + height / 2 + 1}
-          fill="rgba(0, 0, 0, 0.3)"
+          fill="${blackAlpha(0.3)}"
           fontSize={10}
           fontWeight={500}
         >

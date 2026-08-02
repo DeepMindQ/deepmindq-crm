@@ -120,6 +120,23 @@ function confidenceBarColor(confidence: number): string {
 //  IMPORT SCREEN
 // ═══════════════════════════════════════════════════════════
 export default function ImportScreen({ navigateTo }: ImportScreenProps) {
+  // ── Loading state ──
+  const [isReady, setIsReady] = useState(false);
+
+  useEffect(() => {
+    // Simulate minimal mount time to avoid flash of unstyled content
+    const timer = setTimeout(() => setIsReady(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!isReady) {
+    return (
+      <div className="flex items-center justify-center h-full" style={{ minHeight: '60vh' }}>
+        <Loader2 className="h-8 w-8 animate-spin text-amber-500/70" />
+      </div>
+    );
+  }
+
   // ── Wizard state ──
   const [step, setStep] = useState<WizardStep>('upload');
   const [file, setFile] = useState<File | null>(null);

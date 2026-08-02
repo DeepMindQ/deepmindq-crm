@@ -12,12 +12,24 @@ import {
   Target, ShieldAlert,
 } from 'lucide-react';
 import { useAppStore, type ViewId } from '@/lib/store';
+import { badgeColors, colors, gold, goldLight, card, border, borderSubtle } from '@/components/shared/enterprise-theme';
+
+// ── Theme color opacity helpers ─────────────────────
+const goldAlpha = (a: number) => `rgba(212,175,55,${a})`;
+const greenAlpha = (a: number) => `rgba(16,185,129,${a})`;
+const redAlpha = (a: number) => `rgba(239,68,68,${a})`;
+const blueAlpha = (a: number) => `rgba(59,130,246,${a})`;
+const blackAlpha = (a: number) => `rgba(0,0,0,${a})`;
+const purpleAlpha = (a: number) => `rgba(168,85,247,${a})`;
+const amberAlpha = (a: number) => `rgba(245,158,11,${a})`;
+const neutralAlpha = (a: number) => `rgba(113,113,122,${a})`;
+const violetAlpha = (a: number) => `rgba(139,92,246,${a})`;
+const indigoAlpha = (a: number) => `rgba(99,102,241,${a})`;
+
 
 /* ═══════════════════════════════════════════════════
-   Design Tokens
+   Design Tokens — now imported from enterprise-theme
    ═══════════════════════════════════════════════════ */
-const gold = 'var(--color-gold-dim)', goldLight = 'var(--color-gold)';
-const card = 'rgba(255, 255, 255, 0.85)', border = 'rgba(0, 0, 0, 0.08)';
 
 /* ═══════════════════════════════════════════════════
    Typed API Envelope Unwrapping
@@ -122,17 +134,17 @@ interface AIBriefing {
    Activity Config
    ═══════════════════════════════════════════════════ */
 const ACT_CFG: Record<string, { icon: typeof Zap; color: string; bg: string; label: string }> = {
-  lead_imported:    { icon: UserPlus,      color: '#3B82F6', bg: 'rgba(59,130,246,0.12)',  label: 'Lead Imported' },
-  draft_generated:  { icon: Sparkles,      color: '#F59E0B', bg: 'rgba(245,158,11,0.12)',  label: 'Draft Generated' },
-  email_sent:       { icon: Send,          color: '#10B981', bg: 'rgba(16,185,129,0.12)',  label: 'Email Sent' },
-  email_opened:     { icon: Eye,           color: '#A855F7', bg: 'rgba(168,85,247,0.12)', label: 'Email Opened' },
-  reply_received:   { icon: MessageSquare, color: gold,     bg: 'rgba(212,175,55,0.12)',   label: 'Reply Received' },
-  bounce_detected:  { icon: AlertTriangle, color: '#EF4444', bg: 'rgba(239,68,68,0.12)',   label: 'Bounce Detected' },
+  lead_imported:    { icon: UserPlus,      color: colors.blue, bg: `${blueAlpha(0.12)}`,  label: 'Lead Imported' },
+  draft_generated:  { icon: Sparkles,      color: colors.amber, bg: `${amberAlpha(0.12)}`,  label: 'Draft Generated' },
+  email_sent:       { icon: Send,          color: colors.green, bg: `${greenAlpha(0.12)}`,  label: 'Email Sent' },
+  email_opened:     { icon: Eye,           color: colors.purple, bg: `${purpleAlpha(0.12)}`, label: 'Email Opened' },
+  reply_received:   { icon: MessageSquare, color: gold,     bg: `${goldAlpha(0.12)}`,   label: 'Reply Received' },
+  bounce_detected:  { icon: AlertTriangle, color: colors.red, bg: `${redAlpha(0.12)}`,   label: 'Bounce Detected' },
 };
 
 function getActCfg(action: string) {
   for (const [k, c] of Object.entries(ACT_CFG)) if (action.toLowerCase().includes(k)) return c;
-  return { icon: Zap, color: '#71717A', bg: 'rgba(113,113,122,0.12)', label: action.replace(/_/g, ' ') };
+  return { icon: Zap, color: badgeColors.neutral.text, bg: `${neutralAlpha(0.12)}`, label: action.replace(/_/g, ' ') };
 }
 
 function fmtTime(iso: string) {
@@ -154,10 +166,10 @@ function fmtDetails(action: string, details?: string) {
 
 /** Insight type → color mapping */
 const INSIGHT_COLORS: Record<string, { dot: string; bg: string }> = {
-  positive: { dot: '#10B981', bg: 'rgba(16,185,129,0.10)' },
-  negative: { dot: '#EF4444', bg: 'rgba(239,68,68,0.10)' },
-  action:   { dot: '#3B82F6', bg: 'rgba(59,130,246,0.10)' },
-  neutral:  { dot: '#71717A', bg: 'rgba(113,113,122,0.10)' },
+  positive: { dot: colors.green, bg: `${greenAlpha(0.10)}` },
+  negative: { dot: colors.red, bg: `${redAlpha(0.10)}` },
+  action:   { dot: colors.blue, bg: `${blueAlpha(0.10)}` },
+  neutral:  { dot: badgeColors.neutral.text, bg: `${neutralAlpha(0.10)}` },
 };
 
 /* ═══════════════════════════════════════════════════
@@ -424,7 +436,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   if (allZero && dashData) return (
     <div className="flex flex-col items-center justify-center py-20 text-center max-w-md mx-auto">
       <motion.div animate={{ scale: [1, 1.06, 1] }} transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-        className="w-20 h-20 rounded-3xl flex items-center justify-center mb-5" style={{ background: 'rgba(212,175,55,0.08)', border: '2px solid rgba(212,175,55,0.15)' }}>
+        className="w-20 h-20 rounded-3xl flex items-center justify-center mb-5" style={{ background: `${goldAlpha(0.08)}`, border: `2px solid ${goldAlpha(0.15)}` }}>
         <Brain className="w-10 h-10" style={{ color: gold }} />
       </motion.div>
       <h2 className="text-lg font-bold text-foreground tracking-tight">Welcome to DeepMindQ</h2>
@@ -433,7 +445,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
         <button onClick={() => nav('import')} className="flex items-center gap-2 text-xs font-semibold px-4 py-2.5 rounded-lg transition-colors" style={{ background: gold, color: '#000' }}>
           <Upload className="w-3.5 h-3.5" /> Import Data
         </button>
-        <button onClick={() => nav('signal-intelligence')} className="flex items-center gap-2 text-xs font-medium px-4 py-2.5 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: gold, border: `1px solid rgba(212,175,55,0.3)` }}>
+        <button onClick={() => nav('signal-intelligence')} className="flex items-center gap-2 text-xs font-medium px-4 py-2.5 rounded-lg hover:bg-gray-100 transition-colors" style={{ color: gold, border: `1px solid ${goldAlpha(0.3)}` }}>
           <Radar className="w-3.5 h-3.5" /> AI Research
         </button>
       </div>
@@ -443,7 +455,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   /* ── Fallback empty state: contactsByStatus missing ── */
   if (dashData && !dashData.contactsByStatus) return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
-      <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
+      <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: `${goldAlpha(0.1)}`, border: `1px solid ${goldAlpha(0.2)}` }}>
         <Brain className="w-6 h-6" style={{ color: gold }} />
       </div>
       <p className="text-sm font-medium text-foreground">No dashboard data available</p>
@@ -464,10 +476,10 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
       {statsFailed && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           className="rounded-xl px-5 py-3 flex items-center gap-3"
-          style={{ background: 'rgba(239,68,68,0.06)', border: '1px solid rgba(239,68,68,0.15)' }}>
+          style={{ background: `${redAlpha(0.06)}`, border: `1px solid ${redAlpha(0.15)}` }}>
           <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
           <p className="text-xs text-muted-foreground flex-1">Intelligence stats unavailable — KPI values may show defaults</p>
-          <button onClick={() => refetchStats()} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors" style={{ color: '#EF4444' }}>
+          <button onClick={() => refetchStats()} className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-lg hover:bg-red-50 transition-colors" style={{ color: colors.red }}>
             <RefreshCw className="w-3 h-3" /> Retry
           </button>
         </motion.div>
@@ -476,9 +488,9 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
       {/* ═══════ 0. AI BRIEFING ═══════ */}
       {briefingLoading ? (
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-          className="rounded-xl overflow-hidden" style={{ ...glassPanel, border: '1px solid rgba(212,175,55,0.3)' }}>
+          className="rounded-xl overflow-hidden" style={{ ...glassPanel, border: `1px solid ${goldAlpha(0.3)}` }}>
           <div className="flex items-center gap-3 px-5 py-3.5">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.12)' }}>
+            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: `${goldAlpha(0.12)}` }}>
               <Brain className="w-4 h-4 animate-pulse" style={{ color: gold }} />
             </div>
             <span className="text-sm text-muted-foreground">Analyzing your pipeline intelligence<span className="inline-flex gap-0.5 ml-1"><span className="animate-bounce" style={{ animationDelay: '0ms' }}>.</span><span className="animate-bounce" style={{ animationDelay: '150ms' }}>.</span><span className="animate-bounce" style={{ animationDelay: '300ms' }}>.</span></span></span>
@@ -499,11 +511,11 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
         </motion.div>
       ) : (
         <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
-          className="relative rounded-xl overflow-hidden" style={{ ...glassPanel, borderLeft: '3px solid #D4AF37', boxShadow: '0 0 24px rgba(212,175,55,0.06), 0 1px 3px rgba(0,0,0,0.04)' }}>
+          className="relative rounded-xl overflow-hidden" style={{ ...glassPanel, borderLeft: '3px solid #D4AF37', boxShadow: `0 0 24px ${goldAlpha(0.06)}, 0 1px 3px ${blackAlpha(0.04)}` }}>
           <div className="p-5 space-y-3">
             <div className="flex items-start justify-between">
               <div className="flex items-center gap-2.5">
-                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(212,175,55,0.12)' }}>
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${goldAlpha(0.12)}` }}>
                   <Brain className="w-4 h-4" style={{ color: gold }} />
                 </div>
                 <div>
@@ -511,7 +523,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                   <p className="text-[11px] text-muted-foreground">Today, {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
                 </div>
               </div>
-              <div className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide" style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
+              <div className="flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold tracking-wide" style={{ background: `${goldAlpha(0.1)}`, color: gold }}>
                 <Brain className="w-2.5 h-2.5" /> AI
               </div>
             </div>
@@ -540,9 +552,9 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                   <div className="flex flex-wrap gap-1.5">
                     {aiBriefing.predictions!.slice(0, 3).map((p, i: number) => {
                       const arrow = p.trend === 'up' ? '\u2191' : p.trend === 'down' ? '\u2193' : '\u2192';
-                      const tc = p.trend === 'up' ? '#10B981' : p.trend === 'down' ? '#EF4444' : '#71717A';
+                      const tc = p.trend === 'up' ? colors.green : p.trend === 'down' ? colors.red : badgeColors.neutral.text;
                       return (
-                        <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.05)' }}>
+                        <div key={i} className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg" style={{ background: `${blackAlpha(0.025)}`, border: `1px solid ${blackAlpha(0.05)}` }}>
                           <span style={{ color: tc, fontWeight: 700, fontSize: 12 }}>{arrow}</span>
                           <span className="text-[11px] font-medium text-foreground">{p.metric}</span>
                           <span className="text-[11px] text-muted-foreground tabular-nums">{p.current}\u2192{p.predicted}</span>
@@ -561,30 +573,30 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
       {/* ═══════ 1. KPI CARDS — with today's deltas as trends ═══════ */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
         <StatCard icon={Building2} label="Total Companies" value={dd.totalCompanies || 0} bc="var(--color-gold)" delay={0} />
-        <StatCard icon={Users} label="Active Contacts" value={totalLeads} bc="#3B82F6" delay={0.06} />
+        <StatCard icon={Users} label="Active Contacts" value={totalLeads} bc={colors.blue} delay={0.06} />
         <StatCard
           icon={Radar} label="Signals"
-          value={dashStats?.signals ?? 0} bc="#8B5CF6" delay={0.12}
+          value={dashStats?.signals ?? 0} bc={colors.purple} delay={0.12}
           trend={dashStats?.today?.newSignals ? { value: dashStats.today.newSignals, up: true } : undefined}
         />
         <StatCard
           icon={Target} label="Opportunities"
-          value={dashStats?.opportunities ?? 0} bc="#06B6D4" delay={0.18}
+          value={dashStats?.opportunities ?? 0} bc={colors.cyan} delay={0.18}
           trend={dashStats?.today?.newOpportunities ? { value: dashStats.today.newOpportunities, up: true } : undefined}
         />
         <StatCard
           icon={Sparkles} label="Recommendations"
-          value={dashStats?.recommendations ?? 0} bc="#F59E0B" delay={0.24}
+          value={dashStats?.recommendations ?? 0} bc={colors.amber} delay={0.24}
           trend={dashStats?.today?.newRecommendations ? { value: dashStats.today.newRecommendations, up: true } : undefined}
         />
-        <StatCard icon={Mail} label="Reply Rate" value={replyRate} suffix="%" bc="#A855F7" delay={0.30} />
+        <StatCard icon={Mail} label="Reply Rate" value={replyRate} suffix="%" bc={colors.purple} delay={0.30} />
       </div>
       {/* ═══════ 1b. INTELLIGENCE SCORE + SECONDARY KPIs ═══════ */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         <div className="relative rounded-xl overflow-hidden group cursor-default" style={{ background: card, backdropFilter: 'blur(20px)', border: `1px solid ${border}`, borderLeft: '3px solid #8B5CF6' }}>
           <div className="p-4 space-y-2">
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(139,92,246,0.1)' }}><Brain className="w-4 h-4" style={{ color: '#8B5CF6' }} /></div>
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${violetAlpha(0.1)}` }}><Brain className="w-4 h-4" style={{ color: colors.purple }} /></div>
               <span className="text-xs font-medium text-muted-foreground">Avg Intelligence Score</span>
             </div>
             <div className="flex items-baseline gap-1.5">
@@ -593,20 +605,20 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             </div>
           </div>
         </div>
-        <StatCard icon={ShieldAlert} label="Risks" value={dashStats?.risks ?? 0} bc="#EF4444" delay={0.05}
+        <StatCard icon={ShieldAlert} label="Risks" value={dashStats?.risks ?? 0} bc={colors.red} delay={0.05}
           trend={dashStats?.today?.newRisks ? { value: dashStats.today.newRisks, up: false } : undefined} />
-        <StatCard icon={Layers} label="Insights" value={dashStats?.insights ?? 0} bc="#10B981" delay={0.10} />
-        <StatCard icon={Shield} label="Suppressed" value={suppressions} bc="#71717A" delay={0.15} />
+        <StatCard icon={Layers} label="Insights" value={dashStats?.insights ?? 0} bc={colors.green} delay={0.10} />
+        <StatCard icon={Shield} label="Suppressed" value={suppressions} bc={badgeColors.neutral.text} delay={0.15} />
       </div>
 
       {/* ═══════ 2. QUICK ACTIONS ═══════ */}
       <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-        <QuickAction icon={Upload} label="Import Data" color="#3B82F6" onClick={() => nav('import')} delay={0.3} />
-        <QuickAction icon={GitBranch} label="New Sequence" color="#8B5CF6" onClick={() => nav('sequences')} delay={0.34} />
-        <QuickAction icon={MailPlus} label="Drafts" color="#10B981" onClick={() => nav('drafts')} delay={0.38} />
+        <QuickAction icon={Upload} label="Import Data" color={colors.blue} onClick={() => nav('import')} delay={0.3} />
+        <QuickAction icon={GitBranch} label="New Sequence" color={colors.purple} onClick={() => nav('sequences')} delay={0.34} />
+        <QuickAction icon={MailPlus} label="Drafts" color={colors.green} onClick={() => nav('drafts')} delay={0.38} />
         <QuickAction icon={Radar} label="AI Research" color={gold} onClick={() => nav('signal-intelligence')} delay={0.42} />
-        <QuickAction icon={Activity} label="Pipeline" color="#F59E0B" onClick={() => nav('pipeline')} delay={0.46} />
-        <QuickAction icon={Shield} label="AI Health" color="#EF4444" onClick={() => nav('ai-health')} delay={0.50} />
+        <QuickAction icon={Activity} label="Pipeline" color={colors.amber} onClick={() => nav('pipeline')} delay={0.46} />
+        <QuickAction icon={Shield} label="AI Health" color={colors.red} onClick={() => nav('ai-health')} delay={0.50} />
       </div>
 
       {/* ═══════ 3. PIPELINE FUNNEL ═══════ */}
@@ -617,7 +629,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             <h2 className="text-sm font-bold text-foreground tracking-tight">Pipeline Funnel</h2>
             <p className="text-[11px] text-muted-foreground mt-0.5">Lead conversion across outreach stages</p>
           </div>
-          <span className="text-[11px] font-medium px-2 py-1 rounded-md" style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
+          <span className="text-[11px] font-medium px-2 py-1 rounded-md" style={{ background: `${goldAlpha(0.1)}`, color: gold }}>
             {totalLeads > 0 ? ((funnelStages[4].count / funnelStages[0].count) * 100).toFixed(2) : 0}% conversion
           </span>
         </div>
@@ -630,7 +642,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                 transition={{ duration: 0.5, delay: 0.2 + i * 0.08, ease: [0.22, 1, 0.36, 1] }}>
                 <span className="text-[11px] text-muted-foreground font-medium w-[70px] shrink-0 text-right">{s.label}</span>
                 <div className="flex-1 flex items-center gap-2">
-                  <div className="flex-1 h-8 rounded-md overflow-hidden" style={{ background: 'rgba(0, 0, 0, 0.03)' }}>
+                  <div className="flex-1 h-8 rounded-md overflow-hidden" style={{ background: `${blackAlpha(0.03)}` }}>
                     <motion.div className="h-full rounded-md flex items-center px-3"
                       style={{ background: `linear-gradient(90deg, rgba(212,175,55,${0.9 - i * 0.15}), rgba(232,200,96,${0.7 - i * 0.12}))` }}
                       initial={{ width: 0 }} animate={{ width: `${w}%` }}
@@ -659,60 +671,60 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             </div>
             <div className="flex items-center gap-4 text-[11px] font-medium">
               <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full bg-gray-800" />Sent</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: '#10B981' }} />Replied</span>
-              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: '#EF4444' }} />Bounced</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: colors.green }} />Replied</span>
+              <span className="flex items-center gap-1.5"><span className="w-2 h-2 rounded-full" style={{ background: colors.red }} />Bounced</span>
             </div>
           </div>
           <div className="px-5 pb-5 pt-3">
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
-              <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+              <div className="rounded-lg p-3" style={{ background: `${blackAlpha(0.025)}`, border: `1px solid ${blackAlpha(0.06)}` }}>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Sent</p>
                 <p className="text-2xl font-bold text-foreground tabular-nums mt-1">{sent}</p>
               </div>
-              <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+              <div className="rounded-lg p-3" style={{ background: `${blackAlpha(0.025)}`, border: `1px solid ${blackAlpha(0.06)}` }}>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Replies (7d)</p>
-                <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: '#10B981' }}>{dd.repliesThisWeek || 0}</p>
+                <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: colors.green }}>{dd.repliesThisWeek || 0}</p>
               </div>
-              <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+              <div className="rounded-lg p-3" style={{ background: `${blackAlpha(0.025)}`, border: `1px solid ${blackAlpha(0.06)}` }}>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Bounces</p>
-                <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: '#EF4444' }}>{bounces}</p>
+                <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: colors.red }}>{bounces}</p>
               </div>
-              <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+              <div className="rounded-lg p-3" style={{ background: `${blackAlpha(0.025)}`, border: `1px solid ${blackAlpha(0.06)}` }}>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Reply Rate</p>
                 <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: gold }}>{replyRate}%</p>
               </div>
-              <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.025)', border: '1px solid rgba(0,0,0,0.06)' }}>
+              <div className="rounded-lg p-3" style={{ background: `${blackAlpha(0.025)}`, border: `1px solid ${blackAlpha(0.06)}` }}>
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Suppressed</p>
-                <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: '#71717A' }}>{suppressions}</p>
+                <p className="text-2xl font-bold tabular-nums mt-1" style={{ color: badgeColors.neutral.text }}>{suppressions}</p>
               </div>
             </div>
             {/* Email health breakdown */}
-            <div className="rounded-lg p-3" style={{ background: 'rgba(0,0,0,0.015)', border: '1px solid rgba(0,0,0,0.05)' }}>
+            <div className="rounded-lg p-3" style={{ background: `${blackAlpha(0.015)}`, border: `1px solid ${blackAlpha(0.05)}` }}>
               <div className="flex items-center justify-between mb-2">
                 <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Email Health</p>
-                <span className="text-[11px] font-bold tabular-nums" style={{ color: healthPct >= 80 ? '#10B981' : healthPct >= 50 ? '#F59E0B' : '#EF4444' }}>{healthPct}% valid</span>
+                <span className="text-[11px] font-bold tabular-nums" style={{ color: healthPct >= 80 ? colors.green : healthPct >= 50 ? colors.amber : colors.red }}>{healthPct}% valid</span>
               </div>
-              <div className="flex gap-1 h-2 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.04)' }}>
+              <div className="flex gap-1 h-2 rounded-full overflow-hidden" style={{ background: `${blackAlpha(0.04)}` }}>
                 {healthValid > 0 && (
-                  <motion.div className="h-full rounded-l-full" style={{ background: '#10B981' }}
+                  <motion.div className="h-full rounded-l-full" style={{ background: colors.green }}
                     initial={{ width: 0 }} animate={{ width: `${(healthValid / Math.max(healthTotal, 1)) * 100}%` }}
                     transition={{ duration: 0.8, delay: 0.4 }} />
                 )}
                 {healthRisky > 0 && (
-                  <motion.div className="h-full" style={{ background: '#F59E0B' }}
+                  <motion.div className="h-full" style={{ background: colors.amber }}
                     initial={{ width: 0 }} animate={{ width: `${(healthRisky / Math.max(healthTotal, 1)) * 100}%` }}
                     transition={{ duration: 0.8, delay: 0.5 }} />
                 )}
                 {healthInvalid > 0 && (
-                  <motion.div className="h-full rounded-r-full" style={{ background: '#EF4444' }}
+                  <motion.div className="h-full rounded-r-full" style={{ background: colors.red }}
                     initial={{ width: 0 }} animate={{ width: `${(healthInvalid / Math.max(healthTotal, 1)) * 100}%` }}
                     transition={{ duration: 0.8, delay: 0.6 }} />
                 )}
               </div>
               <div className="flex items-center gap-4 mt-1.5 text-[10px] text-muted-foreground">
-                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: '#10B981' }} />Valid {healthValid}</span>
-                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: '#F59E0B' }} />Risky {healthRisky}</span>
-                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: '#EF4444' }} />Invalid {healthInvalid}</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: colors.green }} />Valid {healthValid}</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: colors.amber }} />Risky {healthRisky}</span>
+                <span className="flex items-center gap-1"><span className="w-1.5 h-1.5 rounded-full" style={{ background: colors.red }} />Invalid {healthInvalid}</span>
               </div>
             </div>
           </div>
@@ -739,7 +751,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             ) : topCompanies.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: `${goldAlpha(0.1)}`, border: `1px solid ${goldAlpha(0.2)}` }}>
                   <Brain className="w-6 h-6" style={{ color: gold }} />
                 </motion.div>
                 <p className="text-sm font-medium text-foreground">No companies yet</p>
@@ -751,7 +763,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                   <motion.button key={co.id} className="w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100/50 transition-colors text-left group"
                     initial={{ opacity: 0, x: -12 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.4, delay: 0.4 + i * 0.05 }}
                     onClick={() => goToCompany(co.id)}>
-                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold" style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
+                    <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 text-xs font-bold" style={{ background: `${goldAlpha(0.1)}`, color: gold }}>
                       {i + 1}
                     </div>
                     <div className="flex-1 min-w-0">
@@ -759,7 +771,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                       <p className="text-[11px] text-muted-foreground">{co.industry || 'Unknown'}{co.country ? ` \u00B7 ${co.country}` : ''}</p>
                     </div>
                     <div className="flex items-center gap-2 shrink-0">
-                      <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(0, 0, 0, 0.05)' }}>
+                      <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: `${blackAlpha(0.05)}` }}>
                         <motion.div className="h-full rounded-full" style={{ background: `linear-gradient(90deg, ${gold}CC, ${goldLight})` }}
                           initial={{ width: 0 }} animate={{ width: `${(co.contactCount / maxContacts) * 100}%` }}
                           transition={{ duration: 0.8, delay: 0.5 + i * 0.05 }} />
@@ -793,7 +805,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
             ) : activity.length === 0 ? (
               <div className="flex flex-col items-center justify-center py-10 text-center">
                 <motion.div animate={{ scale: [1, 1.08, 1] }} transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
-                  className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}>
+                  className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3" style={{ background: `${goldAlpha(0.1)}`, border: `1px solid ${goldAlpha(0.2)}` }}>
                   <Brain className="w-6 h-6" style={{ color: gold }} />
                 </motion.div>
                 <p className="text-sm font-medium text-foreground">No activity recorded</p>
@@ -859,8 +871,8 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
                     <span className="text-xs font-medium text-foreground">{seg.name}</span>
                     <span className="text-[11px] font-bold tabular-nums" style={{ color: gold }}>{(seg._count?.contacts || 0).toLocaleString()}</span>
                   </div>
-                  <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: 'rgba(0, 0, 0, 0.04)' }}>
-                    <motion.div className="h-full rounded-full" style={{ background: 'linear-gradient(90deg, rgba(212,175,55,0.8), rgba(232,200,96,0.6))' }}
+                  <div className="w-full h-2 rounded-full overflow-hidden" style={{ background: `${blackAlpha(0.04)}` }}>
+                    <motion.div className="h-full rounded-full" style={{ background: `linear-gradient(90deg, ${goldAlpha(0.8)}, rgba(232,200,96,0.6))` }}
                       initial={{ width: 0 }} animate={{ width: `${((seg._count?.contacts || 0) / maxSegContacts) * 100}%` }}
                       transition={{ duration: 0.8, delay: 0.6 + i * 0.06, ease: [0.22, 1, 0.36, 1] }} />
                   </div>

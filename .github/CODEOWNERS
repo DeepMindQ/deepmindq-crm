@@ -1,0 +1,34 @@
+# Security
+/src/middleware.ts @deepmindq/security
+/src/lib/auth-helpers.ts @deepmindq/security
+/src/lib/api-auth.ts @deepmindq/security
+/src/lib/csrf.ts @deepmindq/security
+/src/lib/rate-limit.ts @deepmindq/security
+/src/lib/otp.ts @deepmindq/security
+/src/lib/password.ts @deepmindq/security
+/src/lib/validate-env.ts @deepmindq/security
+/src/app/api/auth/ @deepmindq/security
+
+# Database
+/prisma/ @deepmindq/database
+/src/lib/db.ts @deepmindq/database
+
+# AI Engines
+/src/lib/engines/ @deepmindq/ai
+/src/lib/ai-config.ts @deepmindq/ai
+/src/lib/ai-governance.ts @deepmindq/ai
+/src/app/api/ai/ @deepmindq/ai
+/src/app/api/intelligence/ @deepmindq/ai
+
+# Frontend
+/src/components/ @deepmindq/frontend
+/src/app/page.tsx @deepmindq/frontend
+
+# Infrastructure
+/Dockerfile @deepmindq/infra
+/docker-compose.yml @deepmindq/infra
+/.github/ @deepmindq/infra
+
+# Documentation
+/docs/ @deepmindq/docs
+/README.md @deepmindq/docs

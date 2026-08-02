@@ -1154,6 +1154,47 @@ Stage Summary:
 - Files: layout.tsx, marketing/page.tsx, page.tsx, intelligence-operations-center.tsx, data-import-screen.tsx, signal-intelligence-screen.tsx
 
 ---
+Task ID: b2b3
+Agent: Super Z (sub-agent)
+Task: WI-15B Priorities 2+3: Enterprise UX Component Adoption + DataTable Migration
+
+Work Log:
+- Enhanced DataTable component with 4 new features:
+  - Pagination: server-side (pageSize/totalCount/pageIndex/onPageChange) and client-side (auto-paginates filtered data)
+  - Filtering: client-side text filter with search icon, clear button, auto-reset page
+  - CSV Export: Download CSV button using Intelligence Blue (#2563EB) styling
+  - Column visibility: dropdown with checkbox toggles for each column
+- Applied dark enterprise design tokens: bg #141821, border #1e2535, text #e8ecf4, primary #2563EB
+- All new features are backward-compatible (opt-in via props, default off)
+- Preserved existing features: sorting, loading skeleton, empty state, keyboard navigation
+
+- Assessed 6 table screens for DataTable migration:
+  - companies-screen: TOO COMPLEX (checkboxes, framer-motion, dropdowns, grid/list view, custom SortHead)
+  - contacts-screen: TOO COMPLEX (checkboxes, column visibility, framer-motion, inline editing, dropdowns)
+  - audit-screen: TOO COMPLEX (framer-motion, expandable rows, custom accent borders, already has full features)
+  - opportunities-screen: TOO COMPLEX (kanban view, edit/delete per row, SortableHeader, custom cell rendering)
+  - analytics-screen: Table is light-themed inside GlassPanel — dark DataTable would clash
+  - settings-screen: Table has embedded recharts BarChart per row — not compatible with DataTable render
+
+- Added error/loading/empty states to customer-facing screens:
+  - companies-screen: Added isError/queryError/refetch from useQuery + error state with retry button
+  - analytics-screen: Added isLoading tracking, loading skeleton matching layout, error state with retry
+  - knowledge-workspace.tsx: Added fetchError state, error UI with retry button
+  - Dashboard: already has EnterpriseErrorState + loading skeleton
+  - Signal-intelligence: already has ErrorState + loading + EmptyState
+  - Contacts: already has isLoading/error/EmptyState
+  - Opportunity-workspace: already has LoadingSkeleton + EmptyState
+  - Import-screen: already has EnterpriseLoading
+
+- tsc --noEmit: clean (only pre-existing jest.config.ts error)
+- ESLint: passed
+
+Stage Summary:
+- 4 files modified: DataTable.tsx (enhanced), companies-screen.tsx (error state), analytics-screen.tsx (loading+error), knowledge-workspace.tsx (error state)
+- Table migration: 0/6 migrated (all too complex for clean migration — documented for future iteration)
+- Commit: 5cd438d
+
+---
 Task ID: b4
 Agent: Super Z (sub-agent)
 Task: WI-15B Priority 4: Design Token Migration — Top 8 Customer Screens

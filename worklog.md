@@ -858,3 +858,38 @@ Stage Summary:
 - next build: SUCCESS
 - vitest: 57/57 files, 1888/1888 tests passing, 14 skipped, 0 failures
 - Architecture: detection engine unchanged, persistence layer single-source, single API route extended
+
+---
+Task ID: wi-9a
+Agent: Super Z (main)
+Task: WI-9A — Orphan Screen Cleanup & Settings Protection
+
+Work Log:
+- Deleted 6 confirmed orphan screen files (~2,933 lines):
+  intelligence-analytics-screen.tsx (454 lines)
+  intelligence-associations-screen.tsx (486 lines)
+  intelligence-timeline-screen.tsx (447 lines)
+  intelligence-scheduler-screen.tsx (491 lines)
+  ai-reasoning-screen.tsx (424 lines)
+  action-center-screen.tsx (631 lines)
+- Verified zero dangling imports via rg search (file names + component names)
+- Verified settings-data-rules.tsx is a sub-component of settings-screen.tsx (imported at line 60, used at line 2289)
+- Confirmed 0 /api/config/* routes exist; only /api/leads/recalculate-scores is operational
+- Protected settings-data-rules.tsx:
+  Replaced 9 broken /api/config/* fetch calls with disabled useCallback stubs
+  Added handleNotImplemented() toast notification for user clarity
+  Added under-development banners (Construction icon) to all 4 config tabs
+  Updated empty-state messages to reflect under-development status
+  Kept recalculateScores handler operational
+  Removed unused framer-motion import
+  Reduced file from 761 to 624 lines (137 lines of dead code removed)
+- Quality gates: TypeScript 0 errors, ESLint 0 errors, Governance 9/9 passed
+- Vitest: 58 suites, 1904 pass, 14 skip, 0 fail
+- Pre-push validation: all 4 stages passed
+- Committed as 75502ca, tagged wi-9a-baseline, pushed to origin
+
+Stage Summary:
+- 6 orphan screens deleted, 1 sub-component protected
+- Net change: -3,118 lines removed, +351 lines added (mostly comments/banners)
+- No protected files modified (engines, schema untouched)
+- No new APIs, no mocks, no schema changes

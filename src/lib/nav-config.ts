@@ -13,7 +13,7 @@ import {
   LayoutDashboard, Cpu, Building2, Search,
   Brain, BookOpen, Layers, Radar, Target,
   Settings, Shield, Database, Plug, Activity,
-  ChevronRight, BarChart3, Inbox, Upload,
+  ChevronRight, BarChart3, Inbox, Upload, Radio,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -36,6 +36,7 @@ export const NAV_SECTIONS: NavSection[] = [
     heading: 'INTELLIGENCE',
     defaultOpen: true,
     items: [
+      { key: 'intelligence-operations', label: 'Operations Center', icon: Radio, isNew: true },
       { key: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
       { key: 'command-center', label: 'Command Center', icon: LayoutDashboard, isNew: true },
       { key: 'accounts', label: 'Accounts', icon: Building2 },

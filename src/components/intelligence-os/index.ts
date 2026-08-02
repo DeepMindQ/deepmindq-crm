@@ -22,6 +22,7 @@ export { InlineReasoning, type InlineReasoningProps } from './inline-reasoning';
 export { AccountDeltaTracker, type AccountDeltaTrackerProps, type AccountDelta, type DeltaType } from './account-delta-tracker';
 
 // Existing components
+export { IntelligenceOperationsCenter } from './intelligence-operations-center';
 export { ActivationWorkspace } from './activation-workspace';
 export { CommandCenter } from './command-center';
 export { CompanyWorkspace } from './company-workspace';

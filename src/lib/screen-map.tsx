@@ -44,6 +44,7 @@ function ScreenLoadingFallback({ name }: { name: string }) {
 }
 
 /* ── Intelligence OS Screens (new layer) ── */
+const IntelligenceOperationsScreen = lazy(() => import('@/components/intelligence-os/intelligence-operations-center').then(m => ({ default: m.IntelligenceOperationsCenter })));
 const CommandCenterScreen = lazy(() => import('@/components/intelligence-os/command-center').then(m => ({ default: m.CommandCenter })));
 const ActivationWorkspaceScreen = lazy(() => import('@/components/intelligence-os/activation-workspace').then(m => ({ default: m.ActivationWorkspace })));
 const CompanyWorkspaceScreen = lazy(() => import('@/components/intelligence-os/company-workspace').then(m => ({ default: m.CompanyWorkspace })));
@@ -137,6 +138,7 @@ export function ContactDetailBridge({ contactId }: { contactId: string }) {
 
 export const SCREEN_MAP: Record<string, ScreenComponent> = {
   // ── Intelligence OS (new) — each wrapped with per-screen ErrorBoundary ──
+  'intelligence-operations': withScreenErrorBoundary(IntelligenceOperationsScreen, 'intelligence-operations'),
   'command-center': withScreenErrorBoundary(CommandCenterScreen, 'command-center'),
   'activation-workspace': withScreenErrorBoundary(ActivationWorkspaceScreen, 'activation-workspace'),
   'company-workspace': withScreenErrorBoundary(CompanyWorkspaceScreen, 'company-workspace'),

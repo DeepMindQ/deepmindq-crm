@@ -248,7 +248,7 @@ describe('E2E: Dashboard → Companies → Intelligence → Recommendations → 
     it('navigates through views', async () => {
       const { useAppStore } = await import('@/lib/store')
       const store = useAppStore.getState()
-      expect(store.activeView).toBe('command-center')
+      expect(store.activeView).toBe('intelligence-operations')
       store.setActiveView('companies')
       expect(useAppStore.getState().activeView).toBe('companies')
       store.setActiveView('company-profile')

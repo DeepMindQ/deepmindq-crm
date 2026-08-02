@@ -739,3 +739,94 @@ Stage Summary:
 - BEFORE: Score Ring + KPI chips + sub-score bars (data-first)
 - AFTER: HeroNarrative (intelligence-first) → Score Ring + KPIs (demoted) → InlineReasoning (why?)
 - User journey: Command Center → Company Detail now maintains Intelligence Command System experience
+
+---
+Task ID: 3
+Agent: main
+Task: WI-3: Signal Intelligence Narrative Layer
+
+Work Log:
+- Read full signal-intelligence-screen.tsx (854 lines) to understand current data flow
+- Read intelligence-narrative-service.ts, use-intelligence-narratives.ts, hero-narrative.tsx, inline-reasoning.tsx for reuse context
+- Read /api/signals/route.ts and /api/intelligence/narratives/route.ts for available API contracts
+- Added framer-motion imports (motion, AnimatePresence) and new icons (Brain, Layers, ChevronDown, Lightbulb)
+- Created SignalNarrativeSummary component (~190 lines) — collapsible intelligence briefing above table
+  - Derives: critical/high counts, top 5 accounts by signal density, top 4 themes by meaning category
+  - Shows key business impacts from critical/high signals inline (no panel needed)
+  - Displays top accounts with severity badges and signal themes as tag cloud
+  - Animated collapse/expand with framer-motion
+- Added groupBy state ('none' | 'account' | 'theme') and narrativeCollapsed state
+- Added groupedSignals computed via useMemo — groups filteredSignals by account name or meaning category
+- Added Group By select control alongside existing filter controls
+- Modified table Title cell to show signal.businessImpact inline (line-clamp-1)
+- Added recommendedAction inline with blue arrow for high-impact signals in grouped view
+- When grouping active: renders separate grouped tables with group headers (account name/theme, count, max severity badge)
+- Preserved all existing functionality: server-side filtering, client-side search, pagination, evidence detail panel
+
+Stage Summary:
+- File: signal-intelligence-screen.tsx 854 → 1240 lines (+386 lines)
+- tsc --noEmit: CLEAN
+- next build: SUCCESS
+- vitest: 57 files, 1888 passed, 14 skipped, ZERO FAILURES
+- BEFORE: Pure data table — 854 lines of flat signal rows, no narrative, no grouping, businessImpact hidden in panel
+- AFTER: Intelligence Summary (collapsible) → Key Business Impacts (visible) → Group By control → Signal Table with inline impact
+- UX DNA: Intelligence now speaks before data on the Signal Intelligence screen
+
+---
+Task ID: 4
+Agent: main
+Task: WI-4: Intelligence Reasoning Real Pipeline Connection
+
+Work Log:
+- Removed MOCK_STEPS (5 hardcoded steps with fake Acme Corp data, lines 229-267)
+- Removed ALL hardcoded useState: overallConfidence(86), recommendation, breakdown, factors, conflicts, evidenceRows, supportingEvidence, missingIntelligence, aiReasoning
+- Removed unused TrustReportData API call to /api/g-intelligence/recommendations/{id}/trust-report
+- Added ReasoningApiResponse type mapped from /api/intelligence/reasoning/{companyId}
+- Connected to real EnterpriseReasoningEngine pipeline via /api/intelligence/reasoning/{companyId}?include=steps,impact,recommendations
+- Derive all UI data from real pipeline response:
+  - reasoningSteps: mapped from engine steps with confidence, output as evidence
+  - positiveFactors/negativeFactors: derived from step confidence thresholds (>=0.7 positive, <0.5 negative)
+  - conflicts: derived from low-confidence steps (<0.4) or pending steps
+  - missingIntelligence: derived from pending step count
+  - evidenceRows: derived from impact steps
+  - breakdown: computed from real step confidences and completion rate
+  - aiReasoning: uses engine summary or derived from step completion metrics
+- Added EmptyState when no companyId provided
+- Added "Back to company" navigation button
+- Added pipeline metadata (AI calls count, duration, steps progress)
+- Graceful empty states when pipeline returns no data
+- Preserved all visual components: ConfidenceCircle, ReasoningStepCard, factor display, evidence table, conflicts, missing intelligence
+
+Stage Summary:
+- File: intelligence-reasoning-screen.tsx 613 → 766 lines (+153 lines)
+- tsc --noEmit: CLEAN
+- next build: SUCCESS
+- vitest: 57 files, 1888 passed, 14 skipped, ZERO FAILURES
+- BEFORE: 100% mock data — hardcoded confidence=86, fake Acme Corp scenario, 0 real API calls for displayed content
+- AFTER: Real pipeline connection to EnterpriseReasoningEngine, all data derived from /api/intelligence/reasoning/{companyId}, zero mock data
+- Mock data removed: MOCK_STEPS, useState(86), fake factors, fake evidence rows, fake conflicts, fake missing intelligence, fake AI reasoning text
+---
+Task ID: 1d-wi1
+Agent: Main Agent
+Task: WI-1 — Intelligence Operations Center Implementation
+
+Work Log:
+- Read all engine source files: autonomous-monitor.ts, cross-account-intelligence.ts, predictive-intelligence.ts
+- Read all existing Intelligence OS components: command-center.tsx, hero-narrative.tsx, status-metrics-bar.tsx, intelligence-queue.tsx, action-queue.tsx, account-delta-tracker.tsx, design-tokens.ts
+- Read all API endpoints: /api/intelligence/monitor, /api/intelligence/cross-account, /api/intelligence/predictions, /api/intelligence/stats, /api/command-center/insights
+- Read registration files: screen-map.tsx, store.ts, nav-config.ts, index.ts
+- Created intelligence-operations-center.tsx (997 lines) composing existing Intelligence OS components
+- Registered in barrel export (index.ts), screen-map, store (new ViewId + default view), nav-config (first item in Intelligence section)
+- Fixed ActionCTA variant type (secondary → inline per ActionVariant type)
+- Fixed e2e business journey test (default view changed from command-center to intelligence-operations)
+- TypeScript: passes with zero errors
+- Next.js build: compiled successfully
+- Tests: 57/57 files, 1888/1888 tests passing
+
+Stage Summary:
+- Created: src/components/intelligence-os/intelligence-operations-center.tsx (997 lines)
+- Modified: src/components/intelligence-os/index.ts, src/lib/store.ts, src/lib/nav-config.ts, src/lib/screen-map.tsx, tests/e2e-business-journey.test.ts
+- NOT modified: command-center.tsx, any API routes, any engine files
+- Zero mock data in new component
+- All intelligence sourced from existing engines via existing APIs
+- Default landing view changed to intelligence-operations

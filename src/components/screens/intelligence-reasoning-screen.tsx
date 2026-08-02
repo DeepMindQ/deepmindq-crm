@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import {
   CheckCircle2, XCircle, AlertTriangle, Shield, Eye,
   FileWarning, Info, TrendingUp, TrendingDown, ExternalLink,
-  Clock, BarChart3, Sparkles, ChevronRight, ArrowLeft, Loader2,
+  Clock, BarChart3, Sparkles, ChevronRight, ArrowLeft, Loader2, Brain,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
@@ -224,47 +224,55 @@ function ReasoningStepCard({
 }
 
 /* ═══════════════════════════════════════════════════════════════
-   Mock reasoning steps for demo
+   WI-4: Real Pipeline Types — mapped from /api/intelligence/reasoning/{companyId}
    ═══════════════════════════════════════════════════════════════ */
-const MOCK_STEPS: ReasoningStep[] = [
-  {
-    id: 'step-1', title: 'Signal Detection', description: 'Identified hiring patterns for cloud architecture roles and AI/ML positions across multiple job boards and LinkedIn.', status: 'complete', confidence: 92,
-    evidence: [
-      { source: 'linkedin', content: '15 new cloud architect roles posted in the last 30 days, up 300% from previous period.', quality: 'high' },
-      { source: 'web', content: 'Glassdoor reviews mention "cloud transformation initiative" as a strategic priority.', quality: 'medium' },
-    ],
-    conclusion: 'Strong signal that the company is investing heavily in cloud infrastructure and AI capabilities.',
-  },
-  {
-    id: 'step-2', title: 'Technology Stack Analysis', description: 'Analyzed technology mentions across press releases, job postings, and patent filings.', status: 'complete', confidence: 88,
-    evidence: [
-      { source: 'news', content: 'Press release: "Acme Corp selects AWS as preferred cloud provider for next-generation platform."', quality: 'high' },
-      { source: 'filing', content: 'Patent filing for "AI-driven data processing pipeline" indicates significant R&D investment.', quality: 'high' },
-    ],
-    conclusion: 'Company is migrating to AWS with a focus on AI-driven analytics.',
-  },
-  {
-    id: 'step-3', title: 'Leadership Change Impact', description: 'Evaluated the impact of new CTO appointment on technology strategy direction.', status: 'complete', confidence: 85,
-    evidence: [
-      { source: 'social', content: 'Sarah Chen (ex-Microsoft Azure VP) appointed as CTO. Track record includes three major cloud migrations.', quality: 'high' },
-    ],
-    conclusion: 'New CTO strongly reinforces cloud migration trajectory. High credibility based on proven track record.',
-  },
-  {
-    id: 'step-4', title: 'Market Timing Assessment', description: 'Cross-referenced the signal with industry trends, competitor activity, and market conditions.', status: 'complete', confidence: 78,
-    evidence: [
-      { source: 'analytics', content: 'Enterprise cloud spending in target industry up 25% YoY. Window of opportunity identified for Q1-Q2.', quality: 'medium' },
-    ],
-    conclusion: 'Market timing is favorable. Recommend engagement within next 60 days for optimal positioning.',
-  },
-  {
-    id: 'step-5', title: 'Confidence Synthesis', description: 'Aggregated all evidence sources and computed final confidence score using weighted reliability model.', status: 'complete', confidence: 86,
-    evidence: [
-      { source: 'internal', content: 'Weighted confidence: Signal Quality=92, Evidence=88, Leadership=85, Market=78. Overall: 86.', quality: 'high' },
-    ],
-    conclusion: 'Final recommendation confidence: 86%. High confidence that this represents a genuine buying opportunity.',
-  },
-];
+interface ReasoningApiResponse {
+  success: boolean;
+  data?: {
+    companyId: string;
+    reasoningContextId: string;
+    overallConfidence: number;
+    winProbability: number;
+    totalSteps: number;
+    completedSteps: number;
+    failedSteps: number;
+    totalAIcalls: number;
+    totalTokensUsed: number;
+    totalCostUsd: number;
+    durationMs: number;
+    summary: string | null;
+    steps: Array<{
+      stepNumber: number;
+      stepName: string;
+      status: 'completed' | 'pending';
+      output: string | null;
+      summary: string | null;
+      confidence: number;
+      durationMs: number;
+      aiCalls: number;
+      tokensUsed: number;
+      costUsd: number;
+    }>;
+    impact?: Array<{
+      stepNumber: number;
+      stepName: string;
+      summary: string | null;
+      confidence: number;
+    }>;
+    recommendations?: Array<{
+      stepNumber: number;
+      stepName: string;
+      summary: string | null;
+      confidence: number;
+    }>;
+  };
+  error?: string;
+  meta?: {
+    durationMs: number;
+    confidence: number;
+    freshness: { level: string; label: string };
+  };
+}
 
 /* ═══════════════════════════════════════════════════════════════
    Main Component
@@ -278,69 +286,143 @@ export default function IntelligenceReasoningScreen({
   recommendationId?: string;
   navigateTo?: (screen: string, companyId?: string) => void;
 }) {
-  const [data, setData] = useState<TrustReportData | null>(null);
+  /* ── WI-4: All state derived from real API. No mock data. ── */
+  const [reasoningData, setReasoningData] = useState<ReasoningApiResponse['data'] | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [overallConfidence] = useState(86);
-  const [recommendation] = useState<RecommendationData>({
-    id: 'rec-1', title: 'Cloud Infrastructure Investment Opportunity', company: 'Acme Corp', priority: 'HIGH',
-  });
-  const [breakdown] = useState({
-    signalQuality: 92, evidenceQuality: 88, capabilityFit: 75, dataCompleteness: 80,
-  });
-  const [factors] = useState<{
-    positiveFactors: Factor[];
-    negativeFactors: Factor[];
-  }>({
-    positiveFactors: [
-      { factor: 'Strong cloud hiring signals (300% increase)', impact: '+25' },
-      { factor: 'New CTO with cloud expertise appointed', impact: '+20' },
-      { factor: 'AWS partnership announced', impact: '+15' },
-      { factor: 'Patent filings in AI space', impact: '+10' },
-    ],
-    negativeFactors: [
-      { factor: 'Limited public financial data', impact: '-5' },
-    ],
-  });
-  const [conflicts] = useState<Conflict[]>([
-    { conflictType: 'timeline_mismatch', severity: 'MEDIUM', description: 'Hiring signal timeline differs from press release timing by 2 weeks.' },
-  ]);
-  const [evidenceRows] = useState<EvidenceRow[]>([
-    { source: 'LinkedIn', date: '2025-01-10', quality: 'high', impact: '+25' },
-    { source: 'Press Release', date: '2025-01-08', quality: 'high', impact: '+20' },
-    { source: 'Patent Filing', date: '2024-12-15', quality: 'high', impact: '+15' },
-    { source: 'Industry Report', date: '2025-01-12', quality: 'medium', impact: '+10' },
-    { source: 'Glassdoor', date: '2025-01-05', quality: 'medium', impact: '+5' },
-  ]);
-  const [supportingEvidence] = useState({ total: 5, validatedSignals: 4, weakSignals: 1 });
-  const [missingIntelligence] = useState<Array<string | MissingItem>>([
-    { category: 'Financial Health', description: 'No recent financial statements available to assess budget capacity for cloud migration.', improvementHint: 'Request annual report or SEC filing for financial capacity assessment.' },
-    { category: 'Current Vendor Stack', description: 'Unknown which cloud providers are currently in use. Could indicate multi-cloud or on-premise.', improvementHint: 'Research current technology stack through job postings and job descriptions.' },
-  ]);
-  const [aiReasoning] = useState(
-    'Multiple independent signals indicate active digital transformation investment based on a convergence of hiring patterns, technology announcements, and industry activity. The appointment of a cloud-focused CTO, combined with a 300% increase in cloud architecture hiring and a public AWS partnership, creates a high-confidence buying signal.'
-  );
 
+  // Fetch from real reasoning pipeline
   useEffect(() => {
+    if (!companyId) {
+      setLoading(false);
+      return;
+    }
+
     let cancelled = false;
-    async function load() {
+    async function loadReasoning() {
+      setLoading(true);
+      setError(null);
       try {
-        if (recommendationId) {
-          const res = await fetch(`/api/g-intelligence/recommendations/${recommendationId}/trust-report`);
-          if (res.ok) {
-            const json = await res.json();
-            if (!cancelled) { setData(json as TrustReportData); setLoading(false); return; }
-          }
+        const res = await fetch(`/api/intelligence/reasoning/${companyId}?include=steps,impact,recommendations`);
+        if (!res.ok) throw new Error(`Reasoning API returned ${res.status}`);
+        const json: ReasoningApiResponse = await res.json();
+        if (!cancelled) {
+          setReasoningData(json.success ? (json.data ?? null) : null);
+          setError(json.success ? null : (json.error || 'Reasoning pipeline failed'));
         }
-        if (!cancelled) { setData(null); setLoading(false); }
       } catch (e) {
-        if (!cancelled) { setError('Failed to load trust report data'); setLoading(false); }
+        if (!cancelled) setError(e instanceof Error ? e.message : 'Failed to connect to reasoning pipeline');
+      } finally {
+        if (!cancelled) setLoading(false);
       }
     }
-    load();
+    loadReasoning();
     return () => { cancelled = true; };
-  }, [companyId, recommendationId]);
+  }, [companyId]);
 
+  // Derive reasoning steps from real pipeline data
+  const reasoningSteps: ReasoningStep[] = useMemo(() => {
+    if (!reasoningData?.steps) return [];
+    return reasoningData.steps.map((s, i) => ({
+      id: `step-${s.stepNumber}`,
+      title: s.stepName,
+      description: s.summary || s.output || `Step ${s.stepNumber}: ${s.stepName}`,
+      evidence: s.output
+        ? [{ source: 'engine', content: s.output.slice(0, 300), quality: s.confidence >= 0.7 ? 'high' : 'medium' }]
+        : [],
+      conclusion: s.summary || '',
+      confidence: Math.round(s.confidence * 100),
+      status: s.status === 'completed' ? 'complete' as const : 'pending' as const,
+    }));
+  }, [reasoningData]);
+
+  // Derive impact/recommendation steps
+  const impactSteps = reasoningData?.impact ?? [];
+  const recommendationSteps = reasoningData?.recommendations ?? [];
+
+  // Derive evidence rows from impact steps
+  const evidenceRows: EvidenceRow[] = useMemo(() => {
+    return impactSteps.map((imp) => ({
+      source: imp.stepName,
+      date: new Date().toISOString().split('T')[0],
+      quality: imp.confidence >= 0.7 ? 'high' : 'medium',
+      impact: `+${Math.round(imp.confidence * 100)}`,
+    }));
+  }, [impactSteps]);
+
+  // Derive positive/negative factors from high-confidence and low-confidence steps
+  const { positiveFactors, negativeFactors } = useMemo(() => {
+    const pos: Factor[] = [];
+    const neg: Factor[] = [];
+    if (!reasoningData?.steps) return { positiveFactors: pos, negativeFactors: neg };
+    for (const step of reasoningData.steps) {
+      const pct = Math.round(step.confidence * 100);
+      const summary = step.summary || step.stepName;
+      if (step.confidence >= 0.7) {
+        pos.push({ factor: summary, impact: `+${pct}` });
+      } else if (step.confidence > 0 && step.confidence < 0.5) {
+        neg.push({ factor: summary, impact: `-${100 - pct}` });
+      }
+    }
+    return { positiveFactors: pos.slice(0, 6), negativeFactors: neg.slice(0, 4) };
+  }, [reasoningData]);
+
+  // Derive conflicts from steps with low confidence or failed status
+  const conflicts: Conflict[] = useMemo(() => {
+    if (!reasoningData?.steps) return [];
+    return reasoningData.steps
+      .filter(s => s.confidence < 0.4 || (s.status === 'pending' && s.stepNumber > 1))
+      .map(s => ({
+        conflictType: 'insufficient_data',
+        severity: s.confidence < 0.2 ? 'HIGH' : 'MEDIUM',
+        description: s.summary || `${s.stepName} has low confidence (${Math.round(s.confidence * 100)}%) — may need additional data sources.`,
+      }));
+  }, [reasoningData]);
+
+  // Missing intelligence derived from steps that are still pending
+  const missingIntelligence: Array<string | MissingItem> = useMemo(() => {
+    if (!reasoningData?.steps) return [];
+    const pending = reasoningData.steps.filter(s => s.status === 'pending');
+    if (pending.length === 0) return [];
+    return [{
+      category: 'Incomplete Reasoning',
+      description: `${pending.length} of ${reasoningData.totalSteps} reasoning steps are still pending. These steps require additional data or processing to complete.`,
+      improvementHint: 'Run intelligence enrichment or ensure company data is up to date to complete all reasoning steps.',
+    }];
+  }, [reasoningData]);
+
+  // AI reasoning summary derived from real pipeline
+  const aiReasoning = reasoningData?.summary
+    || (reasoningSteps.length > 0
+      ? `Completed ${reasoningData?.completedSteps ?? 0}/${reasoningData?.totalSteps ?? 0} reasoning steps. ${reasoningSteps.filter(s => s.confidence >= 70).length} steps show high confidence.`
+      : 'No reasoning data available yet.');
+
+  // Confidence and breakdown from real pipeline
+  const overallConfidence = Math.round((reasoningData?.overallConfidence ?? 0) * 100);
+
+  const breakdown = useMemo(() => ({
+    signalQuality: reasoningSteps.length > 0 ? Math.max(...reasoningSteps.map(s => s.confidence)) : 0,
+    evidenceQuality: evidenceRows.length > 0 ? Math.round(evidenceRows.reduce((sum, r) => sum + parseInt(r.impact), 0) / evidenceRows.length) : 0,
+    capabilityFit: impactSteps.length > 0 ? Math.round(Math.max(...impactSteps.map(i => i.confidence)) * 100) : 0,
+    dataCompleteness: reasoningData ? Math.round((reasoningData.completedSteps / Math.max(reasoningData.totalSteps, 1)) * 100) : 0,
+  }), [reasoningSteps, evidenceRows, impactSteps, reasoningData]);
+
+  const supportingEvidence = {
+    total: reasoningSteps.length,
+    validatedSignals: reasoningSteps.filter(s => s.status === 'complete' && s.confidence >= 60).length,
+    weakSignals: reasoningSteps.filter(s => s.confidence < 50).length,
+  };
+
+  const recommendation: RecommendationData = {
+    id: recommendationId || reasoningData?.reasoningContextId || 'none',
+    title: recommendationSteps.length > 0
+      ? recommendationSteps[0].stepName
+      : 'Intelligence Analysis',
+    company: companyId || 'Unknown',
+    priority: overallConfidence >= 70 ? 'HIGH' : overallConfidence >= 50 ? 'MEDIUM' : 'LOW',
+  };
+
+  // ── Loading state ──
   if (loading) {
     return (
       <div className="max-w-4xl mx-auto p-8 space-y-8">
@@ -351,25 +433,89 @@ export default function IntelligenceReasoningScreen({
     );
   }
 
-  if (error && !data) {
+  // ── No companyId → empty state ──
+  if (!companyId) {
     return (
-      <div className="max-w-4xl mx-auto p-8">
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <Shield className="h-6 w-6 text-blue-600" />
+            Intelligence Reasoning
+          </h1>
+        </div>
+        <EmptyState
+          icon={Brain}
+          title="No company selected"
+          description="Select a company to run the intelligence reasoning pipeline. The reasoning engine analyzes signals, evidence, and market data to produce confidence-scored insights."
+        />
+      </div>
+    );
+  }
+
+  // ── Error state ──
+  if (error && !reasoningData) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
+        <div className="space-y-2">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <Shield className="h-6 w-6 text-blue-600" />
+            Intelligence Reasoning
+          </h1>
+          {navigateTo && companyId && (
+            <button
+              onClick={() => navigateTo('company-detail', companyId)}
+              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to company
+            </button>
+          )}
+        </div>
         <ErrorState message={error} onRetry={() => window.location.reload()} />
       </div>
     );
   }
 
+  // ── Pipeline metadata badge ──
+  const PipelineMeta = reasoningData ? (
+    <div className="flex items-center gap-2 text-[10px] text-slate-400">
+      {reasoningData.totalAIcalls > 0 && (
+        <span>{reasoningData.totalAIcalls} AI calls</span>
+      )}
+      {reasoningData.durationMs > 0 && (
+        <span>{(reasoningData.durationMs / 1000).toFixed(1)}s</span>
+      )}
+      {reasoningData.totalSteps > 0 && (
+        <span>{reasoningData.completedSteps}/{reasoningData.totalSteps} steps</span>
+      )}
+    </div>
+  ) : null;
+
   return (
     <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8 space-y-10">
       {/* ── Header ── */}
       <div className="space-y-2">
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
-          <Shield className="h-6 w-6 text-blue-600" />
-          Intelligence Reasoning
-        </h1>
-        <p className="text-sm text-slate-500">
-          {recommendation.title} — {recommendation.company}
-        </p>
+        <div className="flex items-center justify-between">
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900 flex items-center gap-2">
+            <Shield className="h-6 w-6 text-blue-600" />
+            Intelligence Reasoning
+          </h1>
+          {navigateTo && companyId && (
+            <button
+              onClick={() => navigateTo('company-detail', companyId)}
+              className="flex items-center gap-1 text-sm text-blue-600 hover:text-blue-800"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              Back to company
+            </button>
+          )}
+        </div>
+        <div className="flex items-center gap-3">
+          <p className="text-sm text-slate-500">
+            {recommendation.title} — {recommendation.company}
+          </p>
+          {PipelineMeta}
+        </div>
       </div>
 
       {/* ═══════════════════════════════════════════════════════════
@@ -407,9 +553,17 @@ export default function IntelligenceReasoningScreen({
             Step-by-Step Reasoning
           </h3>
           <div className="space-y-3">
-            {MOCK_STEPS.map((step, idx) => (
-              <ReasoningStepCard key={step.id} step={step} index={idx} totalSteps={MOCK_STEPS.length} />
-            ))}
+            {reasoningSteps.length > 0 ? (
+              reasoningSteps.map((step, idx) => (
+                <ReasoningStepCard key={step.id} step={step} index={idx} totalSteps={reasoningSteps.length} />
+              ))
+            ) : (
+              <div className="flex flex-col items-center justify-center py-12">
+                <Sparkles className="h-8 w-8 text-slate-300 mb-2" />
+                <p className="text-sm text-slate-500">No reasoning steps available yet.</p>
+                <p className="text-xs text-slate-400 mt-1">The reasoning pipeline will produce steps when intelligence data is available.</p>
+              </div>
+            )}
           </div>
         </div>
 
@@ -441,7 +595,7 @@ export default function IntelligenceReasoningScreen({
               <TrendingUp className="h-4 w-4" /> Positive Contributors
             </div>
             <div className="space-y-2">
-              {factors.positiveFactors.map((f, i) => (
+              {positiveFactors.map((f, i) => (
                 <div key={i} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-emerald-50/70 border border-emerald-100">
                   <div className="flex items-start gap-2.5 min-w-0">
                     <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0 mt-0.5" />
@@ -458,8 +612,8 @@ export default function IntelligenceReasoningScreen({
               <TrendingDown className="h-4 w-4" /> Negative Contributors
             </div>
             <div className="space-y-2">
-              {factors.negativeFactors.length > 0 ? (
-                factors.negativeFactors.map((f, i) => (
+              {negativeFactors.length > 0 ? (
+                negativeFactors.map((f, i) => (
                   <div key={i} className="flex items-center justify-between gap-3 p-3 rounded-lg bg-red-50/70 border border-red-100">
                     <div className="flex items-start gap-2.5 min-w-0">
                       <XCircle className="h-4 w-4 text-red-500 shrink-0 mt-0.5" />

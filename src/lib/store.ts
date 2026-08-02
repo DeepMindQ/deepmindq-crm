@@ -2,6 +2,7 @@ import { create } from 'zustand';
 
 export type ViewId =
   // INTELLIGENCE
+  | 'intelligence-operations'
   | 'command-center'
   | 'accounts'
   | 'intelligence-search'
@@ -103,7 +104,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  activeView: 'command-center',
+  activeView: 'intelligence-operations',
   sidebarCollapsed: false,
   selectedContactId: null,
   selectedCompanyId: null,

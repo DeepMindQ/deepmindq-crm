@@ -2,11 +2,13 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Radar, Activity, TrendingUp, DollarSign, Cpu, Crown,
   Building2, Clock, ChevronRight, RefreshCw, Filter, X, Search,
   ArrowRight, LucideIcon, ShieldAlert, Shield, ShieldCheck,
   FileText, CheckCircle2, Loader2, Target,
+  Brain, Layers, ChevronDown, Lightbulb,
 } from 'lucide-react';
 import { PageTransition, EmptyState } from '@/components/ui/animated-components';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -401,6 +403,203 @@ function EvidenceDetailPanel({ signal, evidenceCount, onClose }: {
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   Signal Narrative Summary — Intelligence Layer Above the Table
+   WI-3: Provides AI synthesis of signal patterns before the user
+   reaches the data table. Follows Intelligence OS design DNA:
+     Narrative → Reasoning → Evidence → Action → Supporting Metrics
+   ═══════════════════════════════════════════════════════════════ */
+function SignalNarrativeSummary({
+  signals,
+  totalSignals,
+  collapsed,
+  onToggleCollapse,
+}: {
+  signals: SignalItem[];
+  totalSignals: number;
+  collapsed: boolean;
+  onToggleCollapse: () => void;
+}) {
+  // Derive intelligence summary from signal data (no extra API call needed)
+  const criticalCount = signals.filter(s => s.severity === 'critical').length;
+  const highCount = signals.filter(s => s.severity === 'high').length;
+
+  // Top accounts by signal density
+  const accountMap = new Map<string, { name: string; count: number; maxSeverity: string }>();
+  for (const s of signals) {
+    const key = s.companyId;
+    const name = s.company?.normalizedName || 'Unknown';
+    const existing = accountMap.get(key);
+    if (!existing) {
+      accountMap.set(key, { name, count: 1, maxSeverity: s.severity });
+    } else {
+      existing.count++;
+      const sevOrder: Record<string, number> = { critical: 0, high: 1, medium: 2, low: 3 };
+      if ((sevOrder[s.severity] ?? 3) < (sevOrder[existing.maxSeverity] ?? 3)) {
+        existing.maxSeverity = s.severity;
+      }
+    }
+  }
+  const topAccounts = [...accountMap.entries()]
+    .sort((a, b) => b[1].count - a[1].count)
+    .slice(0, 5);
+
+  // Top themes by meaning category
+  const themeMap = new Map<string, number>();
+  for (const s of signals) {
+    if (s.meaningCategory) {
+      themeMap.set(s.meaningCategory, (themeMap.get(s.meaningCategory) || 0) + 1);
+    }
+  }
+  const topThemes = [...themeMap.entries()]
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4)
+    .map(([cat, count]) => ({
+      label: meaningCategoryConfig[cat]?.label || cat,
+      color: meaningCategoryConfig[cat]?.color || 'bg-slate-100 text-slate-500',
+      count,
+    }));
+
+  // High-impact signals with business impact (for inline visibility)
+  const highImpactSignals = signals
+    .filter(s => s.businessImpact && (s.severity === 'critical' || s.severity === 'high'))
+    .slice(0, 3);
+
+  return (
+    <div className="rounded-xl border border-blue-200/50 bg-gradient-to-br from-blue-50/30 to-cyan-50/20 overflow-hidden">
+      {/* Summary header — always visible */}
+      <div className="px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-500/10 border border-blue-200/50">
+            <Brain className="h-3.5 w-3.5 text-blue-600" />
+          </div>
+          <span className="text-[11px] font-semibold uppercase tracking-wider text-blue-700">
+            Intelligence Summary
+          </span>
+          {criticalCount > 0 && (
+            <Badge className="text-[10px] bg-red-100 text-red-700 border-red-200 px-1.5 py-0 h-5">
+              {criticalCount} Critical
+            </Badge>
+          )}
+          {highCount > 0 && (
+            <Badge className="text-[10px] bg-amber-100 text-amber-700 border-amber-200 px-1.5 py-0 h-5">
+              {highCount} High
+            </Badge>
+          )}
+        </div>
+        <button
+          onClick={onToggleCollapse}
+          className="flex items-center gap-1 text-[11px] text-blue-600 hover:text-blue-800 font-medium transition-colors"
+        >
+          {collapsed ? 'Show details' : 'Hide details'}
+          <ChevronDown className={cn('h-3.5 w-3.5 transition-transform', !collapsed && 'rotate-180')} />
+        </button>
+      </div>
+
+      {/* Collapsible detail body */}
+      <AnimatePresence>
+        {!collapsed && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden"
+          >
+            <div className="px-4 pb-4 space-y-3 border-t border-blue-200/30 pt-3">
+              {/* Business Impact Alerts — visible without opening any panel */}
+              {highImpactSignals.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-1.5">
+                    <Lightbulb className="h-3 w-3 text-amber-500" />
+                    <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Key Business Impacts</span>
+                  </div>
+                  {highImpactSignals.map(s => (
+                    <div key={s.id} className="flex items-start gap-2 rounded-lg bg-white/80 border border-amber-200/50 p-2.5">
+                      <div className="shrink-0 mt-0.5">
+                        {(severityConfig[s.severity] ?? severityConfig.medium).icon === ShieldAlert
+                          ? <ShieldAlert className="h-3.5 w-3.5 text-red-500" />
+                          : <Shield className="h-3.5 w-3.5 text-amber-500" />}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-semibold text-slate-800 truncate">{s.title}</p>
+                        <p className="text-[11px] text-slate-500 leading-relaxed line-clamp-2 mt-0.5">{s.businessImpact}</p>
+                        {s.recommendedAction && (
+                          <div className="mt-1 flex items-start gap-1">
+                            <ArrowRight className="h-2.5 w-2.5 text-blue-500 mt-0.5 shrink-0" />
+                            <span className="text-[10px] text-blue-600 font-medium">{s.recommendedAction}</span>
+                          </div>
+                        )}
+                        {s.company?.normalizedName && (
+                          <span className="text-[10px] text-blue-500 mt-1 block">{s.company.normalizedName}</span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Top themes + top accounts in a grid */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {/* Top Accounts */}
+                {topAccounts.length > 0 && (
+                  <div className="rounded-lg bg-white/60 border border-slate-100 p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Building2 className="h-3 w-3 text-slate-500" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                        Top Accounts
+                      </span>
+                    </div>
+                    <div className="space-y-1.5">
+                      {topAccounts.map(([id, info]) => {
+                        const sevCfg = severityConfig[info.maxSeverity] ?? severityConfig.medium;
+                        return (
+                          <div key={id} className="flex items-center justify-between gap-2">
+                            <span className="text-xs text-slate-700 truncate">{info.name}</span>
+                            <div className="flex items-center gap-1.5 shrink-0">
+                              <span className="text-[10px] font-semibold text-slate-500 tabular-nums">{info.count}</span>
+                              <span className={cn('px-1.5 py-0.5 rounded-full text-[9px] font-semibold border', sevCfg.badge)}>
+                                {sevCfg.label}
+                              </span>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+
+                {/* Top Themes */}
+                {topThemes.length > 0 && (
+                  <div className="rounded-lg bg-white/60 border border-slate-100 p-3">
+                    <div className="flex items-center gap-1.5 mb-2">
+                      <Layers className="h-3 w-3 text-slate-500" />
+                      <span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                        Signal Themes
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-1.5">
+                      {topThemes.map(t => (
+                        <span
+                          key={t.label}
+                          className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border', t.color)}
+                        >
+                          {t.label}
+                          <span className="ml-1 font-semibold tabular-nums">{t.count}</span>
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    Main Screen Component
    ═══════════════════════════════════════════════════════════════ */
 interface SignalIntelligenceProps {
@@ -419,6 +618,10 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
 
   // Selected signal for evidence detail side panel
   const [selectedSignal, setSelectedSignal] = useState<SignalItem | null>(null);
+
+  // WI-3: Group-by control and narrative summary collapse state
+  const [groupBy, setGroupBy] = useState<'none' | 'account' | 'theme'>('none');
+  const [narrativeCollapsed, setNarrativeCollapsed] = useState(false);
 
   // Build API URL with server-side filter params per T8 API contract
   const apiParams = useMemo(() => {
@@ -460,6 +663,22 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
         s.signalType.toLowerCase().includes(searchLower)
       )
     : signals;
+
+  // WI-3: Signal grouping by account or theme
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- React Compiler cannot preserve this memoization due to filteredSignals dependency; manual memoization is correct here
+  const groupedSignals = useMemo(() => {
+    if (groupBy === 'none') return null;
+    const groups = new Map<string, SignalItem[]>();
+    for (const s of filteredSignals) {
+      const key = groupBy === 'account'
+        ? (s.company?.normalizedName || 'Unknown Account')
+        : (s.meaningCategory || 'Uncategorized');
+      if (!groups.has(key)) groups.set(key, []);
+      groups.get(key)!.push(s);
+    }
+    return [...groups.entries()].sort((a, b) => b[1].length - a[1].length);
+  // eslint-disable-next-line react-hooks/preserve-manual-memoization -- filteredSignals may be mutated; manual memoization is intentional
+  }, [filteredSignals, groupBy]);
 
   const handleViewCompany = (companyId: string) => {
     navigateTo?.('company-detail', companyId);
@@ -538,8 +757,26 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
         </div>
 
         {/* ═══════════════════════════════════════════════════
+           WI-3: Narrative Summary — Intelligence Layer Before Data
+           Shows AI-synthesized patterns, key business impacts,
+           top accounts, and signal themes before the user reaches
+           the data table. Collapsible to preserve screen space.
+           ═══════════════════════════════════════════════════ */}
+        {data && signals.length > 0 && (
+          <div className="flex-shrink-0 px-4 sm:px-6 pt-2 pb-2">
+            <SignalNarrativeSummary
+              signals={signals}
+              totalSignals={pagination.total}
+              collapsed={narrativeCollapsed}
+              onToggleCollapse={() => setNarrativeCollapsed(v => !v)}
+            />
+          </div>
+        )}
+
+        {/* ═══════════════════════════════════════════════════
            Section 2: Filters — T8: Meaning category filter + Severity badge filter
            Server-side: type, severity, status, meaningCategory, page
+           WI-3: Added Group By control
            ═══════════════════════════════════════════════════ */}
         {data && signals.length > 0 && (
           <div className="flex-shrink-0 px-4 sm:px-6 pt-2 pb-4">
@@ -621,6 +858,17 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                       ))}
                   </select>
 
+                  {/* WI-3: Group By control */}
+                  <select
+                    value={groupBy}
+                    onChange={(e) => setGroupBy(e.target.value as 'none' | 'account' | 'theme')}
+                    className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                  >
+                    <option value="none">No Grouping</option>
+                    <option value="account">Group by Account</option>
+                    <option value="theme">Group by Theme</option>
+                  </select>
+
                   {/* Active filter indicator */}
                   {activeFilterCount > 0 && (
                     <button
@@ -690,45 +938,186 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
             <div className="flex gap-4 h-[calc(100vh-300px)]">
               {/* Main table area */}
               <div className={cn('flex-1 min-w-0 overflow-hidden', selectedSignal ? 'border-r border-slate-200' : '')}>
-                <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
-                        {/* T8 columns: Title, Type, Severity, Impact, Confidence, Meaning, Date */}
-                        <TableHead className="w-[300px] text-xs font-semibold text-slate-500">Title</TableHead>
-                        <TableHead className="w-[100px] text-xs font-semibold text-slate-500">Type</TableHead>
-                        <TableHead className="w-[90px] text-xs font-semibold text-slate-500">Severity</TableHead>
-                        <TableHead className="w-[90px] text-xs font-semibold text-slate-500">Impact</TableHead>
-                        <TableHead className="w-[140px] text-xs font-semibold text-slate-500">Confidence</TableHead>
-                        <TableHead className="w-[130px] text-xs font-semibold text-slate-500">Meaning</TableHead>
-                        <TableHead className="w-[90px] text-xs font-semibold text-slate-500">Date</TableHead>
-                        <TableHead className="w-[40px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {filteredSignals.map((signal) => {
-                        const sevCfg = severityConfig[signal.severity] ?? severityConfig.low;
-                        const SevIcon = sevCfg.icon;
-                        const typeCfg = typeConfig[signal.signalType] ?? { icon: Activity, label: signal.signalType };
-                        const TypeIcon = typeCfg.icon;
-                        const impactCfg = impactConfig[signal.impact] ?? impactConfig.medium;
-                        const meaningCfg = signal.meaningCategory ? meaningCategoryConfig[signal.meaningCategory] : null;
-                        const confPct = Math.round((signal.confidence ?? 0) * 100);
-                        const isSelected = selectedSignal?.id === signal.id;
 
-                        return (
-                          <TableRow
-                            key={signal.id}
-                            className={cn(
-                              'cursor-pointer transition-colors',
-                              isSelected ? 'bg-blue-50/50 hover:bg-blue-50/70' : 'hover:bg-slate-50/50'
+                {/* WI-3: Group headers when grouping is active */}
+                {groupedSignals ? (
+                  <div className="space-y-3">
+                    {groupedSignals.map(([groupName, groupSignals]) => {
+                      const groupCritical = groupSignals.filter(s => s.severity === 'critical').length;
+                      const groupHigh = groupSignals.filter(s => s.severity === 'high').length;
+                      const groupMaxSev = groupSignals.some(s => s.severity === 'critical') ? 'critical'
+                        : groupSignals.some(s => s.severity === 'high') ? 'high'
+                        : groupSignals.some(s => s.severity === 'medium') ? 'medium' : 'low';
+                      const groupSevCfg = severityConfig[groupMaxSev] ?? severityConfig.low;
+
+                      return (
+                        <div key={groupName} className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                          {/* Group header */}
+                          <div className="flex items-center gap-2 px-4 py-2.5 bg-slate-50/80 border-b border-slate-200">
+                            {groupBy === 'account' ? (
+                              <Building2 className="h-3.5 w-3.5 text-slate-500" />
+                            ) : (
+                              <Layers className="h-3.5 w-3.5 text-slate-500" />
                             )}
-                            onClick={() => handleRowClick(signal)}
-                          >
-                            {/* Title — T8 column 1 */}
+                            <span className="text-xs font-semibold text-slate-800">{groupName}</span>
+                            <Badge variant="secondary" className="text-[10px] tabular-nums">{groupSignals.length}</Badge>
+                            <span className={cn('px-1.5 py-0.5 rounded-full text-[9px] font-semibold border', groupSevCfg.badge)}>
+                              {groupSevCfg.label}
+                            </span>
+                            {groupCritical > 0 && (
+                              <span className="text-[10px] text-red-600 font-medium">{groupCritical} critical</span>
+                            )}
+                            {groupHigh > 0 && groupCritical === 0 && (
+                              <span className="text-[10px] text-amber-600 font-medium">{groupHigh} high</span>
+                            )}
+                          </div>
+                          {/* Group table */}
+                          <Table>
+                            <TableHeader>
+                              <TableRow className="bg-white hover:bg-white">
+                                <TableHead className="w-[300px] text-xs font-semibold text-slate-500">Title</TableHead>
+                                <TableHead className="w-[100px] text-xs font-semibold text-slate-500">Type</TableHead>
+                                <TableHead className="w-[90px] text-xs font-semibold text-slate-500">Severity</TableHead>
+                                <TableHead className="w-[90px] text-xs font-semibold text-slate-500">Impact</TableHead>
+                                <TableHead className="w-[140px] text-xs font-semibold text-slate-500">Confidence</TableHead>
+                                <TableHead className="w-[130px] text-xs font-semibold text-slate-500">Meaning</TableHead>
+                                <TableHead className="w-[90px] text-xs font-semibold text-slate-500">Date</TableHead>
+                                <TableHead className="w-[40px]"></TableHead>
+                              </TableRow>
+                            </TableHeader>
+                            <TableBody>
+                              {groupSignals.map((signal) => {
+                                const sevCfg = severityConfig[signal.severity] ?? severityConfig.low;
+                                const SevIcon = sevCfg.icon;
+                                const typeCfg = typeConfig[signal.signalType] ?? { icon: Activity, label: signal.signalType };
+                                const TypeIcon = typeCfg.icon;
+                                const impactCfg = impactConfig[signal.impact] ?? impactConfig.medium;
+                                const meaningCfg = signal.meaningCategory ? meaningCategoryConfig[signal.meaningCategory] : null;
+                                const confPct = Math.round((signal.confidence ?? 0) * 100);
+                                const isSelected = selectedSignal?.id === signal.id;
+
+                                return (
+                                  <TableRow
+                                    key={signal.id}
+                                    className={cn(
+                                      'cursor-pointer transition-colors',
+                                      isSelected ? 'bg-blue-50/50 hover:bg-blue-50/70' : 'hover:bg-slate-50/50'
+                                    )}
+                                    onClick={() => handleRowClick(signal)}
+                                  >
+                                    <TableCell>
+                                      <div className="flex flex-col gap-0.5">
+                                        <span className="text-sm font-semibold text-slate-900 truncate">{signal.title}</span>
+                                        {signal.businessImpact && (
+                                          <span className="text-[11px] text-slate-500 leading-relaxed line-clamp-1">{signal.businessImpact}</span>
+                                        )}
+                                        {signal.recommendedAction && (
+                                          <div className="flex items-start gap-1 mt-0.5">
+                                            <ArrowRight className="h-2.5 w-2.5 text-blue-500 mt-0.5 shrink-0" />
+                                            <span className="text-[10px] text-blue-600 font-medium line-clamp-1">{signal.recommendedAction}</span>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider border bg-slate-50 text-slate-600 border-slate-200">
+                                        <TypeIcon className="h-3 w-3" />
+                                        {typeCfg.label}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className={cn('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border', sevCfg.badge)}>
+                                        <SevIcon className="h-2.5 w-2.5" />
+                                        {sevCfg.label}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border', impactCfg.color)}>
+                                        {impactCfg.label}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell>
+                                      <ConfidenceBar value={confPct} label={getConfidenceLabel(confPct)} size="sm" />
+                                    </TableCell>
+                                    <TableCell>
+                                      {meaningCfg ? (
+                                        <span className={cn('inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-medium border', meaningCfg.color)}>
+                                          {meaningCfg.label}
+                                        </span>
+                                      ) : (
+                                        <span className="text-[11px] text-slate-400">—</span>
+                                      )}
+                                    </TableCell>
+                                    <TableCell>
+                                      <span className="text-[11px] text-slate-500 tabular-nums whitespace-nowrap">
+                                        {signal.signalDate ? formatTimeAgo(signal.signalDate) : formatTimeAgo(signal.extractedAt)}
+                                      </span>
+                                    </TableCell>
+                                    <TableCell>
+                                      <div className="flex items-center gap-1">
+                                        {(evidenceCounts[signal.id] ?? 0) > 0 && (
+                                          <Badge variant="secondary" className="text-[10px] tabular-nums">
+                                            {evidenceCounts[signal.id]} ev
+                                          </Badge>
+                                        )}
+                                        <ChevronRight className={cn('h-3.5 w-3.5 text-slate-400 transition-transform', isSelected && 'rotate-90 text-blue-500')} />
+                                      </div>
+                                    </TableCell>
+                                  </TableRow>
+                                );
+                              })}
+                            </TableBody>
+                          </Table>
+                        </div>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  /* Original ungrouped table — unchanged except WI-3 inline business impact */
+                <>
+                  <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+                    <Table>
+                      <TableHeader>
+                        <TableRow className="bg-slate-50/80 hover:bg-slate-50/80">
+                          {/* T8 columns: Title, Type, Severity, Impact, Confidence, Meaning, Date */}
+                          <TableHead className="w-[300px] text-xs font-semibold text-slate-500">Title</TableHead>
+                          <TableHead className="w-[100px] text-xs font-semibold text-slate-500">Type</TableHead>
+                          <TableHead className="w-[90px] text-xs font-semibold text-slate-500">Severity</TableHead>
+                          <TableHead className="w-[90px] text-xs font-semibold text-slate-500">Impact</TableHead>
+                          <TableHead className="w-[140px] text-xs font-semibold text-slate-500">Confidence</TableHead>
+                          <TableHead className="w-[130px] text-xs font-semibold text-slate-500">Meaning</TableHead>
+                          <TableHead className="w-[90px] text-xs font-semibold text-slate-500">Date</TableHead>
+                          <TableHead className="w-[40px]"></TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {filteredSignals.map((signal) => {
+                          const sevCfg = severityConfig[signal.severity] ?? severityConfig.low;
+                          const SevIcon = sevCfg.icon;
+                          const typeCfg = typeConfig[signal.signalType] ?? { icon: Activity, label: signal.signalType };
+                          const TypeIcon = typeCfg.icon;
+                          const impactCfg = impactConfig[signal.impact] ?? impactConfig.medium;
+                          const meaningCfg = signal.meaningCategory ? meaningCategoryConfig[signal.meaningCategory] : null;
+                          const confPct = Math.round((signal.confidence ?? 0) * 100);
+                          const isSelected = selectedSignal?.id === signal.id;
+
+                          return (
+                            <TableRow
+                              key={signal.id}
+                              className={cn(
+                                'cursor-pointer transition-colors',
+                                isSelected ? 'bg-blue-50/50 hover:bg-blue-50/70' : 'hover:bg-slate-50/50'
+                              )}
+                              onClick={() => handleRowClick(signal)}
+                            >
+                            {/* Title — T8 column 1 + WI-3: inline business impact */}
                             <TableCell>
                               <div className="flex flex-col gap-0.5">
                                 <span className="text-sm font-semibold text-slate-900 truncate">{signal.title}</span>
+                                {/* WI-3: Business impact visible without opening panel */}
+                                {signal.businessImpact && (
+                                  <span className="text-[11px] text-slate-500 leading-relaxed line-clamp-1">{signal.businessImpact}</span>
+                                )}
                                 {signal.company?.normalizedName && (
                                   <button
                                     onClick={(e) => { e.stopPropagation(); handleViewCompany(signal.companyId); }}
@@ -798,11 +1187,11 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                               </div>
                             </TableCell>
                           </TableRow>
-                        );
-                      })}
-                    </TableBody>
-                  </Table>
-                </div>
+                          );
+                        })}
+                      </TableBody>
+                    </Table>
+                  </div>
 
                 {/* Pagination */}
                 {pagination.totalPages > 1 && (
@@ -832,9 +1221,9 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                     </div>
                   </div>
                 )}
+                </>
+                )}
               </div>
-
-              {/* ── Evidence Detail Side Panel — T8: "Click signal → evidence detail panel" ── */}
               {selectedSignal && (
                 <div className="w-[420px] flex-shrink-0 rounded-xl border border-slate-200 bg-white overflow-hidden">
                   <EvidenceDetailPanel

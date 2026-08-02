@@ -10,10 +10,12 @@ import {
   FileText, BarChart3, ThumbsUp, ThumbsDown,
   ChevronDown, ChevronUp, X, Copy, Check,
   Activity, Radar, Radio, Server, BookOpen, Cpu, Newspaper, Briefcase,
+  Play, Loader2, CheckCircle2 as CheckCircle2Icon, XCircle, Timer,
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import type { CompanyIntelligence, IntelligenceObject, EvidenceState, ExecutiveBriefData } from '@/lib/intelligence-types';
 import { logger } from '@/lib/logger';
+import { AIProgressTracker } from '@/components/enterprise/AIProgressTracker';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Company Intelligence Workspace — Dark Intelligence OS
@@ -1138,6 +1140,293 @@ function BriefSection({ label, count, children }: { label: string; count?: numbe
 }
 
 /* ═══════════════════════════════════════════════════════════════════════════
+   Pipeline Progress Panel — Intelligence Pipeline Execution Visualization
+   
+   Reuses AIProgressTracker for stage visualization.
+   Maps real API pipeline stages (from POST /api/intelligence/full-pipeline)
+   into the tracker's step format.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+type PipelineExecutionState = 'idle' | 'running' | 'complete' | 'error';
+
+interface PipelineStageResult {
+  name: string;
+  status: 'completed' | 'failed' | 'skipped';
+  durationMs: number;
+  result: Record<string, unknown> | null;
+  error?: string;
+}
+
+interface PipelineRunResult {
+  id: string;
+  companyId: string;
+  companyName: string;
+  totalStages: number;
+  completedStages: number;
+  failedStages: number;
+  skippedStages: number;
+  durationMs: number;
+  stages: PipelineStageResult[];
+  accountStrategy?: {
+    capabilityMatches?: { totalMatches: number; highConfidence: number };
+    winProbability?: { probability: number };
+    executiveBrief?: string;
+    recommendedActions?: { actions: Array<{ action: string; priority: string }> };
+  };
+}
+
+/* Human-readable labels for pipeline stage names */
+const STAGE_LABELS: Record<string, string> = {
+  company_profile: 'Company Profile Assessment',
+  contact_intelligence: 'Contact Intelligence',
+  buying_committee: 'Buying Committee Detection',
+  signal_detection: 'Signal Detection',
+  evidence_collection: 'Evidence Collection',
+  research_card: 'Research Card Analysis',
+  revenue_score: 'Revenue Intelligence Score',
+  capability_matching: 'Capability Matching',
+  case_study_matching: 'Case Study Matching',
+  solution_matching: 'Solution Matching',
+  competitive_positioning: 'Competitive Positioning',
+  intelligence_fusion: 'Intelligence Fusion',
+  win_probability: 'Win Probability Analysis',
+  recommended_actions: 'Recommended Actions',
+  conversation_strategy: 'Conversation Strategy',
+  executive_brief: 'Executive Brief Generation',
+  persist_all: 'Results Persistence',
+};
+
+/* Phase grouping for stage display */
+const STAGE_PHASES: Array<{ label: string; names: string[] }> = [
+  { label: 'Phase A — External Intelligence', names: ['company_profile', 'contact_intelligence', 'buying_committee', 'signal_detection', 'evidence_collection', 'research_card', 'revenue_score'] },
+  { label: 'Phase B — Internal Matching', names: ['capability_matching', 'case_study_matching', 'solution_matching', 'competitive_positioning'] },
+  { label: 'Phase B.5 — Intelligence Fusion', names: ['intelligence_fusion'] },
+  { label: 'Phase C — Strategy Generation', names: ['win_probability', 'recommended_actions', 'conversation_strategy', 'executive_brief', 'persist_all'] },
+];
+
+/* Map API stage status to AIProgressTracker step status */
+function mapStageStatus(status: 'completed' | 'failed' | 'skipped'): 'complete' | 'error' | 'complete' {
+  if (status === 'failed') return 'error';
+  return 'complete'; // both 'completed' and 'skipped' show as complete
+}
+
+function PipelineProgressPanel({
+  state,
+  stages,
+  result,
+  duration,
+  onDismiss,
+  onRetry,
+}: {
+  state: PipelineExecutionState;
+  stages: PipelineStageResult[];
+  result: PipelineRunResult | null;
+  duration: number | null;
+  onDismiss: () => void;
+  onRetry: () => void;
+}) {
+  const [expanded, setExpanded] = useState(true);
+
+  if (state === 'idle') return null;
+
+  /* Build AIProgressTracker steps from real pipeline stages */
+  const trackerSteps = stages.length > 0
+    ? stages.map(s => ({
+        label: STAGE_LABELS[s.name] || s.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+        status: mapStageStatus(s.status) as 'pending' | 'processing' | 'complete' | 'error',
+      }))
+    : [{ label: 'Running full intelligence pipeline...', status: 'processing' as const }];
+
+  const completedCount = stages.filter(s => s.status === 'completed').length;
+  const failedCount = stages.filter(s => s.status === 'failed').length;
+  const totalDuration = duration ?? (result?.durationMs ?? 0);
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, height: 0 }}
+        animate={{ opacity: 1, height: 'auto' }}
+        exit={{ opacity: 0, height: 0 }}
+        transition={{ duration: 0.3 }}
+        className="px-6 pb-4"
+      >
+        <div
+          className="rounded-xl overflow-hidden"
+          style={{
+            background: IOS.bgCard,
+            border: `1px solid ${state === 'error' ? '#ef444440' : state === 'complete' ? `${IOS.confHigh}30` : `${IOS.accent}30`}`,
+            boxShadow: state === 'running'
+              ? `0 0 40px ${IOS.accent}08, 0 4px 20px rgba(0,0,0,0.3)`
+              : state === 'complete'
+              ? `0 0 30px ${IOS.confHigh}06, 0 4px 16px rgba(0,0,0,0.2)`
+              : 'none',
+          }}
+        >
+          {/* Panel Header */}
+          <div
+            className="flex items-center justify-between px-5 py-3 cursor-pointer"
+            onClick={() => setExpanded(!expanded)}
+            style={{ borderBottom: expanded ? `1px solid ${IOS.border}` : 'none' }}
+          >
+            <div className="flex items-center gap-3">
+              {state === 'running' ? (
+                <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: `${IOS.accent}20` }}>
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" style={{ color: IOS.accent }} />
+                </div>
+              ) : state === 'complete' ? (
+                <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: `${IOS.confHigh}20` }}>
+                  <CheckCircle2Icon className="w-3.5 h-3.5" style={{ color: IOS.confHigh }} />
+                </div>
+              ) : (
+                <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.15)' }}>
+                  <XCircle className="w-3.5 h-3.5" style={{ color: '#ef4444' }} />
+                </div>
+              )}
+              <div>
+                <span className="text-xs font-bold tracking-wide" style={{ color: IOS.textPrimary }}>
+                  {state === 'running' ? 'Intelligence Pipeline Running' : state === 'complete' ? 'Pipeline Complete' : 'Pipeline Failed'}
+                </span>
+                <div className="flex items-center gap-3 mt-0.5">
+                  {stages.length > 0 && (
+                    <span className="text-[10px]" style={{ color: IOS.textMuted }}>
+                      {completedCount}/{stages.length} stages complete
+                      {failedCount > 0 && <span style={{ color: '#ef4444' }}> · {failedCount} failed</span>}
+                    </span>
+                  )}
+                  {totalDuration > 0 && (
+                    <span className="text-[10px] flex items-center gap-1" style={{ color: IOS.textMuted }}>
+                      <Timer className="w-2.5 h-2.5" />
+                      {(totalDuration / 1000).toFixed(1)}s
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              {state === 'error' && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onRetry(); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[10px] font-bold transition-colors"
+                  style={{ background: `${IOS.accent}15`, color: IOS.accent, border: `1px solid ${IOS.accent}30` }}
+                >
+                  <RefreshCw className="w-3 h-3" /> Retry
+                </button>
+              )}
+              {(state === 'complete' || state === 'error') && (
+                <button
+                  onClick={(e) => { e.stopPropagation(); onDismiss(); }}
+                  className="p-1.5 rounded-lg transition-colors"
+                  style={{ color: IOS.textMuted, background: `${IOS.bgPrimary}80` }}
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              <ChevronDown
+                className="w-3.5 h-3.5 transition-transform"
+                style={{ color: IOS.textMuted, transform: expanded ? 'rotate(180deg)' : 'rotate(0deg)' }}
+              />
+            </div>
+          </div>
+
+          {/* Expanded Content */}
+          {expanded && (
+            <div className="px-5 py-4">
+              {state === 'running' && stages.length === 0 ? (
+                /* Pre-completion: show processing indicator */
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3">
+                    <div className="w-2 h-2 rounded-full animate-pulse" style={{ background: IOS.accent }} />
+                    <span className="text-xs" style={{ color: IOS.textSecondary }}>
+                      DeepMindQ is actively analyzing this account — running 17 intelligence stages across external data, internal matching, and strategy generation...
+                    </span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2">
+                    {STAGE_PHASES.map(phase => (
+                      <div key={phase.label} className="rounded-lg px-3 py-2" style={{ background: `${IOS.bgPrimary}60`, border: `1px solid ${IOS.border}` }}>
+                        <p className="text-[9px] font-bold tracking-wide uppercase" style={{ color: IOS.accent }}>{phase.label.split(' — ')[0]}</p>
+                        <p className="text-[9px] mt-0.5" style={{ color: IOS.textMuted }}>{phase.names.length} stages</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ) : stages.length > 0 ? (
+                /* Post-completion: show full AIProgressTracker with real stages */
+                <div>
+                  {/* Phase-grouped stage tracker */}
+                  {STAGE_PHASES.map(phase => {
+                    const phaseStages = stages.filter(s => phase.names.includes(s.name));
+                    if (phaseStages.length === 0) return null;
+                    const phaseTrackerSteps = phaseStages.map(s => ({
+                      label: STAGE_LABELS[s.name] || s.name.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase()),
+                      status: mapStageStatus(s.status) as 'pending' | 'processing' | 'complete' | 'error',
+                    }));
+                    return (
+                      <div key={phase.label} className="mb-4 last:mb-0">
+                        <p className="text-[9px] font-bold tracking-[0.15em] uppercase mb-2" style={{ color: IOS.textMuted }}>
+                          {phase.label}
+                        </p>
+                        <div
+                          className="rounded-lg p-4"
+                          style={{ background: '#f8fafc', border: `1px solid ${IOS.border}` }}
+                        >
+                          <AIProgressTracker steps={phaseTrackerSteps} />
+                        </div>
+                      </div>
+                    );
+                  })}
+
+                  {/* Completion summary metrics */}
+                  {state === 'complete' && result && (
+                    <div className="mt-4 grid grid-cols-2 md:grid-cols-4 gap-3">
+                      {result.accountStrategy?.capabilityMatches && (
+                        <div className="rounded-lg px-3 py-2.5" style={{ background: `${IOS.confHigh}08`, border: `1px solid ${IOS.confHigh}20` }}>
+                          <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: IOS.confHigh }}>Capability Matches</p>
+                          <p className="text-base font-bold mt-0.5 tabular-nums" style={{ color: IOS.textPrimary }}>
+                            {result.accountStrategy.capabilityMatches.totalMatches}
+                            <span className="text-[10px] font-normal ml-1" style={{ color: IOS.textMuted }}>
+                              ({result.accountStrategy.capabilityMatches.highConfidence} high confidence)
+                            </span>
+                          </p>
+                        </div>
+                      )}
+                      {result.accountStrategy?.winProbability && (
+                        <div className="rounded-lg px-3 py-2.5" style={{ background: `${IOS.opportunity}08`, border: `1px solid ${IOS.opportunity}20` }}>
+                          <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: IOS.opportunity }}>Win Probability</p>
+                          <p className="text-base font-bold mt-0.5 tabular-nums" style={{ color: IOS.textPrimary }}>
+                            {Math.round(result.accountStrategy.winProbability.probability * 100)}%
+                          </p>
+                        </div>
+                      )}
+                      {result.accountStrategy?.recommendedActions && (
+                        <div className="rounded-lg px-3 py-2.5" style={{ background: `${IOS.signal}08`, border: `1px solid ${IOS.signal}20` }}>
+                          <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: IOS.signal }}>Actions Generated</p>
+                          <p className="text-base font-bold mt-0.5 tabular-nums" style={{ color: IOS.textPrimary }}>
+                            {result.accountStrategy.recommendedActions.actions.length}
+                          </p>
+                        </div>
+                      )}
+                      {result.accountStrategy?.executiveBrief && (
+                        <div className="rounded-lg px-3 py-2.5" style={{ background: `${IOS.accent}08`, border: `1px solid ${IOS.accent}20` }}>
+                          <p className="text-[9px] font-bold uppercase tracking-wide" style={{ color: IOS.accent }}>Executive Brief</p>
+                          <p className="text-xs font-medium mt-1" style={{ color: IOS.confHigh }}>
+                            <CheckCircle2Icon className="w-3 h-3 inline mr-1" />
+                            Generated
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : null}
+            </div>
+          )}
+        </div>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
    Main Company Workspace
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -1165,6 +1454,12 @@ export function CompanyWorkspace() {
   const [showReveal, setShowReveal] = useState(false);
   const [briefLoading, setBriefLoading] = useState(false);
 
+  /* ── Pipeline Execution State ── */
+  const [pipelineState, setPipelineState] = useState<PipelineExecutionState>('idle');
+  const [pipelineStages, setPipelineStages] = useState<PipelineStageResult[]>([]);
+  const [pipelineResult, setPipelineResult] = useState<PipelineRunResult | null>(null);
+  const [pipelineDuration, setPipelineDuration] = useState<number | null>(null);
+
   const fetchIntelligence = useCallback(async () => {
     if (!selectedCompanyId) { setLoading(false); return; }
     setLoading(true);
@@ -1180,6 +1475,61 @@ export function CompanyWorkspace() {
     } catch (e) { logger.error('Intelligence fetch error:', { error: e }); }
     finally { setLoading(false); }
   }, [selectedCompanyId]);
+
+  /* ── Pipeline Execution Handler ──
+     Calls POST /api/intelligence/full-pipeline with the selected companyId.
+     The pipeline runs 17 stages synchronously server-side.
+     On completion, updates workspace intelligence with fresh data. */
+  const runFullPipeline = useCallback(async () => {
+    if (!selectedCompanyId || pipelineState === 'running') return;
+    const startTime = Date.now();
+    setPipelineState('running');
+    setPipelineStages([]);
+    setPipelineResult(null);
+    setPipelineDuration(null);
+    try {
+      const res = await fetch('/api/intelligence/full-pipeline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: selectedCompanyId }),
+      });
+      const elapsed = Date.now() - startTime;
+      setPipelineDuration(elapsed);
+      if (!res.ok) {
+        throw new Error(`Pipeline returned ${res.status}: ${res.statusText}`);
+      }
+      const data = await res.json();
+      if (data.success && data.pipelineRun) {
+        setPipelineStages(data.pipelineRun.stages);
+        setPipelineResult(data);
+        setPipelineState('complete');
+        logger.info('Intelligence pipeline completed', {
+          companyId: selectedCompanyId,
+          totalStages: data.pipelineRun.totalStages,
+          completedStages: data.pipelineRun.completedStages,
+          failedStages: data.pipelineRun.failedStages,
+          durationMs: elapsed,
+        });
+        // Refresh intelligence data with pipeline results
+        fetchIntelligence();
+      } else {
+        throw new Error(data.error || 'Pipeline returned unexpected response');
+      }
+    } catch (err) {
+      const elapsed = Date.now() - startTime;
+      setPipelineDuration(elapsed);
+      setPipelineState('error');
+      logger.error('Pipeline execution failed', {
+        companyId: selectedCompanyId,
+        error: err instanceof Error ? err.message : String(err),
+        durationMs: elapsed,
+      });
+    }
+  }, [selectedCompanyId, pipelineState, fetchIntelligence]);
+
+  const dismissPipeline = useCallback(() => {
+    setPipelineState('idle');
+  }, []);
 
   const fetchBrief = useCallback(async () => {
     if (!selectedCompanyId) return;
@@ -1326,7 +1676,30 @@ export function CompanyWorkspace() {
           </div>
 
           <div className="flex items-center gap-2">
-            {/* ── PROMINENT Executive Brief Button ── */}
+            {/* ── PRIMARY: Run Intelligence Pipeline CTA ── */}
+            <button
+              onClick={runFullPipeline}
+              disabled={pipelineState === 'running'}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold tracking-wide transition-all"
+              style={{
+                background: pipelineState === 'running'
+                  ? `${IOS.signal}20`
+                  : `linear-gradient(135deg, ${IOS.signal}, ${IOS.opportunity})`,
+                color: '#fff',
+                boxShadow: pipelineState === 'running' ? 'none' : `0 0 24px ${IOS.signal}25, 0 4px 14px rgba(0,0,0,0.35)`,
+                border: 'none',
+                opacity: pipelineState === 'running' ? 0.7 : 1,
+              }}
+            >
+              {pipelineState === 'running' ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Play className="w-3.5 h-3.5" />
+              )}
+              {pipelineState === 'running' ? 'Running Pipeline...' : 'Run Intelligence Pipeline'}
+            </button>
+
+            {/* ── Executive Brief Button ── */}
             <button
               onClick={fetchBrief}
               disabled={briefLoading}
@@ -1418,6 +1791,16 @@ export function CompanyWorkspace() {
           })}
         </div>
       </motion.div>
+
+      {/* ── Pipeline Progress Panel (appears when pipeline is running/complete/error) ── */}
+      <PipelineProgressPanel
+        state={pipelineState}
+        stages={pipelineStages}
+        result={pipelineResult}
+        duration={pipelineDuration}
+        onDismiss={dismissPipeline}
+        onRetry={runFullPipeline}
+      />
 
       {/* ── Scrollable Narrative Content ── */}
       <div className="px-6 py-6 space-y-10">

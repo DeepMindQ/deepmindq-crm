@@ -19,16 +19,19 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://deepmindq.com'),
   title: 'DeepMindQ — Enterprise Intelligence OS',
   description:
-    'AI-powered Enterprise Intelligence OS. Understand before you sell — dedicated deployment, customer-owned infrastructure, complete data isolation.',
+    'DeepMindQ — Enterprise Intelligence OS. Understand companies. Understand relationships. Generate intelligence. Make better revenue decisions.',
   keywords: [
+    'enterprise intelligence OS',
+    'intelligence operating system',
+    'revenue intelligence',
+    'AI intelligence platform',
+    'buying committee intelligence',
     'enterprise intelligence platform',
     'AI reasoning',
     'dedicated deployment',
-    'revenue intelligence',
     'account intelligence',
     'customer-owned infrastructure',
     'signal detection',
-    'buying committee intelligence',
   ],
   icons: {
     icon: '/favicon.ico',
@@ -100,8 +103,32 @@ async function getLandingPageHtml(): Promise<{
 export default async function MarketingStaticPage() {
   const { styles, body, scripts, fonts } = await getLandingPageHtml();
 
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    name: 'DeepMindQ',
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Web',
+    description: 'Enterprise Intelligence OS — AI-powered platform for understanding companies, contacts, and revenue opportunities.',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+      description: 'Enterprise deployment — contact for pricing',
+    },
+    creator: {
+      '@type': 'Organization',
+      name: 'DeepMindQ',
+      url: 'https://deepmindq.com',
+    },
+  };
+
   return (
     <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* External fonts — preconnected for performance */}
       <link rel="preconnect" href="https://fonts.googleapis.com" />
       <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />

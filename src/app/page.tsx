@@ -234,6 +234,18 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
     setCollapsedSections(prev => ({ ...prev, [heading]: !prev[heading] }));
   };
 
+  // Close closeable panels on Escape key
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        if (sidebarOpen) setSidebarOpen(false);
+        if (notificationsOpen) setNotificationsOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [sidebarOpen, notificationsOpen]);
+
   const LazyComponent = SCREEN_MAP[activeScreen] || SCREEN_MAP['dashboard'];
 
   const activeLabel = SCREEN_LABELS[activeScreen] || 'DeepMindQ';

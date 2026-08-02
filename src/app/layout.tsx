@@ -38,8 +38,11 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
   return (
     <html lang="en">
       <body className={`antialiased ${inter.variable}`}>
+        <a href="#main-content" className="skip-to-content">Skip to content</a>
         <Providers>
-          {children}
+          <div id="main-content">
+            {children}
+          </div>
         </Providers>
       </body>
     </html>

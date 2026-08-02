@@ -708,9 +708,20 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
   // Reset page when filters change
   useEffect(() => { setPage(1); }, [typeFilter, severityFilter, statusFilter, meaningFilter]);
 
+  // Close signal detail panel on Escape
+  useEffect(() => {
+    const handleEscape = (e: KeyboardEvent) => {
+      if (e.key === 'Escape' && selectedSignal) {
+        setSelectedSignal(null);
+      }
+    };
+    document.addEventListener('keydown', handleEscape);
+    return () => document.removeEventListener('keydown', handleEscape);
+  }, [selectedSignal]);
+
   return (
     <PageTransition>
-      <div className="h-full flex flex-col gap-0 overflow-hidden">
+      <div className="h-full flex flex-col gap-0 overflow-hidden" role="main" aria-label="AI Signal Intelligence">
         {/* ═══════════════════════════════════════════════════
            Section 1: Signal Intelligence Header
            ═══════════════════════════════════════════════════ */}

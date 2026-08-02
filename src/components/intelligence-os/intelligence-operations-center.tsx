@@ -605,7 +605,7 @@ export function IntelligenceOperationsCenter() {
   }
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-5" role="main" aria-label="Intelligence Operations Center">
       {/* ═══ HEADER ═══ */}
       <div className="flex items-center justify-between">
         <div>

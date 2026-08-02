@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
 import { GlassPanel } from '@/components/ui/animated-components';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -23,6 +22,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Database, Plus, Trash2, RefreshCw, Loader2, CheckCircle2,
   AlertTriangle, Zap, ArrowUpDown, Shield, BarChart3, Save,
+  Construction,
 } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -85,187 +85,25 @@ export default function DataRulesSection() {
   const [normForm, setNormForm] = useState({ category: 'industry', sourceValue: '', normalizedValue: '' });
   const [scoreForm, setScoreForm] = useState({ dimension: 'data_quality', field: '', key: 'completeness', weight: 40, maxScore: 100, description: '' });
 
-  // ── Fetch functions ──
-  const fetchColumnRules = useCallback(async () => {
-    try {
-      const res = await fetch('/api/config/column-rules');
-      if (res.ok) setColumnRules(await res.json());
-    } catch { /* silent */ }
+  // ── NOTE: /api/config/* endpoints do not exist yet ──
+  // Data rule CRUD (column-rules, validation-rules, normalization, scoring)
+  // and seed-defaults are gated behind a future configuration persistence layer.
+  // Only recalculateScores (/api/leads/recalculate-scores) is operational.
+
+  const handleNotImplemented = useCallback(() => {
+    toast.info('Configuration persistence is not yet available. This capability requires the config API layer (planned for a future work item).');
   }, []);
 
-  const fetchValidationRules = useCallback(async () => {
-    try {
-      const res = await fetch('/api/config/validation-rules');
-      if (res.ok) setValidationRules(await res.json());
-    } catch { /* silent */ }
-  }, []);
-
-  const fetchNormMappings = useCallback(async () => {
-    try {
-      const res = await fetch('/api/config/normalization');
-      if (res.ok) {
-        const data = await res.json();
-        setNormMappings(data.all || []);
-      }
-    } catch { /* silent */ }
-  }, []);
-
-  const fetchScoringWeights = useCallback(async () => {
-    try {
-      const res = await fetch('/api/config/scoring');
-      if (res.ok) {
-        const data = await res.json();
-        setScoringWeights(data.all || []);
-      }
-    } catch { /* silent */ }
-  }, []);
-
-  // ── Load on mount and tab switch ──
-  useEffect(() => {
-    const loaders: Record<string, () => Promise<void>> = {
-      'column-rules': fetchColumnRules,
-      'validation-rules': fetchValidationRules,
-      'normalization': fetchNormMappings,
-      'scoring': fetchScoringWeights,
-    };
-    loaders[activeSubTab]?.();
-  }, [activeSubTab, fetchColumnRules, fetchValidationRules, fetchNormMappings, fetchScoringWeights]);
-
-  // ── Delete handlers ──
-  const deleteColumnRule = async (id: string) => {
-    try {
-      const res = await fetch(`/api/config/column-rules/${id}`, { method: 'DELETE' });
-      if (res.ok) { setColumnRules(prev => prev.filter(r => r.id !== id)); toast.success('Rule deleted'); }
-    } catch { toast.error('Delete failed'); }
-  };
-
-  const deleteValidationRule = async (id: string) => {
-    try {
-      const res = await fetch(`/api/config/validation-rules/${id}`, { method: 'DELETE' });
-      if (res.ok) { setValidationRules(prev => prev.filter(r => r.id !== id)); toast.success('Rule deleted'); }
-    } catch { toast.error('Delete failed'); }
-  };
-
-  const deleteNormMapping = async (id: string) => {
-    try {
-      const res = await fetch(`/api/config/normalization/${id}`, { method: 'DELETE' });
-      if (res.ok) { setNormMappings(prev => prev.filter(r => r.id !== id)); toast.success('Mapping deleted'); }
-    } catch { toast.error('Delete failed'); }
-  };
-
-  const deleteScoringWeight = async (id: string) => {
-    try {
-      const res = await fetch(`/api/config/scoring/${id}`, { method: 'DELETE' });
-      if (res.ok) { setScoringWeights(prev => prev.filter(r => r.id !== id)); toast.success('Weight deleted'); }
-    } catch { toast.error('Delete failed'); }
-  };
-
-  // ── Create handlers ──
-  const createColumnRule = async () => {
-    if (!colForm.name || !colForm.pattern || !colForm.targetField) return;
-    setLoading(prev => ({ ...prev, col: true }));
-    try {
-      const res = await fetch('/api/config/column-rules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(colForm),
-      });
-      if (res.ok) {
-        toast.success('Column rule created');
-        setShowColDialog(false);
-        setColForm({ name: '', pattern: '', targetField: 'name', priority: 5 });
-        fetchColumnRules();
-      } else {
-        const err = await res.json();
-        toast.error(err.error || 'Create failed');
-      }
-    } catch { toast.error('Network error'); }
-    finally { setLoading(prev => ({ ...prev, col: false })); }
-  };
-
-  const createValidationRule = async () => {
-    if (!valForm.name || !valForm.targetField || !valForm.message) return;
-    setLoading(prev => ({ ...prev, val: true }));
-    try {
-      const res = await fetch('/api/config/validation-rules', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(valForm),
-      });
-      if (res.ok) {
-        toast.success('Validation rule created');
-        setShowValDialog(false);
-        setValForm({ name: '', targetField: 'email', ruleType: 'format', severity: 'warning', message: '', config: '', priority: 5 });
-        fetchValidationRules();
-      } else {
-        const err = await res.json();
-        toast.error(err.error || 'Create failed');
-      }
-    } catch { toast.error('Network error'); }
-    finally { setLoading(prev => ({ ...prev, val: false })); }
-  };
-
-  const createNormMapping = async () => {
-    if (!normForm.sourceValue || !normForm.normalizedValue) return;
-    setLoading(prev => ({ ...prev, norm: true }));
-    try {
-      const res = await fetch('/api/config/normalization', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(normForm),
-      });
-      if (res.ok) {
-        toast.success('Normalization mapping created');
-        setShowNormDialog(false);
-        setNormForm({ category: 'industry', sourceValue: '', normalizedValue: '' });
-        fetchNormMappings();
-      } else {
-        const err = await res.json();
-        toast.error(err.error || 'Create failed');
-      }
-    } catch { toast.error('Network error'); }
-    finally { setLoading(prev => ({ ...prev, norm: false })); }
-  };
-
-  const createScoringWeight = async () => {
-    if (!scoreForm.dimension) return;
-    setLoading(prev => ({ ...prev, score: true }));
-    try {
-      const res = await fetch('/api/config/scoring', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(scoreForm),
-      });
-      if (res.ok) {
-        toast.success('Scoring weight saved');
-        setShowScoreDialog(false);
-        setScoreForm({ dimension: 'data_quality', field: '', key: 'completeness', weight: 40, maxScore: 100, description: '' });
-        fetchScoringWeights();
-      } else {
-        const err = await res.json();
-        toast.error(err.error || 'Save failed');
-      }
-    } catch { toast.error('Network error'); }
-    finally { setLoading(prev => ({ ...prev, score: false })); }
-  };
-
-  // ── Seed default rules ──
-  const seedDefaults = async () => {
-    setSeedLoading(true);
-    try {
-      const res = await fetch('/api/config/seed', { method: 'POST' });
-      if (res.ok) {
-        const data = await res.json();
-        toast.success(data.message || 'Defaults seeded');
-        // Reload all
-        fetchColumnRules(); fetchValidationRules(); fetchNormMappings(); fetchScoringWeights();
-      } else {
-        const err = await res.json();
-        toast.info(err.message || 'Seed skipped');
-      }
-    } catch { toast.error('Seed failed'); }
-    finally { setSeedLoading(false); }
-  };
+  // ── Disabled stubs (no-ops until /api/config/* exists) ──
+  const seedDefaults = useCallback(() => { handleNotImplemented(); }, [handleNotImplemented]);
+  const createColumnRule = useCallback(() => { handleNotImplemented(); }, [handleNotImplemented]);
+  const createValidationRule = useCallback(() => { handleNotImplemented(); }, [handleNotImplemented]);
+  const createNormMapping = useCallback(() => { handleNotImplemented(); }, [handleNotImplemented]);
+  const createScoringWeight = useCallback(() => { handleNotImplemented(); }, [handleNotImplemented]);
+  const deleteColumnRule = useCallback((_id: string) => { handleNotImplemented(); }, [handleNotImplemented]);
+  const deleteValidationRule = useCallback((_id: string) => { handleNotImplemented(); }, [handleNotImplemented]);
+  const deleteNormMapping = useCallback((_id: string) => { handleNotImplemented(); }, [handleNotImplemented]);
+  const deleteScoringWeight = useCallback((_id: string) => { handleNotImplemented(); }, [handleNotImplemented]);
 
   // ── Recalculate all lead scores ──
   const recalculateScores = async () => {
@@ -304,8 +142,8 @@ export default function DataRulesSection() {
           </p>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={seedDefaults} disabled={seedLoading}>
-            {seedLoading ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <RefreshCw className="size-3.5 mr-1.5" />}
+          <Button variant="outline" size="sm" onClick={handleNotImplemented} disabled={seedLoading}>
+            {seedLoading ? <Loader2 className="size-3.5 animate-spin mr-1.5" /> : <Construction className="size-3.5 mr-1.5" />}
             Seed Defaults
           </Button>
           <Button variant="outline" size="sm" onClick={recalculateScores} disabled={recalcLoading}>
@@ -346,6 +184,12 @@ export default function DataRulesSection() {
 
         {/* ═══ Column Mapping Rules ═══ */}
         <TabsContent value="column-rules" className="mt-4">
+          <div className="mb-3 flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+            <Construction className="size-3.5 text-amber-500 shrink-0" />
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Configuration persistence is under development. Rules cannot be loaded, created, or modified until the config API layer is built.
+            </p>
+          </div>
           <GlassPanel>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
               <div>
@@ -390,7 +234,7 @@ export default function DataRulesSection() {
                   {columnRules.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
-                        No column mapping rules. Click &quot;Seed Defaults&quot; to create standard rules.
+                        No column mapping rules loaded. The configuration API layer is not yet available.
                       </TableCell>
                     </TableRow>
                   )}
@@ -402,6 +246,12 @@ export default function DataRulesSection() {
 
         {/* ═══ Validation Rules ═══ */}
         <TabsContent value="validation-rules" className="mt-4">
+          <div className="mb-3 flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+            <Construction className="size-3.5 text-amber-500 shrink-0" />
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Configuration persistence is under development. Rules cannot be loaded, created, or modified until the config API layer is built.
+            </p>
+          </div>
           <GlassPanel>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
               <div>
@@ -446,7 +296,7 @@ export default function DataRulesSection() {
                   {validationRules.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
-                        No validation rules configured.
+                        No validation rules loaded. The configuration API layer is not yet available.
                       </TableCell>
                     </TableRow>
                   )}
@@ -458,6 +308,12 @@ export default function DataRulesSection() {
 
         {/* ═══ Normalization Mappings ═══ */}
         <TabsContent value="normalization" className="mt-4">
+          <div className="mb-3 flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+            <Construction className="size-3.5 text-amber-500 shrink-0" />
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Configuration persistence is under development. Rules cannot be loaded, created, or modified until the config API layer is built.
+            </p>
+          </div>
           <GlassPanel>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
               <div>
@@ -500,7 +356,7 @@ export default function DataRulesSection() {
                   {normMappings.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={5} className="text-center text-sm text-muted-foreground py-8">
-                        No normalization mappings. Add mappings or seed defaults.
+                        No normalization mappings loaded. The configuration API layer is not yet available.
                       </TableCell>
                     </TableRow>
                   )}
@@ -512,6 +368,12 @@ export default function DataRulesSection() {
 
         {/* ═══ Scoring Weights ═══ */}
         <TabsContent value="scoring" className="mt-4">
+          <div className="mb-3 flex items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+            <Construction className="size-3.5 text-amber-500 shrink-0" />
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Configuration persistence is under development. Rules cannot be loaded, created, or modified until the config API layer is built.
+            </p>
+          </div>
           <GlassPanel>
             <div className="flex items-center justify-between px-6 py-4 border-b border-border/50">
               <div>
@@ -552,7 +414,7 @@ export default function DataRulesSection() {
                   {scoringWeights.length === 0 && (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center text-sm text-muted-foreground py-8">
-                        No scoring weights configured. Seed defaults to start.
+                        No scoring weights loaded. The configuration API layer is not yet available.
                       </TableCell>
                     </TableRow>
                   )}

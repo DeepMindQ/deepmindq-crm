@@ -893,3 +893,30 @@ Stage Summary:
 - Net change: -3,118 lines removed, +351 lines added (mostly comments/banners)
 - No protected files modified (engines, schema untouched)
 - No new APIs, no mocks, no schema changes
+
+---
+Task ID: wi-10
+Agent: Super Z (main)
+Task: WI-10 — Production Security Hardening Phase 1A
+
+Work Log:
+- S-C3: Uncommented .z-ai-config in .gitignore, ran git rm --cached to remove tracked JWT token
+- S-C7: Added NODE_ENV !== 'production' guard to ALLOW_DEV_OTP in login, register, otp.ts (3 files)
+- S-C6: Added hashOtp() function to otp.ts using SHA-256 (dmq:{code} prefix); OTP stored as hash in DB; verifyOtp hashes submitted code before comparison; verify-otp route PATH B fallback also uses hashed comparison
+- S-C8: Replaced error detail leakage in login route with generic 503 message; removed all internal error.message exposure
+- S-C9: Added URL validation to tracking/click: blocks javascript:, data:, protocol-relative URLs; validates via URL constructor; redirects invalid to /
+- S-C1: Created src/middleware.ts with security headers, correlation IDs, malicious path blocking, CSRF token provisioning
+- S-C5: Removed unsafe-eval from CSP in next.config.ts and auth-helpers.ts
+- S-C2: Middleware generates CSRF tokens for page requests; non-enforcement logging phase for mutating API routes (x-csrf-status header)
+- S-H1: Replaced hardcoded email in 4 files with process.env.AUTHORIZED_EMAIL || fallback pattern
+- S-H3: Added MAX_STORE_SIZE=100K to rate-limit.ts with LRU eviction when exceeded
+- Updated security-phase4 test to match new env var pattern
+- Quality gates: TypeScript 0 errors, ESLint 0 errors, Vitest 58 suites/1904 pass/0 fail
+- Pre-push: 4/4 stages passed
+
+Stage Summary:
+- 11 files modified, 3 files created, 1 file untracked (.z-ai-config)
+- Net: +591 insertions, -21 deletions
+- All 10 security items implemented
+- No Prisma schema changes, no engine changes, no new API routes
+- Committed as 86f4371, tagged wi-10-baseline, pushed to origin

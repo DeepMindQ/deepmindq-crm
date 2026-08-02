@@ -95,8 +95,8 @@ const DRAFT_STATUS_COLORS: Record<string, string> = {
   draft: 'bg-zinc-500/20 text-zinc-400 border-zinc-500/30',
 };
 
-/* -- AI Demo Draft Type -- */
-interface AIDemoDraft {
+/* -- AI Generated Draft Type -- */
+interface AIGeneratedDraft {
   subject: string;
   body: string;
   cta: string;
@@ -140,7 +140,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
   const [aiShowAdvanced, setAiShowAdvanced] = useState(false);
   const [aiTone, setAiTone] = useState('professional');
   const [aiGenerating, setAiGenerating] = useState(false);
-  const [aiResult, setAiResult] = useState<AIDemoDraft | null>(null);
+  const [aiResult, setAiResult] = useState<AIGeneratedDraft | null>(null);
   const [aiError, setAiError] = useState('');
   const [aiSuccess, setAiSuccess] = useState('');
 

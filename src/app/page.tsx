@@ -452,11 +452,11 @@ function AppShell({ onLogout }: { onLogout: () => void }) {
               className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white"
               style={{ background: 'linear-gradient(135deg, var(--color-gold), var(--color-gold-dim))', boxShadow: '0 0 12px color-mix(in oklch, var(--color-gold) 20%, transparent)' }}
             >
-              RS
+              DQ
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-xs font-semibold text-foreground truncate">Ravi Shanker</p>
-              <p className="text-[11px]" style={{ color: styles.textDim }}>Enterprise Sales Leader</p>
+              <p className="text-xs font-semibold text-foreground truncate">DeepMindQ User</p>
+              <p className="text-[11px]" style={{ color: styles.textDim }}>User</p>
             </div>
             <motion.button
               onClick={onLogout}

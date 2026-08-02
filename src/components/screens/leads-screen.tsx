@@ -1219,7 +1219,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <Button className="w-full h-10 gap-2 text-sm text-white" style={{ background: 'linear-gradient(135deg, #2563EB, #1d4ed8)' }} onClick={() => { toast.success('Leads assigned successfully'); setAssignDialogOpen(false); setSelectedIds(new Set()); }}>
-              <UserPlus className="w-4 h-4" />Assign to Ravi Shanker
+              <UserPlus className="w-4 h-4" />Assign Lead
             </Button>
           </div>
         </DialogContent>

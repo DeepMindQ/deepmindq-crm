@@ -48,15 +48,15 @@ interface SettingsObject {
 }
 
 /* ═══════════════════════════════════════════════════
-   Default / demo settings
+   Default settings
    ═══════════════════════════════════════════════════ */
 const DEFAULT_SETTINGS: SettingsObject = {
   mailbox: {
-    fromName: 'Ravi Shanker',
-    fromEmail: 'ravi.shanker@deepmindq.com',
-    replyTo: 'ravi.shanker@deepmindq.com',
+    fromName: 'DeepMindQ',
+    fromEmail: 'noreply@deepmindq.com',
+    replyTo: 'noreply@deepmindq.com',
     signature:
-      'Best regards,\nRavi Shanker\nEnterprise Sales Leader\nDeepMindQ',
+      'Best regards,\nDeepMindQ',
   },
   workingHours: {
     enabled: true,

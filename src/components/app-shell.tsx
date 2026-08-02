@@ -219,12 +219,12 @@ function Sidebar() {
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8 shrink-0">
               <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-                RS
+                DQ
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-medium text-foreground leading-tight truncate">Ravi Shanker</span>
-              <span className="text-[11px] text-muted-foreground leading-tight">Administrator</span>
+              <span className="text-sm font-medium text-foreground leading-tight truncate">DeepMindQ User</span>
+              <span className="text-[11px] text-muted-foreground leading-tight">User</span>
             </div>
           </div>
         </div>
@@ -234,7 +234,7 @@ function Sidebar() {
         <div className="shrink-0 border-t border-[oklch(0.22_0.005_260)] px-2 py-2 flex justify-center">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-              RS
+              DQ
             </AvatarFallback>
           </Avatar>
         </div>
@@ -340,12 +340,12 @@ function Header() {
         <div className="flex items-center gap-3 pl-1">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-              RS
+              DQ
             </AvatarFallback>
           </Avatar>
           <div className="hidden md:flex flex-col">
-            <span className="text-sm font-medium text-foreground leading-tight">Ravi Shanker</span>
-            <span className="text-[11px] text-muted-foreground leading-tight">Administrator</span>
+            <span className="text-sm font-medium text-foreground leading-tight">DeepMindQ User</span>
+            <span className="text-[11px] text-muted-foreground leading-tight">User</span>
           </div>
         </div>
       </div>

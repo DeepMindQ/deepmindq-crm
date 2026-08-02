@@ -163,7 +163,7 @@ try {
           contactIdResult = newContact.id;
         }
       } catch (dbErr) {
-        logger.info('DB contact creation skipped (demo mode):', { error: dbErr instanceof Error ? dbErr.message : '' });
+        logger.info('DB contact creation skipped:', { error: dbErr instanceof Error ? dbErr.message : '' });
       }
 
       // Save draft to DB

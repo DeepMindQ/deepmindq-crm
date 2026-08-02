@@ -949,3 +949,28 @@ Stage Summary:
 ### Verification
 - `npx tsc --noEmit` passes with zero errors
 - No schema, engine, UI, or logic changes outside scope
+
+---
+Task ID: wi-14
+Agent: Super Z (main)
+Task: WI-14 Productization, Engineering Handoff & Enterprise Experience
+
+Work Log:
+- Audited WI-14 proposal against actual codebase state
+- Identified 30% of proposed scope was already done or redundant
+- Created 15 new documentation files (8 docs, CONTRIBUTING.md, SECURITY.md, CODEOWNERS, CI workflow, archive README)
+- Updated 3 existing files (ARCHITECTURE.md, README.md, landing page)
+- Archived 12 stale phase reports to docs/archive/
+- Removed 4 unused dependencies from package.json
+- Added loading state to import-screen.tsx (was only screen missing one)
+- Documented design token audit findings (1,827 hardcoded colors across 68 screens)
+- Enhanced landing page with Enterprise Intelligence Platform positioning + dedicated deployment section
+- Added Next.js SEO metadata via layout.tsx
+- Quality gates: TypeScript 0 errors, ESLint 0 errors, 1888 tests passed (16 pre-existing failures from WI-13)
+
+Stage Summary:
+- Commit: 8d16b73
+- Tag: wi-14-baseline
+- 39 files changed, 5253 insertions(+), 313 deletions(-)
+- 15 new files created, 12 files archived, 3 files updated, 4 packages removed
+- Full WI baseline chain: wi-3 → wi-4 → wi-5 → wi-6 → wi-7 → wi-8 → wi-9a → wi-10 → wi-11 → wi-12 → wi-13 → wi-14

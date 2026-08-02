@@ -164,7 +164,8 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'audit-logs': withScreenErrorBoundary(AuditLogsScreen, 'audit-logs'),
 
   // ── Detail views ──
-  'company-detail': withScreenErrorBoundary(CompanyDetailScreen, 'company-detail'),
+  // DEPRECATED: company-detail now routes to Intelligence OS CompanyWorkspace
+  'company-detail': withScreenErrorBoundary(CompanyWorkspaceScreen, 'company-detail'),
   'contact-detail': withScreenErrorBoundary(ContactDetailBridge, 'contact-detail'),
 
   // ── Legacy screens (backward compat via internal navigation) ──

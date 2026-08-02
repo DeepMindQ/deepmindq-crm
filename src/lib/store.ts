@@ -17,6 +17,9 @@ export type ViewId =
   | 'data-health'
   | 'ai-health'
   | 'audit'
+  | 'ai-usage'
+  | 'research-agent'
+  | 'audit-logs'
   // Intelligence OS Screens
   | 'activation-workspace'
   | 'intelligence-briefing'

@@ -74,6 +74,9 @@ const KnowledgeLibraryScreen = lazy(() => import('@/components/screens/knowledge
 const AIHealthScreen = lazy(() => import('@/components/screens/ai-health-screen'));
 const SettingsScreen = lazy(() => import('@/components/screens/settings-screen'));
 const AuditScreen = lazy(() => import('@/components/screens/audit-screen'));
+const AIUsageDashboardScreen = lazy(() => import('@/components/screens/ai-usage-dashboard-screen'));
+const ResearchAgentScreen = lazy(() => import('@/components/screens/research-agent-screen'));
+const AuditLogsScreen = lazy(() => import('@/components/screens/audit-logs-screen').then(m => ({ default: m.AuditLogsScreen })));
 const DataHealthScreen = lazy(() => import('@/components/screens/data-health-screen'));
 const DuplicatesScreen = lazy(() => import('@/components/screens/duplicates-screen'));
 const CapabilityScreen = lazy(() => import('@/components/screens/capability-screen'));
@@ -156,6 +159,9 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'data-health': withScreenErrorBoundary(DataHealthScreen, 'data-health'),
   'ai-health': withScreenErrorBoundary(AIHealthScreen, 'ai-health'),
   audit: withScreenErrorBoundary(AuditScreen, 'audit'),
+  'ai-usage': withScreenErrorBoundary(AIUsageDashboardScreen, 'ai-usage'),
+  'research-agent': withScreenErrorBoundary(ResearchAgentScreen, 'research-agent'),
+  'audit-logs': withScreenErrorBoundary(AuditLogsScreen, 'audit-logs'),
 
   // ── Detail views ──
   'company-detail': withScreenErrorBoundary(CompanyDetailScreen, 'company-detail'),

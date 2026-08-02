@@ -14,6 +14,7 @@ import {
   Brain, BookOpen, Layers, Radar, Target,
   Settings, Shield, Database, Plug, Activity,
   ChevronRight, BarChart3, Inbox, Upload, Radio,
+  TrendingUp, Telescope, ScrollText,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -44,6 +45,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: 'intelligence-inbox', label: 'Intelligence Inbox', icon: Inbox, isNew: true },
       { key: 'opportunity-radar', label: 'Opportunity Radar', icon: Target, isNew: true },
       { key: 'intelligence-search', label: 'Intelligence Search', icon: Search },
+      { key: 'research-agent', label: 'Research Agent', icon: Telescope, isNew: true },
     ],
   },
 
@@ -69,7 +71,9 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: 'settings', label: 'Settings', icon: Settings },
       { key: 'data-health', label: 'Integrations', icon: Plug },
       { key: 'ai-health', label: 'System Health', icon: Activity },
+      { key: 'ai-usage', label: 'AI Usage Dashboard', icon: TrendingUp, isNew: true },
       { key: 'audit', label: 'Audit Log', icon: Shield },
+      { key: 'audit-logs', label: 'Detailed Audit Logs', icon: ScrollText, isNew: true },
     ],
   },
 ];

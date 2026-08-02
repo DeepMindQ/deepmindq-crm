@@ -27,7 +27,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
 
 try {
@@ -77,7 +77,7 @@ try {
         rejectionReason: body.reason,
         rejectionFeedback: body.feedback ?? undefined,
         reviewedAt: new Date(),
-        reviewedBy: 'current_user', // TODO: wire to auth session
+        reviewedBy: session!.id,
       },
     });
 

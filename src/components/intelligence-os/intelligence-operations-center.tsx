@@ -10,7 +10,7 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { useAppStore } from '@/lib/store';
+import { useAppStore, type ViewId } from '@/lib/store';
 import { ConfidenceIndicator } from './confidence-indicator';
 import { EvidenceChain } from './evidence-chain';
 import { ActionCTA } from './action-cta';
@@ -25,6 +25,7 @@ import { IntelligencePanel } from './intelligence-panel';
 import { tokens, getConfidenceTier, getPriorityTier, motion as motionTokens } from './design-tokens';
 import type { IntelligenceNarrativeData } from '@/lib/intelligence-narrative-service';
 import { logger } from '@/lib/logger';
+import { FirstExperienceGuide } from '@/components/shared/first-experience-guide';
 
 /* ═══════════════════════════════════════════════════════════════
    Intelligence Operations Center — Daily Proactive Intelligence Cockpit
@@ -210,6 +211,7 @@ export function IntelligenceOperationsCenter() {
   const [companyIds, setCompanyIds] = useState<string[]>([]);
   const [alertSummary, setAlertSummary] = useState<{ bySeverity: Record<string, number>; byStatus: Record<string, number>; total: number } | null>(null);
   const [learningInsights, setLearningInsights] = useState<LearningInsightData[]>([]);
+  const [hasFetched, setHasFetched] = useState(false);
 
   // ── Navigation helper ──
   const navigateToCompany = useCallback((companyId: string) => {
@@ -478,6 +480,7 @@ export function IntelligenceOperationsCenter() {
       fetchInsights(),
       fetchLearningInsights(),
     ]);
+    setHasFetched(true);
   }, [fetchCompanyIds, fetchAlerts, fetchPatterns, fetchPredictions, fetchInsights, fetchLearningInsights]);
 
   // ── Initial load + polling ──
@@ -586,6 +589,18 @@ export function IntelligenceOperationsCenter() {
           ))}
         </div>
       </div>
+    );
+  }
+
+  // ── Empty state: No data yet — show first experience guide ──
+  if (hasFetched && companyIds.length === 0) {
+    return (
+      <FirstExperienceGuide
+        onNavigate={(screen) => setActiveView(screen as ViewId)}
+        hasCompanies={false}
+        hasContacts={false}
+        hasImported={false}
+      />
     );
   }
 

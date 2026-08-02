@@ -458,6 +458,10 @@ export default function DataImportScreen() {
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
+        role="button"
+        aria-label="Upload CSV or XLSX file"
+        tabIndex={0}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); fileInputRef.current?.click(); } }}
         className={cn(
           'relative border-2 border-dashed rounded-2xl p-12 md:p-16 text-center cursor-pointer transition-all duration-200',
           isDragging
@@ -1086,7 +1090,7 @@ export default function DataImportScreen() {
   //  MAIN RENDER
   // ═══════════════════════════════════════════════════════════
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className="max-w-4xl mx-auto px-4 py-8" role="main" aria-label="Data Import">
       {renderStepIndicator()}
       {step === 'upload' && renderUpload()}
       {step === 'mapping' && renderMapping()}

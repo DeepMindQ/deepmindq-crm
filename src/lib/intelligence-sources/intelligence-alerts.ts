@@ -34,7 +34,12 @@ export type AlertType =
   | 'correlation_pattern_found'
   | 'prediction_generated'
   | 'new_high_confidence_signal'
-  | 'new_signal_type_detected';
+  | 'new_signal_type_detected'
+  // Cross-account intelligence alert types (WI-4)
+  | 'cross_account_industry_trend'
+  | 'cross_account_technology_wave'
+  | 'cross_account_segment_opportunity'
+  | 'high_confidence_prediction';
 
 /** Alert lifecycle statuses */
 export type AlertStatus = 'active' | 'acknowledged' | 'resolved' | 'dismissed';
@@ -109,6 +114,11 @@ const VALID_ALERT_TYPES: readonly AlertType[] = [
   'prediction_generated',
   'new_high_confidence_signal',
   'new_signal_type_detected',
+  // Cross-account intelligence alert types (WI-4)
+  'cross_account_industry_trend',
+  'cross_account_technology_wave',
+  'cross_account_segment_opportunity',
+  'high_confidence_prediction',
 ] as const;
 
 /** Severity ordering for critical-first sorting within the same timestamp */
@@ -699,4 +709,40 @@ export async function hasActiveAlert(
     select: { id: true },
   });
   return existing !== null;
+}
+
+// ─── 10. Check for Duplicate Active Alert by Dedup Key ────────────
+
+/**
+ * Check if an active alert already exists matching the given dedup key
+ * within the specified time window (default 24 hours).
+ *
+ * Used by cross-account and prediction persistence wrappers to avoid
+ * creating duplicate alerts on consecutive cron runs.
+ *
+ * The dedup key is stored in the alert metadata.dedupKey field.
+ * Since metadata is stored as a JSON string, we fetch and parse to check.
+ */
+export async function hasActiveAlertByDedupKey(
+  dedupKey: string,
+  alertType: string,
+  windowHours: number = 24,
+): Promise<boolean> {
+  const cutoff = new Date(Date.now() - windowHours * 60 * 60 * 1000);
+  const candidates = await db.intelligenceAlert.findMany({
+    where: {
+      alertType,
+      status: 'active',
+      createdAt: { gte: cutoff },
+    },
+    select: { id: true, metadata: true },
+    take: 50,
+  });
+  for (const alert of candidates) {
+    try {
+      const meta = typeof alert.metadata === 'string' ? JSON.parse(alert.metadata) : alert.metadata;
+      if (meta?.dedupKey === dedupKey) return true;
+    } catch { /* skip unparseable metadata */ }
+  }
+  return false;
 }

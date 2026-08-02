@@ -53,7 +53,7 @@ export { recordSignalFeedback, computeLearningInsights } from './learning-loop';
 export type { SignalFeedback, LearningInsight, FeedbackType } from './learning-loop';
 export { detectCrossAccountPatterns } from './cross-account-intelligence';
 export type { CrossAccountInsight, CrossAccountPattern } from './cross-account-intelligence';
-export { runMonitoringCheck, runMonitoringBatch, runMonitoringBatchWithPersistence } from './autonomous-monitor';
+export { runMonitoringCheck, runMonitoringBatch, runMonitoringBatchWithPersistence, runCrossAccountAnalysisWithPersistence, runPredictionBatchWithPersistence } from './autonomous-monitor';
 export type { IntelligenceAlert, AlertSeverity, AlertType } from './autonomous-monitor';
 
 // Signal Taxonomy Normalization

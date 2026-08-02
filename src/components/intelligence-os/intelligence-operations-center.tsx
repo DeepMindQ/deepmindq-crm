@@ -275,11 +275,47 @@ export function IntelligenceOperationsCenter() {
     }
   }, []);
 
-  // ── Fetch cross-account patterns ──
+  // ── Fetch cross-account patterns — persisted-first with live fallback (WI-4) ──
   const fetchPatterns = useCallback(async (cIds: string[]) => {
     if (cIds.length < 2) { setPatterns([]); return; }
     setPatternsState(prev => ({ ...prev, loading: true, error: null }));
     try {
+      // First try: read persisted cross-account alerts from DB (lightweight)
+      const persistedParams = new URLSearchParams({
+        status: 'active',
+        alertType: 'cross_account_industry_trend,cross_account_technology_wave,cross_account_segment_opportunity',
+        limit: '20',
+      });
+      const persistedRes = await fetch(`/api/intelligence/monitor?${persistedParams}`);
+      if (persistedRes.ok) {
+        const persistedJson = await persistedRes.json();
+        const persistedAlerts = persistedJson.alerts ?? [];
+        if (persistedAlerts.length > 0) {
+          // Map persisted alerts to CrossAccountInsight format
+          const mapped: CrossAccountInsight[] = persistedAlerts.map((a: Record<string, unknown>) => {
+            const metadata = typeof a.metadata === 'string' ? JSON.parse(a.metadata) : (a.metadata ?? {});
+            const insight = metadata.crossAccountInsight ?? metadata;
+            return {
+              pattern: insight.pattern ?? a.alertType,
+              description: a.description ?? insight.description ?? '',
+              affectedCompanyIds: insight.affectedCompanyIds ?? [],
+              affectedCompanyNames: insight.affectedCompanyNames ?? [],
+              signalCount: insight.signalCount ?? 0,
+              industry: insight.industry ?? null,
+              confidence: insight.confidence ?? 0.5,
+              businessImplication: insight.businessImplication ?? '',
+              recommendedStrategy: insight.recommendedStrategy ?? '',
+              detectedAt: a.createdAt ?? new Date().toISOString(),
+            };
+          });
+          const filtered = mapped.filter((p: CrossAccountInsight) => p.confidence * 100 >= MIN_PATTERN_CONFIDENCE);
+          setPatterns(filtered);
+          setPatternsState({ loading: false, error: null, lastRefresh: Date.now() });
+          return;
+        }
+      }
+
+      // Fallback: live computation via existing cross-account endpoint
       const idsParam = cIds.slice(0, 30).join(',');
       const res = await fetch(`/api/intelligence/cross-account?companyIds=${idsParam}`);
       if (!res.ok) throw new Error(`Cross-account returned ${res.status}`);
@@ -295,12 +331,41 @@ export function IntelligenceOperationsCenter() {
     }
   }, []);
 
-  // ── Fetch predictions for top accounts ──
+  // ── Fetch predictions for top accounts — persisted-first with live fallback (WI-4) ──
   const fetchPredictions = useCallback(async (cIds: string[]) => {
     if (cIds.length === 0) { setPredictions([]); return; }
     setPredictionsState(prev => ({ ...prev, loading: true, error: null }));
     try {
-      const topIds = cIds.slice(0, 5); // Top 5 accounts by score
+      // First try: read persisted high-confidence prediction alerts from DB
+      const persistedParams = new URLSearchParams({
+        status: 'active',
+        alertType: 'high_confidence_prediction',
+        limit: '20',
+      });
+      const persistedRes = await fetch(`/api/intelligence/monitor?${persistedParams}`);
+      if (persistedRes.ok) {
+        const persistedJson = await persistedRes.json();
+        const persistedAlerts = persistedJson.alerts ?? [];
+        if (persistedAlerts.length > 0) {
+          // Map persisted alerts to IntelligencePrediction format
+          const mapped: IntelligencePrediction[] = persistedAlerts.map((a: Record<string, unknown>) => {
+            const metadata = typeof a.metadata === 'string' ? JSON.parse(a.metadata) : (a.metadata ?? {});
+            const pred = metadata.prediction ?? metadata;
+            return {
+              ...pred,
+              companyId: metadata.companyId ?? a.companyId ?? '',
+              confidence: pred.confidence ?? metadata.confidence ?? 0.5,
+            } as IntelligencePrediction;
+          });
+          const filtered = mapped.filter(p => p.confidence * 100 >= MIN_PREDICTION_CONFIDENCE);
+          setPredictions(filtered);
+          setPredictionsState({ loading: false, error: null, lastRefresh: Date.now() });
+          return;
+        }
+      }
+
+      // Fallback: live computation via existing predictions endpoint
+      const topIds = cIds.slice(0, 5);
       const allPredictions: IntelligencePrediction[] = [];
       for (const cid of topIds) {
         try {

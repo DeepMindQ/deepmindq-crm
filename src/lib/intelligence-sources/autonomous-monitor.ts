@@ -11,7 +11,8 @@
 import { db } from '@/lib/db';
 import { detectCorrelations, type CorrelationInsight } from './cross-signal-correlation';
 import { generatePredictions, type IntelligencePrediction } from './predictive-intelligence';
-import { createAlert, mapMonitorSeverity, hasActiveAlert } from './intelligence-alerts';
+import { detectCrossAccountPatterns, type CrossAccountInsight } from './cross-account-intelligence';
+import { createAlert, mapMonitorSeverity, hasActiveAlert, hasActiveAlertByDedupKey } from './intelligence-alerts';
 import { logger } from '@/lib/logger';
 
 // ─── Alert Types ───────────────────────────────────────────────
@@ -217,4 +218,187 @@ export async function runMonitoringBatchWithPersistence(
   }
 
   return { results, persistedCount };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WI-4: Cross-Account & Prediction Persistence Wrappers
+//
+// These wrappers follow the same pattern as runMonitoringBatchWithPersistence:
+// - Detection engines are NOT modified (detectCrossAccountPatterns, generatePredictions)
+// - All DB writes go through intelligence-alerts.ts
+// - Deduplication before every createAlert() call
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * Run cross-account analysis across multiple companies AND persist detected patterns.
+ *
+ * Calls detectCrossAccountPatterns() (pure function, untouched), then persists
+ * each high-confidence pattern as an IntelligenceAlert via intelligence-alerts.ts.
+ *
+ * Detection engine (detectCrossAccountPatterns) is NOT modified.
+ * All DB writes go through intelligence-alerts.ts functions.
+ *
+ * @param companyIds - Array of company IDs to analyze
+ * @returns Object with insights array and count of persisted alerts
+ */
+export async function runCrossAccountAnalysisWithPersistence(
+  companyIds: string[]
+): Promise<{ insights: CrossAccountInsight[]; persistedCount: number }> {
+  // Fetch companies and their signals for cross-account analysis
+  const companies = await db.company.findMany({
+    where: { id: { in: companyIds } },
+    select: { id: true, rawName: true, industry: true },
+  });
+
+  const allSignals = await db.companySignal.findMany({
+    where: { companyId: { in: companyIds }, status: { notIn: ['archived', 'expired'] } },
+    orderBy: { createdAt: 'desc' },
+    take: 200,
+    select: { companyId: true, signalType: true, title: true, description: true, createdAt: true, confidence: true },
+  });
+
+  const companyMap = new Map(companies.map(c => [c.id, c]));
+  const accountSignals = allSignals.map(s => ({
+    companyId: s.companyId,
+    companyName: companyMap.get(s.companyId)?.rawName || 'Unknown',
+    industry: companyMap.get(s.companyId)?.industry || null,
+    signalType: s.signalType,
+    title: s.title,
+    description: s.description,
+    createdAt: s.createdAt,
+    confidence: s.confidence,
+  }));
+
+  // Call the existing detection engine — unchanged
+  const insights = detectCrossAccountPatterns(accountSignals);
+
+  let persistedCount = 0;
+
+  // Map CrossAccountPattern to alert type
+  const patternToAlertType: Record<string, string> = {
+    industry_trend: 'cross_account_industry_trend',
+    technology_wave: 'cross_account_technology_wave',
+    segment_opportunity: 'cross_account_segment_opportunity',
+  };
+
+  for (const insight of insights) {
+    const alertType = patternToAlertType[insight.pattern];
+    if (!alertType) continue; // Skip competitive_signal/market_timing (no generation logic)
+
+    try {
+      // Deduplication: hash affected companies + pattern type
+      const companyHash = [...insight.affectedCompanyIds].sort().join('|');
+      const dedupKey = `${insight.pattern}:${companyHash}`;
+      const isDuplicate = await hasActiveAlertByDedupKey(dedupKey, alertType);
+      if (isDuplicate) continue;
+
+      // Severity: ≥ 5 affected companies → high, else medium
+      const severity = insight.affectedCompanyIds.length >= 5 ? 'high' : 'medium';
+
+      await createAlert({
+        severity,
+        alertType: alertType as any,
+        title: `Cross-account: ${insight.pattern.replace(/_/g, ' ')} (${insight.affectedCompanyIds.length} accounts)`,
+        description: insight.description,
+        metadata: {
+          source: 'cross-account-analysis',
+          dedupKey,
+          crossAccountInsight: insight,
+          affectedCompanyIds: insight.affectedCompanyIds,
+          affectedCompanyNames: insight.affectedCompanyNames,
+          pattern: insight.pattern,
+          confidence: insight.confidence,
+          signalCount: insight.signalCount,
+          businessImplication: insight.businessImplication,
+          recommendedStrategy: insight.recommendedStrategy,
+          industry: insight.industry ?? null,
+          technology: (insight as any).technology ?? null,
+        },
+      });
+      persistedCount++;
+    } catch (err) {
+      logger.error(`[monitor] Failed to persist cross-account alert:`, { error: err });
+    }
+  }
+
+  return { insights, persistedCount };
+}
+
+/**
+ * Run prediction generation across multiple companies AND persist high-confidence predictions.
+ *
+ * Calls generatePredictions() (pure function, untouched) per company, then persists
+ * each high-confidence prediction (≥ 0.7) as an IntelligenceAlert.
+ *
+ * Detection engine (generatePredictions) is NOT modified.
+ * All DB writes go through intelligence-alerts.ts functions.
+ *
+ * @param companyIds - Array of company IDs to analyze (typically top N by score)
+ * @returns Object with predictions map and count of persisted alerts
+ */
+export async function runPredictionBatchWithPersistence(
+  companyIds: string[]
+): Promise<{ predictions: Map<string, IntelligencePrediction[]>; persistedCount: number }> {
+  const predictions = new Map<string, IntelligencePrediction[]>();
+  let persistedCount = 0;
+
+  for (const companyId of companyIds) {
+    try {
+      const signals = await db.companySignal.findMany({
+        where: { companyId, status: { notIn: ['archived', 'expired'] } },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+        select: { id: true, signalType: true, title: true, description: true, createdAt: true, signalDate: true, confidence: true, severity: true },
+      });
+
+      // Call the existing detection engine — unchanged
+      const preds = generatePredictions(signals);
+      predictions.set(companyId, preds);
+
+      for (const pred of preds) {
+        if (pred.confidence < 0.7) continue; // Only persist high-confidence predictions
+
+        try {
+          // Deduplication: companyId + prediction type within 24h
+          const dedupKey = `${companyId}:${pred.type}`;
+          const isDuplicate = await hasActiveAlertByDedupKey(dedupKey, 'high_confidence_prediction');
+          if (isDuplicate) continue;
+
+          // Severity: ≥ 0.8 → high, else medium
+          const severity = pred.confidence >= 0.8 ? 'high' : 'medium';
+
+          const company = await db.company.findUnique({
+            where: { id: companyId },
+            select: { rawName: true },
+          });
+
+          await createAlert({
+            companyId,
+            severity,
+            alertType: 'high_confidence_prediction',
+            title: `Prediction: ${pred.type.replace(/_/g, ' ')} for ${company?.rawName ?? 'Unknown'}`,
+            description: `${pred.description}. Confidence: ${Math.round(pred.confidence * 100)}%. Timeframe: ${pred.timeframe}.`,
+            metadata: {
+              source: 'prediction-batch',
+              dedupKey,
+              prediction: pred,
+              companyId,
+              companyName: company?.rawName ?? 'Unknown',
+              confidence: pred.confidence,
+              timeframe: pred.timeframe,
+              salesImplication: pred.salesImplication,
+              recommendedPreparation: pred.recommendedPreparation,
+            },
+          });
+          persistedCount++;
+        } catch (err) {
+          logger.error(`[monitor] Failed to persist prediction alert for ${companyId}:`, { error: err });
+        }
+      }
+    } catch (err) {
+      logger.error(`[monitor] Prediction analysis failed for ${companyId}:`, { error: err });
+    }
+  }
+
+  return { predictions, persistedCount };
 }

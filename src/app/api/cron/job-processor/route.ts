@@ -13,6 +13,8 @@ import { logger } from '@/lib/logger';
  * 6. Run scheduled intelligence connectors
  * 7. Run autonomous monitoring with persistence (WI-3)
  * 8. Generate operational pipeline alerts (WI-3)
+ * 9. Run cross-account analysis with persistence (WI-4)
+ * 10. Run prediction batch with persistence (WI-4)
  *
  * Vercel Cron config is in vercel.json (crons array).
  * Set CRON_SECRET env var in Vercel to secure this endpoint.
@@ -102,6 +104,47 @@ export async function GET(request: Request) {
     } catch (err) {
       logger.warn('[cron] Operational alert generation failed:', { error: err });
       results.operationalAlerts = { error: 'Operational alert engine not available' };
+    }
+
+    // Step 8: Run cross-account analysis with persistence (WI-4)
+    try {
+      const { runCrossAccountAnalysisWithPersistence } = await import('@/lib/intelligence-sources/autonomous-monitor');
+      const activeCompanies = await (await import('@/lib/db')).db.company.findMany({
+        where: { status: 'active' },
+        select: { id: true },
+      });
+      const allCompanyIds = activeCompanies.map((c: { id: string }) => c.id);
+      if (allCompanyIds.length >= 2) {
+        const { insights, persistedCount } = await runCrossAccountAnalysisWithPersistence(allCompanyIds);
+        results.crossAccountAnalysis = { patternsDetected: insights.length, alertsPersisted: persistedCount };
+      } else {
+        results.crossAccountAnalysis = { skipped: 'Fewer than 2 active companies' };
+      }
+    } catch (err) {
+      logger.warn('[cron] Cross-account analysis failed:', { error: err });
+      results.crossAccountAnalysis = { error: 'Cross-account engine not available' };
+    }
+
+    // Step 9: Run prediction batch with persistence (WI-4)
+    try {
+      const { runPredictionBatchWithPersistence } = await import('@/lib/intelligence-sources/autonomous-monitor');
+      // Top 20 companies by intelligenceScore to manage computation cost
+      const topCompanies = await (await import('@/lib/db')).db.company.findMany({
+        where: { status: 'active', intelligenceScore: { gte: 0 } },
+        orderBy: { intelligenceScore: 'desc' },
+        take: 20,
+        select: { id: true },
+      });
+      const topCompanyIds = topCompanies.map((c: { id: string }) => c.id);
+      if (topCompanyIds.length > 0) {
+        const { persistedCount } = await runPredictionBatchWithPersistence(topCompanyIds);
+        results.predictionBatch = { companiesAnalyzed: topCompanyIds.length, alertsPersisted: persistedCount };
+      } else {
+        results.predictionBatch = { skipped: 'No companies with intelligence scores' };
+      }
+    } catch (err) {
+      logger.warn('[cron] Prediction batch failed:', { error: err });
+      results.predictionBatch = { error: 'Prediction engine not available' };
     }
 
     const duration = Date.now() - startTime;

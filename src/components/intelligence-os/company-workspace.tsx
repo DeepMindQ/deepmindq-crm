@@ -16,6 +16,7 @@ import { useAppStore } from '@/lib/store';
 import type { CompanyIntelligence, IntelligenceObject, EvidenceState, ExecutiveBriefData } from '@/lib/intelligence-types';
 import { logger } from '@/lib/logger';
 import { AIProgressTracker } from '@/components/enterprise/AIProgressTracker';
+import { ActivationStatus } from '@/components/intelligence-os/activation-status';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Company Intelligence Workspace — Dark Intelligence OS
@@ -1668,6 +1669,8 @@ export function CompanyWorkspace() {
                   {companyName}
                 </h1>
                 <EvidenceStateBadge state={intelligence.executiveUnderstanding.evidenceState} />
+                {/* WI-17B: Intelligence Activation Status Indicator */}
+                <ActivationStatus companyId={selectedCompanyId} compact darkMode />
               </div>
               <p className="text-xs mt-0.5" style={{ color: IOS.textMuted }}>
                 {intelligence.company.industry || 'Technology'}{intelligence.company.domain ? ` · ${intelligence.company.domain}` : ''}

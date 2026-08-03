@@ -281,6 +281,7 @@ export async function verifyOtp(
       verified: false,
       expiresAt: { gt: new Date() },
     },
+    orderBy: { createdAt: 'desc' },
     include: { user: true },
   });
 

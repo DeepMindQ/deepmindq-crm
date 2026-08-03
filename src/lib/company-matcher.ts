@@ -145,6 +145,7 @@ export async function matchCompany(params: {
             { website: { endsWith: emailDomain } },
           ],
         },
+        orderBy: { createdAt: 'desc' },
         select: { id: true, rawName: true, domain: true, website: true },
       });
 
@@ -177,6 +178,7 @@ export async function matchCompany(params: {
             { website: { endsWith: webRoot } },
           ],
         },
+        orderBy: { createdAt: 'desc' },
         select: { id: true, rawName: true, domain: true, website: true },
       });
 
@@ -206,6 +208,7 @@ export async function matchCompany(params: {
     // 3a: Exact normalizedName match
     const exactMatch = await db.company.findFirst({
       where: { normalizedName },
+      orderBy: { createdAt: 'desc' },
       select: { id: true, rawName: true, domain: true },
     });
     if (exactMatch) {
@@ -224,6 +227,7 @@ export async function matchCompany(params: {
     // 3b: Exact rawName match
     const rawMatch = await db.company.findFirst({
       where: { rawName: trimmedName },
+      orderBy: { createdAt: 'desc' },
       select: { id: true, rawName: true, domain: true },
     });
     if (rawMatch) {

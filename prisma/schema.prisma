@@ -1233,6 +1233,7 @@ model UploadRow {
   @@index([uploadId])
   @@index([status])
   @@index([qualityScore])
+  @@index([companyId])
 }
 
 // ── Config: Column Mapping Rules ──
@@ -2937,6 +2938,7 @@ model AICallLog {
   @@index([provider])
   @@index([createdAt])
   @@index([companyId, createdAt])
+  @@index([contactId])
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2953,6 +2955,9 @@ model CustomEmailTemplate {
   description String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([name])
+  @@index([category])
 }
 
 // AI usage tracking — persist cost estimates from ai-caller

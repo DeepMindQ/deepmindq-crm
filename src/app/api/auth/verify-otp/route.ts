@@ -117,6 +117,7 @@ export async function POST(request: NextRequest) {
         const submittedHash = await hashOtp(code);
         const otp = await db.otpCode.findFirst({
           where: { email: normalizedEmail, code: submittedHash, purpose, verified: false, expiresAt: { gt: new Date() } },
+          orderBy: { createdAt: 'desc' },
           include: { user: true },
         });
         if (otp) {

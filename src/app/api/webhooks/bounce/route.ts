@@ -209,6 +209,7 @@ export async function POST(request: Request) {
           draft: { contactId: contact.id },
           status: 'sent',
         },
+        orderBy: { createdAt: 'desc' },
       });
       linkedQueueId = queueItem?.id || null;
     }

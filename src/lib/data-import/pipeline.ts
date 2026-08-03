@@ -674,6 +674,7 @@ export async function commitImport(
         const normalizedName = companyName.toLowerCase();
         const existing = await db.company.findFirst({
           where: { normalizedName },
+          orderBy: { createdAt: 'desc' },
         });
 
         if (existing) {
@@ -702,6 +703,7 @@ export async function commitImport(
         // No company name — find or create a placeholder
         const existing = await db.company.findFirst({
           where: { domain: domain || undefined },
+          orderBy: { createdAt: 'desc' },
         });
         if (existing) {
           companyId = existing.id;

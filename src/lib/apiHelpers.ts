@@ -77,3 +77,48 @@ export function safeInt(value: unknown, fallback?: number, min?: number): number
   if (min !== undefined) n = Math.max(min, n)
   return n
 }
+
+// ---------------------------------------------------------------------------
+// Enhanced error & response helpers (WI-18.3)
+// ---------------------------------------------------------------------------
+
+/** Enhanced error with structured code */
+export function apiErrorCode(code: string, message: string, status = 500) {
+  return NextResponse.json(
+    { success: false, error: { code, message }, timestamp: new Date().toISOString() },
+    { status }
+  )
+}
+
+/** Validation error (400) with details */
+export function apiValidationError(details: Array<{ field: string; message: string }>, status = 400) {
+  return NextResponse.json(
+    { success: false, error: { code: 'VALIDATION_ERROR', message: 'Input validation failed', details }, timestamp: new Date().toISOString() },
+    { status }
+  )
+}
+
+/** Not found error (404) */
+export function apiNotFound(resource: string) {
+  return NextResponse.json(
+    { success: false, error: { code: 'NOT_FOUND', message: `${resource} not found` }, timestamp: new Date().toISOString() },
+    { status: 404 }
+  )
+}
+
+/** Paginated success response */
+export function apiPaginated<T>(data: T[], total: number, page: number, limit: number) {
+  return NextResponse.json({
+    success: true,
+    data,
+    pagination: {
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNext: page < Math.ceil(total / limit),
+      hasPrev: page > 1,
+    },
+    timestamp: new Date().toISOString(),
+  })
+}

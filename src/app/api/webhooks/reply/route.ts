@@ -193,6 +193,7 @@ async function findOriginalItem(inReplyTo: string | null, references: string | n
     if (!mid) continue;
     const draft = await db.draft.findFirst({
       where: { messageId: mid },
+      orderBy: { createdAt: 'desc' },
       include: { queueItem: true },
     });
     if (draft) {

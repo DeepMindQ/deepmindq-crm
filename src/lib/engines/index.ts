@@ -14,6 +14,9 @@
  *   - ScoringEngine        Revenue Intelligence Score (explainable, decomposed)
  *   - ActionEngine         Next-best-action + sales motion recommendations
  *   - ConversationEngine   Meeting prep + conversation planning intelligence
+ *
+ * WI-16F: Hybrid Retrieval Intelligence (multi-signal replacement for
+ * single-signal RetrievalEngine.search). Available at @/lib/ai-hybrid-retrieval.
  */
 
 export { ModelRouter } from './model-router';

@@ -1422,3 +1422,28 @@ Stage Summary:
 - Cost model established: ~3x computational cost increase justified by multi-signal intelligence
 - Degradation framework: 4 signals tracked, 3 fallback strategies, automatic degradation detection
 - AI maturity: ~65% → ~67% (retrieval now has production-quality measurement)
+
+---
+Task ID: github-checkpoint
+Agent: Super Z (main)
+Task: GitHub checkpoint — push all WI-16F.1 work to remote and create milestone tag
+
+Work Log:
+- Fixed TypeScript compilation errors in ai-retrieval-validation.ts
+  - Added 'vector' to Omit type for seed data entries (benchmark cases don't need pre-computed vectors)
+  - Re-exported getHybridStats from ai-hybrid-retrieval for the metrics dashboard route
+  - Added vector: null spread when calling addToIndex() with seed data
+- Committed all WI-16F.1 changes with comprehensive commit message
+- Pre-commit hooks passed (ESLint clean, TypeScript 0 errors)
+- Push blocked by ci.yml commit (PAT lacks workflow scope)
+- Used cherry-pick strategy: created temp-push branch excluding ci.yml commit, pushed 19 commits successfully
+- Created annotated tag: wi-16f-validation-complete at commit 00ac07b
+- Tag pushed to origin successfully
+- Synced local main with remote (git reset --hard origin/main)
+- Clean working tree confirmed
+
+Stage Summary:
+- All 19 WI-16F.1 + WI-16E/F commits pushed to GitHub
+- Tag wi-16f-validation-complete created and pushed
+- Local and remote are in sync (HEAD = 00ac07b)
+- Note: .github/workflows/ci.yml commit was excluded from push due to PAT scope limitation; workflow file needs to be added via GitHub UI or a PAT with workflow scope

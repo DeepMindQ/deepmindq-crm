@@ -37,6 +37,36 @@ export function recordApiMetric(
   }
 }
 
+/**
+ * Create a lightweight metrics recorder pair for manual integration.
+ * Returns `{ recordStart, recordEnd }` for start/stop timing.
+ *
+ * Usage:
+ *   const { recordStart, recordEnd } = createMetricsRecorder();
+ *   const start = recordStart();
+ *   // ... handler logic ...
+ *   recordEnd(request.method, url.pathname, response.status, start);
+ */
+export function createMetricsRecorder() {
+  return {
+    /** Returns a high-resolution start timestamp. */
+    recordStart(): number {
+      return Date.now();
+    },
+    /**
+     * Records the completed metric with computed latency.
+     * @param method  - HTTP method (GET, POST, etc.)
+     * @param path    - Request pathname
+     * @param statusCode - HTTP response status code
+     * @param startTime - Value returned by recordStart()
+     */
+    recordEnd(method: string, path: string, statusCode: number, startTime: number): void {
+      const latencyMs = Date.now() - startTime;
+      recordApiMetric(method, path, statusCode, latencyMs);
+    },
+  };
+}
+
 export function getApiMetrics() {
   if (metricsBuffer.length === 0) {
     return {

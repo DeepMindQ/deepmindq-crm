@@ -34,8 +34,10 @@ import {
   rateLimitedResponse,
   otpRateLimit,
   generalApiRateLimit,
+  edgeRateLimit,
   SESSION_COOKIE_NAME,
 } from '@/lib/auth-helpers';
+import { getRateLimitConfig } from '@/lib/rate-limit-registry';
 
 export const config = {
   // Run middleware on ALL routes except Next.js internals and static assets
@@ -116,8 +118,40 @@ function handleApiRoute(
     }
   }
 
-  // General API rate limiting per IP + endpoint
   const ip = getClientIp(request);
+
+  // ── Per-endpoint rate limiting from registry ──
+  // Check for a specific rate limit config (AI, imports, exports, etc.)
+  const endpointConfig = getRateLimitConfig(pathname);
+  if (endpointConfig) {
+    const registryRl = edgeRateLimit(
+      `registry:${endpointConfig.name}:${ip}`,
+      endpointConfig.maxRequests,
+      endpointConfig.windowMs,
+    );
+    if (!registryRl.success) {
+      const retryAfter = Math.ceil((registryRl.resetAt - Date.now()) / 1000);
+      logger.warn(`[Proxy] Registry rate limit hit for ${endpointConfig.name} (${ip})`);
+      return rateLimitedResponse(retryAfter);
+    }
+
+    // Still run the general rate limit as a floor
+    const generalRl = generalApiRateLimit(ip, pathname);
+    if (!generalRl.success) {
+      const retryAfter = Math.ceil((generalRl.resetAt - Date.now()) / 1000);
+      return rateLimitedResponse(retryAfter);
+    }
+
+    const response = NextResponse.next();
+    response.headers.set('X-RateLimit-Limit', String(endpointConfig.maxRequests));
+    response.headers.set('X-RateLimit-Remaining', String(registryRl.remaining));
+    response.headers.set('X-RateLimit-Reset', String(registryRl.resetAt));
+    response.headers.set('X-RateLimit-Policy', endpointConfig.name);
+    applySecurityHeaders(response);
+    return response;
+  }
+
+  // General API rate limiting per IP + endpoint (no specific config)
   const rl = generalApiRateLimit(ip, pathname);
   if (!rl.success) {
     const retryAfter = Math.ceil((rl.resetAt - Date.now()) / 1000);

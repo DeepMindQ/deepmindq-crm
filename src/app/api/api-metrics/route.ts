@@ -1,6 +1,6 @@
-import { NextResponse } from 'next/server';
 import { getApiMetrics } from '@/lib/api-observability';
 import { checkApiAuth } from '@/lib/api-auth';
+import { apiSuccess, apiError } from '@/lib/apiHelpers';
 
 /**
  * WI-18.3 API Observability Endpoint
@@ -11,16 +11,9 @@ import { checkApiAuth } from '@/lib/api-auth';
 export async function GET() {
   const auth = await checkApiAuth();
   if (!auth) {
-    return NextResponse.json(
-      { success: false, error: 'Unauthorized', timestamp: new Date().toISOString() },
-      { status: 401 }
-    );
+    return apiError('Unauthorized', 401);
   }
 
   const metrics = getApiMetrics();
-  return NextResponse.json({
-    success: true,
-    data: metrics,
-    timestamp: new Date().toISOString(),
-  });
+  return apiSuccess(metrics);
 }

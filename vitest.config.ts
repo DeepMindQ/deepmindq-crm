@@ -36,6 +36,24 @@ export default defineConfig({
     // Limit worker forks to prevent OOM on environments with constrained memory.
     // Large test suite (87 files, 2800+ tests) can exhaust RAM with default parallelism.
     maxForks: 2,
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html', 'lcov'],
+      include: ['src/**/*.{ts,tsx}'],
+      exclude: [
+        'src/**/*.d.ts',
+        'src/**/*.test.{ts,tsx}',
+        'src/**/__tests__/**',
+        'src/app/api/**/route.ts',  // API routes tested via integration
+        'src/proxy.ts',
+      ],
+      thresholds: {
+        statements: 10,
+        branches: 5,
+        functions: 10,
+        lines: 10,
+      },
+    },
   },
   resolve: {
     alias: {

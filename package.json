@@ -21,6 +21,7 @@
     "db:reset": "prisma migrate reset",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
     "postinstall": "npx prisma generate",
     "vercel-build": "npx prisma generate && npx next build",
     "cloud:setup": "bash scripts/setup-cloud.sh",

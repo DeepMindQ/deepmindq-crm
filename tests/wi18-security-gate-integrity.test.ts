@@ -254,7 +254,7 @@ describe('SECURITY GATE: CI Configuration (CI Gate 10)', () => {
 
   it('must have dependency-audit job', () => {
     expect(ci).toContain('dependency-audit:');
-    expect(ci).toContain('npm audit');
+    expect(ci).toContain('dependency-audit-ci.js');
   });
 
   it('must have api-security-contract job', () => {

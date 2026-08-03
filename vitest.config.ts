@@ -33,6 +33,9 @@ export default defineConfig({
       'src/lib/intelligence-sources/__tests__/source-governance.test.ts',
     ],
     globals: true,
+    // Limit worker forks to prevent OOM on environments with constrained memory.
+    // Large test suite (87 files, 2800+ tests) can exhaust RAM with default parallelism.
+    maxForks: 2,
   },
   resolve: {
     alias: {

@@ -17,6 +17,7 @@ import type { CompanyIntelligence, IntelligenceObject, EvidenceState, ExecutiveB
 import { logger } from '@/lib/logger';
 import { AIProgressTracker } from '@/components/enterprise/AIProgressTracker';
 import { ActivationStatus } from '@/components/intelligence-os/activation-status';
+import { RecommendationCard } from '@/components/intelligence-os/recommendation-card';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Company Intelligence Workspace — Dark Intelligence OS
@@ -1945,6 +1946,13 @@ export function CompanyWorkspace() {
             </motion.div>
           )}
         </motion.section>
+
+        {/* ═══ WI-17C: AI Recommendation ═══ */}
+        {selectedCompanyId && (
+          <div className="mb-6">
+            <RecommendationCard companyId={selectedCompanyId} />
+          </div>
+        )}
 
         {/* ═══ SECTION 2: Evidence & Signals — Categorized ═══ */}
         <section

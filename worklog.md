@@ -1,4 +1,34 @@
 ---
+Task ID: wi-17b-company-intelligence-activation
+Agent: Super Z (main)
+Task: WI-17B — Company Intelligence Activation (Lifecycle Status + Intelligence Profile)
+
+Work Log:
+- Validated WI-17A production checklist: all 6 integration paths PASS
+- Created /api/companies/[id]/activation-status API (293 lines)
+  - Derives activation state from all WI-16 engine signals
+  - 6-step lifecycle: entity resolution → KG → retrieval → memory → signals → confidence
+  - Overall status: activated (5-6 steps) / partial (3-4) / processing (1-2) / pending (0)
+  - Real-time confidence scoring via ai-unified-confidence
+- Created /api/companies/[id]/intelligence-profile API (555 lines)
+  - SINGLE aggregated endpoint replacing 5+ separate API calls
+  - 10 intelligence sections: Company Base, AI Summary, Technology Landscape, Signals, Evidence Timeline, Opportunities, Confidence, Activation Status, Recommended Actions, Why This Account
+  - Tech stack categorization engine (8 categories)
+  - "Why this account?" explanation builder using signals + capabilities + contacts
+- Created ActivationStatus component (240 lines)
+  - Compact badge + expandable detail panel
+  - Wired into CompanyWorkspace header
+- Tests: 10/10 WI-17B + 43/43 WI-17A = 53 total passing
+- Build: 0 TypeScript errors, ESLint clean
+
+Stage Summary:
+- WI-17B complete: Intelligence is now visible and valuable in the Company Workspace
+- Company activation lifecycle is observable
+- Single API call replaces 5+ separate calls for the Company Workspace
+- Tag: wi-17b-company-intelligence-activation
+- Ready for WI-17C: AI Recommendation Engine
+
+---
 Task ID: wi-17a-intelligence-activation
 Agent: Super Z (main)
 Task: WI-17A — Intelligence Activation Orchestrator (Data → AI Pipeline Integration)

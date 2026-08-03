@@ -5,6 +5,7 @@ import { apiError, apiSuccess, validateBody, sanitizeFields, safeInt } from "@/l
 import { createContactSchema } from "@/lib/validations";
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { activateIntelligenceAsync } from '@/lib/intelligence-activation';
 
 export async function GET(request: NextRequest) {
     // ── Authentication Guard ──
@@ -171,6 +172,13 @@ try {
         companyId: data.companyId,
         batchId: batch.id,
       },
+    });
+
+    // WI-17A: Activate intelligence for the company with this new contact
+    activateIntelligenceAsync({
+      companyId: data.companyId,
+      trigger: 'contact_manual',
+      contactIds: [contact.id],
     });
 
     return apiSuccess(contact, 201);

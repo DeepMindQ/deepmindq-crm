@@ -5,6 +5,7 @@ import { logger } from '@/lib/logger';
 import { validateBody } from '@/lib/apiHelpers';
 import { createCompanySchema } from '@/lib/validations';
 import { checkApiAuth } from '@/lib/api-auth';
+import { activateIntelligenceAsync } from '@/lib/intelligence-activation';
 
 /* ═══════════════════════════════════════════════════
    GET — List companies with search, filter, sort, paginate
@@ -261,6 +262,13 @@ try {
         _count: { select: { contacts: true, signals: true } },
         researchCard: { select: { id: true } },
       },
+    });
+
+    // WI-17A: Activate intelligence pipeline for the new company
+    activateIntelligenceAsync({
+      companyId: company.id,
+      trigger: 'company_manual',
+      priority: 5,
     });
 
     return NextResponse.json({

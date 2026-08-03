@@ -13,6 +13,7 @@
  */
 
 import { db } from '@/lib/db';
+import { activateIntelligenceBatch } from '@/lib/intelligence-activation';
 
 // ─── Exported Interfaces ──────────────────────────────────────────
 
@@ -624,6 +625,7 @@ export async function commitImport(
 
   const seenDomains = new Map<string, string>(); // domain → companyId
   const seenEmails = new Set<string>();
+  const newCompanyIds = new Set<string>(); // WI-17A: Track new companies for intelligence activation
 
   for (const row of acceptedRows) {
     try {
@@ -693,6 +695,7 @@ export async function commitImport(
           });
           companyId = company.id;
           companiesCreated++;
+          newCompanyIds.add(company.id); // WI-17A: track for activation
         }
         if (domain) seenDomains.set(domain.toLowerCase(), companyId);
       } else {
@@ -714,6 +717,7 @@ export async function commitImport(
           });
           companyId = company.id;
           companiesCreated++;
+          newCompanyIds.add(company.id); // WI-17A: track for activation
         }
         if (domain) seenDomains.set(domain.toLowerCase(), companyId);
       }
@@ -777,6 +781,18 @@ export async function commitImport(
       failedRows,
     },
   });
+
+  // WI-17A: Activate intelligence for all newly created companies (fire-and-forget)
+  if (newCompanyIds.size > 0) {
+    const activationRequests = Array.from(newCompanyIds).map(companyId => ({
+      companyId,
+      trigger: 'import_pipeline' as const,
+      priority: 3,
+    }));
+    activateIntelligenceBatch(activationRequests, { skipExpensiveSteps: activationRequests.length > 10 }).catch(() => {
+      // Non-blocking — intelligence activation failure must not break import
+    });
+  }
 
   return { companiesCreated, contactsCreated, duplicatesSkipped, failedRows };
 }

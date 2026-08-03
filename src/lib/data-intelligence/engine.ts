@@ -21,6 +21,7 @@ import { checkAgainstExisting, checkWithinBatch, invalidateDedupCache } from './
 import { scoreRowQuality, calculateAggregateScore, type QualityScore } from './quality-scorer';
 import { suggestCorrections, type SuggestedCorrection } from './correction-suggester';
 import { logAction } from '@/lib/audit';
+import { activateIntelligenceBatch } from '@/lib/intelligence-activation';
 
 // ── Types ──
 
@@ -580,6 +581,7 @@ export async function commitUpload(uploadId: string): Promise<CommitResult> {
   let contactsCreated = 0;
   const companyCache = new Map<string, string>(); // normalizedName → companyId
   const rowIndexToCompanyId = new Map<number, string>(); // rowIndex → companyId for quality score linking
+  const newCompanyIds = new Set<string>(); // WI-17A: Track for intelligence activation
 
   // Load existing companies for dedup
   const existingCompanies = await db.company.findMany({
@@ -622,6 +624,7 @@ export async function commitUpload(uploadId: string): Promise<CommitResult> {
       companyId = newCompany.id;
       companyCache.set(companyNormName, companyId);
       companiesCreated++;
+      newCompanyIds.add(newCompany.id); // WI-17A: track for activation
     }
 
     if (!companyId) continue; // skip if we can't determine a company
@@ -701,6 +704,18 @@ export async function commitUpload(uploadId: string): Promise<CommitResult> {
     contactsCreated,
     batchId: batch.id,
   });
+
+  // WI-17A: Activate intelligence for all newly created companies
+  if (newCompanyIds.size > 0) {
+    const activationRequests = Array.from(newCompanyIds).map(companyId => ({
+      companyId,
+      trigger: 'import_intelligence' as const,
+      priority: 3,
+    }));
+    activateIntelligenceBatch(activationRequests, { skipExpensiveSteps: activationRequests.length > 10 }).catch(() => {
+      // Non-blocking — intelligence activation failure must not break import commit
+    });
+  }
 
   return { companiesCreated, contactsCreated, batchId: batch.id };
 }

@@ -20,6 +20,9 @@
  *
  * WI-16G: Knowledge Graph Intelligence (entity extraction, graph traversal,
  * relationship scoring, evidence chain reasoning). Available at @/lib/ai-knowledge-graph.
+ *
+ * WI-16H: AI Memory Architecture (layered memory, consolidation, decay,
+ * enterprise context building). Available at @/lib/ai-memory.
  */
 
 export { ModelRouter } from './model-router';
@@ -121,3 +124,32 @@ export type {
   GraphEntityExtraction,
   TraversalConfig,
 } from '../ai-knowledge-graph';
+
+// WI-16H: AI Memory Architecture — layered memory with consolidation and decay
+export {
+  storeMemory,
+  recallMemory,
+  forgetMemory,
+  updateMemory,
+  searchMemories,
+  getEntityMemories,
+  buildMemoryContext,
+  consolidateMemories,
+  applyMemoryDecay,
+  getMemoryStats,
+  clearAllMemories,
+  getAllMemories,
+  seedMemorySystem,
+} from '../ai-memory';
+export type {
+  MemoryLayer,
+  MemoryCategory,
+  MemoryPriority,
+  MemoryItem,
+  MemorySource,
+  MemoryRecallResult,
+  MemoryConsolidation,
+  MemoryStats,
+  MemorySearchQuery,
+  MemoryContext,
+} from '../ai-memory';

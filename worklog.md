@@ -349,3 +349,29 @@ Stage Summary:
 - Tag: WI-18.3-database-api-hardening
 - Pushed to GitHub
 - Next: PHASE 4 — Performance Hardening (WI-18.4)
+
+---
+Task ID: 3-ci-stabilization
+Agent: Main Agent
+Task: WI-18 Phase 3 CI Stabilization — Fix GitHub Actions failures
+
+Work Log:
+- Investigated CI failure root causes from Phase 3 push
+- TASK 1 (Security Regression): All 109 security gate tests pass locally. Root cause of CI failure was OOM crash killing vitest worker, NOT test logic failures.
+- TASK 2 (Dependency Audit): npm audit --audit-level=high exits 1 on 7 documented upstream exceptions. Created scripts/dependency-audit-ci.js that parses npm audit JSON, classifies vulns as exception vs actionable, exits 0 for exceptions and 1 for new actionable vulns.
+- TASK 3 (CI Workflow): Updated .github/workflows/ci.yml with 4 fixes:
+  1. Node.js 20 → 22 (Node 20 deprecated)
+  2. Dependency audit: npm audit → node scripts/dependency-audit-ci.js
+  3. Security Gate 2: src/middleware.ts → src/proxy.ts (Next.js 16 migration)
+  4. Test job: NODE_OPTIONS=--max-old-space-size=4096, timeout 10→15min
+- Updated vitest.config.ts: maxForks=2 to limit parallel memory
+- Updated wi18-security-gate-integrity.test.ts to match new audit script reference
+- Full validation: security gate 109/109, lint pass, typecheck 0 errors, dependency audit exit 0
+
+Stage Summary:
+- Commit: a048005 — "WI-18 Phase 3 CI Stabilization Complete"
+- Tag: WI-18-phase3-ci-green (annotated)
+- Pushed to GitHub: main branch + all tags
+- Repository clean, all pre-commit hooks passed
+- 8 WI-18 tags on GitHub total
+

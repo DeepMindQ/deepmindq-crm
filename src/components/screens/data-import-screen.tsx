@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {

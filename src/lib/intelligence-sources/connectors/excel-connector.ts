@@ -16,7 +16,7 @@
  * Row limit per sheet: 50,000.
  */
 
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { BaseConnector } from '../base-connector';
 import type {
   ColumnMapping,

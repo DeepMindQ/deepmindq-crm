@@ -1,7 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { checkApiAuth } from '@/lib/api-auth';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { createHash } from 'crypto';
 import { scoreEmail } from '@/lib/email-verify';
 import { logAction } from '@/lib/audit';

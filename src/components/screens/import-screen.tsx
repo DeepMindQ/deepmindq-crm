@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import * as XLSX from 'xlsx';
+import * as XLSX from 'xlsx-js-style';
 import { AIProgressTracker } from '@/components/enterprise/AIProgressTracker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

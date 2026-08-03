@@ -301,3 +301,28 @@ Stage Summary:
 - 3 annotated tags created
 - Rollback: git revert <SHA> for each milestone independently
 - Next: PHASE 1 — CI Green Gate
+
+---
+Task ID: Phase-2
+Agent: Main Agent
+Task: PHASE 2 — Dependency Security Cleanup (25 → 7 vulnerabilities)
+
+Work Log:
+- Ran npm audit --json, saved dependency-audit-report.json (25 vulnerabilities: 1 critical, 15 high, 7 moderate, 2 low)
+- Classified all 25 vulnerabilities by package, severity, root cause, fix type, breaking risk
+- Executed npm audit fix (safe) — resolved 15 vulnerabilities (babel, minimatch, lodash, next, uuid, next-intl, picomatch, etc.)
+- Removed @mdxeditor/editor — unused dependency (0 imports), eliminated js-yaml vulnerability, removed 207 packages
+- Replaced xlsx with xlsx-js-style — NO_FIX vulnerability (prototype pollution + ReDoS), updated 6 source files (drop-in API compatible)
+- Ran npm audit fix again — resolved undici vulnerability
+- Analyzed 3 remaining --force suggestions: all REJECTED (postcss→next downgrade 16→14, protobufjs/sharp→transformers downgrade 2.x→1.x)
+- Documented 7 remaining vulnerabilities as security exceptions (upstream vendor issues: Next.js 16 + onnxruntime-web)
+- CI regression: tests PASS (86/87 files, 2840 tests), lint PASS (0 errors), typecheck PASS (0 errors), build PASS
+- Generated PDF report: download/phase2-dependency-security-report.pdf
+
+Stage Summary:
+- Vulnerabilities: 25 → 7 (72% reduction)
+- All fixable issues resolved
+- 7 remaining are documented upstream vendor exceptions with risk mitigation
+- CI remains green after all dependency changes
+- package.json: removed @mdxeditor/editor, replaced xlsx with xlsx-js-style
+- Next: PHASE 3 — Database + API Hardening (WI-18.3)

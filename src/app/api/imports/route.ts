@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { checkApiAuth } from '@/lib/api-auth';
 import { apiError, apiSuccess } from "@/lib/apiHelpers";
 import crypto from "crypto";
-import * as XLSX from "xlsx";
+import * as XLSX from 'xlsx-js-style';
 import { validateEmail, validationToContactFields } from "@/lib/email-validator";
 import { matchCompany, extractCorporateDomain } from "@/lib/company-matcher";
 

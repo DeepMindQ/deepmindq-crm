@@ -6,7 +6,7 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { parseIncludeParams, shouldInclude, shouldIncludeAny } from '@/lib/intelligence-api/middleware';
+import { parseIncludeParams, shouldInclude, shouldIncludeAny } from '@/lib/intelligence-api/intelligence-middleware';
 import type { IntelligenceInclude } from '@/lib/intelligence-api/types';
 import { NextRequest } from 'next/server';
 

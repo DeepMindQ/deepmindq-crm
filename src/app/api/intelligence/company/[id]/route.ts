@@ -36,7 +36,7 @@ import {
   SECURITY_HEADERS,
   classifyIntelligenceTier,
   parseRevenueBreakdown,
-} from '@/lib/intelligence-api/middleware';
+} from '@/lib/intelligence-api/intelligence-middleware';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import type {

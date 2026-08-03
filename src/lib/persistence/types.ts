@@ -12,6 +12,7 @@
  */
 
 import type { IntelligencePersistenceStore } from '@prisma/client';
+export type { IntelligencePersistenceStore };
 
 // ── Core Operation Types ─────────────────────────────────────────────
 

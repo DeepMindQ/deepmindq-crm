@@ -25,7 +25,7 @@ import {
   RateLimitedError,
 } from '@/lib/intelligence-api/guard';
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
-import { classifyIntelligenceTier, parseRevenueBreakdown } from '@/lib/intelligence-api/middleware';
+import { classifyIntelligenceTier, parseRevenueBreakdown } from '@/lib/intelligence-api/intelligence-middleware';
 import { normalizeTierForDisplay } from '@/lib/intelligence-api/types';
 import { checkApiAuth } from '@/lib/api-auth';
 

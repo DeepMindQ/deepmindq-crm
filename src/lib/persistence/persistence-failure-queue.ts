@@ -37,11 +37,11 @@ import { PERSISTENCE_FEATURE_FLAGS } from './types';
 import { registerTimer } from '@/lib/timer-registry';
 
 // Lazy-loaded Prisma
-let _prisma: ReturnType<typeof import('@prisma/client')['Prisma']> | null = null;
+let _prisma: import('@prisma/client').PrismaClient | null = null;
 /** Test-only Prisma factory override — shared with adapter's factory. */
 let _prismaFactory: (() => any) | null = null;
 
-function getPrisma() {
+function getPrisma(): import('@prisma/client').PrismaClient {
   if (!_prisma) {
     if (_prismaFactory) {
       _prisma = _prismaFactory();
@@ -50,7 +50,7 @@ function getPrisma() {
       _prisma = new Prisma();
     }
   }
-  return _prisma;
+  return _prisma!;
 }
 
 /** Test-only: set a Prisma factory to bypass require(). DO NOT call in production. */
@@ -323,7 +323,7 @@ class PersistenceFailureQueue {
     queueDepth: number;
     deadLetterCount: number;
     stats: FailureQueueStats;
-    recentFailures: Array<{ id: string; store: string; mapKey: string; retryCount: number; errorMessage: string; createdAt: Date }>;
+    recentFailures: Array<{ id: string; store: string; mapKey: string; retryCount: number; errorMessage: string | null; createdAt: Date }>;
   }> {
     const [queueDepth, deadLetterCount] = await Promise.all([
       this.getQueueDepth(),
@@ -331,7 +331,7 @@ class PersistenceFailureQueue {
     ]);
 
     // Fetch recent failures for visibility
-    let recentFailures: Array<{ id: string; store: string; mapKey: string; retryCount: number; errorMessage: string; createdAt: Date }> = [];
+    let recentFailures: Array<{ id: string; store: string; mapKey: string; retryCount: number; errorMessage: string | null; createdAt: Date }> = [];
     try {
       const prisma = getPrisma();
       const recent = await prisma.persistenceOperationLog.findMany({

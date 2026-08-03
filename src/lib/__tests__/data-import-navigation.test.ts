@@ -27,16 +27,15 @@ describe('Data Import — Navigation Wiring', () => {
     expect(typeof SCREEN_MAP['data-import']).toBe('function')
   })
 
-  it('nav-config.ts has data-import in ADMINISTRATION section', async () => {
+  it('nav-config.ts has data-import in DATA section', async () => {
     const { NAV_SECTIONS } = await import('@/lib/nav-config')
 
-    const adminSection = NAV_SECTIONS.find(s => s.heading === 'ADMINISTRATION')
-    expect(adminSection).toBeDefined()
+    const dataSection = NAV_SECTIONS.find(s => s.heading === 'DATA')
+    expect(dataSection).toBeDefined()
 
-    const importItem = adminSection!.items.find(i => i.key === 'data-import')
+    const importItem = dataSection!.items.find(i => i.key === 'data-import')
     expect(importItem).toBeDefined()
-    expect(importItem!.label).toBe('Intelligence Import')
+    expect(importItem!.label).toBe('Import Data')
     expect(importItem!.icon).toBeTruthy()
-    expect(importItem!.isNew).toBe(true)
   })
 })

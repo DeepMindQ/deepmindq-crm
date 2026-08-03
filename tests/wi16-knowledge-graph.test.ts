@@ -164,7 +164,7 @@ describe('WI-16G: Graph Construction', () => {
     expect(updated.label).toBe('New Name');
     expect(updated.confidence).toBe(0.95);
     expect(updated.createdAt).toBe(createdAt); // Preserved
-    expect(updated.updatedAt).toBeGreaterThan(createdAt); // Updated
+    expect(updated.updatedAt).toBeGreaterThanOrEqual(createdAt); // Updated (may equal if same ms)
   });
 
   test('should remove a node and its connected edges', () => {

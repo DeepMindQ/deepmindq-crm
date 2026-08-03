@@ -24,7 +24,7 @@ import {
   computeFreshness,
   runGovernanceMetadata,
   SECURITY_HEADERS,
-} from '@/lib/intelligence-api/middleware';
+} from '@/lib/intelligence-api/intelligence-middleware';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import type { IntelligenceConversationOutput, IntelligenceBrief } from '@/lib/intelligence-api/types';

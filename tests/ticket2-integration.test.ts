@@ -21,7 +21,7 @@ import { GET as groundingGET } from '@/app/api/intelligence/grounding/[id]/route
 import { GET as retrievalGET } from '@/app/api/intelligence/retrieval/[id]/route';
 import { GET as knowledgeGET } from '@/app/api/intelligence/knowledge/[id]/route';
 
-import { computeFreshness } from '@/lib/intelligence-api/middleware';
+import { computeFreshness } from '@/lib/intelligence-api/intelligence-middleware';
 
 // ═══════════════════════════════════════════════════════════════════════════
 //  Mocks
@@ -96,6 +96,13 @@ vi.mock('@/lib/rate-limit', () => ({
     remaining: 59,
     resetAt: Date.now() + 60000,
   })),
+}));
+
+// Mock ai-hybrid-retrieval — required by intelligence/retrieval/[id] route via require()
+vi.mock('@/lib/ai-hybrid-retrieval', () => ({
+  hybridSearch: vi.fn().mockResolvedValue(null),
+  understandQuery: vi.fn().mockReturnValue({ query: 'test', intent: 'search', entities: [] }),
+  getHybridStats: vi.fn().mockReturnValue({ totalQueries: 0, avgLatencyMs: 0, cacheHitRate: 0 }),
 }));
 
 vi.mock('@/lib/logger', () => ({

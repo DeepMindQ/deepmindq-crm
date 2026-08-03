@@ -20,7 +20,7 @@ import {
   shouldInclude,
   runGovernanceMetadata,
   SECURITY_HEADERS,
-} from '@/lib/intelligence-api/middleware';
+} from '@/lib/intelligence-api/intelligence-middleware';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import type { IntelligenceMindmap, MindmapNode } from '@/lib/intelligence-api/types';

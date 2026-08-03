@@ -54,6 +54,9 @@ describe('Phase 4 — Critical Input Path Hardening', () => {
     })
 
     it('returns 403 for unauthorized email addresses', async () => {
+      // Ensure AUTHORIZED_EMAIL is set so route doesn't return 503
+      process.env.AUTHORIZED_EMAIL = 'authorized@example.com'
+
       // We mock everything and call the route handler directly
       const mockHashPassword = vi.fn().mockResolvedValue('hashed-pw')
       const mockRequestOtp = vi.fn().mockResolvedValue({ success: true })
@@ -98,6 +101,8 @@ describe('Phase 4 — Critical Input Path Hardening', () => {
     })
 
     it('allows registration for authorized email', async () => {
+      process.env.AUTHORIZED_EMAIL = 'shanker001@gmail.com'
+
       const mockHashPassword = vi.fn().mockResolvedValue('hashed-pw')
       const mockRequestOtp = vi.fn().mockResolvedValue({ success: true })
       const mockFindUnique = vi.fn().mockResolvedValue(null)

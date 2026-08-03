@@ -16,6 +16,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST } from '@/app/api/auth/verify-otp/route'
 
+// Set AUTHORIZED_EMAIL before route module loads
+process.env.AUTHORIZED_EMAIL = 'shanker001@gmail.com'
+
+// ── Preserve AUTHORIZED_EMAIL across module resets ──
+const originalAuthorizedEmail = process.env.AUTHORIZED_EMAIL
+
 // ── Mock auth-helpers rate limiting ──────────────────
 vi.mock('@/lib/auth-helpers', () => ({
   ...vi.importActual('@/lib/auth-helpers'),
@@ -143,6 +149,7 @@ describe('POST /api/auth/verify-otp', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockCookies.clear()
+    process.env.AUTHORIZED_EMAIL = originalAuthorizedEmail
     mockCreateSession.mockResolvedValue({ token: 'test-session-token', expiresAt: new Date() })
   })
 

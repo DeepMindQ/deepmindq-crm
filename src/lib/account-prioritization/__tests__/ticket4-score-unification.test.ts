@@ -101,7 +101,7 @@ vi.mock('@/lib/intelligence-contract', () => ({
 // ── Imports (after mocks) ──
 
 import { GET } from '@/app/api/companies/[id]/scores/route';
-import { parseRevenueBreakdown } from '@/lib/intelligence-api/middleware';
+import { parseRevenueBreakdown } from '@/lib/intelligence-api/intelligence-middleware';
 import { normalizeTierForDisplay } from '@/lib/intelligence-api/types';
 
 // Local helper matching the route's normalization

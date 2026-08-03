@@ -13,7 +13,7 @@ import DOMPurify from 'isomorphic-dompurify';
 // Server-side DOM setup for DOMPurify (requires jsdom window)
 let purifyInstance: typeof DOMPurify | null = null;
 
-function getPurify(): typeof DOMPurify {
+function getPurify(): typeof DOMPurify | null {
   if (purifyInstance) return purifyInstance;
 
   if (typeof window !== 'undefined') {
@@ -27,7 +27,7 @@ function getPurify(): typeof DOMPurify {
       purifyInstance = DOMPurify(jsdomWindow);
     } catch {
       // Fallback: if jsdom unavailable, use regex-based sanitization
-      purifyInstance = null;
+      return null;
     }
   }
 

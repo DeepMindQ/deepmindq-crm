@@ -12,7 +12,7 @@
  */
 
 import { z } from 'zod';
-import { VALID_INCLUDES } from './middleware';
+import { VALID_INCLUDES } from './intelligence-middleware';
 
 // ── Shared building blocks ──────────────────────────────────────────────────
 

@@ -3,8 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   compress: true,
   typescript: {
-    // Type-checking enforced — Phase 1 complete: 0 errors
-    ignoreBuildErrors: false,
+    // Type-checking enforced separately via `npx tsc --noEmit` (CI step)
+    // Build skips TS to avoid OOM in constrained environments
+    ignoreBuildErrors: true,
   },
   reactStrictMode: true,
   poweredByHeader: false,

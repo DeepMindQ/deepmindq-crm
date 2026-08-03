@@ -105,7 +105,7 @@ export async function GET() {
           await import('@/lib/persistence/cold-start-loader');
 
         startupData = {
-          status: getPersistenceStartupStatus(),
+          startupStatus: getPersistenceStartupStatus(),
           degraded: isPersistenceDegraded(),
           ...getPersistenceStartupReport(),
         };

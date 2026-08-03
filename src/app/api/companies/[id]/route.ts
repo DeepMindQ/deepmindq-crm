@@ -76,10 +76,11 @@ try {
     const data: Record<string, any> = {};
 
     // Use only the validated/parsed fields from Zod, not raw body
-    const validatedFields = Object.keys(parsed.data || {});
+    // validateBody returns z.infer<T> directly (not wrapped in {data: ...})
+    const validatedFields = Object.keys(parsed || {});
     for (const field of validatedFields) {
-      if (parsed.data[field] !== undefined) {
-        data[field] = parsed.data[field];
+      if ((parsed as Record<string, any>)[field] !== undefined) {
+        data[field] = (parsed as Record<string, any>)[field];
       }
     }
 

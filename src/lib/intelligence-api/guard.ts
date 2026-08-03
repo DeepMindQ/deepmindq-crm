@@ -20,9 +20,9 @@ import { rateLimit } from '@/lib/rate-limit';
 import {
   parseIncludeParams,
   createErrorResponse,
-} from './middleware';
+} from './intelligence-middleware';
 import type { IntelligenceInclude, IntelligenceEndpoint } from './types';
-import type { IntelligenceErrorResponse } from './middleware';
+import type { IntelligenceErrorResponse } from './intelligence-middleware';
 import { IntelligenceErrors } from './types';
 import { companyIdSchema, includeSchema } from './validators';
 import { z } from 'zod';

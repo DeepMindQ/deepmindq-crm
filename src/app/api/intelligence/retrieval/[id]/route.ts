@@ -40,7 +40,7 @@ import {
   createResponse,
   createErrorResponse,
   computeFreshness,
-} from '@/lib/intelligence-api/middleware';
+} from '@/lib/intelligence-api/intelligence-middleware';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';

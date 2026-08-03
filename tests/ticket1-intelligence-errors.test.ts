@@ -11,7 +11,7 @@
 
 import { describe, it, expect } from 'vitest';
 import { scrubError, SENSITIVE_PATTERNS } from '@/lib/intelligence-api/handler';
-import { createErrorResponse, type IntelligenceErrorResponse } from '@/lib/intelligence-api/middleware';
+import { createErrorResponse, type IntelligenceErrorResponse } from '@/lib/intelligence-api/intelligence-middleware';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 
 // ═══════════════════════════════════════════════════════════════════════════

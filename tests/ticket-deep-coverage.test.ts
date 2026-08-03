@@ -25,8 +25,8 @@ import {
   createErrorResponse,
   computeFreshness,
   VALID_INCLUDES,
-} from '@/lib/intelligence-api/middleware';
-import type { IntelligenceInclude, IntelligenceErrorResponse } from '@/lib/intelligence-api/middleware';
+} from '@/lib/intelligence-api/intelligence-middleware';
+import type { IntelligenceInclude, IntelligenceErrorResponse } from '@/lib/intelligence-api/intelligence-middleware';
 import { scrubError, SENSITIVE_PATTERNS } from '@/lib/intelligence-api/handler';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
 import type { IntelligenceEndpoint } from '@/lib/intelligence-api/types';

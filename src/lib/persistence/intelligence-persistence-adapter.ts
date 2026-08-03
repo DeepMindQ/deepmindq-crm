@@ -28,11 +28,11 @@ import { getPersistenceFailureQueue } from './persistence-failure-queue';
 import { getPersistenceHealthMonitor } from './persistence-health-monitor';
 
 // Lazy-loaded to avoid circular imports at module init time
-let _prisma: ReturnType<typeof import('@prisma/client')['Prisma']> | null = null;
+let _prisma: import('@prisma/client').PrismaClient | null = null;
 /** Test-only Prisma factory override — bypasses require() for mock compatibility. */
 let _prismaFactory: (() => any) | null = null;
 
-function getPrisma() {
+function getPrisma(): import('@prisma/client').PrismaClient {
   if (!_prisma) {
     if (_prismaFactory) {
       _prisma = _prismaFactory();
@@ -41,7 +41,7 @@ function getPrisma() {
       _prisma = new Prisma();
     }
   }
-  return _prisma;
+  return _prisma!;
 }
 
 /** Test-only: set a Prisma factory to bypass require(). DO NOT call in production. */
@@ -484,7 +484,7 @@ class IntelligencePersistenceAdapter implements IIntelligencePersistenceAdapter 
             entityType: data.entityType as string,
             content: data.content as string,
             snippet: data.snippet as string,
-            vector: data.vector as Buffer | null,
+            vector: data.vector as any,
             termFrequencies: typeof data.termFrequencies === 'string'
               ? data.termFrequencies
               : JSON.stringify(data.termFrequencies ?? {}),
@@ -503,7 +503,7 @@ class IntelligencePersistenceAdapter implements IIntelligencePersistenceAdapter 
             entityType: data.entityType as string,
             content: data.content as string,
             snippet: data.snippet as string,
-            vector: data.vector as Buffer | null,
+            vector: data.vector as any,
             termFrequencies: typeof data.termFrequencies === 'string'
               ? data.termFrequencies
               : JSON.stringify(data.termFrequencies ?? {}),

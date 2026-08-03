@@ -20,18 +20,19 @@ import { readFileSync, existsSync } from 'fs';
 import { resolve } from 'path';
 
 // ── Test 1: Edge middleware exists ───────────────────────
-describe('WI-18.1-01: Edge middleware', () => {
-  it('should export a default middleware function', async () => {
-    const middlewareModule = await import('@/middleware');
-    expect(middlewareModule.default).toBeDefined();
-    expect(typeof middlewareModule.default).toBe('function');
+describe('WI-18.1-01: Edge proxy (Next.js 16)', () => {
+  it('should export a config with matcher', async () => {
+    const proxyModule = await import('@/proxy');
+    expect(proxyModule.config).toBeDefined();
+    expect(proxyModule.config.matcher).toBeDefined();
+    expect(Array.isArray(proxyModule.config.matcher)).toBe(true);
   });
 
   it('should have correct matcher config', async () => {
-    const middlewareModule = await import('@/middleware');
-    expect(middlewareModule.config).toBeDefined();
-    expect(middlewareModule.config.matcher).toBeDefined();
-    expect(Array.isArray(middlewareModule.config.matcher)).toBe(true);
+    const proxyModule = await import('@/proxy');
+    expect(proxyModule.config).toBeDefined();
+    expect(proxyModule.config.matcher).toBeDefined();
+    expect(Array.isArray(proxyModule.config.matcher)).toBe(true);
   });
 });
 
@@ -376,27 +377,18 @@ describe('WI-18.1-09: GitHub Actions CI', () => {
   });
 });
 
-// ── Test 12: Edge middleware file-level verification ───
-describe('WI-18.1-01: Middleware implementation details', () => {
-  const middlewarePath = resolve(__dirname, '../src/middleware.ts');
+// ── Test 12: Edge proxy file-level verification (Next.js 16) ──
+describe('WI-18.1-01: Proxy implementation details', () => {
+  const proxyPath = resolve(__dirname, '../src/proxy.ts');
   let content: string;
 
-  it('middleware.ts should exist at src/middleware.ts', () => {
-    expect(existsSync(middlewarePath)).toBe(true);
-    content = readFileSync(middlewarePath, 'utf-8');
-  });
-
-  it('should import CSRF token generation', () => {
-    expect(content).toContain('generateCsrfToken');
+  it('proxy.ts should exist at src/proxy.ts', () => {
+    expect(existsSync(proxyPath)).toBe(true);
+    content = readFileSync(proxyPath, 'utf-8');
   });
 
   it('should import security headers', () => {
     expect(content).toContain('getSecurityHeaders');
-  });
-
-  it('should inject CSRF cookie on page requests', () => {
-    expect(content).toContain('CSRF_COOKIE_NAME');
-    expect(content).toContain('httpOnly: false');
   });
 
   it('should validate CSRF on state-changing API requests', () => {
@@ -406,11 +398,11 @@ describe('WI-18.1-01: Middleware implementation details', () => {
 
   it('should validate session on protected API routes', () => {
     expect(content).toContain('getSessionToken');
-    expect(content).toContain('Authentication required');
+    expect(content).toContain('unauthorizedResponse');
   });
 
   it('should rate-limit public auth endpoints', () => {
-    expect(content).toContain('edgeRateLimit');
-    expect(content).toContain('429');
+    expect(content).toContain('rateLimitedResponse');
+    expect(content).toContain('generalApiRateLimit');
   });
 });

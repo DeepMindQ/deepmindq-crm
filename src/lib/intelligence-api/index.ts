@@ -64,8 +64,8 @@ export {
   SECURITY_HEADERS,
   classifyIntelligenceTier,
   parseRevenueBreakdown,
-} from './middleware';
-export type { IntelligenceErrorResponse } from './middleware';
+} from './intelligence-middleware';
+export type { IntelligenceErrorResponse } from './intelligence-middleware';
 
 // ── Validators (Zod schemas for request validation) ──
 export {

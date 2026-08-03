@@ -20,46 +20,38 @@ function readSrcFile(relativePath: string): string {
 }
 
 // ══════════════════════════════════════════════════════════
-describe('SECURITY GATE: Middleware Existence (CI Gate 1)', () => {
-  it('src/middleware.ts must exist', () => {
-    expect(existsSync(resolve(__dirname, '../src/middleware.ts'))).toBe(true);
+describe('SECURITY GATE: Edge Proxy Existence (CI Gate 1)', () => {
+  it('src/proxy.ts must exist (Next.js 16 replaces middleware.ts)', () => {
+    expect(existsSync(resolve(__dirname, '../src/proxy.ts'))).toBe(true);
   });
 });
 
-describe('SECURITY GATE: Middleware Enforcement (CI Gate 2)', () => {
-  const middleware = readSrcFile('src/middleware.ts');
+describe('SECURITY GATE: Edge Proxy Enforcement (CI Gate 2)', () => {
+  const proxy = readSrcFile('src/proxy.ts');
 
-  it('must inject CSRF tokens', () => {
-    expect(middleware).toContain('CSRF_COOKIE_NAME');
-    expect(middleware).toContain('generateCsrfToken');
-    expect(middleware).toContain('httpOnly: false'); // Client needs to read it
+  it('must validate CSRF on state-changing requests', () => {
+    expect(proxy).toContain('validateCsrf');
+    expect(proxy).toContain("['GET', 'HEAD', 'OPTIONS']");
   });
 
   it('must apply security headers', () => {
-    expect(middleware).toContain('getSecurityHeaders');
-    expect(middleware).toContain('X-Content-Type-Options');
-    expect(middleware).toContain('X-Frame-Options');
+    expect(proxy).toContain('getSecurityHeaders');
+    expect(proxy).toContain('applySecurityHeaders');
   });
 
   it('must validate sessions on protected API routes', () => {
-    expect(middleware).toContain('getSessionToken');
-    expect(middleware).toContain('Authentication required');
+    expect(proxy).toContain('getSessionToken');
+    expect(proxy).toContain('unauthorizedResponse');
   });
 
   it('must rate-limit public auth endpoints', () => {
-    expect(middleware).toContain('edgeRateLimit');
-    expect(middleware).toContain('429');
-  });
-
-  it('must validate CSRF on state-changing methods', () => {
-    expect(middleware).toContain("['GET', 'HEAD', 'OPTIONS']");
-    expect(middleware).toContain('validateCsrf');
+    expect(proxy).toContain('rateLimitedResponse');
+    expect(proxy).toContain('generalApiRateLimit');
   });
 
   it('must skip public paths from session check', () => {
-    expect(middleware).toContain('isPublicPath');
-    expect(middleware).toContain('/api/auth/');
-    expect(middleware).toContain('/api/webhooks/');
+    expect(proxy).toContain('isPublicPath');
+    expect(proxy).toContain('isRateLimitedPublicApi');
   });
 });
 

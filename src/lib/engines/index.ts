@@ -17,6 +17,9 @@
  *
  * WI-16F: Hybrid Retrieval Intelligence (multi-signal replacement for
  * single-signal RetrievalEngine.search). Available at @/lib/ai-hybrid-retrieval.
+ *
+ * WI-16G: Knowledge Graph Intelligence (entity extraction, graph traversal,
+ * relationship scoring, evidence chain reasoning). Available at @/lib/ai-knowledge-graph.
  */
 
 export { ModelRouter } from './model-router';
@@ -78,3 +81,43 @@ export type {
   BuyerProfile,
   ConversationResult,
 } from './conversation-engine';
+
+// WI-16G: Knowledge Graph Intelligence — entity/relationship reasoning engine
+export {
+  addNode,
+  addEdge,
+  removeNode,
+  removeEdge,
+  resolveEntity,
+  getNode,
+  getNodeEdges,
+  getOutgoingEdges,
+  getIncomingEdges,
+  extractGraphEntities,
+  populateGraphFromIntelligence,
+  traverseBFS,
+  findPaths,
+  findShortestPath,
+  expandFromEntity,
+  generateRecommendations,
+  reasonAboutEntity,
+  getGraphStats,
+  clearGraph,
+  getAllNodes,
+  getAllEdges,
+  seedKnowledgeGraph,
+} from '../ai-knowledge-graph';
+export type {
+  GraphEntityType,
+  RelationshipType,
+  GraphNode,
+  GraphEdge,
+  GraphPath,
+  EvidenceChain as GraphEvidenceChain,
+  GraphExpansionResult,
+  GraphStats,
+  GraphRecommendationInput,
+  GraphRecommendation,
+  GraphEntityExtraction,
+  TraversalConfig,
+} from '../ai-knowledge-graph';

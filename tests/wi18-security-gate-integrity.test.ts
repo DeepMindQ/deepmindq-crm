@@ -74,6 +74,14 @@ describe('SECURITY GATE: CSRF Flow Integrity (CI Gate 3)', () => {
     expect(csrf).toContain('randomBytes');
     expect(csrf).toContain('generateCsrfToken');
   });
+
+  it('proxy must validate CSRF (not generate)', () => {
+    const proxy = readSrcFile('src/proxy.ts');
+    // Proxy validates CSRF tokens on state-changing requests
+    expect(proxy).toContain('validateCsrf');
+    // Proxy does NOT generate tokens — that's csrf.ts's job
+    // Token generation happens in auth endpoints via csrf.ts
+  });
 });
 
 describe('SECURITY GATE: Protected API Authentication (CI Gate 4)', () => {
@@ -271,6 +279,8 @@ describe('SECURITY GATE: CI Configuration (CI Gate 10)', () => {
   it('must verify CSRF flow integrity', () => {
     expect(ci).toContain('CSRF flow integrity');
     expect(ci).toContain('generateCsrfToken');
+    expect(ci).toContain('src/lib/csrf.ts');
+    expect(ci).toContain('timingSafeEqual');
   });
 
   it('must verify security headers', () => {

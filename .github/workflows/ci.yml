@@ -83,9 +83,19 @@ jobs:
       - name: Verify CSRF flow integrity
         run: |
           FAIL=0
-          # Proxy must inject CSRF tokens
-          if ! grep -q "generateCsrfToken" src/proxy.ts; then
-            echo "::error::SECURITY GATE FAILED — proxy does not generate CSRF tokens"
+          # csrf.ts must generate CSRF tokens (proxy validates, csrf.ts generates)
+          if ! grep -q "generateCsrfToken" src/lib/csrf.ts; then
+            echo "::error::SECURITY GATE FAILED — csrf.ts does not generate CSRF tokens"
+            FAIL=1
+          fi
+          # csrf.ts must use constant-time comparison (timing-safe)
+          if ! grep -q "timingSafeEqual" src/lib/csrf.ts; then
+            echo "::error::SECURITY GATE FAILED — csrf.ts does not use timing-safe comparison"
+            FAIL=1
+          fi
+          # Proxy must validate CSRF on state-changing requests
+          if ! grep -q "validateCsrf" src/proxy.ts; then
+            echo "::error::SECURITY GATE FAILED — proxy does not validate CSRF tokens"
             FAIL=1
           fi
           # fetchApi must send CSRF tokens

@@ -375,3 +375,25 @@ Stage Summary:
 - Repository clean, all pre-commit hooks passed
 - 8 WI-18 tags on GitHub total
 
+
+---
+Task ID: 4-performance-testing
+Agent: Main Agent
+Task: WI-18 Phase 4 — Performance + Testing Expansion
+
+Work Log:
+- Audited codebase: 209 unbounded findMany, 39 unordered findFirst, 3 dead code modules
+- Track A: Created query-safety-middleware.ts (monitoring mode for unbounded queries), hardened db.ts with connection pool limits and PrismaDiagnostics
+- Track B: Activated api-observability with withApiObservability() middleware and createMetricsRecorder(), standardized api-metrics route, created rate-limit-registry.ts (22 endpoints), updated proxy.ts with registry-based rate limiting
+- Track C: Activated ai-cache-layer via llm-cache-integration.ts (cachedAICall), implemented streaming via llm-stream.ts + /api/ai/chat-stream endpoint, created ai-latency-budgets.ts (6 operation types)
+- Track D: Added vitest coverage config (V8, thresholds 10/5/10/10), test:coverage script, 30 perf regression tests, 16 E2E journey tests
+
+Stage Summary:
+- Commit: 4c20bc1 — "WI-18 Phase 4 — Performance + Testing Expansion Complete"
+- Tag: WI-18-phase4-performance-testing (annotated)
+- Pushed to GitHub: main branch + tag
+- Files: 15 changed (6 modified, 9 new, 2504 lines added)
+- Tests: 46 new (2886 total), all passing
+- 9 WI-18 tags on GitHub
+- Repository clean, pre-commit hooks passed
+

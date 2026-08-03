@@ -188,6 +188,130 @@ enum AccountCategory {
   AT_RISK
 }
 
+// ═══════════════════════════════════════════════════════════════════════════
+// WI-18.2: Intelligence Persistence Enums
+// Lock L7: Type-safe enums for all persistence stores and AI state
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum IntelligencePersistenceStore {
+  knowledge_graph_nodes
+  knowledge_graph_edges
+  ai_memory
+  retrieval_index
+  retrieval_corpus_stats
+  retrieval_metrics
+}
+
+enum KnowledgeGraphEntityType {
+  company
+  person
+  technology
+  industry
+  role
+  location
+  product
+  financial
+  event
+  generic
+  capability
+  signal
+  opportunity
+  document
+  conversation
+}
+
+enum KnowledgeGraphRelationship {
+  WORKS_AT
+  WORKED_AT
+  BOARD_MEMBER_OF
+  REPORTS_TO
+  PARTNERS_WITH
+  COMPETES_WITH
+  ACQUIRED_BY
+  INVESTED_IN
+  SUPPLIES_TO
+  VENDOR_FOR
+  USES_TECHNOLOGY
+  DEPLOYS_ON
+  MIGRATED_FROM
+  MIGRATED_TO
+  INTEGRATES_WITH
+  BUILDS_ON
+  HAS_SIGNAL
+  INDICATES_OPPORTUNITY
+  MATCHES_CAPABILITY
+  INFLUENCES
+  MENTIONS
+  SUPPORTS_CLAIM
+  CONTRADICTS_CLAIM
+  HAPPENED_BEFORE
+  HAPPENED_DURING
+  DERIVED_FROM
+  EXTRACTED_FROM
+  RELATED_TO
+  SIMILAR_TO
+}
+
+enum AIMemoryLayer {
+  working
+  conversation
+  enterprise
+  institutional
+}
+
+enum AIMemoryCategory {
+  company_intelligence
+  contact_intelligence
+  signal_analysis
+  conversation_history
+  user_preference
+  reasoning_chain
+  learning_insight
+  capability_knowledge
+  competitive_intelligence
+  market_knowledge
+  feedback
+  error_correction
+}
+
+enum AIMemoryPriority {
+  critical
+  high
+  medium
+  low
+  ephemeral
+}
+
+enum AIMemorySource {
+  ai_generation
+  user_input
+  system_detection
+  external_intelligence
+  human_intelligence
+  learning_event
+  conversation
+  api_call
+}
+
+enum RetrievalSourceTier {
+  premium
+  standard
+  low
+  unknown
+}
+
+enum PersistenceOperationStatus {
+  pending
+  completed
+  failed
+  dead_letter
+}
+
+enum IntelligenceScopeType {
+  global
+  company_scoped
+}
+
 // ── Core Entities (per SDD Section 5) ──
 
 model Contact {
@@ -2982,4 +3106,252 @@ model IntelligenceSnapshot {
   @@index([companyId, capturedAt(sort: Desc)])
   @@index([capturedAt])
   @@index([captureReason])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WI-18.2: Intelligence Persistence Engine — Core Models
+// Lock L2: PostgreSQL is source of truth for all Tier-1 AI state
+// Lock L3: companyId on all tenant-scoped data; isGlobal for cross-tenant
+// Lock L7: Full provenance — createdBy, sourceAttribution, audit timestamps
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Knowledge Graph: Nodes ──────────────────────────────────────────────────
+
+model KnowledgeGraphNode {
+  id               String                    @id // In-memory node ID as PK
+  label            String                    // Normalized label
+  type             KnowledgeGraphEntityType
+  aliases          String                    // JSON array of string aliases
+  properties       Json                      @default("{}") // Key-value entity properties
+  source           String?                   // Provenance: where extracted from
+  confidence       Float                     @default(0.7)
+
+  // ── Lock L3: Multi-Tenant Isolation ──
+  companyId        String?                   // NULL = global node; non-NULL = tenant-scoped
+  isGlobal         Boolean                   @default(false) // Explicit global flag
+
+  // ── Lock L7: Provenance & Audit ──
+  createdBy        String?                   // User/system that created this node
+  sourceAttribution String?                  // External source URI/reference
+  confidenceHistory String?                  // JSON: [{value, timestamp, reason}]
+
+  createdAtMs      Int                       // Unix ms — preserves in-memory precision
+  updatedAtMs      Int                       // Unix ms
+
+  @@index([type])
+  @@index([companyId])
+  @@index([label])
+  @@index([companyId, type])
+  @@index([isGlobal])
+  @@index([updatedAtMs(sort: Desc)])
+  @@unique([id])
+}
+
+// ── Knowledge Graph: Edges ──────────────────────────────────────────────────
+
+model KnowledgeGraphEdge {
+  id               String                    @id
+  sourceId         String                    // FK → KnowledgeGraphNode.id
+  targetId         String                    // FK → KnowledgeGraphNode.id
+  relationship     KnowledgeGraphRelationship
+  weight           Float                     @default(0.5)
+  confidence       Float                     @default(0.7)
+  observedAt       String?                   // ISO date string
+  expiresAt        String?                   // ISO date string — edge decay
+  reason           String                    @default("") // Human-readable explanation
+  source           String?                   // Provenance
+  evidenceIds      String                    // JSON array of evidence IDs
+
+  // ── Lock L3: Multi-Tenant Isolation ──
+  companyId        String?                   // Inherited from nodes; NULL for global edges
+  isGlobal         Boolean                   @default(false)
+
+  // ── Lock L7: Provenance & Audit ──
+  createdBy        String?
+  sourceAttribution String?
+  confidenceHistory String?                  // JSON: [{value, timestamp, reason}]
+
+  createdAtMs      Int
+  updatedAtMs      Int
+
+  @@index([sourceId])
+  @@index([targetId])
+  @@index([companyId])
+  @@index([relationship])
+  @@index([companyId, relationship])
+  @@index([sourceId, targetId])
+  @@index([isGlobal])
+  @@index([createdAtMs(sort: Desc)])
+  @@unique([id])
+}
+
+// ── AI Memory Entries ──────────────────────────────────────────────────────
+
+model AIMemoryEntry {
+  id               String                    @id
+  layer            AIMemoryLayer
+  category         AIMemoryCategory
+  priority         AIMemoryPriority
+  scopeType        IntelligenceScopeType     @default(global)
+  scopeEntityType  String?                   // 'company', 'contact', etc.
+  scopeEntityId    String?                   // Entity ID for scoped memories
+  content          String                    // The actual knowledge
+  summary          String?                   // Condensed version
+  tags             String                    // JSON array of tags
+  referencedEntityIds String                  // JSON array of entity IDs
+  sourceType       AIMemorySource
+  sourceDescription String
+  sourceId         String?                   // Original source record ID
+  sourceTimestampMs Int?                     // Original source event time
+  confidence       Float                     @default(0.7)
+  importance       Float                     @default(0.5)
+  accessCount      Int                       @default(0)
+  lastAccessedAtMs Int                       @default(0)
+  expiresAtMs      Int?                      // NULL = never expires
+  version          Int                       @default(1)
+  parentMemoryId   String?                   // Consolidated from parent
+  childMemoryIds   String                    // JSON array of child memory IDs
+  metadata         Json                      @default("{}")
+
+  // ── Lock L3: Multi-Tenant Isolation ──
+  companyId        String?                   // Scoped memories carry companyId
+  isGlobal         Boolean                   @default(true) // Default = global
+
+  // ── Lock L7: Provenance & Audit ──
+  createdBy        String?                   // User/system that created this memory
+  confidenceHistory String?                  // JSON: [{value, timestamp, reason}]
+  versionHistory   String?                  // JSON: [{version, content, timestamp, reason}]
+
+  createdAtMs      Int
+  updatedAtMs      Int
+
+  @@index([layer])
+  @@index([category])
+  @@index([companyId])
+  @@index([companyId, layer])
+  @@index([scopeType, scopeEntityId])
+  @@index([priority])
+  @@index([confidence(sort: Desc)])
+  @@index([expiresAtMs])
+  @@index([updatedAtMs(sort: Desc)])
+  @@index([isGlobal])
+  @@unique([id])
+}
+
+// ── Hybrid Retrieval Index ────────────────────────────────────────────────
+
+model RetrievalIndexEntry {
+  id               String                    @id
+  entityId         String                    // Entity/data ID this index covers
+  entityType       String                    // 'company_signal', 'contact', etc.
+  content          String                    // Full text content
+  snippet          String                    // Display snippet
+  vector           Bytes?                    // Float64Array serialized as bytes
+  termFrequencies  String                    // JSON: Map<string, number> — BM25 term freqs
+  source           String?
+  sourceDate       String?
+  sourceTier       RetrievalSourceTier       @default(unknown)
+  entities         String                    // JSON: ExtractedEntity[]
+  metadata         Json                      @default("{}")
+
+  // ── Lock L3: Multi-Tenant ──
+  companyId        String?
+  isGlobal         Boolean                   @default(true)
+
+  // ── Lock L7: Provenance ──
+  createdBy        String?
+  sourceAttribution String?
+
+  indexedAtMs      Int                       // = in-memory indexedAt
+  createdAtMs      Int
+  updatedAtMs      Int
+
+  @@index([entityId])
+  @@index([companyId])
+  @@index([companyId, entityType])
+  @@index([sourceTier])
+  @@index([indexedAtMs(sort: Desc)])
+  @@index([entityType])
+  @@index([isGlobal])
+  @@unique([id])
+}
+
+// ── Retrieval Corpus Statistics (IDF) ─────────────────────────────────────
+
+model RetrievalCorpusStats {
+  id               String                    @id @default("singleton_corpus")
+  documentFrequency String                    // JSON: Map<string, number> — term → doc count
+  totalDocuments   Int                       @default(0)
+  lastUpdatedAtMs  Int                       @default(0)
+
+  @@unique([id])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WI-18.2: Persistence Infrastructure Models
+// Lock L2: Failure tracking, health monitoring, dead-letter queue
+// Lock L4: Shadow mode reconciliation reporting
+// ═══════════════════════════════════════════════════════════════════════════
+
+// ── Persistence Operation Log (audit trail + dead-letter queue) ───────────
+
+model PersistenceOperationLog {
+  id               String                      @id @default(cuid())
+  store            IntelligencePersistenceStore
+  operation        String                      // 'upsert', 'delete', 'batch_upsert'
+  mapKey           String                      // The Map key that triggered this
+  companyId        String?                     // Tenant context
+  payloadSummary   String                      // First 500 chars of serialized data
+  status           PersistenceOperationStatus  @default(pending)
+  latencyMs        Int?                        // NULL = failed before completing
+  errorMessage     String?                     // Failure reason
+  retryCount       Int                         @default(0)
+  maxRetries       Int                         @default(3)
+  nextRetryAt      DateTime?                   // Exponential backoff
+  resolvedAt       DateTime?                   // When completed or dead-lettered
+  createdAt        DateTime                    @default(now())
+
+  @@index([store, status])
+  @@index([companyId, store])
+  @@index([status, createdAt])
+  @@index([nextRetryAt])
+  @@index([createdAt(sort: Desc)])
+}
+
+// ── Persistence Health Snapshots ────────────────────────────────────────────
+
+model PersistenceHealthSnapshot {
+  id               String                      @id @default(cuid())
+  store            IntelligencePersistenceStore
+  healthy          Boolean
+  lastWriteAtMs    Int?
+  lastWriteLatencyMs Int?
+  consecutiveFailures Int                     @default(0)
+  failureQueueDepth   Int                     @default(0)
+  totalWrites      Int                         @default(0)
+  totalFailures    Int                         @default(0)
+  snapshotReason   String                      // 'scheduled', 'state_change', 'alert'
+  createdAt        DateTime                    @default(now())
+
+  @@index([store, createdAt(sort: Desc)])
+  @@index([healthy])
+  @@index([createdAt(sort: Desc)])
+}
+
+// ── Shadow Mode Reconciliation Log (L4) ──────────────────────────────────────
+
+model ShadowModeReconciliation {
+  id               String                      @id @default(cuid())
+  store            IntelligencePersistenceStore
+  mapCount         Int                         // Map entry count at snapshot time
+  dbCount          Int                         // DB entry count at snapshot time
+  missingFromDb   Int                         // In Map but not in DB
+  missingFromMap  Int                         // In DB but not in Map
+  mismatchedEntries Int                        // Count of entries that differ
+  mismatchDetails String                      // JSON: [{mapKey, mapHash, dbHash}]
+  durationMs       Int
+  createdAt        DateTime                    @default(now())
+
+  @@index([store, createdAt(sort: Desc)])
+  @@index([createdAt])
 }

@@ -42,6 +42,7 @@ import {
   getBenchmarkStats,
 } from '@/lib/ai-evaluation-benchmarks';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -116,6 +117,10 @@ function scoreToGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export async function GET(request: NextRequest) {
+  // ── WI-18.1-03: Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse as NextResponse;
+
   try {
     const { searchParams } = new URL(request.url);
     const view = searchParams.get('view') || 'stats';
@@ -259,6 +264,10 @@ async function handleAlerts(): Promise<NextResponse> {
 // ═══════════════════════════════════════════════════════════════════════════
 
 export async function POST(request: NextRequest) {
+  // ── WI-18.1-03: Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse as NextResponse;
+
   try {
     const body = await request.json();
     const action = body.action;

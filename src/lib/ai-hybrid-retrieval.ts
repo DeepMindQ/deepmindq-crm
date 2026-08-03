@@ -57,6 +57,7 @@
 
 import { logger } from '@/lib/logger';
 import { cosineSimilarity, tokenize, tokenizeWithBigrams } from '@/lib/embeddings';
+import { persistWrite, persistDelete, serializeVector, isPersistenceEnabled } from '@/lib/persistence/persistence-integration';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -997,6 +998,24 @@ export function addToIndex(entry: Omit<HybridIndexEntry, 'termFrequencies' | 'in
   evictOldestIfNeeded();
   hybridIndex.set(entry.id, indexEntry);
   indexTimestamps.set(entry.id, Date.now());
+
+  // WI-18.2: Persist to DB (non-blocking, fire-and-forget)
+  // Serialize vector as Buffer for DB storage
+  // Lock L3: Extract companyId from metadata if present (tenant isolation)
+  const retCompanyId = (indexEntry.metadata?._companyId as string | undefined) ?? undefined;
+  const persistData = {
+    ...indexEntry,
+    vector: serializeVector(indexEntry.vector),
+    termFrequencies: Object.fromEntries(indexEntry.termFrequencies),
+  };
+  persistWrite('retrieval_index', entry.id, persistData as unknown as Record<string, unknown>, retCompanyId).catch(() => {});
+
+  // Also persist corpus stats (documentFrequency)
+  const corpusData = {
+    documentFrequency: Object.fromEntries(documentFrequency),
+    totalDocuments,
+  };
+  persistWrite('retrieval_corpus_stats', 'singleton_corpus', corpusData as unknown as Record<string, unknown>).catch(() => {});
 }
 
 /**
@@ -1019,6 +1038,17 @@ export function removeFromIndex(id: string): boolean {
 
   hybridIndex.delete(id);
   indexTimestamps.delete(id);
+
+  // WI-18.2: Persist delete to DB (non-blocking)
+  persistDelete('retrieval_index', id).catch(() => {});
+
+  // Update corpus stats in DB
+  const corpusData = {
+    documentFrequency: Object.fromEntries(documentFrequency),
+    totalDocuments,
+  };
+  persistWrite('retrieval_corpus_stats', 'singleton_corpus', corpusData as unknown as Record<string, unknown>).catch(() => {});
+
   return true;
 }
 

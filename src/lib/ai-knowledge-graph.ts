@@ -34,6 +34,7 @@ import {
   type ExtractedEntity,
   type EntityType,
 } from '@/lib/ai-hybrid-retrieval';
+import { persistWrite, persistDelete } from '@/lib/persistence/persistence-integration';
 
 // ── Graph Data Model ──────────────────────────────────────────────
 
@@ -337,6 +338,11 @@ export function addNode(node: Omit<GraphNode, 'createdAt' | 'updatedAt'>): Graph
 
   nodeStore.set(node.id, fullNode);
 
+  // WI-18.2: Persist to DB (non-blocking, fire-and-forget)
+  // companyId is extracted from node properties if present (Lock L3)
+  const nodeCompanyId = (fullNode as any)._companyId as string | undefined;
+  persistWrite('knowledge_graph_nodes', node.id, fullNode as unknown as Record<string, unknown>, nodeCompanyId).catch(() => {});
+
   // Update indices
   // Label index
   const normalizedLabel = normalizeLabel(node.label);
@@ -376,6 +382,10 @@ export function addEdge(edge: Omit<GraphEdge, 'createdAt'>): GraphEdge {
   const fullEdge: GraphEdge = { ...edge, createdAt: now };
 
   edgeStore.set(edge.id, fullEdge);
+
+  // WI-18.2: Persist to DB (non-blocking, fire-and-forget)
+  const edgeCompanyId = (fullEdge as any)._companyId as string | undefined;
+  persistWrite('knowledge_graph_edges', edge.id, fullEdge as unknown as Record<string, unknown>, edgeCompanyId).catch(() => {});
 
   // Source edge index
   const sourceEdges = sourceEdgeIndex.get(edge.sourceId) || [];
@@ -425,7 +435,10 @@ export function removeNode(nodeId: string): boolean {
   // Remove from type index
   typeIndex.set(node.type, (typeIndex.get(node.type) || []).filter(id => id !== nodeId));
 
-  return nodeStore.delete(nodeId);
+  const deleted = nodeStore.delete(nodeId);
+  // WI-18.2: Persist delete to DB (non-blocking)
+  persistDelete('knowledge_graph_nodes', nodeId).catch(() => {});
+  return deleted;
 }
 
 /**
@@ -447,7 +460,10 @@ export function removeEdge(edgeId: string): boolean {
   const relEdges = relationshipIndex.get(edge.relationship) || [];
   relationshipIndex.set(edge.relationship, relEdges.filter(id => id !== edgeId));
 
-  return edgeStore.delete(edgeId);
+  const deleted = edgeStore.delete(edgeId);
+  // WI-18.2: Persist delete to DB (non-blocking)
+  persistDelete('knowledge_graph_edges', edgeId).catch(() => {});
+  return deleted;
 }
 
 /**

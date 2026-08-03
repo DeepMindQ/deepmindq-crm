@@ -58,6 +58,8 @@ agent-ctx/
 *.txt
 .zscripts/
 next-service-dist/
+scripts/wi18-cover.html
+scripts/wi18-cover.pdf
 scripts/seed-data/
 *.db
 *.db-shm

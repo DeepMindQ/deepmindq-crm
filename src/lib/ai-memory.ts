@@ -48,6 +48,7 @@
  */
 
 import { logger } from '@/lib/logger';
+import { persistWrite, persistDelete } from '@/lib/persistence/persistence-integration';
 
 // ── Memory Types ─────────────────────────────────────────────────────
 
@@ -255,6 +256,11 @@ export function storeMemory(item: Omit<MemoryItem, 'createdAt' | 'updatedAt' | '
   memoryStore.set(item.id, fullItem);
   updateIndices(fullItem);
 
+  // WI-18.2: Persist to DB (non-blocking, fire-and-forget)
+  // companyId from scope if company-scoped (Lock L3)
+  const memCompanyId = fullItem.scope !== 'global' ? fullItem.scope.entityId : undefined;
+  persistWrite('ai_memory', item.id, fullItem as unknown as Record<string, unknown>, memCompanyId).catch(() => {});
+
   return fullItem;
 }
 
@@ -267,6 +273,8 @@ export function recallMemory(id: string): MemoryItem | undefined {
     memory.accessCount++;
     memory.lastAccessedAt = Date.now();
     memoryStore.set(id, memory);
+    // WI-18.2: Persist access count update (non-blocking)
+    persistWrite('ai_memory', id, memory as unknown as Record<string, unknown>).catch(() => {});
   }
   return memory;
 }
@@ -280,6 +288,9 @@ export function forgetMemory(id: string): boolean {
 
   memoryStore.delete(id);
   removeFromIndices(memory);
+
+  // WI-18.2: Persist delete to DB (non-blocking)
+  persistDelete('ai_memory', id).catch(() => {});
 
   return true;
 }
@@ -299,6 +310,10 @@ export function updateMemory(id: string, updates: Partial<Pick<MemoryItem, 'cont
   };
 
   memoryStore.set(id, updated);
+
+  // WI-18.2: Persist update to DB (non-blocking)
+  persistWrite('ai_memory', id, updated as unknown as Record<string, unknown>).catch(() => {});
+
   return updated;
 }
 

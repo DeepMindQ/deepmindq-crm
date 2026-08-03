@@ -72,19 +72,14 @@ try {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    // Build update data
+    // Build update data from Zod-validated fields (WI-18.1-04)
     const data: Record<string, any> = {};
 
-    const updatableFields = [
-      'rawName', 'domain', 'industry', 'sizeRange', 'location',
-      'country', 'website', 'internalSummary', 'status',
-      'lifecycleStage', 'assignedTo', 'intelligenceScore',
-      'engagementScore', 'lastActivityAt', 'source',
-    ];
-
-    for (const field of updatableFields) {
-      if (body[field] !== undefined) {
-        data[field] = body[field];
+    // Use only the validated/parsed fields from Zod, not raw body
+    const validatedFields = Object.keys(parsed.data || {});
+    for (const field of validatedFields) {
+      if (parsed.data[field] !== undefined) {
+        data[field] = parsed.data[field];
       }
     }
 

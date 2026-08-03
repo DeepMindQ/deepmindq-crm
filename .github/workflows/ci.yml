@@ -1,0 +1,328 @@
+# ═══════════════════════════════════════════════════
+# DeepMindQ — Continuous Integration Pipeline
+# WI-18.1-LOCK: Permanent Security Gate CI
+#
+# SECURITY GATE PHILOSOPHY:
+# These gates are PERMANENT. They enforce that security
+# controls cannot silently regress. Any PR that breaks
+# a gate MUST be fixed before merge. No exceptions.
+#
+# Gate order: security-gate → dependency-audit → lint → test → build
+# ═══════════════════════════════════════════════════
+
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ═══════════════════════════════════════════════════
+  # JOB 1: SECURITY REGRESSION GATE (mandatory, runs first)
+  #
+  # Validates ALL WI-18.1 security controls are intact:
+  # - Middleware existence (cannot be deleted)
+  # - CSRF flow integrity
+  # - Authentication on protected routes
+  # - Security headers presence
+  # - DOMPurify sanitization
+  # - CSP policy hardening
+  # - Environment validation enforcement
+  # - AuthProvider session enforcement
+  # ═══════════════════════════════════════════════════
+  security-gate:
+    name: Security Regression Gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      # ── Gate 1: Run all security regression tests ──
+      - name: Run security gate tests
+        run: npx vitest run tests/wi18-security-regression.test.ts tests/wi18-security-gate-integrity.test.ts
+
+      # ── Gate 2: Middleware file must exist ──
+      - name: Verify middleware exists
+        run: |
+          if [ ! -f "src/middleware.ts" ]; then
+            echo "::error::SECURITY GATE FAILED — src/middleware.ts is missing"
+            echo "The Edge middleware is a PERMANENT security control."
+            echo "It provides: CSRF protection, security headers, session validation, rate limiting."
+            echo "Restore it immediately. See SECURITY.md for architecture details."
+            exit 1
+          fi
+          echo "✓ Middleware gate passed"
+
+      # ── Gate 3: CSRF token flow must be intact ──
+      - name: Verify CSRF flow integrity
+        run: |
+          FAIL=0
+          # Middleware must inject CSRF tokens
+          if ! grep -q "generateCsrfToken" src/middleware.ts; then
+            echo "::error::SECURITY GATE FAILED — middleware does not generate CSRF tokens"
+            FAIL=1
+          fi
+          # fetchApi must send CSRF tokens
+          if ! grep -q "x-csrf-token" src/lib/fetchApi.ts; then
+            echo "::error::SECURITY GATE FAILED — fetchApi does not send CSRF token header"
+            FAIL=1
+          fi
+          # auth-helpers must validate CSRF
+          if ! grep -q "validateCsrf" src/lib/auth-helpers.ts; then
+            echo "::error::SECURITY GATE FAILED — auth-helpers does not validate CSRF"
+            FAIL=1
+          fi
+          if [ "$FAIL" -eq 1 ]; then
+            echo "SECURITY GATE FAILED — CSRF flow is broken"
+            exit 1
+          fi
+          echo "✓ CSRF flow integrity passed"
+
+      # ── Gate 4: AI routes must have authentication ──
+      - name: Verify AI route authentication
+        run: |
+          FAIL=0
+          for route in src/app/api/ai/*/route.ts src/app/api/ai/*/*/route.ts; do
+            if [ -f "$route" ]; then
+              if ! grep -q "checkApiAuth" "$route"; then
+                echo "::error::SECURITY GATE FAILED — $route has no auth guard"
+                FAIL=1
+              fi
+            fi
+          done
+          if [ "$FAIL" -eq 1 ]; then
+            echo "SECURITY GATE FAILED — unprotected AI routes detected"
+            exit 1
+          fi
+          echo "✓ AI route auth gate passed"
+
+      # ── Gate 5: Security headers must be present ──
+      - name: Verify security headers
+        run: |
+          FAIL=0
+          HEADERS=("X-Content-Type-Options" "X-Frame-Options" "Strict-Transport-Security" "Content-Security-Policy" "Referrer-Policy")
+          for header in "${HEADERS[@]}"; do
+            if ! grep -q "$header" src/lib/auth-helpers.ts; then
+              echo "::error::SECURITY GATE FAILED — $header missing from security headers"
+              FAIL=1
+            fi
+          done
+          if [ "$FAIL" -eq 1 ]; then
+            echo "SECURITY GATE FAILED — security headers are incomplete"
+            exit 1
+          fi
+          echo "✓ Security headers gate passed"
+
+      # ── Gate 6: DOMPurify must be active ──
+      - name: Verify DOMPurify sanitization
+        run: |
+          if ! grep -q "isomorphic-dompurify" src/lib/sanitize.ts; then
+            echo "::error::SECURITY GATE FAILED — DOMPurify not found in sanitize.ts"
+            exit 1
+          fi
+          echo "✓ DOMPurify gate passed"
+
+      # ── Gate 7: CSP must not have unsafe-inline in production ──
+      - name: Verify CSP policy
+        run: |
+          if grep -q "unsafe-inline" src/lib/auth-helpers.ts; then
+            # Allow unsafe-inline ONLY in style-src (needed for Google Fonts)
+            SCRIPT_LINE=$(grep "script-src" src/lib/auth-helpers.ts | grep -v "unsafe-eval")
+            if echo "$SCRIPT_LINE" | grep -q "unsafe-inline"; then
+              echo "::error::SECURITY GATE FAILED — unsafe-inline in script-src"
+              exit 1
+            fi
+          fi
+          echo "✓ CSP policy gate passed"
+
+      # ── Gate 8: AuthProvider must enforce session ──
+      - name: Verify AuthProvider session enforcement
+        run: |
+          FAIL=0
+          if ! grep -q "/api/auth/me" src/providers/auth-provider.tsx; then
+            echo "::error::SECURITY GATE FAILED — AuthProvider does not check session"
+            FAIL=1
+          fi
+          if ! grep -q "window.location.href" src/providers/auth-provider.tsx; then
+            echo "::error::SECURITY GATE FAILED — AuthProvider does not redirect unauthenticated users"
+            FAIL=1
+          fi
+          if [ "$FAIL" -eq 1 ]; then
+            exit 1
+          fi
+          echo "✓ AuthProvider gate passed"
+
+      # ── Gate 9: Environment validation must enforce production secrets ──
+      - name: Verify environment validation
+        run: |
+          FAIL=0
+          if ! grep -q "API_KEY_ENCRYPTION_KEY" src/lib/validate-env.ts; then
+            echo "::error::SECURITY GATE FAILED — API_KEY_ENCRYPTION_KEY not in validate-env.ts"
+            FAIL=1
+          fi
+          if ! grep -q "PLAINTEXT" src/lib/validate-env.ts; then
+            echo "::error::SECURITY GATE FAILED — validate-env.ts does not warn about plaintext keys"
+            FAIL=1
+          fi
+          if ! grep -q "throw new Error" src/lib/validate-env.ts; then
+            echo "::error::SECURITY GATE FAILED — validate-env.ts does not throw on missing secrets in production"
+            FAIL=1
+          fi
+          if [ "$FAIL" -eq 1 ]; then
+            exit 1
+          fi
+          echo "✓ Environment validation gate passed"
+
+  # ═══════════════════════════════════════════════════
+  # JOB 2: DEPENDENCY SECURITY AUDIT
+  # Blocks merge on critical/high vulnerabilities
+  # ═══════════════════════════════════════════════════
+  dependency-audit:
+    name: Dependency Security Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run npm audit (critical + high)
+        run: npm audit --audit-level=high
+
+  # ═══════════════════════════════════════════════════
+  # JOB 3: API SECURITY CONTRACT CHECK
+  # Scans all API routes to detect missing auth guards
+  # on routes that should be protected.
+  # ═══════════════════════════════════════════════════
+  api-security-contract:
+    name: API Security Contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Scan API routes for missing auth guards
+        run: |
+          node scripts/api-security-scan.js
+
+  # ═══════════════════════════════════════════════════
+  # JOBS 4-6: Standard quality gates (depend on security-gate)
+  # ═══════════════════════════════════════════════════
+  lint-and-typecheck:
+    name: Lint + Typecheck
+    runs-on: ubuntu-latest
+    needs: [security-gate, api-security-contract]
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+  test:
+    name: Tests
+    runs-on: ubuntu-latest
+    needs: [security-gate, api-security-contract]
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate Prisma client
+        run: npx prisma generate
+
+      - name: Run tests
+        run: npm test
+
+  build:
+    name: Build Verification
+    runs-on: ubuntu-latest
+    needs: [lint-and-typecheck, test, dependency-audit]
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build
+        run: npm run build:vercel
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://ci:ci@localhost:5432/ci_test' }}
+          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'ci-test-secret-for-build-only-long-enough-32chars!!' }}
+          API_KEY_ENCRYPTION_KEY: ${{ secrets.API_KEY_ENCRYPTION_KEY || 'ci-test-encryption-key-min-32-bytes-ok!' }}

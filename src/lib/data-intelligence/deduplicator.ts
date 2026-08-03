@@ -13,6 +13,7 @@
  */
 
 import { db } from '@/lib/db';
+import { unsafeFindMany } from '@/lib/query-helpers';
 
 interface MappedRow {
   [key: string]: unknown;
@@ -113,13 +114,13 @@ async function ensureDbCache() {
 
   // Load existing data in parallel
   const [existingContacts, existingCompanies] = await Promise.all([
-    db.contact.findMany({
+    unsafeFindMany(db.contact.findMany, {
       select: { email: true },
       where: { email: { not: '' } },
-    }),
-    db.company.findMany({
+    }, 'Deduplication requires full table scan for cross-record comparison'),
+    unsafeFindMany(db.company.findMany, {
       select: { rawName: true, normalizedName: true, domain: true },
-    }),
+    }, 'Deduplication requires full table scan for cross-record comparison'),
   ]);
 
   existingEmailsCache = new Set(

@@ -38,6 +38,7 @@
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { governedAICall } from '@/lib/ai-governance';
+import { unsafeFindMany } from '@/lib/query-helpers';
 import { RetrievalEngine, embedEntity, type RetrievalResult } from '@/lib/engines/retrieval-engine';
 
 // ─── Types ──────────────────────────────────────────────────────────────
@@ -333,10 +334,10 @@ export const CapabilityIntelligenceEngine = {
         where.category = category;
       }
 
-      const assets = await db.capabilityAsset.findMany({
+      const assets = await unsafeFindMany(db.capabilityAsset.findMany, {
         where,
         orderBy: { createdAt: 'desc' },
-      });
+      }, 'Signal matching requires all active capabilities for comprehensive matching');
 
       return assets.map(asset => ({
         ...asset,
@@ -451,9 +452,9 @@ export const CapabilityIntelligenceEngine = {
       }
 
       // Fetch ALL active capabilities (we'll narrow via retrieval)
-      const allCapabilities = await db.capabilityAsset.findMany({
+      const allCapabilities = await unsafeFindMany(db.capabilityAsset.findMany, {
         where: { isActive: true },
-      });
+      }, 'Signal-capability matching requires full scan of all active capabilities');
 
       if (allCapabilities.length === 0) {
         return {
@@ -1066,6 +1067,7 @@ Analyze win probability.`;
       const signals = await db.companySignal.findMany({
         where: { companyId },
         orderBy: { createdAt: 'desc' },
+        take: 200,
       });
 
       if (signals.length === 0) {

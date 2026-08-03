@@ -103,6 +103,7 @@ const started = Date.now();
     const entries = await db.knowledgeEntry.findMany({
       where: { companyId },
       orderBy: [{ category: 'asc' }, { updatedAt: 'desc' }],
+      take: 100,
       select: {
         id: true,
         category: true,

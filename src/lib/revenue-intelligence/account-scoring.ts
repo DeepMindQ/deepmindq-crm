@@ -15,6 +15,7 @@ import {
   type AccountCategory,
 } from './signal-patterns';
 import { FRESHNESS_CONFIG, ALL_CATEGORIES } from '@/lib/intelligence-sources';
+import { unsafeFindMany } from '@/lib/query-helpers';
 
 // ─── Exported Types ──────────────────────────────────────────────
 
@@ -157,6 +158,7 @@ async function computeSignalStrength(companyId: string): Promise<number> {
       signalType: true,
       score: true,
     },
+    take: 200,
   });
 
   if (signals.length === 0) return 0;
@@ -397,12 +399,12 @@ export async function getTopOpportunities(
  * @returns The number of accounts that were updated.
  */
 export async function recalculateAllScores(): Promise<{ updated: number }> {
-  const companiesWithIntel = await db.company.findMany({
+  const companiesWithIntel = await unsafeFindMany(db.company.findMany, {
     where: {
       intelligenceObjects: { some: {} },
     },
     select: { id: true },
-  });
+  }, 'Revenue intelligence account scoring recalculation requires full company scan');
 
   let updated = 0;
   for (const company of companiesWithIntel) {

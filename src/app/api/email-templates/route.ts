@@ -74,7 +74,7 @@ export async function GET() {
   if (errorResponse) return errorResponse;
 
 try {
-    const customs = await db.customEmailTemplate.findMany({ orderBy: { createdAt: 'desc' } })
+    const customs = await db.customEmailTemplate.findMany({ orderBy: { name: 'asc' }, take: 100 })
     const all: EmailTemplate[] = [...BUILTIN_TEMPLATES, ...customs.map(dbToTemplate)]
     return apiSuccess({ templates: all, total: all.length })
   } catch {

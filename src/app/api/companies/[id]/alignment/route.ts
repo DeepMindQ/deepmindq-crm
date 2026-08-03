@@ -124,7 +124,7 @@ try {
         where: { companyId },
         orderBy: { createdAt: 'desc' },
       }),
-      db.capabilityAsset.findMany({ where: { isActive: true } }),
+      db.capabilityAsset.findMany({ where: { isActive: true }, take: 200 }),
       db.contact.findMany({
         where: { companyId },
         orderBy: { leadScore: 'desc' },

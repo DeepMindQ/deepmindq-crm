@@ -21,7 +21,8 @@ try {
     let playbooks: any[];
     try {
       playbooks = await db.playbook.findMany({
-        orderBy: { createdAt: 'desc' },
+        orderBy: { name: 'asc' },
+        take: 100,
       });
     } catch {
       return NextResponse.json([]);

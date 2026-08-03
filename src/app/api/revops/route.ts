@@ -22,6 +22,8 @@ try {
 
     // ── Revenue Metrics ──
     const pursuits = await db.pursuit.findMany({
+      take: 500,
+      orderBy: { createdAt: 'desc' },
       include: { opportunity: true },
     });
 
@@ -38,7 +40,10 @@ try {
     const lostThisMonth = closedLost.filter(p => p.updatedAt && (now - p.updatedAt.getTime()) < 30 * day).length;
 
     // ── Activity Metrics ──
-    const contacts = await db.contact.findMany();
+    const contacts = await db.contact.findMany({
+      take: 500,
+      orderBy: { createdAt: 'desc' },
+    });
     const totalContacts = contacts.length;
 
     const sentContacts = contacts.filter(c => c.status === 'sent').length;
@@ -71,6 +76,8 @@ try {
 
     // ── Sequence performance ──
     const sequences = await db.emailSequence.findMany({
+      take: 500,
+      orderBy: { createdAt: 'desc' },
       include: {
         _count: { select: { steps: true } },
       },

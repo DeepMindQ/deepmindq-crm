@@ -330,6 +330,7 @@ export interface QualityReport {
 export async function getQualityReport(): Promise<QualityReport> {
   const allValidations = await db.intelligenceValidation.findMany({
     orderBy: { validatedAt: 'desc' },
+    take: 1000,
   });
 
   if (allValidations.length === 0) {
@@ -612,6 +613,7 @@ export async function getValidationTrend(
       validatedAt: { gte: since },
     },
     orderBy: { validatedAt: 'asc' },
+    take: 1000,
   });
 
   if (validations.length === 0) return [];

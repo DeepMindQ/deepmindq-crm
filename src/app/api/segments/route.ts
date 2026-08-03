@@ -91,7 +91,8 @@ try {
 
     // List all segments with counts
     const segments = await db.segment.findMany({
-      orderBy: { createdAt: 'desc' },
+      orderBy: { name: 'asc' },
+      take: 100,
       include: {
         _count: { select: { contacts: true } },
       },

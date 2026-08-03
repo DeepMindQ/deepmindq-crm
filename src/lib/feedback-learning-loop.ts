@@ -765,6 +765,7 @@ export async function getCompanyFeedbackStats(
   const feedback = await db.intelligenceFeedback.findMany({
     where: { companyId },
     orderBy: { createdAt: 'desc' },
+    take: 1000,
   });
 
   const useful = feedback.filter(f => f.verdict === 'useful').length;
@@ -819,6 +820,7 @@ export async function getLearningAnalytics(): Promise<LearningAnalytics> {
   const allFeedback = await db.intelligenceFeedback.findMany({
     select: { verdict: true, feedbackReason: true, actualOutcome: true, createdAt: true },
     orderBy: { createdAt: 'desc' },
+    take: 1000,
   });
 
   const useful = allFeedback.filter(f => f.verdict === 'useful').length;

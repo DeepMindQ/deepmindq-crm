@@ -80,6 +80,7 @@ try {
       // All records for stats computation (byPriority, byStatus)
       db.opportunityRecommendation.findMany({
         select: { priority: true, status: true },
+        take: 100,
       }),
     ]);
 

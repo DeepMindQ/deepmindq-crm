@@ -293,6 +293,7 @@ export async function generateAllRecommendations(
   // Batch fetch: AccountScores
   const accountScores = await db.accountScore.findMany({
     where: { companyId: { in: companyIds } },
+    take: 1000,
   });
   const scoreMap = new Map(accountScores.map(s => [s.companyId, s]));
 
@@ -300,6 +301,7 @@ export async function generateAllRecommendations(
   const topOpportunities = await db.opportunityRecommendation.findMany({
     where: { companyId: { in: companyIds } },
     orderBy: { opportunityScore: 'desc' },
+    take: 1000,
   });
   const oppMap = new Map<string, typeof topOpportunities[0][]>();
   for (const opp of topOpportunities) {
@@ -315,6 +317,7 @@ export async function generateAllRecommendations(
       severity: { in: ['critical', 'high'] },
     },
     orderBy: { signalDate: 'desc' },
+    take: 1000,
   });
   const signalMap = new Map<string, typeof highSignals[0][]>();
   for (const sig of highSignals) {
@@ -328,6 +331,7 @@ export async function generateAllRecommendations(
     where: { companyId: { in: companyIds } },
     include: { capability: { select: { title: true, category: true } } },
     orderBy: { matchScore: 'desc' },
+    take: 1000,
   });
   const capMap = new Map<string, typeof capMatches[0][]>();
   for (const cm of capMatches) {
@@ -340,6 +344,7 @@ export async function generateAllRecommendations(
   const insights = await db.strategicInsight.findMany({
     where: { companyId: { in: companyIds } },
     orderBy: { confidenceScore: 'desc' },
+    take: 1000,
   });
   const insightMap = new Map<string, typeof insights[0][]>();
   for (const ins of insights) {
@@ -1051,7 +1056,7 @@ export async function getRecommendationStats(): Promise<{
     db.company.count({ where: { status: { not: 'archived' }, signals: { some: {} } } }),
     db.company.count({ where: { status: { not: 'archived' }, opportunityRecommendations: { some: {} } } }),
     db.company.count({ where: { status: { not: 'archived' }, signalCapabilityMatches: { some: {} } } }),
-    db.accountScore.findMany({ select: { score: true } }),
+    db.accountScore.findMany({ select: { score: true }, take: 1000 }),
     db.accountScore.groupBy({ by: ['category'], _count: { category: true } }),
   ]);
 

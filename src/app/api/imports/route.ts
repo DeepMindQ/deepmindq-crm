@@ -416,6 +416,7 @@ async function executeImport(body: ExecuteBody) {
         { normalizedName: { in: normalizedLookupNames } },
       ],
     },
+    take: 1000,
     select: { id: true, rawName: true, normalizedName: true },
   });
 
@@ -434,6 +435,7 @@ async function executeImport(body: ExecuteBody) {
     ? await db.contact.findMany({
         where: { email: { in: emailList } },
         select: { id: true, email: true, companyId: true, normalizedName: true },
+        take: 1000,
       })
     : [];
 
@@ -560,6 +562,7 @@ async function executeImport(body: ExecuteBody) {
       const createdCompanyNames = [...newCompanies.values()].map(c => c.rawName);
       const realCompanies = await tx.company.findMany({
         where: { rawName: { in: createdCompanyNames } },
+        take: 1000,
         select: { id: true, rawName: true },
       });
 
@@ -617,6 +620,7 @@ async function executeImport(body: ExecuteBody) {
     const realAffectedCompanies = realAffectedIds.length > 0
       ? await tx.company.findMany({
           where: { id: { in: realAffectedIds } },
+          take: 1000,
           select: { id: true, rawName: true },
         })
       : [];

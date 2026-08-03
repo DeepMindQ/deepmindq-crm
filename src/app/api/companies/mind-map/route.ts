@@ -209,16 +209,19 @@ async function buildFocusedView(companyId: string): Promise<MindMapResponse> {
     db.contact.findMany({
       where: { companyId },
       orderBy: { leadScore: 'desc' },
+      take: 200,
       select: { id: true, rawName: true, normalizedName: true, email: true, title: true, role: true, leadScore: true, status: true },
     }),
     db.companySignal.findMany({
       where: { companyId },
       orderBy: { createdAt: 'desc' },
+      take: 200,
       select: { id: true, companyId: true, signalType: true, title: true, severity: true, source: true, createdAt: true },
     }),
     db.companyNote.findMany({
       where: { companyId },
       orderBy: { createdAt: 'desc' },
+      take: 200,
       select: { id: true, companyId: true, title: true, category: true, pinned: true, createdAt: true },
     }),
   ]);
@@ -275,6 +278,7 @@ async function buildSearchView(term: string): Promise<MindMapResponse> {
   const contacts = await db.contact.findMany({
     where: { companyId: { in: companyIds } },
     orderBy: { leadScore: 'desc' },
+    take: 200,
     select: { id: true, rawName: true, normalizedName: true, email: true, title: true, role: true, leadScore: true, status: true, companyId: true },
   });
 

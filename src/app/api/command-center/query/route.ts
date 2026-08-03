@@ -249,7 +249,7 @@ async function executeFetch(fetch: DataFetch): Promise<{ source: string; data: R
       include.company = true;
     }
 
-    const args: any = { where, take: limit };
+    const args: any = { where, take: Math.min(limit, 100) }; // Safety: cap dynamic model queries at 100
     if (orderBy) args.orderBy = orderBy;
     if (Object.keys(include).length > 0) args.include = include;
 

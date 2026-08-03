@@ -1,6 +1,7 @@
 import { Prisma } from '@prisma/client';
 import { db } from '@/lib/db';
 import { getIcpProfileSync } from '@/lib/icp-config';
+import { unsafeFindMany } from '@/lib/query-helpers';
 
 /* ═══════════════════════════════════════════════════
    L-02: Advanced Lead Scoring Model
@@ -178,7 +179,7 @@ export function calculateLeadScore(
 
 /* Recalculate scores for all contacts (batch operation) */
 export async function recalculateAllScores(): Promise<{ updated: number }> {
-  const contacts = await db.contact.findMany({
+  const contacts = await unsafeFindMany(db.contact.findMany, {
     include: {
       company: {
         include: { researchCard: true },
@@ -187,7 +188,7 @@ export async function recalculateAllScores(): Promise<{ updated: number }> {
         select: { eventType: true },
       },
     },
-  });
+  }, 'Lead scoring batch recalculation requires full contact table scan');
 
   // Calculate all scores in memory first
   const scoredContacts = (contacts as any[]).map(contact => {

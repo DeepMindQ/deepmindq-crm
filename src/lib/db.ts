@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import { recordDbQuery } from '@/lib/database-performance-monitor';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Prisma DB client — PostgreSQL (Neon)
@@ -7,6 +8,7 @@ import { PrismaClient } from "@prisma/client";
    - Connection pool limits parsed from DATABASE_URL or sensible defaults
    - Query event logging for slow queries (>1000ms) in development
    - Diagnostics metrics export for monitoring
+   - Database performance monitor with p50/p95/p99 tracking
    - Global singleton pattern preserved for hot-reload safety
    ═══════════════════════════════════════════════════════════════════════════ */
 
@@ -89,24 +91,29 @@ function createPrismaClient(): PrismaClient {
     datasourceUrl: buildDatasourceUrl(connectionLimit),
   });
 
-  // ── Query Event Logging (development slow-query detection) ──
-  if (isDev) {
-    client.$on('query', (event: { query: string; duration: number; target: string; timestamp: Date }) => {
-      PrismaDiagnostics.totalQueries++;
+  // ── Query Event Logging + Performance Monitoring ──
+  client.$on('query', (event: { query: string; duration: number; target: string; timestamp: Date }) => {
+    PrismaDiagnostics.totalQueries++;
 
-      if (event.duration > SLOW_QUERY_THRESHOLD_MS) {
-        PrismaDiagnostics.slowQueries++;
-        console.warn(
-          `[PRISMA-SLOW] Query on ${event.target} took ${event.duration}ms (threshold: ${SLOW_QUERY_THRESHOLD_MS}ms)\n  ${event.query.substring(0, 200)}`,
-        );
-      }
-    });
-  } else {
-    // Production: count all queries via query events if log level includes query
-    client.$on('query', (_event: { query: string; duration: number; target: string; timestamp: Date }) => {
-      PrismaDiagnostics.totalQueries++;
-    });
-  }
+    // Feed into database performance monitor (p50/p95/p99 tracking)
+    try {
+      // Extract model and action from target (e.g., "prisma.Model.findMany")
+      const parts = event.target.split('.');
+      const model = parts.length >= 1 ? parts[0] : 'unknown';
+      const action = parts.length >= 2 ? parts.slice(1).join('.') : 'unknown';
+      recordDbQuery(model, action, event.duration);
+    } catch {
+      // Non-blocking — never let monitoring break queries
+    }
+
+    // Slow query detection (development + production)
+    if (event.duration > SLOW_QUERY_THRESHOLD_MS) {
+      PrismaDiagnostics.slowQueries++;
+      console.warn(
+        `[PRISMA-SLOW] Query on ${event.target} took ${event.duration}ms (threshold: ${SLOW_QUERY_THRESHOLD_MS}ms)\n  ${event.query.substring(0, 200)}`,
+      );
+    }
+  });
 
   return client;
 }

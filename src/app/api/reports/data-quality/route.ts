@@ -56,6 +56,8 @@ try {
         linkedinUrl: true,
         emailHealth: true,
       },
+      orderBy: { createdAt: 'desc' },
+      take: 500,
     });
 
     const totalContacts = contacts.length;

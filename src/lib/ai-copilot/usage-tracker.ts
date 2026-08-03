@@ -130,6 +130,7 @@ export async function getUsageStats(days: number = 30): Promise<{
         createdAt: { gte: since },
       },
       orderBy: { createdAt: 'asc' },
+      take: 1000,
     });
 
     // Aggregate totals

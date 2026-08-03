@@ -8,6 +8,7 @@ import { logAction } from '@/lib/audit';
 import { calculateLeadScore } from '@/lib/lead-scoring';
 import { Company } from '@prisma/client';
 import { logger } from '@/lib/logger';
+import { unsafeFindMany } from '@/lib/query-helpers';
 
 function sha256(str: string): string {
   return 'sha256:' + createHash('sha256').update(str).digest('hex');
@@ -328,7 +329,7 @@ export async function POST(request: Request) {
     // For small files, process synchronously
     if (rows.length <= LARGE_FILE_THRESHOLD) {
       const companyCache = new Map<string, string>();
-      const existingCompanies = await db.company.findMany();
+      const existingCompanies = await unsafeFindMany(db.company.findMany, {}, 'Batch name deduplication requires full company scan');
       for (const c of existingCompanies) {
         companyCache.set(normalize(c.rawName), c.id);
         if (c.domain) companyCache.set(normalize(c.domain), c.id);
@@ -414,7 +415,7 @@ export async function POST(request: Request) {
     (async () => {
       try {
         const companyCache = new Map<string, string>();
-        const existingCompanies = await db.company.findMany();
+        const existingCompanies = await unsafeFindMany(db.company.findMany, {}, 'Batch name deduplication requires full company scan');
         for (const c of existingCompanies) {
           companyCache.set(normalize(c.rawName), c.id);
           if (c.domain) companyCache.set(normalize(c.domain), c.id);

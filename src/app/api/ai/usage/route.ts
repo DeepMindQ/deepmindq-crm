@@ -119,6 +119,7 @@ try {
         createdAt: { gte: since },
       },
       orderBy: { createdAt: 'asc' },
+      take: 1000,
     });
 
     // ── Aggregate ──

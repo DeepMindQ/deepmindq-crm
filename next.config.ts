@@ -18,6 +18,20 @@ const nextConfig: NextConfig = {
   output: process.env.VERCEL ? undefined : 'standalone',
   serverExternalPackages: ['nodemailer'],
 
+  // Bundle analysis — enabled via ANALYZE=true environment variable
+  // Usage: ANALYZE=true npm run build
+  ...(process.env.ANALYZE === 'true' ? {
+    experimental: {
+      optimizePackageImports: [
+        'lucide-react',
+        'recharts',
+        '@radix-ui/react-icons',
+        'date-fns',
+        'lodash',
+      ],
+    },
+  } : {}),
+
   // Security headers are consolidated in src/lib/auth-helpers.ts (getSecurityHeaders)
   // and applied via Edge middleware (src/middleware.ts). Removing duplicate
   // headers here to maintain a single source of truth (E-H2).

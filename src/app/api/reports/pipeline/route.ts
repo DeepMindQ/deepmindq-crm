@@ -43,6 +43,7 @@ try {
       where: whereClause,
       include: { company: { select: { rawName: true } } },
       orderBy: { createdAt: "asc" },
+      take: 1000,
     });
 
     // Group by status

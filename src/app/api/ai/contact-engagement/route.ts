@@ -53,6 +53,8 @@ try {
 
     const contacts = await db.contact.findMany({
       where: companyId ? { companyId } : undefined,
+      take: 200,
+      orderBy: { engagementScore: 'desc' },
     });
 
     const engDist = {

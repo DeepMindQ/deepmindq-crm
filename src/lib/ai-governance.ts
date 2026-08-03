@@ -16,6 +16,7 @@
 
 import { db } from '@/lib/db';
 import type { ResearchContext } from '@/lib/intelligence-contract';
+import { AICacheLayer } from '@/lib/ai-cache-layer';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -1154,6 +1155,8 @@ interface GovernedAICallParams {
   evidenceItems?: Array<{ id: string; source: string; url: string | null; snippet: string; content: string; reliability: number; confidence: number }>;
   /** Whether to run post-generation hallucination check (default: true for company-specific, false for aggregate). */
   enableHallucinationCheck?: boolean;
+  /** Whether to use AI cache for this call (default: true for cacheable generation types). */
+  useCache?: boolean;
 }
 
 export interface GovernedAIResult {
@@ -1171,6 +1174,8 @@ export interface GovernedAIResult {
   promptAddon: string;
   /** Post-generation hallucination check result (WI-16B). */
   hallucinationCheck: HallucinationCheckResult | null;
+  /** Whether the response was served from cache. */
+  cacheHit?: boolean;
 }
 
 /**
@@ -1281,52 +1286,78 @@ export async function governedAICall(
     ? `\n\nNOTE: Intelligence staleness detected. Effective confidence is reduced by ${Math.round(stalenessModifier * 100)}%. Be more conservative in claims and hedge appropriately.\n`
     : '';
 
-  // ── Step 4: Call LLM with governed prompt ──
+  // ── Step 3.5: AI Cache Check (non-blocking) ──
+  const cacheFingerprint = companyId
+    ? `${generationType}:${companyId}:${contactId || 'none'}:${params.tier || 'smart'}`
+    : `aggregate:${generationType}:${params.tier || 'smart'}`;
+
   const governedSystemPrompt = `${systemPrompt}\n\n${HALLUCINATION_PREVENTION_RULES}${stalenessWarning}`;
   const governedUserPrompt = `${userPrompt}\n\n${groundingNote}\n${promptAddon}${freshnessWarning}`;
 
+  // Check cache before LLM call (skip for conversational/unpredictable generation types)
+  const cacheableTypes = ['enrichment', 'intelligence_summary', 'account_brief', 'signal_analysis', 'relationship_memory', 'research_synthesis', 'capability_matching', 'conversation_plan', 'recommendation_narrative', 'score_narrative', 'data_health_analysis'];
+  const isCacheable = params.useCache !== false && cacheableTypes.some(t => generationType?.toLowerCase().includes(t));
+
   let response: string | null = null;
   let actualModel = 'unknown';
-  try {
-    const result = await ModelRouter.complete({
-      systemPrompt: governedSystemPrompt,
-      userPrompt: governedUserPrompt,
-      tier: params.tier || 'smart',
-      genType: generationType || 'governed_ai_call',
-      maxTokens: params.maxTokens || 4096,
-      temperature: params.temperature ?? 0.7,
-      companyId,
-      contactId,
-    });
-    if (!result.success) throw new Error(result.error ?? 'ModelRouter failed');
-    response = result.text;
-    actualModel = result.modelUsed;
-  } catch (llmErr) {
-    logger.error(`[ai-governance] LLM call failed for ${generationType}:`, { error: llmErr instanceof Error ? llmErr.message : llmErr });
-    // Record failed LLM call
-    await recordGeneration({
-      generationType,
-      companyId,
-      contactId,
-      researchContext: ctx,
-      evidenceIds,
-      signalIds,
-      capabilityAssetIds,
-      governanceResult,
-      outputSummary: `LLM_CALL_FAILED`,
-      inputParams,
-    });
+  let cacheHit = false;
 
-    return {
-      success: false,
-      response: null,
-      governanceResult,
-      rejectionReason: `LLM call failed: ${llmErr instanceof Error ? llmErr.message : 'Unknown error'}`,
-      groundingNote,
-      promptAddon,
-      hallucinationCheck: null,
-    };
+  if (isCacheable) {
+    try {
+      const cached = await AICacheLayer.get(governedSystemPrompt, governedUserPrompt, cacheFingerprint);
+      if (cached) {
+        response = cached.response;
+        actualModel = cached.modelUsed;
+        cacheHit = true;
+      }
+    } catch {
+      // Cache miss or failure — proceed to LLM call
+    }
   }
+
+  // ── Step 4: Call LLM with governed prompt (if cache miss) ──
+  if (!response) {
+    try {
+      const result = await ModelRouter.complete({
+        systemPrompt: governedSystemPrompt,
+        userPrompt: governedUserPrompt,
+        tier: params.tier || 'smart',
+        genType: generationType || 'governed_ai_call',
+        maxTokens: params.maxTokens || 4096,
+        temperature: params.temperature ?? 0.7,
+        companyId,
+        contactId,
+      });
+      if (!result.success) throw new Error(result.error ?? 'ModelRouter failed');
+      response = result.text;
+      actualModel = result.modelUsed;
+    } catch (llmErr) {
+      logger.error(`[ai-governance] LLM call failed for ${generationType}:`, { error: llmErr instanceof Error ? llmErr.message : llmErr });
+      // Record failed LLM call
+      await recordGeneration({
+        generationType,
+        companyId,
+        contactId,
+        researchContext: ctx,
+        evidenceIds,
+        signalIds,
+        capabilityAssetIds,
+        governanceResult,
+        outputSummary: `LLM_CALL_FAILED`,
+        inputParams,
+      });
+
+      return {
+        success: false,
+        response: null,
+        governanceResult,
+        rejectionReason: `LLM call failed: ${llmErr instanceof Error ? llmErr.message : 'Unknown error'}`,
+        groundingNote,
+        promptAddon,
+        hallucinationCheck: null,
+      };
+    }
+  } // end if (!response) — LLM call block
 
   // ── Step 4b: Post-generation hallucination check (WI-16B) ──
   let hallucinationCheck: HallucinationCheckResult | null = null;
@@ -1345,6 +1376,25 @@ export async function governedAICall(
     } catch (hallCheckErr) {
       // Hallucination check failure should NOT break the flow
       logger.error('[ai-governance] Hallucination check failed (non-blocking):', { error: hallCheckErr instanceof Error ? hallCheckErr.message : hallCheckErr });
+    }
+  }
+
+  // ── Step 4b: Store in cache on miss (non-blocking) ──
+  if (!cacheHit && isCacheable && response) {
+    try {
+      await AICacheLayer.set(
+        governedSystemPrompt,
+        governedUserPrompt,
+        cacheFingerprint,
+        response,
+        actualModel,
+        params.tier || 'smart',
+        params.maxTokens || 4096, // approximate tokens
+        0, // cost estimate (not tracked at this level)
+        7, // 7 day TTL for governed calls
+      );
+    } catch {
+      // Cache set failure — non-blocking
     }
   }
 
@@ -1371,6 +1421,7 @@ export async function governedAICall(
     groundingNote,
     promptAddon,
     hallucinationCheck,
+    cacheHit,
   };
 }
 

@@ -338,6 +338,7 @@ export async function POST(request: NextRequest) {
       const actions = await db.actionArtifact.findMany({
         where: { companyId, status: { in: ['draft', 'approved'] } },
         orderBy: { generatedAt: 'desc' },
+        take: 200,
         select: { id: true, actionType: true, summary: true, priorityScore: true, confidence: true, generatedAt: true },
       })
       const seen = new Set<string>()

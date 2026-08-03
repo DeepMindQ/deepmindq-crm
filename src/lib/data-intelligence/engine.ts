@@ -22,6 +22,7 @@ import { scoreRowQuality, calculateAggregateScore, type QualityScore } from './q
 import { suggestCorrections, type SuggestedCorrection } from './correction-suggester';
 import { logAction } from '@/lib/audit';
 import { activateIntelligenceBatch } from '@/lib/intelligence-activation';
+import { unsafeFindMany } from '@/lib/query-helpers';
 
 // ── Types ──
 
@@ -350,6 +351,7 @@ export async function processChunk(
     const allRows = await db.uploadRow.findMany({
       where: { uploadId },
       select: { qualityScore: true },
+      take: 5000,
     });
     const scores = allRows.map(r => r.qualityScore);
     const { score } = calculateAggregateScore(scores);
@@ -392,6 +394,7 @@ export async function getReviewSummary(uploadId: string): Promise<ReviewSummary>
   const allRows = await db.uploadRow.findMany({
     where: { uploadId },
     select: { qualityScore: true },
+    take: 5000,
   });
   const scores = allRows.map(r => r.qualityScore);
   const { score, distribution } = calculateAggregateScore(scores);
@@ -558,13 +561,13 @@ export async function commitUpload(uploadId: string): Promise<CommitResult> {
   });
 
   // Get all rows to commit (accepted + corrected, not failed/duplicate)
-  const rows = await db.uploadRow.findMany({
+  const rows = await unsafeFindMany(db.uploadRow.findMany, {
     where: {
       uploadId,
       status: { in: ['accepted', 'corrected'] },
     },
     orderBy: { rowIndex: 'asc' },
-  });
+  }, 'Data commit requires loading all accepted/corrected rows for the upload');
 
   // Create ImportBatch for backward compatibility
   const batch = await db.importBatch.create({
@@ -584,9 +587,9 @@ export async function commitUpload(uploadId: string): Promise<CommitResult> {
   const newCompanyIds = new Set<string>(); // WI-17A: Track for intelligence activation
 
   // Load existing companies for dedup
-  const existingCompanies = await db.company.findMany({
+  const existingCompanies = await unsafeFindMany(db.company.findMany, {
     select: { id: true, normalizedName: true, domain: true },
-  });
+  }, 'Data intelligence engine bulk processing requires full company scan for dedup and quality scoring');
   for (const c of existingCompanies) {
     companyCache.set(c.normalizedName.toLowerCase(), c.id);
     if (c.domain) companyCache.set(c.domain.toLowerCase(), c.id);

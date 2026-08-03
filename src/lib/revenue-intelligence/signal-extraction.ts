@@ -196,6 +196,7 @@ export async function detectSignalsForCompany(
       capturedAt: true,
       originalConfidence: true,
     },
+    take: 200,
   });
 
   if (objects.length === 0) return [];
@@ -333,6 +334,7 @@ export async function persistSignals(
   const persisted = await db.opportunitySignal.findMany({
     where: { companyId, status: 'NEW' },
     orderBy: { score: 'desc' },
+    take: 200,
   });
 
   return { created: created.count, signals: persisted };
@@ -377,6 +379,7 @@ export async function getSignalsForCompany(
   return db.opportunitySignal.findMany({
     where,
     orderBy: [{ score: 'desc' }, { createdAt: 'desc' }],
+    take: 1000,
   });
 }
 
@@ -415,6 +418,7 @@ export async function getCompanySignalSummary(
   const signals = await db.opportunitySignal.findMany({
     where: { companyId },
     orderBy: { score: 'desc' },
+    take: 200,
   });
 
   const byType: Record<string, number> = {};

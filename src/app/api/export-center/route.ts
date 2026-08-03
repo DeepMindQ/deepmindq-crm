@@ -52,6 +52,7 @@ async function exportCompanies(format: ExportFormat): Promise<{ data: string; co
   const records = await db.company.findMany({
     where: { status: { not: 'archived' } },
     orderBy: { createdAt: 'desc' },
+    take: 5000,
   });
 
   if (format === 'json') {
@@ -94,6 +95,7 @@ async function exportContacts(format: ExportFormat): Promise<{ data: string; cou
   const records = await db.contact.findMany({
     where: { status: { not: 'archived' } },
     orderBy: { createdAt: 'desc' },
+    take: 5000,
   });
 
   if (format === 'json') {
@@ -138,6 +140,7 @@ async function exportContacts(format: ExportFormat): Promise<{ data: string; cou
 async function exportOpportunities(format: ExportFormat): Promise<{ data: string; count: number }> {
   const records = await db.opportunityRecommendation.findMany({
     orderBy: { createdAt: 'desc' },
+    take: 5000,
   });
 
   if (format === 'json') {

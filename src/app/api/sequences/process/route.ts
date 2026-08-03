@@ -29,6 +29,7 @@ try {
         status: 'active',
         nextStepAt: { lte: now },
       },
+      take: 1000,
       include: {
         sequence: {
           include: {

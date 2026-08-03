@@ -16,7 +16,8 @@ try {
 
     const contacts = await db.contact.findMany({
       where: { companyId },
-      orderBy: { leadScore: 'desc' },
+      orderBy: { createdAt: 'desc' },
+      take: 100,
     });
 
     return NextResponse.json({ contacts });

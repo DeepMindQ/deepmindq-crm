@@ -147,6 +147,7 @@ try {
         },
       },
       orderBy: { createdAt: 'asc' },
+      take: 500,
     });
 
     // Flatten contacts into a usable shape

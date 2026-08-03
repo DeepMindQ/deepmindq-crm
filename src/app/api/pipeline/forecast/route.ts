@@ -27,6 +27,8 @@ const startMs = Date.now();
   try {
     // ── 1. Fetch all pursuits (active + closed) ──
     const allPursuits = await db.pursuit.findMany({
+      take: 500,
+      orderBy: { createdAt: 'desc' },
       include: {
         opportunity: { include: { company: { select: { id: true, rawName: true, normalizedName: true } } } },
       },

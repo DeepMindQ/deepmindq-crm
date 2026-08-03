@@ -404,6 +404,7 @@ export async function POST(request: NextRequest) {
     const signals = await db.companySignal.findMany({
       where: { companyId, status: { in: ['active', 'validated', 'aging'] } },
       orderBy: { createdAt: 'desc' },
+      take: 200,
       select: { id: true },
     });
 
@@ -451,6 +452,8 @@ export async function POST(request: NextRequest) {
   stages.push(await runStage('case_study_matching', async () => {
     const caseStudies = await db.capabilityAsset.findMany({
       where: { category: 'case_study', isActive: true },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
       select: { id: true, title: true, summary: true },
     });
 
@@ -498,6 +501,8 @@ Return ONLY a JSON array of top 3: [{"id":"...","title":"...","score":0.85,"reas
         isActive: true,
         category: { in: ['solution', 'service_line'] },
       },
+      orderBy: { createdAt: 'desc' },
+      take: 200,
       select: { id: true, title: true, category: true, summary: true },
     });
 

@@ -163,6 +163,7 @@ try {
     // 3. Knowledge Engine: semantic search for relevant snippets
     const allSnippets = await db.capabilityAsset.findMany({
       orderBy: { createdAt: 'desc' },
+      take: 100,
     })
 
     // Score snippets using same algorithm as /api/knowledge/search

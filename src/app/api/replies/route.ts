@@ -16,6 +16,7 @@ try {
         },
       },
       orderBy: { receivedAt: 'desc' },
+      take: 100,
     });
 
     return NextResponse.json(replies);

@@ -62,6 +62,7 @@ try {
       where: companyId ? { companyId } : undefined,
       include: { company: true },
       orderBy: { leadScore: 'desc' },
+      take: 200,
     });
 
     const scored = contacts.map(c => {
@@ -128,7 +129,7 @@ try {
     const { companyId } = body;
     if (!companyId) return apiError('companyId required', 400);
 
-    const contacts = await db.contact.findMany({ where: { companyId }, include: { company: true } });
+    const contacts = await db.contact.findMany({ where: { companyId }, include: { company: true }, take: 200, orderBy: { leadScore: 'desc' } });
     let updated = 0;
     for (const c of contacts) {
       const breakdown = calculateLeadScore({

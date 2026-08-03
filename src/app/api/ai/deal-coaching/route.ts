@@ -82,6 +82,8 @@ try {
 
     const pursuits = await db.pursuit.findMany({
       where,
+      take: 100,
+      orderBy: { createdAt: 'desc' },
       include: {
         opportunity: {
           include: {

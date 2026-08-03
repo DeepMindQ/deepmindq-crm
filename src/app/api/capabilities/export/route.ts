@@ -18,6 +18,7 @@ export async function GET(request: Request) {
 
     const capabilities = await db.capabilityAsset.findMany({
       orderBy: { createdAt: 'desc' },
+      take: 5000,
     });
 
     if (format === 'csv') {

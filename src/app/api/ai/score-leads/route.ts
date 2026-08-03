@@ -559,10 +559,12 @@ export async function POST(request: NextRequest) {
         db.company.findMany({
           where: { status: { not: 'archived' } },
           select: { id: true },
+          take: 1000,
         }),
         db.contact.findMany({
           where: { status: { not: 'archived' } },
           select: { id: true },
+          take: 1000,
         }),
       ])
       targetCompanyIds = allCompanies.map((c) => c.id)
@@ -591,6 +593,7 @@ export async function POST(request: NextRequest) {
           where: { id: { in: targetContactIds } },
           select: { companyId: true },
           distinct: ['companyId'],
+          take: 1000,
         })
         const unscoredCompanyIds = contactsForCompany
           .map((c) => c.companyId)

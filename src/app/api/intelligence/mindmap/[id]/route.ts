@@ -127,6 +127,7 @@ const startedAt = Date.now();
       db.fusionResult.findMany({
         where: { companyId },
         select: { capabilityIds: true },
+        take: 100,
       }).catch((err: unknown) => {
         logger.warn('[intelligence/mindmap] Failed to load fusion results', { companyId, correlationId, error: err instanceof Error ? err.message : String(err) });
         return [];

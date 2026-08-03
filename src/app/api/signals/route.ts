@@ -87,12 +87,14 @@ try {
         where,
         select: { meaningCategory: true },
         distinct: ['meaningCategory'],
+        take: 1000,
       }),
 
       // Evidence counts per signal (from evidenceIds JSON array)
       db.companySignal.findMany({
         where,
         select: { id: true, evidenceIds: true },
+        take: 1000,
       }),
     ]);
 

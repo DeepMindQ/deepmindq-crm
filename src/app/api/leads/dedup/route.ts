@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { unsafeFindMany } from '@/lib/query-helpers';
 
 /* ═══════════════════════════════════════════════════
    L-06: Lead Deduplication & Merge
@@ -30,11 +31,11 @@ export async function GET() {
   if (errorResponse) return errorResponse;
 
 try {
-    const contacts = await db.contact.findMany({
+    const contacts = await unsafeFindMany(db.contact.findMany, {
       include: {
         company: { select: { id: true, rawName: true, domain: true } },
       },
-    });
+    }, 'Contact deduplication requires full contact scan');
 
     const groups: { contacts: any[]; matchType: string }[] = [];
     const processed = new Set<string>();

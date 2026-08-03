@@ -36,6 +36,8 @@ try {
     // ──────────────────────────────────────────────────────
 
     const allPursuits = await db.pursuit.findMany({
+      take: 500,
+      orderBy: { createdAt: 'desc' },
       include: {
         opportunity: {
           include: { company: { select: { id: true, rawName: true, normalizedName: true, industry: true } } },
@@ -133,7 +135,10 @@ try {
     // 4. Seller Effectiveness
     // ──────────────────────────────────────────────────────
 
-    const contacts = await db.contact.findMany();
+    const contacts = await db.contact.findMany({
+      take: 500,
+      orderBy: { createdAt: 'desc' },
+    });
     const totalContacts = contacts.length;
     const sentContacts = contacts.filter(c => c.status === 'sent').length;
     const repliedContacts = contacts.filter(c => c.status === 'replied').length;

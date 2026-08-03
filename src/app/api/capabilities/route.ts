@@ -52,7 +52,8 @@ try {
 
     const capabilities = await db.capabilityAsset.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { title: 'asc' },
+      take: 100,
     });
 
     const withTags = capabilities.map(c => ({

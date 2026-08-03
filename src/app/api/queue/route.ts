@@ -20,7 +20,8 @@ try {
           },
         },
       },
-      orderBy: { scheduledAt: 'asc' },
+      orderBy: { createdAt: 'asc' },
+      take: 200,
     });
 
     return NextResponse.json(queue);

@@ -26,6 +26,7 @@ import type {
 import { PERSISTENCE_FEATURE_FLAGS } from './types';
 import { getPersistenceFailureQueue } from './persistence-failure-queue';
 import { getPersistenceHealthMonitor } from './persistence-health-monitor';
+import { unsafeFindMany } from '@/lib/query-helpers';
 
 // Lazy-loaded to avoid circular imports at module init time
 let _prisma: import('@prisma/client').PrismaClient | null = null;
@@ -169,21 +170,21 @@ class IntelligencePersistenceAdapter implements IIntelligencePersistenceAdapter 
     try {
       switch (store) {
         case 'knowledge_graph_nodes':
-          return await prisma.knowledgeGraphNode.findMany({
+          return await unsafeFindMany(prisma.knowledgeGraphNode.findMany, {
             where: { companyId },
-          }) as unknown as T[];
+          }, 'Persistence adapter cold-start requires full table scan for knowledge graph nodes') as unknown as T[];
         case 'knowledge_graph_edges':
-          return await prisma.knowledgeGraphEdge.findMany({
+          return await unsafeFindMany(prisma.knowledgeGraphEdge.findMany, {
             where: { companyId },
-          }) as unknown as T[];
+          }, 'Persistence adapter cold-start requires full table scan for knowledge graph edges') as unknown as T[];
         case 'ai_memory':
-          return await prisma.aIMemoryEntry.findMany({
+          return await unsafeFindMany(prisma.aIMemoryEntry.findMany, {
             where: { companyId },
-          }) as unknown as T[];
+          }, 'Persistence adapter cold-start requires full table scan for AI memory entries') as unknown as T[];
         case 'retrieval_index':
-          return await prisma.retrievalIndexEntry.findMany({
+          return await unsafeFindMany(prisma.retrievalIndexEntry.findMany, {
             where: { companyId },
-          }) as unknown as T[];
+          }, 'Persistence adapter cold-start requires full table scan for retrieval index entries') as unknown as T[];
         default:
           logger.warn(`[persistence] Unknown store for readByCompany: ${store}`);
           return [];

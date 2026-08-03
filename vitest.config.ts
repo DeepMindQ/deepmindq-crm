@@ -48,10 +48,13 @@ export default defineConfig({
         'src/proxy.ts',
       ],
       thresholds: {
-        statements: 10,
-        branches: 5,
-        functions: 10,
-        lines: 10,
+        // Phase 4 Hardened:逐步提升覆盖率目标
+        // Critical infrastructure modules (new in Phase 4) should have 80%+
+        // Overall threshold raised from 10% to reflect expanded test coverage
+        statements: 30,
+        branches: 20,
+        functions: 30,
+        lines: 30,
       },
     },
   },

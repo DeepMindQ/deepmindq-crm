@@ -301,6 +301,7 @@ const startedAt = Date.now();
                 id: true, title: true, summary: true, category: true,
                 serviceLine: true, targetIndustries: true, problems: true, evidence: true,
               },
+              take: 100,
             });
 
             capabilities = assets
@@ -337,6 +338,7 @@ const startedAt = Date.now();
             db.fusionResult.findMany({
               where: { companyId },
               select: { capabilityIds: true },
+              take: 100,
             }),
           ]);
 

@@ -26,7 +26,8 @@ try {
 
     const templates = await db.emailTemplate.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { name: 'asc' },
+      take: 100,
     });
 
     return NextResponse.json(templates);

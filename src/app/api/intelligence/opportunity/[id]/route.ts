@@ -232,6 +232,7 @@ const startedAt = Date.now();
       const fusionResults = await db.fusionResult.findMany({
         where: { companyId },
         select: { capabilityIds: true },
+        take: 100,
       });
       const capIds = new Set<string>();
       for (const fr of fusionResults) {

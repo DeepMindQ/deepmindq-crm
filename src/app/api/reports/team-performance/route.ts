@@ -12,6 +12,7 @@ try {
     // Fetch all users
     const users = await db.user.findMany({
       select: { id: true, name: true },
+      take: 100,
     });
 
     // If no users exist, create a system user placeholder
@@ -40,6 +41,8 @@ try {
     // Get audit logs grouped by user for activity counts
     const auditLogs = await db.auditLog.findMany({
       select: { userId: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 1000,
     });
 
     const userActivityMap = new Map<string, { count: number; lastActive: string }>();

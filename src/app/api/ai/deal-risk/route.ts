@@ -20,6 +20,7 @@ try {
 
     const pursuits = await db.pursuit.findMany({
       where,
+      take: 100,
       include: {
         opportunity: {
           include: { company: { select: { id: true, rawName: true, normalizedName: true } } },

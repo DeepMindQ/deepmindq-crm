@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { unsafeFindMany } from '@/lib/query-helpers';
 
 /* ═══════════════════════════════════════════════════
    POST /api/capabilities/dedup-check
@@ -13,9 +14,9 @@ export async function POST() {
   if (errorResponse) return errorResponse;
 
 try {
-    const assets = await db.capabilityAsset.findMany({
+    const assets = await unsafeFindMany(db.capabilityAsset.findMany, {
       select: { id: true, title: true, contentHash: true, category: true, version: true },
-    });
+    }, 'Capability deduplication requires full asset scan');
 
     const hashGroups: Record<string, typeof assets> = {};
     for (const asset of assets) {

@@ -17,6 +17,7 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { registerTimer } from '@/lib/timer-registry';
 import { Prisma } from '@prisma/client';
+import { unsafeFindMany } from '@/lib/query-helpers';
 
 // ── Types ──
 
@@ -365,6 +366,7 @@ export async function computeAccountPriority(companyId: string, triggerType: 'ma
           where: { companyId, status: { in: ['detected', 'validated', 'active'] } },
           select: { impact: true, signalDate: true, createdAt: true },
           orderBy: { createdAt: 'desc' },
+          take: 200,
         }),
         db.evidence.aggregate({
           where: { companyId, status: 'active' },
@@ -518,10 +520,10 @@ export async function computeAllAccountPriorities(): Promise<{
   computed: number;
   results: ComputeResult[];
 }> {
-  const companies = await db.company.findMany({
+  const companies = await unsafeFindMany(db.company.findMany, {
     select: { id: true },
     where: { status: { not: 'archived' } },
-  });
+  }, 'Account prioritization batch compute requires full company scan');
 
   const results: ComputeResult[] = [];
   for (let i = 0; i < companies.length; i += 10) {

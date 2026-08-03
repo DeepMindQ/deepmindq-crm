@@ -1,5 +1,6 @@
 /**
  * WI-17C — Recommendations API
+ * (WI-17D integration: optional explainability summaries)
  *
  * GET /api/recommendations
  *   Query params:
@@ -9,6 +10,7 @@
  *     ?activeSignalsOnly=true — only companies with active signals
  *     ?sortBy=opportunityScore|confidenceScore|signalCount|recentActivity
  *     ?view=stats             — return engine stats instead of recommendations
+ *     ?includeExplanation=true — include WI-17D explainability summary per company
  *
  * Returns prioritized list of account recommendations.
  */
@@ -21,6 +23,7 @@ import {
   getRecommendationStats,
   type RecommendationListOptions,
 } from '@/lib/recommendation-engine';
+import { generateBulkExplainabilitySummaries } from '@/lib/explainability-engine';
 
 const VALID_TIERS = ['HOT_ACCOUNT', 'WARM_ACCOUNT', 'NURTURE', 'AT_RISK'];
 const VALID_SORT_FIELDS = ['opportunityScore', 'confidenceScore', 'signalCount', 'recentActivity'];
@@ -66,6 +69,26 @@ export async function GET(request: Request) {
     }
 
     const result = await generateAllRecommendations(options);
+
+    // WI-17D: Optionally attach explainability summaries
+    const includeExplanation = searchParams.get('includeExplanation') === 'true';
+    if (includeExplanation && result.recommendations.length > 0) {
+      try {
+        const companyIds = result.recommendations.map(r => r.companyId);
+        const summaries = await generateBulkExplainabilitySummaries(companyIds);
+        // Attach summary to each recommendation
+        for (const rec of result.recommendations) {
+          const summary = summaries.get(rec.companyId);
+          if (summary) {
+            (rec as any).explainabilitySummary = summary;
+          }
+        }
+      } catch (err) {
+        // Non-blocking — explainability enrichment failure should not break recommendations
+        logger.warn('[RecommendationsAPI] Explainability enrichment failed:', { error: err });
+      }
+    }
+
     return NextResponse.json({ success: true, data: result });
   } catch (error) {
     logger.error('[RecommendationsAPI] Failed:', { error });

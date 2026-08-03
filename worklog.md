@@ -1,4 +1,50 @@
 ---
+Task ID: wi-17c-ai-recommendation-engine
+Agent: Super Z (main)
+Task: WI-17C — AI Recommendation Engine (Prioritized Account Intelligence)
+
+Work Log:
+- Pushed WI-17A + WI-17B to GitHub (both were already committed locally)
+- Completed WI-17B Product Experience Validation: 6/6 items PASS
+  1. Performance ✅ — Single /alignment call with parallel DB queries
+  2. Empty state graceful ✅ — All 5 sections have centered empty-state cards
+  3. Partial activation understandable ✅ — ActivationStatus: 4 states + 6-step detail
+  4. Confidence explanation visible ✅ — Per-signal ConfidenceIndicator + temporal bars
+  5. Evidence sources accessible ✅ — Evidence Library with clickable URL "View" links
+  6. AI summary separates Facts/Signals/Interpretation/Recommendations ✅ — Separate sections
+- Designed WI-17C architecture: unified recommendation layer on top of existing modules
+- Created src/lib/recommendation-engine.ts (~1080 lines)
+  - generateAllRecommendations() — batch prioritized recommendations with filters
+  - generateCompanyRecommendation() — detailed single-company recommendation
+  - getRecommendationStats() — engine statistics
+  - Composite scoring (5 weights): AccountScore 30%, Opportunity 30%, Signal 15%, Capability 10%, Engagement 15%
+  - Priority: critical (≥80), high (≥60), medium (≥35), low
+  - Evidence-backed reasons, risk identification, recommended actions with timeline
+  - KG enrichment (non-blocking), Memory enrichment (non-blocking)
+  - Graceful degradation: every step has independent error handling
+- Created /api/recommendations (GET: list + stats)
+- Created /api/recommendations/[companyId] (GET: single company recommendation)
+- Created RecommendationCard component (~350 lines, Dark Intelligence OS)
+  - Opportunity score + priority badge + confidence grade
+  - Evidence-backed reasons with strength indicators
+  - Risk factors with severity + mitigation
+  - Recommended action with timeline + target role + conversation angle
+  - Expandable confidence breakdown (6 dimensions)
+  - KG + Memory enrichment indicators
+- Wired RecommendationCard into Company Workspace
+- Tests: 32/32 passing (12 describe blocks)
+- Build: 0 TSC errors, ESLint clean
+- Pushed to GitHub
+
+Stage Summary:
+- WI-17C complete: AI can now recommend which accounts to prioritize and why
+- Moves from "Here is intelligence" → "Here are the accounts you should prioritize, why, and what action"
+- Reuses all existing WI-16 modules (KG, Memory, Confidence, scoring engines)
+- Tag: e142c02
+- Ready for WI-17D (if planned) or production validation
+
+---
+
 Task ID: wi-17b-company-intelligence-activation
 Agent: Super Z (main)
 Task: WI-17B — Company Intelligence Activation (Lifecycle Status + Intelligence Profile)

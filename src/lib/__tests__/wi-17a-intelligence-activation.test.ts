@@ -94,7 +94,7 @@ const mockCompany = {
 
 describe('WI-17A: Intelligence Activation Orchestrator', () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    vi.resetAllMocks();
     // Default: company exists
     mockDb.company.findUnique.mockResolvedValue(mockCompany);
     mockDb.companySignal.count.mockResolvedValue(0);

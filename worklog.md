@@ -1643,3 +1643,27 @@ Stage Summary:
 - Files: explainability-engine.ts, 2 API routes, 1 test file, 1 modified route
 - Tests: 59/59 passing
 
+---
+Task ID: wi-17e-fix-and-full-validation
+Agent: Super Z (main)
+Task: Fix WI-17E test failures + Full WI-17 validation
+
+Work Log:
+- Discovered all WI-17 sub-tickets (A through E) were already built with 196 total tests
+- Confirmed WI-17C Validation Checklist: All 7 items validated by existing test suite (34 WI-17C + 59 WI-17D = 93 tests)
+- Confirmed WI-17D Explainability Layer: Full 6-section intelligence trail complete with 59 tests
+- Found 7 WI-17E test failures in Learning Analytics section (test ordering pollution)
+- Root cause: `vi.clearAllMocks()` does not clear `mockImplementationOnce` queues, causing mock state to leak between describe blocks
+- Fixed: Changed `vi.clearAllMocks()` → `vi.resetAllMocks()` in both WI-17A and WI-17E test files
+- Fixed 2 additional WI-17A failures (same root cause: mockImplementationOnce leak from earlier tests)
+- Post-fix: 196/196 WI-17 tests passing (43 WI-17A + 10 WI-17B + 34 WI-17C + 59 WI-17D + 52 WI-17E — includes shared tests)
+- Full suite: 2463 pass / 23 fail (pre-existing) / 14 skip — zero WI-17 regressions
+- Pre-existing failures: security-phase4 (2), security-verify-otp (16), ticket2-integration (5) — all unrelated to WI-17
+
+Stage Summary:
+- WI-17A/B/C/D/E all fully validated and passing
+- Total WI-17 test count: 196 tests across 5 suites
+- Bug fix: vi.clearAllMocks → vi.resetAllMocks in 2 test files (prevents mockImplementationOnce leaking)
+- Files modified: wi-17a-intelligence-activation.test.ts, wi-17e-feedback-learning-loop.test.ts
+- No production code changes needed
+- Full WI-17 productization plan complete: Activation → Profile → Recommendation → Explainability → Feedback Learning

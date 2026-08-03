@@ -301,6 +301,7 @@ model Company {
   intelligenceHealth         CompanyIntelligenceHealth?
   intelligenceConflicts      IntelligenceConflict[]
   recommendationFeedbacks    RecommendationFeedback[]
+  intelligenceFeedbacks        IntelligenceFeedback[]
 
   // Phase 7.5: Intelligence Acquisition & Fabric
   aliases                  CompanyAlias[]
@@ -1646,6 +1647,55 @@ model RecommendationFeedback {
   @@index([recommendationId])
   @@index([companyId])
   @@index([userDecision])
+}
+
+// ── WI-17E: Intelligence Feedback Loop ──
+// Captures user feedback on WI-17C recommendations and WI-17D explainability.
+// Drives institutional learning, confidence calibration, and model improvement.
+
+model IntelligenceFeedback {
+  id                String   @id @default(cuid())
+
+  // What was rated
+  companyId         String
+  recommendationSnapshot String // JSON: key fields from the recommendation at feedback time
+
+  // User's verdict
+  verdict           String   // useful | not_useful | partially_useful | incorrect_action | wrong_account
+  sentiment         String   @default("neutral") // positive | negative | neutral
+
+  // Why
+  feedbackReason    String?  // reason category code (see FeedbackReasonCode in engine)
+  feedbackDetail    String?  // free-text explanation
+
+  // What was right/wrong
+  correctSignals    String?  @default("[]") // JSON: signal IDs that were accurate
+  incorrectSignals  String?  @default("[]") // JSON: signal IDs that were wrong
+  correctAction     Boolean? // was the recommended action appropriate?
+  actualOutcome     String?  // what actually happened (converted, rejected, no_response, meeting_held, etc.)
+
+  // Context at feedback time
+  priorityAtFeedback String? // what priority was shown (critical/high/medium/low)
+  scoreAtFeedback   Int?     // what score was shown (0-100)
+  confidenceAtFeedback String? // what confidence grade was shown
+
+  // Learning integration
+  memoryCreated      Boolean  @default(false) // did this feedback create a memory?
+  learningEventId    String?  // linked learning event if created
+  calibrationApplied Boolean  @default(false) // did this affect confidence calibration?
+
+  // Metadata
+  userId            String?
+  createdAt         DateTime @default(now())
+
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([verdict])
+  @@index([sentiment])
+  @@index([feedbackReason])
+  @@index([createdAt])
+  @@index([companyId, verdict])
 }
 
 // ── Phase 6.1 Hardening: Source Reliability Model ──

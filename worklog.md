@@ -325,4 +325,27 @@ Stage Summary:
 - 7 remaining are documented upstream vendor exceptions with risk mitigation
 - CI remains green after all dependency changes
 - package.json: removed @mdxeditor/editor, replaced xlsx with xlsx-js-style
-- Next: PHASE 3 — Database + API Hardening (WI-18.3)
+
+---
+Task ID: Phase-3
+Agent: Main Agent
+Task: WI-18.3 — Database + API Hardening
+
+Work Log:
+- Audited 268 findMany calls across 113 API route files, 245 across 84 lib files
+- Created src/lib/query-helpers.ts — safeFindMany(), unsafeFindMany(), safeQueryBounds()
+- Fixed 8 findFirst calls across 6 files (company-matcher x4, data-import x2, webhooks x2)
+- Verified 6 top list API routes already have take limits (companies, contacts, leads, signals, notes, opportunities)
+- Added 2 indexes to CustomEmailTemplate model (name, category) in prisma/schema.prisma
+- Enhanced src/lib/apiHelpers.ts with apiErrorCode(), apiValidationError(), apiNotFound(), apiPaginated()
+- Created src/lib/api-error-handler.ts — withErrorHandler() global API error wrapper
+- Created src/lib/api-observability.ts — recordApiMetric(), getApiMetrics()
+- Created src/app/api/api-metrics/route.ts — observability metrics endpoint
+- CI: TypeScript 0 errors, ESLint 0 errors, 2840 tests pass, build succeeds
+
+Stage Summary:
+- 12 files changed (4 new, 8 modified)
+- Commit SHA: 69092c4
+- Tag: WI-18.3-database-api-hardening
+- Pushed to GitHub
+- Next: PHASE 4 — Performance Hardening (WI-18.4)

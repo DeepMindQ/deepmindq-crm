@@ -5,7 +5,7 @@ import { logger } from '@/lib/logger';
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   NEXTAUTH_URL: z.string().url().optional().default('http://localhost:3000'),
-  NEXTAUTH_SECRET: z.string().min(1, 'NEXTAUTH_SECRET is required'),
+  NEXTAUTH_SECRET: z.string().min(32, 'NEXTAUTH_SECRET must be at least 32 characters'),
   // AI API keys (optional — app works with template fallback)
   OPENAI_API_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
@@ -31,6 +31,8 @@ const envSchema = z.object({
   RESEND_WEBHOOK_SECRET: z.string().optional(),
   SETUP_TOKEN: z.string().optional(),
   DIRECT_DATABASE_URL: z.string().optional(),
+  // WI-18.1 LOCK: Encryption key for API keys at rest
+  API_KEY_ENCRYPTION_KEY: z.string().min(32, 'API_KEY_ENCRYPTION_KEY must be at least 32 characters').optional(),
 })
 
 export type EnvConfig = z.infer<typeof envSchema>
@@ -135,6 +137,21 @@ export function validateEnv() {
     }
     if (process.env.TRACKING_SECRET && process.env.TRACKING_SECRET.length < 16) {
       throw new Error('TRACKING_SECRET must be at least 16 characters')
+    }
+    // WI-18.1 LOCK: API key encryption — fail production if missing
+    if (!process.env.API_KEY_ENCRYPTION_KEY || process.env.API_KEY_ENCRYPTION_KEY.length < 32) {
+      throw new Error(
+        'API_KEY_ENCRYPTION_KEY must be set in production (min 32 chars). ' +
+        'Without it, API keys are stored in PLAINTEXT. Generate: openssl rand -base64 32'
+      )
+    }
+  } else {
+    // Development: warn about missing security vars but don't block
+    if (!process.env.API_KEY_ENCRYPTION_KEY) {
+      logger.warn(
+        '[ENV SECURITY] API_KEY_ENCRYPTION_KEY not set — API keys will be stored unencrypted. ' +
+        'This is acceptable in development but MUST be set in production.'
+      )
     }
   }
 

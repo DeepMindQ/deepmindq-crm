@@ -29,14 +29,31 @@ export const createCompanySchema = z.object({
 
 export const updateCompanySchema = z.object({
   name: z.string().trim().min(1).max(200).optional(),
+  rawName: z.string().trim().min(1).max(200).optional(),
   domain: z.string().url().optional().or(z.literal('')).optional(),
   website: z.string().url().optional().or(z.literal('')).optional(),
   linkedinUrl: z.string().url().optional().or(z.literal('')).optional(),
-  industry: z.string().optional(),
+  industry: z.string().max(100).optional(),
   employeeSize: z.enum(EMPLOYEE_SIZES).optional(),
-  country: z.string().optional(),
-  location: z.string().optional(),
+  country: z.string().max(100).optional(),
+  location: z.string().max(200).optional(),
+  sizeRange: z.string().max(50).optional(),
   status: z.enum(COMPANY_STATUSES).optional(),
+  lifecycleStage: z.string().max(50).optional(),
+  priorityTier: z.enum(['HOT', 'ACTIVE', 'NURTURE', 'LOW'] as const).optional(),
+  internalSummary: z.string().max(2000).optional(),
+  source: z.string().max(100).optional(),
+  // WI-18.1-04: Numeric score fields — previously unprotected
+  intelligenceScore: z.number().min(0).max(100).optional(),
+  engagementScore: z.number().min(0).max(100).optional(),
+  accountPriorityScore: z.number().min(0).max(100).optional(),
+  opportunityScore: z.number().min(0).max(100).optional(),
+  // WI-18.1-04: Assignment field — previously unprotected
+  assignedTo: z.string().max(200).optional(),
+  // WI-18.1-04: Timestamp — previously unprotected
+  lastActivityAt: z.string().datetime({ message: 'Invalid ISO datetime' }).optional().or(z.literal('')).optional(),
+  // Tags — accept array or JSON string
+  tags: z.union([z.array(z.string().max(100)), z.string().max(2000)]).optional(),
 })
 
 // ── Contact ─────────────────────────────────────────────────────────

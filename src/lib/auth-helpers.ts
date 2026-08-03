@@ -140,7 +140,12 @@ function timingSafeEqual(a: string, b: string): boolean {
 export function getSecurityHeaders(): Record<string, string> {
   const csp = [
     "default-src 'self'",
-    "script-src 'self' 'unsafe-inline'",
+    // WI-18.1-07: Nonce-based CSP for scripts (unsafe-inline removed)
+    // The middleware and next.config.js will inject the actual nonce.
+    // For now, allow 'self' + 'unsafe-eval' for Next.js hot-reload in dev.
+    process.env.NODE_ENV === 'production'
+      ? "script-src 'self'"
+      : "script-src 'self' 'unsafe-eval'",
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https://*.googleusercontent.com",

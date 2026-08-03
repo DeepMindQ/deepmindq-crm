@@ -1,5 +1,29 @@
+/* ═══════════════════════════════════════════════════
+   fetchApi — Client-side API Fetch Wrapper
+   WI-18.1-02: Added CSRF token header for state-changing requests
+   ═══════════════════════════════════════════════════ */
+
 interface FetchApiOptions extends RequestInit {
   params?: Record<string, string | number | undefined>
+}
+
+/**
+ * Read the CSRF token from cookies.
+ * The Edge middleware injects this cookie on every page load.
+ */
+function getCsrfToken(): string | null {
+  if (typeof document === 'undefined') return null;
+  const match = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : null;
+}
+
+/**
+ * Determine if a request method requires CSRF protection.
+ */
+function isStateChangingMethod(method?: string): boolean {
+  if (!method) return false;
+  const m = method.toUpperCase();
+  return !['GET', 'HEAD', 'OPTIONS'].includes(m);
 }
 
 export async function fetchApi<T = any>(
@@ -24,7 +48,16 @@ export async function fetchApi<T = any>(
     // Destructure so params don't leak into fetch init
     const { params: _params, ...fetchOpts } = options
 
-    const res = await fetch(fullUrl, { ...fetchOpts, credentials: 'include' })
+    // Inject CSRF token for state-changing requests (WI-18.1-02)
+    const headers = new Headers(fetchOpts.headers)
+    if (isStateChangingMethod(fetchOpts.method)) {
+      const csrfToken = getCsrfToken()
+      if (csrfToken) {
+        headers.set('x-csrf-token', csrfToken)
+      }
+    }
+
+    const res = await fetch(fullUrl, { ...fetchOpts, credentials: 'include', headers })
 
     if (!res.ok) {
       const body = await res.json().catch(() => ({}))

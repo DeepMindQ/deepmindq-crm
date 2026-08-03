@@ -1,4 +1,38 @@
 ---
+Task ID: wi-17a-intelligence-activation
+Agent: Super Z (main)
+Task: WI-17A — Intelligence Activation Orchestrator (Data → AI Pipeline Integration)
+
+Work Log:
+- Completed WI-17 Architecture Integration Audit: mapped all 5 import paths, 9 company creation paths, 7 contact creation paths, 30+ AI routes
+- Identified key gap: AI enrichment is NEVER triggered automatically during import — all 5 import paths create records with zero AI processing
+- Identified 5 WI-16 modules NOT integrated: ai-unified-confidence (never called), ai-memory (API only), ai-knowledge-graph (API only), ai-hybrid-retrieval (partial), ai-prompt-registry (zero usage)
+- Created src/lib/intelligence-activation.ts (~600 lines): Central orchestrator bridging data entry to AI brain
+- 6-step activation pipeline using existing WI-16 engines (no rebuild):
+  1. Entity Resolution → ai-hybrid-retrieval (extractEntities)
+  2. Knowledge Graph Update → ai-knowledge-graph (addNode/addEdge)
+  3. Retrieval Indexing → ai-hybrid-retrieval (addToIndex)
+  4. Memory Creation → ai-memory (storeMemory)
+  5. Signal Extraction → intelligence-pipeline (enrichCompany) with 24h cooldown
+  6. Confidence Scoring → ai-unified-confidence (computeUnifiedConfidence)
+- Wired activation into 4 data entry paths:
+  - /api/companies POST → activateIntelligenceAsync(company_manual)
+  - /api/contacts POST → activateIntelligenceAsync(contact_manual)
+  - data-import/pipeline.ts commitImport → activateIntelligenceBatch(import_pipeline)
+  - data-intelligence/engine.ts commitUpload → activateIntelligenceBatch(import_intelligence)
+- Created /api/intelligence/activation API route (POST trigger, GET stats/health)
+- Design: Non-blocking fire-and-forget, graceful degradation (each step independent try/catch), 24h enrichment cooldown
+- Tests: 43/43 passing across 10 describe blocks (full flow, signal extraction, degradation, batch, async, stats, health, triggers, WI-16 integration, edge cases)
+- Build: 0 TypeScript errors, ESLint clean, pre-commit hooks passed
+
+Stage Summary:
+- WI-17A complete: Every company/contact entering DeepMindQ now automatically activates intelligence
+- Files created: intelligence-activation.ts, activation/route.ts, wi-17a test suite
+- Files modified: companies/route.ts, contacts/route.ts, data-import/pipeline.ts, data-intelligence/engine.ts
+- Tag: wi-17a-intelligence-activation
+- Ready for WI-17B: Company Intelligence Activation
+
+---
 Task ID: phase-1a-correction
 Agent: Super Z (main)
 Task: Phase 1A Correction Cycle — Intelligence Foundation Real, Not Visual

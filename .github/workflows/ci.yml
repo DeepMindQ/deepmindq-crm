@@ -74,15 +74,15 @@ jobs:
       - name: Verify CSRF flow integrity
         run: |
           FAIL=0
-          echo "Checking CSRF flow integrity..."
-          ls -la src/lib/csrf.ts src/proxy.ts src/lib/fetchApi.ts src/lib/auth-helpers.ts 2>&1 || { echo "::error::CSRF source files missing"; FAIL=1; }
-          if ! grep -q "generateCsrfToken" src/lib/csrf.ts; then echo "::error::CSRF gen missing from csrf.ts"; FAIL=1; else echo "OK: generateCsrfToken found"; fi
-          if ! grep -q "timingSafeEqual" src/lib/csrf.ts; then echo "::error::CSRF timing missing from csrf.ts"; FAIL=1; else echo "OK: timingSafeEqual found"; fi
-          if ! grep -q "validateCsrf" src/proxy.ts; then echo "::error::Proxy CSRF missing from proxy.ts"; FAIL=1; else echo "OK: validateCsrf found in proxy.ts"; fi
-          if ! grep -q "x-csrf-token" src/lib/fetchApi.ts; then echo "::error::fetchApi CSRF missing from fetchApi.ts"; FAIL=1; else echo "OK: x-csrf-token found in fetchApi.ts"; fi
-          if ! grep -q "validateCsrf" src/lib/auth-helpers.ts; then echo "::error::auth-helpers CSRF missing from auth-helpers.ts"; FAIL=1; else echo "OK: validateCsrf found in auth-helpers.ts"; fi
-          echo "FAIL=$FAIL"
-          [ "$FAIL" -eq 1 ] && exit 1
+          for f in src/lib/csrf.ts src/proxy.ts src/lib/fetchApi.ts src/lib/auth-helpers.ts; do
+            if [ ! -f "$f" ]; then echo "::error::$f is missing"; FAIL=1; fi
+          done
+          if ! grep -q "generateCsrfToken" src/lib/csrf.ts; then echo "::error::CSRF gen missing from csrf.ts"; FAIL=1; fi
+          if ! grep -q "timingSafeEqual" src/lib/csrf.ts; then echo "::error::CSRF timing missing from csrf.ts"; FAIL=1; fi
+          if ! grep -q "validateCsrf" src/proxy.ts; then echo "::error::Proxy CSRF missing from proxy.ts"; FAIL=1; fi
+          if ! grep -q "x-csrf-token" src/lib/fetchApi.ts; then echo "::error::fetchApi CSRF missing from fetchApi.ts"; FAIL=1; fi
+          if ! grep -q "validateCsrf" src/lib/auth-helpers.ts; then echo "::error::auth-helpers CSRF missing from auth-helpers.ts"; FAIL=1; fi
+          if [ "$FAIL" -eq 1 ]; then exit 1; fi
 
       - name: Verify AI route authentication
         run: |
@@ -92,7 +92,7 @@ jobs:
               echo "::error::$route has no auth guard"; FAIL=1
             fi
           done
-          [ "$FAIL" -eq 1 ] && exit 1
+          if [ "$FAIL" -eq 1 ]; then exit 1; fi
 
       - name: Verify security headers
         run: |
@@ -100,7 +100,7 @@ jobs:
           for header in X-Content-Type-Options X-Frame-Options Strict-Transport-Security Content-Security-Policy Referrer-Policy; do
             if ! grep -q "$header" src/lib/auth-helpers.ts; then echo "::error::$header missing"; FAIL=1; fi
           done
-          [ "$FAIL" -eq 1 ] && exit 1
+          if [ "$FAIL" -eq 1 ]; then exit 1; fi
 
       - name: Verify DOMPurify
         run: |
@@ -122,7 +122,7 @@ jobs:
           FAIL=0
           if ! grep -q "/api/auth/me" src/providers/auth-provider.tsx; then echo "::error::AuthProvider no session check"; FAIL=1; fi
           if ! grep -q "window.location.href" src/providers/auth-provider.tsx; then echo "::error::AuthProvider no redirect"; FAIL=1; fi
-          [ "$FAIL" -eq 1 ] && exit 1
+          if [ "$FAIL" -eq 1 ]; then exit 1; fi
 
       - name: Verify environment validation
         run: |
@@ -130,7 +130,7 @@ jobs:
           if ! grep -q "API_KEY_ENCRYPTION_KEY" src/lib/validate-env.ts; then echo "::error::validate-env no encryption key"; FAIL=1; fi
           if ! grep -q "PLAINTEXT" src/lib/validate-env.ts; then echo "::error::validate-env no plaintext warning"; FAIL=1; fi
           if ! grep -q "throw new Error" src/lib/validate-env.ts; then echo "::error::validate-env no throw"; FAIL=1; fi
-          [ "$FAIL" -eq 1 ] && exit 1
+          if [ "$FAIL" -eq 1 ]; then exit 1; fi
 
   # ═══════════════════════════════════════════════════
   # JOB 2: DEPENDENCY SECURITY AUDIT

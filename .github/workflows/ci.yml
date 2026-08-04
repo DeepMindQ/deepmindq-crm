@@ -59,7 +59,7 @@ jobs:
       - run: npx prisma generate
 
       - name: Run security gate regression tests
-        run: npx vitest run --config vitest.security.config.ts tests/security/wi18-security-regression.test.ts tests/security/wi18-security-gate-integrity.test.ts
+        run: npx vitest run --config vitest.security.config.ts
         env:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'

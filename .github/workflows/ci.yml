@@ -245,6 +245,9 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
+    env:
+      DATABASE_URL: postgresql://ci_test:ci_test_pass@localhost:5432/ci_test
+      DIRECT_DATABASE_URL: postgresql://ci_test:ci_test_pass@localhost:5432/ci_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -255,17 +258,12 @@ jobs:
       - run: npx prisma generate
       - name: Run Prisma migrations
         run: npx prisma migrate deploy
-        env:
-          DATABASE_URL: postgresql://ci_test:ci_test_pass@localhost:5432/ci_test
       - name: Seed CI test data
         run: npx tsx scripts/seed-ci.ts
-        env:
-          DATABASE_URL: postgresql://ci_test:ci_test_pass@localhost:5432/ci_test
       - name: Run API tests
         run: npx vitest run --config vitest.api.config.ts
         env:
           CI: 'true'
-          DATABASE_URL: postgresql://ci_test:ci_test_pass@localhost:5432/ci_test
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   test-database:

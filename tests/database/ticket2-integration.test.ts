@@ -1071,6 +1071,9 @@ describe('Intelligence API — Data Shape', () => {
 
   // G40: N+1 query verification — mock call counts for parallel batching
   it('company loads signals and contacts in parallel (not N+1)', async () => {
+    // Explicitly reset call counts to avoid CI flakiness from parallel pool execution
+    vi.clearAllMocks();
+    setupDefaultMocks();
     (db.companySignal.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     (db.contact.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     const request = mockRequest(`/api/intelligence/company/${COMPANY_ID}?include=signals,contacts`);

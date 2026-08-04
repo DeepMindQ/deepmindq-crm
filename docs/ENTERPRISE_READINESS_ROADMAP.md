@@ -3,7 +3,11 @@
 **Product**: Enterprise AI Intelligence Platform  
 **Version**: 1.0-roadmap  
 **Last Updated**: 2026-08-04  
-**Execution Priority**: Security > Testing > AI Accuracy > Deployment > UI/UX > Documentation
+**Execution Priority**: Security > Testing > AI Accuracy > Deployment > UI/UX > Documentation  
+**Final Assessment Dimensions**:
+1. **Software Quality** — Security, Architecture, Testing, Infrastructure, Performance
+2. **Intelligence Quality** — Business Logic, AI Accuracy, Explainability, Evidence
+3. **Business Readiness** — Enterprise Deployment, Customer Confidence, Investor Due Diligence
 
 ---
 
@@ -94,7 +98,7 @@ Eliminate all critical and high-severity security vulnerabilities identified in 
 ### GitHub Evidence
 - **Pull Request**: [#5](https://github.com/DeepMindQ/deepmindq-crm/pull/5)
 - **Branch**: `milestone-1-security-hardening`
-- **CI Run**: Pending final verification
+- **CI Run**: [#30906513256](https://github.com/DeepMindQ/deepmindq-crm/actions/runs/30906513256) — **18/18 jobs green**
 
 ### Local Verification Results
 | Check | Result |
@@ -166,28 +170,63 @@ Eliminate all critical and high-severity security vulnerabilities identified in 
 
 ---
 
-## Milestone 4 — AI Intelligence Certification
+## Milestone 4 — Business Logic & Intelligence Quality Certification
 
-**Status**: 🔲 PENDING
+**Status**: 🔲 PENDING  
+**Dimension**: Intelligence Quality  
+**Target**: Validate that DeepMindQ produces correct intelligence decisions
 
-### Scope
-- Hybrid RAG retrieval validation
-- Hallucination prevention testing
-- Governance framework coverage
-- LLM fallback reliability
-- AI output quality benchmarks
+### Objective
+Normal testing answers "Does the code work?" Business Logic Certification answers "Does DeepMindQ produce the correct intelligence decisions?" This milestone validates every intelligence engine's decision accuracy, explainability, and evidence grounding.
+
+### Scope — Intelligence Engine Accuracy
+
+| Engine | Validation Required |
+|--------|-------------------|
+| Company Intelligence | Score calculation, data fusion, completeness |
+| Contact Intelligence | Role inference, hierarchy mapping accuracy |
+| Signal Detection (32 types) | Detection accuracy, false positive rate, classification correctness |
+| Multi-Factor Scoring | Weight verification, score distribution, edge cases |
+| Buying Intent Engine | Intent classification, confidence calibration |
+| Revenue Opportunity Engine | Revenue estimation accuracy, evidence linkage |
+| Deal Risk Scoring | Risk factor coverage, score explainability |
+| Recommendation Engine | Relevance, diversity, evidence grounding |
+| Account Intelligence Briefs | Brief quality, evidence citation accuracy, completeness |
+| Hybrid RAG Retrieval (6 signals) | Retrieval quality, Reciprocal Rank Fusion correctness |
+| Knowledge Graph Intelligence | Graph traversal accuracy, entity resolution |
+| Email Intelligence | Response classification, sentiment accuracy |
+| Executive Intelligence Dashboards | Metric aggregation, drill-down correctness |
+
+### Required Deliverables
+- [ ] Business Rule Catalogue — every scoring rule documented
+- [ ] Intelligence Decision Matrix — input → processing → output for each engine
+- [ ] Golden Datasets — curated test data with known correct outputs
+- [ ] Expected vs Actual Output Validation — automated comparison suite
+- [ ] Regression Suite for Intelligence Engines — catch score drift
+- [ ] Explainability Reports — every score must have explainable inputs
+- [ ] Score Calculation Verification — manual audit of scoring algorithms
+- [ ] Recommendation Traceability — every recommendation traced to evidence
+
+### Acceptance Criteria
+- Every score has explainable inputs
+- Every recommendation has evidence
+- Every AI insight is grounded in source data
+- Intelligence outputs are consistent across runs
+- No undocumented business rules remain
+- Golden dataset validation passes with >95% accuracy
 
 ---
 
-## Milestone 5 — CI/CD Pipeline Certification
+## Milestone 5 — CI/CD & Architecture Certification
 
 **Status**: 🔲 PENDING
 
 ### Scope
 - CI pipeline stabilization (all jobs green)
-- RBAC integration into request pipeline
+- RBAC `authorizeRoute()` integration into request pipeline (B-01 from Milestone 1)
 - Deployment pipeline hardening
 - Artifact management
+- Build reproducibility
 
 ---
 
@@ -200,6 +239,7 @@ Eliminate all critical and high-severity security vulnerabilities identified in 
 - Responsive design validation
 - Accessibility audit
 - Component architecture
+- Enterprise UX patterns
 
 ---
 
@@ -212,6 +252,7 @@ Eliminate all critical and high-severity security vulnerabilities identified in 
 - Session cleanup automation
 - Error handling hardening
 - Operational runbooks
+- Health check completeness
 
 ---
 
@@ -224,6 +265,7 @@ Eliminate all critical and high-severity security vulnerabilities identified in 
 - Database query optimization
 - Bundle size analysis
 - Load testing
+- Memory leak detection
 
 ---
 
@@ -235,16 +277,55 @@ Eliminate all critical and high-severity security vulnerabilities identified in 
 - API documentation completeness
 - Architecture documentation
 - Deployment guide validation
-- Dead code cleanup
+- Dead code cleanup (including B-02 from Milestone 1)
+- Code comments accuracy
 
 ---
 
-## Milestone 10 — Final Enterprise Certification
+## Milestone 10 — Investor Readiness & Final Enterprise Certification
 
-**Status**: 🔲 PENDING
+**Status**: 🔲 PENDING  
+**Dimension**: Business Readiness + Final Assessment
 
-### Scope
-- Full re-audit across all categories
-- Evidence package compilation
-- Enterprise readiness score
-- Certification sign-off
+### Part A — Investor Readiness Certification
+
+#### Product Differentiation Documentation
+- [ ] Why DeepMindQ is an Enterprise AI Intelligence Platform (NOT a CRM)
+- [ ] Why it is NOT a traditional SaaS workflow tool
+- [ ] Competitive differentiation analysis
+- [ ] Defensible AI architecture explanation
+- [ ] IP/patent integration documentation
+
+#### Technical Due Diligence Package
+- [ ] Complete architecture diagrams (system, data flow, AI pipeline)
+- [ ] AI pipeline documentation (RAG → Governance → Hallucination Prevention → Output)
+- [ ] Security evidence package (Milestone 1 closure + ongoing evidence)
+- [ ] Testing evidence package (all milestone test results compiled)
+- [ ] CI/CD maturity evidence (pipeline stability, deployment automation)
+- [ ] Scalability documentation (horizontal scaling, database, AI providers)
+- [ ] Technology decisions rationale (Next.js 16, Prisma, Edge proxy, etc.)
+- [ ] Database design documentation (85 models, relationship map, indexing strategy)
+
+#### Business Readiness Package
+- [ ] Enterprise use cases documented
+- [ ] Buyer personas (CIO, VP Sales, Head of Intelligence, CTO)
+- [ ] ROI measurement framework
+- [ ] Deployment model documentation (enterprise license, on-premise option)
+- [ ] Implementation approach (setup → configure → train → deploy)
+- [ ] Enterprise sales enablement material
+
+### Part B — Final Enterprise Certification
+
+#### Full Re-Audit
+- [ ] Security re-audit (regression check against Milestone 1 baseline)
+- [ ] Database certification verification
+- [ ] Testing coverage and quality verification
+- [ ] AI accuracy verification against golden datasets
+- [ ] Performance benchmark verification
+- [ ] Documentation completeness audit
+
+#### Evidence Compilation
+- [ ] All milestone evidence packages consolidated
+- [ ] Enterprise readiness score (all 3 dimensions)
+- [ ] Remaining risks and mitigation plans documented
+- [ ] Certification sign-off checklist

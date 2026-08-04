@@ -39,13 +39,20 @@ vi.mock('@/lib/intelligence-sources/human-intelligence', () => ({
 // Batch Dismiss API
 // ═══════════════════════════════════════════════════════════════
 
+
+// Static route handler import
+import { POST as batchDismissPOST } from '@/app/api/g-intel-acquisition/inbox/batch-dismiss/route'
+
+const batchDismissHandlers = { POST: batchDismissPOST }
+
 describe('POST /api/g-intel-acquisition/inbox/batch-dismiss', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
   it('batch dismisses multiple items and returns counts', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = batchDismissHandlers
 
     mockBatchDismissInboxItems.mockResolvedValue({
       dismissed: 3,
@@ -75,7 +82,8 @@ describe('POST /api/g-intel-acquisition/inbox/batch-dismiss', () => {
   })
 
   it('returns partial success when some items fail', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = batchDismissHandlers
 
     mockBatchDismissInboxItems.mockResolvedValue({
       dismissed: 2,
@@ -100,7 +108,8 @@ describe('POST /api/g-intel-acquisition/inbox/batch-dismiss', () => {
   })
 
   it('returns 400 when reviewerId is missing', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = batchDismissHandlers
 
     const req = new Request('http://localhost/api/g-intel-acquisition/inbox/batch-dismiss', {
       method: 'POST',
@@ -114,7 +123,8 @@ describe('POST /api/g-intel-acquisition/inbox/batch-dismiss', () => {
   })
 
   it('returns 400 when ids is empty', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = batchDismissHandlers
 
     const req = new Request('http://localhost/api/g-intel-acquisition/inbox/batch-dismiss', {
       method: 'POST',
@@ -126,7 +136,8 @@ describe('POST /api/g-intel-acquisition/inbox/batch-dismiss', () => {
   })
 
   it('returns 400 when ids exceeds 100 items', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = batchDismissHandlers
 
     const ids = Array.from({ length: 101 }, (_, i) => `inbox-${i}`)
     const req = new Request('http://localhost/api/g-intel-acquisition/inbox/batch-dismiss', {
@@ -139,7 +150,8 @@ describe('POST /api/g-intel-acquisition/inbox/batch-dismiss', () => {
   })
 
   it('returns 400 when ids is not an array', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = batchDismissHandlers
 
     const req = new Request('http://localhost/api/g-intel-acquisition/inbox/batch-dismiss', {
       method: 'POST',
@@ -151,7 +163,8 @@ describe('POST /api/g-intel-acquisition/inbox/batch-dismiss', () => {
   })
 
   it('returns 500 when batch dismiss fails', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = batchDismissHandlers
 
     mockBatchDismissInboxItems.mockRejectedValue(new Error('DB connection error'))
 

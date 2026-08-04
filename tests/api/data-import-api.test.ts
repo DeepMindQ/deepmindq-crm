@@ -90,13 +90,22 @@ vi.mock('@/lib/session', () => ({
 // GET /api/data-import — List uploads
 // ═══════════════════════════════════════════════════════════════
 
+
+// Static route handler imports
+import { GET as dataImportGET, POST as dataImportPOST } from '@/app/api/data-import/route'
+import { GET as dataImportIdGET } from '@/app/api/data-import/[id]/route'
+
+const dataImportHandlers = { GET: dataImportGET, POST: dataImportPOST }
+const dataImportIdHandlers = { GET: dataImportIdGET }
+
 describe('GET /api/data-import', () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it('returns paginated uploads in apiSuccess envelope', async () => {
-    const { GET } = await import('../route');
+    // handler imported statically below
+    const { GET } = dataImportHandlers;
 
     mockListUploads.mockResolvedValue({
       items: [
@@ -119,7 +128,8 @@ describe('GET /api/data-import', () => {
   });
 
   it('clamps page to minimum 1', async () => {
-    const { GET } = await import('../route');
+    // handler imported statically below
+    const { GET } = dataImportHandlers;
 
     mockListUploads.mockResolvedValue({ items: [], total: 0 });
 
@@ -130,7 +140,8 @@ describe('GET /api/data-import', () => {
   });
 
   it('returns 500 when list fails', async () => {
-    const { GET } = await import('../route');
+    // handler imported statically below
+    const { GET } = dataImportHandlers;
 
     mockListUploads.mockRejectedValue(new Error('DB connection error'));
 
@@ -154,7 +165,8 @@ describe('POST /api/data-import (action: upload)', () => {
   });
 
   it('creates upload and auto-maps columns', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     mockCreateDataUpload.mockResolvedValue({
       id: 'u1', fileName: 'leads.csv', totalRows: 10, status: 'created',
@@ -190,7 +202,8 @@ describe('POST /api/data-import (action: upload)', () => {
   });
 
   it('returns 400 when fileName is missing', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     const req = new Request('http://localhost/api/data-import', {
       method: 'POST',
@@ -205,7 +218,8 @@ describe('POST /api/data-import (action: upload)', () => {
   });
 
   it('returns 400 when totalRows is invalid', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     const req = new Request('http://localhost/api/data-import', {
       method: 'POST',
@@ -218,7 +232,8 @@ describe('POST /api/data-import (action: upload)', () => {
   });
 
   it('returns 400 for unknown action', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     const req = new Request('http://localhost/api/data-import', {
       method: 'POST',
@@ -242,7 +257,8 @@ describe('POST /api/data-import (action: confirm-mapping)', () => {
   });
 
   it('confirms column mapping and updates status', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     mockDbDataUploadFindUnique.mockResolvedValue({ id: 'u1', status: 'created' });
     mockDbDataUploadUpdate.mockResolvedValue({ id: 'u1', status: 'mapping_confirmed' });
@@ -271,7 +287,8 @@ describe('POST /api/data-import (action: confirm-mapping)', () => {
   });
 
   it('returns 404 when upload not found', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     mockDbDataUploadFindUnique.mockResolvedValue(null);
 
@@ -289,7 +306,8 @@ describe('POST /api/data-import (action: confirm-mapping)', () => {
   });
 
   it('returns 400 when status is not created', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     mockDbDataUploadFindUnique.mockResolvedValue({ id: 'u1', status: 'processing' });
 
@@ -317,7 +335,8 @@ describe('POST /api/data-import (action: validate)', () => {
   });
 
   it('validates rows and returns counts', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     mockDbDataUploadFindUnique.mockResolvedValue({ id: 'u1' });
     mockDbDataUploadUpdate.mockResolvedValue({});
@@ -345,7 +364,8 @@ describe('POST /api/data-import (action: validate)', () => {
   });
 
   it('returns 404 when upload not found for validate', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     mockDbDataUploadFindUnique.mockResolvedValue(null);
 
@@ -369,7 +389,8 @@ describe('POST /api/data-import (action: normalize)', () => {
   });
 
   it('normalizes rows and returns counts', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     mockDbDataUploadFindUnique.mockResolvedValue({ id: 'u1' });
     mockDbDataUploadUpdate.mockResolvedValue({});
@@ -396,7 +417,8 @@ describe('POST /api/data-import (action: normalize)', () => {
   });
 
   it('updates upload status to review_ready after normalize', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     mockDbDataUploadFindUnique.mockResolvedValue({ id: 'u1' });
     mockDbDataUploadUpdate.mockResolvedValue({});
@@ -426,7 +448,8 @@ describe('POST /api/data-import (action: commit)', () => {
   });
 
   it('commits import and returns counts', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     mockCommitImport.mockResolvedValue({
       companiesCreated: 5,
@@ -452,7 +475,8 @@ describe('POST /api/data-import (action: commit)', () => {
   });
 
   it('returns 400 when uploadId missing for commit', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     const req = new Request('http://localhost/api/data-import', {
       method: 'POST',
@@ -466,7 +490,8 @@ describe('POST /api/data-import (action: commit)', () => {
   });
 
   it('returns 404 when commit fails with not found', async () => {
-    const { POST } = await import('../route');
+    // handler imported statically below
+    const { POST } = dataImportHandlers;
 
     mockCommitImport.mockRejectedValue(new Error('DataUpload with id "missing" not found.'));
 
@@ -490,7 +515,8 @@ describe('GET /api/data-import/[id]', () => {
   });
 
   it('returns upload with rows and quality scores', async () => {
-    const { GET } = await import('../[id]/route');
+    // handler imported statically below
+    const { GET } = dataImportIdHandlers;
 
     mockGetUploadWithDetails.mockResolvedValue({
       upload: {
@@ -518,7 +544,8 @@ describe('GET /api/data-import/[id]', () => {
   });
 
   it('returns 404 when upload not found', async () => {
-    const { GET } = await import('../[id]/route');
+    // handler imported statically below
+    const { GET } = dataImportIdHandlers;
 
     mockGetUploadWithDetails.mockRejectedValue(new Error('DataUpload with id "missing" not found.'));
 
@@ -530,7 +557,8 @@ describe('GET /api/data-import/[id]', () => {
   });
 
   it('returns 500 for unexpected errors', async () => {
-    const { GET } = await import('../[id]/route');
+    // handler imported statically below
+    const { GET } = dataImportIdHandlers;
 
     mockGetUploadWithDetails.mockRejectedValue(new Error('DB error'));
 

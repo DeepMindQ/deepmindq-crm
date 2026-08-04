@@ -57,6 +57,20 @@ vi.mock('@/lib/intelligence-sources/human-intelligence', () => ({
 }))
 
 // ═══════════════════════════════════════════════════════════════
+
+// Static route handler imports
+import { GET as inboxStatsGET } from '@/app/api/g-intel-acquisition/inbox/stats/route'
+import { GET as inboxGET, POST as inboxPOST } from '@/app/api/g-intel-acquisition/inbox/route'
+import { POST as reviewPOST } from '@/app/api/g-intel-acquisition/inbox/[id]/review/route'
+import { POST as convertPOST } from '@/app/api/g-intel-acquisition/inbox/[id]/convert/route'
+import { POST as dismissPOST } from '@/app/api/g-intel-acquisition/inbox/[id]/dismiss/route'
+
+const inboxStatsHandlers = { GET: inboxStatsGET }
+const inboxHandlers = { GET: inboxGET, POST: inboxPOST }
+const reviewHandlers = { POST: reviewPOST }
+const convertHandlers = { POST: convertPOST }
+const dismissHandlers = { POST: dismissPOST }
+
 // Stats API
 // ═══════════════════════════════════════════════════════════════
 
@@ -66,7 +80,8 @@ describe('GET /api/g-intel-acquisition/inbox/stats', () => {
   })
 
   it('returns inbox stats wrapped in apiSuccess envelope', async () => {
-    const { GET } = await import('../stats/route')
+    // handler imported statically below
+    const { GET } = inboxStatsHandlers
 
     const stats = {
       byStatus: { pending: 5, approved: 3, rejected: 2, converted: 1 },
@@ -86,7 +101,8 @@ describe('GET /api/g-intel-acquisition/inbox/stats', () => {
   })
 
   it('returns 500 when stats fetch fails', async () => {
-    const { GET } = await import('../stats/route')
+    // handler imported statically below
+    const { GET } = inboxStatsHandlers
 
     mockGetInboxStats.mockRejectedValue(new Error('DB connection error'))
 
@@ -109,7 +125,8 @@ describe('GET /api/g-intel-acquisition/inbox', () => {
   })
 
   it('returns paginated items with stats in apiSuccess envelope', async () => {
-    const { GET } = await import('../route')
+    // handler imported statically below
+    const { GET } = inboxHandlers
 
     const items = [
       { id: 'inbox-1', priority: 'critical', status: 'pending', createdAt: '2024-06-10T00:00:00Z', company: { id: 'co-1', rawName: 'Acme' } },
@@ -131,7 +148,8 @@ describe('GET /api/g-intel-acquisition/inbox', () => {
   })
 
   it('filters by status and priority query params', async () => {
-    const { GET } = await import('../route')
+    // handler imported statically below
+    const { GET } = inboxHandlers
 
     mockGetInboxItems.mockResolvedValue({ items: [], total: 0 })
     mockGetInboxStats.mockResolvedValue({ byStatus: {}, byPriority: {}, total: 0 })
@@ -151,7 +169,8 @@ describe('GET /api/g-intel-acquisition/inbox', () => {
   })
 
   it('ignores invalid status and priority values', async () => {
-    const { GET } = await import('../route')
+    // handler imported statically below
+    const { GET } = inboxHandlers
 
     mockGetInboxItems.mockResolvedValue({ items: [], total: 0 })
     mockGetInboxStats.mockResolvedValue({ byStatus: {}, byPriority: {}, total: 0 })
@@ -170,7 +189,8 @@ describe('GET /api/g-intel-acquisition/inbox', () => {
   })
 
   it('clamps page to minimum 1', async () => {
-    const { GET } = await import('../route')
+    // handler imported statically below
+    const { GET } = inboxHandlers
 
     mockGetInboxItems.mockResolvedValue({ items: [], total: 0 })
     mockGetInboxStats.mockResolvedValue({ byStatus: {}, byPriority: {}, total: 0 })
@@ -185,7 +205,8 @@ describe('GET /api/g-intel-acquisition/inbox', () => {
   })
 
   it('returns 500 when list fetch fails', async () => {
-    const { GET } = await import('../route')
+    // handler imported statically below
+    const { GET } = inboxHandlers
 
     mockGetInboxItems.mockRejectedValue(new Error('DB error'))
 
@@ -198,7 +219,8 @@ describe('GET /api/g-intel-acquisition/inbox', () => {
   })
 
   it('filters by category query param', async () => {
-    const { GET } = await import('../route')
+    // handler imported statically below
+    const { GET } = inboxHandlers
 
     mockGetInboxItems.mockResolvedValue({ items: [], total: 0 })
     mockGetInboxStats.mockResolvedValue({ byStatus: {}, byPriority: {}, total: 0 })
@@ -215,7 +237,8 @@ describe('GET /api/g-intel-acquisition/inbox', () => {
   })
 
   it('ignores invalid category values', async () => {
-    const { GET } = await import('../route')
+    // handler imported statically below
+    const { GET } = inboxHandlers
 
     mockGetInboxItems.mockResolvedValue({ items: [], total: 0 })
     mockGetInboxStats.mockResolvedValue({ byStatus: {}, byPriority: {}, total: 0 })
@@ -240,7 +263,8 @@ describe('POST /api/g-intel-acquisition/inbox/[id]/review', () => {
   })
 
   it('approves an item via POST', async () => {
-    const { POST } = await import('../[id]/review/route')
+    // handler imported statically below
+    const { POST } = reviewHandlers
 
     mockReviewInboxItem.mockResolvedValue({ id: 'inbox-1', status: 'approved' })
 
@@ -258,7 +282,8 @@ describe('POST /api/g-intel-acquisition/inbox/[id]/review', () => {
   })
 
   it('rejects with notes via POST', async () => {
-    const { POST } = await import('../[id]/review/route')
+    // handler imported statically below
+    const { POST } = reviewHandlers
 
     mockReviewInboxItem.mockResolvedValue({ id: 'inbox-2', status: 'rejected' })
 
@@ -275,7 +300,8 @@ describe('POST /api/g-intel-acquisition/inbox/[id]/review', () => {
   })
 
   it('returns 400 for missing action', async () => {
-    const { POST } = await import('../[id]/review/route')
+    // handler imported statically below
+    const { POST } = reviewHandlers
 
     const req = new Request('http://localhost/api/g-intel-acquisition/inbox/inbox-1/review', {
       method: 'POST',
@@ -289,7 +315,8 @@ describe('POST /api/g-intel-acquisition/inbox/[id]/review', () => {
   })
 
   it('returns 400 for invalid action', async () => {
-    const { POST } = await import('../[id]/review/route')
+    // handler imported statically below
+    const { POST } = reviewHandlers
 
     const req = new Request('http://localhost/api/g-intel-acquisition/inbox/inbox-1/review', {
       method: 'POST',
@@ -301,7 +328,8 @@ describe('POST /api/g-intel-acquisition/inbox/[id]/review', () => {
   })
 
   it('returns 400 for missing reviewerId', async () => {
-    const { POST } = await import('../[id]/review/route')
+    // handler imported statically below
+    const { POST } = reviewHandlers
 
     const req = new Request('http://localhost/api/g-intel-acquisition/inbox/inbox-1/review', {
       method: 'POST',
@@ -313,7 +341,8 @@ describe('POST /api/g-intel-acquisition/inbox/[id]/review', () => {
   })
 
   it('returns 404 when item not found', async () => {
-    const { POST } = await import('../[id]/review/route')
+    // handler imported statically below
+    const { POST } = reviewHandlers
 
     mockReviewInboxItem.mockRejectedValue(new Error('item with id "missing" not found'))
 
@@ -337,7 +366,8 @@ describe('POST /api/g-intel-acquisition/inbox/[id]/convert', () => {
   })
 
   it('converts an approved item', async () => {
-    const { POST } = await import('../[id]/convert/route')
+    // handler imported statically below
+    const { POST } = convertHandlers
 
     mockConvertApprovedItem.mockResolvedValue({
       inboxItem: { id: 'inbox-1', status: 'converted' },
@@ -357,7 +387,8 @@ describe('POST /api/g-intel-acquisition/inbox/[id]/convert', () => {
   })
 
   it('returns 404 when item not found', async () => {
-    const { POST } = await import('../[id]/convert/route')
+    // handler imported statically below
+    const { POST } = convertHandlers
 
     mockConvertApprovedItem.mockRejectedValue(new Error('item with id "missing" not found'))
 
@@ -370,7 +401,8 @@ describe('POST /api/g-intel-acquisition/inbox/[id]/convert', () => {
   })
 
   it('returns 500 when item is not approved', async () => {
-    const { POST } = await import('../[id]/convert/route')
+    // handler imported statically below
+    const { POST } = convertHandlers
 
     mockConvertApprovedItem.mockRejectedValue(new Error('Cannot convert item with status "pending"'))
 
@@ -395,7 +427,8 @@ describe('POST /api/g-intel-acquisition/inbox/[id]/dismiss', () => {
   })
 
   it('dismisses a pending item', async () => {
-    const { POST } = await import('../[id]/dismiss/route')
+    // handler imported statically below
+    const { POST } = dismissHandlers
 
     mockDismissInboxItem.mockResolvedValue({ id: 'inbox-1', status: 'rejected' })
 
@@ -413,7 +446,8 @@ describe('POST /api/g-intel-acquisition/inbox/[id]/dismiss', () => {
   })
 
   it('returns 400 for missing reviewerId', async () => {
-    const { POST } = await import('../[id]/dismiss/route')
+    // handler imported statically below
+    const { POST } = dismissHandlers
 
     const req = new Request('http://localhost/api/g-intel-acquisition/inbox/inbox-1/dismiss', {
       method: 'POST',
@@ -425,7 +459,8 @@ describe('POST /api/g-intel-acquisition/inbox/[id]/dismiss', () => {
   })
 
   it('returns 404 when item not found', async () => {
-    const { POST } = await import('../[id]/dismiss/route')
+    // handler imported statically below
+    const { POST } = dismissHandlers
 
     mockDismissInboxItem.mockRejectedValue(new Error('item with id "missing" not found'))
 
@@ -449,7 +484,8 @@ describe('POST /api/g-intel-acquisition/inbox', () => {
   })
 
   it('submits new intelligence and returns created item in apiSuccess envelope', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = inboxHandlers
 
     const createdItem = {
       id: 'inbox-new',
@@ -481,7 +517,8 @@ describe('POST /api/g-intel-acquisition/inbox', () => {
   })
 
   it('returns 400 when companyId is missing', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = inboxHandlers
 
     const req = new Request('http://localhost/api/g-intel-acquisition/inbox', {
       method: 'POST',
@@ -496,7 +533,8 @@ describe('POST /api/g-intel-acquisition/inbox', () => {
   })
 
   it('returns 400 when submittedBy is missing', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = inboxHandlers
 
     const req = new Request('http://localhost/api/g-intel-acquisition/inbox', {
       method: 'POST',
@@ -510,7 +548,8 @@ describe('POST /api/g-intel-acquisition/inbox', () => {
   })
 
   it('returns 400 when content is empty', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = inboxHandlers
 
     const req = new Request('http://localhost/api/g-intel-acquisition/inbox', {
       method: 'POST',
@@ -522,7 +561,8 @@ describe('POST /api/g-intel-acquisition/inbox', () => {
   })
 
   it('returns 400 when priority is invalid', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = inboxHandlers
 
     const req = new Request('http://localhost/api/g-intel-acquisition/inbox', {
       method: 'POST',
@@ -541,7 +581,8 @@ describe('POST /api/g-intel-acquisition/inbox', () => {
   })
 
   it('returns 404 when company does not exist', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = inboxHandlers
 
     mockSubmitToIntelligenceInbox.mockRejectedValue(
       new Error('Company with id "missing" not found.'),
@@ -561,7 +602,8 @@ describe('POST /api/g-intel-acquisition/inbox', () => {
   })
 
   it('returns 400 when category is invalid', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = inboxHandlers
 
     mockSubmitToIntelligenceInbox.mockRejectedValue(
       new Error('Invalid category "bad_cat". Must be one of: Strategy, Technology'),
@@ -582,7 +624,8 @@ describe('POST /api/g-intel-acquisition/inbox', () => {
   })
 
   it('passes all fields including tags to submitToIntelligenceInbox', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = inboxHandlers
 
     mockSubmitToIntelligenceInbox.mockResolvedValue({ id: 'inbox-1' })
 
@@ -617,7 +660,8 @@ describe('POST /api/g-intel-acquisition/inbox', () => {
   })
 
   it('sanitizes content, summary, sourceUrl, and submittedBy', async () => {
-    const { POST } = await import('../route')
+    // handler imported statically below
+    const { POST } = inboxHandlers
 
     mockSubmitToIntelligenceInbox.mockResolvedValue({ id: 'inbox-1' })
 

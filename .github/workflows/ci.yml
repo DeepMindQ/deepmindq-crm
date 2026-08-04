@@ -271,10 +271,10 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - name: Run AI tests
-        run: npx vitest run --config vitest.ai.config.ts
+        run: npx vitest run --config vitest.ai.config.ts --reporter=default
         env:
           CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=3072'
+          NODE_OPTIONS: '--max-old-space-size=4096'
 
   test-integration:
     name: "Integration Tests"

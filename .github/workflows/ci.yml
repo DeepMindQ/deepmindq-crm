@@ -319,6 +319,7 @@ jobs:
       - name: Run tests
         run: npm test
         env:
+          CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=3072'
 
   build:

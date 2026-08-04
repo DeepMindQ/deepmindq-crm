@@ -74,11 +74,14 @@ jobs:
       - name: Verify CSRF flow integrity
         run: |
           FAIL=0
-          if ! grep -q "generateCsrfToken" src/lib/csrf.ts; then echo "::error::CSRF gen missing"; FAIL=1; fi
-          if ! grep -q "timingSafeEqual" src/lib/csrf.ts; then echo "::error::CSRF timing missing"; FAIL=1; fi
-          if ! grep -q "validateCsrf" src/proxy.ts; then echo "::error::Proxy CSRF missing"; FAIL=1; fi
-          if ! grep -q "x-csrf-token" src/lib/fetchApi.ts; then echo "::error::fetchApi CSRF missing"; FAIL=1; fi
-          if ! grep -q "validateCsrf" src/lib/auth-helpers.ts; then echo "::error::auth-helpers CSRF missing"; FAIL=1; fi
+          echo "Checking CSRF flow integrity..."
+          ls -la src/lib/csrf.ts src/proxy.ts src/lib/fetchApi.ts src/lib/auth-helpers.ts 2>&1 || { echo "::error::CSRF source files missing"; FAIL=1; }
+          if ! grep -q "generateCsrfToken" src/lib/csrf.ts; then echo "::error::CSRF gen missing from csrf.ts"; FAIL=1; else echo "OK: generateCsrfToken found"; fi
+          if ! grep -q "timingSafeEqual" src/lib/csrf.ts; then echo "::error::CSRF timing missing from csrf.ts"; FAIL=1; else echo "OK: timingSafeEqual found"; fi
+          if ! grep -q "validateCsrf" src/proxy.ts; then echo "::error::Proxy CSRF missing from proxy.ts"; FAIL=1; else echo "OK: validateCsrf found in proxy.ts"; fi
+          if ! grep -q "x-csrf-token" src/lib/fetchApi.ts; then echo "::error::fetchApi CSRF missing from fetchApi.ts"; FAIL=1; else echo "OK: x-csrf-token found in fetchApi.ts"; fi
+          if ! grep -q "validateCsrf" src/lib/auth-helpers.ts; then echo "::error::auth-helpers CSRF missing from auth-helpers.ts"; FAIL=1; else echo "OK: validateCsrf found in auth-helpers.ts"; fi
+          echo "FAIL=$FAIL"
           [ "$FAIL" -eq 1 ] && exit 1
 
       - name: Verify AI route authentication

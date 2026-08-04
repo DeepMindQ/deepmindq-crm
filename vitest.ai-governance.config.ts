@@ -5,7 +5,7 @@
  * Covers: Governance config coverage, prompt registry, error handling,
  * integration route contracts, query safety, streaming readiness, cache integration,
  * intelligence activation/profile
- * Environment: node | Pool: forks | Memory: 2048
+ * Environment: node | Pool: forks | Memory: 4096MB (required for AI modules)
  */
 import { defineConfig } from 'vitest/config'
 import path from 'path'
@@ -29,6 +29,10 @@ export default defineConfig({
       'tests/ai/ai-governance-certification.test.ts',
       'tests/ai/ai-golden-dataset.test.ts',
       'tests/ai/ai-hallucination-regression.test.ts',
+      'tests/ai/ai-hallucination-m3-certification.test.ts',
+      'tests/ai-testing/hallucination-testing/**/*.test.{ts,tsx}',
+      'tests/ai-testing/golden-dataset/**/*.test.{ts,tsx}',
+      'tests/ai-testing/confidence-testing/**/*.test.{ts,tsx}',
     ],
     exclude: ['tests/legacy/**'],
     globals: true,
@@ -36,6 +40,11 @@ export default defineConfig({
     maxWorkers: 2,
     testTimeout: 20000,
     hookTimeout: 10000,
+    poolOptions: {
+      forks: {
+        memoryLimit: 4096,
+      },
+    },
   },
   resolve: {
     alias: {

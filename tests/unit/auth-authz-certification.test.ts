@@ -72,8 +72,14 @@ vi.mock('@/lib/timer-registry', () => ({
 // ═══════════════════════════════════════════════════════════════
 
 describe('Password Hashing (password.ts)', () => {
-  // Import real module — no mocks needed, pure crypto
-  const { hashPassword, verifyPassword } = require('@/lib/password') as typeof import('@/lib/password');
+  let hashPassword: typeof import('@/lib/password').hashPassword;
+  let verifyPassword: typeof import('@/lib/password').verifyPassword;
+
+  beforeAll(async () => {
+    const mod = await import('@/lib/password');
+    hashPassword = mod.hashPassword;
+    verifyPassword = mod.verifyPassword;
+  });
 
   it('hashPassword returns a string in salt$hash format', async () => {
     const hash = await hashPassword('test-password-123');
@@ -163,16 +169,19 @@ describe('Password Hashing (password.ts)', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('RBAC Authorization (rbac.ts)', () => {
-  const {
-    hasPermission,
-    hasAnyPermission,
-    authorizeRoute,
-    getRolePermissions,
-    getRoleDefinition,
-    getAllRoles,
-    generateAuthorizationReport,
-    ROUTE_AUTHORIZATION_MATRIX,
-  } = require('@/lib/rbac') as typeof import('@/lib/rbac');
+  let hasPermission: any, hasAnyPermission: any, authorizeRoute: any, getRolePermissions: any;
+  let getRoleDefinition: any, getAllRoles: any, generateAuthorizationReport: any, ROUTE_AUTHORIZATION_MATRIX: any;
+  beforeAll(async () => {
+    const mod = await import('@/lib/rbac');
+    hasPermission = mod.hasPermission;
+    hasAnyPermission = mod.hasAnyPermission;
+    authorizeRoute = mod.authorizeRoute;
+    getRolePermissions = mod.getRolePermissions;
+    getRoleDefinition = mod.getRoleDefinition;
+    getAllRoles = mod.getAllRoles;
+    generateAuthorizationReport = mod.generateAuthorizationReport;
+    ROUTE_AUTHORIZATION_MATRIX = mod.ROUTE_AUTHORIZATION_MATRIX;
+  });
 
   // --- hasPermission ---
 
@@ -467,13 +476,16 @@ describe('RBAC Authorization (rbac.ts)', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('CSRF Protection (csrf.ts)', () => {
-  const {
-    generateCsrfToken,
-    validateCsrf,
-    csrfMiddleware,
-    CSRF_TOKEN_HEADER,
-    CSRF_COOKIE_NAME,
-  } = require('@/lib/csrf') as typeof import('@/lib/csrf');
+  let generateCsrfToken: any, validateCsrf: any, csrfMiddleware: any;
+  let CSRF_TOKEN_HEADER: any, CSRF_COOKIE_NAME: any;
+  beforeAll(async () => {
+    const mod = await import('@/lib/csrf');
+    generateCsrfToken = mod.generateCsrfToken;
+    validateCsrf = mod.validateCsrf;
+    csrfMiddleware = mod.csrfMiddleware;
+    CSRF_TOKEN_HEADER = mod.CSRF_TOKEN_HEADER;
+    CSRF_COOKIE_NAME = mod.CSRF_COOKIE_NAME;
+  });
 
   it('generateCsrfToken produces a 64-character hex string', () => {
     const token = generateCsrfToken();
@@ -645,16 +657,32 @@ describe('CSRF Protection (csrf.ts)', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('Auth Helpers (auth-helpers.ts)', () => {
-  const {
-    isPublicPath,
-    isApiRoute,
-    isRateLimitedPublicApi,
-    getSecurityHeaders,
-    edgeRateLimit,
-    otpRateLimit,
-    generalApiRateLimit,
-    PUBLIC_PATH_PREFIXES,
-  } = require('@/lib/auth-helpers') as typeof import('@/lib/auth-helpers');
+  let isPublicPath: any, isApiRoute: any, isRateLimitedPublicApi: any;
+  let getSessionToken: any, validateCsrf: any, csrfCheck: any;
+  let getSecurityHeaders: any, applySecurityHeaders: any;
+  let secureJsonResponse: any, unauthorizedResponse: any;
+  let rateLimitedResponse: any, forbiddenResponse: any;
+  let edgeRateLimit: any, otpRateLimit: any, generalApiRateLimit: any;
+  let PUBLIC_PATH_PREFIXES: any;
+  beforeAll(async () => {
+    const mod = await import('@/lib/auth-helpers');
+    isPublicPath = mod.isPublicPath;
+    isApiRoute = mod.isApiRoute;
+    getSessionToken = mod.getSessionToken;
+    validateCsrf = mod.validateCsrf;
+    csrfCheck = mod.csrfCheck;
+    getSecurityHeaders = mod.getSecurityHeaders;
+    applySecurityHeaders = mod.applySecurityHeaders;
+    secureJsonResponse = mod.secureJsonResponse;
+    unauthorizedResponse = mod.unauthorizedResponse;
+    rateLimitedResponse = mod.rateLimitedResponse;
+    forbiddenResponse = mod.forbiddenResponse;
+    edgeRateLimit = mod.edgeRateLimit;
+    otpRateLimit = mod.otpRateLimit;
+    generalApiRateLimit = mod.generalApiRateLimit;
+    isRateLimitedPublicApi = mod.isRateLimitedPublicApi;
+    PUBLIC_PATH_PREFIXES = mod.PUBLIC_PATH_PREFIXES;
+  });
 
   // --- isPublicPath ---
 
@@ -909,9 +937,12 @@ describe('Auth Helpers (auth-helpers.ts)', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('OTP Service (otp.ts)', () => {
-  const { requestOtp, verifyOtp } = require('@/lib/otp') as typeof import('@/lib/otp');
-  const { db } = require('@/lib/db');
-  const { sendEmail } = require('@/lib/email-provider');
+  let requestOtp: any, verifyOtp: any;
+  beforeAll(async () => {
+    const otpMod = await import('@/lib/otp');
+    requestOtp = otpMod.requestOtp;
+    verifyOtp = otpMod.verifyOtp;
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1402,22 +1433,26 @@ describe('OTP Service (otp.ts)', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('Session Manager (session-manager.ts)', () => {
-  const {
-    parseUserAgent,
-    generateDeviceFingerprint,
-    shouldRotateSession,
-    SESSION_ROTATION_DAYS,
-    MAX_CONCURRENT_SESSIONS,
-    assessLoginSecurity,
-    enforceSessionLimit,
-    getUserSessions,
-    recordLoginEvent,
-    revokeAllUserSessions,
-    revokeSession,
-    rotateSession,
-  } = require('@/lib/session-manager') as typeof import('@/lib/session-manager');
+  let shouldRotateSession: any, enforceSessionLimit: any;
+  let assessLoginSecurity: any, parseUserAgent: any;
+  let generateDeviceFingerprint: any, recordLoginEvent: any;
+  let revokeAllUserSessions: any, revokeSession: any, rotateSession: any;
+  let getUserSessions: any;
+  beforeAll(async () => {
+    const mod = await import('@/lib/session-manager');
+    shouldRotateSession = mod.shouldRotateSession;
+    enforceSessionLimit = mod.enforceSessionLimit;
+    assessLoginSecurity = mod.assessLoginSecurity;
+    parseUserAgent = mod.parseUserAgent;
+    generateDeviceFingerprint = mod.generateDeviceFingerprint;
+    recordLoginEvent = mod.recordLoginEvent;
+    revokeAllUserSessions = mod.revokeAllUserSessions;
+    revokeSession = mod.revokeSession;
+    rotateSession = mod.rotateSession;
+    getUserSessions = mod.getUserSessions;
+  });
 
-  const { db } = require('@/lib/db');
+  // db is mocked via vi.mock('@/lib/db')
 
   beforeEach(() => {
     vi.clearAllMocks();
@@ -1847,7 +1882,7 @@ describe('Session Manager (session-manager.ts)', () => {
 
   describe('recordLoginEvent', () => {
     it('calls audit with correct parameters', async () => {
-      const { audit } = require('@/lib/audit-logger');
+      // audit is mocked via vi.mock
       vi.mocked(db.user.update).mockResolvedValue({} as any);
 
       const deviceInfo = {
@@ -1881,7 +1916,7 @@ describe('Session Manager (session-manager.ts)', () => {
     });
 
     it('uses warn severity for suspicious logins', async () => {
-      const { audit } = require('@/lib/audit-logger');
+      // audit is mocked via vi.mock
       vi.mocked(db.user.update).mockResolvedValue({} as any);
 
       const deviceInfo = {
@@ -1994,9 +2029,13 @@ describe('Session Manager (session-manager.ts)', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('Session Module (session.ts)', () => {
-  const { hashToken, AuthError, SESSION_COOKIE_NAME } = require('@/lib/session') as typeof import('@/lib/session') & {
-    SESSION_COOKIE_NAME: string;
-  };
+  let hashToken: any, AuthError: any, SESSION_COOKIE_NAME: any;
+  beforeAll(async () => {
+    const mod = await import('@/lib/session');
+    hashToken = mod.hashToken;
+    AuthError = mod.AuthError;
+    SESSION_COOKIE_NAME = mod.SESSION_COOKIE_NAME;
+  });
 
   it('SESSION_COOKIE_NAME is dmq_session', () => {
     expect(SESSION_COOKIE_NAME).toBe('dmq_session');
@@ -2082,8 +2121,11 @@ describe('API Auth Guard (api-auth.ts)', () => {
     SESSION_COOKIE_NAME: 'dmq_session',
   }));
 
-  const { checkApiAuth, requireAdminRole } = require('@/lib/api-auth') as typeof import('@/lib/api-auth');
-  const { getCurrentSession } = require('@/lib/session');
+  let checkApiAuth: any, requireAdminRole: any, getCurrentSession: any;
+  beforeAll(async () => {
+    try { const m = await import('@/lib/api-auth'); checkApiAuth = m.checkApiAuth; requireAdminRole = m.requireAdminRole; } catch {}
+    try { const m = await import('@/lib/session'); getCurrentSession = m.getCurrentSession; } catch {}
+  });
 
   beforeEach(() => {
     vi.clearAllMocks();

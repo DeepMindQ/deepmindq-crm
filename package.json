@@ -37,6 +37,11 @@
     "test:ui": "vitest run --config vitest.ui.config.ts",
     "test:real-integration": "vitest run --config vitest.real-integration.config.ts",
     "test:full": "vitest run --config vitest.unit.config.ts && vitest run --config vitest.security.config.ts && vitest run --config vitest.api.config.ts && vitest run --config vitest.database.config.ts && vitest run --config vitest.ai.config.ts && vitest run --config vitest.ai-governance.config.ts && vitest run --config vitest.ai-retrieval.config.ts && vitest run --config vitest.ai-framework.config.ts && vitest run --config vitest.ai-inference.config.ts && vitest run --config vitest.integration.config.ts && vitest run --config vitest.e2e.config.ts && vitest run --config vitest.performance.config.ts && vitest run --config vitest.ui.config.ts",
+    "test:enterprise": "vitest run --config vitest.unit.config.ts --reporter=verbose && vitest run --config vitest.security.config.ts --reporter=verbose && vitest run --config vitest.ai-governance.config.ts --reporter=verbose && vitest run --config vitest.e2e.config.ts --reporter=verbose && vitest run --config vitest.api.config.ts --reporter=verbose",
+    "test:m3-certification": "vitest run --config vitest.unit.config.ts --reporter=verbose 2>&1 | tee test-results/unit.txt && vitest run --config vitest.security.config.ts --reporter=verbose 2>&1 | tee test-results/security.txt && vitest run --config vitest.ai-governance.config.ts --reporter=verbose 2>&1 | tee test-results/ai-governance.txt && vitest run --config vitest.e2e.config.ts --reporter=verbose 2>&1 | tee test-results/e2e.txt && vitest run --config vitest.api.config.ts --reporter=verbose 2>&1 | tee test-results/api.txt",
+    "test:evidence": "mkdir -p test-results && npm run test:m3-certification",
+    "test:playwright": "npx playwright test",
+    "test:playwright:ui": "npx playwright test --ui",
     "postinstall": "npx prisma generate",
     "vercel-build": "npx prisma generate && npx next build",
     "cloud:setup": "bash scripts/setup-cloud.sh",
@@ -122,6 +127,7 @@
     ]
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",

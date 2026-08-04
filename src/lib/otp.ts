@@ -234,7 +234,8 @@ export async function requestOtp(
 
   // If email was NOT sent
   if (!emailSent) {
-    const devOtpAllowed = process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_OTP === 'true';
+    // Milestone 1 H-05: Dev OTP only in development, never staging
+    const devOtpAllowed = process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_OTP === 'true';
     if (devOtpAllowed) {
       // Explicit dev OTP bypass: return code for local development convenience
       logger.info(`[OTP] DEV — ALLOW_DEV_OTP enabled. Returning code: ${code}`);

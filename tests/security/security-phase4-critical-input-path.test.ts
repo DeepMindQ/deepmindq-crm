@@ -254,12 +254,13 @@ describe('Phase 4 — Critical Input Path Hardening', () => {
       expect(content).not.toContain("NODE_ENV !== 'production'")
     })
 
-    it('otp.ts uses ALLOW_DEV_OTP instead of NODE_ENV for devCode return', () => {
+    it('otp.ts requires both NODE_ENV=development AND ALLOW_DEV_OTP for devCode', () => {
       const content = readFileSync(resolve(SRC_DIR, 'otp.ts'), 'utf-8')
       expect(content).toContain("process.env.ALLOW_DEV_OTP === 'true'")
-      // Must NOT use NODE_ENV to gate devCode return
-      // (ENABLE_DEV_AUTH_BYPASS is logging-only, that's fine)
-      expect(content).not.toMatch(/NODE_ENV.*development.*devCode/)
+      // Milestone 1 H-05: Defense-in-depth — must also check NODE_ENV === 'development'
+      expect(content).toContain("NODE_ENV === 'development'")
+      // Must NOT use the old permissive !== 'production' check
+      expect(content).not.toContain("NODE_ENV !== 'production'")
     })
 
     it('login-page.tsx does not double-gate with NODE_ENV', () => {

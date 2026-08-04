@@ -25,10 +25,13 @@ async function main() {
   await prisma.companyTimelineEvent.deleteMany()
   await prisma.companyNote.deleteMany()
   await prisma.draft.deleteMany()
+  await prisma.opportunityRecommendation.deleteMany()
+  await prisma.signalCapabilityMatch.deleteMany()
+  await prisma.companySignal.deleteMany()
   await prisma.capabilityAsset.deleteMany()
   await prisma.companyResearchCard.deleteMany()
-  await prisma.opportunityRecommendation.deleteMany()
   await prisma.contact.deleteMany()
+  await prisma.importBatch.deleteMany()
   await prisma.company.deleteMany()
 
   // ─── Companies ────────────────────────────────────────────────
@@ -106,6 +109,89 @@ async function main() {
     }),
   ])
   console.log(`[seed-ci] Created ${companies.length} companies`)
+
+  // ─── Import Batch (required FK for contacts) ──────────────────
+  const batch = await prisma.importBatch.create({
+    data: {
+      id: 'ci-batch',
+      fileName: 'ci-seed.csv',
+      fileHash: 'ci-seed-hash-' + Date.now(),
+      totalRows: 10, acceptedRows: 10,
+      status: 'completed',
+    },
+  })
+  console.log(`[seed-ci] Created import batch: ${batch.id}`)
+
+  // ─── Company Signals (required FK for signal capability matches) ──
+  const signals = await Promise.all([
+    prisma.companySignal.create({
+      data: {
+        id: 'ci-signal-001', companyId: 'ci-co-001',
+        signalType: 'expansion', title: 'Cloud infrastructure expansion',
+        severity: 'high', impact: 'high', confidence: 0.9,
+      },
+    }),
+    prisma.companySignal.create({
+      data: {
+        id: 'ci-signal-002', companyId: 'ci-co-003',
+        signalType: 'tech_change', title: 'Multi-cloud strategy adoption',
+        severity: 'medium', impact: 'medium', confidence: 0.8,
+      },
+    }),
+    prisma.companySignal.create({
+      data: {
+        id: 'ci-signal-003', companyId: 'ci-co-005',
+        signalType: 'hiring', title: 'AI/ML team expansion',
+        severity: 'high', impact: 'high', confidence: 0.95,
+      },
+    }),
+  ])
+  console.log(`[seed-ci] Created ${signals.length} company signals`)
+
+  // ─── Capability Assets (before signal capability matches) ───────
+  const assets = await Promise.all([
+    prisma.capabilityAsset.create({
+      data: {
+        id: 'ci-asset-001', title: 'Cloud Infrastructure',
+        summary: 'AWS and Azure cloud deployment capabilities',
+        category: 'technology',
+      },
+    }),
+    prisma.capabilityAsset.create({
+      data: {
+        id: 'ci-asset-002', title: 'AI/ML Platform',
+        summary: 'Machine learning model training and deployment',
+        category: 'technology',
+      },
+    }),
+  ])
+  console.log(`[seed-ci] Created ${assets.length} capability assets`)
+
+  // ─── Signal Capability Matches (required FK for opportunity recs) ──
+  const sigCapMatches = await Promise.all([
+    prisma.signalCapabilityMatch.create({
+      data: {
+        id: 'ci-match-001', companyId: 'ci-co-001',
+        signalId: 'ci-signal-001', capabilityId: 'ci-asset-001',
+        matchScore: 0.85, reason: 'Cloud expansion signal matches cloud infrastructure capability',
+      },
+    }),
+    prisma.signalCapabilityMatch.create({
+      data: {
+        id: 'ci-match-002', companyId: 'ci-co-003',
+        signalId: 'ci-signal-002', capabilityId: 'ci-asset-001',
+        matchScore: 0.72, reason: 'Multi-cloud adoption matches cloud infrastructure capability',
+      },
+    }),
+    prisma.signalCapabilityMatch.create({
+      data: {
+        id: 'ci-match-003', companyId: 'ci-co-005',
+        signalId: 'ci-signal-003', capabilityId: 'ci-asset-002',
+        matchScore: 0.91, reason: 'AI team expansion matches AI/ML platform capability',
+      },
+    }),
+  ])
+  console.log(`[seed-ci] Created ${sigCapMatches.length} signal capability matches`)
 
   // ─── Contacts ─────────────────────────────────────────────────
   // Schema requires: rawName, normalizedName, email, companyId, batchId
@@ -258,26 +344,6 @@ async function main() {
     }),
   ])
   console.log(`[seed-ci] Created ${researchCards.length} research cards`)
-
-  // ─── Capability Assets ─────────────────────────────────────────
-  // Schema requires: title, summary, category
-  const assets = await Promise.all([
-    prisma.capabilityAsset.create({
-      data: {
-        id: 'ci-asset-001', title: 'Cloud Infrastructure',
-        summary: 'AWS and Azure cloud deployment capabilities',
-        category: 'technology',
-      },
-    }),
-    prisma.capabilityAsset.create({
-      data: {
-        id: 'ci-asset-002', title: 'AI/ML Platform',
-        summary: 'Machine learning model training and deployment',
-        category: 'technology',
-      },
-    }),
-  ])
-  console.log(`[seed-ci] Created ${assets.length} capability assets`)
 
   // ─── Drafts ───────────────────────────────────────────────────
   // Schema requires: contactId, subject, body, status

@@ -27,8 +27,8 @@ vi.mock('@/lib/auth-helpers', async () => {
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
-const SRC_DIR = resolve(__dirname, '../src/lib')
-const API_DIR = resolve(__dirname, '../src/app/api')
+const SRC_DIR = resolve(__dirname, '../../src/lib')
+const API_DIR = resolve(__dirname, '../../src/app/api')
 
 // ── Test Suite ──────────────────────────────────────────────────────
 
@@ -259,7 +259,7 @@ describe('Phase 4 — Critical Input Path Hardening', () => {
     })
 
     it('login-page.tsx does not double-gate with NODE_ENV', () => {
-      const content = readFileSync(resolve(__dirname, '../src/components/login-page.tsx'), 'utf-8')
+      const content = readFileSync(resolve(__dirname, '../../src/components/login-page.tsx'), 'utf-8')
       // Must NOT have the NODE_ENV check on devCode display
       expect(content).not.toContain('process.env.NODE_ENV')
       // Must still gate on devCode presence
@@ -335,7 +335,7 @@ describe('Phase 4 — Critical Input Path Hardening', () => {
   // ══════════════════════════════════════════════════════════════════
   describe('Cross-cutting: auth infrastructure integrity', () => {
     it('proxy.ts still enforces auth for non-public API routes', () => {
-      const content = readFileSync(resolve(__dirname, '../src/proxy.ts'), 'utf-8')
+      const content = readFileSync(resolve(__dirname, '../../src/proxy.ts'), 'utf-8')
       expect(content).toContain('unauthorizedResponse')
       expect(content).toContain('handleApiRoute')
     })

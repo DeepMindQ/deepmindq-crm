@@ -22,6 +22,7 @@ vi.mock('@/lib/db', () => ({
   db: {
     intelligenceAlert: {
       create: mockAlertCreate,
+      createMany: vi.fn().mockResolvedValue({ count: 0 }),
       findUnique: mockAlertFindUnique,
       findMany: mockAlertFindMany,
       findFirst: mockAlertFindFirst,
@@ -86,12 +87,12 @@ describe('Intelligence Alerts', () => {
     it('throws for invalid severity', async () => {
       await expect(
         createAlert({
-          severity: 'urgent' as any,
+          severity: 'extreme' as any,
           alertType: 'health_degraded',
           title: 'Test',
           description: 'Test',
         }),
-      ).rejects.toThrow('Invalid severity "urgent"')
+      ).rejects.toThrow('Invalid severity "extreme"')
     })
 
     it('throws for invalid alertType', async () => {
@@ -290,16 +291,20 @@ describe('Intelligence Alerts', () => {
           connector: { name: 'RSS Feed' },
         },
       ])
+      // autoGenerateAlerts uses createMany for batch insert
+      _db.intelligenceAlert.createMany.mockResolvedValueOnce({ count: 1 })
 
       const result = await autoGenerateAlerts()
 
       expect(result.created).toBeGreaterThanOrEqual(1)
-      expect(mockAlertCreate).toHaveBeenCalledWith(
+      expect(_db.intelligenceAlert.createMany).toHaveBeenCalledWith(
         expect.objectContaining({
-          data: expect.objectContaining({
-            alertType: 'health_degraded',
-            connectorId: 'conn-1',
-          }),
+          data: expect.arrayContaining([
+            expect.objectContaining({
+              alertType: 'health_degraded',
+              connectorId: 'conn-1',
+            }),
+          ]),
         }),
       )
     })

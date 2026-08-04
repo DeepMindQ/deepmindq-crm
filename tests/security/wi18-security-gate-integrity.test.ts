@@ -14,7 +14,7 @@ import { resolve } from 'path';
 
 // ── Helper to read file content ──────────────────────────
 function readSrcFile(relativePath: string): string {
-  const filePath = resolve(__dirname, `../${relativePath}`);
+  const filePath = resolve(__dirname, `../../${relativePath}`);
   expect(existsSync(filePath), `File must exist: ${relativePath}`).toBe(true);
   return readFileSync(filePath, 'utf-8');
 }
@@ -22,7 +22,7 @@ function readSrcFile(relativePath: string): string {
 // ══════════════════════════════════════════════════════════
 describe('SECURITY GATE: Edge Proxy Existence (CI Gate 1)', () => {
   it('src/proxy.ts must exist (Next.js 16 replaces middleware.ts)', () => {
-    expect(existsSync(resolve(__dirname, '../src/proxy.ts'))).toBe(true);
+    expect(existsSync(resolve(__dirname, '../../src/proxy.ts'))).toBe(true);
   });
 });
 
@@ -248,10 +248,14 @@ describe('SECURITY GATE: CI Configuration (CI Gate 10)', () => {
   it('security-gate must run before other jobs', () => {
     const securityGate = ci.indexOf('security-gate:');
     const lintJob = ci.indexOf('lint-and-typecheck:');
-    const testJob = ci.indexOf('test:');
+    const testUnitJob = ci.indexOf('test-unit:');
     const buildJob = ci.indexOf('build:');
+    expect(securityGate).toBeGreaterThan(-1);
+    expect(lintJob).toBeGreaterThan(-1);
+    expect(testUnitJob).toBeGreaterThan(-1);
+    expect(buildJob).toBeGreaterThan(-1);
     expect(securityGate).toBeLessThan(lintJob);
-    expect(securityGate).toBeLessThan(testJob);
+    expect(securityGate).toBeLessThan(testUnitJob);
     expect(securityGate).toBeLessThan(buildJob);
   });
 
@@ -309,7 +313,7 @@ describe('SECURITY GATE: API Security Contract (CI Gate 11)', () => {
   const scanner = readSrcFile('scripts/api-security-scan.js');
 
   it('scanner must exist', () => {
-    expect(existsSync(resolve(__dirname, '../scripts/api-security-scan.js'))).toBe(true);
+    expect(existsSync(resolve(__dirname, '../../scripts/api-security-scan.js'))).toBe(true);
   });
 
   it('must check for checkApiAuth', () => {

@@ -6,8 +6,8 @@ import {
   getTldTrustScore,
   calculateEmailScore,
   extractDomain,
-} from '../src/lib/email-verification'
-import { db } from '../src/lib/db'
+} from '@/lib/email-verification'
+import { db } from '@/lib/db'
 
 // ---------------------------------------------------------------------------
 // 1. Email Verification Engine — Direct unit tests

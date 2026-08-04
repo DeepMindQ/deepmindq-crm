@@ -113,7 +113,7 @@ describe('WI-18.1-02: fetchApi CSRF header logic', () => {
 
 // ── Test 4: /api/ai/evaluation requires auth ──────────────
 describe('WI-18.1-03: AI evaluation route auth', () => {
-  const routePath = resolve(__dirname, '../src/app/api/ai/evaluation/route.ts');
+  const routePath = resolve(__dirname, '../../src/app/api/ai/evaluation/route.ts');
   let content: string;
 
   it('route file should exist', () => {
@@ -297,7 +297,7 @@ describe('WI-18.1-08: AuthProvider', () => {
   });
 
   it('should reference /api/auth/me for session check', async () => {
-    const providerPath = resolve(__dirname, '../src/providers/auth-provider.tsx');
+    const providerPath = resolve(__dirname, '../../src/providers/auth-provider.tsx');
     const content = readFileSync(providerPath, 'utf-8');
     expect(content).toContain('/api/auth/me');
     expect(content).toContain('window.location.href');
@@ -324,7 +324,7 @@ describe('Security headers completeness', () => {
 
 // ── Test 10: API_KEY_ENCRYPTION_KEY documented ──────────
 describe('WI-18.1-06: .env.example documentation', () => {
-  const envPath = resolve(__dirname, '../.env.example');
+  const envPath = resolve(__dirname, '../../.env.example');
   let content: string;
 
   it('.env.example should exist', () => {
@@ -342,7 +342,7 @@ describe('WI-18.1-06: .env.example documentation', () => {
 
 // ── Test 11: CI workflow exists ─────────────────────────
 describe('WI-18.1-09: GitHub Actions CI', () => {
-  const ciPath = resolve(__dirname, '../.github/workflows/ci.yml');
+  const ciPath = resolve(__dirname, '../../.github/workflows/ci.yml');
   let content: string;
 
   it('CI workflow file should exist', () => {
@@ -355,7 +355,7 @@ describe('WI-18.1-09: GitHub Actions CI', () => {
   });
 
   it('should include test step', () => {
-    expect(content).toContain('npm test');
+    expect(content).toContain('npx vitest run');
   });
 
   it('should include build verification', () => {
@@ -379,7 +379,7 @@ describe('WI-18.1-09: GitHub Actions CI', () => {
 
 // ── Test 12: Edge proxy file-level verification (Next.js 16) ──
 describe('WI-18.1-01: Proxy implementation details', () => {
-  const proxyPath = resolve(__dirname, '../src/proxy.ts');
+  const proxyPath = resolve(__dirname, '../../src/proxy.ts');
   let content: string;
 
   it('proxy.ts should exist at src/proxy.ts', () => {

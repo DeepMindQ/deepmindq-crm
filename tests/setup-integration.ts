@@ -70,8 +70,7 @@ export async function cleanupTestData(orderedDeletions: {
   for (const { table, ids } of orderedDeletions) {
     if (ids.length === 0) continue
     try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      await (db as any)[table]?.deleteMany?.({
+      await (db as Record<string, unknown>)[table]?.deleteMany?.({
         where: { id: { in: ids } },
       })
     } catch (e) {

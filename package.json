@@ -35,6 +35,7 @@
     "test:e2e": "vitest run --config vitest.e2e.config.ts",
     "test:performance": "vitest run --config vitest.performance.config.ts",
     "test:ui": "vitest run --config vitest.ui.config.ts",
+    "test:real-integration": "vitest run --config vitest.real-integration.config.ts",
     "test:full": "vitest run --config vitest.unit.config.ts && vitest run --config vitest.security.config.ts && vitest run --config vitest.api.config.ts && vitest run --config vitest.database.config.ts && vitest run --config vitest.ai.config.ts && vitest run --config vitest.ai-governance.config.ts && vitest run --config vitest.ai-retrieval.config.ts && vitest run --config vitest.ai-framework.config.ts && vitest run --config vitest.ai-inference.config.ts && vitest run --config vitest.integration.config.ts && vitest run --config vitest.e2e.config.ts && vitest run --config vitest.performance.config.ts && vitest run --config vitest.ui.config.ts",
     "postinstall": "npx prisma generate",
     "vercel-build": "npx prisma generate && npx next build",

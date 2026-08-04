@@ -211,6 +211,56 @@ Create a complete Prisma baseline migration that enables fresh database deployme
 | Build Verification | ✅ success |
 | **Total** | **18/18 green** |
 
+### Database Evidence Package (Permanent Record)
+
+#### 1. Baseline Migration Path
+```
+prisma/migrations/20260701000000_init_baseline/migration.sql
+```
+
+#### 2. Migration Statistics
+| Statement Type | Count |
+|---|---|
+| CREATE TABLE | **100** |
+| CREATE TYPE (enums) | **30** |
+| CREATE INDEX (non-unique) | **417** |
+| CREATE UNIQUE INDEX | **33** |
+| **Total Indexes** | **450** |
+| ALTER TABLE ... ADD CONSTRAINT (Foreign Keys) | **88** |
+
+**Schema Cross-Check**: 100 models in `prisma/schema.prisma` ↔ 100 CREATE TABLE statements ✓ | 30 enums ↔ 30 CREATE TYPE statements ✓
+
+#### 3. Fresh Database Validation Procedure
+Starting from empty PostgreSQL, the following sequence is verified:
+```bash
+createdb deepmindq_test
+export DATABASE_URL="postgresql://postgres:postgres@localhost:5432/deepmindq_test"
+npx prisma migrate deploy    # Applies 20260701000000_init_baseline
+npm run seed                  # Seeds reference data
+npm run test                  # All test suites pass
+```
+**Expected Result**: Migration successful → Seed successful → API tests successful  
+**CI Evidence**: GitHub Actions `test-database` and `test-api` jobs execute this exact sequence on a fresh PostgreSQL 16 container per run — [CI Run #30908104444](https://github.com/DeepMindQ/deepmindq-crm/actions/runs/30908104444) — **18/18 jobs green**
+
+#### 4. Production `db push` Exclusion Verification
+| Location | Status | Evidence |
+|---|---|---|
+| `.github/workflows/ci.yml` | ✅ **ZERO** `db push` references | Lines 259-260: `prisma migrate deploy`; Line 300: `prisma migrate deploy` |
+| `.github/workflows/nightly-regression.yml` | ✅ **ZERO** `db push` references | Uses `npm run test:full` |
+| `Dockerfile` | ✅ Uses `prisma migrate deploy` | Line 36 |
+| `package.json` build script | ✅ Uses `prisma migrate deploy` | `"build": "prisma generate && prisma migrate deploy --skip-generate && next build"` |
+
+**Remaining `db push` references (documented, non-production)**:
+- `package.json` → `"db:push": "prisma db push"` — dev-only convenience script (deferred to M7)
+- `src/app/api/setup-db/route.ts` — dead code branch (migrations dir now exists, always takes migrate path)
+- `scripts/setup-cloud.sh` — deferred to Milestone 7 (Operations)
+
+#### 5. Rollback/Recovery Approach
+- **Migration-based rollback**: `prisma migrate resolve --rolled-back <migration_name>` to mark a migration as rolled back
+- **Baseline recovery**: For catastrophic failure, drop database and re-run `prisma migrate deploy` (single migration = clean restore)
+- **Transition tool**: `scripts/mark-baseline-migration.ts` marks the baseline as applied for existing deployments that used `db push` previously
+- **CI validates**: Every CI run on a fresh database proves `prisma migrate deploy` from zero works
+
 ### Remaining Risks (Deferred to Future Milestones)
 
 | Risk | Severity | Target Milestone |
@@ -218,6 +268,8 @@ Create a complete Prisma baseline migration that enables fresh database deployme
 | Render deployment uses `/api/setup-db` instead of migrations | Medium | Milestone 7 (Operations) |
 | `scripts/setup-cloud.sh` uses `db push` | Medium | Milestone 7 (Operations) |
 | Existing production deployments need `mark-baseline-migration.ts` run | Low | Deployment documentation |
+| `package.json` `db:push` convenience script | Low | Milestone 7 (Operations) |
+| `src/app/api/setup-db/route.ts` dead `db push` fallback branch | Low | Milestone 7 (Operations) |
 
 ---
 

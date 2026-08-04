@@ -306,12 +306,25 @@ describe('Rate Limiting', () => {
   });
 
   it('should reset after window expires', () => {
-    // Use a very short window for testing
-    const result1 = rateLimit({ key: 'test-window-reset', limit: 1, windowMs: 1 });
-    expect(result1.success).toBe(true);
+    vi.useFakeTimers();
+    try {
+      // First request consumes the limit
+      const result1 = rateLimit({ key: 'test-window-reset', limit: 1, windowMs: 60000 });
+      expect(result1.success).toBe(true);
 
-    const result2 = rateLimit({ key: 'test-window-reset', limit: 1, windowMs: 1 });
-    expect(result2.success).toBe(false);
+      // Second request should be rejected (same window)
+      const result2 = rateLimit({ key: 'test-window-reset', limit: 1, windowMs: 60000 });
+      expect(result2.success).toBe(false);
+
+      // Advance time past the window
+      vi.advanceTimersByTime(60001);
+
+      // Third request should succeed (new window)
+      const result3 = rateLimit({ key: 'test-window-reset', limit: 1, windowMs: 60000 });
+      expect(result3.success).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('should track different keys independently', () => {

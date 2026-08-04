@@ -256,8 +256,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - name: Run Prisma migrations
-        run: npx prisma migrate deploy
+      - name: Create database schema
+        run: npx prisma db push --accept-data-loss
       - name: Seed CI test data
         run: npx tsx scripts/seed-ci.ts
       - name: Run API tests

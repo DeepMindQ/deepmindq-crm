@@ -32,9 +32,10 @@ export default defineConfig({
       'src/lib/intelligence-sources/__tests__/knowledge-versioning.test.ts',
       'src/lib/intelligence-sources/__tests__/source-governance.test.ts',
       // CI OOM exclusion: Scale validation tests require 100K+ in-memory entries.
-      // Even with maxForks=1 and 3GB heap, these can exceed CI runner memory.
-      // Run locally with more RAM. 97/98 files, 3047/3061 tests pass without them.
-      ...(process.env.CI === 'true' ? ['tests/wi18.2-phase3-gate3-scale-validation.test.ts'] : []),
+    // Run locally with more RAM.
+    ...(process.env.CI === 'true' ? [
+      'tests/wi18.2-phase3-gate3-scale-validation.test.ts',
+    ] : []),
     ],
     globals: true,
     // Limit worker forks to prevent OOM on CI runners (7GB RAM).

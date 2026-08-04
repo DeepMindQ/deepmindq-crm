@@ -320,7 +320,7 @@ jobs:
         run: npm test
         env:
           CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=3072'
+          NODE_OPTIONS: '--max-old-space-size=4096'
 
   build:
     name: Build Verification

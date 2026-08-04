@@ -1,13 +1,11 @@
 /**
- * Vitest Configuration — AI
+ * Vitest Configuration — AI Core
  * Phase 5.5 Enterprise Test Architecture
  *
- * Environment: node
- * Pool: forks
- * Memory: 2048
+ * Covers: Small/medium AI modules (inbox, health, connectors, confidence, etc.)
+ * Environment: node | Pool: forks | Memory: 2048
  */
 import { defineConfig } from 'vitest/config'
-
 import path from 'path'
 
 export default defineConfig({
@@ -16,11 +14,36 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
     include: [
-      'tests/ai/**/*.test.{ts,tsx}',
-],
-    exclude: [
-      'tests/legacy/**'
-],
+      // Intelligence inbox & navigation
+      'tests/ai/intelligence-inbox-ticket10.test.ts',
+      'tests/ai/intelligence-inbox-navigation.test.ts',
+      'tests/ai/intelligence-timeline.test.ts',
+      'tests/ai/intelligence-health.test.ts',
+      // Connectors & scheduling
+      'tests/ai/connector-scheduler.test.ts',
+      'tests/ai/csv-connector.test.ts',
+      'tests/ai/job-queue.test.ts',
+      // Confidence & signals
+      'tests/ai/confidence-engine.test.ts',
+      'tests/ai/ai-confidence.test.ts',
+      'tests/ai/signal-patterns.test.ts',
+      // Human intelligence & company resolution
+      'tests/ai/human-intelligence.test.ts',
+      'tests/ai/company-resolution.test.ts',
+      // Knowledge & brief
+      'tests/ai/knowledge-fabric.test.ts',
+      'tests/ai/brief-generator.test.ts',
+      'tests/ai/evidence-adapter.test.ts',
+      // Learning & association
+      'tests/ai/learning-loop.test.ts',
+      'tests/ai/association-engine.test.ts',
+      // Navigation & barrel
+      'tests/ai/data-import-navigation.test.ts',
+      'tests/ai/index.test.ts',
+      'tests/ai/recommendation-generator.test.ts',
+      'tests/ai/opportunity-radar.test.ts',
+    ],
+    exclude: ['tests/legacy/**'],
     globals: true,
     pool: 'forks',
     maxWorkers: 2,
@@ -30,24 +53,6 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
-    },
-  },
-  coverage: {
-    provider: 'v8',
-    reporter: ['text', 'json', 'html', 'lcov'],
-    include: ['src/**/*.{ts,tsx}'],
-    exclude: [
-      'src/**/*.d.ts',
-      'src/**/*.test.{ts,tsx}',
-      'src/**/__tests__/**',
-      'src/app/api/**/route.ts',
-      'src/proxy.ts',
-    ],
-    thresholds: {
-      statements: 30,
-      branches: 20,
-      functions: 30,
-      lines: 30,
     },
   },
 })

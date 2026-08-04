@@ -1,0 +1,164 @@
+# ═══════════════════════════════════════════════════
+# DeepMindQ — Nightly Enterprise Regression
+# Phase 5.5 — Full test suite with coverage, benchmarks, artifacts
+#
+# Schedule: Runs at 02:00 UTC daily (or on manual trigger)
+#
+# Produces:
+#   - Coverage reports (HTML + LCOV)
+#   - Performance benchmarks (JSON)
+#   - Test summary (JUnit XML)
+#   - Memory profiling data
+# ═══════════════════════════════════════════════════
+
+name: Nightly Regression
+
+on:
+  schedule:
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      run_performance:
+        description: 'Include performance benchmarks'
+        required: false
+        default: 'true'
+        type: boolean
+
+concurrency:
+  group: nightly-regression
+  cancel-in-progress: false
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ═══════════════════════════════════════════════════
+  # FULL REGRESSION — All categories sequentially
+  # ═══════════════════════════════════════════════════
+  full-regression:
+    name: Full Regression Suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+
+      - name: Run full regression (all categories)
+        run: npm run test:full
+        env:
+          CI: 'true'
+          NODE_OPTIONS: '--max-old-space-size=4096'
+
+      - name: Generate coverage report
+        run: npm run test:coverage -- --config vitest.unit.config.ts
+        env:
+          CI: 'true'
+          NODE_OPTIONS: '--max-old-space-size=2048'
+
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: coverage-report
+          path: coverage/
+          retention-days: 30
+
+      - name: Upload test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-results
+          path: test-results/
+          retention-days: 14
+
+  # ═══════════════════════════════════════════════════
+  # PERFORMANCE BENCHMARKS
+  # ═══════════════════════════════════════════════════
+  performance-benchmarks:
+    name: Performance Benchmarks
+    runs-on: ubuntu-latest
+    if: github.event.inputs.run_performance != 'false'
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+
+      - name: Run performance benchmarks
+        run: npx vitest run --config vitest.performance.config.ts --reporter=verbose
+        env:
+          CI: 'true'
+          NODE_OPTIONS: '--max-old-space-size=4096'
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: benchmark-results
+          path: |
+            benchmarks/
+            test-results/
+          retention-days: 90
+
+  # ═══════════════════════════════════════════════════
+  # MEMORY LEAK DETECTION
+  # ═══════════════════════════════════════════════════
+  memory-check:
+    name: Memory Leak Detection
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+
+      - name: Run all tests with memory profiling
+        run: |
+          node --expose-gc --max-old-space-size=4096 \
+            ./node_modules/.bin/vitest run \
+            --config vitest.unit.config.ts \
+            --reporter=verbose 2>&1 | tee memory-report-unit.txt
+
+          node --expose-gc --max-old-space-size=4096 \
+            ./node_modules/.bin/vitest run \
+            --config vitest.security.config.ts \
+            --reporter=verbose 2>&1 | tee memory-report-security.txt
+
+          node --expose-gc --max-old-space-size=4096 \
+            ./node_modules/.bin/vitest run \
+            --config vitest.ai.config.ts \
+            --reporter=verbose 2>&1 | tee memory-report-ai.txt
+        env:
+          CI: 'true'
+
+      - name: Check for OOM indicators
+        run: |
+          for f in memory-report-*.txt; do
+            if grep -qi "heap out of memory\|oom\|allocation failed\|process out of memory" "$f"; then
+              echo "::error::Memory issue detected in $f"
+              cat "$f"
+              exit 1
+            fi
+          done
+          echo "✓ No memory issues detected"
+
+      - name: Upload memory reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: memory-reports
+          path: memory-report-*.txt
+          retention-days: 14

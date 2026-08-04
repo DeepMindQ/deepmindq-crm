@@ -1,3 +1,11 @@
+/**
+ * Vitest Base Configuration — Phase 5.5 Enterprise Test Architecture
+ *
+ * DEFAULT: runs nothing (prevents accidental single-workload OOM).
+ * Use category-specific configs or npm scripts to run tests.
+ *
+ * Category configs: vitest.{unit,security,api,database,ai,integration,e2e,performance,ui}.config.ts
+ */
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
@@ -5,16 +13,24 @@ import path from 'path'
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
+    environment: 'node',
     setupFiles: ['./tests/setup.ts'],
-    include: ['src/**/*.test.{ts,tsx}', 'tests/**/*.test.{ts,tsx}'],
+    include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'],
     exclude: [
-      'tests/api-priority-routes.test.ts',   // References deleted g-strategy routes
-      'tests/api-rankings.test.ts',           // References deleted g-strategy routes
-      'src/app/api/__tests__/health-export-knowledge.test.ts', // References deleted health-check route
-      // Tests below reference older API shapes/function signatures that changed during
-      // Phase 3 refactoring. Excluded to achieve passing CI; need rewrite against
-      // current codebase. Total: 121 test assertions across 8 files.
+      'tests/legacy/**',
+      'tests/unit/**',
+      'tests/security/**',
+      'tests/api/**',
+      'tests/database/**',
+      'tests/ai/**',
+      'tests/integration/**',
+      'tests/e2e/**',
+      'tests/performance/**',
+      'tests/ui/**',
+      // Stale/outdated tests — source files deleted or API shapes changed
+      'tests/api-priority-routes.test.ts',
+      'tests/api-rankings.test.ts',
+      'src/app/api/__tests__/health-export-knowledge.test.ts',
       'src/app/api/__tests__/api-integration.test.ts',
       'src/app/api/__tests__/import-timeline-notes.test.ts',
       'src/app/api/__tests__/opportunities-research.test.ts',
@@ -24,23 +40,17 @@ export default defineConfig({
       'src/lib/revenue-intelligence/__tests__/account-scoring.test.ts',
       'src/lib/intelligence-sources/__tests__/intelligence-alerts.test.ts',
       'tests/research-engine.test.ts',
-      // Dead test suites — source files deleted during engine consolidation.
-      // Tests import non-existent modules and cannot run.
       'tests/sprint1-modules.test.ts',
       'src/lib/intelligence-sources/__tests__/acquisition-engine.test.ts',
       'src/lib/intelligence-sources/__tests__/analytics-dashboard.test.ts',
       'src/lib/intelligence-sources/__tests__/knowledge-versioning.test.ts',
       'src/lib/intelligence-sources/__tests__/source-governance.test.ts',
-      // CI OOM exclusion: Scale validation tests require 100K+ in-memory entries.
-    // Run locally with more RAM.
-    ...(process.env.CI === 'true' ? [
-      'tests/wi18.2-phase3-gate3-scale-validation.test.ts',
-    ] : []),
     ],
     globals: true,
-    // Limit worker forks to prevent OOM on CI runners (7GB RAM).
-    // Large test suite (98 files, 3100+ tests) needs conservative parallelism.
-    maxForks: 1,
+    pool: 'forks',
+    maxWorkers: 2,
+    testTimeout: 30000,
+    hookTimeout: 10000,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html', 'lcov'],
@@ -49,13 +59,10 @@ export default defineConfig({
         'src/**/*.d.ts',
         'src/**/*.test.{ts,tsx}',
         'src/**/__tests__/**',
-        'src/app/api/**/route.ts',  // API routes tested via integration
+        'src/app/api/**/route.ts',
         'src/proxy.ts',
       ],
       thresholds: {
-        // Phase 4 Hardened:逐步提升覆盖率目标
-        // Critical infrastructure modules (new in Phase 4) should have 80%+
-        // Overall threshold raised from 10% to reflect expanded test coverage
         statements: 30,
         branches: 20,
         functions: 30,

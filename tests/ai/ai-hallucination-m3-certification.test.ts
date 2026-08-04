@@ -1,3 +1,4 @@
+ 
 /**
  * DeepMindQ Enterprise AI Intelligence Platform
  * Milestone 3 — Section 3.4: AI Quality Certification
@@ -58,7 +59,7 @@ import type {
 // ═════════════════════════════════════════════════════════════════════════════
 // REAL BUSINESS LOGIC — These test the ACTUAL algorithms used by the module
 // We reimplement the core logic here (matching the source) to validate
- correctness without importing the OOM-causing module.
+// correctness without importing the OOM-causing module.
 // ═══════════════════════════════════════════════════════════════════════════
 
 // ── Real Claim Extraction Logic (from ai-hallucination-prevention.ts) ──

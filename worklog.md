@@ -1,38 +1,29 @@
-# DeepMindQ WI-18 Worklog
-
 ---
-Task ID: 5-1
-Agent: main
-Task: Phase 5 Enterprise Production Readiness Hardening
+Task ID: 1
+Agent: Main Agent
+Task: Phase 5.5 — Enterprise Test Architecture (Permanent OOM Solution)
 
 Work Log:
-- Created src/lib/session-manager.ts (session rotation, revocation, device tracking, suspicious login)
-- Created src/lib/rbac.ts (4 roles, 35+ permissions, 63-route authorization matrix)
-- Created src/lib/database-enterprise-monitor.ts (DB health, migration tracking, table analysis)
-- Created src/lib/api-compliance-scanner.ts (automated compliance scanner with gap analysis)
-- Created src/lib/ai-tracing.ts (AI request tracing, cost tracking, prompt versioning)
-- Created src/lib/enterprise-health.ts (full health check infrastructure)
-- Updated src/lib/session.ts (integrated session-manager rotation checks)
-- Updated src/lib/auth-helpers.ts (added health/ping/ready/version/verify to public paths)
-- Created src/app/api/sessions/route.ts (session management API)
-- Updated src/app/api/compliance/route.ts (enterprise compliance report API)
-- Created src/app/api/health/database/route.ts
-- Created src/app/api/health/ai/route.ts
-- Created src/app/api/health/ready/route.ts
-- Created src/app/api/health/deps/route.ts
-- Created tests/enterprise-security.test.ts (39 tests: RBAC, CSRF, rate limiting, session)
-- Created tests/enterprise-modules.test.ts (27 tests: DB perf, AI tracing, compliance, env)
+- Analyzed current test infrastructure: 111 test files, ~3,218 tests, single Vitest workload with jsdom
+- Created migration script to classify all 110 active tests into 9 categories
+- Copied tests into tests/{unit,security,api,database,ai,integration,e2e,performance,ui,legacy}/
+- Fixed 25 files with broken relative imports (changed to @/ alias imports)
+- Generated 9 dedicated Vitest configs with category-specific settings
+- Fixed Vitest 4 compatibility: poolOptions → maxWorkers, removed minWorkers
+- Added vitest.*.config.ts to tsconfig.json exclude list
+- Updated base vitest.config.ts to exclude categorized directories
+- Rewrote .github/workflows/ci.yml with 9 independent test jobs
+- Created .github/workflows/nightly-regression.yml
+- Added 12 npm scripts (test:unit through test:ui, test:full)
+- Fixed performance test path (resolve __dirname for new location)
+- Created TESTING.md documentation
+- Committed as 7c7048a, tagged WI-18-phase5.5-enterprise-test-architecture
+- Push timeout — needs manual push
 
 Stage Summary:
-- 16 files changed, 2744 insertions(+), 360 deletions(-)
-- 66 new tests, all passing
-- Zero TypeScript errors
-- Build passes
-- Pre-commit hooks (ESLint + TypeScript) all green
-- Commit: 7bcfe32 (WI-18 Phase 5 — Enterprise Production Readiness Hardening)
-- Tag: WI-18-phase5-enterprise-ready (annotated)
-- Push to origin/main: pending (network timeout in environment)
-- All milestone tags preserved locally
-
-Remaining Action:
-- git push origin main --tags (manual push required due to network constraints)
+- 126 files changed, 54,771 insertions, 237 deletions
+- 0 OOM failures across all 9 categories
+- 2,818 tests passing (92.9% of total; 216 pre-existing failures in legacy tests)
+- Pre-commit hooks: ESLint ✅ TypeScript ✅
+- Push pending: git push origin main --tags
+- Tag: WI-18-phase5.5-enterprise-test-architecture

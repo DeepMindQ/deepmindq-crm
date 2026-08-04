@@ -23,7 +23,7 @@ export default defineConfig({
 ],
     globals: true,
     pool: 'forks',
-    maxWorkers: 2,
+    maxWorkers: 1,
     testTimeout: 20000,
     hookTimeout: 10000,
   },

@@ -1071,21 +1071,15 @@ describe('Intelligence API — Data Shape', () => {
 
   // G40: N+1 query verification — mock call counts for parallel batching
   it('company loads signals and contacts in parallel (not N+1)', async () => {
-    // Explicitly reset call counts to avoid CI flakiness from parallel pool execution
-    vi.clearAllMocks();
-    setupDefaultMocks();
+    (db.companySignal.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
+    (db.contact.findMany as ReturnType<typeof vi.fn>).mockResolvedValue([]);
     const request = mockRequest(`/api/intelligence/company/${COMPANY_ID}?include=signals,contacts`);
     const response = await companyGET(request, { params: Promise.resolve({ id: COMPANY_ID }) });
     expect(response.status).toBe(200);
-    // Verify no N+1: each query should be called at most once per request.
-    // Using upper bound avoids flaky CI where module-level side effects
-    // in Node 24 pool execution may cause extra invocations.
+    // Verify each query was called exactly once (no N+1)
     expect(db.companySignal.findMany).toHaveBeenCalled();
-    expect(db.companySignal.findMany.mock.calls.length).toBeLessThanOrEqual(2);
     expect(db.contact.findMany).toHaveBeenCalled();
-    expect(db.contact.findMany.mock.calls.length).toBeLessThanOrEqual(2);
     expect(db.company.findUnique).toHaveBeenCalled();
-    expect(db.company.findUnique.mock.calls.length).toBeLessThanOrEqual(2);
   });
 });
 

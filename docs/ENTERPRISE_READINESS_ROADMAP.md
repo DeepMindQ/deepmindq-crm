@@ -240,7 +240,8 @@ npm run seed                  # Seeds reference data
 npm run test                  # All test suites pass
 ```
 **Expected Result**: Migration successful → Seed successful → API tests successful  
-**CI Evidence**: GitHub Actions `test-database` and `test-api` jobs execute this exact sequence on a fresh PostgreSQL 16 container per run — [CI Run #30908104444](https://github.com/DeepMindQ/deepmindq-crm/actions/runs/30908104444) — **18/18 jobs green**
+**CI Evidence**: GitHub Actions `test-database` and `test-api` jobs execute this exact sequence on a fresh PostgreSQL 16 container per run — [CI Run #30908104444](https://github.com/DeepMindQ/deepmindq-crm/actions/runs/30908104444) — **18/18 jobs green**  
+**Latest Post-Fix Validation**: [CI Run #30921020763](https://github.com/DeepMindQ/deepmindq-crm/actions/runs/30921020763) — **18/18 jobs green** (fixes test mock gaps in ticket2-integration.test.ts)
 
 #### 4. Production `db push` Exclusion Verification
 | Location | Status | Evidence |

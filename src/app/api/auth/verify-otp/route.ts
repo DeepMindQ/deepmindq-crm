@@ -19,6 +19,22 @@ import { logger } from '@/lib/logger';
 
 const MAX_ATTEMPTS = 5;
 
+/**
+ * Milestone 1 C-03: Constant-time string comparison for OTP hashes.
+ * Prevents timing side-channel attacks on the OTP verification path.
+ */
+function timingSafeCompare(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  const encoder = new TextEncoder();
+  const aBuf = encoder.encode(a);
+  const bBuf = encoder.encode(b);
+  let result = 0;
+  for (let i = 0; i < aBuf.length; i++) {
+    result |= aBuf[i] ^ bBuf[i];
+  }
+  return result === 0;
+}
+
 function getAuthorizedEmail(): string | undefined {
   return process.env.AUTHORIZED_EMAIL;
 }
@@ -111,7 +127,8 @@ export async function POST(request: NextRequest) {
     // === Hash submitted code and compare ===
     const submittedHash = await hashOtp(code);
 
-    if (submittedHash !== storedHash) {
+    // Milestone 1 C-03: Use constant-time comparison to prevent timing attacks
+    if (!timingSafeCompare(submittedHash, storedHash)) {
       // Also try DB as secondary check (PATH B: database OTP fallback)
       try {
         const submittedHash = await hashOtp(code);

@@ -132,7 +132,7 @@ async function callLLMGoverned(systemPrompt: string, userPrompt: string, company
     companyId,
     systemPrompt,
     userPrompt,
-    enforceGovernance: false, // No pre-loaded research context; advisory mode
+    enforceGovernance: true, // Milestone 1: Governance enabled — no bypass for core AI output
     tier: 'deep',
     maxTokens: 8192,
     temperature: 0.7,

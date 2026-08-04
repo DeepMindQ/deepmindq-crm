@@ -288,9 +288,45 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
   { path: '/api/realtime', methods: { GET: ['dashboard:read'] }, description: 'Real-time updates' },
   { path: '/api/verify-email', methods: { GET: [] }, public: true, description: 'Email verification' },
   { path: '/api/verify-queue', methods: { GET: [] }, public: true, description: 'Queue verification' },
+
+  // Milestone 1 H-01: Wildcard allows for route groups not individually listed.
+  // These routes require authentication (enforced by proxy) but allow any authenticated user.
+  // Admin-only routes are listed individually above.
+  { path: '/api/ai/', methods: { GET: ['ai:read'], POST: ['ai:write'], PUT: ['ai:write'], DELETE: ['ai:write'], PATCH: ['ai:write'] }, description: 'AI intelligence endpoints' },
+  { path: '/api/intelligence/', methods: { GET: ['research:read'], POST: ['research:write'], PUT: ['research:write'], DELETE: ['research:write'] }, description: 'Intelligence API endpoints' },
+  { path: '/api/companies/', methods: { GET: ['companies:read'], POST: ['companies:write'], PUT: ['companies:write'], DELETE: ['companies:delete'], PATCH: ['companies:write'] }, description: 'Company sub-resource endpoints' },
+  { path: '/api/contacts/', methods: { GET: ['contacts:read'], POST: ['contacts:write'], PUT: ['contacts:write'], DELETE: ['contacts:delete'], PATCH: ['contacts:write'] }, description: 'Contact sub-resource endpoints' },
+  { path: '/api/leads/', methods: { GET: ['leads:read'], POST: ['leads:write'], PUT: ['leads:write'], DELETE: ['leads:delete'], PATCH: ['leads:write'] }, description: 'Lead sub-resource endpoints' },
+  { path: '/api/opportunities/', methods: { GET: ['opportunities:read'], POST: ['opportunities:write'], PUT: ['opportunities:write'], DELETE: ['opportunities:delete'], PATCH: ['opportunities:write'] }, description: 'Opportunity sub-resource endpoints' },
+  { path: '/api/engines/', methods: { GET: ['ai:read'], POST: ['ai:write'] }, description: 'Engine endpoints' },
+  { path: '/api/drafts/', methods: { GET: ['email:read'], POST: ['email:write'], PUT: ['email:write'], DELETE: ['email:write'] }, description: 'Draft endpoints' },
+  { path: '/api/segments/', methods: { GET: ['segments:read'], POST: ['segments:write'], PUT: ['segments:write'], DELETE: ['segments:delete'] }, description: 'Segment endpoints' },
+  { path: '/api/batches/', methods: { GET: ['import:read'], POST: ['import:write'], DELETE: ['import:write'] }, description: 'Batch operation endpoints' },
+  { path: '/api/feedback/', methods: { GET: ['ai:read'], POST: ['ai:write'] }, description: 'Feedback endpoints' },
+  { path: '/api/g-intel-acquisition/', methods: { GET: ['research:read'], POST: ['research:write'] }, description: 'G-Intel acquisition endpoints' },
+  { path: '/api/capabilities/', methods: { GET: ['ai:read'], POST: ['ai:write'], PUT: ['ai:write'], DELETE: ['ai:write'] }, description: 'Capability library endpoints' },
+  { path: '/api/data-import/', methods: { GET: ['import:read'], POST: ['import:write'] }, description: 'Data import operation endpoints' },
+  { path: '/api/conversation-plans/', methods: { GET: ['research:read'], POST: ['research:write'], PUT: ['research:write'], DELETE: ['research:write'] }, description: 'Conversation plan endpoints' },
+  { path: '/api/webhooks/', methods: { GET: [], POST: [] }, public: true, description: 'Webhook receivers (HMAC verified)' },
+  { path: '/api/tracking/', methods: { GET: [], POST: [] }, public: true, description: 'Email tracking pixels' },
+  { path: '/api/cron/', methods: { GET: [], POST: [] }, public: true, description: 'Cron job processors (secret-verified)' },
+  { path: '/api/auth/', methods: { GET: [], POST: [], PUT: [], DELETE: [] }, public: true, description: 'Authentication endpoints' },
+  { path: '/api/admin/', methods: { GET: ['settings:read'], POST: ['settings:write'], PUT: ['settings:write'], DELETE: ['users:manage'] }, description: 'Admin-only endpoints' },
+  { path: '/api/sessions', methods: { GET: ['settings:read'], DELETE: ['settings:write'] }, description: 'Session management' },
+  { path: '/api/notes/', methods: { GET: ['companies:read'], POST: ['companies:write'], DELETE: ['companies:write'] }, description: 'Notes endpoints' },
+  { path: '/api/templates/', methods: { GET: ['templates:read'], POST: ['templates:write'], PUT: ['templates:write'], DELETE: ['templates:write'] }, description: 'Template endpoints' },
+  { path: '/api/reports/', methods: { GET: ['reports:read'], POST: ['reports:export'] }, description: 'Report endpoints' },
+  { path: '/api/pipeline/', methods: { GET: ['pipeline:read'], POST: ['pipeline:write'], PUT: ['pipeline:write'], DELETE: ['pipeline:write'] }, description: 'Pipeline endpoints' },
+  { path: '/api/system-health', methods: { GET: ['health:read'] }, description: 'System health details' },
+  { path: '/api/performance', methods: { GET: ['health:read'] }, description: 'Performance metrics' },
+  { path: '/api/data-health', methods: { GET: ['health:read'] }, description: 'Data health' },
+  { path: '/api/tags/', methods: { GET: ['companies:read'], POST: ['companies:write'], DELETE: ['companies:write'] }, description: 'Tag endpoints' },
+  { path: '/api/custom-fields/', methods: { GET: ['settings:read'], POST: ['settings:write'], PUT: ['settings:write'], DELETE: ['settings:write'] }, description: 'Custom field endpoints' },
+  { path: '/api/seed/', methods: { POST: ['users:manage'] }, description: 'Seed data endpoints (admin only)' },
+  { path: '/api/setup-db', methods: { POST: [] }, public: true, description: 'DB setup (token-gated)' },
 ];
 
-// ── Authorization Functions ──────────────────────────────────────
+// -- Authorization Functions --
 
 /**
  * Check if a user role has a specific permission.
@@ -327,13 +363,32 @@ export function authorizeRoute(
   const normalizedPath = pathname.replace(/\/+$/, '').split('?')[0];
 
   // Find matching route config
-  const routeConfig = ROUTE_AUTHORIZATION_MATRIX.find(r => normalizedPath === r.path);
+  // Milestone 1 H-01: Support prefix matching (e.g., /api/ai/ matches /api/ai/chat)
+  let routeConfig = ROUTE_AUTHORIZATION_MATRIX.find(r => normalizedPath === r.path);
+  if (!routeConfig) {
+    // Try prefix match (longest prefix wins)
+    let bestMatch: RouteAuthorizationConfig | undefined;
+    let bestMatchLength = 0;
+    for (const entry of ROUTE_AUTHORIZATION_MATRIX) {
+      if (normalizedPath.startsWith(entry.path)) {
+        if (entry.path.length > bestMatchLength) {
+          bestMatchLength = entry.path.length;
+          bestMatch = entry;
+        }
+      }
+    }
+    routeConfig = bestMatch;
+  }
 
   if (!routeConfig) {
-    // No explicit config — default to requiring auth (admin access)
-    // In single-user mode, admin has all permissions
-    logger.warn(`[RBAC] No authorization config for ${normalizedPath} — defaulting to authenticated access`);
-    return { authorized: true };
+    // Milestone 1 H-01: Deny by default for unmatched routes.
+    // Previously defaulted to authorized: true — now requires explicit allow entry.
+    // This prevents any authenticated user from accessing unconfigured routes.
+    logger.warn(`[RBAC] No authorization config for ${normalizedPath} — denying by default`);
+    return {
+      authorized: false,
+      reason: `Route ${normalizedPath} has no authorization configuration. Access denied by default.`,
+    };
   }
 
   // Public route — no authorization needed

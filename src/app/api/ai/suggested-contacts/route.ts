@@ -154,7 +154,7 @@ const companyId = request.nextUrl.searchParams.get('companyId');
       companyId,
       systemPrompt,
       userPrompt,
-      enforceGovernance: false, // No pre-loaded research context; advisory mode
+      enforceGovernance: true, // Milestone 1: Governance enabled — no bypass for core AI output
       tier: 'smart',
       maxTokens: 4096,
       temperature: 0.5,

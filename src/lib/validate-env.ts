@@ -5,7 +5,11 @@ import { logger } from '@/lib/logger';
 const envSchema = z.object({
   DATABASE_URL: z.string().min(1, 'DATABASE_URL is required'),
   NEXTAUTH_URL: z.string().url().optional().default('http://localhost:3000'),
-  NEXTAUTH_SECRET: z.string().min(32, 'NEXTAUTH_SECRET must be at least 32 characters'),
+  // Milestone 1 H-02: Renamed from NEXTAUTH_SECRET to SESSION_TOKEN_HMAC_SECRET
+  // The custom session system doesn't use NextAuth, so the name was misleading.
+  // Accept both for backwards compatibility, but SESSION_TOKEN_HMAC_SECRET takes precedence.
+  SESSION_TOKEN_HMAC_SECRET: z.string().min(32, 'SESSION_TOKEN_HMAC_SECRET must be at least 32 characters').optional(),
+  NEXTAUTH_SECRET: z.string().min(32).optional(),
   // AI API keys (optional — app works with template fallback)
   OPENAI_API_KEY: z.string().optional(),
   GEMINI_API_KEY: z.string().optional(),
@@ -91,11 +95,12 @@ export function getEnvHealthReport(): {
   // Database
   const database = !!env.DATABASE_URL
 
-  // Auth
-  const secret = !!env.NEXTAUTH_SECRET
-  const minLength = !!(env.NEXTAUTH_SECRET && env.NEXTAUTH_SECRET.length >= 32)
-  if (!secret) warnings.push('NEXTAUTH_SECRET is not set — auth will fail')
-  if (secret && !minLength) warnings.push('NEXTAUTH_SECRET is less than 32 characters')
+  // Auth — Milestone 1 H-02: Accept SESSION_TOKEN_HMAC_SECRET or NEXTAUTH_SECRET (backwards compat)
+  const sessionSecret = process.env.SESSION_TOKEN_HMAC_SECRET || process.env.NEXTAUTH_SECRET
+  const secret = !!sessionSecret
+  const minLength = !!(sessionSecret && sessionSecret.length >= 32)
+  if (!secret) warnings.push('SESSION_TOKEN_HMAC_SECRET (or NEXTAUTH_SECRET) is not set — auth will fail')
+  if (secret && !minLength) warnings.push('SESSION_TOKEN_HMAC_SECRET (or NEXTAUTH_SECRET) is less than 32 characters')
 
   // Critical secrets
   const trackingSecret = !!env.TRACKING_SECRET
@@ -123,8 +128,9 @@ export function getEnvHealthReport(): {
 export function validateEnv() {
   const env = getEnv()
   if (process.env.NODE_ENV === 'production') {
-    if (!process.env.NEXTAUTH_SECRET || process.env.NEXTAUTH_SECRET.length < 32) {
-      throw new Error('NEXTAUTH_SECRET must be set and at least 32 characters in production')
+    const sessionSecret = process.env.SESSION_TOKEN_HMAC_SECRET || process.env.NEXTAUTH_SECRET
+    if (!sessionSecret || sessionSecret.length < 32) {
+      throw new Error('SESSION_TOKEN_HMAC_SECRET (or NEXTAUTH_SECRET) must be set and at least 32 characters in production')
     }
     if (!process.env.DATABASE_URL) {
       throw new Error('DATABASE_URL must be set in production')

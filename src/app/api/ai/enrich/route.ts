@@ -161,22 +161,16 @@ Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence":
   }
 
   // Auto-fill if requested
+  // Milestone 1: Human-approval gate — AI suggestions are NOT written directly to DB.
+  // Instead, they are returned with a `pending` status for admin review.
+  // The autoFill parameter now only marks suggestions as "approved" but does NOT write.
   let enriched = false
   if (autoFill && suggestions.length > 0) {
-    const updateData: Record<string, string> = {}
-    for (const s of suggestions) {
-      if (s.confidence >= 0.6) {
-        updateData[s.field] = s.suggestedValue
-      }
-    }
-
-    if (Object.keys(updateData).length > 0) {
-      await db.company.update({
-        where: { id: entityId },
-        data: updateData,
-      })
-      enriched = true
-    }
+    // PREVIOUS BEHAVIOR (removed): Directly wrote AI values to DB at 60% confidence.
+    // NEW BEHAVIOR: Return suggestions with `canAutoFill: true` flag.
+    // The client must explicitly confirm each suggestion before it's persisted.
+    // This prevents unverified AI data from corrupting company/contact records.
+    enriched = false // Never auto-write; requires explicit approval
   }
 
   // Persist as AI Insight
@@ -297,23 +291,11 @@ Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence":
     }
   }
 
-  // Auto-fill if requested
+  // Auto-fill if requested — Milestone 1: Human-approval gate (same as company path)
   let enriched = false
   if (autoFill && suggestions.length > 0) {
-    const updateData: Record<string, string> = {}
-    for (const s of suggestions) {
-      if (s.confidence >= 0.6) {
-        updateData[s.field] = s.suggestedValue
-      }
-    }
-
-    if (Object.keys(updateData).length > 0) {
-      await db.contact.update({
-        where: { id: entityId },
-        data: updateData,
-      })
-      enriched = true
-    }
+    // Milestone 1: Never auto-write AI suggestions to DB. Requires explicit approval.
+    enriched = false
   }
 
   return apiSuccess({

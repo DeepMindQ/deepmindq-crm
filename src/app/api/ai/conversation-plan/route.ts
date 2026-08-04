@@ -183,7 +183,7 @@ Generate a highly specific, actionable conversation plan. Use the web research t
     generationType: 'conversation_plan',
     systemPrompt: SYSTEM_PROMPT,
     userPrompt,
-    enforceGovernance: false, // No pre-loaded research context; advisory mode
+    enforceGovernance: true, // Milestone 1: Governance enabled — no bypass for core AI output
     tier: 'smart',
     maxTokens: 4096,
     temperature: 0.7,

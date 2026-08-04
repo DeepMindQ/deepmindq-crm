@@ -9,10 +9,9 @@ import { apiSuccess, apiError } from '@/lib/apiHelpers';
  * Requires authentication.
  */
 export async function GET() {
-  const auth = await checkApiAuth();
-  if (!auth) {
-    return apiError('Unauthorized', 401);
-  }
+  // Milestone 1: Fix auth guard — checkApiAuth() returns {session, errorResponse?}, never falsy
+  const { errorResponse, session: user } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
 
   const metrics = getApiMetrics();
   return apiSuccess(metrics);

@@ -16,6 +16,7 @@
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { audit, AuditCategory } from '@/lib/audit-logger';
+import { hashToken } from '@/lib/session';
 
 // ── Configuration ──────────────────────────────────────────────
 
@@ -273,6 +274,8 @@ export async function enforceSessionLimit(userId: string): Promise<number> {
 
 /**
  * List all active sessions for a user with device info.
+ * Milestone 1 C-02: Tokens are masked in the response.
+ * Milestone 1 C-01: isCurrent comparison uses hashed token.
  */
 export async function getUserSessions(userId: string, currentToken?: string): Promise<ActiveSession[]> {
   try {
@@ -289,17 +292,24 @@ export async function getUserSessions(userId: string, currentToken?: string): Pr
       },
     });
 
+    // Milestone 1 C-01: Pre-compute hash of currentToken for comparison
+    const currentTokenHash = currentToken ? await hashToken(currentToken) : null;
+
     return sessions.map(s => {
       const ua = s.userAgent || '';
       const parsed = parseUserAgent(ua);
+      // Milestone 1 C-02: Never return full token to client.
+      // Show only first 8 chars for identification; rest masked.
+      const maskedToken = s.token ? s.token.substring(0, 8) + '***' : '***';
       return {
         id: s.id,
-        token: s.token,
+        token: maskedToken,
         userAgent: s.userAgent,
         ipAddress: s.ipAddress,
         expiresAt: s.expiresAt,
         createdAt: s.createdAt,
-        isCurrent: currentToken ? s.token === currentToken : false,
+        // Milestone 1 C-01: Compare pre-computed hash against stored hash
+        isCurrent: currentTokenHash ? s.token === currentTokenHash : false,
         deviceType: parsed.deviceType,
         os: parsed.os,
         browser: parsed.browser,

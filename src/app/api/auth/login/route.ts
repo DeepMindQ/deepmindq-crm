@@ -65,7 +65,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: otpResult.error || 'Failed to send OTP' }, { status: 500 });
     }
 
-    const devOtpAllowed = process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_OTP === 'true';
+    // Milestone 1 H-05: Dev OTP only in development, never staging
+    const devOtpAllowed = process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_OTP === 'true';
     return NextResponse.json({
       success: true,
       message: devOtpAllowed && otpResult.devCode ? 'Password verified. OTP generated (dev mode).' : 'Password verified. OTP sent to your email.',

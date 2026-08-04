@@ -2,7 +2,10 @@
    Session Management Utility
    
    Creates, verifies, and manages opaque session tokens
-   stored in the database.
+   stored in the database as SHA-256 hashes.
+   
+   Milestone 1 (C-01): Tokens are hashed before storage.
+   A DB breach no longer exposes plaintext session tokens.
    
    Phase 5: Integrated with enterprise session-manager.ts
    for rotation, revocation, device tracking, and suspicious
@@ -25,6 +28,18 @@ import {
 const SESSION_COOKIE_NAME = 'dmq_session';
 const SESSION_EXPIRY_DAYS = 30;
 
+// ── Session Token Hashing (Milestone 1: C-01) ─────────────────
+// Tokens are stored as SHA-256 hashes in the database.
+// On lookup, we hash the incoming cookie value and compare.
+// This prevents mass session hijack if the database is compromised.
+
+async function hashToken(token: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`dmq_session:${token}`);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
 /**
  * Generate a cryptographically random session token.
  */
@@ -35,6 +50,8 @@ function generateToken(): string {
     .join('');
 }
 
+export { hashToken };
+
 export interface CreateSessionResult {
   token: string;
   expiresAt: Date;
@@ -44,6 +61,7 @@ export interface CreateSessionResult {
 
 /**
  * Create a new session for a user. Returns the token and sets httpOnly cookie.
+ * Milestone 1 C-01: Stores SHA-256 hash of token in DB, not plaintext.
  * Phase 5: Includes security assessment and session limit enforcement.
  */
 export async function createSession(
@@ -62,10 +80,13 @@ export async function createSession(
     },
   });
 
+  // Milestone 1 C-01: Store SHA-256 hash of token, not plaintext
+  const tokenHash = await hashToken(token);
+
   await db.session.create({
     data: {
       userId,
-      token,
+      token: tokenHash,
       userAgent: userAgent || null,
       ipAddress: ipAddress || null,
       expiresAt,
@@ -78,7 +99,7 @@ export async function createSession(
     logger.info(`[Session] Removed ${removed} excess sessions for user ${userId}`);
   }
 
-  // Set httpOnly cookie
+  // Set httpOnly cookie (still contains plaintext token — only the DB stores the hash)
   const cookieStore = await cookies();
   cookieStore.set(SESSION_COOKIE_NAME, token, {
     httpOnly: true,
@@ -106,6 +127,7 @@ export interface SessionUser {
 
 /**
  * Get the current session from the request cookie.
+ * Milestone 1 C-01: Hashes cookie token before DB lookup.
  * Phase 5: Checks session rotation requirements.
  * Returns the user if valid session exists, null otherwise.
  */
@@ -116,8 +138,11 @@ export async function getCurrentSession(): Promise<SessionUser | null> {
 
     if (!token) return null;
 
+    // Milestone 1 C-01: Hash the cookie token before DB lookup
+    const tokenHash = await hashToken(token);
+
     const session = await db.session.findUnique({
-      where: { token },
+      where: { token: tokenHash },
       include: {
         user: {
           select: {
@@ -146,9 +171,6 @@ export async function getCurrentSession(): Promise<SessionUser | null> {
 
     // Phase 5: Check if session needs rotation
     if (shouldRotateSession(session.createdAt)) {
-      // Don't block the request — but the response should signal re-auth
-      // The token is still valid for this request, middleware/app layer
-      // can check the rotation flag via getRotationStatus()
       logger.info(`[Session] Session ${session.id} eligible for rotation (age: ${Math.round((Date.now() - session.createdAt.getTime()) / (24 * 60 * 60 * 1000))}d)`);
     }
 
@@ -198,13 +220,15 @@ export async function requireAuth(): Promise<SessionUser> {
 
 /**
  * Delete the current session (logout).
+ * Milestone 1 C-01: Hashes token before DB deletion.
  */
 export async function destroyCurrentSession(): Promise<void> {
   const cookieStore = await cookies();
   const token = cookieStore.get(SESSION_COOKIE_NAME)?.value;
 
   if (token) {
-    await db.session.deleteMany({ where: { token } });
+    const tokenHash = await hashToken(token);
+    await db.session.deleteMany({ where: { token: tokenHash } });
   }
 
   cookieStore.delete(SESSION_COOKIE_NAME);
@@ -214,13 +238,16 @@ export async function destroyCurrentSession(): Promise<void> {
  * Validate a session token directly (for use in middleware and API routes
  * that need to validate a token from a NextRequest rather than cookies()).
  * Does NOT set cookies or extend expiry — only validates.
+ * Milestone 1 C-01: Hashes token before DB lookup.
  */
 export async function validateSessionToken(token: string): Promise<SessionUser | null> {
   if (!token || token.length < 16) return null;
 
   try {
+    const tokenHash = await hashToken(token);
+
     const session = await db.session.findUnique({
-      where: { token },
+      where: { token: tokenHash },
       include: {
         user: {
           select: {
@@ -261,10 +288,12 @@ export async function validateSessionToken(token: string): Promise<SessionUser |
 
 /**
  * Destroy a specific session token (for logout from API routes).
+ * Milestone 1 C-01: Hashes token before DB deletion.
  */
 export async function destroySessionByToken(token: string): Promise<void> {
   if (token) {
-    await db.session.deleteMany({ where: { token } });
+    const tokenHash = await hashToken(token);
+    await db.session.deleteMany({ where: { token: tokenHash } });
   }
 }
 

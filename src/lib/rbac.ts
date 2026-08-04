@@ -332,8 +332,13 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
  * Check if a user role has a specific permission.
  */
 export function hasPermission(role: string, permission: Permission): boolean {
-  // Current system uses 'admin' for authorized user — map to RBAC
-  const normalizedRole = (role as UserRole) || 'admin';
+  // Deny by default for null, undefined, empty, or unknown roles.
+  // Previously mapped falsy roles to 'admin' — a privilege escalation risk.
+  if (!role || typeof role !== 'string' || role.trim() === '') {
+    logger.warn('[RBAC] Empty/null role provided, denying access');
+    return false;
+  }
+  const normalizedRole = role as UserRole;
   const roleDef = ROLES[normalizedRole];
   if (!roleDef) {
     // Unknown role — deny by default
@@ -422,7 +427,8 @@ export function authorizeRoute(
  * Get all permissions for a role.
  */
 export function getRolePermissions(role: string): Permission[] {
-  const normalizedRole = (role as UserRole) || 'admin';
+  if (!role || typeof role !== 'string' || role.trim() === '') return [];
+  const normalizedRole = role as UserRole;
   return ROLES[normalizedRole]?.permissions || [];
 }
 
@@ -430,6 +436,7 @@ export function getRolePermissions(role: string): Permission[] {
  * Get role definition.
  */
 export function getRoleDefinition(role: string): RoleDefinition | undefined {
+  if (!role || typeof role !== 'string' || role.trim() === '') return undefined;
   return ROLES[(role as UserRole)];
 }
 

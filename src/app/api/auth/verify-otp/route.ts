@@ -131,7 +131,6 @@ export async function POST(request: NextRequest) {
     if (!timingSafeCompare(submittedHash, storedHash)) {
       // Also try DB as secondary check (PATH B: database OTP fallback)
       try {
-        const submittedHash = await hashOtp(code);
         const otp = await db.otpCode.findFirst({
           where: { email: normalizedEmail, code: submittedHash, purpose, verified: false, expiresAt: { gt: new Date() } },
           orderBy: { createdAt: 'desc' },
@@ -175,9 +174,9 @@ export async function POST(request: NextRequest) {
     cookieStore.delete('dmq_otp_hash');
     cookieStore.delete('dmq_otp_attempts');
 
-    // Mark OTP as verified in DB
+    // Mark OTP as verified in DB (use hash, not plaintext code, for consistency)
     await db.otpCode.updateMany({
-      where: { email: normalizedEmail, code, purpose, verified: false },
+      where: { email: normalizedEmail, code: submittedHash, purpose, verified: false },
       data: { verified: true },
     }).catch(() => { /* non-critical: OTP already verified or record absent */ });
 

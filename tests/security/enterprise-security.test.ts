@@ -196,9 +196,11 @@ describe('RBAC Authorization', () => {
       expect(result.authorized).toBe(true);
     });
 
-    it('should default to authenticated for unconfigured routes', () => {
+    it('should deny unconfigured routes by default (Milestone 1 H-01)', () => {
       const result = authorizeRoute('/api/some-new-route', 'GET', 'admin');
-      expect(result.authorized).toBe(true);
+      // Milestone 1: Deny-by-default — unconfigured routes are denied
+      expect(result.authorized).toBe(false);
+      expect(result.reason).toContain('no authorization configuration');
     });
   });
 

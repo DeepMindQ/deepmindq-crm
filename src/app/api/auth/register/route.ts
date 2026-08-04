@@ -85,7 +85,8 @@ export async function POST(request: NextRequest) {
     // Send OTP for email verification
     const otpResult = await requestOtp(normalizedEmail, 'login');
 
-    const devOtpAllowed = process.env.NODE_ENV !== 'production' && process.env.ALLOW_DEV_OTP === 'true';
+    // Milestone 1 H-05: Dev OTP only in development, never staging
+    const devOtpAllowed = process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_OTP === 'true';
     return NextResponse.json({
       success: true,
       data: {

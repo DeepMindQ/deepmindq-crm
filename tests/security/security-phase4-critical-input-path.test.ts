@@ -236,18 +236,22 @@ describe('Phase 4 — Critical Input Path Hardening', () => {
   // H3: Dev OTP behind explicit ALLOW_DEV_OTP flag
   // ══════════════════════════════════════════════════════════════════
   describe('H3: Dev OTP requires explicit ALLOW_DEV_OTP flag', () => {
-    it('login/route.ts uses ALLOW_DEV_OTP instead of NODE_ENV', () => {
+    it('login/route.ts requires both NODE_ENV=development AND ALLOW_DEV_OTP', () => {
       const content = readFileSync(resolve(API_DIR, 'auth/login/route.ts'), 'utf-8')
       expect(content).toContain("process.env.ALLOW_DEV_OTP === 'true'")
-      // Must NOT have the old NODE_ENV-based check
-      expect(content).not.toContain("process.env.NODE_ENV === 'development'")
+      // Milestone 1 H-05: Defense-in-depth — must also check NODE_ENV === 'development'
+      expect(content).toContain("process.env.NODE_ENV === 'development'")
+      // Must NOT use the old permissive !== 'production' check
+      expect(content).not.toContain("NODE_ENV !== 'production'")
     })
 
-    it('register/route.ts uses ALLOW_DEV_OTP instead of NODE_ENV', () => {
+    it('register/route.ts requires both NODE_ENV=development AND ALLOW_DEV_OTP', () => {
       const content = readFileSync(resolve(API_DIR, 'auth/register/route.ts'), 'utf-8')
       expect(content).toContain("process.env.ALLOW_DEV_OTP === 'true'")
-      // Must NOT have the old NODE_ENV-based check
-      expect(content).not.toContain("process.env.NODE_ENV === 'development'")
+      // Milestone 1 H-05: Defense-in-depth — must also check NODE_ENV === 'development'
+      expect(content).toContain("process.env.NODE_ENV === 'development'")
+      // Must NOT use the old permissive !== 'production' check
+      expect(content).not.toContain("NODE_ENV !== 'production'")
     })
 
     it('otp.ts uses ALLOW_DEV_OTP instead of NODE_ENV for devCode return', () => {

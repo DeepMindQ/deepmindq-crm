@@ -30,3 +30,36 @@ Stage Summary:
 - GitHub: 18/18 CI jobs green
 - Deferred: B-01 (RBAC enforcement wiring) → Milestone 5
 - Evidence: docs/ENTERPRISE_READINESS_ROADMAP.md
+
+---
+Task ID: M2
+Agent: Main Agent
+Task: Milestone 2 — Database & Deployment Certification (100% Complete)
+
+Work Log:
+- Explored Prisma migration state: found 1 malformed migration (flat file, not in subdirectory)
+- Identified critical gap: schema has 100 models but only 1 ALTER TABLE migration (no base CREATE TABLE)
+- Generated baseline migration via `prisma migrate diff --from-empty --to-schema-datamodel`
+  - 3,665 lines: 100 CREATE TABLE, 30 CREATE TYPE, 450 CREATE INDEX, 88 foreign keys
+- Restructured migration directory to proper Prisma format (timestamped subdirectory)
+- Fixed CI workflow:
+  - test-api: replaced `prisma db push --accept-data-loss` with `prisma migrate deploy`
+  - test-database: added PostgreSQL 16 service container + `prisma migrate deploy`
+- Created scripts/mark-baseline-migration.ts for existing deployments (db-push → migrate-deploy transition)
+- Archived 5 SQLite migration scripts to scripts/archive/
+- Updated .env.example with SESSION_TOKEN_HMAC_SECRET
+- Updated roadmap: added Milestone 4 (Business Logic) and Milestone 10 (Investor Readiness)
+- Pushed to GitHub, created PR #7
+- CI Run #30908104444: ALL 18 JOBS GREEN (success)
+- Key validation: Database Tests and API Tests both pass with fresh DB + prisma migrate deploy
+
+Stage Summary:
+- Milestone 2 Database & Deployment: 100% COMPLETE
+- 1 commit: eaef36d + 5133795 (docs)
+- PR #7: https://github.com/DeepMindQ/deepmindq-crm/pull/7
+- CI: https://github.com/DeepMindQ/deepmindq-crm/actions/runs/30908104444
+- Local: TypeScript 0 errors, ESLint 0 errors, 393/393 unit, 241/241 security
+- GitHub: 18/18 CI jobs green
+- Baseline migration: 100 tables, 30 enums, 450 indexes, 88 FKs
+- Deferred: Render setup-db endpoint → Milestone 7, setup-cloud.sh → Milestone 7
+- Evidence: docs/ENTERPRISE_READINESS_ROADMAP.md

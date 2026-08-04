@@ -231,7 +231,7 @@ describe('API Integration — CSRF Validation', () => {
 describe('API Integration — Auth Helper Security', () => {
   it('identifies public paths correctly', async () => {
     const { isPublicPath } = await import('@/lib/auth-helpers');
-    expect(isPublicPath('/api/health')).toBe(true);
+    expect(isPublicPath('/api/health/')).toBe(true);
     expect(isPublicPath('/api/auth/request-otp')).toBe(true);
     expect(isPublicPath('/login')).toBe(true);
     expect(isPublicPath('/')).toBe(true);

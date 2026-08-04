@@ -11,15 +11,13 @@
 
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-// ── Mock hoisting: external dependencies that have side effects ──
-const mockDbCreate = vi.fn().mockResolvedValue({ id: 'audit-1' });
-const mockDb = {
-  aIGenerationAudit: {
-    create: mockDbCreate,
+vi.mock('@/lib/db', () => ({
+  db: {
+    aIGenerationAudit: {
+      create: vi.fn().mockResolvedValue({ id: 'audit-1' }),
+    },
   },
-};
-
-vi.mock('@/lib/db', () => ({ db: mockDb }));
+}));
 
 vi.mock('@/lib/logger', () => ({
   logger: {

@@ -65,11 +65,11 @@ import type {
 // ── Real Claim Extraction Logic (from ai-hallucination-prevention.ts) ──
 function extractClaimsReal(text: string): ExtractedClaim[] {
   const patterns: Array<{ type: ExtractedClaim['type']; regex: RegExp }> = [
-    { type: 'revenue', regex: /\$([\d,.]+(?:\s*(?:million|billion|B|M|K))/gi },
+    { type: 'revenue', regex: /\$([\d,.]+(?:\s*(?:million|billion|B|M|K)))/gi },
     { type: 'employee_count', regex: /(\d[\d,]*)\s*(?:employees?|people|staff)/gi },
     { type: 'technology', regex: /\b(?:Kubernetes|Docker|React|Node\.?js|Python|TensorFlow|AWS|Azure|GCP|Vue\.js)\b/g },
     { type: 'funding', regex: /\$(\d+(?:\.\d+)?)\s*(?:million|billion)/i },
-    { type: 'partnership', regex: /\b(?:partner(?:ed|ship)?\b/i },
+    { type: 'partnership', regex: /\bpartner(?:ed|ship)?\b/i },
     { type: 'acquisition', regex: /\bacquir(?:ed|ed)\b/i },
     { type: 'leadership', regex: /\b(?:CEO|CTO|CFO|CIO|VP|Director|Head)\b/i },
     { type: 'hiring', regex: /\bhired\s+\d+/i },
@@ -346,7 +346,7 @@ describe('M3 Hallucination Risk Score Algorithm', () => {
 // MOCK CONTRACT VERIFICATION — Ensure the module interface matches expectations
 // ═══════════════════════════════════════════════════════════════════════
 describe('M3 AI Module Contract (Verify Interface)', () => {
-  it('mocked runHallucinationCheck returns correct structure', () => {
+  it('mocked runHallucinationCheck returns correct structure', async () => {
     mockRunHallucinationCheck.mockReturnValue({
       hallucinationRiskScore: 25,
       riskLevel: 'low' as const,
@@ -370,7 +370,7 @@ describe('M3 AI Module Contract (Verify Interface)', () => {
     expect(result.passesTrustThreshold).toBe(true)
   })
 
-  it('mocked extractClaims returns array of claims', () => {
+  it('mocked extractClaims returns array of claims', async () => {
     mockExtractClaims.mockReturnValue([
       { type: 'revenue', text: '$500M', value: '500M', position: 0 } as any,
     ])
@@ -381,7 +381,7 @@ describe('M3 AI Module Contract (Verify Interface)', () => {
     expect(result.length).toBe(1)
   })
 
-  it('mocked verifyCitations returns array', () => {
+  it('mocked verifyCitations returns array', async () => {
     mockVerifyCitations.mockReturnValue([
       { marker: '[E1]', evidenceExists: true, claimAligns: true } as any,
     ])
@@ -391,7 +391,7 @@ describe('M3 AI Module Contract (Verify Interface)', () => {
     expect(Array.isArray(result)).toBe(true)
   })
 
-  it('mocked detectHedgingPatterns returns array', () => {
+  it('mocked detectHedgingPatterns returns array', async () => {
     mockDetectHedgingPatterns.mockReturnValue(['may', 'might'])
 
     const detectHedgingPatterns = (await import('@/lib/ai-hallucination-prevention')).detectHedgingPatterns
@@ -400,7 +400,7 @@ describe('M3 AI Module Contract (Verify Interface)', () => {
     expect(result).toContain('may')
   })
 
-  it('mocked scoreSpecificity returns number 0-100', () => {
+  it('mocked scoreSpecificity returns number 0-100', async () => {
     mockScoreSpecificity.mockReturnValue(72)
 
     const scoreSpecificity = (await import('@/lib/ai-hallucination-prevention')).scoreSpecificity

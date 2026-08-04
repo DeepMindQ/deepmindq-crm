@@ -28,6 +28,8 @@ const PUBLIC_ROUTE_PREFIXES = [
   '/api/setup-db',
   '/api/emails/track',  // Email tracking pixel (called from email clients, must be public)
   '/api/ping',          // Liveness probe (called from monitoring, must be public)
+  '/api/verify-email',  // Email verification link (called from email clients)
+  '/api/verify-queue',  // Queue verification (internal processing)
 ];
 
 function isPublicRoute(routePath) {

@@ -8,7 +8,7 @@
  * Phase 5: API Governance
  */
 import { NextResponse } from 'next/server';
-import { requireAuth } from '@/lib/session';
+import { checkApiAuth } from '@/lib/api-auth';
 import { scanApiRoutes } from '@/lib/api-compliance-scanner';
 import { generateAuthorizationReport } from '@/lib/rbac';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
@@ -17,7 +17,11 @@ export const dynamic = 'force-dynamic';
 
 export async function GET() {
   try {
-    const user = await requireAuth();
+    const { errorResponse } = await checkApiAuth();
+    if (errorResponse) return errorResponse;
+
+    const { session: user } = await checkApiAuth();
+    if (!user) return apiError('Authentication required', 401);
 
     // Only admins can view compliance reports
     if (user.role !== 'admin') {
@@ -43,9 +47,6 @@ export async function GET() {
       generatedAt: apiCompliance.generatedAt,
     });
   } catch (error) {
-    if (error && typeof error === 'object' && 'status' in error) {
-      return apiError('Authentication required', 401);
-    }
     return apiError('Failed to generate compliance report', 500);
   }
 }

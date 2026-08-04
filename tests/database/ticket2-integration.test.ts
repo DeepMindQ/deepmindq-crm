@@ -44,8 +44,8 @@ vi.mock('@/lib/session', () => ({
 
 vi.mock('@/lib/db', () => ({
   db: {
-    company: { findUnique: vi.fn() },
-    companySignal: { findMany: vi.fn(), count: vi.fn() },
+    company: { findUnique: vi.fn(), findMany: vi.fn() },
+    companySignal: { findMany: vi.fn(), count: vi.fn(), groupBy: vi.fn(), aggregate: vi.fn() },
     contact: { findMany: vi.fn(), count: vi.fn() },
     companyTimelineEvent: { findMany: vi.fn() },
     fusionResult: { findMany: vi.fn() },
@@ -55,6 +55,10 @@ vi.mock('@/lib/db', () => ({
     learningEvent: { findMany: vi.fn() },
     knowledgeEntry: { findMany: vi.fn() },
     accountScore: { findUnique: vi.fn().mockResolvedValue(null) },
+    // Needed by runGovernanceMetadata → getResearchContext → getEvidenceSummary chain
+    evidence: { findMany: vi.fn(), count: vi.fn(), createMany: vi.fn(), updateMany: vi.fn(), deleteMany: vi.fn() },
+    systemSetting: { findUnique: vi.fn() },
+    companyNote: { findFirst: vi.fn() },
   },
 }));
 

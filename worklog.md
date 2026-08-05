@@ -188,3 +188,25 @@ Stage Summary:
 - All PostgreSQL service container jobs passed
 - Document generated: /home/z/my-project/download/CI_STATUS_MATRIX_VERIFICATION.docx
 - M4 Phase 2 closure condition MET: GREEN GitHub Actions dashboard
+
+---
+Task ID: m4-ci-reliability-infra
+Agent: Super Z (Main)
+Task: Verify and validate all 5 CI reliability infrastructure items from approved plan
+
+Work Log:
+- Verified scripts/ci-local.sh: Full local CI mirror with 11 blocking jobs, color output, timing, --quick and --job N modes
+- Verified .husky/pre-push: Calls ci-local.sh --quick, blocks push on failure
+- Verified scripts/no-hardcoded-paths.js: Scans tests/, src/, .github/ for /home/z/, /home/runner/, /Users/, /private/
+- Verified eslint-rules/no-hardcoded-env-paths.js: Custom ESLint rule blocking hardcoded paths in string/template literals
+- Verified docs/CI_RELIABILITY_GUIDE.md: 12-section guide covering local vs CI differences, path rules, Node version, DB, memory, timeouts, debugging
+- Verified .github/workflows/ci.yml: node-compatibility matrix job (weekly cron, Node 20/22) already present
+- Ran validation: no-hardcoded-paths.js ✅, dependency-audit-ci.js ✅, api-security-scan.js ✅
+- Git status: clean working tree, all files committed
+
+Stage Summary:
+- ALL 5 CI reliability items are IMPLEMENTED and COMMITTED
+- Pre-push hook now runs ci-local.sh --quick (not bare vitest), eliminating "local green, CI red" pattern
+- Three-layer path safety: ESLint rule (dev-time) → ci-local.sh (pre-push) → no-hardcoded-paths.js (CI job)
+- Node compatibility matrix already scheduled weekly (Monday 6 AM UTC)
+- Ready for M4 Phase 3 (Deployment Pipeline)

@@ -80,10 +80,14 @@ jobs:
           if [ "${PENDING}" = "0" ]; then
             echo "No pending migrations — skipping"
           fi
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.STAGING_DIRECT_DATABASE_URL }}
       - name: Run database migration
         run: npx prisma migrate deploy
         env:
-          DATABASE_URL: ${{ secrets.STAGING_DIRECT_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.STAGING_DIRECT_DATABASE_URL }}
 
   # ═══════════════════════════════════════════════════
   # STAGE 4: Deploy to Vercel (Preview Deployment)

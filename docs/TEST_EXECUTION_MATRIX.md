@@ -1,7 +1,7 @@
 # Test Execution Matrix — Known Workarounds
 
-> **Status**: Active — reviewed and documented as part of Milestone 3 closure.
-> **Last updated**: 2026-08-05
+> **Status**: Partially Resolved — see VITEST_TEARDOWN_ANALYSIS.md for full details.
+> **Last updated**: 2026-08-05 (M4 Phase 2 update)
 
 ## 1. Vitest Worker Teardown Crash Workaround
 

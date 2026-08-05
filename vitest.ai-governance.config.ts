@@ -1,9 +1,9 @@
 /**
  * Vitest Configuration — AI Governance
- * M3 Stabilization — Deterministic, single-threaded execution
+ * M4 Phase 2 — Switched from threads to forks (eliminates teardown crash)
  *
- * Pool: threads (shared memory — avoids OOM from fork-based process duplication)
- * maxThreads: 1, minThreads: 1 — sequential for deterministic CI execution
+ * Pool: forks — avoids Vitest 4.x + Node 22.x worker teardown crash
+ * that occurred with pool: 'threads' (documented in TEST_EXECUTION_MATRIX.md)
  */
 import { defineConfig } from 'vitest/config'
 import path from 'path'
@@ -34,9 +34,8 @@ export default defineConfig({
     ],
     exclude: ['tests/legacy/**'],
     globals: true,
-    pool: 'threads',
-    maxThreads: 1,
-    minThreads: 1,
+    pool: 'forks',
+    maxWorkers: 1,
     testTimeout: 30000,
     hookTimeout: 15000,
   },

@@ -227,8 +227,9 @@ describe('Suite 2: Input Validation Security', () => {
       let res: Response
       try {
         res = await companiesPOST(req as any)
-      } catch {
-        // Unhandled exception is acceptable when DB is unavailable
+      } catch (e) {
+        // DB unavailable — skip this SQLi payload
+        console.warn(`[skip-sqli] DB unavailable for payload: ${JSON.stringify(payload).slice(0,50)}`)
         continue
       }
 
@@ -270,8 +271,8 @@ describe('Suite 2: Input Validation Security', () => {
     let res: Response
     try {
       res = await companiesPOST(req as any)
-    } catch {
-      // Unhandled exception is acceptable (JSON.parse on null)
+    } catch (e) {
+      console.warn('[skip-security] POST null body request failed:', (e as Error).message)
       return
     }
     const body = await res.json()
@@ -571,12 +572,15 @@ describe('Suite 5: Response Data Security', () => {
     let res: Response
     try {
       res = await companiesGET(req as any)
-    } catch {
-      // Route handler may throw when DB is unavailable
+    } catch (e) {
+      console.warn('[skip-security] GET /api/companies request failed:', (e as Error).message)
       return
     }
     // 500 is acceptable when DB is unavailable (CI without DATABASE_URL)
-    if (res.status !== 200) return
+    if (res.status !== 200) {
+      console.warn(`[skip-security] GET /api/companies returned ${res.status}`)
+      return
+    }
 
     const body = await res.json()
     // If companies exist, check each one
@@ -593,10 +597,14 @@ describe('Suite 5: Response Data Security', () => {
     let res: Response
     try {
       res = await companiesGET(req as any)
-    } catch {
+    } catch (e) {
+      console.warn('[skip-security] Request failed:', (e as Error).message)
       return
     }
-    if (res.status !== 200) return
+    if (res.status !== 200) {
+      console.warn('[skip-security] Response status:', res.status)
+      return
+    }
 
     const body = await res.json()
     expect(body).toHaveProperty('companies')
@@ -625,10 +633,14 @@ describe('Suite 5: Response Data Security', () => {
     let res: Response
     try {
       res = await contactsGET(req as any)
-    } catch {
+    } catch (e) {
+      console.warn('[skip-security] Request failed:', (e as Error).message)
       return
     }
-    if (res.status !== 200) return
+    if (res.status !== 200) {
+      console.warn('[skip-security] Response status:', res.status)
+      return
+    }
 
     const body = await res.json()
     const contacts = body.data?.contacts || body.contacts || []
@@ -647,10 +659,14 @@ describe('Suite 5: Response Data Security', () => {
     let res: Response
     try {
       res = await signalsGET(req as any)
-    } catch {
+    } catch (e) {
+      console.warn('[skip-security] Request failed:', (e as Error).message)
       return
     }
-    if (res.status !== 200) return
+    if (res.status !== 200) {
+      console.warn('[skip-security] Response status:', res.status)
+      return
+    }
 
     const body = await res.json()
     const signals = body.data?.signals || body.signals || []
@@ -936,6 +952,7 @@ describe('Suite 9: Response Content-Type Security', () => {
       try {
         res = await handler(req as any)
       } catch {
+        console.warn('[skip-sqli] Handler threw:', (e as Error).message)
         continue // Skip if handler throws (e.g., DB unavailable)
       }
 

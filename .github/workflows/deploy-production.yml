@@ -1,9 +1,9 @@
 # ═══════════════════════════════════════════════════
 # DeepMindQ — Production Deployment Pipeline
-# M4 Phase 3.4 (Execution Validation fixes)
+# M4 Phase 3 — Production-Grade Stabilization
 #
 # Trigger: Push to main branch
-# Flow: CI validation → Build → Backup → Migration → Deploy → Smoke → Health → Rollback
+# Flow: CI + Human Approval → Build → Backup → Migration → Deploy → Smoke → Health → Rollback
 #
 # SAFETY GATES (all must pass):
 #   1. GitHub environment protection (requires reviewers)
@@ -12,8 +12,12 @@
 #   4. Pre-migration backup verified
 #   5. Database migration validated
 #   6. Smoke tests pass
-#   7. Health check passes (with rollback on failure)
+#   7. Health check passes (with automatic rollback on failure)
 #   8. Previous deployment ID captured for rollback
+#
+# ROLLBACK TRIGGERS:
+#   - Health check failure → automatic rollback
+#   - Smoke test failure → automatic rollback
 #
 # REQUIREMENTS:
 #   - GitHub repo must have "production" environment with required reviewers
@@ -34,13 +38,13 @@ env:
 
 jobs:
   # ═══════════════════════════════════════════════════
-  # STAGE 1: CI Validation Gate
+  # STAGE 1: CI Validation Gate + Human Approval
   # ═══════════════════════════════════════════════════
   ci-gate:
-    name: "Gate — CI Validation"
+    name: "Gate — CI Validation + Approval"
     runs-on: ubuntu-latest
-    timeout-minutes: 2
-    environment: production  # Enforces branch protection + required reviewers
+    timeout-minutes: 60
+    environment: production  # Enforces required reviewers
     steps:
       - name: Await CI workflow
         uses: CGenie/await-remote-run@v2
@@ -76,6 +80,7 @@ jobs:
 
   # ═══════════════════════════════════════════════════
   # STAGE 3: Pre-Migration Backup
+  # Uses pg_dump with Neon PITR as fallback
   # ═══════════════════════════════════════════════════
   backup-production:
     name: "Production — Pre-Migration Backup"
@@ -92,8 +97,12 @@ jobs:
 
       - name: Check pending migrations
         id: pending-check
+        shell: bash
         run: |
-          PENDING=$(npx prisma generate --quiet 2>/dev/null && npx prisma migrate status 2>&1 | grep -c "DRIFT\|Pending" || true)
+          set +eo pipefail  # Disable for Prisma status check
+          npx prisma generate --quiet 2>/dev/null
+          PENDING=$(npx prisma migrate status 2>&1 | grep -c "DRIFT\|Pending" || true)
+          set -eo pipefail
           echo "pending=${PENDING}" >> "$GITHUB_OUTPUT"
           echo "Pending migrations: ${PENDING}"
         env:
@@ -101,45 +110,49 @@ jobs:
           DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
 
       - name: Create pre-migration backup (if migrations pending)
+        id: backup
         if: steps.pending-check.outputs.pending != '0'
+        shell: bash
         run: |
           echo "Migrations are pending — creating pre-migration backup..."
-          # Extract connection details from DIRECT_DATABASE_URL for pg_dump
-          # DIRECT_DATABASE_URL format: postgresql://user:pass@host:5432/db?sslmode=require
           DB_URL="${{ secrets.DIRECT_DATABASE_URL }}"
           TIMESTAMP=$(date +%Y%m%d%H%M%S)
           BACKUP_FILE="/tmp/pre-migration-backup-${TIMESTAMP}.sql.gz"
 
-          # Attempt pg_dump backup (works with any PostgreSQL provider)
+          set +e  # pg_dump may not be available
           pg_dump "${DB_URL}" 2>/dev/null | gzip > "${BACKUP_FILE}"
-          if [ $? -eq 0 ] && [ -s "${BACKUP_FILE}" ]; then
+          BACKUP_EXIT=$?
+          set -e
+
+          if [ $BACKUP_EXIT -eq 0 ] && [ -s "${BACKUP_FILE}" ]; then
             BACKUP_SIZE=$(ls -lh "${BACKUP_FILE}" | awk '{print $5}')
             echo "✅ Pre-migration backup created: ${BACKUP_FILE} (${BACKUP_SIZE})"
-            echo "backup_file=${BACKUP_FILE}" >> "$GITHUB_OUTPUT"
             echo "backup_created=true" >> "$GITHUB_OUTPUT"
           else
-            echo "::warning::pg_dump not available or failed. Relying on provider PITR."
+            echo "::warning::pg_dump not available or failed. Relying on Neon PITR."
             echo "backup_created=false" >> "$GITHUB_OUTPUT"
           fi
 
       - name: Verify backup or PITR availability
         if: steps.pending-check.outputs.pending != '0'
+        shell: bash
         run: |
-          if [ "${BACKUP_CREATED:-false}" = "false" ]; then
-            echo "::warning::No local backup created. Verify your database provider has PITR enabled."
-            echo "For Neon: PITR is automatic. For Supabase: enable in Dashboard → Database → Backups."
-            echo "For self-hosted: ensure docker-compose backup service is running."
+          if [ "${{ steps.backup.outputs.backup_created }}" = "false" ]; then
+            echo "::warning::No local backup created. Neon PITR is automatic."
+          else
+            echo "✅ Backup gate passed (local backup or PITR available)"
           fi
-          echo "✅ Backup gate passed"
 
       - name: Skip backup (no pending migrations)
         if: steps.pending-check.outputs.pending == '0'
+        shell: bash
         run: |
           echo "No pending migrations — backup not required"
           echo "✅ Backup gate passed (no-op)"
 
   # ═══════════════════════════════════════════════════
   # STAGE 4: Database Migration (Production)
+  # Handles P3005 for production database baselining
   # ═══════════════════════════════════════════════════
   migrate-production:
     name: "Production — Database Migration"
@@ -155,8 +168,12 @@ jobs:
       - run: npm ci
 
       - name: Check pending migrations
+        shell: bash
         run: |
+          set +eo pipefail  # Disable for Prisma status check
+          npx prisma generate --quiet 2>/dev/null
           PENDING=$(npx prisma migrate status 2>&1 | grep -c "DRIFT\|Pending" || true)
+          set -eo pipefail
           echo "Pending migrations detected: ${PENDING}"
           if [ "${PENDING}" = "0" ]; then
             echo "No pending migrations — skipping migration step"
@@ -167,13 +184,40 @@ jobs:
           DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
 
       - name: Run database migration
-        run: npx prisma migrate deploy
+        shell: bash
+        run: |
+          set +e
+          OUTPUT=$(npx prisma migrate deploy 2>&1)
+          MIGRATE_EXIT=$?
+          set -e
+
+          echo "$OUTPUT"
+
+          if echo "$OUTPUT" | grep -q "P3005"; then
+            echo "Database schema exists but no migration history — baselining..."
+            set +e
+            npx prisma migrate resolve --applied 20260701000000_init_baseline 2>&1
+            RESOLVE_EXIT=$?
+            set -e
+            if [ $RESOLVE_EXIT -eq 0 ]; then
+              echo "✅ Baseline resolved successfully"
+            else
+              echo "❌ Baseline resolve failed"
+              exit 1
+            fi
+          elif [ $MIGRATE_EXIT -ne 0 ]; then
+            echo "❌ Migration failed with exit code ${MIGRATE_EXIT}"
+            exit 1
+          else
+            echo "✅ Migration applied successfully"
+          fi
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
 
   # ═══════════════════════════════════════════════════
   # STAGE 5: Deploy to Vercel Production
+  # Captures previous deployment ID for rollback
   # ═══════════════════════════════════════════════════
   deploy-production:
     name: "Production — Deploy"
@@ -188,16 +232,21 @@ jobs:
 
       - name: Capture current production deployment (for rollback)
         id: current
+        shell: bash
         run: |
           CURRENT=$(curl -s -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
             "https://api.vercel.com/v6/deployments?projectId=${{ secrets.VERCEL_PROJECT_ID }}&limit=1&target=production" \
-            | python3 -c "import sys,json; d=json.load(sys.stdin)['deployments'][0]; print(d['uid'])" 2>/dev/null || echo "")
+            2>/dev/null | python3 -c "import sys,json; d=json.load(sys.stdin)['deployments'][0]; print(d['uid'])" 2>/dev/null || echo "")
           echo "previous_deployment_id=${CURRENT}" >> "$GITHUB_OUTPUT"
-          echo "Previous production deployment (for rollback): ${CURRENT}"
+          if [ -n "${CURRENT}" ]; then
+            echo "Previous production deployment (for rollback): ${CURRENT}"
+          else
+            echo "::warning::No previous deployment found — rollback will not be available"
+          fi
 
       - name: Deploy to Vercel Production
         id: deploy
-        uses: amondnet/vercel-action@v25
+        uses: amondnet/vercel-action@v42
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
@@ -213,7 +262,7 @@ jobs:
     name: "Production — Smoke Tests"
     runs-on: ubuntu-latest
     needs: [deploy-production]
-    timeout-minutes: 3
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -224,13 +273,14 @@ jobs:
       - run: npx prisma generate
 
       - name: Run smoke tests against production
+        shell: bash
         run: npx vitest run --config vitest.smoke.config.ts
         env:
           SMOKE_TEST_URL: ${{ needs.deploy-production.outputs.deployment_url }}
           SMOKE_TEST_ENV: production
 
   # ═══════════════════════════════════════════════════
-  # STAGE 7: Health Check (with rollback)
+  # STAGE 7: Health Check (with retry)
   # ═══════════════════════════════════════════════════
   health-check-production:
     name: "Production — Health Check"
@@ -242,6 +292,7 @@ jobs:
     steps:
       - name: Validate health endpoint
         id: health
+        shell: bash
         run: |
           DEPLOY_URL="${{ needs.deploy-production.outputs.deployment_url }}"
           HEALTH_URL="${DEPLOY_URL}/api/health"
@@ -249,15 +300,16 @@ jobs:
           echo "Checking health endpoint: ${HEALTH_URL}"
 
           for i in 1 2 3; do
-            HTTP_CODE=$(curl -s -o /tmp/health-response.json -w "%{http_code}" --max-time 10 "${HEALTH_URL}")
+            HTTP_CODE=$(curl -s -o /tmp/health-response.json -w "%{http_code}" --max-time 10 "${HEALTH_URL}" || echo "000")
             echo "Attempt ${i}: HTTP ${HTTP_CODE}"
-            cat /tmp/health-response.json
+
+            if [ -f /tmp/health-response.json ]; then
+              cat /tmp/health-response.json
+            fi
 
             if [ "${HTTP_CODE}" = "200" ]; then
               STATUS=$(python3 -c "import json; print(json.load(open('/tmp/health-response.json')).get('status',''))" 2>/dev/null || echo "")
-              DB=$(python3 -c "import json; print(json.load(open('/tmp/health-response.json')).get('db',''))" 2>/dev/null || echo "")
-
-              echo "Status: ${STATUS} | DB: ${DB}"
+              echo "Status: ${STATUS}"
 
               if [ "${STATUS}" = "ok" ]; then
                 echo "passed=true" >> "$GITHUB_OUTPUT"
@@ -275,39 +327,42 @@ jobs:
           exit 1
 
   # ═══════════════════════════════════════════════════
-  # STAGE 8: Automatic Rollback (if health failed)
+  # STAGE 8: Automatic Rollback
+  # Triggers on health OR smoke test failure
   # ═══════════════════════════════════════════════════
   rollback-production:
     name: "Production — Rollback"
     runs-on: ubuntu-latest
-    needs: [health-check-production, deploy-production]
-    if: needs.health-check-production.result == 'failure'
+    needs: [health-check-production, smoke-test-production, deploy-production]
+    if: needs.health-check-production.result == 'failure' || needs.smoke-test-production.result == 'failure'
     timeout-minutes: 5
     steps:
       - name: Rollback to previous deployment
+        shell: bash
         run: |
           PREVIOUS="${{ needs.deploy-production.outputs.previous_deployment_id }}"
-          echo "::error::Health check failed. Rolling back to previous deployment: ${PREVIOUS}"
+          echo "::error::Initiating rollback. Previous deployment: ${PREVIOUS}"
 
           if [ -n "${PREVIOUS}" ]; then
-            echo "Rolling back to previous deployment ${PREVIOUS}..."
-            # Vercel rollback via CLI — correctly promotes previous deployment to production
-            npm i -g vercel 2>/dev/null
-            vercel rollback "${PREVIOUS}" --token "${{ secrets.VERCEL_TOKEN }}" --yes 2>&1 || {
-              echo "::error::Vercel CLI rollback failed. Attempting manual API rollback..."
-              # Fallback: assign the production alias to the previous deployment
-              curl -s -X POST \
-                -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
-                -H "Content-Type: application/json" \
-                "https://api.vercel.com/v2/deployments/${PREVIOUS}/aliases" \
-                -d '{"alias": true}' 2>&1
-            }
+            echo "Rolling back to ${PREVIOUS}..."
+            set +e
+            npm i -g vercel 2>/dev/null || true
+            vercel rollback "${PREVIOUS}" --token "${{ secrets.VERCEL_TOKEN }}" --yes 2>&1
+            CLI_EXIT=$?
+            set -e
+
+            if [ $CLI_EXIT -ne 0 ]; then
+              echo "::error::Vercel CLI rollback failed (exit ${CLI_EXIT}). Manual rollback required."
+              echo "Manual: vercel --token <TOKEN> rollback <PROJECT_ID>"
+            else
+              echo "✅ Rollback completed via Vercel CLI"
+            fi
           else
-            echo "::warning::No previous deployment ID captured — manual rollback required"
-            echo "Manual rollback: vercel --token <TOKEN> rollback <PROJECT_ID>"
+            echo "::warning::No previous deployment ID — manual rollback required"
+            echo "Manual: vercel --token <TOKEN> rollback <PROJECT_ID>"
           fi
 
-          echo "::error::PRODUCTION ROLLED BACK due to health check failure"
+          echo "::error::PRODUCTION ROLLED BACK due to post-deployment check failure"
           exit 1
 
   # ═══════════════════════════════════════════════════
@@ -316,11 +371,12 @@ jobs:
   production-summary:
     name: "Production — Summary"
     runs-on: ubuntu-latest
-    needs: [smoke-test-production, health-check-production]
+    needs: [smoke-test-production, health-check-production, rollback-production]
     if: always()
     timeout-minutes: 2
     steps:
       - name: Deployment summary
+        shell: bash
         run: |
           echo "============================================"
           echo "  PRODUCTION DEPLOYMENT SUMMARY"
@@ -329,14 +385,11 @@ jobs:
           echo "  Branch:     ${{ github.ref_name }}"
           echo "  Smoke:      ${{ needs.smoke-test-production.result }}"
           echo "  Health:     ${{ needs.health-check-production.result }}"
-          echo "  Deploy URL: deployed to Vercel production"
+          echo "  Rollback:   ${{ needs.rollback-production.result }}"
           echo "============================================"
 
-          if [ "${{ needs.health-check-production.result }}" = "failure" ]; then
-            echo "  ⚠️  AUTOMATIC ROLLBACK INITIATED"
+          if [ "${{ needs.health-check-production.result }}" = "failure" ] || [ "${{ needs.smoke-test-production.result }}" = "failure" ]; then
+            echo "  ⚠️  AUTOMATIC ROLLED BACK"
             echo "============================================"
-            echo ""
-            echo "Manual rollback command:"
-            echo "  vercel --token <TOKEN> rollback <PROJECT_ID>"
             exit 1
           fi

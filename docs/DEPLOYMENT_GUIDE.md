@@ -68,7 +68,148 @@ Zero shared infrastructure between Customer A and Customer B.
 
 ---
 
-## 2. Prerequisites
+## 2. Automated Deployment Pipeline (M4 Phase 3)
+
+### Pipeline Architecture
+
+```
+Feature Branch
+      │
+      ▼
+  Pull Request
+      │
+      ▼
+  CI Validation (10 blocking jobs)
+      │
+      ▼
+  Code Review + Approval
+      │
+      ▼
+  Merge to develop
+      │
+      ▼
+  ┌─────────────────────────────────┐
+  │  Staging Deployment Pipeline    │
+  │  (.github/workflows/            │
+  │   deploy-staging.yml)           │
+  │                                 │
+  │  1. Await CI pass               │
+  │  2. Build (build:vercel)        │
+  │  3. DB migration (staging)      │
+  │  4. Deploy to Vercel staging    │
+  │  5. Smoke tests                 │
+  │  6. Health check                │
+  └─────────────────────────────────┘
+      │
+      ▼
+  Staging Verification (manual)
+      │
+      ▼
+  PR: develop → main (approval gate)
+      │
+      ▼
+  ┌─────────────────────────────────┐
+  │  Production Deployment Pipeline │
+  │  (.github/workflows/            │
+  │   deploy-production.yml)       │
+  │                                 │
+  │  1. Await CI pass               │
+  │  2. Pre-migration backup       │
+  │  3. Build (build:vercel)        │
+  │  4. DB migration (production)   │
+  │  5. Deploy to Vercel production │
+  │  6. Smoke tests                 │
+  │  7. Health check                │
+  │  8. Auto-rollback on failure    │
+  └─────────────────────────────────┘
+      │
+      ▼
+  Production Live + Health Monitoring
+```
+
+### Branch Strategy
+
+| Branch | Purpose | Deployment Target | Protection |
+|--------|---------|-------------------|------------|
+| `main` | Production | Vercel production project | CI + smoke + health + approval |
+| `develop` | Staging | Vercel staging project | CI + smoke + health |
+| `feature/*` | Development | None (local only) | CI validation |
+
+### Required GitHub Secrets
+
+| Secret | Purpose | Environment |
+|--------|---------|-------------|
+| `VERCEL_TOKEN` | Vercel API authentication | Both |
+| `VERCEL_ORG_ID` | Vercel organization ID | Both |
+| `VERCEL_PROJECT_ID` | Production Vercel project | Production |
+| `VERCEL_STAGING_PROJECT_ID` | Staging Vercel project | Staging |
+| `DATABASE_URL` | App database (pgbouncer) | Production |
+| `DIRECT_DATABASE_URL` | Migration database (direct TCP) | Production |
+| `STAGING_DATABASE_URL` | Staging app database | Staging |
+| `STAGING_DIRECT_DATABASE_URL` | Staging migration database | Staging |
+| `NEXTAUTH_SECRET` | Auth session secret | Production |
+| `STAGING_NEXTAUTH_SECRET` | Staging auth secret | Staging |
+| `AUTHORIZED_EMAIL` | Admin email | Production |
+| `STAGING_AUTHORIZED_EMAIL` | Staging admin email | Staging |
+
+### Smoke Test Coverage
+
+The smoke test suite (`vitest.smoke.config.ts`) validates after each deployment:
+
+| Test | Endpoint | Validation |
+|------|----------|------------|
+| Health structure | `/api/health` | HTTP 200, `status: "ok"`, timestamp, uptime, db |
+| Root page | `/` | No 5xx error |
+| Auth endpoint | `/api/auth/csrf` | Returns JSON |
+| Readiness | `/api/health/ready` | Returns JSON with timestamp |
+| Dependencies | `/api/health/deps` | Returns JSON with dependency status |
+| Security headers | All endpoints | Cache-Control: no-store, no x-powered-by |
+| Version identifier | `/api/health` | `version` and `environment` fields present |
+
+### Rollback Procedure
+
+**Automatic rollback** triggers when the production health check fails after deployment:
+- The deployment pipeline captures the previous deployment ID before deploying
+- If health check fails after 3 retries (30s intervals), automatic rollback executes
+- Vercel API redeploys the previous successful deployment
+- The pipeline fails and posts the rollback status to the workflow summary
+
+**Manual rollback** (if automatic fails or post-deployment issues detected):
+```bash
+# Via Vercel CLI
+vercel --token <TOKEN> rollback <PROJECT_ID>
+
+# Via Vercel Dashboard
+# 1. Open Vercel project → Deployments
+# 2. Find the last successful deployment
+# 3. Click "..." → "Promote to Production"
+```
+
+### Health Endpoint Response Format
+
+```json
+{
+  "status": "ok",
+  "uptime": 12345.67,
+  "timestamp": "2026-08-05T12:00:00.000Z",
+  "version": "abc123def",
+  "environment": "production",
+  "providers": {
+    "nvidia": true,
+    "fireworks": false,
+    "groq": true,
+    "gemini": false,
+    "tavily": true
+  },
+  "db": true
+}
+```
+
+The pipeline validates: `status === "ok"`, `db === true`, HTTP 200, response under 10s.
+
+---
+
+## 3. Prerequisites (Manual Deployment)
 
 | Requirement | Minimum | Notes |
 |-------------|---------|-------|

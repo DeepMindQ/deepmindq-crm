@@ -42,6 +42,7 @@
     "test:evidence": "mkdir -p test-results && npm run test:m3-certification",
     "test:playwright": "npx playwright test",
     "test:playwright:ui": "npx playwright test --ui",
+    "test:smoke": "vitest run --config vitest.smoke.config.ts",
     "postinstall": "npx prisma generate",
     "vercel-build": "npx prisma generate && npx next build",
     "cloud:setup": "bash scripts/setup-cloud.sh",

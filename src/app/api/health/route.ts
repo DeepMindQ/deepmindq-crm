@@ -37,6 +37,9 @@ export async function GET() {
       status: 'ok',
       uptime: process.uptime(),
       timestamp: new Date().toISOString(),
+      // M4 Phase 3.6 — Build/deployment identifier for deployment pipeline validation
+      version: process.env.NEXT_PUBLIC_BUILD_SHA || process.env.VERCEL_GIT_COMMIT_SHA || 'dev',
+      environment: process.env.VERCEL_ENV || process.env.NODE_ENV || 'development',
       // Indicate which AI providers are configured WITHOUT exposing secret values.
       // Priority order: nvidia → fireworks → groq → gemini (see ai-config.ts)
       providers: {

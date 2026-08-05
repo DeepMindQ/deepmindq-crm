@@ -1,0 +1,205 @@
+# ═══════════════════════════════════════════════════
+# DeepMindQ — Staging Deployment Pipeline
+# M4 Phase 3.3
+#
+# Trigger: Push to develop branch
+# Flow: CI validation (reuse ci.yml) → Staging deploy → Smoke tests
+#
+# GATES:
+#   1. CI must pass (waits on ci.yml completion)
+#   2. Build must succeed
+#   3. Deployment to Vercel staging project
+#   4. Smoke test suite passes
+#   5. Health endpoint validates
+# ═══════════════════════════════════════════════════
+name: Deploy Staging
+
+on:
+  push:
+    branches: [develop]
+
+concurrency:
+  group: deploy-staging
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ═══════════════════════════════════════════════════
+  # STAGE 1: CI Validation Gate
+  # Wait for ci.yml to pass on this exact SHA
+  # ═══════════════════════════════════════════════════
+  ci-gate:
+    name: "Gate — CI Validation"
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Await CI workflow
+        uses: CGenie/await-remote-run@v2
+        with:
+          runningWorkflow: ci.yml
+          runTimeoutMinutes: 60
+          pollIntervalSeconds: 15
+          token: ${{ secrets.GITHUB_TOKEN }}
+          ref: ${{ github.sha }}
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 2: Staging Build
+  # ═══════════════════════════════════════════════════
+  build-staging:
+    name: "Staging — Build"
+    runs-on: ubuntu-latest
+    needs: [ci-gate]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npm run build:vercel
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
+          NEXTAUTH_SECRET: ${{ secrets.STAGING_NEXTAUTH_SECRET }}
+          AUTHORIZED_EMAIL: ${{ secrets.STAGING_AUTHORIZED_EMAIL }}
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 3: Database Migration (Staging)
+  # ═══════════════════════════════════════════════════
+  migrate-staging:
+    name: "Staging — Database Migration"
+    runs-on: ubuntu-latest
+    needs: [build-staging]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - name: Run database migration
+        run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: ${{ secrets.STAGING_DIRECT_DATABASE_URL }}
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 4: Deploy to Vercel Staging
+  # ═══════════════════════════════════════════════════
+  deploy-staging:
+    name: "Staging — Deploy"
+    runs-on: ubuntu-latest
+    needs: [migrate-staging]
+    timeout-minutes: 10
+    outputs:
+      deployment_url: ${{ steps.deploy.outputs.deployment_url }}
+      deployment_id: ${{ steps.deploy.outputs.deployment_id }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Deploy to Vercel Staging
+        id: deploy
+        uses: amondnet/vercel-action@v25
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_STAGING_PROJECT_ID }}
+          vercel-args: '--prod'
+          alias-domains: 'staging.deepmindq.com'
+        env:
+          VERCEL_ENV: staging
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 5: Smoke Tests
+  # ═══════════════════════════════════════════════════
+  smoke-test-staging:
+    name: "Staging — Smoke Tests"
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+
+      - name: Run smoke tests against staging
+        run: npx vitest run --config vitest.smoke.config.ts
+        env:
+          SMOKE_TEST_URL: ${{ needs.deploy-staging.outputs.deployment_url }}
+          SMOKE_TEST_ENV: staging
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 6: Health Validation
+  # ═══════════════════════════════════════════════════
+  health-check-staging:
+    name: "Staging — Health Check"
+    runs-on: ubuntu-latest
+    needs: [deploy-staging]
+    timeout-minutes: 2
+    steps:
+      - name: Validate health endpoint
+        run: |
+          DEPLOY_URL="${{ needs.deploy-staging.outputs.deployment_url }}"
+          HEALTH_URL="${DEPLOY_URL}/api/health"
+
+          echo "Checking health endpoint: ${HEALTH_URL}"
+
+          # Retry 3 times with 15-second intervals
+          for i in 1 2 3; do
+            HTTP_CODE=$(curl -s -o /tmp/health-response.json -w "%{http_code}" --max-time 10 "${HEALTH_URL}")
+            echo "Attempt ${i}: HTTP ${HTTP_CODE}"
+            cat /tmp/health-response.json
+
+            if [ "${HTTP_CODE}" = "200" ]; then
+              STATUS=$(cat /tmp/health-response.json | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
+              DB_STATUS=$(cat /tmp/health-response.json | python3 -c "import sys,json; print(json.load(sys.stdin).get('db',''))" 2>/dev/null || echo "")
+
+              echo "Health status: ${STATUS}"
+              echo "Database status: ${DB_STATUS}"
+
+              if [ "${STATUS}" = "ok" ]; then
+                echo "✅ Health check passed"
+                exit 0
+              fi
+            fi
+
+            echo "Retrying in 15 seconds..."
+            sleep 15
+          done
+
+          echo "::error::Health check failed after 3 attempts"
+          exit 1
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 7: Deployment Summary
+  # ═══════════════════════════════════════════════════
+  staging-summary:
+    name: "Staging — Summary"
+    runs-on: ubuntu-latest
+    needs: [smoke-test-staging, health-check-staging]
+    if: always()
+    timeout-minutes: 2
+    steps:
+      - name: Deployment summary
+        run: |
+          echo "============================================"
+          echo "  STAGING DEPLOYMENT SUMMARY"
+          echo "============================================"
+          echo "  Commit:    ${{ github.sha }}"
+          echo "  Branch:    ${{ github.ref_name }}"
+          echo "  Deploy URL: ${{ needs.deploy-staging.result }}"
+          echo "  Smoke:     ${{ needs.smoke-test-staging.result }}"
+          echo "  Health:    ${{ needs.health-check-staging.result }}"
+          echo "============================================"
+          echo ""
+          echo "To promote to production:"
+          echo "  1. Verify staging deployment at the URL above"
+          echo "  2. Create PR from develop → main"
+          echo "  3. Approve after review"
+          echo "============================================"

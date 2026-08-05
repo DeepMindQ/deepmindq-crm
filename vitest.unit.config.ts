@@ -22,7 +22,7 @@ export default defineConfig({
       'tests/legacy/**'
 ],
     globals: true,
-    pool: 'forks',
+    pool: 'threads',
     maxWorkers: 2,
     testTimeout: 10000,
     hookTimeout: 10000,

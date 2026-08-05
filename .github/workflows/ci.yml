@@ -519,6 +519,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://ci:ci@localhost:5432/ci_test' }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'ci-test-secret-for-build-only-long-enough-32chars!!' }}
           API_KEY_ENCRYPTION_KEY: ${{ secrets.API_KEY_ENCRYPTION_KEY || 'ci-test-encryption-key-min-32-bytes-ok!' }}
+          TRACKING_SECRET: ${{ secrets.TRACKING_SECRET || 'ci-test-tracking-secret-min16!!' }}
 
       - name: Start Next.js server
         run: |
@@ -528,6 +529,7 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://ci:ci@localhost:5432/ci_test' }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'ci-test-secret-for-build-only-long-enough-32chars!!' }}
           API_KEY_ENCRYPTION_KEY: ${{ secrets.API_KEY_ENCRYPTION_KEY || 'ci-test-encryption-key-min-32-bytes-ok!' }}
+          TRACKING_SECRET: ${{ secrets.TRACKING_SECRET || 'ci-test-tracking-secret-min16!!' }}
           PORT: 3000
 
       - name: Run Playwright tests
@@ -584,3 +586,4 @@ jobs:
           DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://ci:ci@localhost:5432/ci_test' }}
           NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'ci-test-secret-for-build-only-long-enough-32chars!!' }}
           API_KEY_ENCRYPTION_KEY: ${{ secrets.API_KEY_ENCRYPTION_KEY || 'ci-test-encryption-key-min-32-bytes-ok!' }}
+          TRACKING_SECRET: ${{ secrets.TRACKING_SECRET || 'ci-test-tracking-secret-min16!!' }}

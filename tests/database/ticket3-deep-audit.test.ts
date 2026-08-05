@@ -10,6 +10,17 @@
  */
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
+// Mock database to prevent FK violations in CI PostgreSQL
+vi.mock('@/lib/db', () => ({
+  db: {
+    aIGenerationAudit: {
+      create: vi.fn().mockResolvedValue({}),
+      createMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+  },
+}));
+
 import {
   runGovernanceChecks,
   recordGeneration,

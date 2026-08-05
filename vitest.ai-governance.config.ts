@@ -36,15 +36,10 @@ export default defineConfig({
     ],
     exclude: ['tests/legacy/**'],
     globals: true,
-    pool: 'forks',
-    maxWorkers: 2,
+    pool: 'threads',
+    maxWorkers: 1,
     testTimeout: 20000,
     hookTimeout: 10000,
-    poolOptions: {
-      forks: {
-        memoryLimit: 4096,
-      },
-    },
   },
   resolve: {
     alias: {

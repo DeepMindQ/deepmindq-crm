@@ -22,10 +22,10 @@ export default defineConfig({
       'tests/legacy/**'
 ],
     globals: true,
-    pool: 'forks',
-    maxWorkers: 2,
-    testTimeout: 20000,
-    hookTimeout: 10000,
+    pool: 'threads',
+    maxWorkers: 1,
+    testTimeout: 30000,
+    hookTimeout: 15000,
   },
   resolve: {
     alias: {

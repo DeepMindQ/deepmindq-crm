@@ -240,3 +240,34 @@ Stage Summary:
 - ✅ Migration skip logic when no pending
 - ⚠️ Staging has no explicit skip check (cosmetic, idempotent behavior)
 - ⚠️ /api/setup-db has db push fallback (dormant, double-gated, not used in pipeline)
+---
+Task ID: secrets-config
+Agent: main
+Task: Configure GitHub secrets + restructure for Vercel Hobby + Neon
+
+Work Log:
+- Set 7/7 secrets via GitHub API (PyNaCl encryption):
+  VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID, AUTHORIZED_EMAIL,
+  NEXTAUTH_SECRET (generated), STAGING_NEXTAUTH_SECRET (generated), STAGING_AUTHORIZED_EMAIL
+- Removed VERCEL_STAGING_PROJECT_ID from all workflows and docs
+- Rewrote deploy-staging.yml for Vercel Preview Deployments:
+  - Same VERCEL_PROJECT_ID (no --prod flag)
+  - VERCEL_ENV=preview (Vercel auto-generates preview URL)
+  - No alias-domains (Vercel manages preview URLs)
+  - Added pending-migration skip check
+- Updated DEPLOYMENT_GUIDE.md:
+  - Branch strategy (Preview Deployment as staging)
+  - Secrets table (Neon connection strings, single project)
+  - Pipeline architecture diagram (env protection gate, Neon labels)
+- Fixed pre-push hook (added safety check for ci-local.sh)
+- Pushed main (12 commits) and develop (new branch) to origin
+- Verified staging pipeline triggered and gates work:
+  - CI Gate correctly detected CI failure → blocked downstream
+  - All 5 downstream jobs correctly skipped
+  - Summary job ran with if:always() and reported results
+
+Stage Summary:
+- 7/11 secrets configured (4 Neon DB URLs still needed)
+- Staging pipeline gates verified working in GitHub Actions
+- CI failure was due to concurrent push cancellation (expected)
+- Production pipeline waiting on env protection reviewers config

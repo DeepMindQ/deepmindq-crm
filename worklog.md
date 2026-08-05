@@ -18,6 +18,38 @@ Work Log:
 
 Stage Summary:
 - M4 Phase 3 marked "Implementation Complete — Production Deployment Validation Pending Vercel Pro Upgrade"
+
+---
+Task ID: M5-Phase1-Start
+Agent: Super Z (Main)
+Task: M5 Phase 1 — Data Trust Foundation (Items 1.1 + 1.5)
+
+Work Log:
+- Explored full codebase: 114 engine files, 250 API routes, 100 Prisma models, 6 connectors
+- Created TRUST Metadata Framework (`src/lib/intelligence-sources/trust-metadata.ts`)
+  - Core types: TrustSource (6 types), TrustConfidence (3 levels), TrustVerificationStatus (5 states)
+  - TrustScore computation (0-100, A+ to F grading)
+  - Helper builders: verifiedApiTrust, customerDataTrust, aiInferenceTrust, platformComputedTrust, webIntelligenceTrust
+  - Aggregation: aggregateTrust() for composing multi-source intelligence
+  - Decorators: withTrust(), withTrustBatch() for attaching metadata to any data
+- Created Clearbit Connector (`src/lib/intelligence-sources/connectors/clearbit-connector.ts`)
+  - Implements IConnector interface (same pattern as csv/excel)
+  - Company profile enrichment with TRUST-annotated output
+  - Rate limit tracking (50/month free tier)
+  - Retry logic, domain + name fallback lookup
+  - 4 intelligence object types: company_profile, tech_stack, financial_intelligence, industry_intelligence
+- Updated enrichment API route (`src/app/api/companies/enrich/route.ts`)
+  - NOW: External API first (Clearbit) → AI estimation as fallback (labeled as 'ai_estimated')
+  - BEFORE: AI estimation presented as intelligence (the core problem)
+  - Every response includes TRUST metadata with composite score
+- Updated types: Added 'clearbit' | 'apollo' to SourceType, clearbit_enrichment | apollo_enrichment to IntelligenceOrigin
+- Updated .env.example: Added CLEARBIT_API_KEY and APOLLO_API_KEY placeholders
+- TypeScript compilation: 0 errors
+
+Stage Summary:
+- Phase 1.1 (External Data Provider): Clearbit connector complete, enrichment API refactored
+- Phase 1.5 (TRUST Framework): Universal metadata standard defined and integrated into enrichment
+- Foundation laid for all subsequent phases — every intelligence output can now carry TRUST metadata
 - Secret scan: CLEAN — d2f1239 tree permanently excluded from main history
 - Tag M4-CICD-ARCHITECTURE-COMPLETE created and pushed
 - ROADMAP.md created with full milestone tracking

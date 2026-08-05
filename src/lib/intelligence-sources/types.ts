@@ -8,7 +8,7 @@
 // ─── Source Types ──────────────────────────────────────────────
 
 /** The kind of source intelligence was acquired from */
-export type SourceType = 'csv' | 'excel' | 'website' | 'rss' | 'document' | 'human';
+export type SourceType = 'csv' | 'excel' | 'website' | 'rss' | 'document' | 'human' | 'clearbit' | 'apollo';
 
 /** How intelligence was originally acquired (more granular than SourceType) */
 export type IntelligenceOrigin =
@@ -16,7 +16,9 @@ export type IntelligenceOrigin =
   | 'excel_upload'
   | 'website_scrape'
   | 'rss_feed'
-  | 'human_submission';
+  | 'human_submission'
+  | 'clearbit_enrichment'
+  | 'apollo_enrichment';
 
 // ─── Connector Lifecycle ───────────────────────────────────────
 
@@ -74,6 +76,8 @@ export const ALL_CATEGORIES: KnowledgeCategory[] = [
 export const SOURCE_RELIABILITY: Record<SourceType, number> = {
   csv: 0.95,
   excel: 0.95,
+  clearbit: 0.90,
+  apollo: 0.88,
   website: 0.85,
   rss: 0.75,
   document: 0.9,

@@ -5,9 +5,18 @@ import { logger } from '@/lib/logger';
 import { validateBody } from '@/lib/apiHelpers';
 import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
+import { clearbitConnector } from '@/lib/intelligence-sources/connectors/clearbit-connector';
+import { computeTrustScore, type TrustMetadata } from '@/lib/intelligence-sources/trust-metadata';
 
 /* ═══════════════════════════════════════════════════
-   L-03: Company Data Enrichment via AI
+   M5 Phase 1: Company Data Enrichment
+
+   Priority Order:
+   1. Verified external API (Clearbit/Apollo)
+   2. AI estimation (fallback, labeled as estimated)
+
+   CRITICAL: Every data point must carry TRUST metadata.
+   The platform must NEVER present AI-estimated data as verified fact.
    ═══════════════════════════════════════════════════ */
 
 export async function POST(request: Request) {
@@ -19,12 +28,13 @@ try {
     const enrichSchema = z.object({
       companyId: z.string().min(1).optional(),
       domain: z.string().min(1).optional(),
+      source: z.enum(['auto', 'api', 'ai_fallback']).optional().default('auto'),
     }).refine(d => d.companyId || d.domain, { message: 'companyId or domain is required' });
 
     const body = await request.json();
     const parsed = validateBody(enrichSchema, body);
     if (parsed instanceof Response) return parsed;
-    const { companyId, domain } = parsed;
+    const { companyId, domain, source } = parsed;
 
     // Find company
     let company: any = null;
@@ -57,39 +67,177 @@ try {
       }
     }
 
-    // Use AI to estimate company data
-    const enrichmentData = await aiEnrichCompany(company.id, company.rawName, company.domain, company.industry);
+    // ── Phase 1: Try verified external API first ──
+    let enrichmentData: Record<string, any>;
+    let enrichmentSource: string;
+    let trustMetadata: Record<string, TrustMetadata> = {};
 
-    // Upsert research card with enrichment data
+    if (source === 'auto' || source === 'api') {
+      try {
+        const apiResult = await clearbitConnector.acquire({
+          domain: company.domain || '',
+          companyName: company.rawName,
+          enrichTech: true,
+        });
+
+        if (apiResult.success && apiResult.intelligenceObjects.length > 0) {
+          enrichmentData = extractEnrichmentFromAPI(apiResult.intelligenceObjects);
+          enrichmentSource = 'clearbit_verified';
+          // Extract trust metadata from each intelligence object
+          for (const obj of apiResult.intelligenceObjects) {
+            if (obj.metadata?.enrichmentType && obj.metadata?.trust) {
+              trustMetadata[obj.metadata.enrichmentType as string] = obj.metadata.trust as TrustMetadata;
+            }
+          }
+          logger.info('[enrich] Clearbit API enrichment successful', {
+            companyId: company.id,
+            objectsFound: apiResult.intelligenceObjects.length,
+          });
+        } else {
+          // API returned no data — fall through to AI
+          logger.info('[enrich] Clearbit returned no data, falling back to AI', {
+            companyId: company.id,
+            errors: apiResult.errors,
+          });
+          enrichmentData = await aiEnrichCompany(company.id, company.rawName, company.domain, company.industry);
+          enrichmentSource = 'ai_estimated';
+          trustMetadata = {
+            overall: {
+              source: 'ai_inference' as const,
+              confidence: 'low' as const,
+              freshness: new Date().toISOString(),
+              reasoning: 'All fields AI-estimated. No verified external data available. Treat as signals only, not facts.',
+            },
+          };
+        }
+      } catch (err) {
+        logger.warn('[enrich] Clearbit API failed, falling back to AI', { error: err });
+        enrichmentData = await aiEnrichCompany(company.id, company.rawName, company.domain, company.industry);
+        enrichmentSource = 'ai_estimated';
+        trustMetadata = {
+          overall: {
+            source: 'ai_inference' as const,
+            confidence: 'low' as const,
+            freshness: new Date().toISOString(),
+            reasoning: 'Clearbit API unavailable. All fields AI-estimated.',
+          },
+        };
+      }
+    } else {
+      // Explicit AI fallback request
+      enrichmentData = await aiEnrichCompany(company.id, company.rawName, company.domain, company.industry);
+      enrichmentSource = 'ai_estimated';
+      trustMetadata = {
+        overall: {
+          source: 'ai_inference' as const,
+          confidence: 'low' as const,
+          freshness: new Date().toISOString(),
+          reasoning: 'User requested AI estimation. All fields are estimates, not verified data.',
+        },
+      };
+    }
+
+    // ── Upsert research card with enrichment data + TRUST ──
     const researchCard = await db.companyResearchCard.upsert({
       where: { companyId: company.id },
       create: {
         companyId: company.id,
         ...enrichmentData,
-        enrichmentSource: 'ai_estimated',
+        enrichmentSource,
         enrichmentDate: new Date(),
       },
       update: {
         ...enrichmentData,
-        enrichmentSource: 'ai_estimated',
+        enrichmentSource,
         enrichmentDate: new Date(),
       },
     });
 
     // Update enrichmentScore for all contacts at this company
+    const enrichmentScore = enrichmentSource === 'clearbit_verified' ? 25 : 10;
     await db.contact.updateMany({
       where: { companyId: company.id },
-      data: { enrichmentScore: 10, enrichmentData: JSON.stringify(enrichmentData) },
+      data: {
+        enrichmentScore,
+        enrichmentData: JSON.stringify({
+          ...enrichmentData,
+          source: enrichmentSource,
+          trust: trustMetadata,
+        }),
+      },
     });
 
-    return NextResponse.json({ success: true, researchCard });
+    // Compute composite TRUST score for the enrichment
+    const trustEntries = Object.values(trustMetadata);
+    const compositeTrust = trustEntries.length > 0
+      ? computeTrustScore(trustEntries[0]!)
+      : null;
+
+    return NextResponse.json({
+      success: true,
+      researchCard,
+      enrichmentSource,
+      trust: {
+        metadata: trustMetadata,
+        compositeScore: compositeTrust ? compositeTrust.score : null,
+        grade: compositeTrust ? compositeTrust.grade : null,
+      },
+    });
   } catch (error) {
     logger.error('Company enrichment error:', { error: error });
     return NextResponse.json({ error: 'Enrichment failed' }, { status: 500 });
   }
 }
 
-/* ── AI-powered enrichment ── */
+/* ── Extract enrichment data from API intelligence objects ── */
+function extractEnrichmentFromAPI(objects: any[]): Record<string, any> {
+  const result: Record<string, any> = {
+    businessOverview: '',
+    revenue: 'Unknown',
+    employeeCount: 'Unknown',
+    fundingStage: 'Unknown',
+    techStack: '',
+    socialProfiles: '{}',
+  };
+
+  for (const obj of objects) {
+    const type = obj.metadata?.enrichmentType;
+    const content = obj.content || '';
+
+    if (type === 'company_profile') {
+      // Parse profile content
+      const lines = content.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('Description: ')) result.businessOverview = line.replace('Description: ', '');
+        if (line.startsWith('Type: ')) result.fundingStage = mapTypeToFunding(line.replace('Type: ', ''));
+      }
+    } else if (type === 'tech_stack') {
+      result.techStack = content.replace('Technologies: ', '').replace('Technology Categories: ', '');
+    } else if (type === 'financial_intelligence') {
+      const lines = content.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('Employee Range: ')) result.employeeCount = line.replace('Employee Range: ', '');
+        if (line.startsWith('Employees: ')) result.employeeCount = line.replace('Employees: ', '');
+        if (line.startsWith('Revenue Range: ')) result.revenue = line.replace('Revenue Range: ', '');
+      }
+    }
+  }
+
+  return result;
+}
+
+function mapTypeToFunding(type: string): string {
+  const mapping: Record<string, string> = {
+    'public': 'Public',
+    'private': 'Private',
+    'non_profit': 'Non-Profit',
+    'government': 'Government',
+    'education': 'Education',
+  };
+  return mapping[type.toLowerCase()] || type || 'Unknown';
+}
+
+/* ── AI-powered enrichment (FALLBACK ONLY — labeled as estimated) ── */
 async function aiEnrichCompany(
   companyId: string,
   companyName: string,

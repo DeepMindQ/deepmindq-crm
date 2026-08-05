@@ -1,16 +1,11 @@
 /**
  * Vitest Configuration — UNIT
- * Phase 5.5 Enterprise Test Architecture
+ * M3 Stabilization — Deterministic, single-threaded execution
  *
- * Environment: node
- * Pool: forks (maxWorkers: 1 — sequential for stability in CI)
- *
- * Note: Some test files import modules with side effects (DNS lookups,
- * AI cache initialization) that trigger unhandled rejections in worker forks.
- * These are expected in CI and do not indicate test failures.
+ * Pool: threads (shared memory — avoids OOM from fork-based process duplication)
+ * maxThreads: 1, minThreads: 1 — sequential for deterministic CI execution
  */
 import { defineConfig } from 'vitest/config'
-
 import path from 'path'
 
 export default defineConfig({
@@ -20,21 +15,17 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     include: [
       'tests/unit/**/*.test.{ts,tsx}',
-],
+    ],
     exclude: [
-      'tests/legacy/**'
+      'tests/legacy/**',
     ],
     globals: true,
-    pool: 'forks',
-    maxWorkers: 2,
+    pool: 'threads',
+    maxThreads: 1,
+    minThreads: 1,
     testTimeout: 15000,
     hookTimeout: 10000,
-    poolOptions: {
-      forks: {
-        // Allow worker reuse without crashing on unhandled rejections
-        execArgv: ['--unhandled-rejections=warn'],
-      },
-    },
+    teardownTimeout: 10000,
   },
   resolve: {
     alias: {

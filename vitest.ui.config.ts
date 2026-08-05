@@ -1,10 +1,8 @@
 /**
  * Vitest Configuration — UI
- * Phase 5.5 Enterprise Test Architecture
+ * M3 Stabilization — threads pool, single thread
  *
- * Environment: jsdom
- * Pool: forks
- * Memory: 2048
+ * jsdom environment with React plugin. Threads pool avoids fork OOM.
  */
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
@@ -18,13 +16,14 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     include: [
       'tests/ui/**/*.test.{ts,tsx}',
-],
+    ],
     exclude: [
-      'tests/legacy/**'
-],
+      'tests/legacy/**',
+    ],
     globals: true,
-    pool: 'forks',
-    maxWorkers: 1,
+    pool: 'threads',
+    maxThreads: 1,
+    minThreads: 1,
     testTimeout: 15000,
     hookTimeout: 10000,
   },

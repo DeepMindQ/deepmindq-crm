@@ -1,10 +1,9 @@
 /**
  * Vitest Configuration — AI Quality Testing
- * Milestone 3 Enterprise Validation Framework
+ * M3 Stabilization — threads pool, single thread
  *
  * Covers: Hallucination detection, golden dataset validation,
  * confidence scoring, output quality, recommendation validation
- * Environment: node | Pool: forks | Memory: 4096MB
  */
 import { defineConfig } from 'vitest/config'
 import path from 'path'
@@ -19,8 +18,9 @@ export default defineConfig({
     ],
     exclude: ['tests/legacy/**'],
     globals: true,
-    pool: 'forks',
-    maxWorkers: 1,
+    pool: 'threads',
+    maxThreads: 1,
+    minThreads: 1,
     testTimeout: 30000,
     hookTimeout: 15000,
   },

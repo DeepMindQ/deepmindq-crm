@@ -1,13 +1,10 @@
 /**
  * Vitest Configuration — DATABASE
- * Phase 5.5 Enterprise Test Architecture
+ * M3 Stabilization — threads pool, single thread
  *
- * Environment: node
- * Pool: forks
- * Memory: 1536
+ * Already using threads. Kept at single worker for stability with real DB.
  */
 import { defineConfig } from 'vitest/config'
-
 import path from 'path'
 
 export default defineConfig({
@@ -17,13 +14,14 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     include: [
       'tests/database/**/*.test.{ts,tsx}',
-],
+    ],
     exclude: [
-      'tests/legacy/**'
-],
+      'tests/legacy/**',
+    ],
     globals: true,
     pool: 'threads',
-    maxWorkers: 1,
+    maxThreads: 1,
+    minThreads: 1,
     testTimeout: 30000,
     hookTimeout: 15000,
   },

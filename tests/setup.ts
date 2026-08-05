@@ -14,11 +14,3 @@ if (typeof globalThis.TextEncoder === 'undefined') {
 
 // Enable jest-dom matchers (toBeInTheDocument, etc.)
 import '@testing-library/jest-dom/vitest'
-
-// Suppress unhandled rejection errors from module-level side effects.
-// DeepMindQ modules (AI governance, email verification, RBAC) log errors
-// during import initialization — these are expected in test environments
-// and do not indicate test failures.
-if (process.env.CI) {
-  process.on('uncaughtException', () => {});
-}

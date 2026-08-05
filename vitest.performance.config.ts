@@ -1,13 +1,11 @@
 /**
  * Vitest Configuration — PERFORMANCE
- * Phase 5.5 Enterprise Test Architecture
+ * M3 Stabilization — threads pool, single thread
  *
- * Environment: node
- * Pool: threads
- * Memory: 4096
+ * Already using threads. Performance tests need controlled single-thread execution
+ * for consistent benchmarking results.
  */
 import { defineConfig } from 'vitest/config'
-
 import path from 'path'
 
 export default defineConfig({
@@ -16,14 +14,15 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
     include: [
-      'tests/performance/**/*.test.{ts,tsx}'
-],
+      'tests/performance/**/*.test.{ts,tsx}',
+    ],
     exclude: [
-      'tests/legacy/**'
-],
+      'tests/legacy/**',
+    ],
     globals: true,
     pool: 'threads',
-    maxWorkers: 2,
+    maxThreads: 1,
+    minThreads: 1,
     testTimeout: 120000,
     hookTimeout: 10000,
   },

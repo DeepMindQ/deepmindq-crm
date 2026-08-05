@@ -1,11 +1,9 @@
 /**
  * Vitest Configuration — AI Governance
- * Phase 5.5 Enterprise Test Architecture
+ * M3 Stabilization — Deterministic, single-threaded execution
  *
- * Covers: Governance config coverage, prompt registry, error handling,
- * integration route contracts, query safety, streaming readiness, cache integration,
- * intelligence activation/profile
- * Environment: node | Pool: forks | Memory: 4096MB (required for AI modules)
+ * Pool: threads (shared memory — avoids OOM from fork-based process duplication)
+ * maxThreads: 1, minThreads: 1 — sequential for deterministic CI execution
  */
 import { defineConfig } from 'vitest/config'
 import path from 'path'
@@ -36,15 +34,11 @@ export default defineConfig({
     ],
     exclude: ['tests/legacy/**'],
     globals: true,
-    pool: 'forks',
-    maxWorkers: 1,
+    pool: 'threads',
+    maxThreads: 1,
+    minThreads: 1,
     testTimeout: 30000,
     hookTimeout: 15000,
-    poolOptions: {
-      forks: {
-        singleFork: true,
-      },
-    },
   },
   resolve: {
     alias: {

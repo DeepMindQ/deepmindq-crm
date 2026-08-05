@@ -1,6 +1,6 @@
 /**
  * Vitest Configuration — REAL INTEGRATION TESTS
- * Milestone 3: Testing Quality Certification
+ * M3 Stabilization — threads pool, single thread
  *
  * These tests use REAL database connections and REAL route handlers.
  * No mocking of Prisma or route handlers.
@@ -29,8 +29,9 @@ export default defineConfig({
       'tests/database/**',
     ],
     globals: true,
-    pool: 'forks',
-    maxWorkers: 1, // Serial execution to avoid DB contention
+    pool: 'threads',
+    maxThreads: 1,
+    minThreads: 1,
     testTimeout: 30000,
     hookTimeout: 15000,
   },

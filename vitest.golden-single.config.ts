@@ -1,3 +1,7 @@
+/**
+ * Vitest Configuration — Golden Dataset (Single File)
+ * M3 Stabilization — threads pool, single thread
+ */
 import { defineConfig } from 'vitest/config'
 import path from 'path'
 
@@ -11,7 +15,8 @@ export default defineConfig({
     ],
     globals: true,
     pool: 'threads',
-    maxWorkers: 1,
+    maxThreads: 1,
+    minThreads: 1,
     testTimeout: 30000,
     hookTimeout: 10000,
   },

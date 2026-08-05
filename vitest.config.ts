@@ -1,10 +1,8 @@
 /**
- * Vitest Base Configuration — Phase 5.5 Enterprise Test Architecture
+ * Vitest Base Configuration — M3 Stabilization
  *
  * DEFAULT: runs nothing (prevents accidental single-workload OOM).
  * Use category-specific configs or npm scripts to run tests.
- *
- * Category configs: vitest.{unit,security,api,database,ai,integration,e2e,performance,ui}.config.ts
  */
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
@@ -27,7 +25,6 @@ export default defineConfig({
       'tests/e2e/**',
       'tests/performance/**',
       'tests/ui/**',
-      // Stale/outdated tests — source files deleted or API shapes changed
       'tests/api-priority-routes.test.ts',
       'tests/api-rankings.test.ts',
       'src/app/api/__tests__/health-export-knowledge.test.ts',
@@ -47,8 +44,9 @@ export default defineConfig({
       'src/lib/intelligence-sources/__tests__/source-governance.test.ts',
     ],
     globals: true,
-    pool: 'forks',
-    maxWorkers: 2,
+    pool: 'threads',
+    maxThreads: 1,
+    minThreads: 1,
     testTimeout: 30000,
     hookTimeout: 10000,
     coverage: {

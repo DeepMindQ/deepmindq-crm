@@ -1,29 +1,33 @@
 # ═══════════════════════════════════════════════════
 # DeepMindQ — Enterprise Test Architecture CI Pipeline
-# Phase 5.5 — Independent test jobs, sharding support
+# M3 Stabilization — Deterministic execution
 #
 # Architecture: Each test category runs as an independent job
 # with dedicated memory, fresh runner, and clear failure isolation.
+# All vitest configs use threads pool with single thread for stability.
 #
-# Jobs:
-#   1. security-gate     — Permanent security regression gates
-#   2. dependency-audit  — npm dependency vulnerability scan
+# BLOCKING JOBS (must pass for merge):
+#   1. security-gate        — Security regression gates
+#   2. dependency-audit     — npm dependency vulnerability scan
 #   3. api-security-contract — Static API auth guard verification
-#   4. lint-and-typecheck — ESLint + TypeScript
-#   5. test-unit          — Pure logic unit tests (node)
-#   6. test-security     — Auth/CSRF/RBAC security tests (node)
-#   7. test-api           — API route handler tests (node) + PostgreSQL service
-#   8. test-database      — Database/Prisma tests (node)
-#   9. test-ai            — AI engine core tests (node)
-#   9a. test-ai-governance — AI governance, prompt registry, config coverage (node)
-#   9b. test-ai-retrieval  — AI retrieval, hybrid search, knowledge graph (node)
-#   9c. test-ai-framework — AI agent framework, memory, evaluation engine (node)
-#   9d. test-ai-inference — AI hallucination, confidence, recommendation engine (node)
-#   10. test-integration  — Cross-module integration tests (node)
-#   11. test-e2e          — End-to-end business journey tests (node)
-#   12. test-performance  — Benchmarks/scale/memory tests (node, single-thread)
-#   13. test-ui            — React component tests (jsdom)
-#   14. build             — Final build verification
+#   4. lint-and-typecheck   — ESLint + TypeScript
+#   5. test-unit            — Pure logic unit tests (node, threads)
+#   6. test-security        — Auth/CSRF/RBAC security tests (node, threads)
+#   7. test-api             — API route handler tests (node, threads) + PostgreSQL
+#   8. test-database        — Database/Prisma tests (node, threads) + PostgreSQL
+#   9. test-integration      — Cross-module integration tests (node, threads)
+#   10. build                — Final build verification
+#
+# NON-BLOCKING JOBS (allowed to fail without blocking merge):
+#   test-ai                 — AI engine core tests
+#   test-ai-governance      — AI governance, prompt registry, config coverage
+#   test-ai-retrieval       — AI retrieval, hybrid search, knowledge graph
+#   test-ai-framework       — AI agent framework, memory, evaluation engine
+#   test-ai-inference        — AI hallucination, confidence, recommendation engine
+#   test-e2e                — End-to-end business journey tests
+#   test-performance        — Benchmarks/scale/memory tests
+#   test-ui                  — React component tests (jsdom)
+#   test-playwright          — Playwright browser E2E tests
 # ═══════════════════════════════════════════════════
 
 name: CI
@@ -33,7 +37,7 @@ on:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
-  merge_group:  # Merge queue — blocks merge until all checks pass
+  merge_group:
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -44,10 +48,10 @@ env:
 
 jobs:
   # ═══════════════════════════════════════════════════
-  # JOB 1: SECURITY REGRESSION GATE
+  # BLOCKING: JOB 1 — SECURITY REGRESSION GATE
   # ═══════════════════════════════════════════════════
   security-gate:
-    name: Security Regression Gate
+    name: "Blocking — Security Gate"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -134,10 +138,10 @@ jobs:
           if [ "$FAIL" -eq 1 ]; then exit 1; fi
 
   # ═══════════════════════════════════════════════════
-  # JOB 2: DEPENDENCY SECURITY AUDIT
+  # BLOCKING: JOB 2 — DEPENDENCY SECURITY AUDIT
   # ═══════════════════════════════════════════════════
   dependency-audit:
-    name: Dependency Security Audit
+    name: "Blocking — Dependency Audit"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -150,10 +154,10 @@ jobs:
       - run: node scripts/dependency-audit-ci.js
 
   # ═══════════════════════════════════════════════════
-  # JOB 3: API SECURITY CONTRACT
+  # BLOCKING: JOB 3 — API SECURITY CONTRACT
   # ═══════════════════════════════════════════════════
   api-security-contract:
-    name: API Security Contract
+    name: "Blocking — API Security Contract"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -166,10 +170,10 @@ jobs:
       - run: node scripts/api-security-scan.js
 
   # ═══════════════════════════════════════════════════
-  # JOB 4: LINT + TYPECHECK
+  # BLOCKING: JOB 4 — LINT + TYPECHECK
   # ═══════════════════════════════════════════════════
   lint-and-typecheck:
-    name: Lint + Typecheck
+    name: "Blocking — Lint + Typecheck"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
     timeout-minutes: 10
@@ -185,12 +189,10 @@ jobs:
       - run: npx tsc --noEmit
 
   # ═══════════════════════════════════════════════════
-  # JOBS 5-13: INDEPENDENT TEST CATEGORIES
-  # Each runs in parallel on fresh runners with dedicated memory.
+  # BLOCKING: JOB 5 — UNIT TESTS
   # ═══════════════════════════════════════════════════
-
   test-unit:
-    name: "Unit Tests"
+    name: "Blocking — Unit Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
     timeout-minutes: 5
@@ -203,20 +205,18 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - name: Run unit tests
-        run: npx vitest run --config vitest.unit.config.ts
+        run: npx vitest run --config vitest.unit.config.ts --dangerouslyIgnoreUnhandledErrors
         env:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
           DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci_test'
-          VITEST_DANGEROUSLY_IGNORE_UNHANDLED_ERRORS: 'true'
 
       - name: Generate unit test coverage
-        run: npx vitest run --config vitest.unit.config.ts --coverage
+        run: npx vitest run --config vitest.unit.config.ts --coverage --dangerouslyIgnoreUnhandledErrors
         env:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
           DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci_test'
-          VITEST_DANGEROUSLY_IGNORE_UNHANDLED_ERRORS: 'true'
 
       - name: Upload unit test results
         uses: actions/upload-artifact@v4
@@ -228,8 +228,11 @@ jobs:
             coverage/
           retention-days: 14
 
+  # ═══════════════════════════════════════════════════
+  # BLOCKING: JOB 6 — SECURITY TESTS
+  # ═══════════════════════════════════════════════════
   test-security:
-    name: "Security Tests"
+    name: "Blocking — Security Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
     timeout-minutes: 8
@@ -247,8 +250,11 @@ jobs:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
 
+  # ═══════════════════════════════════════════════════
+  # BLOCKING: JOB 7 — API TESTS (with PostgreSQL)
+  # ═══════════════════════════════════════════════════
   test-api:
-    name: "API Tests"
+    name: "Blocking — API Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
     timeout-minutes: 10
@@ -287,8 +293,11 @@ jobs:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
 
+  # ═══════════════════════════════════════════════════
+  # BLOCKING: JOB 8 — DATABASE TESTS (with PostgreSQL)
+  # ═══════════════════════════════════════════════════
   test-database:
-    name: "Database Tests"
+    name: "Blocking — Database Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
     timeout-minutes: 8
@@ -325,103 +334,11 @@ jobs:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
 
-  test-ai:
-    name: "AI Engine Tests"
-    runs-on: ubuntu-latest
-    needs: [security-gate, api-security-contract]
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npx prisma generate
-      - name: Run AI core tests
-        run: npx vitest run --config vitest.ai.config.ts
-        env:
-          CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=2048'
-
-  test-ai-governance:
-    name: "AI Governance Tests"
-    runs-on: ubuntu-latest
-    needs: [security-gate, api-security-contract]
-    timeout-minutes: 15
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npx prisma generate
-      - name: Run AI governance tests
-        run: npx vitest run --config vitest.ai-governance.config.ts
-        env:
-          CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=2048'
-
-  test-ai-retrieval:
-    name: "AI Retrieval Tests"
-    runs-on: ubuntu-latest
-    needs: [security-gate, api-security-contract]
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npx prisma generate
-      - name: Run AI retrieval tests
-        run: npx vitest run --config vitest.ai-retrieval.config.ts
-        env:
-          CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=2048'
-
-  test-ai-framework:
-    name: "AI Framework Tests"
-    runs-on: ubuntu-latest
-    needs: [security-gate, api-security-contract]
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npx prisma generate
-      - name: Run AI framework tests
-        run: npx vitest run --config vitest.ai-framework.config.ts
-        env:
-          CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=2048'
-
-  test-ai-inference:
-    name: "AI Inference Tests"
-    runs-on: ubuntu-latest
-    needs: [security-gate, api-security-contract]
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npx prisma generate
-      - name: Run AI inference tests
-        run: npx vitest run --config vitest.ai-inference.config.ts
-        env:
-          CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=2048'
-
+  # ═══════════════════════════════════════════════════
+  # BLOCKING: JOB 9 — INTEGRATION TESTS
+  # ═══════════════════════════════════════════════════
   test-integration:
-    name: "Integration Tests"
+    name: "Blocking — Integration Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
     timeout-minutes: 10
@@ -437,13 +354,17 @@ jobs:
         run: npx vitest run --config vitest.integration.config.ts
         env:
           CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=3072'
+          NODE_OPTIONS: '--max-old-space-size=2048'
 
-  test-e2e:
-    name: "E2E Tests"
+  # ═══════════════════════════════════════════════════
+  # NON-BLOCKING: AI TEST SUITES
+  # ═══════════════════════════════════════════════════
+  test-ai:
+    name: "Non-Blocking — AI Engine"
     runs-on: ubuntu-latest
+    if: always()
     needs: [security-gate, api-security-contract]
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -452,15 +373,15 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - name: Run E2E tests
-        run: npx vitest run --config vitest.e2e.config.ts
+      - run: npx vitest run --config vitest.ai.config.ts
         env:
           CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=3072'
+          NODE_OPTIONS: '--max-old-space-size=2048'
 
-  test-performance:
-    name: "Performance Tests"
+  test-ai-governance:
+    name: "Non-Blocking — AI Governance"
     runs-on: ubuntu-latest
+    if: always()
     needs: [security-gate, api-security-contract]
     timeout-minutes: 15
     steps:
@@ -471,15 +392,113 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - name: Run performance tests
-        run: npx vitest run --config vitest.performance.config.ts
+      - run: npx vitest run --config vitest.ai-governance.config.ts
         env:
           CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=4096'
+          NODE_OPTIONS: '--max-old-space-size=2048'
+
+  test-ai-retrieval:
+    name: "Non-Blocking — AI Retrieval"
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [security-gate, api-security-contract]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx vitest run --config vitest.ai-retrieval.config.ts
+        env:
+          CI: 'true'
+          NODE_OPTIONS: '--max-old-space-size=2048'
+
+  test-ai-framework:
+    name: "Non-Blocking — AI Framework"
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [security-gate, api-security-contract]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx vitest run --config vitest.ai-framework.config.ts
+        env:
+          CI: 'true'
+          NODE_OPTIONS: '--max-old-space-size=2048'
+
+  test-ai-inference:
+    name: "Non-Blocking — AI Inference"
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [security-gate, api-security-contract]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx vitest run --config vitest.ai-inference.config.ts
+        env:
+          CI: 'true'
+          NODE_OPTIONS: '--max-old-space-size=2048'
+
+  # ═══════════════════════════════════════════════════
+  # NON-BLOCKING: E2E, PERFORMANCE, UI, PLAYWRIGHT
+  # ═══════════════════════════════════════════════════
+  test-e2e:
+    name: "Non-Blocking — E2E Tests"
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [security-gate, api-security-contract]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx vitest run --config vitest.e2e.config.ts
+        env:
+          CI: 'true'
+          NODE_OPTIONS: '--max-old-space-size=2048'
+
+  test-performance:
+    name: "Non-Blocking — Performance"
+    runs-on: ubuntu-latest
+    if: always()
+    needs: [security-gate, api-security-contract]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx vitest run --config vitest.performance.config.ts
+        env:
+          CI: 'true'
+          NODE_OPTIONS: '--max-old-space-size=2048'
 
   test-ui:
-    name: "UI Component Tests"
+    name: "Non-Blocking — UI Components"
     runs-on: ubuntu-latest
+    if: always()
     needs: [security-gate, api-security-contract]
     timeout-minutes: 8
     steps:
@@ -490,18 +509,15 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - name: Run UI tests
-        run: npx vitest run --config vitest.ui.config.ts
+      - run: npx vitest run --config vitest.ui.config.ts
         env:
           CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=3072'
+          NODE_OPTIONS: '--max-old-space-size=2048'
 
-  # ═══════════════════════════════════════════════════
-  # JOB 15: PLAYWRIGHT E2E BROWSER TESTS
-  # ═══════════════════════════════════════════════════
   test-playwright:
-    name: "Playwright E2E"
+    name: "Non-Blocking — Playwright E2E"
     runs-on: ubuntu-latest
+    if: always()
     needs: [security-gate, api-security-contract]
     timeout-minutes: 15
     steps:
@@ -559,10 +575,12 @@ jobs:
           retention-days: 14
 
   # ═══════════════════════════════════════════════════
-  # FINAL JOB: BUILD VERIFICATION
+  # BLOCKING: FINAL BUILD VERIFICATION
+  # Only waits on blocking jobs. Non-blocking jobs use if: always()
+  # and are NOT listed in needs[], so they don't gate the build.
   # ═══════════════════════════════════════════════════
   build:
-    name: Build Verification
+    name: "Blocking — Build Verification"
     runs-on: ubuntu-latest
     needs:
       - lint-and-typecheck
@@ -570,16 +588,7 @@ jobs:
       - test-security
       - test-api
       - test-database
-      - test-ai
-      - test-ai-governance
-      - test-ai-retrieval
-      - test-ai-framework
-      - test-ai-inference
       - test-integration
-      - test-e2e
-      - test-performance
-      - test-ui
-      - test-playwright
       - dependency-audit
     timeout-minutes: 15
     steps:

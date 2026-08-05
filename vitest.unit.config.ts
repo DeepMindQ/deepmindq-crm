@@ -26,9 +26,15 @@ export default defineConfig({
     ],
     globals: true,
     pool: 'forks',
-    maxWorkers: 1,
+    maxWorkers: 2,
     testTimeout: 15000,
     hookTimeout: 10000,
+    poolOptions: {
+      forks: {
+        // Allow worker reuse without crashing on unhandled rejections
+        execArgv: ['--unhandled-rejections=warn'],
+      },
+    },
   },
   resolve: {
     alias: {

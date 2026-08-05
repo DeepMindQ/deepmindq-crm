@@ -3,7 +3,7 @@
 **Last Updated**: 2026-08-05
 **Baseline Tag**: `product-baseline-v1`
 **Branch**: `main`
-**Current Milestone**: M4 — CI/CD & Architecture (Planning)
+**Current Milestone**: M4 — CI/CD & Architecture (In Progress)
 **Previous Milestone**: M3 — Testing Infrastructure & Stabilization ✅ Closed
 
 ---
@@ -33,7 +33,7 @@ the user experience does not communicate the power of what has been built.
 | M1 | Security Foundation | ✅ Complete | 2026-08-04 |
 | M2 | Database & Deployment Certification | ✅ Complete | 2026-08-04 |
 | M3 | Testing Infrastructure & Stabilization | ✅ Complete | 2026-08-05 |
-| M4 | CI/CD & Architecture | 🔲 Planning | — |
+| M4 | CI/CD & Architecture | 🔲 In Progress | — |
 | M5 | Business Logic & Intelligence | 🔲 Pending | — |
 | M6 | Enterprise UI/UX | 🔲 Pending | — |
 | M7 | Operations & Monitoring | 🔲 Pending | — |

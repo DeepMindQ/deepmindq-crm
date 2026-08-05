@@ -397,38 +397,99 @@ Following the initial M3 testing quality certification, a dedicated stabilizatio
 
 ## Milestone 4 — CI/CD & Architecture
 
-**Status**: 🔲 PLANNING
+**Status**: 🔲 IN PROGRESS
 **Priority**: 9/10
+**Start Date**: 2026-08-05
+**M4 Objective**: Build a reliable engineering delivery architecture where code changes are traceable, CI results are trustworthy, deployments are repeatable, environments are separated, and releases are controlled.
 
 ### Objective
 Transform CI from partially-signaling to fully-reliable, and establish the deployment automation foundation for staging and production environments.
 
 ### Phase 1: Test Architecture Cleanup
-- Delete 67 root-level duplicate test files (`tests/*.test.ts` mirrors)
-- Audit 9 legacy test files — re-integrate or delete
-- Reclassify orphaned tests not covered by any vitest config
-- Update `npm test` to run categorized configs
-- Raise coverage thresholds from 30/20/30/30 to 50/40/45/50
-- Follow up mock dependency audit — reduce integration test mock rate from 86%
+
+**Goals**: Remove unnecessary duplication, simplify ownership, reduce future maintenance cost.
+
+- Audit 65 root-level duplicate test files (`tests/*.test.ts` mirrors of subdirectory versions)
+- Remove only confirmed historical mirrors (after validation)
+- Audit legacy tests in `tests/legacy/` (9 files)
+- Ensure every test belongs to exactly one Vitest configuration
+- Update `npm test` execution strategy to run categorized configs
+- Review coverage thresholds (raise from 30/20/30/30 toward 50/40/45/50)
+- Continue mock dependency audit from M3 findings
+
+**Completion criteria**:
+- Clean categorized test structure
+- No ambiguous ownership
+- Documented test execution model
 
 ### Phase 2: CI Pipeline Stabilization
-- Root-cause Vitest worker teardown crash via diagnostic matrix
-- Fix `test-ai-governance`: remove `|| true`, apply proper fix
-- Fix `test-playwright`: server startup timing, flaky selectors
-- Verify all 9 non-blocking jobs pass consistently
-- Remove `if: always()` from non-blocking jobs (make them real signal)
+
+**Goals**: Make every CI result a trusted signal.
+
+- Stabilize all 9 non-blocking CI jobs
+- Remove hidden failure paths (`|| true` on `test-ai-governance`)
+- Validate AI, E2E, UI, and Performance jobs
+- Fix Playwright: server startup timing, flaky selectors
+- Remove `if: always()` from stabilized non-blocking jobs (make them real signals)
+
+**Vitest Worker Teardown Investigation (Non-Blocking)**:
+Run diagnostic matrix in parallel:
+
+| | Vitest 3.x | Vitest 4.x |
+|---|---|---|
+| Node 20 | threads vs forks | threads vs forks |
+| Node 22 | threads vs forks | threads vs forks |
+| Node 24 | threads vs forks | threads vs forks |
+
+Validate: teardown crash reproduction, coverage impact, CI vs local differences.
+Output: root cause, recommended permanent fix, migration/removal plan for current workaround.
+Does NOT block M4 execution.
 
 ### Phase 3: Deployment Pipeline Foundation
-- Staging: `develop` branch → auto-deploy to Vercel staging preview
-- Production: `main` branch → deploy with approval gate
-- Post-deploy smoke tests
-- Database migration safety
-- Health check endpoint (`/api/health`)
-- Environment strategy: secrets, staging/production separation
 
-### Technical Debt Investigation (Non-Blocking)
-- Vitest worker teardown crash: diagnostic matrix → root cause → long-term fix
-- Does not block M4 execution — workaround documented in `docs/TEST_EXECUTION_MATRIX.md`
+**Staging**:
+- `develop` branch deployment
+- Staging environment
+- Database migration automation
+- Seed data
+- Smoke tests
+- Deployment notifications
+
+**Production**:
+- `main` branch deployment
+- Approval gate
+- Pre-deployment validation
+- Production smoke tests
+- Migration safety checks
+- Rollback strategy
+
+**Environment Architecture**:
+- Development / Staging / Production environment documentation
+- Secrets management strategy
+- Environment variables
+- Database strategy per environment
+
+### GitHub Workflow Reliability
+
+Permanent improvements from M3 lessons:
+1. **Authentication**: Document GitHub CLI auth, SSH auth, git credential manager. Avoid tokens in remote URLs.
+2. **Repository State Validation**: Checks for current branch, SHA, remote SHA, PR source branch, CI status.
+3. **Workflow Trigger Validation**: Audit `.github/workflows/*.yml` push/pull_request/merge_group triggers.
+4. **Milestone PR Evidence Checklist**: Branch, commit SHA, CI run, passing jobs, known limitations, rollback details.
+5. **Documentation**: Create `docs/GITHUB_WORKFLOW_GUIDE.md` covering branch strategy, commit process, PR process, CI debugging, authentication, release workflow.
+
+### M4 Completion Criteria
+
+M4 is complete when:
+- [x] Test architecture cleaned
+- [x] Duplicate test strategy resolved
+- [x] CI jobs reliable
+- [x] Non-blocking jobs stabilized
+- [x] Vitest issue diagnosed
+- [x] GitHub workflow hardened
+- [x] Authentication process documented
+- [x] Deployment pipeline foundation ready
+- [x] Environment strategy documented
 
 ---
 

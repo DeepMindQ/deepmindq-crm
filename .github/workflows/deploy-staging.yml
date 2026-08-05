@@ -59,7 +59,7 @@ jobs:
           AUTHORIZED_EMAIL: ${{ secrets.STAGING_AUTHORIZED_EMAIL }}
 
   # ═══════════════════════════════════════════════════
-  # STAGE 3: Database Migration (Staging Neon)
+  # STAGE 2: Database Migration (Staging Neon)
   # ═══════════════════════════════════════════════════
   migrate-staging:
     name: "Staging — Database Migration"
@@ -108,7 +108,7 @@ jobs:
           DIRECT_DATABASE_URL: ${{ secrets.STAGING_DIRECT_DATABASE_URL }}
 
   # ═══════════════════════════════════════════════════
-  # STAGE 4: Deploy to Vercel (Preview Deployment)
+  # STAGE 3: Deploy to Vercel (Preview Deployment)
   # Uses the SAME project as production but creates a
   # preview deployment (not promoted to production).
   # Vercel generates a unique preview URL automatically.
@@ -135,7 +135,7 @@ jobs:
           VERCEL_ENV: preview
 
   # ═══════════════════════════════════════════════════
-  # STAGE 5: Smoke Tests
+  # STAGE 4: Smoke Tests
   # ═══════════════════════════════════════════════════
   smoke-test-staging:
     name: "Staging — Smoke Tests"
@@ -158,7 +158,7 @@ jobs:
           SMOKE_TEST_ENV: staging
 
   # ═══════════════════════════════════════════════════
-  # STAGE 6: Health Validation
+  # STAGE 5: Health Validation
   # ═══════════════════════════════════════════════════
   health-check-staging:
     name: "Staging — Health Check"
@@ -198,7 +198,7 @@ jobs:
           exit 1
 
   # ═══════════════════════════════════════════════════
-  # STAGE 7: Deployment Summary
+  # STAGE 6: Deployment Summary
   # ═══════════════════════════════════════════════════
   staging-summary:
     name: "Staging — Summary"

@@ -526,7 +526,11 @@ jobs:
 
       - name: Start Next.js server
         run: |
-          npx next start -p 3000 &
+          if [ -f ".next/standalone/server.js" ]; then
+            node .next/standalone/server.js -p 3000 &
+          else
+            npx next start -p 3000 &
+          fi
           npx wait-on http://localhost:3000 --timeout 60000
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://ci:ci@localhost:5432/ci_test' }}

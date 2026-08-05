@@ -38,10 +38,13 @@ test.describe('Enterprise User Journey', () => {
 
   test('2. Login route redirects to landing page', async ({ page }) => {
     await page.goto(`${BASE_URL}/login`);
-    // /login redirects to / (application behavior)
-    await page.waitForURL(/\//, { timeout: 10000 });
+    // /login should redirect to / (application behavior)
+    // Wait for navigation to settle — redirect may be server-side
+    await page.waitForLoadState('networkidle');
     const url = page.url();
-    // Should be on the landing page (root or similar)
+    // After redirect, should be on root or landing page (not /login)
+    expect(url).not.toContain('/login');
+    // Verify we're on the landing/root page
     expect(url).toMatch(/\/$/);
   });
 

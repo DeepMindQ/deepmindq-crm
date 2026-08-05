@@ -56,7 +56,7 @@ interface SourceTierConfig {
 const DEFAULT_TIER_CONFIG: SourceTierConfig = {
   premium: [
     'bloomberg.com', 'reuters.com', 'wsj.com', 'ft.com', 'sec.gov',
-    'crunchbase.com', 'pitchbook.com', 'privco.com', 'linkedIn.com',
+    'crunchbase.com', 'pitchbook.com', 'privco.com', 'linkedin.com',
   ],
   standard: [
     'techcrunch.com', 'venturebeat.com', 'businessinsider.com',
@@ -250,16 +250,19 @@ export async function collectEvidence(
  * This prevents unbounded evidence growth on repeated research.
  */
 export async function cleanupOldEvidence(companyId: string, _keepJobId: string | null): Promise<number> {
+  // Fetch 51 to detect overflow: if 51 rows exist, there are older records to clean
   const latestEvidence = await db.evidence.findMany({
     where: { companyId },
     orderBy: { createdAt: 'desc' },
-    take: 50,
+    take: 51,
     select: { id: true },
   });
 
-  if (latestEvidence.length <= 50) return 0;
+  if (latestEvidence.length < 51) return 0;
 
-  const keepIds = new Set(latestEvidence.map(e => e.id));
+  // Keep only the first 50; anything beyond is old
+  const keepIds = new Set(latestEvidence.slice(0, 50).map(e => e.id));
+
   const oldCount = await db.evidence.count({
     where: {
       companyId,

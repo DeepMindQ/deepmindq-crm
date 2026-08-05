@@ -18,6 +18,7 @@
 7. [Release Workflow](#7-release-workflow)
 8. [Milestone PR Evidence Checklist](#8-milestone-pr-evidence-checklist)
 9. [Troubleshooting Common Issues](#9-troubleshooting-common-issues)
+10. [Repository Change Verification Checklist](#10-repository-change-verification-checklist)
 
 ---
 
@@ -518,6 +519,97 @@ Node.js heap.
 2. If a fix is available: `npm audit fix` (or `--force` for major bumps).
 3. If no fix is available: evaluate severity, document risk acceptance in the PR,
    and add an entry to [TECHNICAL_DEBT.md](./TECHNICAL_DEBT.md).
+
+---
+
+## 10. Repository Change Verification Checklist
+
+M3 revealed that code pushed from container environments may not reach GitHub
+reliably. Every milestone PR must record the following evidence **before merge**
+to prevent future uncertainty about whether code actually reached the remote.
+
+### Pre-Merge Verification Template
+
+Copy this template into the PR description for every milestone delivery:
+
+```markdown
+### Repository Change Verification
+
+#### Before Merge
+| Field | Value |
+|---|---|
+| **Current branch** | `<branch-name>` |
+| **Local HEAD SHA** | `<git rev-parse HEAD>` |
+| **Remote HEAD SHA** | `<git ls-remote origin <branch> | cut -f1>` |
+| **PR number** | `#<number>` |
+| **CI run URL** | `<link to GitHub Actions run>` |
+| **Passing jobs** | `<list all passing job names>` |
+| **Failing jobs** | `<"None" or list with documented reason>` |
+
+#### After Merge
+| Field | Value |
+|---|---|
+| **Merge commit SHA** | `<git log -1 --format=%H on target branch>` |
+| **Merge timestamp** | `<ISO 8601>` |
+| **Target branch SHA** | `<git rev-parse HEAD on target>` |
+| **GitHub verification** | `gh api repos/{owner}/{repo}/commits/<sha> — status 200` |
+```
+
+### Verification Steps (Pre-Merge)
+
+1. **Confirm branch alignment**:
+   ```bash
+   git branch --show-current
+   git rev-parse HEAD
+   git ls-remote origin $(git branch --show-current) | cut -f1
+   # Both SHAs must match
+   ```
+
+2. **Verify CI completion**:
+   ```bash
+   gh run list --branch <branch> --limit 1
+   # Confirm status is "completed" and conclusion is "success"
+   ```
+
+3. **Download and archive CI logs** for milestone deliveries:
+   ```bash
+   gh run view <run-id> --log > ci-logs-<milestone>.txt
+   ```
+
+4. **Confirm all files are pushed** (no local-only commits):
+   ```bash
+   git log origin/<branch>..HEAD --oneline
+   # Must return empty — no unpushed commits
+   ```
+
+### Verification Steps (Post-Merge)
+
+1. **Fetch and verify merge landed**:
+   ```bash
+   git fetch origin
+   git log origin/<target-branch> --oneline -5
+   # Merge commit must appear
+   ```
+
+2. **Confirm via GitHub API**:
+   ```bash
+   gh api repos/{owner}/{repo}/commits/<merge-sha>
+   # Must return HTTP 200 with commit details
+   ```
+
+3. **Trigger post-merge CI** and confirm it passes:
+   ```bash
+   gh run list --branch <target-branch> --limit 1
+   ```
+
+### When Verification Fails
+
+| Symptom | Likely Cause | Fix |
+|---|---|---|
+| Local SHA ≠ Remote SHA | Push failed silently | Re-push with `git push --no-verify origin <branch>` |
+| CI run not found | Push didn't trigger CI | Check branch protection rules; push again |
+| Merge commit missing from target | Merge didn't complete | Re-merge via GitHub UI; check branch permissions |
+| GitHub API returns 404 | Commit not on remote | Force-refresh: `git fetch --all` and re-verify |
 
 ---
 

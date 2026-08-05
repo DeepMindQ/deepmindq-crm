@@ -291,15 +291,15 @@ describe('Phase 4 — Critical Input Path Hardening', () => {
 
     it('rbac imports are present in src/', () => {
       const { execSync } = require('child_process')
-      // rbac.ts is now an enterprise feature — check for imports
-      // Use grep instead of rg (rg may not be available in all CI environments)
+      // rbac.ts is now an enterprise feature — verify at least one source file imports from it
       try {
         const result = execSync('grep -rl "from.*rbac" /home/z/my-project/src --include="*.ts" 2>/dev/null || true', { encoding: 'utf-8', timeout: 10000 })
         const files = result.trim().split('\\n').filter(f => f.length > 0)
-        // Files importing rbac should exist
-        expect(files.length).toBeGreaterThanOrEqual(0) // Acceptable even if no direct imports yet
+        // At least one file should import from rbac (e.g., compliance/route.ts)
+        expect(files.length).toBeGreaterThan(0)
       } catch {
-        // grep not available or timed out — skip assertion
+        // grep not available or timed out — fail rather than silently pass
+        throw new Error('Unable to verify rbac imports — grep command failed')
       }
     })
   })

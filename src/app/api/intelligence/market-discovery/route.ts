@@ -1,0 +1,119 @@
+/**
+ * POST /api/intelligence/market-discovery
+ *
+ * M5 WOW #2 — Market Intelligence Discovery API
+ *
+ * Accepts a natural language market query and returns ranked companies
+ * scored by ICP alignment, account scoring, and buying intent.
+ * Every result carries TRUST metadata.
+ */
+
+import { NextRequest, NextResponse } from 'next/server';
+import { checkApiAuth } from '@/lib/api-auth';
+import { logger } from '@/lib/logger';
+import {
+  discoverMarket,
+  type MarketDiscoveryResponse,
+} from '@/lib/market-discovery';
+
+// ─── Input Validation ─────────────────────────────────────────────
+
+interface MarketDiscoveryInput {
+  query: string;
+  maxResults?: number;
+}
+
+function validateInput(body: unknown): { data: MarketDiscoveryInput; error: string | null } {
+  if (!body || typeof body !== 'object') {
+    return { data: { query: '', maxResults: 10 }, error: 'Request body must be a JSON object' };
+  }
+  const obj = body as Record<string, unknown>;
+
+  const query = obj.query;
+  if (typeof query !== 'string' || query.trim().length < 3) {
+    return { data: { query: '', maxResults: 10 }, error: 'Field "query" is required and must be at least 3 characters' };
+  }
+
+  let maxResults = 10;
+  if (obj.maxResults !== undefined) {
+    if (typeof obj.maxResults !== 'number' || obj.maxResults < 1 || obj.maxResults > 50) {
+      return { data: { query: '', maxResults: 10 }, error: 'Field "maxResults" must be a number between 1 and 50' };
+    }
+    maxResults = Math.round(obj.maxResults);
+  }
+
+  return { data: { query: query.trim(), maxResults }, error: null };
+}
+
+// ─── POST Handler ─────────────────────────────────────────────────
+
+export async function POST(req: NextRequest) {
+  const startedAt = Date.now();
+
+  // ── Auth guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
+  try {
+    // Parse request body
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return NextResponse.json(
+        {
+          success: false,
+          error: 'Invalid JSON in request body',
+          timestamp: new Date().toISOString(),
+        },
+        { status: 400 },
+      );
+    }
+
+    // Validate input
+    const { data, error } = validateInput(body);
+    if (error) {
+      return NextResponse.json(
+        {
+          success: false,
+          error,
+          timestamp: new Date().toISOString(),
+        },
+        { status: 400 },
+      );
+    }
+
+    logger.info('[market-discovery] Processing request', {
+      query: data.query,
+      maxResults: data.maxResults,
+    });
+
+    // Run the market discovery composition
+    const result: MarketDiscoveryResponse = await discoverMarket(data.query, data.maxResults);
+
+    logger.info('[market-discovery] Request complete', {
+      resultCount: result.results.length,
+      latencyMs: result.latencyMs,
+    });
+
+    return NextResponse.json(result, { status: 200 });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    const latencyMs = Date.now() - startedAt;
+
+    logger.error('[market-discovery] Request failed', {
+      error: message,
+      latencyMs,
+    });
+
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'Market discovery failed. Please try again.',
+        detail: process.env.NODE_ENV === 'development' ? message : undefined,
+        timestamp: new Date().toISOString(),
+      },
+      { status: 500 },
+    );
+  }
+}

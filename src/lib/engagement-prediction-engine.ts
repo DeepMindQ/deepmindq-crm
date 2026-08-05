@@ -146,9 +146,40 @@ export async function predictEngagement(contactId: string): Promise<EngagementPr
 
   const title = contact.title || contact.role || 'Unknown';
 
+  // ── M5 Phase 1.3: Wire real engagement data from EmailEvent table ──
+  // Previously: totalOpens and totalClicks were hardcoded to 0.
+  // Now: Query actual email tracking events.
+  const emailEvents = await db.emailEvent.groupBy({
+    by: ['eventType'],
+    where: { contactId },
+    _count: { eventType: true },
+    _min: { createdAt: true },
+    _max: { createdAt: true },
+  });
+
+  // Build event counts map
+  const eventCounts: Record<string, number> = {};
+  const eventFirstSeen: Record<string, Date | null> = {};
+  const eventLastSeen: Record<string, Date | null> = {};
+  for (const event of emailEvents) {
+    eventCounts[event.eventType] = event._count.eventType;
+    eventFirstSeen[event.eventType] = event._min.createdAt;
+    eventLastSeen[event.eventType] = event._max.createdAt;
+  }
+
+  const totalOpens = eventCounts['open'] || 0;
+  const totalClicks = eventCounts['click'] || 0;
+  const totalBounces = eventCounts['bounce'] || 0;
+  const totalComplaints = eventCounts['complaint'] || 0;
+  const totalSentEvents = (eventCounts['send'] || 0) +
+    (eventCounts['open'] || 0) +
+    (eventCounts['click'] || 0) +
+    (eventCounts['reply'] || 0) +
+    (eventCounts['bounce'] || 0);
+
   // Engagement history
   const totalReplies = contact._count.replies || 0;
-  const totalEmailsSent = contact.status === 'sent' || contact.status === 'replied' || contact.status === 'bounced' ? 1 : 0;
+  const totalEmailsSent = Math.max(totalSentEvents, 1); // Use actual event count, minimum 1
   const replyRate = totalEmailsSent > 0 ? (totalReplies / totalEmailsSent) * 100 : 0;
 
   // Base probability from multiple signals
@@ -165,6 +196,20 @@ export async function predictEngagement(contactId: string): Promise<EngagementPr
 
   // Engagement score contribution
   probability += (contact.engagementScore / 100) * 10;
+
+  // ── M5 Phase 1.3: Real engagement signals from tracking data ──
+  // Open engagement (indicates interest)
+  if (totalOpens > 0) {
+    probability += Math.min(10, totalOpens * 2);
+  }
+  // Click engagement (stronger signal — indicates active interest)
+  if (totalClicks > 0) {
+    probability += Math.min(15, totalClicks * 5);
+  }
+  // Bounce penalty (already partially handled by status check above)
+  if (totalBounces > 2) probability -= 15;
+  // Complaint penalty
+  if (totalComplaints > 0) probability -= 30;
 
   // Email health
   if (contact.emailHealth === 'valid') probability += 5;
@@ -265,8 +310,8 @@ export async function predictEngagement(contactId: string): Promise<EngagementPr
     overallRisk,
     totalEmailsSent,
     totalReplies,
-    totalOpens: 0,
-    totalClicks: 0,
+    totalOpens,
+    totalClicks,
     replyRate,
     avgResponseDays: totalReplies > 0 ? 3 : 0,
     lastActivityDate: contact.lastContactedAt?.toISOString() || null,

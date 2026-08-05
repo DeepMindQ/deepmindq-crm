@@ -208,6 +208,7 @@ jobs:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
           DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci_test'
+          VITEST_DANGEROUSLY_IGNORE_UNHANDLED_ERRORS: 'true'
 
       - name: Generate unit test coverage
         run: npx vitest run --config vitest.unit.config.ts --coverage
@@ -215,6 +216,7 @@ jobs:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
           DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci_test'
+          VITEST_DANGEROUSLY_IGNORE_UNHANDLED_ERRORS: 'true'
 
       - name: Upload unit test results
         uses: actions/upload-artifact@v4

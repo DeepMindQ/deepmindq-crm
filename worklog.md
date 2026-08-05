@@ -152,3 +152,91 @@ Stage Summary:
 - DEPLOYMENT_GUIDE.md now 842 lines with complete deployment + incident recovery coverage
 - All 6 validation tasks completed
 - All changes committed with ESLint + TypeScript passing
+---
+Task ID: exec-1
+Agent: main
+Task: Validate GitHub Deployment Secrets
+
+Work Log:
+- Checked repo via GitHub API (authenticated with repo token)
+- Confirmed admin access, can manage secrets
+- Retrieved public key for secret encryption
+- Listed all repository secrets
+
+Stage Summary:
+- Result: 0/12 required secrets configured
+- Status: BLOCKER — workflows cannot run without secrets
+- Secrets needed: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID, VERCEL_STAGING_PROJECT_ID, DATABASE_URL, DIRECT_DATABASE_URL, STAGING_DATABASE_URL, STAGING_DIRECT_DATABASE_URL, NEXTAUTH_SECRET, AUTHORIZED_EMAIL, STAGING_NEXTAUTH_SECRET, STAGING_AUTHORIZED_EMAIL
+---
+Task ID: exec-2
+Agent: main
+Task: Execute Staging Deployment End-to-End
+
+Work Log:
+- BLOCKED — no secrets configured
+- Cannot push to develop and trigger staging workflow without VERCEL_TOKEN, STAGING_DATABASE_URL, etc.
+
+Stage Summary:
+- Status: BLOCKED until user provides secret values
+- develop branch exists locally and is ready to push
+---
+Task ID: exec-3
+Agent: main + subagent
+Task: Validate Production Workflow Safety
+
+Work Log:
+- Subagent reviewed full 284-line workflow
+- Found 3 CRITICAL issues:
+  1. No human approval gate (CI gate is automation-only)
+  2. Backup step is a no-op (just echo messages)
+  3. Rollback API call incorrect (POST /v13/deployments/{id} does nothing)
+- Fixed all 3 issues:
+  1. Added 'environment: production' to ci-gate job
+  2. Replaced no-op with actual pg_dump backup (conditional on pending migrations)
+  3. Replaced with vercel rollback CLI + alias API fallback
+- Created 'production' GitHub environment via API (verified exists)
+- Committed with ESLint + TypeScript passing
+
+Stage Summary:
+- 3/7 checks initially passed → after fixes, 7/7 pass
+- One manual step required: configure required reviewers at GitHub Settings → Environments → production
+---
+Task ID: exec-4
+Agent: main + subagent
+Task: Execute Smoke Test Validation
+
+Work Log:
+- Subagent ran vitest --config vitest.smoke.config.ts locally
+- 18/18 tests discovered (no import errors, no syntax errors)
+- Tests fail with ECONNREFUSED (no server running) — expected and correct
+- beforeAll hook failure cascades to all tests skipped, suite marked failed
+- Completed in 36ms, no hangs
+- test:smoke script exists in package.json
+
+Stage Summary:
+- ✅ Test infrastructure is valid
+- ✅ Tests fail gracefully on connection refused
+- ✅ Tests detect unhealthy deployment (no server → suite fails)
+- 18 test cases covering all required areas
+---
+Task ID: exec-5
+Agent: main + subagent
+Task: Verify Database Migration Flow
+
+Work Log:
+- Subagent checked schema.prisma: provider = "postgresql" ✅
+- Searched entire codebase for SQLite references: only in scripts/archive/ (migration utilities)
+- Migration SQL uses PostgreSQL idioms: CREATE TYPE ENUM, TIMESTAMPTZ, JSONB, ON DELETE CASCADE
+- All 3 pipelines (staging, production, CI) use prisma migrate deploy — never db push
+- Schema declares directUrl = env("DIRECT_DATABASE_URL") for migrations
+- Production has pending-migration skip check; staging uses idempotent migrate deploy
+- No psql or docker available in sandbox to run live migration test
+
+Stage Summary:
+- ✅ Schema uses PostgreSQL provider
+- ✅ No SQLite-only SQL in migration files
+- ✅ Migration flow uses prisma migrate deploy
+- ✅ Separate DIRECT_DATABASE_URL for migrations
+- ✅ Migration skip logic when no pending
+- ⚠️ Staging has no explicit skip check (cosmetic, idempotent behavior)
+- ⚠️ /api/setup-db has db push fallback (dormant, double-gated, not used in pipeline)

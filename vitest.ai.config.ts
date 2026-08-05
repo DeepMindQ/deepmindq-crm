@@ -32,6 +32,7 @@ export default defineConfig({
       'tests/ai/index.test.ts',
       'tests/ai/recommendation-generator.test.ts',
       'tests/ai/opportunity-radar.test.ts',
+      'tests/ai/research-engine.test.ts',
     ],
     exclude: ['tests/legacy/**'],
     globals: true,

@@ -1,8 +1,12 @@
 /**
- * Vitest Base Configuration — M3 Stabilization
+ * Vitest Base Configuration — M4 Phase 1
  *
  * DEFAULT: runs nothing (prevents accidental single-workload OOM).
  * Use category-specific configs or npm scripts to run tests.
+ *
+ * After M4 Phase 1 dedup: all 64 root-level mirror test files removed.
+ * Tests are organized in subdirectories with dedicated vitest configs.
+ * See package.json "test:*" scripts for execution commands.
  */
 import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
@@ -13,6 +17,8 @@ export default defineConfig({
   test: {
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
+    // All subdirectories are excluded — this config intentionally runs nothing.
+    // Use category-specific configs: vitest.{unit,security,ai,database,...}.config.ts
     include: ['tests/**/*.test.{ts,tsx}', 'src/**/*.test.{ts,tsx}'],
     exclude: [
       'tests/legacy/**',
@@ -25,23 +31,10 @@ export default defineConfig({
       'tests/e2e/**',
       'tests/performance/**',
       'tests/ui/**',
-      'tests/api-priority-routes.test.ts',
-      'tests/api-rankings.test.ts',
-      'src/app/api/__tests__/health-export-knowledge.test.ts',
-      'src/app/api/__tests__/api-integration.test.ts',
-      'src/app/api/__tests__/import-timeline-notes.test.ts',
-      'src/app/api/__tests__/opportunities-research.test.ts',
-      'src/lib/revenue-intelligence/__tests__/signal-detector.test.ts',
-      'src/lib/revenue-intelligence/__tests__/signal-extraction.test.ts',
-      'src/lib/revenue-intelligence/__tests__/account-brief.test.ts',
-      'src/lib/revenue-intelligence/__tests__/account-scoring.test.ts',
-      'src/lib/intelligence-sources/__tests__/intelligence-alerts.test.ts',
-      'tests/research-engine.test.ts',
-      'tests/sprint1-modules.test.ts',
-      'src/lib/intelligence-sources/__tests__/acquisition-engine.test.ts',
-      'src/lib/intelligence-sources/__tests__/analytics-dashboard.test.ts',
-      'src/lib/intelligence-sources/__tests__/knowledge-versioning.test.ts',
-      'src/lib/intelligence-sources/__tests__/source-governance.test.ts',
+      'tests/real-integration/**',
+      'tests/ai-testing/**',
+      'tests/fixtures/**',
+      'tests/helpers/**',
     ],
     globals: true,
     pool: 'threads',

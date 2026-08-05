@@ -1,11 +1,11 @@
 # M5: Business Logic & Intelligence Plan
 
-**DeepMindQ CRM — Enterprise Intelligence Capabilities**
+**DeepMindQ — Enterprise Intelligence Platform**
 
 **Status:** Planning Phase  
 **Depends on:** M4-CICD-ARCHITECTURE-COMPLETE  
 **Created:** August 6, 2026  
-**Version:** 1.0
+**Version:** 1.1 (Terminology aligned to Enterprise Intelligence Platform)
 
 ---
 
@@ -44,10 +44,10 @@
 
 ### 1.2 Business Modules Inventory
 
-#### CRM Core Modules
+#### Entity & Relationship Intelligence Modules
 
 | Name | Location | Purpose | Maturity | Dependencies | Test Coverage | Missing |
-|---|---|---|---|---|---|---|
+|---|---|---|---|---|---|---|---|
 | **Companies** | `src/app/api/companies/` (24 routes), `src/lib/company-matcher.ts`, `src/lib/icp-config.ts` | Full company lifecycle: CRUD, search, filter, sort, pagination, dedup, AI enrichment, ICP alignment, intelligence profile, mind map, comparison | **Production** | db, ai-governance, lead-scoring | Partial (real-integration CRUD) | Rate limiting, comprehensive sub-route tests |
 | **Contacts** | `src/app/api/contacts/` (9 routes), `src/lib/lead-scoring.ts`, `src/lib/relationship-mapping-engine.ts` | Contact management, engagement prediction, email generation, relationship mapping, person profiles | **Production** | db, ai-governance, email-generation | Partial (real-integration CRUD) | Rate limiting, generate-email tests |
 | **Leads** | `src/app/api/leads/` (10 routes), `src/lib/lead-scoring.ts`, `src/lib/lead-workflow.ts` | Lead lifecycle: dual-source, dedup (Jaccard), assignment (4 strategies), lookalike, export, consent, scheduling | **Production** | db, validations | Minimal (email-verify only) | Full sub-route test coverage |
@@ -88,7 +88,7 @@
 
 | Domain | Models | Count |
 |---|---|---|
-| **CRM Core** | Company, Contact, CompanyNote, ContactNote, Draft, Pursuit, CompanyAlias, CompanyTimelineEvent | 8 |
+| **Entity & Relationship Intelligence** | Company, Contact, CompanyNote, ContactNote, Draft, Pursuit, CompanyAlias, CompanyTimelineEvent | 8 |
 | **Intelligence** | IntelligenceObject, CompanySignal, Evidence, CompanyResearchCard, IntelligenceAlert, IntelligenceActionHistory, IntelligenceAssociation, IntelligenceConflict, IntelligenceFeedback, IntelligenceSnapshot, IntelligenceTimeline, IntelligenceValidation | 12 |
 | **AI/ML** | AIGenerationAudit, AIInsight, AICache, AICallLog, AIUsageLog, AIMemoryEntry, ABTest, AIEngagementStrategy, AccountBrief, AccountScore, AccountStrategy | 11 |
 | **Scoring** | AccountBrief, AccountScore, PriorityScoreHistory, ScoringWeight, SignalValidation, SignalCapabilityMatch, OpportunityRecommendation, OpportunitySignal | 8 |
@@ -297,22 +297,40 @@
 
 **M5 Action:** Deterministic AI testing automation and AI cost enforcement are P0. Multi-agent production hardening is P1.
 
-### 3.6 Pipeline & Automation Intelligence
+### 3.6 Communication Intelligence
 
-**Current State:** Production-ready. Sequences, enrollment, AI personalization, pipeline analytics.
+**Current State:** Production-ready. Multi-channel sequences, enrollment, AI personalization, pipeline analytics.
 
 | Capability | Status | Location | Notes |
 |---|---|---|---|
 | Email Sequences | ✅ Complete | `api/sequences/` | Full CRUD + processing |
 | AI Personalization | ✅ Complete | `api/sequences/process` | LLM + template fallback |
-| Pipeline Analytics | ✅ Complete | `api/pipeline/health` | Stage distribution, velocity, risk |
-| Pipeline Forecast | ✅ Complete | `api/pipeline/forecast` | Evidence-backed AI |
-| Sequence Optimization | ❌ Missing | — | No AI-driven step optimization |
+| Revenue Pipeline Analytics | ✅ Complete | `api/pipeline/health` | Stage distribution, velocity, risk |
+| Revenue Pipeline Forecast | ✅ Complete | `api/pipeline/forecast` | Evidence-backed AI |
+| Multi-Channel Orchestration | ❌ Missing | — | No cross-channel coordination |
 | Send Time Optimization | ⚠️ Partial | `api/leads/schedule-optimal` | Basic, not AI-driven |
 | A/B Testing Framework | ⚠️ Partial | `ABTest` model exists | No execution engine |
-| Drip Campaign Intelligence | ❌ Missing | — | No behavior-triggered drips |
+| Behavioral Trigger Intelligence | ❌ Missing | — | No event-driven automation |
 
-**M5 Action:** A/B testing execution and sequence optimization are P1. Drip campaigns are P2.
+**M5 Action:** A/B testing execution and multi-channel orchestration are P1. Behavioral triggers are P2.
+
+### 3.7 Workflow Intelligence
+
+**Current State:** Production-ready. Background jobs, daily intelligence maintenance, connector scheduling, batch processing.
+
+| Capability | Status | Location | Notes |
+|---|---|---|---|
+| Daily Intelligence Maintenance | ✅ Complete | `/api/cron/job-processor` | 11-step automated maintenance |
+| Connector Scheduling | ✅ Complete | `lib/intelligence-sources/job-queue.ts` | Background job execution |
+| Sequence Processing | ✅ Complete | `/api/sequences/process` | Due enrollment + AI personalization |
+| Email Worker Queue | ✅ Complete | `/api/email-worker` | Outbound processing queue |
+| Persistence Health Monitoring | ✅ Complete | `/api/cron/persistence-performance` | Latency, queue depth, DB connectivity |
+| Persistence Evidence Collection | ✅ Complete | `/api/cron/persistence-evidence` | Shadow mode reliability metrics |
+| Workflow Orchestration | ⚠️ Partial | `lib/workflow-engine/` | Basic processor/queue/retry |
+| Event-Driven Triggers | ❌ Missing | — | No real-time event-to-action pipelines |
+| Workflow Analytics | ❌ Missing | — | No execution history or optimization |
+
+**M5 Action:** Workflow orchestration hardening is P1. Event-driven triggers and analytics are P2.
 
 ---
 
@@ -352,14 +370,14 @@ These are required for M5 milestone completion.
 
 | Item | Details |
 |---|---|
-| **Capability** | Auto-extract knowledge from email replies, bounce data, and CRM interactions |
+| **Capability** | Auto-extract knowledge from email replies, bounce data, and platform interactions |
 | **Business Value** | Automatically build knowledge base from existing business communications |
 | **Implementation** | Parse email replies → extract entities → feed into knowledge ingestion pipeline; link to Company/Contact; classify into knowledge categories |
 | **Dependencies** | Webhook handlers (existing), knowledge ingestion pipeline (existing) |
 | **API Impact** | Enhanced webhook processing; new `/api/knowledge/auto-extract` endpoint |
 | **Database Impact** | KnowledgeDocument, KnowledgeChunk, KnowledgeEntry (existing models) |
 | **Tests Required** | Unit tests for extraction logic; integration test for webhook→knowledge pipeline |
-| **Acceptance Criteria** | Email replies auto-extracted into knowledge entries; entities linked to CRM records; classification accuracy >=80% |
+| **Acceptance Criteria** | Email replies auto-extracted into knowledge entries; entities linked to platform records; classification accuracy >=80% |
 
 #### P0-4: Semantic Chunking Enhancement
 
@@ -374,18 +392,18 @@ These are required for M5 milestone completion.
 | **Tests Required** | Unit tests for boundary detection; comparison tests (fixed vs semantic); retrieval quality benchmarks |
 | **Acceptance Criteria** | Semantic chunks improve retrieval relevance by >=15%; no regressions in existing knowledge queries; migration for new field is backward-compatible |
 
-#### P0-5: Rate Limiting for All CRM Routes
+#### P0-5: Rate Limiting for All Business Intelligence APIs
 
 | Item | Details |
 |---|---|
-| **Capability** | Apply consistent rate limiting to all CRM API routes |
+| **Capability** | Apply consistent rate limiting to all business intelligence API routes |
 | **Business Value** | Prevent API abuse; protect against DoS; ensure fair usage |
-| **Implementation** | Extend `withApiMiddleware` with configurable per-route rate limits; apply to all 56 core CRM routes |
+| **Implementation** | Extend `withApiMiddleware` with configurable per-route rate limits; apply to all 56 core business intelligence routes |
 | **Dependencies** | `lib/rate-limit.ts` (existing), `lib/api-middleware.ts` (existing) |
-| **API Impact** | All CRM routes gain rate limiting headers (X-RateLimit-*) |
+| **API Impact** | All business intelligence routes gain rate limiting headers (X-RateLimit-*) |
 | **Database Impact** | None (in-memory rate limit store, existing) |
 | **Tests Required** | Rate limit unit tests; integration tests verifying 429 responses |
-| **Acceptance Criteria** | All CRM routes return 429 when limit exceeded; rate limit headers present on all responses; no performance degradation |
+| **Acceptance Criteria** | All business intelligence routes return 429 when limit exceeded; rate limit headers present on all responses; no performance degradation |
 
 #### P0-6: API Documentation and Contract Validation
 
@@ -621,7 +639,7 @@ For every M5 capability:
 
 | Requirement | Implementation | Priority |
 |---|---|---|
-| **Rate limiting on all CRM routes** | `withApiMiddleware` with per-route limits | P0 |
+| **Rate limiting on all business intelligence routes** | `withApiMiddleware` with per-route limits | P0 |
 | **Prompt injection prevention** | Enhanced input sanitization on AI routes | P0 |
 | **API abuse prevention** | Per-user rate limits, anomaly detection | P0 |
 | **Data isolation** | Tenant-aware queries (multi-tenant prep) | P1 |
@@ -652,7 +670,7 @@ M5 closes only when ALL of the following pass:
 - [ ] **AI Quality Gate**: Automated prompt regression blocking PRs with >5% regression
 - [ ] **Knowledge Extraction**: Email/webhook → knowledge pipeline functional with >=80% classification accuracy
 - [ ] **Semantic Chunking**: Enhanced ingestion with semantic mode; retrieval improvement >=15%
-- [ ] **Rate Limiting**: All 56 core CRM routes rate-limited with 429 responses
+- [ ] **Rate Limiting**: All 56 core business intelligence routes rate-limited with 429 responses
 - [ ] **API Documentation**: OpenAPI spec for 100% of routes; contract tests passing
 
 ### 10.2 Validation Gates
@@ -678,7 +696,7 @@ M5 closes only when ALL of the following pass:
 ### Phase 1: Foundation (Week 1-2)
 
 1. P0-6: API Documentation and Contract Validation — establish baseline
-2. P0-5: Rate Limiting for All CRM Routes — security foundation
+2. P0-5: Rate Limiting for All Business Intelligence APIs — security foundation
 3. P0-1: Test Coverage Completion (Part 1: sequences, email, pipeline)
 
 ### Phase 2: Intelligence (Week 3-4)
@@ -710,7 +728,7 @@ M5 closes only when ALL of the following pass:
 | Category | Path | Count |
 |---|---|---|
 | Business Logic | `src/lib/` | ~170 files |
-| CRM API Routes | `src/app/api/companies|contacts|leads|opportunities|pipeline|sequences|emails/` | 56 routes |
+| Entity & Relationship APIs | `src/app/api/companies|contacts|leads|opportunities|pipeline|sequences|emails/` | 56 routes |
 | Intelligence API Routes | `src/app/api/ai|intelligence|engines|knowledge|signals|recommendations/` | 76 routes |
 | Background Jobs | `src/app/api/cron/|webhooks/` | 5 routes |
 | AI Extensions | `src/lib/ai-*.ts`, `src/lib/engines/` | 23 files |

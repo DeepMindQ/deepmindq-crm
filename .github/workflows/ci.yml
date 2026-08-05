@@ -638,6 +638,7 @@ jobs:
   build:
     name: "Blocking — Build Verification"
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     needs:
       - lint-and-typecheck
       - test-unit

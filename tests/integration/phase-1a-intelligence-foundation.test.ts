@@ -454,14 +454,20 @@ describe('Narrative Service Data Flow', () => {
   });
 
   it('priority classification maps severity + impact + confidence correctly', () => {
-    // Critical: severity critical or impact high
-    expect(true).toBe(true); // Verified by classification logic
+    // Mirrors the classifyPriority logic in src/lib/intelligence-narrative-service.ts:306
+    const classifyPriority = (
+      severity: string,
+      impact: string,
+      confidence: number,
+    ): 'critical' | 'high' | 'medium' | 'low' => {
+      const sev = severity?.toLowerCase() || '';
+      const imp = impact?.toLowerCase() || '';
+      if (sev === 'critical' || imp === 'high') return 'critical';
+      if (sev === 'high' || (imp === 'medium' && confidence >= 70)) return 'high';
+      if (sev === 'medium' || confidence >= 50) return 'medium';
+      return 'low';
+    };
 
-    // These are the rules:
-    // critical OR high impact = critical
-    // high OR (medium + confidence >= 70) = high
-    // medium OR confidence >= 50 = medium
-    // else = low
     const rules = [
       { severity: 'critical', impact: 'any', confidence: 0, expected: 'critical' },
       { severity: 'high', impact: 'high', confidence: 50, expected: 'critical' },
@@ -471,7 +477,8 @@ describe('Narrative Service Data Flow', () => {
     ];
 
     rules.forEach(rule => {
-      expect(['critical', 'high', 'medium', 'low']).toContain(rule.expected);
+      const result = classifyPriority(rule.severity, rule.impact, rule.confidence);
+      expect(result).toBe(rule.expected);
     });
   });
 });

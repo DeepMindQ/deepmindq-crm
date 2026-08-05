@@ -54,6 +54,9 @@ vi.mock('@/lib/db', () => ({
     accountScore: { findUnique: vi.fn().mockResolvedValue(null) },
     session: { findUnique: vi.fn().mockResolvedValue(null) },
     otpCode: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+    evidence: { findMany: vi.fn().mockResolvedValue([]) },
+    narrative: { findMany: vi.fn().mockResolvedValue([]) },
+    intelligenceBriefing: { findMany: vi.fn().mockResolvedValue([]) },
   },
 }))
 

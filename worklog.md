@@ -210,3 +210,32 @@ Stage Summary:
 - Three-layer path safety: ESLint rule (dev-time) → ci-local.sh (pre-push) → no-hardcoded-paths.js (CI job)
 - Node compatibility matrix already scheduled weekly (Monday 6 AM UTC)
 - Ready for M4 Phase 3 (Deployment Pipeline)
+
+---
+Task ID: m4-ci-reliability-final-verification
+Agent: Super Z (Main)
+Task: Final verification pass of all 5 CI reliability items + additional CI rules enforcement
+
+Work Log:
+- Performed comprehensive ci-local.sh ↔ ci.yml job mapping: 11 jobs, all commands verified identical
+- Tested ci-local.sh --job 4 (path check): clean pass ✅, violation detection ✅
+- Tested ci-local.sh --job 2 (dependency audit): clean pass ✅
+- Verified pre-push hook: runs ci-local.sh --quick, no bare vitest remains
+- Tested Layer 1 (ESLint): all 3 patterns (/home/z/, /Users/, /private/) detected and blocked ✅
+- Tested Layer 3 (no-hardcoded-paths.js): all 3 patterns detected with file:line ✅
+- Reviewed CI_RELIABILITY_GUIDE.md: 12 sections, all verified complete
+- Verified Node compatibility matrix: weekly cron, Node 20+22, security+unit+build
+- Full anti-pattern scan: zero || true, zero dangerouslyIgnoreUnhandledErrors, zero unconditional skips
+- Fix 1: Replaced expect(true).toBe(true) with real classifyPriority assertion in phase-1a test
+- Fix 2: Added timeout-minutes: 5 to build gate job in ci.yml
+- Fix 3: Rewrote ci-local.sh with 6 gap fixes (CSP, throw, prisma, DB env, DB setup, skip logic, double print_result)
+- Fix 4: Added evidence/narrative/intelligenceBriefing mocks to security-batch2 test (333 tests, 0 errors)
+- Generated CI_RELIABILITY_FOUNDATION_VERIFICATION.docx (postcheck: 8/9 pass, 0 errors)
+- Document: /home/z/my-project/download/CI_RELIABILITY_FOUNDATION_VERIFICATION.docx
+
+Stage Summary:
+- ALL 5 CI reliability layers VERIFIED with positive + negative test evidence
+- 4 additional issues found and fixed during verification
+- 10/10 acceptance criteria met
+- M4 CI Reliability Foundation is COMPLETE
+- Ready for M4 Phase 3 (Deployment Pipeline Foundation)

@@ -206,17 +206,17 @@ jobs:
       - run: npx prisma generate
       - name: Run unit tests
         run: |
-          npx vitest run --config vitest.unit.config.ts --dangerouslyIgnoreUnhandledErrors 2>&1 | tee /tmp/vitest-output.txt
+          npx vitest run --config vitest.unit.config.ts 2>&1 | tee /tmp/vitest-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
           if grep -q 'Test Files.*failed' /tmp/vitest-output.txt; then
-            echo '::error::Test files failed — real test failure detected'
+            echo '::error::Test files failed'
             exit $EXIT_CODE
           fi
           if grep -q 'Tests .*failed' /tmp/vitest-output.txt; then
-            echo '::error::Tests failed — real test failure detected'
+            echo '::error::Tests failed'
             exit $EXIT_CODE
           fi
-          echo 'All tests passed (Vitest worker teardown crash suppressed)'
+          echo 'All unit tests passed'
           exit 0
         env:
           CI: 'true'
@@ -225,17 +225,17 @@ jobs:
 
       - name: Generate unit test coverage
         run: |
-          npx vitest run --config vitest.unit.config.ts --coverage --dangerouslyIgnoreUnhandledErrors 2>&1 | tee /tmp/vitest-coverage.txt
+          npx vitest run --config vitest.unit.config.ts --coverage 2>&1 | tee /tmp/vitest-coverage.txt
           EXIT_CODE=${PIPESTATUS[0]}
           if grep -q 'Test Files.*failed' /tmp/vitest-coverage.txt; then
-            echo '::error::Coverage: test files failed — real test failure detected'
+            echo '::error::Coverage: test files failed'
             exit $EXIT_CODE
           fi
           if grep -q 'Tests .*failed' /tmp/vitest-coverage.txt; then
-            echo '::error::Coverage: tests failed — real test failure detected'
+            echo '::error::Coverage: tests failed'
             exit $EXIT_CODE
           fi
-          echo 'Coverage: all tests passed (Vitest worker teardown crash suppressed)'
+          echo 'Coverage: all tests passed'
           exit 0
         env:
           CI: 'true'
@@ -416,7 +416,20 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - run: npx vitest run --config vitest.ai-governance.config.ts --dangerouslyIgnoreUnhandledErrors || true
+      - name: Run AI governance tests
+        run: |
+          npx vitest run --config vitest.ai-governance.config.ts 2>&1 | tee /tmp/vitest-ai-gov.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          if grep -q 'Test Files.*failed' /tmp/vitest-ai-gov.txt; then
+            echo '::error::AI governance: test files failed'
+            exit $EXIT_CODE
+          fi
+          if grep -q 'Tests .*failed' /tmp/vitest-ai-gov.txt; then
+            echo '::error::AI governance: tests failed'
+            exit $EXIT_CODE
+          fi
+          echo 'AI governance tests passed'
+          exit 0
         env:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'

@@ -127,18 +127,18 @@ jobs:
     timeout-minutes: 10
     outputs:
       deployment_url: ${{ steps.deploy.outputs.deployment_url }}
-      deployment_id: ${{ steps.deploy.outputs.deployment_id }}
+      previous_deployment_id: ${{ steps.current.outputs.previous_deployment_id }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Capture current production deployment
+      - name: Capture current production deployment (for rollback)
         id: current
         run: |
           CURRENT=$(curl -s -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
             "https://api.vercel.com/v6/deployments?projectId=${{ secrets.VERCEL_PROJECT_ID }}&limit=1&target=production" \
             | python3 -c "import sys,json; d=json.load(sys.stdin)['deployments'][0]; print(d['uid'])" 2>/dev/null || echo "")
-          echo "current_deployment=${CURRENT}" >> "$GITHUB_OUTPUT"
-          echo "Previous production deployment: ${CURRENT}"
+          echo "previous_deployment_id=${CURRENT}" >> "$GITHUB_OUTPUT"
+          echo "Previous production deployment (for rollback): ${CURRENT}"
 
       - name: Deploy to Vercel Production
         id: deploy
@@ -231,17 +231,21 @@ jobs:
     steps:
       - name: Rollback to previous deployment
         run: |
-          PREVIOUS="${{ needs.deploy-production.outputs.deployment_id }}"
-          echo "::error::Health check failed. Rolling back deployment."
+          PREVIOUS="${{ needs.deploy-production.outputs.previous_deployment_id }}"
+          echo "::error::Health check failed. Rolling back to previous deployment: ${PREVIOUS}"
 
           if [ -n "${PREVIOUS}" ]; then
-            echo "Rolling back to previous deployment..."
-            # Vercel rollback via API — redeploy the previous successful deployment
-            curl -s -X POST \
+            echo "Rolling back to previous deployment ${PREVIOUS}..."
+            # Vercel rollback via API — promote the previous successful deployment back to production
+            ROLLBACK_RESPONSE=$(curl -s -X POST \
               -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
               -H "Content-Type: application/json" \
               "https://api.vercel.com/v13/deployments/${PREVIOUS}" \
-              -d '{}' || echo "Rollback API call completed"
+              -d '{}' 2>&1)
+            echo "Rollback response: ${ROLLBACK_RESPONSE}"
+          else
+            echo "::warning::No previous deployment ID captured — manual rollback required"
+            echo "Manual rollback: vercel --token <TOKEN> rollback ${{ secrets.VERCEL_PROJECT_ID }}"
           fi
 
           echo "::error::PRODUCTION ROLLED BACK due to health check failure"

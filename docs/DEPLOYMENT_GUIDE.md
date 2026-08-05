@@ -1,7 +1,7 @@
 # DeepMindQ — Deployment Guide
 
 > **Audience:** Senior engineer deploying a fresh customer instance. No prior context assumed.
-> **Last updated:** WI-14 (Productization)
+> **Last updated:** M4 Phase 3 (Deployment Pipeline Foundation)
 
 ---
 
@@ -159,12 +159,15 @@ The smoke test suite (`vitest.smoke.config.ts`) validates after each deployment:
 | Test | Endpoint | Validation |
 |------|----------|------------|
 | Health structure | `/api/health` | HTTP 200, `status: "ok"`, timestamp, uptime, db |
+| Version/build ID | `/api/health` | `version` field present (commit SHA or "dev") |
+| Environment ID | `/api/health` | `environment` field matches staging/production |
 | Root page | `/` | No 5xx error |
 | Auth endpoint | `/api/auth/csrf` | Returns JSON |
 | Readiness | `/api/health/ready` | Returns JSON with timestamp |
 | Dependencies | `/api/health/deps` | Returns JSON with dependency status |
-| Security headers | All endpoints | Cache-Control: no-store, no x-powered-by |
+| Security headers | All endpoints | Cache-Control: no-store, no x-powered-by, CSP or equivalent |
 | Version identifier | `/api/health` | `version` and `environment` fields present |
+| Unhealthiness | `/api/nonexistent-*` | Returns 4xx, not 5xx (no server crash) |
 
 ### Rollback Procedure
 
@@ -222,7 +225,7 @@ The pipeline validates: `status === "ok"`, `db === true`, HTTP 200, response und
 
 ---
 
-## 3. Docker Deployment (Primary Method)
+## 3b. Docker Deployment (Primary Method)
 
 ### Step 1 — Clone the repository
 
@@ -404,6 +407,7 @@ curl -s http://localhost:3000/api/version | jq .
 | `S3_SECRET_KEY` | S3 secret key | Optional | `xxxx` | — |
 | `SENTRY_DSN` | Sentry server-side DSN | Optional | `https://xxx@sentry.io/123` | Get from [sentry.io](https://sentry.io/) |
 | `NEXT_PUBLIC_SENTRY_DSN` | Sentry client-side DSN | Optional | `https://xxx@sentry.io/123` | Get from [sentry.io](https://sentry.io/) |
+| `NEXT_PUBLIC_BUILD_SHA` | Build commit SHA for version tracking | Optional | Auto-set by Vercel | Set in build pipeline |
 
 ### Startup Validation
 
@@ -632,8 +636,10 @@ curl -s http://localhost:3000/api/version | jq '.'
 
 | Endpoint | Purpose | Auth | Failure Response |
 |----------|---------|------|-----------------|
-| `GET /api/health` | Liveness probe — DB connectivity, uptime, configured AI providers | None | Always 200 (degraded if DB down) |
-| `GET /api/ready` | Readiness probe — DB must be reachable | None | **503** if DB is down |
+| `GET /api/health` | Liveness probe — DB, uptime, version, env, AI providers | None | Always 200 (degraded if DB down) |
+| `GET /api/health/ready` | Readiness probe — DB must be reachable | None | **503** if DB is down |
+| `GET /api/health/deps` | Dependency health — DB, auth, AI, SMTP, tracking | None | 503 if critical |
+| `GET /api/health/database` | Database deep health — latency, migration status | None | 503 if unhealthy |
 | `GET /api/version` | Version, environment, git SHA | None | Always 200 |
 
 ### Health Check Response Example
@@ -767,3 +773,70 @@ docker compose logs app
 # Fix the missing/invalid env var and restart.
 docker compose restart app
 ```
+
+---
+
+## 12. Incident Recovery Procedures
+
+### Production Health Check Failure (Automatic Rollback)
+
+When the production health check fails after a deployment, the pipeline automatically rolls back. Here is the full recovery procedure.
+
+**Automatic rollback flow:**
+1. The production pipeline captures the **previous** deployment ID before deploying the new version
+2. After deployment, smoke tests and health checks run against the new deployment
+3. If the health check fails after 3 retries (30-second intervals), the rollback job triggers
+4. The Vercel API re-promotes the previous successful deployment to production
+5. The workflow is marked as failed and posts the rollback status to the GitHub Actions summary
+
+**If automatic rollback fails** (e.g., no previous deployment ID was captured):
+```bash
+# Manual rollback via Vercel CLI
+vercel --token <TOKEN> rollback <PROJECT_ID>
+
+# Or via Vercel Dashboard:
+# 1. Open Vercel project → Deployments
+# 2. Find last successful deployment
+# 3. Click "..." → "Promote to Production"
+```
+
+### Database Migration Failure During Deployment
+
+If `prisma migrate deploy` fails during a deployment:
+
+1. **Do NOT retry the migration immediately** — The database may be in an inconsistent state
+2. Check migration status: `npx prisma migrate status`
+3. If the database is corrupted, **restore from backup** (see Section 8)
+4. If the migration is pending and the database is clean, fix the migration SQL in `prisma/migrations/` and re-run `npx prisma migrate deploy`
+5. For Vercel deployments with Neon, use Neon's point-in-time recovery to restore to pre-migration state
+
+### Staging Deployment Failure
+
+Staging deployment failures are lower severity but follow the same investigation pattern:
+
+1. Check the GitHub Actions workflow run for the failing step
+2. Common failure causes:
+   - Missing secrets (VERCEL_TOKEN, STAGING_DATABASE_URL, etc.)
+   - Database unreachable (check STAGING_DIRECT_DATABASE_URL)
+   - Build errors (should be caught by CI gate)
+3. Fix the issue and push a new commit to `develop` — the pipeline auto-retriggers
+
+### Production Smoke Test Failure (Health Check Passes)
+
+If smoke tests fail but the health check passes, this indicates an application-level issue:
+
+1. Check the specific failing test in the GitHub Actions log
+2. Common causes: API route errors, authentication misconfiguration, missing environment variables, CSP violations
+3. Fix the issue and create a hotfix PR from `develop` to `main`
+
+### Full Production Outage Recovery
+
+If the production deployment causes a complete outage:
+
+1. **Immediate:** Trigger manual rollback via Vercel Dashboard or CLI
+2. **Verify:** Check `/api/health` returns `status: "ok"` after rollback
+3. **Investigate:** Review deployment logs in GitHub Actions and Vercel
+4. **Communicate:** Notify stakeholders of the rollback
+5. **Fix:** Create a hotfix branch from the last known good commit
+6. **Test:** Deploy hotfix to staging first, verify all smoke tests pass
+7. **Redeploy:** Merge hotfix to `main` and let the production pipeline deploy

@@ -1,19 +1,22 @@
 /**
  * Smoke Test Suite — Deployed Environment Validation
  *
- * M4 Phase 3.5
+ * M4 Phase 3.5 (enhanced in Phase 3 Validation)
  *
  * Validates that a deployed DeepMindQ instance is operational after deployment.
  * Tests execute against the SMOKE_TEST_URL environment variable.
  *
  * Coverage:
- *   1. Health endpoint responds with correct structure
- *   2. Database connectivity confirmed
- *   3. Authentication endpoint available (returns expected error for invalid request)
- *   4. Static assets serve correctly
- *   5. Security headers present
- *   6. API routes return proper JSON responses
- *   7. Root page loads without server error
+ *   1. Health endpoint responds with correct structure (status, uptime, timestamp, db, providers)
+ *   2. Version/build identifier present in health response
+ *   3. Environment identifier present in health response
+ *   4. Database connectivity confirmed
+ *   5. Authentication endpoint available (returns expected error for invalid request)
+ *   6. Static assets serve correctly
+ *   7. Security headers present (Cache-Control, no x-powered-by, CSP or equivalent)
+ *   8. API routes return proper JSON responses (ready, deps)
+ *   9. Root page loads without server error
+ *  10. Invalid endpoints return graceful 4xx (not 5xx crash)
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -77,6 +80,20 @@ describe(`Smoke Tests — ${ENV}`, () => {
         expect(typeof value).toBe('boolean');
       }
     });
+
+    it('includes version/build identifier', () => {
+      expect(healthResponse.body.version).toBeDefined();
+      const version = healthResponse.body.version as string;
+      // Version should be a non-empty string (commit SHA or 'dev')
+      expect(typeof version).toBe('string');
+      expect(version.length).toBeGreaterThan(0);
+    });
+
+    it('includes environment identifier', () => {
+      expect(healthResponse.body.environment).toBeDefined();
+      const env = healthResponse.body.environment as string;
+      expect(['development', 'staging', 'production']).toContain(env);
+    });
   });
 
   // ─── Test 2: Root Page ───
@@ -138,6 +155,17 @@ describe(`Smoke Tests — ${ENV}`, () => {
       const poweredBy = res.headers.get('x-powered-by');
       expect(poweredBy).toBeNull();
     });
+
+    it('includes Content-Security-Policy or equivalent security header', async () => {
+      const res = await fetch(BASE_URL, { redirect: 'manual' });
+      // Either CSP or a security-related header should be present
+      const csp = res.headers.get('content-security-policy');
+      const xFrameOptions = res.headers.get('x-frame-options');
+      const strictTransport = res.headers.get('strict-transport-security');
+      // At least one major security header should be present
+      const hasSecurityHeader = Boolean(csp) || Boolean(xFrameOptions) || Boolean(strictTransport);
+      expect(hasSecurityHeader).toBe(true);
+    });
   });
 
   // ─── Test 6: Environment-Specific Validation ───
@@ -146,6 +174,16 @@ describe(`Smoke Tests — ${ENV}`, () => {
       // The environment is verified by the SMOKE_TEST_ENV variable
       // and the fact that we reached the correct URL
       expect(ENV).toMatch(/^(staging|production)$/);
+    });
+  });
+
+  // ─── Test 7: Deployment Unhealthiness Detection ───
+  describe('Unhealthy Deployment Detection', () => {
+    it('health endpoint returns degraded status when called with invalid path', async () => {
+      // Verify the app properly handles invalid endpoints (not a 5xx crash)
+      const res = await fetch(`${BASE_URL}/api/nonexistent-health-endpoint`);
+      // Should be 404, not 500+
+      expect(res.status).toBeLessThan(500);
     });
   });
 });

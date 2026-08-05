@@ -205,14 +205,38 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - name: Run unit tests
-        run: npx vitest run --config vitest.unit.config.ts --dangerouslyIgnoreUnhandledErrors || true
+        run: |
+          npx vitest run --config vitest.unit.config.ts --dangerouslyIgnoreUnhandledErrors 2>&1 | tee /tmp/vitest-output.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          if grep -q 'Test Files.*failed' /tmp/vitest-output.txt; then
+            echo '::error::Test files failed — real test failure detected'
+            exit $EXIT_CODE
+          fi
+          if grep -q 'Tests .*failed' /tmp/vitest-output.txt; then
+            echo '::error::Tests failed — real test failure detected'
+            exit $EXIT_CODE
+          fi
+          echo 'All tests passed (Vitest worker teardown crash suppressed)'
+          exit 0
         env:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
           DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci_test'
 
       - name: Generate unit test coverage
-        run: npx vitest run --config vitest.unit.config.ts --coverage --dangerouslyIgnoreUnhandledErrors || true
+        run: |
+          npx vitest run --config vitest.unit.config.ts --coverage --dangerouslyIgnoreUnhandledErrors 2>&1 | tee /tmp/vitest-coverage.txt
+          EXIT_CODE=${PIPESTATUS[0]}
+          if grep -q 'Test Files.*failed' /tmp/vitest-coverage.txt; then
+            echo '::error::Coverage: test files failed — real test failure detected'
+            exit $EXIT_CODE
+          fi
+          if grep -q 'Tests .*failed' /tmp/vitest-coverage.txt; then
+            echo '::error::Coverage: tests failed — real test failure detected'
+            exit $EXIT_CODE
+          fi
+          echo 'Coverage: all tests passed (Vitest worker teardown crash suppressed)'
+          exit 0
         env:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'

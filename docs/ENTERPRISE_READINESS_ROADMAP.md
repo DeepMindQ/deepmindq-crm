@@ -2,8 +2,8 @@
 
 **Product**: Enterprise AI Intelligence Platform  
 **Version**: 1.0-roadmap  
-**Last Updated**: 2026-08-04  
-**Execution Priority**: Security > Testing > AI Accuracy > Deployment > UI/UX > Documentation  
+**Last Updated**: 2026-08-05  
+**Execution Priority**: Security > Testing > CI/CD > AI Accuracy > UI/UX > Operations > Performance > Documentation > Certification  
 **Final Assessment Dimensions**:
 1. **Software Quality** — Security, Architecture, Testing, Infrastructure, Performance
 2. **Intelligence Quality** — Business Logic, AI Accuracy, Explainability, Evidence
@@ -29,7 +29,7 @@ DeepMindQ is an **Enterprise AI Intelligence Platform** designed for enterprise 
 - CRM workflow engines
 - Self-service onboarding
 
-**Codebase Scale**: 221,521 lines total, 125,691 non-test source, 250 API routes, 85 Prisma models, 32 enums, 417 indexes, 224 test files (~8,111 test cases)
+**Codebase Scale**: ~221K lines total, ~126K non-test source, 250 API routes, 85 Prisma models, 32 enums, 417 indexes, 217 test files (~5,180 categorized test cases), 18 vitest configs, 19 CI jobs
 
 ---
 
@@ -274,11 +274,11 @@ npm run test                  # All test suites pass
 
 ---
 
-## Milestone 3 — Testing Quality Certification
+## Milestone 3 — Testing Infrastructure & Stabilization
 
 **Status**: ✅ COMPLETE (100%)
-**Date Closed**: 2026-08-04
-**Target**: Testing 30 → 75
+**Date Closed**: 2026-08-05
+**Target**: Testing 30 → 75, CI Pipeline Deterministic
 
 ### Objective
 Transform the test suite from 79% mock-based surface tests to genuine integration testing with real route handlers, real security validation, and data-driven API coverage. Every test must exercise real code paths, not mocked return values.
@@ -362,132 +362,174 @@ Transform the test suite from 79% mock-based surface tests to genuine integratio
 
 | Risk | Severity | Target Milestone |
 |------|----------|-----------------|
-| `Database Tests` CI job flaky (seed data ordering) | Medium | Milestone 3.1 (hotfix) |
-| Real-integration tests not yet in CI pipeline | Medium | Milestone 5 (CI/CD) |
-| No real browser E2E tests (Playwright/Cypress) | Medium | Future |
-| Performance benchmarks still mock-based | Low | Milestone 8 (Performance) |
-| Coverage thresholds still at 30% | Low | Milestone 3.2 |
-| AI output quality validation | Medium | Milestone 4 (Business Logic) |
-| `tests/e2e/` and `tests/database/` mislabeled directories | Low | Milestone 3.2 cleanup |
+| `Database Tests` CI job flaky (seed data ordering) | Medium | ✅ Resolved in M3 stabilization |
+| Real-integration tests not yet in CI pipeline | Medium | ✅ Resolved — 10 blocking CI jobs |
+| No real browser E2E tests (Playwright/Cypress) | Medium | M4 (CI/CD stabilization) |
+| Performance benchmarks still mock-based | Low | M8 (Performance) |
+| Coverage thresholds still at 30% | Low | M4 (coverage raise) |
+| AI output quality validation | Medium | M5 (Business Logic) |
+| `tests/e2e/` and `tests/database/` mislabeled directories | Low | M4 (dedup cleanup) |
+
+### M3 Addendum — CI Stabilization (2026-08-05)
+
+Following the initial M3 testing quality certification, a dedicated stabilization phase was completed to make the CI pipeline deterministic and merge-ready.
+
+#### Stabilization Changes
+
+| Change | Before | After | Evidence |
+|--------|--------|-------|----------|
+| Vitest pool strategy | `pool: 'forks'` (OOM crashes) | `pool: 'threads'`, maxThreads: 1 | All 18 vitest configs |
+| Monolithic auth test | 2,217-line single file | Split into 8 focused files | `tests/unit/auth/`, `tests/unit/authentication/`, `tests/unit/authorization/` |
+| CI job classification | Flat 18-job list | 10 Blocking + 9 Non-Blocking | `.github/workflows/ci.yml` header |
+| Security gate test | Assertion mismatch (job renamed) | Updated assertion to match CI | `tests/security/wi18-security-gate-integrity.test.ts:245` |
+| Vitest teardown crash | `|| true` on blocking job (hides failures) | Intelligent `tee+grep` wrapper | `test-unit` 2 steps in ci.yml |
+| AI Governance crash | `|| true` (non-blocking) | Documented in TEST_EXECUTION_MATRIX.md | Non-blocking, acceptable |
+
+#### Stabilization Evidence
+
+- **Pull Request**: [#10](https://github.com/DeepMindQ/deepmindq-crm/pull/10) — **Merged**
+- **Branch**: `m3-stabilization-final`
+- **Merge Commit**: `4646a7ba4cc3c4ecc894974700a99cd2fdcc486a`
+- **CI Status**: ✅ All 10 blocking jobs green
+- **Documentation**: `docs/TEST_EXECUTION_MATRIX.md`, `docs/TEST_IMPACT_MAP.md`, `docs/MOCK_DEPENDENCY_AUDIT.md`
 
 ---
 
-## Milestone 4 — Business Logic & Intelligence Quality Certification
+## Milestone 4 — CI/CD & Architecture
 
-**Status**: 🔲 PENDING  
-**Dimension**: Intelligence Quality  
-**Target**: Validate that DeepMindQ produces correct intelligence decisions
+**Status**: 🔲 PLANNING
+**Priority**: 9/10
 
 ### Objective
-Normal testing answers "Does the code work?" Business Logic Certification answers "Does DeepMindQ produce the correct intelligence decisions?" This milestone validates every intelligence engine's decision accuracy, explainability, and evidence grounding.
+Transform CI from partially-signaling to fully-reliable, and establish the deployment automation foundation for staging and production environments.
 
-### Scope — Intelligence Engine Accuracy
+### Phase 1: Test Architecture Cleanup
+- Delete 67 root-level duplicate test files (`tests/*.test.ts` mirrors)
+- Audit 9 legacy test files — re-integrate or delete
+- Reclassify orphaned tests not covered by any vitest config
+- Update `npm test` to run categorized configs
+- Raise coverage thresholds from 30/20/30/30 to 50/40/45/50
+- Follow up mock dependency audit — reduce integration test mock rate from 86%
 
-| Engine | Validation Required |
-|--------|-------------------|
-| Company Intelligence | Score calculation, data fusion, completeness |
-| Contact Intelligence | Role inference, hierarchy mapping accuracy |
-| Signal Detection (32 types) | Detection accuracy, false positive rate, classification correctness |
-| Multi-Factor Scoring | Weight verification, score distribution, edge cases |
-| Buying Intent Engine | Intent classification, confidence calibration |
-| Revenue Opportunity Engine | Revenue estimation accuracy, evidence linkage |
-| Deal Risk Scoring | Risk factor coverage, score explainability |
-| Recommendation Engine | Relevance, diversity, evidence grounding |
-| Account Intelligence Briefs | Brief quality, evidence citation accuracy, completeness |
-| Hybrid RAG Retrieval (6 signals) | Retrieval quality, Reciprocal Rank Fusion correctness |
-| Knowledge Graph Intelligence | Graph traversal accuracy, entity resolution |
-| Email Intelligence | Response classification, sentiment accuracy |
-| Executive Intelligence Dashboards | Metric aggregation, drill-down correctness |
+### Phase 2: CI Pipeline Stabilization
+- Root-cause Vitest worker teardown crash via diagnostic matrix
+- Fix `test-ai-governance`: remove `|| true`, apply proper fix
+- Fix `test-playwright`: server startup timing, flaky selectors
+- Verify all 9 non-blocking jobs pass consistently
+- Remove `if: always()` from non-blocking jobs (make them real signal)
 
-### Required Deliverables
-- [ ] Business Rule Catalogue — every scoring rule documented
-- [ ] Intelligence Decision Matrix — input → processing → output for each engine
-- [ ] Golden Datasets — curated test data with known correct outputs
-- [ ] Expected vs Actual Output Validation — automated comparison suite
-- [ ] Regression Suite for Intelligence Engines — catch score drift
-- [ ] Explainability Reports — every score must have explainable inputs
-- [ ] Score Calculation Verification — manual audit of scoring algorithms
-- [ ] Recommendation Traceability — every recommendation traced to evidence
+### Phase 3: Deployment Pipeline Foundation
+- Staging: `develop` branch → auto-deploy to Vercel staging preview
+- Production: `main` branch → deploy with approval gate
+- Post-deploy smoke tests
+- Database migration safety
+- Health check endpoint (`/api/health`)
+- Environment strategy: secrets, staging/production separation
 
-### Acceptance Criteria
-- Every score has explainable inputs
-- Every recommendation has evidence
-- Every AI insight is grounded in source data
-- Intelligence outputs are consistent across runs
-- No undocumented business rules remain
-- Golden dataset validation passes with >95% accuracy
+### Technical Debt Investigation (Non-Blocking)
+- Vitest worker teardown crash: diagnostic matrix → root cause → long-term fix
+- Does not block M4 execution — workaround documented in `docs/TEST_EXECUTION_MATRIX.md`
 
 ---
 
-## Milestone 5 — CI/CD & Architecture Certification
+## Milestone 5 — Business Logic & Intelligence
 
 **Status**: 🔲 PENDING
+**Priority**: 9/10
+**Dimension**: Intelligence Quality
+
+### Objective
+Validate that DeepMindQ produces correct intelligence decisions. Business Logic Certification answers "Does DeepMindQ produce the correct intelligence decisions?" This milestone validates every intelligence engine's decision accuracy, explainability, and evidence grounding.
 
 ### Scope
-- CI pipeline stabilization (all jobs green)
-- RBAC `authorizeRoute()` integration into request pipeline (B-01 from Milestone 1)
-- Deployment pipeline hardening
-- Artifact management
-- Build reproducibility
+- Intelligence engine completion
+- Company intelligence validation
+- Contact intelligence validation
+- Signal intelligence validation
+- Opportunity intelligence validation
+- Recommendation engine validation
+- Evidence pipeline validation
+- AI reasoning workflows
+- Business logic certification
 
 ---
 
-## Milestone 6 — UI/UX Certification
+## Milestone 6 — Enterprise UI/UX
 
 **Status**: 🔲 PENDING
+**Priority**: 10/10
 
 ### Scope
-- Page decomposition from monolithic `page.tsx`
-- Responsive design validation
-- Accessibility audit
-- Component architecture
-- Enterprise UX patterns
+- Enterprise user experience design
+- Design system maturity
+- User workflows optimization
+- Dashboard design
+- Intelligence visualization
+- User productivity improvements
 
 ---
 
-## Milestone 7 — Operations Certification
+## Milestone 7 — Operations & Monitoring
 
 **Status**: 🔲 PENDING
+**Priority**: 10/10
 
 ### Scope
-- Monitoring and alerting
-- Session cleanup automation
-- Error handling hardening
-- Operational runbooks
-- Health check completeness
+- Health checks
+- Observability
+- Error tracking
+- Alerts
+- Production operations
+- Incident readiness
 
 ---
 
-## Milestone 8 — Performance Certification
+## Milestone 8 — Performance & Load Testing
 
 **Status**: 🔲 PENDING
+**Priority**: 10/10
 
 ### Scope
-- API latency benchmarks
-- Database query optimization
-- Bundle size analysis
 - Load testing
-- Memory leak detection
+- Scalability validation
+- Database optimization
+- Memory testing
+- Concurrency testing
+- Performance benchmarks
 
 ---
 
-## Milestone 9 — Documentation Certification
+## Milestone 9 — Documentation & Compliance
 
 **Status**: 🔲 PENDING
+**Priority**: 10/10
 
 ### Scope
-- API documentation completeness
+- Technical documentation
+- Security documentation
+- Compliance artifacts
 - Architecture documentation
-- Deployment guide validation
-- Dead code cleanup (including B-02 from Milestone 1)
-- Code comments accuracy
+- Operational runbooks
 
 ---
 
-## Milestone 10 — Investor Readiness & Final Enterprise Certification
+## Milestone 10 — Enterprise Security & Governance Certification
 
-**Status**: 🔲 PENDING  
-**Dimension**: Business Readiness + Final Assessment
+**Status**: 🔲 PENDING
+**Priority**: 10/10
+
+### Scope
+- Security review and re-audit
+- AI governance certification
+- Compliance validation
+- Enterprise readiness checks
+
+---
+
+## Milestone 11 — Final Enterprise Certification
+
+**Status**: 🔲 PENDING
+**Priority**: 10/10
 
 ### Part A — Investor Readiness Certification
 
@@ -496,25 +538,20 @@ Normal testing answers "Does the code work?" Business Logic Certification answer
 - [ ] Why it is NOT a traditional SaaS workflow tool
 - [ ] Competitive differentiation analysis
 - [ ] Defensible AI architecture explanation
-- [ ] IP/patent integration documentation
 
 #### Technical Due Diligence Package
 - [ ] Complete architecture diagrams (system, data flow, AI pipeline)
 - [ ] AI pipeline documentation (RAG → Governance → Hallucination Prevention → Output)
-- [ ] Security evidence package (Milestone 1 closure + ongoing evidence)
+- [ ] Security evidence package (Milestone 1 + M10 closure evidence)
 - [ ] Testing evidence package (all milestone test results compiled)
 - [ ] CI/CD maturity evidence (pipeline stability, deployment automation)
-- [ ] Scalability documentation (horizontal scaling, database, AI providers)
-- [ ] Technology decisions rationale (Next.js 16, Prisma, Edge proxy, etc.)
-- [ ] Database design documentation (85 models, relationship map, indexing strategy)
+- [ ] Technology decisions rationale
 
 #### Business Readiness Package
 - [ ] Enterprise use cases documented
 - [ ] Buyer personas (CIO, VP Sales, Head of Intelligence, CTO)
 - [ ] ROI measurement framework
-- [ ] Deployment model documentation (enterprise license, on-premise option)
-- [ ] Implementation approach (setup → configure → train → deploy)
-- [ ] Enterprise sales enablement material
+- [ ] Deployment model documentation
 
 ### Part B — Final Enterprise Certification
 

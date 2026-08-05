@@ -1,8 +1,10 @@
 # DeepMindQ — Project Status
 
-**Last Updated**: 2026-08-01
+**Last Updated**: 2026-08-05
 **Baseline Tag**: `product-baseline-v1`
 **Branch**: `main`
+**Current Milestone**: M4 — CI/CD & Architecture (Planning)
+**Previous Milestone**: M3 — Testing Infrastructure & Stabilization ✅ Closed
 
 ---
 
@@ -21,6 +23,24 @@ integration, loading states, error boundaries, and AI features).
 The backend architecture, AI engines, security foundation, and core capabilities
 are significantly built. The biggest risk is NOT missing technology — it is that
 the user experience does not communicate the power of what has been built.
+
+---
+
+## Milestone Progress
+
+| Milestone | Name | Status | Date Closed |
+|-----------|------|--------|------------|
+| M1 | Security Foundation | ✅ Complete | 2026-08-04 |
+| M2 | Database & Deployment Certification | ✅ Complete | 2026-08-04 |
+| M3 | Testing Infrastructure & Stabilization | ✅ Complete | 2026-08-05 |
+| M4 | CI/CD & Architecture | 🔲 Planning | — |
+| M5 | Business Logic & Intelligence | 🔲 Pending | — |
+| M6 | Enterprise UI/UX | 🔲 Pending | — |
+| M7 | Operations & Monitoring | 🔲 Pending | — |
+| M8 | Performance & Load Testing | 🔲 Pending | — |
+| M9 | Documentation & Compliance | 🔲 Pending | — |
+| M10 | Enterprise Security & Governance Certification | 🔲 Pending | — |
+| M11 | Final Enterprise Certification | 🔲 Pending | — |
 
 ---
 
@@ -287,7 +307,7 @@ All 20 tickets from ARCHITECTURE.md Section 11 are functionally complete.
 | Database models | 59 (PostgreSQL, 18 enums) |
 | Frontend screens | 77 (all functional, real API calls) |
 | AI/intelligence modules | 100+ |
-| Test count | 1868 pass / 14 skip / 0 fail |
+| Test count | 217 test files, ~5,180 categorized test cases, 18 vitest configs |
 | TypeScript errors | 0 |
 | Build status | Clean |
 
@@ -320,5 +340,6 @@ The technology is there — the experience must now match it.
 
 ---
 
-*Baseline locked 2026-08-01. Priority order locked: Experience -> Polish -> Ops -> Roadmap.*
+*Baseline locked 2026-08-01. Roadmap updated 2026-08-05.*
 *Tags: `security-baseline-v1` (security hardening), `product-baseline-v1` (product baseline)*
+*M3 stabilization merged at SHA `4646a7ba4cc3c4ecc894974700a99cd2fdcc486a` via PR #10*

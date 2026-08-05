@@ -73,11 +73,11 @@ jobs:
       - name: Check pending migrations
         shell: bash
         run: |
+          set +eo pipefail  # Disable for Prisma status check (grep returns 1 on no match)
           npx prisma generate --quiet 2>/dev/null
-          set +e
           PENDING=$(npx prisma migrate status 2>&1 | grep -c "DRIFT\|Pending" || true)
-          set -e
           echo "Pending migrations: ${PENDING}"
+          set -eo pipefail  # Re-enable for subsequent steps
           if [ "${PENDING}" = "0" ]; then
             echo "No pending migrations — skipping"
           fi

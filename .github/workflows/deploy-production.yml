@@ -99,10 +99,10 @@ jobs:
         id: pending-check
         shell: bash
         run: |
+          set +eo pipefail  # Disable for Prisma status check
           npx prisma generate --quiet 2>/dev/null
-          set +e
           PENDING=$(npx prisma migrate status 2>&1 | grep -c "DRIFT\|Pending" || true)
-          set -e
+          set -eo pipefail
           echo "pending=${PENDING}" >> "$GITHUB_OUTPUT"
           echo "Pending migrations: ${PENDING}"
         env:
@@ -170,10 +170,10 @@ jobs:
       - name: Check pending migrations
         shell: bash
         run: |
+          set +eo pipefail  # Disable for Prisma status check
           npx prisma generate --quiet 2>/dev/null
-          set +e
           PENDING=$(npx prisma migrate status 2>&1 | grep -c "DRIFT\|Pending" || true)
-          set -e
+          set -eo pipefail
           echo "Pending migrations detected: ${PENDING}"
           if [ "${PENDING}" = "0" ]; then
             echo "No pending migrations — skipping migration step"

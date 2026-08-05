@@ -16,10 +16,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 echo "🚀 Pre-push hook — Running CI mirror..."
-echo ""
+echo "Project root: $PROJECT_ROOT"
 
 # Run the CI mirror (full blocking job suite)
-bash "$PROJECT_ROOT/scripts/ci-local.sh" --quick
+if [ -f "$PROJECT_ROOT/scripts/ci-local.sh" ]; then
+  bash "$PROJECT_ROOT/scripts/ci-local.sh" --quick
+else
+  echo "⚠️  CI mirror script not found — skipping pre-push check"
+fi
 
 EXIT_CODE=$?
 

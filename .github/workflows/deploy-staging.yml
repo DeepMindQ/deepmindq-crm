@@ -1,16 +1,21 @@
 # ═══════════════════════════════════════════════════
 # DeepMindQ — Staging Deployment Pipeline
-# M4 Phase 3.3
+# M4 Phase 3.3 (Restructured for Vercel Preview Deployments)
+#
+# Architecture: Vercel Hobby — Preview Deployments serve as staging
+# No separate staging project. develop branch pushes create preview deployments
+# on the same Vercel project. Neon provides separate staging database.
 #
 # Trigger: Push to develop branch
-# Flow: CI validation (reuse ci.yml) → Staging deploy → Smoke tests
+# Flow: CI validation → Build → Migrate (staging DB) → Preview Deploy → Smoke → Health
 #
 # GATES:
 #   1. CI must pass (waits on ci.yml completion)
-#   2. Build must succeed
-#   3. Deployment to Vercel staging project
-#   4. Smoke test suite passes
-#   5. Health endpoint validates
+#   2. Build must succeed with staging env vars
+#   3. Database migration on staging Neon database
+#   4. Preview deployment created (not promoted to production)
+#   5. Smoke test suite passes
+#   6. Health endpoint validates
 # ═══════════════════════════════════════════════════
 name: Deploy Staging
 
@@ -20,7 +25,7 @@ on:
 
 concurrency:
   group: deploy-staging
-  cancel-in-progress: true
+  cancel-in-progress: true  # Cancel redundant staging deploys
 
 env:
   NODE_VERSION: '22'
@@ -28,7 +33,6 @@ env:
 jobs:
   # ═══════════════════════════════════════════════════
   # STAGE 1: CI Validation Gate
-  # Wait for ci.yml to pass on this exact SHA
   # ═══════════════════════════════════════════════════
   ci-gate:
     name: "Gate — CI Validation"
@@ -67,7 +71,7 @@ jobs:
           AUTHORIZED_EMAIL: ${{ secrets.STAGING_AUTHORIZED_EMAIL }}
 
   # ═══════════════════════════════════════════════════
-  # STAGE 3: Database Migration (Staging)
+  # STAGE 3: Database Migration (Staging Neon)
   # ═══════════════════════════════════════════════════
   migrate-staging:
     name: "Staging — Database Migration"
@@ -81,35 +85,44 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
+      - name: Check pending migrations
+        run: |
+          PENDING=$(npx prisma generate --quiet 2>/dev/null && npx prisma migrate status 2>&1 | grep -c "DRIFT\|Pending" || true)
+          echo "Pending migrations: ${PENDING}"
+          if [ "${PENDING}" = "0" ]; then
+            echo "No pending migrations — skipping"
+          fi
       - name: Run database migration
         run: npx prisma migrate deploy
         env:
           DATABASE_URL: ${{ secrets.STAGING_DIRECT_DATABASE_URL }}
 
   # ═══════════════════════════════════════════════════
-  # STAGE 4: Deploy to Vercel Staging
+  # STAGE 4: Deploy to Vercel (Preview Deployment)
+  # Uses the SAME project as production but creates a
+  # preview deployment (not promoted to production).
+  # Vercel generates a unique preview URL automatically.
   # ═══════════════════════════════════════════════════
   deploy-staging:
-    name: "Staging — Deploy"
+    name: "Staging — Preview Deploy"
     runs-on: ubuntu-latest
     needs: [migrate-staging]
     timeout-minutes: 10
     outputs:
       deployment_url: ${{ steps.deploy.outputs.deployment_url }}
-      deployment_id: ${{ steps.deploy.outputs.deployment_id }}
     steps:
       - uses: actions/checkout@v4
-      - name: Deploy to Vercel Staging
+      - name: Deploy to Vercel (Preview)
         id: deploy
         uses: amondnet/vercel-action@v25
         with:
           vercel-token: ${{ secrets.VERCEL_TOKEN }}
           vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_STAGING_PROJECT_ID }}
-          vercel-args: '--prod'
-          alias-domains: 'staging.deepmindq.com'
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          # NO --prod flag → creates a preview deployment
+          # NO alias-domains → Vercel auto-generates preview URL
         env:
-          VERCEL_ENV: staging
+          VERCEL_ENV: preview
 
   # ═══════════════════════════════════════════════════
   # STAGE 5: Smoke Tests
@@ -128,7 +141,7 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
 
-      - name: Run smoke tests against staging
+      - name: Run smoke tests against staging preview
         run: npx vitest run --config vitest.smoke.config.ts
         env:
           SMOKE_TEST_URL: ${{ needs.deploy-staging.outputs.deployment_url }}
@@ -150,18 +163,16 @@ jobs:
 
           echo "Checking health endpoint: ${HEALTH_URL}"
 
-          # Retry 3 times with 15-second intervals
           for i in 1 2 3; do
             HTTP_CODE=$(curl -s -o /tmp/health-response.json -w "%{http_code}" --max-time 10 "${HEALTH_URL}")
             echo "Attempt ${i}: HTTP ${HTTP_CODE}"
             cat /tmp/health-response.json
 
             if [ "${HTTP_CODE}" = "200" ]; then
-              STATUS=$(cat /tmp/health-response.json | python3 -c "import sys,json; print(json.load(sys.stdin).get('status',''))" 2>/dev/null || echo "")
-              DB_STATUS=$(cat /tmp/health-response.json | python3 -c "import sys,json; print(json.load(sys.stdin).get('db',''))" 2>/dev/null || echo "")
+              STATUS=$(python3 -c "import json; print(json.load(open('/tmp/health-response.json')).get('status',''))" 2>/dev/null || echo "")
+              DB=$(python3 -c "import json; print(json.load(open('/tmp/health-response.json')).get('db',''))" 2>/dev/null || echo "")
 
-              echo "Health status: ${STATUS}"
-              echo "Database status: ${DB_STATUS}"
+              echo "Status: ${STATUS} | DB: ${DB}"
 
               if [ "${STATUS}" = "ok" ]; then
                 echo "✅ Health check passed"
@@ -189,17 +200,17 @@ jobs:
       - name: Deployment summary
         run: |
           echo "============================================"
-          echo "  STAGING DEPLOYMENT SUMMARY"
+          echo "  STAGING PREVIEW DEPLOYMENT SUMMARY"
           echo "============================================"
-          echo "  Commit:    ${{ github.sha }}"
-          echo "  Branch:    ${{ github.ref_name }}"
-          echo "  Deploy URL: ${{ needs.deploy-staging.result }}"
-          echo "  Smoke:     ${{ needs.smoke-test-staging.result }}"
-          echo "  Health:    ${{ needs.health-check-staging.result }}"
+          echo "  Commit:     ${{ github.sha }}"
+          echo "  Branch:     ${{ github.ref_name }}"
+          echo "  Smoke:      ${{ needs.smoke-test-staging.result }}"
+          echo "  Health:     ${{ needs.health-check-staging.result }}"
           echo "============================================"
           echo ""
           echo "To promote to production:"
-          echo "  1. Verify staging deployment at the URL above"
-          echo "  2. Create PR from develop → main"
+          echo "  1. Verify staging preview deployment"
+          echo "  2. Create PR: develop → main"
           echo "  3. Approve after review"
+          echo "  4. Production pipeline auto-deploys on merge"
           echo "============================================"

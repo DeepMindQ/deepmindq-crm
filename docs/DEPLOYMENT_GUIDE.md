@@ -95,8 +95,8 @@ Feature Branch
   │                                 │
   │  1. Await CI pass               │
   │  2. Build (build:vercel)        │
-  │  3. DB migration (staging)      │
-  │  4. Deploy to Vercel staging    │
+  │  3. DB migration (Neon staging) │
+  │  4. Preview deploy (same proj)  │
   │  5. Smoke tests                 │
   │  6. Health check                │
   └─────────────────────────────────┘
@@ -113,14 +113,15 @@ Feature Branch
   │  (.github/workflows/            │
   │   deploy-production.yml)       │
   │                                 │
-  │  1. Await CI pass               │
-  │  2. Pre-migration backup       │
-  │  3. Build (build:vercel)        │
-  │  4. DB migration (production)   │
-  │  5. Deploy to Vercel production │
-  │  6. Smoke tests                 │
-  │  7. Health check                │
-  │  8. Auto-rollback on failure    │
+  │  1. Env protection gate         │
+  │  2. Await CI pass               │
+  │  3. Pre-migration backup       │
+  │  4. Build (build:vercel)        │
+  │  5. DB migration (Neon prod)    │
+  │  6. Deploy to Vercel production │
+  │  7. Smoke tests                 │
+  │  8. Health check                │
+  │  9. Auto-rollback on failure    │
   └─────────────────────────────────┘
       │
       ▼
@@ -131,8 +132,8 @@ Feature Branch
 
 | Branch | Purpose | Deployment Target | Protection |
 |--------|---------|-------------------|------------|
-| `main` | Production | Vercel production project | CI + smoke + health + approval |
-| `develop` | Staging | Vercel staging project | CI + smoke + health |
+| `main` | Production | Vercel production (`--prod`) | CI + env protection + smoke + health + rollback |
+| `develop` | Staging | Vercel Preview Deployment (same project) | CI + smoke + health |
 | `feature/*` | Development | None (local only) | CI validation |
 
 ### Required GitHub Secrets
@@ -141,14 +142,13 @@ Feature Branch
 |--------|---------|-------------|
 | `VERCEL_TOKEN` | Vercel API authentication | Both |
 | `VERCEL_ORG_ID` | Vercel organization ID | Both |
-| `VERCEL_PROJECT_ID` | Production Vercel project | Production |
-| `VERCEL_STAGING_PROJECT_ID` | Staging Vercel project | Staging |
-| `DATABASE_URL` | App database (pgbouncer) | Production |
-| `DIRECT_DATABASE_URL` | Migration database (direct TCP) | Production |
-| `STAGING_DATABASE_URL` | Staging app database | Staging |
-| `STAGING_DIRECT_DATABASE_URL` | Staging migration database | Staging |
-| `NEXTAUTH_SECRET` | Auth session secret | Production |
-| `STAGING_NEXTAUTH_SECRET` | Staging auth secret | Staging |
+| `VERCEL_PROJECT_ID` | Vercel project (shared: production + preview staging) | Both |
+| `DATABASE_URL` | Neon production pooled connection (pgbouncer) | Production |
+| `DIRECT_DATABASE_URL` | Neon production direct connection (for migrations) | Production |
+| `STAGING_DATABASE_URL` | Neon staging pooled connection (pgbouncer) | Staging |
+| `STAGING_DIRECT_DATABASE_URL` | Neon staging direct connection (for migrations) | Staging |
+| `NEXTAUTH_SECRET` | Auth session secret (min 32 chars) | Production |
+| `STAGING_NEXTAUTH_SECRET` | Staging auth session secret (min 32 chars) | Staging |
 | `AUTHORIZED_EMAIL` | Admin email | Production |
 | `STAGING_AUTHORIZED_EMAIL` | Staging admin email | Staging |
 

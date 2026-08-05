@@ -84,7 +84,20 @@ jobs:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
           DIRECT_DATABASE_URL: ${{ secrets.STAGING_DIRECT_DATABASE_URL }}
       - name: Run database migration
-        run: npx prisma migrate deploy
+        run: |
+          # Handle P3005 (database not empty, no migration history) by resolving baseline
+          OUTPUT=$(npx prisma migrate deploy 2>&1)
+          echo "$OUTPUT"
+          if echo "$OUTPUT" | grep -q "P3005"; then
+            echo "Database schema exists but no migration history — baselining..."
+            npx prisma migrate resolve --applied 20260701000000_init_baseline
+            echo "✅ Baseline resolved successfully"
+          elif echo "$OUTPUT" | grep -q "error\|Error"; then
+            echo "❌ Migration failed"
+            exit 1
+          else
+            echo "✅ Migration applied successfully"
+          fi
         env:
           DATABASE_URL: ${{ secrets.STAGING_DATABASE_URL }}
           DIRECT_DATABASE_URL: ${{ secrets.STAGING_DIRECT_DATABASE_URL }}

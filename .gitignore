@@ -64,3 +64,8 @@ scripts/seed-data/
 *.db
 *.db-shm
 *.db-wal
+
+# Secrets management scripts (contain sensitive data)
+scripts/set-github-secrets.js
+scripts/set-github-secrets.py
+scripts/set-staging-secrets.py

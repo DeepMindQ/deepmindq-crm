@@ -96,6 +96,9 @@ jobs:
           PENDING=$(npx prisma generate --quiet 2>/dev/null && npx prisma migrate status 2>&1 | grep -c "DRIFT\|Pending" || true)
           echo "pending=${PENDING}" >> "$GITHUB_OUTPUT"
           echo "Pending migrations: ${PENDING}"
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
 
       - name: Create pre-migration backup (if migrations pending)
         if: steps.pending-check.outputs.pending != '0'
@@ -159,11 +162,15 @@ jobs:
             echo "No pending migrations — skipping migration step"
             exit 0
           fi
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
 
       - name: Run database migration
         run: npx prisma migrate deploy
         env:
-          DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.DIRECT_DATABASE_URL }}
 
   # ═══════════════════════════════════════════════════
   # STAGE 5: Deploy to Vercel Production

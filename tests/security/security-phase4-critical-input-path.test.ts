@@ -290,17 +290,31 @@ describe('Phase 4 — Critical Input Path Hardening', () => {
     })
 
     it('rbac imports are present in src/', () => {
-      const { execSync } = require('child_process')
-      // rbac.ts is now an enterprise feature — verify at least one source file imports from it
-      try {
-        const result = execSync('grep -rl "from.*rbac" /home/z/my-project/src --include="*.ts" 2>/dev/null || true', { encoding: 'utf-8', timeout: 10000 })
-        const files = result.trim().split('\\n').filter(f => f.length > 0)
-        // At least one file should import from rbac (e.g., compliance/route.ts)
-        expect(files.length).toBeGreaterThan(0)
-      } catch {
-        // grep not available or timed out — fail rather than silently pass
-        throw new Error('Unable to verify rbac imports — grep command failed')
+      const fs = require('fs')
+      const path = require('path')
+      const srcDir = resolve(__dirname, '../../src')
+      // Use Node.js-native approach instead of shell grep for CI portability
+      function findRbacImports(dir: string): string[] {
+        const results: string[] = []
+        const entries = fs.readdirSync(dir, { withFileTypes: true })
+        for (const entry of entries) {
+          const fullPath = path.join(dir, entry.name)
+          if (entry.isDirectory() && !entry.name.startsWith('.') && entry.name !== 'node_modules') {
+            results.push(...findRbacImports(fullPath))
+          } else if (entry.isFile() && entry.name.endsWith('.ts') && !entry.name.endsWith('.d.ts')) {
+            try {
+              const content = fs.readFileSync(fullPath, 'utf-8')
+              if (/from\s+['"].*rbac['"]/.test(content) || /require\(.*rbac.*\)/.test(content)) {
+                results.push(fullPath)
+              }
+            } catch { /* skip unreadable files */ }
+          }
+        }
+        return results
       }
+      const files = findRbacImports(srcDir)
+      // At least one file should import from rbac (e.g., compliance/route.ts)
+      expect(files.length).toBeGreaterThan(0)
     })
   })
 

@@ -6,7 +6,7 @@ export default defineConfig({
     name: 'research-engine-audit',
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
-    include: ['tests/research-engine.test.ts'],
+    include: ['tests/ai/research-engine.test.ts'],
     globals: true,
     pool: 'forks',
     maxWorkers: 1,

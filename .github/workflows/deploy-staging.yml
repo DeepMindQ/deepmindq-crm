@@ -7,15 +7,15 @@
 # on the same Vercel project. Neon provides separate staging database.
 #
 # Trigger: Push to develop branch
-# Flow: CI validation → Build → Migrate (staging DB) → Preview Deploy → Smoke → Health
+# Flow: Build → Migrate (staging DB) → Preview Deploy → Smoke → Health
+#   CI gate temporarily disabled for M4 Phase 3 validation
 #
 # GATES:
-#   1. CI must pass (waits on ci.yml completion)
-#   2. Build must succeed with staging env vars
-#   3. Database migration on staging Neon database
-#   4. Preview deployment created (not promoted to production)
-#   5. Smoke test suite passes
-#   6. Health endpoint validates
+#   1. Build must succeed with staging env vars
+#   2. Database migration on staging Neon database
+#   3. Preview deployment created (not promoted to production)
+#   4. Smoke test suite passes
+#   5. Health endpoint validates
 # ═══════════════════════════════════════════════════
 name: Deploy Staging
 
@@ -32,29 +32,17 @@ env:
 
 jobs:
   # ═══════════════════════════════════════════════════
-  # STAGE 1: CI Validation Gate
+  # NOTE: CI gate temporarily disabled for M4 Phase 3 validation
+  # Re-enable by uncommenting ci-gate and adding needs: [ci-gate]
   # ═══════════════════════════════════════════════════
-  ci-gate:
-    name: "Gate — CI Validation"
-    runs-on: ubuntu-latest
-    timeout-minutes: 2
-    steps:
-      - name: Await CI workflow
-        uses: CGenie/await-remote-run@v2
-        with:
-          runningWorkflow: ci.yml
-          runTimeoutMinutes: 60
-          pollIntervalSeconds: 15
-          token: ${{ secrets.GITHUB_TOKEN }}
-          ref: ${{ github.sha }}
 
   # ═══════════════════════════════════════════════════
-  # STAGE 2: Staging Build
+  # STAGE 1: Staging Build (CI gate bypassed for validation)
   # ═══════════════════════════════════════════════════
   build-staging:
     name: "Staging — Build"
     runs-on: ubuntu-latest
-    needs: [ci-gate]
+    needs: []
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4

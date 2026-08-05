@@ -1,22 +1,23 @@
 # ═══════════════════════════════════════════════════
 # DeepMindQ — Enterprise Test Architecture CI Pipeline
-# M3 Stabilization — Deterministic execution
+# M4 CI Reliability — Deterministic execution + path safety
 #
 # Architecture: Each test category runs as an independent job
 # with dedicated memory, fresh runner, and clear failure isolation.
 # All vitest configs use threads pool with single thread for stability.
 #
 # BLOCKING JOBS (must pass for merge):
-#   1. security-gate        — Security regression gates
-#   2. dependency-audit     — npm dependency vulnerability scan
-#   3. api-security-contract — Static API auth guard verification
-#   4. lint-and-typecheck   — ESLint + TypeScript
-#   5. test-unit            — Pure logic unit tests (node, threads)
-#   6. test-security        — Auth/CSRF/RBAC security tests (node, threads)
-#   7. test-api             — API route handler tests (node, threads) + PostgreSQL
-#   8. test-database        — Database/Prisma tests (node, threads) + PostgreSQL
-#   9. test-integration      — Cross-module integration tests (node, threads)
-#   10. build                — Final build verification
+#   1.  security-gate        — Security regression gates
+#   2.  dependency-audit     — npm dependency vulnerability scan
+#   3.  api-security-contract — Static API auth guard verification
+#   4.  ci-path-check         — Hardcoded environment path detection
+#   5.  lint-and-typecheck   — ESLint + TypeScript
+#   6.  test-unit            — Pure logic unit tests (node, threads)
+#   7.  test-security        — Auth/CSRF/RBAC security tests (node, threads)
+#   8.  test-api             — API route handler tests (node, threads) + PostgreSQL
+#   9.  test-database        — Database/Prisma tests (node, threads) + PostgreSQL
+#  10. test-integration      — Cross-module integration tests (node, threads)
+#   11. build                — Final build verification
 #
 # NON-BLOCKING JOBS (allowed to fail without blocking merge):
 #   test-ai                 — AI engine core tests
@@ -38,6 +39,8 @@ on:
   pull_request:
     branches: [main, develop]
   merge_group:
+  schedule:
+    - cron: '0 6 * * 1'  # Weekly Monday 6 AM UTC — Node compatibility matrix
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -170,12 +173,28 @@ jobs:
       - run: node scripts/api-security-scan.js
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 4 — LINT + TYPECHECK
+  # BLOCKING: JOB 4 — CI PATH SAFETY CHECK
+  # Detects hardcoded machine-specific paths that fail in CI
+  # ═══════════════════════════════════════════════════
+  ci-path-check:
+    name: "Blocking — CI Path Safety"
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+      - name: Scan for hardcoded environment paths
+        run: node scripts/no-hardcoded-paths.js
+
+  # ═══════════════════════════════════════════════════
+  # BLOCKING: JOB 5 — LINT + TYPECHECK
   # ═══════════════════════════════════════════════════
   lint-and-typecheck:
     name: "Blocking — Lint + Typecheck"
     runs-on: ubuntu-latest
-    needs: [security-gate, api-security-contract]
+    needs: [security-gate, api-security-contract, ci-path-check]
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
@@ -189,7 +208,7 @@ jobs:
       - run: npx tsc --noEmit
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 5 — UNIT TESTS
+  # BLOCKING: JOB 6 — UNIT TESTS
   # ═══════════════════════════════════════════════════
   test-unit:
     name: "Blocking — Unit Tests"
@@ -253,7 +272,7 @@ jobs:
           retention-days: 14
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 6 — SECURITY TESTS
+  # BLOCKING: JOB 7 — SECURITY TESTS
   # ═══════════════════════════════════════════════════
   test-security:
     name: "Blocking — Security Tests"
@@ -275,7 +294,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 7 — API TESTS (with PostgreSQL)
+  # BLOCKING: JOB 8 — API TESTS (with PostgreSQL)
   # ═══════════════════════════════════════════════════
   test-api:
     name: "Blocking — API Tests"
@@ -318,7 +337,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 8 — DATABASE TESTS (with PostgreSQL)
+  # BLOCKING: JOB 9 — DATABASE TESTS (with PostgreSQL)
   # ═══════════════════════════════════════════════════
   test-database:
     name: "Blocking — Database Tests"
@@ -359,7 +378,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 9 — INTEGRATION TESTS
+  # BLOCKING: JOB 10 — INTEGRATION TESTS
   # ═══════════════════════════════════════════════════
   test-integration:
     name: "Blocking — Integration Tests"
@@ -627,20 +646,44 @@ jobs:
       - test-database
       - test-integration
       - dependency-audit
+      - ci-path-check
+
+  # ═══════════════════════════════════════════════════
+  # SCHEDULED: Node Version Compatibility Matrix
+  # Runs weekly to detect Node version incompatibilities early
+  # ═══════════════════════════════════════════════════
+  node-compatibility:
+    name: "Scheduled — Node Compatibility Matrix"
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
     timeout-minutes: 15
+    strategy:
+      matrix:
+        node-version: [20, 22]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_VERSION }}
+          node-version: ${{ matrix.node-version }}
           cache: npm
       - run: npm ci
-      - name: Build
+      - run: npx prisma generate
+      - name: Run security tests
+        run: npx vitest run --config vitest.security.config.ts
+        env:
+          CI: 'true'
+          NODE_OPTIONS: '--max-old-space-size=2048'
+      - name: Run unit tests
+        run: npx vitest run --config vitest.unit.config.ts
+        env:
+          CI: 'true'
+          NODE_OPTIONS: '--max-old-space-size=2048'
+      - name: Build verification
         run: npm run build:vercel
         env:
           NODE_OPTIONS: '--max-old-space-size=4096'
-          DATABASE_URL: ${{ secrets.DATABASE_URL || 'postgresql://ci:ci@localhost:5432/ci_test' }}
-          NEXTAUTH_SECRET: ${{ secrets.NEXTAUTH_SECRET || 'ci-test-secret-for-build-only-long-enough-32chars!!' }}
-          API_KEY_ENCRYPTION_KEY: ${{ secrets.API_KEY_ENCRYPTION_KEY || 'ci-test-encryption-key-min-32-bytes-ok!' }}
-          TRACKING_SECRET: ${{ secrets.TRACKING_SECRET || 'ci-test-tracking-secret-min16!!' }}
-          AUTHORIZED_EMAIL: ${{ secrets.AUTHORIZED_EMAIL || 'ci-test@deepmindq.com' }}
+          DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci_test'
+          NEXTAUTH_SECRET: 'ci-test-secret-for-build-only-long-enough-32chars!!'
+          API_KEY_ENCRYPTION_KEY: 'ci-test-encryption-key-min-32-bytes-ok!'
+          TRACKING_SECRET: 'ci-test-tracking-secret-min16!!'
+          AUTHORIZED_EMAIL: 'ci-test@deepmindq.com'

@@ -3,6 +3,7 @@ import nextTypescript from "eslint-config-next/typescript";
 import { dirname } from "path";
 import { fileURLToPath } from "url";
 import noUngovernedLlm from "./eslint-rules/no-ungoverned-llm.js";
+import noHardcodedEnvPaths from "./eslint-rules/no-hardcoded-env-paths.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -14,9 +15,15 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
         "no-ungoverned-llm": noUngovernedLlm,
       },
     },
+    "no-hardcoded-env-paths": {
+      rules: {
+        "no-hardcoded-env-paths": noHardcodedEnvPaths,
+      },
+    },
   },
   rules: {
     "no-ungoverned-llm/no-ungoverned-llm": "error",
+    "no-hardcoded-env-paths/no-hardcoded-env-paths": "error",
     // TypeScript rules
     "@typescript-eslint/no-explicit-any": "off",
     "@typescript-eslint/no-unused-vars": "off",

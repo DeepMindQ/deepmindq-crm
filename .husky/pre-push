@@ -1,54 +1,35 @@
 #!/usr/bin/env bash
-# Pre-push hook — Runs on every push
-# Layer 2 defense: Quality check before code reaches remote
+# Pre-push hook — CI-faithful validation
 #
-# What it checks (~30 seconds):
-#   1. TypeScript (WARN only — does not block. 80 known Prisma JsonValue type-narrowing errors)
-#   2. ESLint + Governance (blocks if any lint errors)
-#   3. Tests (warns on failures — does not block)
-#   4. Baseline regression check (if baseline exists)
+# This hook runs the EXACT same validation path as GitHub Actions CI.
+# It calls scripts/ci-local.sh which mirrors all 10 blocking jobs.
 #
-# Only ESLint blocks push. TSC and tests are non-blocking.
-# This is intentional: next.config.ts has ignoreBuildErrors: true,
-# so Vercel builds successfully regardless of TSC strictness errors.
+# If this hook passes, GitHub CI should pass.
+# If this hook fails, fix locally before pushing.
+#
+# This prevents the #1 recurring pattern:
+#   "pre-push passed but GitHub failed"
 
 set -uo pipefail
 
-echo "🚀 Pre-push hook running..."
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+
+echo "🚀 Pre-push hook — Running CI mirror..."
 echo ""
 
-# ── 1. TypeScript check (NON-BLOCKING — warns only) ──
-echo "⏳ [1/4] TypeScript..."
-TSC_OUTPUT=$(npx tsc --noEmit 2>&1 || true)
-TSC_EXIT=$?
-TSC_ERRORS=$(echo "$TSC_OUTPUT" | grep -c "error TS" 2>/dev/null || echo "0")
-if [ $TSC_EXIT -ne 0 ]; then
-  echo "⚠️  TypeScript: $TSC_ERRORS known type errors (non-blocking)"
-  echo "   These are Prisma JsonValue type-narrowing issues that do not affect runtime."
-  echo "   Build succeeds on Vercel via next.config.ts ignoreBuildErrors: true"
-else
-  echo "✅ TypeScript passed (0 errors)"
-fi
+# Run the CI mirror (full blocking job suite)
+bash "$PROJECT_ROOT/scripts/ci-local.sh" --quick
 
-# ── 2. ESLint + Governance (BLOCKING) ──
-echo "⏳ [2/4] ESLint + Governance..."
-npm run lint
-if [ $? -ne 0 ]; then
-  echo "❌ Lint/Governance errors found — push BLOCKED"
+EXIT_CODE=$?
+
+if [ $EXIT_CODE -ne 0 ]; then
+  echo ""
+  echo "❌ CI mirror failed — push BLOCKED"
+  echo "   Fix the failures above before pushing."
+  echo "   Run './scripts/ci-local.sh' to debug."
   exit 1
 fi
-echo "✅ Lint + Governance passed"
-
-# ── 3. Tests (NON-BLOCKING — warns only) ──
-echo "⏳ [3/4] Tests..."
-npx vitest run 2>&1 | tail -5 || true
-echo "ℹ️  Test failures are tracked in baseline — not blocking push"
-
-# ── 4. Baseline regression check ──
-if [ -f "error-snapshots/baseline-v2.json" ]; then
-  echo "⏳ [4/4] Baseline regression check..."
-  echo "✅ Baseline file exists — regression tracking active"
-fi
 
 echo ""
-echo "✅ Pre-push checks passed — pushing to remote..."
+echo "✅ CI mirror passed — pushing to remote..."

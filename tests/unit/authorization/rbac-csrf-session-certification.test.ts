@@ -13,7 +13,26 @@
  * Run: npx vitest run --config vitest.unit.config.ts tests/unit/authorization/
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
+
+// Mock db to prevent Prisma DATABASE_URL validation in CI (unit tests have no DB)
+vi.mock('@/lib/db', () => ({
+  db: {
+    session: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      create: vi.fn().mockResolvedValue({}),
+      update: vi.fn().mockResolvedValue({}),
+      findMany: vi.fn().mockResolvedValue([]),
+      count: vi.fn().mockResolvedValue(0),
+    },
+    user: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      update: vi.fn().mockResolvedValue({}),
+    },
+  },
+}))
+
 import {
   hasPermission,
   hasAnyPermission,

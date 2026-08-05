@@ -16,6 +16,35 @@
  */
 
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+
+// Mock db to prevent Prisma DATABASE_URL validation in CI (unit tests have no DB)
+vi.mock('@/lib/db', () => ({
+  db: {
+    session: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      deleteMany: vi.fn().mockResolvedValue({ count: 0 }),
+      create: vi.fn().mockResolvedValue({}),
+      update: vi.fn().mockResolvedValue({}),
+      findMany: vi.fn().mockResolvedValue([]),
+      findFirst: vi.fn().mockResolvedValue(null),
+      delete: vi.fn().mockResolvedValue({}),
+      count: vi.fn().mockResolvedValue(0),
+    },
+    user: {
+      findUnique: vi.fn().mockResolvedValue(null),
+      update: vi.fn().mockResolvedValue({}),
+    },
+    otpCode: {
+      findFirst: vi.fn().mockResolvedValue(null),
+      update: vi.fn().mockResolvedValue({}),
+      updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+    },
+    loginEvent: {
+      create: vi.fn().mockResolvedValue({}),
+    },
+  },
+}))
+
 import { hashToken, validateSessionToken, AuthError } from '@/lib/session'
 import {
   shouldRotateSession,

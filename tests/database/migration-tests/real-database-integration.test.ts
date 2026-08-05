@@ -58,7 +58,8 @@ describe.skipIf(!hasDatabase)('Real PostgreSQL — Connection & Schema', () => {
     `;
     const columnNames = columns.map((c: any) => c.column_name);
     expect(columnNames).toContain('id');
-    expect(columnNames).toContain('name');
+    // Company uses rawName (mapped to 'name' at application layer)
+    expect(columnNames).toContain('rawName');
   });
 
   it('has Session table for token storage', async () => {

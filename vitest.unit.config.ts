@@ -29,9 +29,6 @@ export default defineConfig({
     maxWorkers: 1,
     testTimeout: 15000,
     hookTimeout: 10000,
-    // Allow unhandled rejections from module-level side effects
-    // (e.g., AI cache, DNS lookups in test environment)
-    onUnhandledError: 'warn',
   },
   resolve: {
     alias: {

@@ -2165,7 +2165,7 @@ describe('API Auth Guard (api-auth.ts)', () => {
         role: 'admin',
         hasPassword: true,
       };
-      vi.mocked(getCurrentSession).mockResolvedValue(mockSession as any);
+      getCurrentSession.mockResolvedValue(mockSession as any);
 
       const result = await checkApiAuth();
       expect(result.session).toEqual(mockSession);
@@ -2173,7 +2173,7 @@ describe('API Auth Guard (api-auth.ts)', () => {
     });
 
     it('returns 401 error response when not authenticated', async () => {
-      vi.mocked(getCurrentSession).mockResolvedValue(null);
+      getCurrentSession.mockResolvedValue(null);
 
       const result = await checkApiAuth();
       expect(result.session).toBeNull();
@@ -2182,7 +2182,7 @@ describe('API Auth Guard (api-auth.ts)', () => {
     });
 
     it('returns 401 error response when getCurrentSession throws', async () => {
-      vi.mocked(getCurrentSession).mockRejectedValue(new Error('Cookie error'));
+      getCurrentSession.mockRejectedValue(new Error('Cookie error'));
 
       const result = await checkApiAuth();
       expect(result.session).toBeNull();

@@ -1,10 +1,6 @@
 /**
  * Vitest Configuration — AI Framework
- * Phase 5.5 Enterprise Test Architecture
- *
- * Covers: Agent framework, AI memory, recommendation engine,
- * explainability engine, knowledge graph, retrieval validation
- * Environment: node | Pool: forks | Memory: 2048
+ * M3 Stabilization — threads pool, single thread
  */
 import { defineConfig } from 'vitest/config'
 import path from 'path'
@@ -24,8 +20,9 @@ export default defineConfig({
     ],
     exclude: ['tests/legacy/**'],
     globals: true,
-    pool: 'forks',
-    maxWorkers: 2,
+    pool: 'threads',
+    maxThreads: 1,
+    minThreads: 1,
     testTimeout: 20000,
     hookTimeout: 10000,
   },

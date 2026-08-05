@@ -1,13 +1,8 @@
 /**
  * Vitest Configuration — E2E
- * Phase 5.5 Enterprise Test Architecture
- *
- * Environment: node
- * Pool: forks
- * Memory: 2048
+ * M3 Stabilization — threads pool, single thread
  */
 import { defineConfig } from 'vitest/config'
-
 import path from 'path'
 
 export default defineConfig({
@@ -16,14 +11,15 @@ export default defineConfig({
     environment: 'node',
     setupFiles: ['./tests/setup.ts'],
     include: [
-      'tests/e2e/**/*.test.{ts,tsx}'
-],
+      'tests/e2e/**/*.test.{ts,tsx}',
+    ],
     exclude: [
-      'tests/legacy/**'
-],
+      'tests/legacy/**',
+    ],
     globals: true,
-    pool: 'forks',
-    maxWorkers: 2,
+    pool: 'threads',
+    maxThreads: 1,
+    minThreads: 1,
     testTimeout: 60000,
     hookTimeout: 10000,
   },

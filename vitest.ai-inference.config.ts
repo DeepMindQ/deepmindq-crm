@@ -1,13 +1,6 @@
 /**
  * Vitest Configuration — AI Inference
- * Phase 5.5 Enterprise Test Architecture
- *
- * Reserved for future AI inference tests (model-based tests, cost control,
- * latency regression, fallback chains, etc.)
- *
- * Currently contains a single placeholder test confirming the category is operational.
- *
- * Environment: node | Pool: forks | Memory: 2048
+ * M3 Stabilization — threads pool, single thread
  */
 import { defineConfig } from 'vitest/config'
 import path from 'path'
@@ -22,8 +15,9 @@ export default defineConfig({
     ],
     exclude: ['tests/legacy/**'],
     globals: true,
-    pool: 'forks',
-    maxWorkers: 2,
+    pool: 'threads',
+    maxThreads: 1,
+    minThreads: 1,
     testTimeout: 20000,
     hookTimeout: 10000,
   },

@@ -1,13 +1,11 @@
 /**
  * Vitest Configuration — API
- * Phase 5.5 Enterprise Test Architecture
+ * M3 Stabilization — threads pool, single thread
  *
- * Environment: node
- * Pool: forks
- * Memory: 1536
+ * Uses threads (shared memory) for stability. Database interaction handled
+ * via PostgreSQL service container in CI — no Prisma client duplication needed.
  */
 import { defineConfig } from 'vitest/config'
-
 import path from 'path'
 
 export default defineConfig({
@@ -17,13 +15,14 @@ export default defineConfig({
     setupFiles: ['./tests/setup.ts'],
     include: [
       'tests/api/**/*.test.{ts,tsx}',
-],
+    ],
     exclude: [
-      'tests/legacy/**'
-],
+      'tests/legacy/**',
+    ],
     globals: true,
-    pool: 'forks',
-    maxWorkers: 2,
+    pool: 'threads',
+    maxThreads: 1,
+    minThreads: 1,
     testTimeout: 15000,
     hookTimeout: 10000,
   },

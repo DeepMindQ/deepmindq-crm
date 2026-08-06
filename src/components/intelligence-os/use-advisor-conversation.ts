@@ -27,10 +27,6 @@ import type {
   AdvisorMessageContent,
   StructuredBriefing,
   ConfidenceHistoryEntry,
-  SignalPill,
-  TrustFooter,
-  ConfidenceFooter,
-  InlineReasoning,
 } from '@/types/ms9-advisor';
 import {
   computeAverageConfidence,

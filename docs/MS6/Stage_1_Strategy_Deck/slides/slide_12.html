@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280">
+  <title>Navigation Model — Intelligence Hub First</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="global.css">
+</head>
+<body>
+  <div class="slide" style="padding-top: 44px; padding-bottom: 44px;">
+
+    <!-- Header -->
+    <div style="margin-bottom: 6px;">
+      <h2 style="font-family: var(--font-heading); font-size: var(--fs-h2); font-weight: 700; color: var(--primary); margin: 0;">Navigation Model — Intelligence Hub First</h2>
+    </div>
+    <div class="accent-line"></div>
+
+    <!-- Two-column: 55% / 45% -->
+    <div style="display: grid; grid-template-columns: 55% 45%; gap: 32px; margin-top: 20px; flex: 1;">
+
+      <!-- LEFT COLUMN -->
+      <div style="display: flex; flex-direction: column;">
+        <p style="font-size: var(--fs-small); color: var(--primary-dim); text-transform: uppercase; letter-spacing: var(--ls-wider); font-weight: 500; margin-bottom: 10px;">Intelligence Hub as Primary Experience</p>
+
+        <p style="font-size: var(--fs-body); color: var(--primary); line-height: var(--lh-normal); margin-bottom: 20px;">
+          The Intelligence Hub is the default landing page — the Executive Briefing Room. It answers the 5 morning questions. It is NOT a "one screen to rule them all" dashboard.
+        </p>
+
+        <!-- Navigation Tree -->
+        <div class="glass-card" style="background: rgba(22,28,42,0.85); border: 1px solid rgba(59,130,246,0.25); padding: 20px 24px; margin-bottom: 16px;">
+          <div style="font-family: var(--font-mono); font-size: var(--fs-body); line-height: 2; color: var(--primary);">
+            <div style="color: #60a5fa; font-weight: 600;">Intelligence Hub <span class="badge badge--blue" style="font-size: 0.65rem; padding: 1px 6px; margin-left: 6px; vertical-align: middle;">DEFAULT</span></div>
+            <div style="padding-left: 20px; color: var(--primary-dim);">├── Market Intelligence</div>
+            <div style="padding-left: 20px; color: var(--primary-dim);">├── Account Intelligence</div>
+            <div style="padding-left: 20px; color: var(--primary-dim);">├── AI Advisors</div>
+            <div style="padding-left: 20px; color: var(--primary-dim);">├── Workspace</div>
+            <div style="padding-left: 20px; color: var(--primary-dim);">├── Operations</div>
+            <div style="padding-left: 20px; color: var(--primary-dim);">└── Command Center</div>
+          </div>
+        </div>
+
+        <!-- Amber Callout -->
+        <div class="glass-card" style="background: rgba(245,158,11,0.06); border: 1px solid rgba(245,158,11,0.25); padding: 14px 18px; margin-bottom: 12px;">
+          <p style="font-size: var(--fs-small); color: #fbbf24; font-weight: 500; margin: 0;">
+            <span class="material-icons" style="font-size: 16px; vertical-align: text-bottom; margin-right: 4px;">auto_awesome</span>
+            Design Principle: Surface intelligence first. Reveal complexity only when needed.
+          </p>
+        </div>
+
+        <p style="font-size: var(--fs-small); color: var(--primary-dim); line-height: var(--lh-relaxed); margin-top: 4px;">
+          The 75+ deeper screens remain as progressive disclosure depth inside these 7 experiences. They should NOT become top-level navigation items.
+        </p>
+      </div>
+
+      <!-- RIGHT COLUMN -->
+      <div style="display: flex; flex-direction: column;">
+        <p style="font-size: var(--fs-small); color: var(--primary-dim); text-transform: uppercase; letter-spacing: var(--ls-wider); font-weight: 500; margin-bottom: 14px;">Key Architectural Decisions</p>
+
+        <!-- Decision Card 1 -->
+        <div class="glass-card" style="border-left: 3px solid var(--signal-blue); margin-bottom: 12px; padding: 14px 18px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="material-icons" style="font-size: 22px; color: #60a5fa;">home</span>
+            <div>
+              <h4 style="font-family: var(--font-heading); font-size: var(--fs-body); font-weight: 600; color: var(--primary); margin: 0;">Hub as Default</h4>
+              <p style="font-size: var(--fs-small); color: var(--primary-dim); margin-top: 3px; line-height: 1.45;">Every session starts at Intelligence Hub. No other screen is the default.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Decision Card 2 -->
+        <div class="glass-card" style="border-left: 3px solid var(--signal-blue); margin-bottom: 12px; padding: 14px 18px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="material-icons" style="font-size: 22px; color: #60a5fa;">layers</span>
+            <div>
+              <h4 style="font-family: var(--font-heading); font-size: var(--fs-body); font-weight: 600; color: var(--primary); margin: 0;">7 Experiences, Not 76 Screens</h4>
+              <p style="font-size: var(--fs-small); color: var(--primary-dim); margin-top: 3px; line-height: 1.45;">Navigation shows 7 experiences. Depth lives inside each experience.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Decision Card 3 -->
+        <div class="glass-card" style="border-left: 3px solid var(--signal-blue); margin-bottom: 12px; padding: 14px 18px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="material-icons" style="font-size: 22px; color: #60a5fa;">explore</span>
+            <div>
+              <h4 style="font-family: var(--font-heading); font-size: var(--fs-body); font-weight: 600; color: var(--primary); margin: 0;">Progressive Disclosure</h4>
+              <p style="font-size: var(--fs-small); color: var(--primary-dim); margin-top: 3px; line-height: 1.45;">Information reveals itself in layers: Summary → Reasoning → Evidence → Related.</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Decision Card 4 -->
+        <div class="glass-card" style="border-left: 3px solid var(--signal-blue); padding: 14px 18px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="material-icons" style="font-size: 22px; color: #60a5fa;">navigation</span>
+            <div>
+              <h4 style="font-family: var(--font-heading); font-size: var(--fs-body); font-weight: 600; color: var(--primary); margin: 0;">Navigation Intelligence</h4>
+              <p style="font-size: var(--fs-small); color: var(--primary-dim); margin-top: 3px; line-height: 1.45;">The nav itself answers: what should I focus on next? (Design Pattern #4)</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <aside data-notes class="hidden">This is the new IA. The Intelligence Hub is the primary experience. It is the Executive Briefing Room. The other 6 experiences are deeper intelligence environments. The 75+ screens that exist today remain — they are accessible through progressive disclosure within each experience, not as navigation items. This reduces cognitive load from 76 choices to 7, with depth available on demand.</aside>
+</body>
+</html>

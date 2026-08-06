@@ -78,10 +78,18 @@ jobs:
             echo "::error::SECURITY GATE FAILED -- AuthProvider missing"
             exit 1
           fi
+          if ! grep -q "/api/auth/me" src/providers/auth-provider.tsx 2>/dev/null; then
+            echo "::error::SECURITY GATE FAILED -- Auth session check missing"
+            exit 1
+          fi
       - name: Verify environment validation
         run: |
           if ! grep -q "API_KEY_ENCRYPTION_KEY" src/lib/validate-env.ts 2>/dev/null; then
             echo "::error::SECURITY GATE FAILED -- Environment validation missing"
+            exit 1
+          fi
+          if ! grep -q "PLAINTEXT" src/lib/validate-env.ts 2>/dev/null; then
+            echo "::error::SECURITY GATE FAILED -- PLAINTEXT warning missing"
             exit 1
           fi
 
@@ -139,7 +147,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - run: npx eslint src/ --max-warnings 100
+      - run: npm run lint
       - run: npx tsc --noEmit
 
   test-unit:

@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280, initial-scale=1.0">
+  <title>Table of Contents</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="global.css">
+  <style>
+    .agenda-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 20px;
+      padding: 18px 24px;
+      border-radius: var(--radius-md);
+      transition: background 0.25s ease;
+      cursor: default;
+    }
+    .agenda-item:hover {
+      background: rgba(59,130,246,0.04);
+    }
+    .agenda-number {
+      font-family: var(--font-mono);
+      font-size: clamp(1.5rem, 2.5vw, 1.875rem);
+      font-weight: 600;
+      color: var(--accent);
+      line-height: 1;
+      min-width: 48px;
+      padding-top: 2px;
+    }
+    .agenda-title {
+      font-family: var(--font-heading);
+      font-size: clamp(0.9375rem, 1.3vw, 1.0625rem);
+      font-weight: 600;
+      color: var(--primary);
+      line-height: 1.3;
+      margin-bottom: 4px;
+    }
+    .agenda-desc {
+      font-size: var(--fs-small);
+      color: var(--primary-dim);
+      line-height: 1.4;
+    }
+    .agenda-divider {
+      height: 1px;
+      background: var(--border);
+      margin: 0 24px;
+    }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <!-- Header -->
+    <div style="margin-bottom: 40px;">
+      <h1 style="font-family: var(--font-heading); font-size: var(--fs-h1); font-weight: 700; color: var(--primary); margin-bottom: 12px;">
+        Agenda
+      </h1>
+      <div class="accent-line"></div>
+    </div>
+
+    <!-- Two-column agenda grid -->
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 40px; flex: 1;">
+
+      <!-- Left Column: Items 1-4 -->
+      <div style="display: flex; flex-direction: column; gap: 0;">
+        <!-- Item 1 -->
+        <div class="agenda-item">
+          <span class="agenda-number">01</span>
+          <div>
+            <div class="agenda-title">The Experience Promise</div>
+            <div class="agenda-desc">Why MS6 Exists</div>
+          </div>
+        </div>
+        <div class="agenda-divider"></div>
+
+        <!-- Item 2 -->
+        <div class="agenda-item">
+          <span class="agenda-number">02</span>
+          <div>
+            <div class="agenda-title">VP Sales Mental Model</div>
+            <div class="agenda-desc">The Design North Star</div>
+          </div>
+        </div>
+        <div class="agenda-divider"></div>
+
+        <!-- Item 3 -->
+        <div class="agenda-item">
+          <span class="agenda-number">03</span>
+          <div>
+            <div class="agenda-title">Intelligence as Executive Briefing</div>
+            <div class="agenda-desc">The Core Philosophy</div>
+          </div>
+        </div>
+        <div class="agenda-divider"></div>
+
+        <!-- Item 4 -->
+        <div class="agenda-item">
+          <span class="agenda-number">04</span>
+          <div>
+            <div class="agenda-title">The 5-Question Framework</div>
+            <div class="agenda-desc">Morning Intelligence Protocol</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Right Column: Items 5-8 -->
+      <div style="display: flex; flex-direction: column; gap: 0;">
+        <!-- Item 5 -->
+        <div class="agenda-item">
+          <span class="agenda-number">05</span>
+          <div>
+            <div class="agenda-title">Information Architecture</div>
+            <div class="agenda-desc">Navigation &amp; Progressive Disclosure</div>
+          </div>
+        </div>
+        <div class="agenda-divider"></div>
+
+        <!-- Item 6 -->
+        <div class="agenda-item">
+          <span class="agenda-number">06</span>
+          <div>
+            <div class="agenda-title">Trust &amp; Evidence</div>
+            <div class="agenda-desc">Confidence Visualization Language</div>
+          </div>
+        </div>
+        <div class="agenda-divider"></div>
+
+        <!-- Item 7 -->
+        <div class="agenda-item">
+          <span class="agenda-number">07</span>
+          <div>
+            <div class="agenda-title">Emotional Experience</div>
+            <div class="agenda-desc">Human-Centered Design DNA</div>
+          </div>
+        </div>
+        <div class="agenda-divider"></div>
+
+        <!-- Item 8 -->
+        <div class="agenda-item">
+          <span class="agenda-number">08</span>
+          <div>
+            <div class="agenda-title">From Current to Future</div>
+            <div class="agenda-desc">The Transformation · MS7–MS11 Roadmap</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Speaker notes -->
+    <aside data-notes class="hidden">
+      This deck covers 8 key areas. We will establish the experience promise, define the VP Sales mental model as our north star, articulate the Intelligence as Executive Briefing philosophy, introduce the 5-Question Framework, detail the new information architecture, establish trust visualization principles, lock in emotional design DNA, and show the transformation from current state to future vision.
+    </aside>
+  </div>
+</body>
+</html>

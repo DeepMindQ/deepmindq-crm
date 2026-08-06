@@ -31,16 +31,17 @@
 #   test-playwright          — Playwright browser E2E tests
 # ═══════════════════════════════════════════════════
 
-name: CI
+name: CI Pipeline
 
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
-  merge_group:
+  merge_group: null
+  workflow_dispatch: {}
   schedule:
-    - cron: '0 6 * * 1'  # Weekly Monday 6 AM UTC — Node compatibility matrix
+    - cron: '0 6 * * 1'  # Weekly Monday 6 AM UTC
 
 concurrency:
   group: ci-${{ github.ref }}

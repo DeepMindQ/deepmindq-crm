@@ -173,3 +173,27 @@ Stage Summary:
 - CI: 20/20 jobs passed, 0 failures, 0 cancellations
 - MS8 CI evidence: https://github.com/DeepMindQ/deepmindq-crm/actions/runs/31111518835
 - MS8 formally closed
+
+---
+Task ID: ms9-1
+Agent: Main Agent
+Task: MS9 Chapter 1 — Advisor Conversation Types & Data Model
+
+Work Log:
+- Read existing type landscape: ms8-evidence.ts (464 lines), intelligence-types.ts (273 lines), ai-insight-types.ts (59 lines), ai-copilot/types.ts (225 lines)
+- Read reference_ai_advisor.html prototype for UI structure extraction
+- Designed and implemented src/types/ms9-advisor.ts — 677-line MS9 type system
+- Type categories: Conversation Primitives, Signal Pills, Trust Source References, Confidence Footer, Inline Reasoning, Structured Briefing Blocks (8 variants), Structured Briefing, Account Context, Advisor Message, Conversation, Workspace, Human Assistance, Context Sidebar, API Contracts
+- Re-exports MS8 TRUST types (TrustTier, SourceCategory, EvidenceQuality, etc.) and MS7 intelligence types (IntelligenceSignal, Recommendation, etc.) to prevent duplication
+- 7 utility functions including type guards and validation
+- TypeScript compilation: 0 errors (project-wide)
+- Contract validation: M5 backend alignment, MS8 TRUST bridge, MS7 intelligence bridge, MS6 reference traceability
+- Scope boundary verified: no MS10 leakage (no command center, operational workflow, or enterprise analytics types)
+
+Stage Summary:
+- Created 1 file: src/types/ms9-advisor.ts (677 lines)
+- 0 existing files modified
+- TypeScript validation: 0 errors
+- All type contracts validated against M5, MS7, MS8 foundations
+- Full MS6 reference_ai_advisor.html → MS9 type traceability established
+- Chapter 1 complete, ready for next chapter

@@ -25,3 +25,5 @@ export { CompetitiveIntelBlock, type CompetitiveIntelBlockProps } from './compet
 export { RiskFlagsBlock, type RiskFlagsBlockProps } from './risk-flags-block';
 export { NarrativeBlock, type NarrativeBlockProps } from './narrative-block';
 export { DataSummaryBlock, type DataSummaryBlockProps } from './data-summary-block';
+export { HumanAssistanceBanner, type HumanAssistanceBannerProps } from './human-assistance-banner';
+export { HumanAssistanceDialog, type HumanAssistanceDialogProps } from './human-assistance-dialog';

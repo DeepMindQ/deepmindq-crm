@@ -79,3 +79,15 @@ export { AccountIntelligenceScreen, type AccountIntelligenceScreenProps } from '
 export { CompanyIntelligenceHeader, type CompanyIntelligenceHeaderProps } from './company-intelligence-header';
 export { AccountTrustPanel, type AccountTrustPanelProps } from './screens/account-trust-panel';
 export { SignalTimeline, type SignalTimelineProps } from './screens/signal-timeline';
+
+// ── MS9 Intelligence Advisor Components ──
+// MS9 Organisms
+export { AIAdvisorExperience, type AIAdvisorExperienceProps } from './ai-advisor-experience';
+export { AdvisorConversationPanel, type AdvisorConversationPanelProps } from './advisor-conversation-panel';
+export { AdvisorContextSidebar, type AdvisorContextSidebarProps } from './advisor-context-sidebar';
+export { AdvisorWorkspacePanel, type AdvisorWorkspacePanelProps } from './advisor-workspace-panel';
+export { StructuredBriefingRenderer, type StructuredBriefingRendererProps } from './structured-briefing-renderer';
+
+// MS9 Molecules
+export { HumanAssistanceBanner, type HumanAssistanceBannerProps } from './molecules/human-assistance-banner';
+export { HumanAssistanceDialog, type HumanAssistanceDialogProps } from './molecules/human-assistance-dialog';

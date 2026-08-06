@@ -91,3 +91,8 @@ export { StructuredBriefingRenderer, type StructuredBriefingRendererProps } from
 // MS9 Molecules
 export { HumanAssistanceBanner, type HumanAssistanceBannerProps } from './molecules/human-assistance-banner';
 export { HumanAssistanceDialog, type HumanAssistanceDialogProps } from './molecules/human-assistance-dialog';
+
+// MS9 Hooks — State Management & Conversation Lifecycle
+export { useAdvisorConversation, type UseAdvisorConversationOptions, type UseAdvisorConversationReturn } from './use-advisor-conversation';
+export { useHumanAssistance, type UseHumanAssistanceOptions, type UseHumanAssistanceReturn } from './use-human-assistance';
+export { useAdvisorWorkspace, type UseAdvisorWorkspaceOptions, type UseAdvisorWorkspaceReturn } from './use-advisor-workspace';

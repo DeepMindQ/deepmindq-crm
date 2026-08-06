@@ -6,3 +6,10 @@ export { EvidenceFootprint, type EvidenceFootprintProps } from './evidence-footp
 export { ConfidenceTooltip, type ConfidenceTooltipProps } from './confidence-tooltip';
 export { EvidenceDetailPanel, type EvidenceDetailPanelProps } from './evidence-detail-panel';
 export { DeepIntelContext, type DeepIntelContextProps } from './deep-intel-context';
+
+// ── MS9 Molecules ──
+export { AdvisorHeader, type AdvisorHeaderProps } from './advisor-header';
+export { UserMessageBubble, type UserMessageBubbleProps } from './user-message-bubble';
+export { InlineReasoningBlock, type InlineReasoningBlockProps } from './inline-reasoning-block';
+export { AdvisorInputArea, type AdvisorInputAreaProps } from './advisor-input-area';
+export { ConversationHistory, type ConversationHistoryProps } from './conversation-history';

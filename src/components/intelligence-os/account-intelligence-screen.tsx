@@ -3,14 +3,17 @@
 /* ═══════════════════════════════════════════════════════════════
    MS8 §7 — Account Intelligence Screen
    
-   Main account intelligence view with 4-tab navigation:
-   Overview, Signals, Contacts, and Recommendations.
+   Single-page executive briefing layout aligned with MS6 reference
+   design (reference_account_intelligence.html).
    
-   This is the depth & trust entry point for any single account.
-   Every data point shows its evidence provenance, confidence,
-   and verification status. Zero dead ends.
+   No tab navigation. All sections presented vertically in a
+   continuous briefing flow. Progressive disclosure used for depth.
    
-   MS6 Reference: reference_account_intelligence.html
+   Layout: Company Header → Trust & Confidence (always visible)
+   → Active Signals (expandable) → Key Contacts (expandable)
+   → AI Recommendations (expandable, purple accent)
+   
+   MS6 Reference: reference_account_intelligence.html — 3-column grid
    MS8 Principles: Evidence, Transparency, Explainability
    ═══════════════════════════════════════════════════════════════ */
 
@@ -24,10 +27,8 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { tokens, elevation, motion as motionTokens, typography } from './design-tokens';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import type {
   AccountTrustData,
-  AccountIntelligenceTab,
   AccountSignalEntry,
   EvidenceChainItem,
   IntelligenceGrade,
@@ -46,7 +47,7 @@ import { CompanyIntelligenceHeader } from './company-intelligence-header';
 
 // ─── Data Interface ─────────────────────────────────────────
 
-/** Contact entry for the Contacts tab */
+/** Contact entry for the Contacts section */
 export interface AccountContact {
   id: string;
   name: string;
@@ -56,7 +57,7 @@ export interface AccountContact {
   trustLevel: TrustLevel;
 }
 
-/** Recommendation entry for the Recommendations tab */
+/** Recommendation entry for the Recommendations section */
 export interface AccountRecommendation {
   id: string;
   title: string;
@@ -134,14 +135,6 @@ const PRIORITY_CONFIG: Record<string, { color: string; bg: string; border: strin
   low:    { color: tokens.priority.low.value,    bg: tokens.priority.low.bg,    border: tokens.priority.low.border },
 };
 
-// ─── Tab Config ──────────────────────────────────────────────
-const TAB_CONFIG: Array<{ id: AccountIntelligenceTab; label: string; icon: React.ElementType }> = [
-  { id: 'overview',        label: 'Overview',        icon: BarChart3 },
-  { id: 'signals',         label: 'Signals',         icon: Signal },
-  { id: 'contacts',         label: 'Contacts',         icon: Users },
-  { id: 'recommendations', label: 'Recommendations', icon: Sparkles },
-];
-
 // ─── Glass Card Helper ──────────────────────────────────────
 function GlassCard({
   children,
@@ -171,10 +164,12 @@ function GlassCard({
 function CardHeaderRow({
   title,
   badge,
+  action,
   children,
 }: {
   title: string;
   badge?: React.ReactNode;
+  action?: React.ReactNode;
   children?: React.ReactNode;
 }) {
   return (
@@ -191,7 +186,10 @@ function CardHeaderRow({
         </span>
         {badge}
       </div>
-      {children}
+      <div className="flex items-center gap-2">
+        {children}
+        {action}
+      </div>
     </div>
   );
 }
@@ -523,8 +521,64 @@ function RecommendationEntry({
   );
 }
 
+// ─── Collapsible Section Wrapper ─────────────────────────────
+// Progressive disclosure for depth — aligned with MS6 reference
+// where all content is visible in a single-page briefing flow.
+function CollapsibleSection({
+  title,
+  badge,
+  count,
+  defaultExpanded = false,
+  children,
+}: {
+  title: string;
+  badge?: React.ReactNode;
+  count?: number;
+  defaultExpanded?: boolean;
+  children: React.ReactNode;
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+
+  return (
+    <GlassCard>
+      <CardHeaderRow
+        title={title}
+        badge={badge}
+        action={
+          <button
+            onClick={() => setExpanded(!expanded)}
+            className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1.5 rounded-lg transition-colors"
+            style={{
+              color: expanded ? tokens.text.primary : tokens.text.secondary,
+              background: expanded ? tokens.surface.elevated : 'transparent',
+              border: `1px solid ${expanded ? tokens.border.default : 'transparent'}`,
+            }}
+          >
+            {expanded ? 'Collapse' : 'Expand'}
+            {expanded
+              ? <ChevronDown className="w-3 h-3" />
+              : <ChevronRight className="w-3 h-3" />}
+          </button>
+        }
+      />
+      <AnimatePresence initial={false}>
+        {expanded && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: motionTokens.default.duration }}
+          >
+            {children}
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </GlassCard>
+  );
+}
+
 // ═══════════════════════════════════════════════════════════
-//   MAIN COMPONENT
+//   MAIN COMPONENT — Single-Page Executive Briefing
 // ═══════════════════════════════════════════════════════════
 
 export function AccountIntelligenceScreen({
@@ -534,13 +588,11 @@ export function AccountIntelligenceScreen({
   domain,
   data,
 }: AccountIntelligenceScreenProps) {
-  const [activeTab, setActiveTab] = useState<AccountIntelligenceTab>('overview');
-
   const { trustData, signals, contacts, recommendations } = data;
 
   return (
-    <div className="w-full max-w-7xl mx-auto space-y-6">
-      {/* ── Header ── */}
+    <div className="w-full max-w-7xl mx-auto space-y-5">
+      {/* ═══ Company Intelligence Header ═══ */}
       <CompanyIntelligenceHeader
         companyName={companyName}
         industry={industry}
@@ -548,302 +600,249 @@ export function AccountIntelligenceScreen({
         trustData={trustData}
       />
 
-      {/* ── Tabs Navigation ── */}
-      <Tabs
-        value={activeTab}
-        onValueChange={(v) => setActiveTab(v as AccountIntelligenceTab)}
+      {/* ═══ Primary Briefing Row — Trust & Confidence ═══ */}
+      {/* Always visible. The "at a glance" layer of the briefing. */}
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: motionTokens.smooth.duration, ease: motionTokens.smooth.ease as unknown as [number, number, number, number] }}
+        className="grid grid-cols-1 lg:grid-cols-3 gap-4"
       >
-        <TabsList
-          className="w-full justify-start h-auto gap-1 p-1 rounded-xl"
-          style={{
-            background: tokens.surface.elevated,
-            border: `1px solid ${tokens.border.default}`,
-          }}
-        >
-          {TAB_CONFIG.map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeTab === tab.id;
-            return (
-              <TabsTrigger
-                key={tab.id}
-                value={tab.id}
-                className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-medium transition-all data-[state=active]:rounded-lg"
+        {/* ── Trust Score Panel (2/3 width) ── */}
+        <GlassCard className="lg:col-span-2">
+          <CardHeaderRow
+            title="Account Trust Analysis"
+            badge={
+              <VerificationBadge
+                verification={trustData.verification}
+                size="xs"
+              />
+            }
+          />
+          <div className="p-4 space-y-4">
+            {/* Trust score display row */}
+            <div className="flex items-center gap-6">
+              {/* Large score */}
+              <div className="flex flex-col items-center justify-center w-20 h-20 rounded-xl"
                 style={{
-                  color: isActive ? tokens.text.primary : tokens.text.secondary,
-                  background: isActive ? tokens.surface.card : 'transparent',
-                  boxShadow: isActive ? elevation.rest.shadow : 'none',
-                  border: isActive ? `1px solid ${tokens.border.hover}` : '1px solid transparent',
+                  background: `${tokens.trust[trustData.overallTier].value}12`,
+                  border: `1px solid ${tokens.trust[trustData.overallTier].border}`,
                 }}
               >
-                <Icon className="w-3.5 h-3.5" />
-                {tab.label}
-                {tab.id === 'signals' && signals.length > 0 && (
-                  <span
-                    className="ml-0.5 px-1.5 py-0.5 rounded-full text-[10px] font-mono font-bold"
-                    style={{
-                      color: tokens.domain.signal,
-                      background: `${tokens.domain.signal}15`,
-                    }}
-                  >
-                    {signals.length}
-                  </span>
-                )}
-              </TabsTrigger>
-            );
-          })}
-        </TabsList>
-
-        {/* ═══ Overview Tab ═══ */}
-        <TabsContent value="overview" className="mt-0">
-          <motion.div
-            key="overview-content"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: motionTokens.smooth.duration, ease: motionTokens.smooth.ease as unknown as [number, number, number, number] }}
-            className="grid grid-cols-1 lg:grid-cols-3 gap-4 mt-4"
-          >
-            {/* ── Trust Score Panel ── */}
-            <GlassCard className="lg:col-span-2">
-              <CardHeaderRow
-                title="Account Trust Analysis"
-                badge={
-                  <VerificationBadge
-                    verification={trustData.verification}
-                    size="xs"
-                  />
-                }
-              />
-              <div className="p-4 space-y-4">
-                {/* Trust score display row */}
-                <div className="flex items-center gap-6">
-                  {/* Large score */}
-                  <div className="flex flex-col items-center justify-center w-20 h-20 rounded-xl"
-                    style={{
-                      background: `${tokens.trust[trustData.overallTier].value}12`,
-                      border: `1px solid ${tokens.trust[trustData.overallTier].border}`,
-                    }}
-                  >
-                    <span
-                      className="font-mono font-bold"
-                      style={{
-                        fontSize: '28px',
-                        lineHeight: 1,
-                        color: tokens.trust[trustData.overallTier].value,
-                      }}
-                    >
-                      {trustData.overallScore}
-                    </span>
-                    <span
-                      className="text-[9px] font-semibold uppercase tracking-wider mt-0.5"
-                      style={{ color: tokens.trust[trustData.overallTier].value }}
-                    >
-                      Trust Score
-                    </span>
-                  </div>
-
-                  {/* Grade badge */}
-                  <div className="flex flex-col items-center justify-center w-16 h-16 rounded-xl"
-                    style={{
-                      background: GRADE_BG[trustData.grade],
-                      border: `1px solid ${GRADE_COLORS[trustData.grade]}40`,
-                    }}
-                  >
-                    <span
-                      className="font-mono font-bold"
-                      style={{ fontSize: '22px', lineHeight: 1, color: GRADE_COLORS[trustData.grade] }}
-                    >
-                      {trustData.grade}
-                    </span>
-                    <span
-                      className="text-[9px] font-semibold uppercase tracking-wider mt-0.5"
-                      style={{ color: GRADE_COLORS[trustData.grade] }}
-                    >
-                      Grade
-                    </span>
-                  </div>
-
-                  {/* Quick stats */}
-                  <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3">
-                    <MetricCard
-                      label="Active Signals"
-                      value={trustData.activeSignalCount}
-                      icon={Activity}
-                      color={tokens.domain.signal}
-                    />
-                    <MetricCard
-                      label="Verified Items"
-                      value={trustData.verifiedItemCount}
-                      icon={ShieldCheck}
-                      color={tokens.trust.verified.value}
-                    />
-                    <MetricCard
-                      label="Sources"
-                      value={trustData.evidenceFootprint.totalSources}
-                      icon={FileText}
-                      color={tokens.domain.enrichment}
-                    />
-                  </div>
-                </div>
-
-                {/* Evidence footprint */}
-                <div
-                  className="rounded-lg p-3"
-                  style={{ background: tokens.surface.elevated }}
+                <span
+                  className="font-mono font-bold"
+                  style={{
+                    fontSize: '28px',
+                    lineHeight: 1,
+                    color: tokens.trust[trustData.overallTier].value,
+                  }}
                 >
-                  <EvidenceFootprint
-                    footprint={trustData.evidenceFootprint}
-                    size="sm"
-                    showFreshness
-                    showCount
-                    showAIIndicator
-                  />
-                </div>
+                  {trustData.overallScore}
+                </span>
+                <span
+                  className="text-[9px] font-semibold uppercase tracking-wider mt-0.5"
+                  style={{ color: tokens.trust[trustData.overallTier].value }}
+                >
+                  Trust Score
+                </span>
               </div>
-            </GlassCard>
 
-            {/* ── Confidence Breakdown Panel ── */}
-            <GlassCard>
-              <CardHeaderRow title="Confidence Breakdown" />
-              <div className="p-4">
-                <ConfidenceBreakdown
-                  breakdown={trustData.confidenceBreakdown}
-                  showRationale
-                  showExplanations={false}
-                  compact
+              {/* Grade badge */}
+              <div className="flex flex-col items-center justify-center w-16 h-16 rounded-xl"
+                style={{
+                  background: GRADE_BG[trustData.grade],
+                  border: `1px solid ${GRADE_COLORS[trustData.grade]}40`,
+                }}
+              >
+                <span
+                  className="font-mono font-bold"
+                  style={{ fontSize: '22px', lineHeight: 1, color: GRADE_COLORS[trustData.grade] }}
+                >
+                  {trustData.grade}
+                </span>
+                <span
+                  className="text-[9px] font-semibold uppercase tracking-wider mt-0.5"
+                  style={{ color: GRADE_COLORS[trustData.grade] }}
+                >
+                  Grade
+                </span>
+              </div>
+
+              {/* Quick stats */}
+              <div className="flex-1 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <MetricCard
+                  label="Active Signals"
+                  value={trustData.activeSignalCount}
+                  icon={Activity}
+                  color={tokens.domain.signal}
                 />
-              </div>
-            </GlassCard>
-          </motion.div>
-        </TabsContent>
-
-        {/* ═══ Signals Tab ═══ */}
-        <TabsContent value="signals" className="mt-0">
-          <motion.div
-            key="signals-content"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: motionTokens.smooth.duration, ease: motionTokens.smooth.ease as unknown as [number, number, number, number] }}
-            className="mt-4"
-          >
-            <GlassCard>
-              <CardHeaderRow
-                title={`Active Signals (${signals.length})`}
-              />
-              <div className="px-4 pb-4 max-h-[600px] overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: `${tokens.border.hover} transparent` }}>
-                {signals.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 gap-2">
-                    <Radar className="w-8 h-8" style={{ color: tokens.text.muted }} />
-                    <p className="text-sm font-medium" style={{ color: tokens.text.muted }}>
-                      No active signals detected
-                    </p>
-                    <p className="text-xs" style={{ color: tokens.text.muted }}>
-                      Signals will appear here as intelligence is gathered
-                    </p>
-                  </div>
-                ) : (
-                  <div className="divide-y-0">
-                    {signals.map((signal, i) => (
-                      <SignalTimelineEntry
-                        key={signal.id}
-                        signal={signal}
-                        index={i}
-                      />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </GlassCard>
-          </motion.div>
-        </TabsContent>
-
-        {/* ═══ Contacts Tab ═══ */}
-        <TabsContent value="contacts" className="mt-0">
-          <motion.div
-            key="contacts-content"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: motionTokens.smooth.duration, ease: motionTokens.smooth.ease as unknown as [number, number, number, number] }}
-            className="mt-4"
-          >
-            <GlassCard>
-              <CardHeaderRow
-                title={`Key Contacts (${contacts.length})`}
-              />
-              <div className="px-4 pb-4 max-h-[600px] overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: `${tokens.border.hover} transparent` }}>
-                {contacts.length === 0 ? (
-                  <div className="flex flex-col items-center justify-center py-12 gap-2">
-                    <Users className="w-8 h-8" style={{ color: tokens.text.muted }} />
-                    <p className="text-sm font-medium" style={{ color: tokens.text.muted }}>
-                      No contacts identified
-                    </p>
-                    <p className="text-xs" style={{ color: tokens.text.muted }}>
-                      Contacts will be discovered as intelligence is enriched
-                    </p>
-                  </div>
-                ) : (
-                  <div>
-                    {contacts.map((contact, i) => (
-                      <ContactRow key={contact.id} contact={contact} index={i} />
-                    ))}
-                  </div>
-                )}
-              </div>
-            </GlassCard>
-          </motion.div>
-        </TabsContent>
-
-        {/* ═══ Recommendations Tab ═══ */}
-        <TabsContent value="recommendations" className="mt-0">
-          <motion.div
-            key="recommendations-content"
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: motionTokens.smooth.duration, ease: motionTokens.smooth.ease as unknown as [number, number, number, number] }}
-            className="mt-4"
-          >
-            {/* AI disclaimer banner */}
-            <div
-              className="rounded-xl p-3 mb-4 flex items-start gap-2"
-              style={{
-                background: `${tokens.domain.opportunity}08`,
-                border: `1px solid ${tokens.domain.opportunity}20`,
-                borderLeft: `3px solid ${tokens.domain.opportunity}`,
-              }}
-            >
-              <Info className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: tokens.domain.opportunity }} />
-              <div>
-                <p className="text-xs font-medium" style={{ color: tokens.domain.opportunity }}>
-                  AI-Generated Recommendations
-                </p>
-                <p className="text-[11px] mt-0.5" style={{ color: tokens.text.secondary }}>
-                  These recommendations are AI assessments, not directives. Always use your professional judgment.
-                </p>
+                <MetricCard
+                  label="Verified Items"
+                  value={trustData.verifiedItemCount}
+                  icon={ShieldCheck}
+                  color={tokens.trust.verified.value}
+                />
+                <MetricCard
+                  label="Sources"
+                  value={trustData.evidenceFootprint.totalSources}
+                  icon={FileText}
+                  color={tokens.domain.enrichment}
+                />
               </div>
             </div>
 
-            {/* Recommendations grid */}
-            {recommendations.length === 0 ? (
-              <GlassCard>
-                <div className="flex flex-col items-center justify-center py-12 gap-2">
-                  <Sparkles className="w-8 h-8" style={{ color: tokens.text.muted }} />
-                  <p className="text-sm font-medium" style={{ color: tokens.text.muted }}>
-                    No recommendations yet
-                  </p>
-                  <p className="text-xs" style={{ color: tokens.text.muted }}>
-                    Recommendations will appear as signals are analyzed
-                  </p>
-                </div>
-              </GlassCard>
+            {/* Evidence footprint */}
+            <div
+              className="rounded-lg p-3"
+              style={{ background: tokens.surface.elevated }}
+            >
+              <EvidenceFootprint
+                footprint={trustData.evidenceFootprint}
+                size="sm"
+                showFreshness
+                showCount
+                showAIIndicator
+              />
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* ── Confidence Breakdown Panel (1/3 width) ── */}
+        <GlassCard>
+          <CardHeaderRow title="Confidence Breakdown" />
+          <div className="p-4">
+            <ConfidenceBreakdown
+              breakdown={trustData.confidenceBreakdown}
+              showRationale
+              showExplanations={false}
+              compact
+            />
+          </div>
+        </GlassCard>
+      </motion.div>
+
+      {/* ═══ Secondary Briefing Row — Signals & Contacts ═══ */}
+      {/* Progressive disclosure. VP Sales scans headlines, expands for depth. */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* ── Active Signals (expandable) ── */}
+        <CollapsibleSection
+          title="Active Signals"
+          count={signals.length}
+          defaultExpanded={signals.length > 0}
+        >
+          <div className="px-4 pb-4 max-h-[600px] overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: `${tokens.border.hover} transparent` }}>
+            {signals.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-2">
+                <Radar className="w-8 h-8" style={{ color: tokens.text.muted }} />
+                <p className="text-sm font-medium" style={{ color: tokens.text.muted }}>
+                  No active signals detected
+                </p>
+                <p className="text-xs" style={{ color: tokens.text.muted }}>
+                  Signals will appear here as intelligence is gathered
+                </p>
+              </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {recommendations.map((rec, i) => (
-                  <RecommendationEntry key={rec.id} rec={rec} index={i} />
+              <div className="divide-y-0">
+                {signals.map((signal, i) => (
+                  <SignalTimelineEntry
+                    key={signal.id}
+                    signal={signal}
+                    index={i}
+                  />
                 ))}
               </div>
             )}
-          </motion.div>
-        </TabsContent>
-      </Tabs>
+          </div>
+        </CollapsibleSection>
+
+        {/* ── Key Contacts (expandable) ── */}
+        <CollapsibleSection
+          title="Key Contacts"
+          count={contacts.length}
+          defaultExpanded={contacts.length > 0 && contacts.length <= 5}
+        >
+          <div className="px-4 pb-4 max-h-[600px] overflow-y-auto" style={{ scrollbarWidth: 'thin', scrollbarColor: `${tokens.border.hover} transparent` }}>
+            {contacts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 gap-2">
+                <Users className="w-8 h-8" style={{ color: tokens.text.muted }} />
+                <p className="text-sm font-medium" style={{ color: tokens.text.muted }}>
+                  No contacts identified
+                </p>
+                <p className="text-xs" style={{ color: tokens.text.muted }}>
+                  Contacts will be discovered as intelligence is enriched
+                </p>
+              </div>
+            ) : (
+              <div>
+                {contacts.map((contact, i) => (
+                  <ContactRow key={contact.id} contact={contact} index={i} />
+                ))}
+              </div>
+            )}
+          </div>
+        </CollapsibleSection>
+      </div>
+
+      {/* ═══ AI Recommendations (expandable, purple accent) ═══ */}
+      {/* This maps to the MS6 "AI Assessment" glass card with purple border. */}
+      <CollapsibleSection
+        title="AI Recommendations"
+        badge={
+          <span
+            className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10px] font-semibold"
+            style={{
+              color: tokens.domain.opportunity,
+              background: `${tokens.domain.opportunity}12`,
+              border: `1px solid ${tokens.domain.opportunity}25`,
+            }}
+          >
+            <Sparkles className="w-3 h-3" />
+            {recommendations.length} {recommendations.length === 1 ? 'assessment' : 'assessments'}
+          </span>
+        }
+        defaultExpanded={recommendations.length > 0}
+      >
+        <div className="p-4">
+          {/* AI disclaimer banner */}
+          <div
+            className="rounded-xl p-3 mb-4 flex items-start gap-2"
+            style={{
+              background: `${tokens.domain.opportunity}08`,
+              border: `1px solid ${tokens.domain.opportunity}20`,
+              borderLeft: `3px solid ${tokens.domain.opportunity}`,
+            }}
+          >
+            <Info className="w-4 h-4 flex-shrink-0 mt-0.5" style={{ color: tokens.domain.opportunity }} />
+            <div>
+              <p className="text-xs font-medium" style={{ color: tokens.domain.opportunity }}>
+                AI-Generated Recommendations
+              </p>
+              <p className="text-[11px] mt-0.5" style={{ color: tokens.text.secondary }}>
+                These recommendations are AI assessments, not directives. Always use your professional judgment.
+              </p>
+            </div>
+          </div>
+
+          {/* Recommendations grid */}
+          {recommendations.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-12 gap-2">
+              <Sparkles className="w-8 h-8" style={{ color: tokens.text.muted }} />
+              <p className="text-sm font-medium" style={{ color: tokens.text.muted }}>
+                No recommendations yet
+              </p>
+              <p className="text-xs" style={{ color: tokens.text.muted }}>
+                Recommendations will appear as signals are analyzed
+              </p>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {recommendations.map((rec, i) => (
+                <RecommendationEntry key={rec.id} rec={rec} index={i} />
+              ))}
+            </div>
+          )}
+        </div>
+      </CollapsibleSection>
     </div>
   );
 }

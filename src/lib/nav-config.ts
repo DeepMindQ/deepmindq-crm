@@ -87,6 +87,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: 'analytics', label: 'Analytics', icon: BarChart3 },
       { key: 'ai-health', label: 'System Health', icon: Cpu },
       { key: 'settings', label: 'Settings', icon: Settings },
+      { key: 'users', label: 'Users', icon: Users },
       { key: 'audit', label: 'Audit & Governance', icon: Shield },
     ],
   },

@@ -12,7 +12,10 @@ import { db } from '@/lib/db';
 const DEFAULT_RELIABILITY = 0.5;
 
  
-const esr = () => (db as any).evidenceSourceReliability;
+// TODO: Re-enable once evidenceSourceReliability table is added to Prisma schema.
+// Model exists in schema.prisma (line 1832) but Prisma client may not be generated yet.
+// After `prisma generate`, replace this with: const esr = () => db.evidenceSourceReliability;
+const esr: () => any = () => (db as any).evidenceSourceReliability;
 
 export async function getSourceReliability(domain: string): Promise<number> {
   const record = await esr().findUnique({

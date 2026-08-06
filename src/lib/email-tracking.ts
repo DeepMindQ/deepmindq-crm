@@ -85,6 +85,60 @@ export function wrapLinksWithTracking(html: string, queueId: string): string {
   );
 }
 
+/* ── Legacy event tracking: HMAC-signed eid tokens ── */
+
+/**
+ * Sign an event ID with HMAC to prevent token fabrication.
+ * Format: base64url(eventId:timestamp:hmac-sha256)
+ * Reuses the same TRACKING_SECRET as E-11 tokens.
+ */
+export function signTrackingEventId(eventId: string): string {
+  if (!TRACKING_SECRET) {
+    throw new Error('TRACKING_SECRET is not configured — cannot sign tracking event IDs');
+  }
+  const payload = `${eventId}:${Date.now()}`;
+  const signature = crypto
+    .createHmac('sha256', TRACKING_SECRET)
+    .update(payload)
+    .digest('hex');
+  return Buffer.from(`${payload}:${signature}`).toString('base64url');
+}
+
+/**
+ * Verify and decode a signed tracking event ID.
+ * Returns the original eventId or null if invalid/expired.
+ */
+export function verifyTrackingEventId(token: string): string | null {
+  try {
+    const decoded = Buffer.from(token, 'base64url').toString('utf-8');
+    const lastColonIdx = decoded.lastIndexOf(':');
+    if (lastColonIdx === -1) return null;
+
+    const signature = decoded.slice(lastColonIdx + 1);
+    const payload = decoded.slice(0, lastColonIdx);
+
+    if (!TRACKING_SECRET) return null;
+    const expected = crypto
+      .createHmac('sha256', TRACKING_SECRET)
+      .update(payload)
+      .digest('hex');
+
+    // Constant-time comparison
+    if (signature.length !== expected.length) return null;
+    let result = 0;
+    for (let i = 0; i < signature.length; i++) {
+      result |= signature.charCodeAt(i) ^ expected.charCodeAt(i);
+    }
+    if (result !== 0) return null;
+
+    // Extract eventId (first part before ':')
+    const eventId = payload.split(':')[0];
+    return eventId;
+  } catch {
+    return null;
+  }
+}
+
 /* ── Event registration: maps eventId → contactId/draftId ── */
 interface TrackingRecord {
   eventId: string;

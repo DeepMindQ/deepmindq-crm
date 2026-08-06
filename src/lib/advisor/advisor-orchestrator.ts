@@ -172,9 +172,16 @@ export async function orchestrateAdvisorQuery(
         });
 
         if (companySignals.length > 0) {
-          const lastSignal = companySignals[0];
+          // Derive composite confidence from recommendation engine if available,
+          // fallback to signal-based heuristic, then to default 0.5
+          const recommendationConfidence = recommendation
+            ? recommendation.confidenceScore / 100
+            : null;
+          const signalAvgConfidence =
+            companySignals.reduce((sum, s) => sum + (s.confidence ?? 0.5), 0) / companySignals.length;
+
           confidence = {
-            composite: 0.7, // Default; real calculation requires IntelligenceObject
+            composite: recommendationConfidence ?? signalAvgConfidence ?? 0.5,
             sourceQuality: 0.8,
             freshness: { score: 0.75, daysElapsed: 0, maxDays: 30 },
             contentValidation: 0.8,

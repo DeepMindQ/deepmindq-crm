@@ -12,6 +12,8 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 import { NAV_SECTIONS, type NavItem as NavConfigItem } from '@/lib/nav-config';
+import { useSession } from '@/providers/auth-provider';
+import type { UserRole } from '@/lib/rbac';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -109,9 +111,50 @@ function NavButton({
    Sidebar
    ═══════════════════════════════════════════════════════════════════════ */
 
+/**
+ * Nav items restricted to admin-only access.
+ * All other items are visible to all authenticated roles.
+ */
+const ADMIN_ONLY_NAV_KEYS = new Set([
+  'settings',
+  'users',
+  'audit',
+  'ai-health',
+]);
+
+/**
+ * Nav items visible to operator+ roles (hidden from user/viewer).
+ */
+const OPERATOR_PLUS_NAV_KEYS = new Set([
+  'pipeline',
+  'email-studio',
+  'data-import',
+  'data-health',
+  'trust-dashboard',
+]);
+
+function filterSectionsByRole(sections: typeof NAV_SECTIONS, role: string) {
+  return sections
+    .map((section) => ({
+      ...section,
+      items: section.items.filter((item) => {
+        if (ADMIN_ONLY_NAV_KEYS.has(item.key)) return role === 'admin';
+        if (OPERATOR_PLUS_NAV_KEYS.has(item.key)) return role === 'admin' || role === 'operator';
+        return true;
+      }),
+    }))
+    .filter((section) => section.items.length > 0);
+}
+
 function Sidebar() {
   const { activeView, sidebarCollapsed, setActiveView, toggleSidebar } = useAppStore();
+  const { session } = useSession();
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+
+  // Filter navigation based on user role (admin sees all)
+  const visibleSections = session?.role
+    ? filterSectionsByRole(NAV_SECTIONS, session.role)
+    : NAV_SECTIONS;
 
   const handleNavClick = useCallback(
     (view: string) => {
@@ -155,7 +198,7 @@ function Sidebar() {
       {/* ── Navigation Sections ── */}
       <ScrollArea className="flex-1 py-3">
         <nav className="flex flex-col gap-0.5" role="navigation" aria-label="Main navigation">
-          {NAV_SECTIONS.map((section) => {
+          {visibleSections.map((section) => {
             const isCollapsed = collapsedSections[section.heading] ?? !section.defaultOpen;
 
             if (sidebarCollapsed) {
@@ -219,12 +262,12 @@ function Sidebar() {
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8 shrink-0">
               <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-                DQ
+                {session?.email ? session.email.slice(0, 2).toUpperCase() : 'DQ'}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col min-w-0">
-              <span className="text-sm font-medium text-foreground leading-tight truncate">DeepMindQ User</span>
-              <span className="text-[11px] text-muted-foreground leading-tight">User</span>
+              <span className="text-sm font-medium text-foreground leading-tight truncate">{session?.email ?? 'DeepMindQ User'}</span>
+              <span className="text-[11px] text-muted-foreground leading-tight capitalize">{session?.role ?? 'user'}</span>
             </div>
           </div>
         </div>
@@ -234,7 +277,7 @@ function Sidebar() {
         <div className="shrink-0 border-t border-[oklch(0.22_0.005_260)] px-2 py-2 flex justify-center">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-              DQ
+              {session?.email ? session.email.slice(0, 2).toUpperCase() : 'DQ'}
             </AvatarFallback>
           </Avatar>
         </div>

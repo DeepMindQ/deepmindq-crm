@@ -10,7 +10,7 @@
  *   - cross-account-propagation, evidence-lifecycle, knowledge-versioning
  *   - reasoning-engine (deleted in prior cleanup)
  *
- * Retained: three-date-model, signal-type-mapping (have internal consumers)
+// Retained: three-date-model, signal-type-mapping (have internal consumers)
  */
 
 export * from './types';

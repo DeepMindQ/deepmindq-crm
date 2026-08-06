@@ -75,6 +75,7 @@ const AnalyticsScreen = lazy(() => import('@/components/screens/analytics-screen
 const KnowledgeLibraryScreen = lazy(() => import('@/components/screens/knowledge-library-screen'));
 const AIHealthScreen = lazy(() => import('@/components/screens/ai-health-screen'));
 const SettingsScreen = lazy(() => import('@/components/screens/settings-screen'));
+const UsersScreen = lazy(() => import('@/components/screens/users-screen'));
 const AuditScreen = lazy(() => import('@/components/screens/audit-screen'));
 const AIUsageDashboardScreen = lazy(() => import('@/components/screens/ai-usage-dashboard-screen'));
 const ResearchAgentScreen = lazy(() => import('@/components/screens/research-agent-screen'));
@@ -161,6 +162,7 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'data-import': withScreenErrorBoundary(DataImportScreen, 'data-import'),
   analytics: withScreenErrorBoundary(AnalyticsScreen, 'analytics'),
   settings: withScreenErrorBoundary(SettingsScreen, 'settings'),
+  users: withScreenErrorBoundary(UsersScreen, 'users'),
   'data-health': withScreenErrorBoundary(DataHealthScreen, 'data-health'),
   'ai-health': withScreenErrorBoundary(AIHealthScreen, 'ai-health'),
   audit: withScreenErrorBoundary(AuditScreen, 'audit'),

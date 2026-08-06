@@ -963,19 +963,37 @@ export interface AdvisorStreamChunk {
 
 // ─── Utility Functions ─────────────────────────────────────────
 
-/** Derive SignalPillVariant from MS7 SignalType */
-export function signalTypeToPillVariant(signalType: SignalType): SignalPillVariant {
-  const mapping: Record<SignalType, SignalPillVariant> = {
+/**
+ * Derive SignalPillVariant from signal type.
+ * Supports both MS7 SignalType names AND Prisma SignalType enum values.
+ * Prisma is the single source of truth for DB; MS7 names are UI legacy.
+ */
+export function signalTypeToPillVariant(signalType: SignalType | string): SignalPillVariant {
+  // Unified mapping: covers both MS7 names and Prisma enum values
+  const mapping: Record<string, SignalPillVariant> = {
+    // MS7 names (UI legacy)
     financial_signal: 'blue',
     funding_event: 'blue',
     technology_investment: 'cyan',
     hiring_surge: 'cyan',
     product_launch: 'cyan',
     leadership_change: 'purple',
-    partnership: 'green',
     market_expansion: 'green',
     competitive_move: 'amber',
     risk_indicator: 'red',
+    // Prisma enum values (single source of truth for DB)
+    funding: 'blue',
+    hiring: 'cyan',
+    leadership: 'purple',
+    tech_change: 'cyan',
+    technology: 'cyan',
+    news: 'blue',
+    mention: 'blue',
+    expansion: 'green',
+    people_change: 'purple',
+    internal_memory: 'blue',
+    // Shared names (exist in both MS7 and Prisma)
+    partnership: 'green',
   };
   return mapping[signalType] ?? 'blue';
 }

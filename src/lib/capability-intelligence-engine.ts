@@ -574,7 +574,7 @@ Match this signal to the most relevant capabilities.`;
         maxTokens: 3000,
         temperature: 0.3,
         companyId,
-        enforceGovernance: false,
+        enforceGovernance: true,
       });
 
       if (!llmResult.success) {
@@ -798,7 +798,7 @@ Generate the opportunity recommendation.`;
         maxTokens: 3000,
         temperature: 0.3,
         companyId,
-        enforceGovernance: false,
+        enforceGovernance: true,
       });
 
       if (!llmResult.success) {
@@ -969,7 +969,7 @@ Analyze win probability.`;
         maxTokens: 1000,
         temperature: 0.3,
         companyId,
-        enforceGovernance: false,
+        enforceGovernance: true,
       });
 
       let competitivePosition = 50; // default

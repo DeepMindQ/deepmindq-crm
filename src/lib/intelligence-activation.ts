@@ -447,6 +447,51 @@ export async function activateIntelligence(
     } else {
       const enrichResult = await enrichCompany(company.id);
 
+      // ── KG1: Wire high-confidence signals into Knowledge Graph ──
+      if (enrichResult.success && enrichResult.signalsCreated > 0) {
+        try {
+          const newSignals = await db.companySignal.findMany({
+            where: { companyId: company.id, confidence: { gte: 0.6 } },
+            take: 10,
+            orderBy: { createdAt: 'desc' },
+          });
+
+          for (const signal of newSignals) {
+            const signalNodeId = `signal:${signal.id}`;
+            addNode({
+              id: signalNodeId,
+              label: signal.title.substring(0, 120),
+              type: 'signal',
+              aliases: [],
+              properties: {
+                signalType: signal.signalType,
+                companyId: company.id,
+                severity: signal.severity,
+                source: signal.source,
+              },
+              confidence: signal.confidence,
+              source: 'intelligence-pipeline',
+            });
+
+            const edgeId = `edge:company:${company.id}:HAS_SIGNAL:${signal.id}`;
+            addEdge({
+              id: edgeId,
+              sourceId: company.id,
+              targetId: signalNodeId,
+              relationship: 'HAS_SIGNAL',
+              weight: signal.confidence,
+              confidence: signal.confidence,
+              reason: `Signal detected: ${signal.signalType}`,
+              evidenceIds: [],
+            });
+          }
+
+          logger.info(`[IntelligenceActivation] KG1: Wired ${newSignals.length} high-confidence signals into KG for ${company.rawName}`);
+        } catch (kgErr) {
+          logger.warn(`[IntelligenceActivation] KG1 wiring failed (non-blocking): ${kgErr instanceof Error ? kgErr.message : String(kgErr)}`);
+        }
+      }
+
       steps.push({
         step: 'signal_extraction',
         status: enrichResult.success ? 'completed' : 'failed',

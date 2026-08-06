@@ -10,7 +10,7 @@
  */
 
 import { NextResponse } from 'next/server';
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { getDbPerformanceStats, validateLatencyTargets } from '@/lib/database-performance-monitor';
 import { PrismaDiagnostics } from '@/lib/db';
 import { getApiMetrics } from '@/lib/api-observability';
@@ -19,8 +19,10 @@ import { AICacheLayer } from '@/lib/ai-cache-layer';
 import { getRateLimitHealth } from '@/lib/distributed-rate-limit';
 
 export async function GET() {
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
+  const adminCheck = requireAdminRole(session!);
+  if (adminCheck) return adminCheck;
 
   try {
     const dbStats = getDbPerformanceStats();

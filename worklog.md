@@ -310,3 +310,32 @@ Stage Summary:
 - Design tokens only — no hardcoded colors
 - Exhaustive type checking via never-type fallback
 - Chapter 5 complete
+
+---
+Task ID: ms9-6
+Agent: Main Agent
+Task: MS9 Chapter 6 — Advisor Workspace & Human Assistance Layer
+
+Work Log:
+- Implemented 2 molecules + 1 workspace panel organism + 1 page organism
+- HumanAssistanceBanner: non-intrusive escalation banner with reason-specific icons, priority colors, context snapshot, escalate/dismiss actions
+- HumanAssistanceDialog: modal escalation submission form with reason radio buttons, priority selector, description textarea, context snapshot
+- AdvisorWorkspacePanel: slide-out panel with 4 section tabs (briefings, accounts, history, quick access), item type icons, item list with hover states, New Briefing CTA
+- AIAdvisorExperience: top-level page organism composing AdvisorConversationPanel (65%) + AdvisorContextSidebar (35%) + HumanAssistanceBanner + HumanAssistanceDialog + AdvisorWorkspacePanel
+- Updated molecules/index.ts with 2 new MS9 exports
+- Updated index.ts with MS9 organism + molecule exports
+- Fixed import path error in advisor-workspace-panel.tsx (../design-tokens → ./design-tokens)
+- Fixed token literal type errors in banner and dialog (changed from composite token object to individual string fields)
+- TypeScript: 0 errors, ESLint: 0 errors, pre-commit hooks passed
+- Committed as a02dfa1, pushed to origin/main
+
+Stage Summary:
+- Created 4 new files, modified 2 files (molecules/index.ts, index.ts)
+- 1195 lines of new code
+- All types from ms9-advisor.ts (HumanAssistanceEntry, WorkspaceItem, AdvisorWorkspace, etc.)
+- Design tokens only — no hardcoded colors
+- Full MS6 reference traceability:
+  .main-content two-panel layout → AIAdvisorExperience
+  human escalation patterns → HumanAssistanceBanner + Dialog
+  workspace patterns → AdvisorWorkspacePanel
+- Chapter 6 complete — MS9 UI implementation complete (all type contracts fulfilled)

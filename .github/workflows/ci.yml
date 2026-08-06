@@ -62,7 +62,7 @@ jobs:
           fi
       - name: Verify security headers
         run: |
-          if ! grep -q "X-Content-Type-Options" src/proxy.ts 2>/dev/null; then
+          if ! grep -rq "X-Content-Type-Options" src/proxy.ts src/lib/auth-helpers.ts src/lib/intelligence-api/ 2>/dev/null; then
             echo "::error::SECURITY GATE FAILED -- Security headers missing"
             exit 1
           fi

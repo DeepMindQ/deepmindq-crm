@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=794px, initial-scale=1.0">
+<title>DeepMindQ MS6 Phase 2 — Design System Foundation</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  @page { size: 794px 1123px; margin: 0; }
+  html, body { margin: 0; padding: 0; width: 794px; height: 1123px; background: #0e0e0d; font-family: 'Inter', system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  .cover { position: relative; width: 794px; height: 1123px; background: #0e0e0d; }
+
+  /* Layer 1: Grid pattern */
+  .grid-pattern {
+    position: absolute; inset: 0;
+    background-image:
+      linear-gradient(rgba(230,229,227,0.02) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(230,229,227,0.02) 1px, transparent 1px);
+    background-size: 50px 50px;
+  }
+
+  /* Layer 2: Left anchor line */
+  .anchor-line {
+    position: absolute;
+    left: 50px; /* inset to avoid overlap with content */
+    top: 112px; /* 0.1 * 1123 */
+    bottom: 112px; /* 0.1 * 1123 */
+    width: 6px;
+    background: linear-gradient(180deg, #b5a576 0%, #dec886 50%, #b5a576 100%);
+    border-radius: 3px;
+  }
+
+  /* Layer 3: Content */
+  .content { position: absolute; left: 160px; top: 0; bottom: 0; width: 560px; }
+
+  .kicker {
+    position: absolute;
+    top: 169px; /* 0.15 * 1123 */
+    font-size: 13px;
+    font-weight: 500;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: rgba(229,225,207,0.6);
+  }
+
+  .hero-title {
+    position: absolute;
+    top: 337px; /* 0.30 * 1123 */
+    font-size: 52px;
+    font-weight: 900;
+    line-height: 1.1;
+    color: #e6e5e3;
+    letter-spacing: -0.02em;
+  }
+
+  .hero-accent {
+    color: #dec886;
+  }
+
+  .summary {
+    position: absolute;
+    top: 562px; /* 0.50 * 1123 */
+    font-size: 15px;
+    font-weight: 400;
+    line-height: 1.7;
+    color: rgba(229,225,207,0.75);
+    width: 380px;
+  }
+
+  .meta {
+    position: absolute;
+    top: 870px; /* 0.75 * 1123 */
+    font-size: 14px;
+    font-weight: 400;
+    color: rgba(229,225,207,0.5);
+  }
+
+  .meta span {
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  .divider-line {
+    position: absolute;
+    left: 160px;
+    top: 770px;
+    width: 120px;
+    height: 1px;
+    background: rgba(181,165,118,0.3);
+  }
+
+  .badge-row {
+    position: absolute;
+    bottom: 112px;
+    left: 160px;
+    display: flex;
+    gap: 8px;
+  }
+
+  .badge {
+    padding: 4px 12px;
+    border-radius: 999px;
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 1.5px;
+    text-transform: uppercase;
+    border: 1px solid rgba(181,165,118,0.25);
+    color: #b5a576;
+    background: rgba(181,165,118,0.08);
+  }
+
+  /* Decorative glow */
+  .glow {
+    position: absolute;
+    right: 0px;
+    top: 200px;
+    width: 400px;
+    height: 400px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(222,200,134,0.06) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  .glow-2 {
+    position: absolute;
+    right: 50px;
+    bottom: 150px;
+    width: 300px;
+    height: 300px;
+    border-radius: 50%;
+    background: radial-gradient(circle, rgba(107,77,197,0.04) 0%, transparent 70%);
+    pointer-events: none;
+  }
+
+  @media screen {
+    .cover { transform: scale(0.5); transform-origin: top left; }
+  }
+</style>
+</head>
+<body>
+<div class="cover">
+  <div class="grid-pattern"></div>
+  <div class="anchor-line"></div>
+  <div class="glow"></div>
+  <div class="glow-2"></div>
+  <div class="content">
+    <div class="kicker">MS6 Phase 2 &mdash; Design Foundation Milestone</div>
+    <div class="hero-title">DeepMindQ<br><span class="hero-accent">Design System</span><br>Foundation</div>
+    <div class="summary">
+      The unified design system specification for the DeepMindQ Intelligence Platform.
+      Design tokens, component architecture, interaction patterns, and emotional copy
+      locked as the single source of truth for MS7 through MS11 production development.
+    </div>
+    <div class="divider-line"></div>
+    <div class="meta">
+      <span>Enterprise Intelligence Platform</span>
+      <span>Version 1.0 &mdash; Locked Foundation</span>
+      <span>August 2026</span>
+    </div>
+    <div class="badge-row">
+      <span class="badge">Design Tokens</span>
+      <span class="badge">Component Library</span>
+      <span class="badge">Interaction Patterns</span>
+      <span class="badge">Copy System</span>
+    </div>
+  </div>
+</div>
+</body>
+</html>

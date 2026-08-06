@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=1280px, initial-scale=1.0">
+<title>Prototype: Executive Intelligence Hub Elements</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #060810; --bg: #0a0d14; --bg-elevated: #111520;
+  --bg-card: #161c2a; --bg-surface: #1c2336;
+  --border: #252e42; --border-light: #2d3854;
+  --primary: #e8ecf4; --primary-dim: #8b95ad;
+  --accent: #3b82f6; --accent-glow: rgba(59,130,246,0.15);
+  --accent-secondary: #8b5cf6;
+  --risk-red: #ef4444; --success-green: #22c55e;
+  --warning-amber: #f59e0b; --enrichment-cyan: #06b6d4;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', system-ui, sans-serif;
+  font-size: 15px;
+  color: var(--primary);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+}
+
+.prototype-container { width: 1280px; padding: 48px 64px; }
+.prototype-header { margin-bottom: 40px; }
+.prototype-header .label {
+  font-size: 11px; font-weight: 600; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--primary-dim); margin-bottom: 8px;
+}
+.prototype-header h1 { font-size: 28px; font-weight: 700; color: var(--primary); letter-spacing: -0.02em; }
+.prototype-header .subtitle {
+  font-size: 15px; color: var(--primary-dim); margin-top: 8px;
+  max-width: 700px; line-height: 1.6;
+}
+
+/* ── Top Bar ── */
+.top-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 24px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  margin-bottom: 32px;
+}
+.top-bar-left { display: flex; align-items: center; gap: 16px; }
+.hub-logo {
+  font-size: 16px; font-weight: 800;
+  color: var(--primary);
+  letter-spacing: -0.02em;
+}
+.hub-logo span { color: var(--accent); }
+.hub-date {
+  font-size: 12px; font-weight: 500;
+  color: var(--primary-dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+.top-bar-right { display: flex; align-items: center; gap: 12px; }
+.search-box {
+  padding: 8px 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--primary);
+  width: 220px;
+  font-family: 'Inter', sans-serif;
+}
+.search-box::placeholder { color: var(--primary-dim); }
+.icon-btn {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary-dim);
+  font-size: 16px;
+  cursor: pointer;
+}
+.notification-dot {
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  background: var(--accent);
+  position: absolute;
+  top: -2px; right: -2px;
+}
+
+/* ── Main Layout ── */
+.hub-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto auto;
+  gap: 24px;
+}
+
+/* ── Stat Blocks ── */
+.stat-block {
+  background: rgba(22,28,42,0.7);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 20px;
+  text-align: center;
+}
+.stat-number {
+  font-size: 36px;
+  font-weight: 900;
+  font-family: 'JetBrains Mono', monospace;
+  line-height: 1;
+  margin-bottom: 6px;
+}
+.stat-number--blue { color: var(--accent); }
+.stat-number--purple { color: var(--accent-secondary); }
+.stat-number--green { color: var(--success-green); }
+.stat-number--amber { color: var(--warning-amber); }
+.stat-label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--primary-dim);
+}
+
+/* ── Briefing Section ── */
+.briefing-section {
+  background: rgba(22,28,42,0.7);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+}
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+.section-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: 0.5px;
+}
+.section-count {
+  font-size: 11px;
+  font-family: 'JetBrains Mono', monospace;
+  color: var(--primary-dim);
+}
+
+/* ── Mini Signal Cards ── */
+.signal-mini {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--border);
+}
+.signal-mini:last-child { border-bottom: none; }
+.signal-priority {
+  width: 4px;
+  height: 36px;
+  border-radius: 2px;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.signal-priority--high { background: var(--risk-red); }
+.signal-priority--medium { background: var(--warning-amber); }
+.signal-priority--low { background: var(--accent); }
+.signal-content { flex: 1; }
+.signal-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--primary);
+  line-height: 1.3;
+  margin-bottom: 4px;
+}
+.signal-meta {
+  font-size: 11px;
+  color: var(--primary-dim);
+  font-family: 'JetBrains Mono', monospace;
+}
+.signal-confidence {
+  font-size: 11px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* ── Action Queue ── */
+.action-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+.action-item:last-child { margin-bottom: 0; }
+.action-icon {
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  flex-shrink: 0;
+}
+.action-icon--purple { background: rgba(139,92,246,0.12); color: #a78bfa; }
+.action-icon--blue { background: rgba(59,130,246,0.12); color: #60a5fa; }
+.action-content { flex: 1; }
+.action-text { font-size: 13px; font-weight: 500; color: var(--primary); }
+.action-desc { font-size: 11px; color: var(--primary-dim); margin-top: 2px; }
+.action-btn {
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 600;
+  background: var(--accent);
+  color: #0a0d14;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+/* ── Quick Actions Sidebar ── */
+.quick-actions {
+  background: rgba(22,28,42,0.7);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  padding: 24px;
+}
+.quick-action-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+}
+.quick-action-item:last-child { border-bottom: none; }
+.quick-action-item:hover .qa-label { color: var(--primary); }
+.qa-icon {
+  width: 36px; height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+.qa-icon--blue { background: rgba(59,130,246,0.12); color: #60a5fa; }
+.qa-icon--purple { background: rgba(139,92,246,0.12); color: #a78bfa; }
+.qa-icon--cyan { background: rgba(6,182,212,0.12); color: #22d3ee; }
+.qa-label { font-size: 13px; font-weight: 500; color: var(--primary-dim); transition: color 0.15s; }
+.qa-desc { font-size: 11px; color: var(--primary-dim); margin-top: 2px; }
+
+/* ── Annotations ── */
+.annotations {
+  margin-top: 40px;
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 16px;
+}
+.annotation {
+  padding: 14px 16px;
+  background: rgba(222,200,134,0.04);
+  border: 1px solid rgba(222,200,134,0.12);
+  border-radius: 10px;
+}
+.annotation-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: rgba(222,200,134,0.6);
+  margin-bottom: 6px;
+}
+.annotation-text {
+  font-size: 12px;
+  color: var(--primary-dim);
+  line-height: 1.5;
+}
+</style>
+</head>
+<body>
+<div class="prototype-container">
+  <div class="prototype-header">
+    <div class="label">Deliverable E — Reference Prototype</div>
+    <h1>Executive Intelligence Hub</h1>
+    <div class="subtitle">
+      Default landing experience. Priority signals, morning briefing structure, action recommendations.
+      5-Question Protocol: What changed, Why it matters, Who to engage, What to say, What to do.
+      These are design system prototypes, not production features.
+    </div>
+  </div>
+
+  <!-- Top Bar -->
+  <div class="top-bar">
+    <div class="top-bar-left">
+      <div class="hub-logo">Deep<span>MindQ</span></div>
+      <div class="hub-date">Aug 6, 2026 &middot; 08:00 AM Briefing</div>
+    </div>
+    <div class="top-bar-right">
+      <input type="text" class="search-box" placeholder="Search intelligence...">
+      <div class="icon-btn" style="position:relative;">
+        <span>&#128276;</span>
+        <span class="notification-dot"></span>
+      </div>
+      <div class="icon-btn">&#128100;</div>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;">
+    <div class="stat-block">
+      <div class="stat-number stat-number--blue">5</div>
+      <div class="stat-label">Priority Signals</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-number stat-number--purple">3</div>
+      <div class="stat-label">Accounts to Engage</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-number stat-number--green">12</div>
+      <div class="stat-label">Active Opportunities</div>
+    </div>
+    <div class="stat-block">
+      <div class="stat-number stat-number--amber">2</div>
+      <div class="stat-label">AI Recommendations</div>
+    </div>
+  </div>
+
+  <!-- Main Layout -->
+  <div class="hub-layout">
+    <!-- Priority Signals -->
+    <div class="briefing-section">
+      <div class="section-header">
+        <div class="section-title">Priority Signals</div>
+        <div class="section-count">5 active</div>
+      </div>
+      <div class="signal-mini">
+        <div class="signal-priority signal-priority--high"></div>
+        <div class="signal-content">
+          <div class="signal-title">Acme Corp revenue +23%</div>
+          <div class="signal-meta">Updated 2h ago</div>
+        </div>
+        <div class="signal-confidence" style="color:var(--success-green);">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--success-green);display:inline-block;"></span>
+          82
+        </div>
+      </div>
+      <div class="signal-mini">
+        <div class="signal-priority signal-priority--high"></div>
+        <div class="signal-content">
+          <div class="signal-title">Vertex Inc new CTO appointed</div>
+          <div class="signal-meta">Updated 5h ago</div>
+        </div>
+        <div class="signal-confidence" style="color:var(--success-green);">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--success-green);display:inline-block;"></span>
+          91
+        </div>
+      </div>
+      <div class="signal-mini">
+        <div class="signal-priority signal-priority--medium"></div>
+        <div class="signal-content">
+          <div class="signal-title">NovaTech Series C $85M raised</div>
+          <div class="signal-meta">Updated 1d ago</div>
+        </div>
+        <div class="signal-confidence" style="color:var(--success-green);">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--success-green);display:inline-block;"></span>
+          88
+        </div>
+      </div>
+      <div class="signal-mini">
+        <div class="signal-priority signal-priority--medium"></div>
+        <div class="signal-content">
+          <div class="signal-title">DataFlow pricing page views (3x)</div>
+          <div class="signal-meta">Updated 3h ago</div>
+        </div>
+        <div class="signal-confidence" style="color:var(--warning-amber);">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--warning-amber);display:inline-block;"></span>
+          65
+        </div>
+      </div>
+      <div class="signal-mini">
+        <div class="signal-priority signal-priority--low"></div>
+        <div class="signal-content">
+          <div class="signal-title">AI adoption signal: 12 accounts</div>
+          <div class="signal-meta">Updated 6h ago</div>
+        </div>
+        <div class="signal-confidence" style="color:var(--warning-amber);">
+          <span style="width:6px;height:6px;border-radius:50%;background:var(--warning-amber);display:inline-block;"></span>
+          58
+        </div>
+      </div>
+    </div>
+
+    <!-- Action Queue -->
+    <div class="briefing-section">
+      <div class="section-header">
+        <div class="section-title">Action Queue</div>
+        <div class="section-count">2 pending</div>
+      </div>
+      <div class="action-item">
+        <div class="action-icon action-icon--purple">&#129302;</div>
+        <div class="action-content">
+          <div class="action-text">Prioritize Acme Corp outreach</div>
+          <div class="action-desc">AI: 78% confidence &middot; 4 evidence sources</div>
+        </div>
+        <button class="action-btn">Review</button>
+      </div>
+      <div class="action-item">
+        <div class="action-icon action-icon--blue">&#128172;</div>
+        <div class="action-content">
+          <div class="action-text">Follow up with James Park</div>
+          <div class="action-desc">DataFlow: 3 pricing page views this week</div>
+        </div>
+        <button class="action-btn">Review</button>
+      </div>
+
+      <div style="margin-top:24px;">
+        <div class="section-header">
+          <div class="section-title">Who to Engage</div>
+          <div class="section-count">3 accounts</div>
+        </div>
+        <div class="signal-mini">
+          <div class="signal-content">
+            <div class="signal-title">Acme Corp &middot; Enterprise SaaS</div>
+            <div class="signal-meta">Revenue $450M &middot; High Priority</div>
+          </div>
+          <div class="signal-confidence" style="color:var(--success-green);">
+            <span style="width:6px;height:6px;border-radius:50%;background:var(--success-green);display:inline-block;"></span>
+            82
+          </div>
+        </div>
+        <div class="signal-mini">
+          <div class="signal-content">
+            <div class="signal-title">Vertex Inc &middot; AI/ML</div>
+            <div class="signal-meta">Series B $25M &middot; High Priority</div>
+          </div>
+          <div class="signal-confidence" style="color:var(--warning-amber);">
+            <span style="width:6px;height:6px;border-radius:50%;background:var(--warning-amber);display:inline-block;"></span>
+            62
+          </div>
+        </div>
+        <div class="signal-mini">
+          <div class="signal-content">
+            <div class="signal-title">DataFlow &middot; Data Analytics</div>
+            <div class="signal-meta">Active engagement &middot; Medium Priority</div>
+          </div>
+          <div class="signal-confidence" style="color:var(--warning-amber);">
+            <span style="width:6px;height:6px;border-radius:50%;background:var(--warning-amber);display:inline-block;"></span>
+            65
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quick Actions -->
+    <div class="quick-actions">
+      <div class="section-header">
+        <div class="section-title">Quick Actions</div>
+      </div>
+      <div class="quick-action-item">
+        <div class="qa-icon qa-icon--purple">&#129302;</div>
+        <div>
+          <div class="qa-label">AI Advisor</div>
+          <div class="qa-desc">Ask intelligence questions</div>
+        </div>
+      </div>
+      <div class="quick-action-item">
+        <div class="qa-icon qa-icon--blue">&#128269;</div>
+        <div>
+          <div class="qa-label">Recent Searches</div>
+          <div class="qa-desc">Acme Corp, Vertex, AI market</div>
+        </div>
+      </div>
+      <div class="quick-action-item">
+        <div class="qa-icon qa-icon--cyan">&#128202;</div>
+        <div>
+          <div class="qa-label">Market Overview</div>
+          <div class="qa-desc">12 signals across 8 accounts</div>
+        </div>
+      </div>
+      <div class="quick-action-item">
+        <div class="qa-icon qa-icon--blue">&#128221;</div>
+        <div>
+          <div class="qa-label">Export Briefing</div>
+          <div class="qa-desc">PDF or email format</div>
+        </div>
+      </div>
+
+      <div style="margin-top:24px;padding:16px;background:var(--bg-surface);border-radius:12px;border:1px solid var(--border);">
+        <div style="font-size:12px;font-weight:600;color:var(--primary);margin-bottom:8px;">Morning Briefing Status</div>
+        <div style="font-size:12px;color:var(--primary-dim);line-height:1.6;">
+          Intelligence cycle completed at 07:45 AM. All 5 priority signals reviewed. 2 actions pending your decision. Next refresh at 08:15 AM.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Annotations -->
+  <div class="annotations">
+    <div class="annotation">
+      <div class="annotation-label">Signal Hierarchy</div>
+      <div class="annotation-text">Priority signals use color-coded left borders: red for high, amber for medium, blue for low. Confidence scores appear right-aligned in mono font for quick scanning.</div>
+    </div>
+    <div class="annotation">
+      <div class="annotation-label">Action Queue</div>
+      <div class="annotation-text">AI recommendations wait in the action queue until the human user explicitly accepts or dismisses. No auto-execution. Purple icon indicates AI origin.</div>
+    </div>
+    <div class="annotation">
+      <div class="annotation-label">Bento Grid Layout</div>
+      <div class="annotation-text">3-column bento grid: signals (left), action queue + accounts (center), quick actions (right). Responsive: 2-col on tablet, 1-col on mobile.</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

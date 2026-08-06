@@ -378,7 +378,31 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 10 — INTEGRATION TESTS
+  # BLOCKING: JOB 10 — M5 INTELLIGENCE TESTS
+  # M5 Trust, Hallucination, Knowledge, Data Lineage,
+  # Financial Intelligence, Clearbit Connector, Market Discovery
+  # ═══════════════════════════════════════════════════
+  test-m5-intelligence:
+    name: "Blocking — M5 Intelligence Tests"
+    runs-on: ubuntu-latest
+    needs: [security-gate, api-security-contract]
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Run M5 intelligence tests
+        run: npx vitest run --config vitest.m5.config.ts --reporter=verbose
+        env:
+          CI: 'true'
+          NODE_OPTIONS: '--max-old-space-size=2048'
+
+  # ═══════════════════════════════════════════════════
+  # BLOCKING: JOB 11 — INTEGRATION TESTS
   # ═══════════════════════════════════════════════════
   test-integration:
     name: "Blocking — Integration Tests"
@@ -646,6 +670,7 @@ jobs:
       - test-api
       - test-database
       - test-integration
+      - test-m5-intelligence
       - dependency-audit
       - ci-path-check
 

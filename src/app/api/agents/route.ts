@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 import {
   AGENT_REGISTRY,
   VALID_AGENT_TYPES,
@@ -23,6 +24,10 @@ import {
  *   - 'executive-decision'     → { params: { question: string, context?: { companyId?: string, industry?: string } } }
  */
 export async function POST(request: NextRequest) {
+  // ── Authentication Guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   const startTime = Date.now();
 
   try {

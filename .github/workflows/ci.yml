@@ -1,33 +1,33 @@
 # ═══════════════════════════════════════════════════
-# DeepMindQ — Enterprise Test Architecture CI Pipeline
-# M3 Stabilization — Deterministic execution
+# DeepMindQ -- Enterprise Test Architecture CI Pipeline
+# M3 Stabilization -- Deterministic execution
 #
 # Architecture: Each test category runs as an independent job
 # with dedicated memory, fresh runner, and clear failure isolation.
 # All vitest configs use threads pool with single thread for stability.
 #
 # BLOCKING JOBS (must pass for merge):
-#   1. security-gate        — Security regression gates
-#   2. dependency-audit     — npm dependency vulnerability scan
-#   3. api-security-contract — Static API auth guard verification
-#   4. lint-and-typecheck   — ESLint + TypeScript
-#   5. test-unit            — Pure logic unit tests (node, threads)
-#   6. test-security        — Auth/CSRF/RBAC security tests (node, threads)
-#   7. test-api             — API route handler tests (node, threads) + PostgreSQL
-#   8. test-database        — Database/Prisma tests (node, threads) + PostgreSQL
-#   9. test-integration      — Cross-module integration tests (node, threads)
-#   10. build                — Final build verification
+#   1. security-gate        -- Security regression gates
+#   2. dependency-audit     -- npm dependency vulnerability scan
+#   3. api-security-contract -- Static API auth guard verification
+#   4. lint-and-typecheck   -- ESLint + TypeScript
+#   5. test-unit            -- Pure logic unit tests (node, threads)
+#   6. test-security        -- Auth/CSRF/RBAC security tests (node, threads)
+#   7. test-api             -- API route handler tests (node, threads) + PostgreSQL
+#   8. test-database        -- Database/Prisma tests (node, threads) + PostgreSQL
+#   9. test-integration      -- Cross-module integration tests (node, threads)
+#   10. build                -- Final build verification
 #
 # NON-BLOCKING JOBS (allowed to fail without blocking merge):
-#   test-ai                 — AI engine core tests
-#   test-ai-governance      — AI governance, prompt registry, config coverage
-#   test-ai-retrieval       — AI retrieval, hybrid search, knowledge graph
-#   test-ai-framework       — AI agent framework, memory, evaluation engine
-#   test-ai-inference        — AI hallucination, confidence, recommendation engine
-#   test-e2e                — End-to-end business journey tests
-#   test-performance        — Benchmarks/scale/memory tests
-#   test-ui                  — React component tests (jsdom)
-#   test-playwright          — Playwright browser E2E tests
+#   test-ai                 -- AI engine core tests
+#   test-ai-governance      -- AI governance, prompt registry, config coverage
+#   test-ai-retrieval       -- AI retrieval, hybrid search, knowledge graph
+#   test-ai-framework       -- AI agent framework, memory, evaluation engine
+#   test-ai-inference        -- AI hallucination, confidence, recommendation engine
+#   test-e2e                -- End-to-end business journey tests
+#   test-performance        -- Benchmarks/scale/memory tests
+#   test-ui                  -- React component tests (jsdom)
+#   test-playwright          -- Playwright browser E2E tests
 # ═══════════════════════════════════════════════════
 
 name: CI
@@ -48,10 +48,10 @@ env:
 
 jobs:
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 1 — SECURITY REGRESSION GATE
+  # BLOCKING: JOB 1 -- SECURITY REGRESSION GATE
   # ═══════════════════════════════════════════════════
   security-gate:
-    name: "Blocking — Security Gate"
+    name: "Blocking -- Security Gate"
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -72,7 +72,7 @@ jobs:
       - name: Verify edge proxy exists
         run: |
           if [ ! -f "src/proxy.ts" ]; then
-            echo "::error::SECURITY GATE FAILED — src/proxy.ts is missing"
+            echo "::error::SECURITY GATE FAILED -- src/proxy.ts is missing"
             exit 1
           fi
 
@@ -138,10 +138,10 @@ jobs:
           if [ "$FAIL" -eq 1 ]; then exit 1; fi
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 2 — DEPENDENCY SECURITY AUDIT
+  # BLOCKING: JOB 2 -- DEPENDENCY SECURITY AUDIT
   # ═══════════════════════════════════════════════════
   dependency-audit:
-    name: "Blocking — Dependency Audit"
+    name: "Blocking -- Dependency Audit"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -154,10 +154,10 @@ jobs:
       - run: node scripts/dependency-audit-ci.js
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 3 — API SECURITY CONTRACT
+  # BLOCKING: JOB 3 -- API SECURITY CONTRACT
   # ═══════════════════════════════════════════════════
   api-security-contract:
-    name: "Blocking — API Security Contract"
+    name: "Blocking -- API Security Contract"
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -170,10 +170,10 @@ jobs:
       - run: node scripts/api-security-scan.js
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 4 — LINT + TYPECHECK
+  # BLOCKING: JOB 4 -- LINT + TYPECHECK
   # ═══════════════════════════════════════════════════
   lint-and-typecheck:
-    name: "Blocking — Lint + Typecheck"
+    name: "Blocking -- Lint + Typecheck"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
     timeout-minutes: 10
@@ -189,10 +189,10 @@ jobs:
       - run: npx tsc --noEmit
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 5 — UNIT TESTS
+  # BLOCKING: JOB 5 -- UNIT TESTS
   # ═══════════════════════════════════════════════════
   test-unit:
-    name: "Blocking — Unit Tests"
+    name: "Blocking -- Unit Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
     timeout-minutes: 5
@@ -253,10 +253,10 @@ jobs:
           retention-days: 14
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 6 — SECURITY TESTS
+  # BLOCKING: JOB 6 -- SECURITY TESTS
   # ═══════════════════════════════════════════════════
   test-security:
-    name: "Blocking — Security Tests"
+    name: "Blocking -- Security Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
     timeout-minutes: 8
@@ -275,10 +275,10 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 7 — API TESTS (with PostgreSQL)
+  # BLOCKING: JOB 7 -- API TESTS (with PostgreSQL)
   # ═══════════════════════════════════════════════════
   test-api:
-    name: "Blocking — API Tests"
+    name: "Blocking -- API Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
     timeout-minutes: 10
@@ -318,10 +318,10 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 8 — DATABASE TESTS (with PostgreSQL)
+  # BLOCKING: JOB 8 -- DATABASE TESTS (with PostgreSQL)
   # ═══════════════════════════════════════════════════
   test-database:
-    name: "Blocking — Database Tests"
+    name: "Blocking -- Database Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
     timeout-minutes: 8
@@ -359,10 +359,10 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 9 — INTEGRATION TESTS
+  # BLOCKING: JOB 9 -- INTEGRATION TESTS
   # ═══════════════════════════════════════════════════
   test-integration:
-    name: "Blocking — Integration Tests"
+    name: "Blocking -- Integration Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
     timeout-minutes: 10
@@ -384,7 +384,7 @@ jobs:
   # NON-BLOCKING: AI TEST SUITES
   # ═══════════════════════════════════════════════════
   test-ai:
-    name: "Non-Blocking — AI Engine"
+    name: "Non-Blocking -- AI Engine"
     runs-on: ubuntu-latest
     if: always()
     needs: [security-gate, api-security-contract]
@@ -403,7 +403,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   test-ai-governance:
-    name: "Non-Blocking — AI Governance"
+    name: "Non-Blocking -- AI Governance"
     runs-on: ubuntu-latest
     if: always()
     needs: [security-gate, api-security-contract]
@@ -435,7 +435,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   test-ai-retrieval:
-    name: "Non-Blocking — AI Retrieval"
+    name: "Non-Blocking -- AI Retrieval"
     runs-on: ubuntu-latest
     if: always()
     needs: [security-gate, api-security-contract]
@@ -454,7 +454,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   test-ai-framework:
-    name: "Non-Blocking — AI Framework"
+    name: "Non-Blocking -- AI Framework"
     runs-on: ubuntu-latest
     if: always()
     needs: [security-gate, api-security-contract]
@@ -473,7 +473,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   test-ai-inference:
-    name: "Non-Blocking — AI Inference"
+    name: "Non-Blocking -- AI Inference"
     runs-on: ubuntu-latest
     if: always()
     needs: [security-gate, api-security-contract]
@@ -495,7 +495,7 @@ jobs:
   # NON-BLOCKING: E2E, PERFORMANCE, UI, PLAYWRIGHT
   # ═══════════════════════════════════════════════════
   test-e2e:
-    name: "Non-Blocking — E2E Tests"
+    name: "Non-Blocking -- E2E Tests"
     runs-on: ubuntu-latest
     if: always()
     needs: [security-gate, api-security-contract]
@@ -514,7 +514,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   test-performance:
-    name: "Non-Blocking — Performance"
+    name: "Non-Blocking -- Performance"
     runs-on: ubuntu-latest
     if: always()
     needs: [security-gate, api-security-contract]
@@ -533,7 +533,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   test-ui:
-    name: "Non-Blocking — UI Components"
+    name: "Non-Blocking -- UI Components"
     runs-on: ubuntu-latest
     if: always()
     needs: [security-gate, api-security-contract]
@@ -552,7 +552,7 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   test-playwright:
-    name: "Non-Blocking — Playwright E2E"
+    name: "Non-Blocking -- Playwright E2E"
     runs-on: ubuntu-latest
     if: always()
     needs: [security-gate, api-security-contract]
@@ -612,10 +612,10 @@ jobs:
           retention-days: 14
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 11 — M5 INTELLIGENCE TESTS (MS5 addition)
+  # BLOCKING: JOB 11 -- M5 INTELLIGENCE TESTS (MS5 addition)
   # ═══════════════════════════════════════════════════
   test-m5-intelligence:
-    name: "Blocking — M5 Intelligence Tests"
+    name: "Blocking -- M5 Intelligence Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
     timeout-minutes: 5
@@ -638,7 +638,7 @@ jobs:
   # and are NOT listed in needs[], so they don't gate the build.
   # ═══════════════════════════════════════════════════
   build:
-    name: "Blocking — Build Verification"
+    name: "Blocking -- Build Verification"
     runs-on: ubuntu-latest
     needs:
       - lint-and-typecheck

@@ -1,0 +1,1688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepMindQ CRM — AI Advisor Experience</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ============================================
+   MS6 Phase 3 — Reference Screen B
+   AI Advisor Experience
+   ============================================ */
+
+:root {
+  --bg-deep: #060810;
+  --bg: #0a0d14;
+  --bg-elevated: #111520;
+  --bg-card: #161c2a;
+  --bg-surface: #1c2336;
+  --border: #252e42;
+  --border-light: #2d3854;
+  --primary: #e8ecf4;
+  --primary-dim: #8b95ad;
+  --accent: #3b82f6;
+  --accent-glow: rgba(59,130,246,0.15);
+  --accent-secondary: #8b5cf6;
+  --risk-red: #ef4444;
+  --success-green: #22c55e;
+  --warning-amber: #f59e0b;
+  --enrichment-cyan: #06b6d4;
+  --trust-verified: #22c55e;
+  --trust-high: #14b8a6;
+  --trust-medium: #f59e0b;
+  --trust-low: #f97316;
+  --trust-unverified: #6b7280;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg-deep);
+  color: var(--primary);
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Prototype Label ── */
+.prototype-label {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: linear-gradient(90deg, var(--accent-secondary), var(--accent));
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-align: center;
+  padding: 4px 0;
+  text-transform: uppercase;
+}
+
+/* ── Top Navigation Bar ── */
+.top-nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  margin-top: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 32px;
+  height: 56px;
+  background: rgba(10, 13, 20, 0.85);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border-bottom: 1px solid var(--border);
+}
+
+.nav-logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+}
+
+.nav-logo-icon {
+  width: 28px;
+  height: 28px;
+  background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.nav-logo-icon svg {
+  width: 16px;
+  height: 16px;
+}
+
+.nav-logo-text {
+  font-weight: 700;
+  font-size: 1rem;
+  color: var(--primary);
+  letter-spacing: -0.02em;
+}
+
+.nav-logo-text span {
+  color: var(--accent);
+}
+
+.nav-search {
+  position: relative;
+  width: 320px;
+}
+
+.nav-search input {
+  width: 100%;
+  height: 36px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--primary);
+  font-family: var(--font-sans);
+  font-size: 0.85rem;
+  padding: 0 12px 0 36px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.nav-search input::placeholder {
+  color: var(--primary-dim);
+}
+
+.nav-search input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.nav-search svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+  height: 16px;
+  color: var(--primary-dim);
+}
+
+.nav-actions {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.nav-action-btn {
+  position: relative;
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--primary-dim);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.nav-action-btn:hover {
+  background: var(--bg-elevated);
+  border-color: var(--border);
+  color: var(--primary);
+}
+
+.nav-action-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.nav-notification-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  background: var(--accent);
+  border-radius: 50%;
+  border: 2px solid var(--bg);
+}
+
+.nav-avatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent-secondary), var(--accent));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.8rem;
+  color: #fff;
+  cursor: pointer;
+  border: 2px solid var(--border);
+  transition: border-color 0.2s;
+}
+
+.nav-avatar:hover {
+  border-color: var(--accent);
+}
+
+/* ── AI Advisor Header ── */
+.advisor-header {
+  padding: 24px 32px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.advisor-header-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.advisor-header-left {
+  flex: 1;
+}
+
+.advisor-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--primary);
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.advisor-title-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent-secondary), #6d28d9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.advisor-title-icon svg {
+  width: 18px;
+  height: 18px;
+  color: #fff;
+}
+
+.advisor-subtitle {
+  font-size: 0.85rem;
+  color: var(--primary-dim);
+  max-width: 560px;
+  line-height: 1.5;
+}
+
+.advisor-status {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 0.78rem;
+  font-family: var(--font-mono);
+  color: var(--trust-high);
+}
+
+.advisor-status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--trust-high);
+  animation: pulse-dot 2s ease-in-out infinite;
+}
+
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgba(20, 184, 166, 0.4); }
+  50% { opacity: 0.8; box-shadow: 0 0 0 6px rgba(20, 184, 166, 0); }
+}
+
+.advisor-header-right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.header-chip {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  background: var(--bg-elevated);
+  color: var(--primary-dim);
+  white-space: nowrap;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.header-chip:hover {
+  background: var(--bg-surface);
+  border-color: var(--border-light);
+}
+
+.header-chip.active {
+  background: var(--accent-glow);
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Main Content — Two Panel Layout ── */
+.main-content {
+  display: flex;
+  height: calc(100vh - 22px - 56px - 110px - 56px);
+  min-height: 520px;
+}
+
+/* ── Left Panel — Conversation ── */
+.conversation-panel {
+  flex: 0 0 65%;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.conversation-history {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.conversation-history::-webkit-scrollbar {
+  width: 6px;
+}
+.conversation-history::-webkit-scrollbar-track {
+  background: transparent;
+}
+.conversation-history::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+.conversation-history::-webkit-scrollbar-thumb:hover {
+  background: var(--border-light);
+}
+
+/* ── AI Message ── */
+.ai-message {
+  display: flex;
+  gap: 12px;
+  max-width: 90%;
+  animation: message-in 0.3s ease-out;
+}
+
+@keyframes message-in {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.ai-message-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--accent-secondary), #6d28d9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.ai-message-avatar svg {
+  width: 16px;
+  height: 16px;
+  color: #fff;
+}
+
+.ai-message-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 10px;
+  border-radius: 12px;
+  background: rgba(139, 92, 246, 0.12);
+  border: 1px solid rgba(139, 92, 246, 0.25);
+  font-size: 0.68rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--accent-secondary);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 8px;
+}
+
+.ai-badge-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--accent-secondary);
+}
+
+.ai-text {
+  font-size: 0.92rem;
+  color: var(--primary);
+  line-height: 1.65;
+  margin-bottom: 12px;
+}
+
+.ai-text strong {
+  color: var(--primary);
+  font-weight: 600;
+}
+
+/* ── Signal Cards (Mini Pills) ── */
+.signal-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.signal-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 14px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  border: 1px solid;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.15s;
+}
+
+.signal-pill:hover {
+  transform: translateY(-1px);
+}
+
+.signal-pill.blue {
+  background: rgba(59, 130, 246, 0.08);
+  border-color: rgba(59, 130, 246, 0.25);
+  color: var(--accent);
+}
+.signal-pill.purple {
+  background: rgba(139, 92, 246, 0.08);
+  border-color: rgba(139, 92, 246, 0.25);
+  color: var(--accent-secondary);
+}
+.signal-pill.cyan {
+  background: rgba(6, 182, 212, 0.08);
+  border-color: rgba(6, 182, 212, 0.25);
+  color: var(--enrichment-cyan);
+}
+
+.signal-pill svg {
+  width: 14px;
+  height: 14px;
+  opacity: 0.7;
+}
+
+/* ── Trust Footer ── */
+.trust-footer {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--primary-dim);
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+.trust-source {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.trust-source-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.trust-source-dot.verified { background: var(--trust-verified); }
+.trust-source-dot.high { background: var(--trust-high); }
+.trust-source-dot.medium { background: var(--trust-medium); }
+
+.trust-separator {
+  color: var(--border-light);
+}
+
+.explore-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--accent);
+  font-weight: 500;
+  text-decoration: none;
+  margin-left: 4px;
+  transition: color 0.2s;
+  cursor: pointer;
+}
+
+.explore-link:hover {
+  color: #60a5fa;
+}
+
+.explore-link svg {
+  width: 12px;
+  height: 12px;
+}
+
+/* ── User Message ── */
+.user-message {
+  display: flex;
+  justify-content: flex-end;
+  animation: message-in 0.3s ease-out;
+}
+
+.user-bubble {
+  max-width: 65%;
+  padding: 14px 20px;
+  border-radius: 16px 16px 4px 16px;
+  background: var(--accent);
+  color: #fff;
+  font-size: 0.92rem;
+  line-height: 1.55;
+  font-weight: 500;
+}
+
+/* ── Inline Reasoning ── */
+.inline-reasoning {
+  margin-top: 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg-elevated);
+  overflow: hidden;
+}
+
+.reasoning-toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 10px 14px;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--primary-dim);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  width: 100%;
+  font-family: var(--font-sans);
+  transition: color 0.2s;
+}
+
+.reasoning-toggle:hover {
+  color: var(--primary);
+}
+
+.reasoning-toggle svg {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s;
+}
+
+.reasoning-toggle.expanded svg {
+  transform: rotate(90deg);
+}
+
+.reasoning-content {
+  padding: 0 14px 12px;
+  font-size: 0.82rem;
+  color: var(--primary-dim);
+  line-height: 1.6;
+  display: none;
+}
+
+.reasoning-content.visible {
+  display: block;
+}
+
+/* ── Confidence Footer ── */
+.confidence-footer {
+  margin-top: 10px;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: rgba(139, 92, 246, 0.06);
+  border: 1px solid rgba(139, 92, 246, 0.15);
+  font-size: 0.78rem;
+  color: var(--primary-dim);
+  font-family: var(--font-mono);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.confidence-value {
+  font-weight: 600;
+  color: var(--warning-amber);
+}
+
+.confidence-delta {
+  color: var(--risk-red);
+  font-size: 0.72rem;
+}
+
+/* ── Typing Indicator ── */
+.typing-indicator {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 0 4px;
+}
+
+.typing-dots {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: 16px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+}
+
+.typing-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--accent-secondary);
+  animation: typing-bounce 1.4s ease-in-out infinite;
+}
+
+.typing-dot:nth-child(2) { animation-delay: 0.2s; }
+.typing-dot:nth-child(3) { animation-delay: 0.4s; }
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { opacity: 0.3; transform: translateY(0); }
+  30% { opacity: 1; transform: translateY(-4px); }
+}
+
+.typing-label {
+  font-size: 0.75rem;
+  color: var(--primary-dim);
+  font-family: var(--font-mono);
+}
+
+/* ── Input Area ── */
+.input-area {
+  padding: 16px 32px 20px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 6px 6px 16px;
+  border-radius: 12px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.input-wrapper:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.input-field {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--primary);
+  font-family: var(--font-sans);
+  font-size: 0.9rem;
+  outline: none;
+  padding: 8px 0;
+}
+
+.input-field::placeholder {
+  color: var(--primary-dim);
+}
+
+.send-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 8px;
+  background: var(--accent);
+  border: none;
+  color: #fff;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.2s, transform 0.1s;
+  flex-shrink: 0;
+}
+
+.send-btn:hover {
+  background: #2563eb;
+}
+
+.send-btn:active {
+  transform: scale(0.96);
+}
+
+.send-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.input-helper {
+  margin-top: 8px;
+  font-size: 0.72rem;
+  color: var(--primary-dim);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.input-helper svg {
+  width: 13px;
+  height: 13px;
+  opacity: 0.5;
+}
+
+/* ── Right Panel — Context Sidebar ── */
+.context-panel {
+  flex: 0 0 35%;
+  background: var(--bg-deep);
+  overflow-y: auto;
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.context-panel::-webkit-scrollbar {
+  width: 4px;
+}
+.context-panel::-webkit-scrollbar-track {
+  background: transparent;
+}
+.context-panel::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 2px;
+}
+
+.sidebar-section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--primary-dim);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin-bottom: 12px;
+}
+
+/* ── Current Briefing Context Card ── */
+.context-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.context-card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.context-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--accent-glow);
+  border: 1px solid rgba(59, 130, 246, 0.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.context-card-icon svg {
+  width: 18px;
+  height: 18px;
+  color: var(--accent);
+}
+
+.context-card-label {
+  font-size: 0.68rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--primary-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.context-card-value {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.context-field-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.context-field {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 0.82rem;
+}
+
+.context-field-label {
+  color: var(--primary-dim);
+}
+
+.context-field-value {
+  font-weight: 600;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.verified-badge {
+  font-size: 0.62rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  padding: 2px 6px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.verified-badge.verified {
+  background: rgba(34, 197, 94, 0.1);
+  color: var(--trust-verified);
+}
+
+.verified-badge.estimated {
+  background: rgba(139, 149, 173, 0.1);
+  color: var(--primary-dim);
+}
+
+/* ── Trust Score ── */
+.trust-score-bar {
+  margin-top: 6px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.trust-score-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-surface);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.trust-score-fill {
+  height: 100%;
+  width: 74%;
+  background: linear-gradient(90deg, var(--trust-high), var(--trust-verified));
+  border-radius: 3px;
+  transition: width 0.6s ease;
+}
+
+.trust-score-label {
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-family: var(--font-mono);
+  color: var(--trust-high);
+  white-space: nowrap;
+}
+
+/* ── Related Accounts ── */
+.related-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.related-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.related-item:hover {
+  background: var(--bg-surface);
+  border-color: var(--border-light);
+}
+
+.related-item-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: 700;
+  font-size: 0.75rem;
+  color: var(--primary-dim);
+  flex-shrink: 0;
+}
+
+.related-item-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.related-item-name {
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--primary);
+}
+
+.related-item-detail {
+  font-size: 0.72rem;
+  color: var(--primary-dim);
+}
+
+.related-item-arrow {
+  color: var(--primary-dim);
+  flex-shrink: 0;
+}
+
+.related-item-arrow svg {
+  width: 14px;
+  height: 14px;
+}
+
+/* ── Data Freshness Panel ── */
+.freshness-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.freshness-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-radius: 8px;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  font-size: 0.8rem;
+}
+
+.freshness-item-left {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.freshness-item-label {
+  color: var(--primary);
+  font-weight: 500;
+}
+
+.freshness-item-value {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--primary-dim);
+}
+
+.freshness-check {
+  color: var(--trust-verified);
+  font-size: 0.85rem;
+}
+
+/* ── Component Annotation ── */
+.component-annotation {
+  padding: 16px 32px;
+  border-top: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.annotation-grid {
+  display: flex;
+  gap: 32px;
+  flex-wrap: wrap;
+}
+
+.annotation-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.annotation-group-label {
+  font-size: 0.65rem;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--primary-dim);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.annotation-group-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.annotation-tag {
+  padding: 3px 8px;
+  border-radius: 4px;
+  font-size: 0.68rem;
+  font-family: var(--font-mono);
+  font-weight: 500;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  color: var(--primary-dim);
+}
+
+.annotation-tag.organism {
+  border-color: rgba(59, 130, 246, 0.3);
+  color: var(--accent);
+  background: var(--accent-glow);
+}
+
+.annotation-tag.molecule {
+  border-color: rgba(139, 92, 246, 0.3);
+  color: var(--accent-secondary);
+  background: rgba(139, 92, 246, 0.08);
+}
+
+/* ── Responsive — Tablet ── */
+@media (max-width: 1024px) {
+  .nav-search {
+    width: 240px;
+  }
+
+  .advisor-header {
+    padding: 20px 24px 16px;
+  }
+
+  .main-content {
+    flex-direction: column;
+    height: auto;
+  }
+
+  .conversation-panel {
+    flex: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    min-height: 500px;
+  }
+
+  .context-panel {
+    flex: none;
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding: 20px 24px;
+  }
+
+  .context-panel > .sidebar-section-title {
+    width: 100%;
+  }
+
+  .context-card {
+    flex: 1;
+    min-width: 260px;
+  }
+
+  .related-list-container,
+  .freshness-list-container {
+    flex: 1;
+    min-width: 240px;
+  }
+
+  .conversation-history {
+    padding: 20px 24px;
+  }
+
+  .input-area {
+    padding: 16px 24px 20px;
+  }
+
+  .component-annotation {
+    padding: 16px 24px;
+  }
+}
+
+/* ── Responsive — Mobile ── */
+@media (max-width: 640px) {
+  html {
+    font-size: 13px;
+  }
+
+  .top-nav {
+    padding: 0 16px;
+    margin-top: 22px;
+  }
+
+  .nav-search {
+    display: none;
+  }
+
+  .nav-logo-text {
+    font-size: 0.9rem;
+  }
+
+  .advisor-header {
+    padding: 16px 16px 14px;
+  }
+
+  .advisor-header-row {
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  .advisor-title {
+    font-size: 1.2rem;
+  }
+
+  .advisor-subtitle {
+    font-size: 0.8rem;
+  }
+
+  .advisor-header-right {
+    overflow-x: auto;
+    width: 100%;
+    padding-bottom: 4px;
+  }
+
+  .conversation-history {
+    padding: 16px;
+    gap: 18px;
+  }
+
+  .ai-message {
+    max-width: 95%;
+  }
+
+  .user-message .user-bubble {
+    max-width: 85%;
+  }
+
+  .signal-pills {
+    flex-direction: column;
+  }
+
+  .input-area {
+    padding: 12px 16px 16px;
+  }
+
+  .context-panel {
+    padding: 16px;
+    flex-direction: column;
+  }
+
+  .context-card,
+  .related-list-container,
+  .freshness-list-container {
+    min-width: 100%;
+  }
+
+  .annotation-grid {
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .component-annotation {
+    padding: 12px 16px;
+  }
+
+  .trust-footer {
+    font-size: 0.7rem;
+  }
+}
+</style>
+</head>
+<body>
+
+<!-- Prototype Label -->
+<div class="prototype-label">MS6 Phase 3 — Reference Screen B</div>
+
+<!-- Top Navigation Bar -->
+<nav class="top-nav">
+  <a href="#" class="nav-logo">
+    <div class="nav-logo-icon">
+      <svg viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="8" cy="8" r="6"/>
+        <path d="M8 2 L8 8 L12 11"/>
+      </svg>
+    </div>
+    <div class="nav-logo-text">DeepMind<span>Q</span></div>
+  </a>
+
+  <div class="nav-search">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="7" cy="7" r="4.5"/>
+      <path d="M10.5 10.5 L14 14"/>
+    </svg>
+    <input type="text" placeholder="Search accounts, signals, intelligence...">
+  </div>
+
+  <div class="nav-actions">
+    <button class="nav-action-btn" title="Intelligence Hub">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 2 L10 10 L16 14"/>
+        <circle cx="10" cy="10" r="8"/>
+      </svg>
+    </button>
+    <button class="nav-action-btn" title="Notifications">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10 2 C13.5 2 16 4.5 16 8 L16 12 L18 14 L2 14 L4 12 L4 8 C4 4.5 6.5 2 10 2Z"/>
+        <path d="M8 14 L8 16 C8 17 9 18 10 18 C11 18 12 17 12 16 L12 14"/>
+      </svg>
+      <span class="nav-notification-dot"></span>
+    </button>
+    <button class="nav-action-btn" title="Settings">
+      <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="10" cy="10" r="2"/>
+        <path d="M10 2 L10 4 M10 16 L10 18 M2 10 L4 10 M16 10 L18 10 M4.2 4.2 L5.6 5.6 M14.4 14.4 L15.8 15.8 M15.8 4.2 L14.4 5.6 M5.6 14.4 L4.2 15.8"/>
+      </svg>
+    </button>
+    <div class="nav-avatar" title="Executive User">JK</div>
+  </div>
+</nav>
+
+<!-- AI Advisor Header -->
+<header class="advisor-header">
+  <div class="advisor-header-row">
+    <div class="advisor-header-left">
+      <h1 class="advisor-title">
+        <span class="advisor-title-icon">
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 2 C5 2 2 5 2 9 C2 11 3 13 4.5 14 L4.5 17 L8 15 L9 15 C13 15 16 12 16 9 C16 5 13 2 9 2Z"/>
+            <circle cx="6" cy="9" r="1" fill="currentColor"/>
+            <circle cx="9" cy="9" r="1" fill="currentColor"/>
+            <circle cx="12" cy="9" r="1" fill="currentColor"/>
+          </svg>
+        </span>
+        AI Advisor
+      </h1>
+      <p class="advisor-subtitle">Ask questions about your intelligence. The AI provides structured briefings, not casual conversation.</p>
+      <div class="advisor-status">
+        <span class="advisor-status-dot"></span>
+        Connected — Processing intelligence from 4 sources
+      </div>
+    </div>
+    <div class="advisor-header-right">
+      <span class="header-chip active">Acme Corp</span>
+      <span class="header-chip">New Briefing</span>
+      <span class="header-chip">History</span>
+    </div>
+  </div>
+</header>
+
+<!-- Main Content -->
+<div class="main-content">
+
+  <!-- Left Panel — Conversation -->
+  <div class="conversation-panel">
+    <div class="conversation-history">
+
+      <!-- AI Message 1 — Structured Briefing -->
+      <div class="ai-message">
+        <div class="ai-message-avatar">
+          <svg viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 1 L3 6 L3 14 L13 14 L13 6 Z"/>
+            <rect x="6" y="9" width="4" height="5" rx="0.5"/>
+          </svg>
+        </div>
+        <div class="ai-message-body">
+          <div class="ai-badge">
+            <span class="ai-badge-dot"></span>
+            AI ASSISTANT
+          </div>
+          <div class="ai-text">
+            <strong>Acme Corp shows 3 high-priority signals.</strong> Revenue growth of 23% suggests expansion timing. Leadership change indicates technology investment. <strong>Confidence: 78%.</strong>
+          </div>
+
+          <!-- Signal Pills -->
+          <div class="signal-pills">
+            <div class="signal-pill blue">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                <polyline points="1,10 5,6 9,8 13,2"/>
+              </svg>
+              Revenue Acceleration — 23% YoY
+            </div>
+            <div class="signal-pill purple">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                <circle cx="7" cy="5" r="3"/>
+                <path d="M4 13 L4 10 C4 8.5 5.5 7 7 7 C8.5 7 10 8.5 10 10 L10 13"/>
+              </svg>
+              CTO Appointment — Sarah Chen
+            </div>
+            <div class="signal-pill cyan">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                <circle cx="7" cy="7" r="5"/>
+                <path d="M7 4 L7 7.5 L10 9"/>
+              </svg>
+              Hiring Signals — 2 platform roles
+            </div>
+          </div>
+
+          <!-- Trust Footer -->
+          <div class="trust-footer">
+            <span class="trust-source">
+              <span class="trust-source-dot verified"></span>
+              SEC Filing (Verified)
+            </span>
+            <span class="trust-separator">·</span>
+            <span class="trust-source">
+              <span class="trust-source-dot verified"></span>
+              LinkedIn (Verified)
+            </span>
+            <span class="trust-separator">·</span>
+            <span class="trust-source">
+              <span class="trust-source-dot high"></span>
+              Greenhouse (High Confidence)
+            </span>
+            <span class="explore-link" id="exploreLink1" onclick="toggleExplore(this)">
+              Explore further
+              <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                <path d="M4 2 L9 6 L4 10"/>
+              </svg>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <!-- User Message 1 -->
+      <div class="user-message">
+        <div class="user-bubble">
+          What is the estimated procurement timeline?
+        </div>
+      </div>
+
+      <!-- AI Message 2 — Follow-up Refinement -->
+      <div class="ai-message">
+        <div class="ai-message-avatar">
+          <svg viewBox="0 0 16 16" fill="none" stroke="white" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8 1 L3 6 L3 14 L13 14 L13 6 Z"/>
+            <rect x="6" y="9" width="4" height="5" rx="0.5"/>
+          </svg>
+        </div>
+        <div class="ai-message-body">
+          <div class="ai-badge">
+            <span class="ai-badge-dot"></span>
+            AI ASSISTANT
+          </div>
+          <div class="ai-text">
+            <strong>Refined briefing based on your follow-up.</strong> The revenue growth is concentrated in Q2, suggesting a specific trigger event. Key change from previous: timeline narrowed from annual to Q2-specific.
+          </div>
+
+          <!-- Inline Reasoning (Expandable) -->
+          <div class="inline-reasoning" id="reasoningBlock">
+            <button class="reasoning-toggle" id="reasoningToggle" onclick="toggleReasoning()">
+              <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+                <path d="M4 2 L10 7 L4 12"/>
+              </svg>
+              View reasoning chain
+            </button>
+            <div class="reasoning-content" id="reasoningContent">
+              Based on quarterly filing analysis, Q2 growth of 31% (vs Q1's 16%) represents a step-function change rather than gradual acceleration. This pattern typically correlates with procurement decisions or product launches. The CTO appointment in mid-Q1 aligns with a 60-90 day technology assessment cycle, placing procurement activity in the Q2-Q3 window. Cross-referencing with job postings for "platform engineer" roles (posted 3 weeks ago) further supports an infrastructure investment hypothesis.
+            </div>
+          </div>
+
+          <!-- Confidence Footer -->
+          <div class="confidence-footer">
+            <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="width:14px;height:14px;flex-shrink:0;">
+              <circle cx="8" cy="8" r="6"/>
+              <path d="M8 4 L8 8.5 L11 10"/>
+            </svg>
+            Confidence: <span class="confidence-value">72%</span>
+            <span class="confidence-delta">(down from 78% — narrower timeframe increases estimation uncertainty)</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Typing Indicator -->
+      <div class="typing-indicator">
+        <div class="typing-dots">
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+          <span class="typing-dot"></span>
+        </div>
+        <span class="typing-label">Analyzing sources...</span>
+      </div>
+
+    </div>
+
+    <!-- Input Area -->
+    <div class="input-area">
+      <div class="input-wrapper">
+        <input type="text" class="input-field" placeholder="Ask about any account, market, or intelligence signal...">
+        <button class="send-btn" title="Send">
+          <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M2 9 L16 2 L16 16 Z"/>
+            <path d="M16 9 L2 16"/>
+          </svg>
+        </button>
+      </div>
+      <div class="input-helper">
+        <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <circle cx="7" cy="7" r="6"/>
+          <path d="M7 5 L7 7.5 L9 8.5"/>
+        </svg>
+        The AI provides structured briefings with confidence scores. All information requires your judgment.
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Panel — Context Sidebar -->
+  <div class="context-panel">
+
+    <!-- Current Briefing Context -->
+    <div>
+      <div class="sidebar-section-title">Current Briefing Context</div>
+      <div class="context-card">
+        <div class="context-card-header">
+          <div class="context-card-icon">
+            <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="3" width="14" height="12" rx="2"/>
+              <path d="M6 7 L6 11"/>
+              <path d="M9 6 L9 11"/>
+              <path d="M12 8 L12 11"/>
+            </svg>
+          </div>
+          <div>
+            <div class="context-card-label">Active Account</div>
+            <div class="context-card-value">Acme Corp</div>
+          </div>
+        </div>
+        <div class="context-field-list">
+          <div class="context-field">
+            <span class="context-field-label">Revenue</span>
+            <span class="context-field-value">$487M <span class="verified-badge verified">Verified</span></span>
+          </div>
+          <div class="context-field">
+            <span class="context-field-label">Employees</span>
+            <span class="context-field-value">2,340 <span class="verified-badge estimated">Estimated</span></span>
+          </div>
+          <div class="context-field">
+            <span class="context-field-label">Sector</span>
+            <span class="context-field-value">Enterprise SaaS</span>
+          </div>
+        </div>
+        <div class="context-field" style="margin-top:14px;">
+          <span class="context-field-label">Trust Score</span>
+        </div>
+        <div class="trust-score-bar">
+          <div class="trust-score-track">
+            <div class="trust-score-fill"></div>
+          </div>
+          <span class="trust-score-label">74/100 — High</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Related Accounts -->
+    <div class="related-list-container">
+      <div class="sidebar-section-title">Related Accounts</div>
+      <div class="related-list">
+        <div class="related-item">
+          <div class="related-item-avatar">NL</div>
+          <div class="related-item-content">
+            <div class="related-item-name">Nexus Ltd</div>
+            <div class="related-item-detail">Similar sector, 12% growth</div>
+          </div>
+          <div class="related-item-arrow">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <path d="M4 2 L10 7 L4 12"/>
+            </svg>
+          </div>
+        </div>
+        <div class="related-item">
+          <div class="related-item-avatar">TV</div>
+          <div class="related-item-content">
+            <div class="related-item-name">TechVenture Inc</div>
+            <div class="related-item-detail">Shared customer overlap</div>
+          </div>
+          <div class="related-item-arrow">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <path d="M4 2 L10 7 L4 12"/>
+            </svg>
+          </div>
+        </div>
+        <div class="related-item">
+          <div class="related-item-avatar">DF</div>
+          <div class="related-item-content">
+            <div class="related-item-name">DataFlow Inc</div>
+            <div class="related-item-detail">Competitive adjacency</div>
+          </div>
+          <div class="related-item-arrow">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+              <path d="M4 2 L10 7 L4 12"/>
+            </svg>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data Freshness -->
+    <div class="freshness-list-container">
+      <div class="sidebar-section-title">Data Freshness</div>
+      <div class="freshness-list">
+        <div class="freshness-item">
+          <div class="freshness-item-left">
+            <span class="freshness-item-label">Financial Data</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="freshness-item-value">3 days ago</span>
+            <span class="freshness-check">✓</span>
+          </div>
+        </div>
+        <div class="freshness-item">
+          <div class="freshness-item-left">
+            <span class="freshness-item-label">Leadership Data</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="freshness-item-value">7 weeks ago</span>
+            <span class="freshness-check">✓</span>
+          </div>
+        </div>
+        <div class="freshness-item">
+          <div class="freshness-item-left">
+            <span class="freshness-item-label">Web Signals</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="freshness-item-value">5 days ago</span>
+            <span class="freshness-check">✓</span>
+          </div>
+        </div>
+        <div class="freshness-item">
+          <div class="freshness-item-left">
+            <span class="freshness-item-label">CRM Activity</span>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span class="freshness-item-value">2 days ago</span>
+            <span class="freshness-check">✓</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- Component Annotation -->
+<div class="component-annotation">
+  <div class="annotation-grid">
+    <div class="annotation-group">
+      <span class="annotation-group-label">Organisms</span>
+      <div class="annotation-group-items">
+        <span class="annotation-tag organism">AIAdvisorExperience</span>
+      </div>
+    </div>
+    <div class="annotation-group">
+      <span class="annotation-group-label">Molecules</span>
+      <div class="annotation-group-items">
+        <span class="annotation-tag molecule">IntelligenceBriefing</span>
+        <span class="annotation-tag molecule">IntelligenceNarrative</span>
+        <span class="annotation-tag molecule">RecommendationCard</span>
+      </div>
+    </div>
+    <div class="annotation-group">
+      <span class="annotation-group-label">Atoms</span>
+      <div class="annotation-group-items">
+        <span class="annotation-tag">ConfidenceIndicator</span>
+        <span class="annotation-tag">EvidenceChain</span>
+        <span class="annotation-tag">InlineReasoning</span>
+        <span class="annotation-tag">StatusBadge</span>
+        <span class="annotation-tag">ActionCTA</span>
+        <span class="annotation-tag">FreshnessIndicator</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // Toggle inline reasoning expand/collapse
+  function toggleReasoning() {
+    var toggle = document.getElementById('reasoningToggle');
+    var content = document.getElementById('reasoningContent');
+    var isExpanded = content.classList.contains('visible');
+
+    if (isExpanded) {
+      content.classList.remove('visible');
+      toggle.classList.remove('expanded');
+      toggle.innerHTML = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="width:14px;height:14px;"><path d="M4 2 L10 7 L4 12"/></svg> View reasoning chain';
+    } else {
+      content.classList.add('visible');
+      toggle.classList.add('expanded');
+      toggle.innerHTML = '<svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="width:14px;height:14px;transform:rotate(90deg);"><path d="M4 2 L10 7 L4 12"/></svg> Hide reasoning chain';
+    }
+  }
+
+  // Simulate explore further link
+  function toggleExplore(el) {
+    el.style.color = '#60a5fa';
+    el.innerHTML = 'Loading related intelligence... <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="width:12px;height:12px;"><path d="M4 2 L9 6 L4 10"/></svg>';
+    setTimeout(function() {
+      el.innerHTML = 'Expanded — see sidebar for context <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="width:12px;height:12px;"><path d="M2 6 L10 6"/><path d="M6 2 L6 10"/></svg>';
+      el.style.color = 'var(--success-green)';
+    }, 1200);
+  }
+
+  // Send button interaction
+  document.querySelector('.send-btn').addEventListener('click', function() {
+    var input = document.querySelector('.input-field');
+    if (input.value.trim()) {
+      var history = document.querySelector('.conversation-history');
+      var typing = document.querySelector('.typing-indicator');
+
+      // Create user bubble
+      var userMsg = document.createElement('div');
+      userMsg.className = 'user-message';
+      userMsg.innerHTML = '<div class="user-bubble">' + input.value.trim() + '</div>';
+      history.insertBefore(userMsg, typing);
+
+      input.value = '';
+      history.scrollTop = history.scrollHeight;
+    }
+  });
+
+  // Enter key sends
+  document.querySelector('.input-field').addEventListener('keydown', function(e) {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      document.querySelector('.send-btn').click();
+    }
+  });
+</script>
+
+</body>
+</html>

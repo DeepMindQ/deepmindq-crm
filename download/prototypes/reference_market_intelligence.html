@@ -1,0 +1,915 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Market Intelligence — DeepMindQ CRM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ── MS6 Phase 3 — Reference Screen D ── */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg-deep: #060810;
+    --bg: #0a0d14;
+    --bg-elevated: #111520;
+    --bg-card: #161c2a;
+    --bg-surface: #1c2336;
+    --border: #252e42;
+    --border-light: #2d3854;
+    --primary: #e8ecf4;
+    --primary-dim: #8b95ad;
+    --accent: #3b82f6;
+    --accent-glow: rgba(59,130,246,0.15);
+    --accent-secondary: #8b5cf6;
+    --risk-red: #ef4444;
+    --success-green: #22c55e;
+    --warning-amber: #f59e0b;
+    --enrichment-cyan: #06b6d4;
+    --trust-verified: #22c55e;
+    --trust-high: #14b8a6;
+    --trust-medium: #f59e0b;
+    --trust-low: #f97316;
+    --trust-unverified: #6b7280;
+    --font-sans: 'Inter', system-ui, sans-serif;
+    --font-mono: 'JetBrains Mono', monospace;
+  }
+
+  html { font-size: 14px; }
+  body {
+    font-family: var(--font-sans);
+    background: var(--bg-deep);
+    color: var(--primary);
+    min-height: 100vh;
+    line-height: 1.6;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* ── Prototype Banner ── */
+  .prototype-banner {
+    background: linear-gradient(90deg, var(--accent-secondary), var(--accent));
+    color: #fff;
+    text-align: center;
+    padding: 6px 16px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+  }
+
+  /* ── Top Nav ── */
+  .top-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 32px;
+    background: rgba(10,13,20,0.85);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border-bottom: 1px solid var(--border);
+    position: sticky;
+    top: 28px;
+    z-index: 999;
+  }
+  .nav-left { display: flex; align-items: center; gap: 24px; }
+  .nav-logo {
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 800; font-size: 16px; letter-spacing: -0.02em;
+  }
+  .nav-logo svg { flex-shrink: 0; }
+  .nav-logo span { color: var(--accent); }
+  .nav-links { display: flex; gap: 4px; }
+  .nav-links a {
+    color: var(--primary-dim); text-decoration: none; padding: 6px 12px;
+    border-radius: 6px; font-size: 12px; font-weight: 500;
+    transition: background 200ms ease-out, color 200ms ease-out;
+  }
+  .nav-links a:hover { background: var(--bg-elevated); color: var(--primary); }
+  .nav-links a.active { color: var(--primary); background: var(--bg-elevated); }
+
+  .nav-center { flex: 1; max-width: 400px; margin: 0 24px; }
+  .nav-search {
+    display: flex; align-items: center; gap: 8px;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    border-radius: 8px; padding: 7px 14px; width: 100%;
+    transition: border-color 200ms ease-out;
+  }
+  .nav-search:focus-within { border-color: var(--accent); }
+  .nav-search input {
+    background: none; border: none; outline: none; color: var(--primary);
+    font-family: var(--font-sans); font-size: 12px; width: 100%;
+  }
+  .nav-search input::placeholder { color: var(--primary-dim); }
+  .nav-search svg { color: var(--primary-dim); flex-shrink: 0; }
+  .nav-search kbd {
+    font-family: var(--font-mono); font-size: 10px; color: var(--primary-dim);
+    background: var(--bg-surface); padding: 1px 5px; border-radius: 4px;
+    border: 1px solid var(--border);
+  }
+
+  .nav-right { display: flex; align-items: center; gap: 12px; }
+  .nav-icon-btn {
+    width: 34px; height: 34px; border-radius: 8px; border: 1px solid var(--border);
+    background: var(--bg-elevated); color: var(--primary-dim);
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; transition: all 200ms ease-out; position: relative;
+  }
+  .nav-icon-btn:hover { border-color: var(--border-light); color: var(--primary); }
+  .nav-icon-btn .badge {
+    position: absolute; top: -3px; right: -3px; width: 14px; height: 14px;
+    background: var(--accent); border-radius: 50%; font-size: 8px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center; color: #fff;
+  }
+  .nav-avatar {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 700; color: #fff; cursor: pointer;
+  }
+
+  /* ── Page Container ── */
+  .page-container {
+    max-width: 1280px;
+    margin: 0 auto;
+    padding: 24px 32px 48px;
+  }
+
+  /* ── Glass Card ── */
+  .glass-card {
+    background: rgba(22, 28, 42, 0.55);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+    transition: border-color 200ms ease-out;
+  }
+  .glass-card:hover { border-color: var(--border-light); }
+
+  /* ── Market Header ── */
+  .market-header {
+    background: rgba(22, 28, 42, 0.55);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 28px 32px;
+    margin-bottom: 20px;
+  }
+  .market-header h1 {
+    font-size: 26px; font-weight: 800; letter-spacing: -0.03em;
+    color: var(--primary); margin-bottom: 4px;
+  }
+  .market-header .subtitle {
+    font-size: 13px; color: var(--primary-dim); margin-bottom: 20px;
+  }
+  .header-meta {
+    display: flex; align-items: center; justify-content: space-between;
+    flex-wrap: wrap; gap: 12px;
+  }
+  .filter-pills { display: flex; gap: 6px; flex-wrap: wrap; }
+  .filter-pill {
+    padding: 6px 14px; border-radius: 20px; font-size: 12px; font-weight: 500;
+    border: 1px solid var(--border); background: var(--bg-elevated);
+    color: var(--primary-dim); cursor: pointer;
+    transition: all 200ms ease-out;
+  }
+  .filter-pill:hover { border-color: var(--border-light); color: var(--primary); }
+  .filter-pill.active {
+    background: var(--accent); border-color: var(--accent);
+    color: #fff; font-weight: 600;
+  }
+  .filter-pill .count {
+    display: inline-block; margin-left: 4px; font-family: var(--font-mono);
+    font-size: 11px; opacity: 0.8;
+  }
+  .freshness-indicator {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 11px; color: var(--primary-dim); font-family: var(--font-mono);
+  }
+  .freshness-dot {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--success-green);
+    animation: pulse-dot 2s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── Stats Row ── */
+  .stats-row {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  .stat-card {
+    background: rgba(22, 28, 42, 0.55);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 20px;
+    transition: border-color 200ms ease-out;
+  }
+  .stat-card:hover { border-color: var(--border-light); }
+  .stat-label {
+    font-size: 11px; font-weight: 500; text-transform: uppercase;
+    letter-spacing: 0.06em; color: var(--primary-dim); margin-bottom: 8px;
+  }
+  .stat-value {
+    font-family: var(--font-mono); font-size: 28px; font-weight: 600;
+    color: var(--primary); letter-spacing: -0.02em;
+  }
+  .stat-value.purple { color: var(--accent-secondary); }
+  .stat-sub {
+    font-size: 11px; color: var(--primary-dim); margin-top: 4px;
+    font-family: var(--font-mono);
+  }
+
+  /* ── Content Grid ── */
+  .content-grid {
+    display: grid;
+    grid-template-columns: 55% 45%;
+    gap: 16px;
+    margin-bottom: 32px;
+  }
+
+  /* ── Card Headers ── */
+  .card-header {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 16px;
+  }
+  .card-title {
+    font-size: 15px; font-weight: 700; color: var(--primary);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .card-title svg { color: var(--accent); }
+  .card-icon {
+    width: 28px; height: 28px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center;
+  }
+
+  /* ── Signals Summary ── */
+  .signals-narrative {
+    font-size: 13px; line-height: 1.75; color: var(--primary-dim);
+  }
+  .signals-narrative .highlight {
+    font-family: var(--font-mono); font-weight: 500;
+    color: var(--primary); font-size: 12px;
+  }
+  .trust-inline {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-left: 2px; vertical-align: middle;
+  }
+  .trust-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    display: inline-block;
+  }
+
+  /* ── Opportunity Accounts ── */
+  .account-list { display: flex; flex-direction: column; gap: 2px; }
+  .account-row {
+    display: flex; align-items: center; gap: 14px;
+    padding: 12px 14px; border-radius: 8px;
+    border: 1px solid transparent;
+    transition: all 200ms ease-out; cursor: pointer;
+  }
+  .account-row:hover {
+    background: rgba(59,130,246,0.04);
+    border-color: var(--accent);
+  }
+  .account-rank {
+    font-family: var(--font-mono); font-size: 12px; font-weight: 600;
+    color: var(--primary-dim); width: 20px; text-align: center;
+  }
+  .account-info { flex: 1; min-width: 0; }
+  .account-name {
+    font-size: 13px; font-weight: 600; color: var(--primary);
+    margin-bottom: 2px;
+  }
+  .account-signals {
+    font-size: 11px; color: var(--primary-dim);
+  }
+  .account-signals .mono {
+    font-family: var(--font-mono); color: var(--accent); font-weight: 500;
+  }
+  .account-meta { text-align: right; flex-shrink: 0; }
+  .confidence-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 4px;
+  }
+  .confidence-label {
+    font-family: var(--font-mono); font-size: 11px; color: var(--primary-dim);
+  }
+  .confidence-bar-wrap {
+    width: 60px; height: 4px; background: var(--bg-deep);
+    border-radius: 2px; overflow: hidden;
+  }
+  .confidence-bar-fill {
+    height: 100%; border-radius: 2px;
+    transition: width 600ms ease-out;
+  }
+  .priority-badge {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 2px 8px; border-radius: 4px;
+    display: inline-block;
+  }
+  .priority-badge.high { background: rgba(239,68,68,0.15); color: var(--risk-red); }
+  .priority-badge.medium { background: rgba(245,158,11,0.15); color: var(--warning-amber); }
+  .account-link {
+    font-size: 11px; color: var(--accent); text-decoration: none;
+    font-weight: 500; transition: opacity 200ms ease-out;
+  }
+  .account-link:hover { opacity: 0.8; }
+
+  /* ── AI Assessment ── */
+  .ai-card {
+    background: rgba(22, 28, 42, 0.55);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid var(--accent-secondary);
+    border-radius: 12px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+  }
+  .ai-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 1px;
+    background: linear-gradient(90deg, transparent, var(--accent-secondary), transparent);
+  }
+  .ai-badge {
+    display: inline-flex; align-items: center; gap: 5px;
+    background: rgba(139,92,246,0.15);
+    border: 1px solid rgba(139,92,246,0.3);
+    padding: 4px 10px; border-radius: 6px;
+    font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+    text-transform: uppercase; color: var(--accent-secondary);
+    margin-bottom: 14px;
+  }
+  .ai-badge svg { width: 12px; height: 12px; }
+  .ai-text {
+    font-size: 13px; line-height: 1.75; color: var(--primary-dim);
+    margin-bottom: 16px;
+  }
+  .ai-confidence-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .ai-confidence-bar-wrap {
+    flex: 1; height: 6px; background: var(--bg-deep);
+    border-radius: 3px; overflow: hidden;
+  }
+  .ai-confidence-bar-fill {
+    height: 100%; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent-secondary), #a78bfa);
+    transition: width 600ms ease-out;
+  }
+  .ai-confidence-label {
+    font-family: var(--font-mono); font-size: 12px;
+    font-weight: 600; color: var(--accent-secondary);
+  }
+  .ai-disclaimer {
+    font-size: 11px; color: var(--primary-dim);
+    font-style: italic; padding-top: 12px;
+    border-top: 1px solid var(--border);
+    display: flex; align-items: flex-start; gap: 6px;
+  }
+  .ai-disclaimer svg { flex-shrink: 0; margin-top: 1px; }
+
+  /* ── Sector Trends ── */
+  .trend-list { display: flex; flex-direction: column; gap: 12px; }
+  .trend-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 14px; background: var(--bg-elevated);
+    border-radius: 8px; border: 1px solid var(--border);
+    transition: border-color 200ms ease-out;
+  }
+  .trend-item:hover { border-color: var(--border-light); }
+  .trend-icon {
+    width: 32px; height: 32px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .trend-icon.up { background: rgba(34,197,94,0.12); color: var(--success-green); }
+  .trend-icon.stable { background: rgba(245,158,11,0.12); color: var(--warning-amber); }
+  .trend-icon.down { background: rgba(239,68,68,0.12); color: var(--risk-red); }
+  .trend-details { flex: 1; }
+  .trend-name { font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 2px; }
+  .trend-value {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+  }
+  .trend-value.up { color: var(--success-green); }
+  .trend-value.stable { color: var(--warning-amber); }
+  .trend-value.down { color: var(--risk-red); }
+  .trend-sparkline {
+    width: 56px; height: 24px; flex-shrink: 0; position: relative;
+  }
+
+  /* ── Risk Indicators ── */
+  .risk-list { display: flex; flex-direction: column; gap: 10px; }
+  .risk-item {
+    display: flex; align-items: center; gap: 12px;
+    padding: 14px; background: var(--bg-elevated);
+    border-radius: 8px; border: 1px solid var(--border);
+    transition: border-color 200ms ease-out;
+  }
+  .risk-item:hover { border-color: var(--border-light); }
+  .risk-icon {
+    width: 32px; height: 32px; border-radius: 7px;
+    display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+  }
+  .risk-icon.medium { background: rgba(245,158,11,0.12); color: var(--warning-amber); }
+  .risk-icon.low { background: rgba(249,115,22,0.12); color: var(--trust-low); }
+  .risk-info { flex: 1; min-width: 0; }
+  .risk-text {
+    font-size: 12px; font-weight: 600; color: var(--primary); margin-bottom: 3px;
+  }
+  .risk-level-badge {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.04em; padding: 2px 8px; border-radius: 4px;
+    display: inline-block;
+  }
+  .risk-level-badge.medium { background: rgba(245,158,11,0.15); color: var(--warning-amber); }
+  .risk-level-badge.low { background: rgba(249,115,22,0.15); color: var(--trust-low); }
+  .risk-action {
+    font-size: 11px; color: var(--accent); text-decoration: none;
+    font-weight: 500; white-space: nowrap;
+    transition: opacity 200ms ease-out;
+  }
+  .risk-action:hover { opacity: 0.8; }
+
+  /* ── Component Annotation ── */
+  .annotation-section {
+    margin-top: 40px;
+    padding: 24px;
+    border: 1px dashed var(--border-light);
+    border-radius: 12px;
+    background: rgba(22,28,42,0.3);
+  }
+  .annotation-title {
+    font-size: 11px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.1em; color: var(--primary-dim);
+    margin-bottom: 16px; display: flex; align-items: center; gap: 6px;
+  }
+  .annotation-group { margin-bottom: 14px; }
+  .annotation-group:last-child { margin-bottom: 0; }
+  .annotation-group-label {
+    font-size: 10px; font-weight: 700; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--accent); margin-bottom: 6px;
+  }
+  .annotation-tags { display: flex; flex-wrap: wrap; gap: 6px; }
+  .annotation-tag {
+    font-family: var(--font-mono); font-size: 11px; font-weight: 500;
+    padding: 4px 10px; border-radius: 5px;
+    background: var(--bg-elevated); border: 1px solid var(--border);
+    color: var(--primary-dim);
+  }
+
+  /* ── Responsive: Tablet ── */
+  @media (max-width: 1024px) {
+    .page-container { padding: 20px 20px 40px; }
+    .top-nav { padding: 10px 20px; }
+    .nav-center { max-width: 300px; }
+    .nav-links { display: none; }
+    .market-header { padding: 22px 24px; }
+    .market-header h1 { font-size: 22px; }
+    .stats-row { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .content-grid { grid-template-columns: 1fr; gap: 14px; }
+  }
+
+  /* ── Responsive: Mobile ── */
+  @media (max-width: 640px) {
+    html { font-size: 13px; }
+    .page-container { padding: 14px 12px 32px; }
+    .top-nav { padding: 8px 12px; top: 26px; }
+    .nav-center { margin: 0 12px; }
+    .nav-search kbd { display: none; }
+    .nav-logo { font-size: 14px; }
+    .market-header { padding: 18px 16px; }
+    .market-header h1 { font-size: 18px; }
+    .header-meta { flex-direction: column; align-items: flex-start; }
+    .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+    .stat-card { padding: 14px; }
+    .stat-value { font-size: 22px; }
+    .glass-card, .ai-card { padding: 16px; }
+    .account-row { flex-wrap: wrap; gap: 8px; padding: 10px 12px; }
+    .account-meta { text-align: left; }
+    .annotation-tags { gap: 4px; }
+    .annotation-tag { font-size: 10px; padding: 3px 7px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Prototype Banner -->
+<div class="prototype-banner">MS6 Phase 3 — Reference Screen D</div>
+
+<!-- Top Nav -->
+<nav class="top-nav">
+  <div class="nav-left">
+    <div class="nav-logo">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none">
+        <path d="M12 2L2 7l10 5 10-5-10-5z" fill="var(--accent)"/>
+        <path d="M2 17l10 5 10-5" stroke="var(--accent-secondary)" stroke-width="2" fill="none"/>
+        <path d="M2 12l10 5 10-5" stroke="var(--accent)" stroke-width="2" fill="none"/>
+      </svg>
+      Deep<span>MindQ</span>
+    </div>
+    <div class="nav-links">
+      <a href="#">Dashboard</a>
+      <a href="#" class="active">Intelligence</a>
+      <a href="#">Accounts</a>
+      <a href="#">Pipelines</a>
+      <a href="#">Settings</a>
+    </div>
+  </div>
+  <div class="nav-center">
+    <div class="nav-search">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+      <input type="text" placeholder="Search companies, signals, insights...">
+      <kbd>⌘K</kbd>
+    </div>
+  </div>
+  <div class="nav-right">
+    <button class="nav-icon-btn" title="Notifications">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+      <span class="badge">3</span>
+    </button>
+    <button class="nav-icon-btn" title="Commands">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </button>
+    <div class="nav-avatar">JD</div>
+  </div>
+</nav>
+
+<div class="page-container">
+
+  <!-- Market Header -->
+  <div class="market-header">
+    <h1>Market Intelligence — Enterprise SaaS</h1>
+    <p class="subtitle">Sector analysis across 47 monitored companies in Enterprise SaaS</p>
+    <div class="header-meta">
+      <div class="filter-pills">
+        <div class="filter-pill active">All Companies</div>
+        <div class="filter-pill">High Priority <span class="count">12</span></div>
+        <div class="filter-pill">Opportunities <span class="count">8</span></div>
+        <div class="filter-pill">At Risk <span class="count">3</span></div>
+      </div>
+      <div class="freshness-indicator">
+        <span class="freshness-dot"></span>
+        Last updated: 4 hours ago
+      </div>
+    </div>
+  </div>
+
+  <!-- Stats Row -->
+  <div class="stats-row">
+    <div class="stat-card">
+      <div class="stat-label">Monitored Companies</div>
+      <div class="stat-value">47</div>
+      <div class="stat-sub">Enterprise SaaS sector</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Active Signals</div>
+      <div class="stat-value">18</div>
+      <div class="stat-sub">↑ 6 from last week</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">AI Opportunities</div>
+      <div class="stat-value purple">8</div>
+      <div class="stat-sub">AI-identified</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Avg. Confidence</div>
+      <div class="stat-value">71<span style="font-size:18px;color:var(--primary-dim)">%</span></div>
+      <div class="stat-sub">Across all signals</div>
+    </div>
+  </div>
+
+  <!-- Main Content Grid -->
+  <div class="content-grid">
+
+    <!-- Left Column -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <!-- Market Signals Summary -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>
+            Market Signals Summary
+          </div>
+        </div>
+        <div class="signals-narrative">
+          Enterprise SaaS sector shows
+          <span class="highlight">18 active intelligence signals
+            <span class="trust-inline"><span class="trust-dot" style="background:var(--trust-verified)"></span></span>
+          </span>
+          across <span class="highlight">47 monitored companies
+            <span class="trust-inline"><span class="trust-dot" style="background:var(--trust-verified)"></span></span>
+          </span>.
+          Revenue acceleration detected in
+          <span class="highlight">8 companies
+            <span class="trust-inline"><span class="trust-dot" style="background:var(--trust-high)"></span></span>
+          </span>,
+          leadership changes in
+          <span class="highlight">4
+            <span class="trust-inline"><span class="trust-dot" style="background:var(--trust-medium)"></span></span>
+          </span>,
+          and hiring expansion in
+          <span class="highlight">6
+            <span class="trust-inline"><span class="trust-dot" style="background:var(--trust-verified)"></span></span>
+          </span>.
+          Three companies show converging signals suggesting procurement timing
+          <span class="highlight">— 90-120 day window
+            <span class="trust-inline"><span class="trust-dot" style="background:var(--trust-medium)"></span></span>
+          </span>.
+        </div>
+      </div>
+
+      <!-- Top Opportunity Accounts -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 20V10"/><path d="M18 20V4"/><path d="M6 20v-4"/></svg>
+            Top Opportunity Accounts
+          </div>
+          <a class="account-link" href="#">View All →</a>
+        </div>
+        <div class="account-list">
+
+          <!-- Account 1 -->
+          <div class="account-row">
+            <div class="account-rank">1</div>
+            <div class="account-info">
+              <div class="account-name">Acme Corp</div>
+              <div class="account-signals"><span class="mono">3 signals</span> converging</div>
+            </div>
+            <div class="account-meta">
+              <div class="confidence-row">
+                <span class="confidence-label">78%</span>
+                <div class="confidence-bar-wrap">
+                  <div class="confidence-bar-fill" style="width:78%;background:var(--trust-high)"></div>
+                </div>
+              </div>
+              <div><span class="priority-badge high">High Priority</span></div>
+            </div>
+            <a class="account-link" href="#">View Account →</a>
+          </div>
+
+          <!-- Account 2 -->
+          <div class="account-row">
+            <div class="account-rank">2</div>
+            <div class="account-info">
+              <div class="account-name">Nexus Ltd</div>
+              <div class="account-signals"><span class="mono">Revenue accel.</span> + hiring</div>
+            </div>
+            <div class="account-meta">
+              <div class="confidence-row">
+                <span class="confidence-label">72%</span>
+                <div class="confidence-bar-wrap">
+                  <div class="confidence-bar-fill" style="width:72%;background:var(--trust-high)"></div>
+                </div>
+              </div>
+              <div><span class="priority-badge high">High Priority</span></div>
+            </div>
+            <a class="account-link" href="#">View Account →</a>
+          </div>
+
+          <!-- Account 3 -->
+          <div class="account-row">
+            <div class="account-rank">3</div>
+            <div class="account-info">
+              <div class="account-name">TechVenture Inc</div>
+              <div class="account-signals"><span class="mono">Renewal</span> approaching</div>
+            </div>
+            <div class="account-meta">
+              <div class="confidence-row">
+                <span class="confidence-label">85%</span>
+                <div class="confidence-bar-wrap">
+                  <div class="confidence-bar-fill" style="width:85%;background:var(--trust-verified)"></div>
+                </div>
+              </div>
+              <div><span class="priority-badge medium">Medium</span></div>
+            </div>
+            <a class="account-link" href="#">View Account →</a>
+          </div>
+
+          <!-- Account 4 -->
+          <div class="account-row">
+            <div class="account-rank">4</div>
+            <div class="account-info">
+              <div class="account-name">DataFlow Inc</div>
+              <div class="account-signals"><span class="mono">Competitive</span> expansion</div>
+            </div>
+            <div class="account-meta">
+              <div class="confidence-row">
+                <span class="confidence-label">68%</span>
+                <div class="confidence-bar-wrap">
+                  <div class="confidence-bar-fill" style="width:68%;background:var(--trust-medium)"></div>
+                </div>
+              </div>
+              <div><span class="priority-badge medium">Medium</span></div>
+            </div>
+            <a class="account-link" href="#">View Account →</a>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Right Column -->
+    <div style="display:flex;flex-direction:column;gap:16px;">
+
+      <!-- AI Market Assessment -->
+      <div class="ai-card">
+        <div class="ai-badge">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 2a4 4 0 0 1 4 4v2H8V6a4 4 0 0 1 4-4z"/><rect x="3" y="8" width="18" height="12" rx="2"/><circle cx="12" cy="14" r="2"/></svg>
+          AI MARKET ANALYSIS
+        </div>
+        <p class="ai-text">
+          Enterprise SaaS sector is in an <strong style="color:var(--accent-secondary)">expansion phase</strong>.
+          <span class="highlight" style="font-family:var(--font-mono);color:var(--accent-secondary);font-size:12px">17%</span>
+          of monitored companies show concurrent revenue acceleration and hiring signals, up from
+          <span class="highlight" style="font-family:var(--font-mono);color:var(--accent-secondary);font-size:12px">8%</span>
+          last quarter. This pattern historically precedes a 90–120 day procurement wave.
+        </p>
+        <div class="ai-confidence-row">
+          <span class="ai-confidence-label">Confidence: 74%</span>
+          <div class="ai-confidence-bar-wrap">
+            <div class="ai-confidence-bar-fill" style="width:74%"></div>
+          </div>
+        </div>
+        <div class="ai-disclaimer">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent-secondary)" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+          AI-identified trend. Correlate with direct account intelligence before acting.
+        </div>
+      </div>
+
+      <!-- Sector Trends -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+            Sector Trends
+          </div>
+        </div>
+        <div class="trend-list">
+
+          <!-- Trend 1: Revenue Growth Up -->
+          <div class="trend-item">
+            <div class="trend-icon up">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+            </div>
+            <div class="trend-details">
+              <div class="trend-name">Revenue Growth</div>
+              <div class="trend-value up">Up 12% QoQ</div>
+            </div>
+            <div class="trend-sparkline">
+              <svg width="56" height="24" viewBox="0 0 56 24" fill="none">
+                <polyline points="2,20 12,16 22,14 32,12 42,8 52,4" stroke="var(--success-green)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <linearGradient id="gUp" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--success-green)" stop-opacity="0.2"/><stop offset="100%" stop-color="var(--success-green)" stop-opacity="0"/></linearGradient>
+                <polygon points="2,20 12,16 22,14 32,12 42,8 52,4 52,24 2,24" fill="url(#gUp)"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Trend 2: Technology Investment Up -->
+          <div class="trend-item">
+            <div class="trend-icon up">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/></svg>
+            </div>
+            <div class="trend-details">
+              <div class="trend-name">Technology Investment</div>
+              <div class="trend-value up">Up 23% QoQ</div>
+            </div>
+            <div class="trend-sparkline">
+              <svg width="56" height="24" viewBox="0 0 56 24" fill="none">
+                <polyline points="2,22 12,18 22,14 32,10 42,6 52,2" stroke="var(--success-green)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <linearGradient id="gUp2" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--success-green)" stop-opacity="0.2"/><stop offset="100%" stop-color="var(--success-green)" stop-opacity="0"/></linearGradient>
+                <polygon points="2,22 12,18 22,14 32,10 42,6 52,2 52,24 2,24" fill="url(#gUp2)"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Trend 3: Leadership Changes Stable -->
+          <div class="trend-item">
+            <div class="trend-icon stable">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </div>
+            <div class="trend-details">
+              <div class="trend-name">Leadership Changes</div>
+              <div class="trend-value stable">Stable</div>
+            </div>
+            <div class="trend-sparkline">
+              <svg width="56" height="24" viewBox="0 0 56 24" fill="none">
+                <polyline points="2,12 12,10 22,14 32,11 42,13 52,12" stroke="var(--warning-amber)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <linearGradient id="gStable" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--warning-amber)" stop-opacity="0.15"/><stop offset="100%" stop-color="var(--warning-amber)" stop-opacity="0"/></linearGradient>
+                <polygon points="2,12 12,10 22,14 32,11 42,13 52,12 52,24 2,24" fill="url(#gStable)"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Trend 4: Competitive Activity Down -->
+          <div class="trend-item">
+            <div class="trend-icon down">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/></svg>
+            </div>
+            <div class="trend-details">
+              <div class="trend-name">Competitive Activity</div>
+              <div class="trend-value down">Down 5% QoQ</div>
+            </div>
+            <div class="trend-sparkline">
+              <svg width="56" height="24" viewBox="0 0 56 24" fill="none">
+                <polyline points="2,4 12,6 22,8 32,12 42,16 52,20" stroke="var(--risk-red)" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+                <linearGradient id="gDown" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="var(--risk-red)" stop-opacity="0.15"/><stop offset="100%" stop-color="var(--risk-red)" stop-opacity="0"/></linearGradient>
+                <polygon points="2,4 12,6 22,8 32,12 42,16 52,20 52,24 2,24" fill="url(#gDown)"/>
+              </svg>
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- Sector Risk Indicators -->
+      <div class="glass-card">
+        <div class="card-header">
+          <div class="card-title">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
+            Sector Risk Indicators
+          </div>
+        </div>
+        <div class="risk-list">
+
+          <div class="risk-item">
+            <div class="risk-icon medium">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            </div>
+            <div class="risk-info">
+              <div class="risk-text">Vertex AI entering Enterprise SaaS</div>
+              <span class="risk-level-badge medium">Risk Level: Medium</span>
+            </div>
+            <a class="risk-action" href="#">Monitor →</a>
+          </div>
+
+          <div class="risk-item">
+            <div class="risk-icon low">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            </div>
+            <div class="risk-info">
+              <div class="risk-text">3 companies showing declining engagement</div>
+              <span class="risk-level-badge low">Risk Level: Low</span>
+            </div>
+            <a class="risk-action" href="#">Monitor →</a>
+          </div>
+
+        </div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Component Annotation -->
+  <div class="annotation-section">
+    <div class="annotation-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--primary-dim)" stroke-width="2" stroke-linecap="round"><path d="M16 18l6-6-6-6"/><path d="M8 6l-6 6 6 6"/></svg>
+      Component Architecture — Design System Reference
+    </div>
+    <div class="annotation-group">
+      <div class="annotation-group-label">Organisms</div>
+      <div class="annotation-tags">
+        <span class="annotation-tag">MarketIntelligenceView</span>
+        <span class="annotation-tag">IntelligenceHub</span>
+      </div>
+    </div>
+    <div class="annotation-group">
+      <div class="annotation-group-label">Molecules</div>
+      <div class="annotation-tags">
+        <span class="annotation-tag">IntelligenceNarrative</span>
+        <span class="annotation-tag">RecommendationCard</span>
+        <span class="annotation-tag">IntelligenceBriefing</span>
+      </div>
+    </div>
+    <div class="annotation-group">
+      <div class="annotation-group-label">Atoms</div>
+      <div class="annotation-tags">
+        <span class="annotation-tag">ConfidenceIndicator</span>
+        <span class="annotation-tag">FreshnessIndicator</span>
+        <span class="annotation-tag">EvidenceChain</span>
+        <span class="annotation-tag">StatusBadge</span>
+        <span class="annotation-tag">ActionCTA</span>
+        <span class="annotation-tag">InlineReasoning</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+</body>
+</html>

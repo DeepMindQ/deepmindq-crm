@@ -1,0 +1,867 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DeepMindQ — Intelligence Hub</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #060810;
+  --bg: #0a0d14;
+  --bg-elevated: #111520;
+  --bg-card: #161c2a;
+  --bg-surface: #1c2336;
+  --border: #252e42;
+  --border-light: #2d3854;
+  --primary: #e8ecf4;
+  --primary-dim: #8b95ad;
+  --accent: #3b82f6;
+  --accent-glow: rgba(59,130,246,0.15);
+  --accent-secondary: #8b5cf6;
+  --risk-red: #ef4444;
+  --success-green: #22c55e;
+  --warning-amber: #f59e0b;
+  --enrichment-cyan: #06b6d4;
+  --trust-verified: #22c55e;
+  --trust-high: #14b8a6;
+  --trust-medium: #f59e0b;
+  --trust-low: #f97316;
+  --trust-unverified: #6b7280;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  background: var(--bg);
+  color: var(--primary);
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+}
+
+/* === SCROLLBAR === */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg-deep); }
+::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+/* === PROTOTYPE LABEL === */
+.proto-label {
+  background: var(--bg-deep);
+  border-bottom: 1px solid var(--border);
+  padding: 6px 24px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--primary-dim);
+  letter-spacing: 0.04em;
+  text-align: center;
+}
+
+/* === TOP NAV === */
+.top-nav {
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+  padding: 0 32px;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+.nav-logo {
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--primary);
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.nav-logo .q { color: var(--accent); }
+.nav-logo svg { margin-right: 8px; }
+.nav-center {
+  flex: 1;
+  max-width: 400px;
+  margin: 0 32px;
+}
+.nav-search {
+  width: 100%;
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 12px 8px 36px;
+  color: var(--primary);
+  font-family: var(--font-sans);
+  font-size: 13px;
+  outline: none;
+  transition: border-color 200ms ease-out;
+}
+.nav-search::placeholder { color: var(--primary-dim); opacity: 0.6; }
+.nav-search:focus { border-color: var(--accent); }
+.search-wrapper {
+  position: relative;
+}
+.search-wrapper svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--primary-dim);
+}
+.nav-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.nav-icon-btn {
+  background: none;
+  border: none;
+  color: var(--primary-dim);
+  cursor: pointer;
+  padding: 8px;
+  border-radius: 8px;
+  position: relative;
+  transition: background 200ms ease-out, color 200ms ease-out;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 44px;
+  min-height: 44px;
+}
+.nav-icon-btn:hover { background: var(--bg-card); color: var(--primary); }
+.nav-icon-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.notif-dot {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 7px;
+  height: 7px;
+  background: var(--risk-red);
+  border-radius: 50%;
+  border: 1.5px solid var(--bg-elevated);
+}
+.nav-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--accent), var(--accent-secondary));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  min-width: 44px;
+  min-height: 44px;
+  border-radius: 50%;
+}
+.nav-avatar:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* === MAIN CONTAINER === */
+.main-container {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 32px 48px;
+}
+
+/* === MORNING INTELLIGENCE HEADER === */
+.intel-header {
+  margin-bottom: 24px;
+}
+.intel-date {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--primary-dim);
+  margin-bottom: 8px;
+  letter-spacing: 0.02em;
+}
+.intel-greeting {
+  font-size: 28px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+  color: var(--primary);
+  margin-bottom: 6px;
+}
+.intel-subtitle {
+  font-size: 14px;
+  color: var(--primary-dim);
+  font-weight: 400;
+}
+.intel-subtitle span { color: var(--accent); font-weight: 500; }
+
+/* === STATS ROW === */
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.stat-card {
+  background: linear-gradient(135deg, rgba(22,28,42,0.8), rgba(28,35,54,0.6));
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  transition: border-color 200ms ease-out;
+}
+.stat-card:hover { border-color: var(--border-light); }
+.stat-number {
+  font-size: 36px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.1;
+  margin-bottom: 4px;
+}
+.stat-number.blue { color: var(--accent); }
+.stat-number.purple { color: var(--accent-secondary); }
+.stat-number.teal { color: var(--trust-high); }
+.stat-number.primary { color: var(--primary); }
+.stat-label {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--primary-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.stat-sublabel {
+  font-size: 11px;
+  color: var(--primary-dim);
+  opacity: 0.7;
+  margin-top: 2px;
+}
+
+/* === CONTENT GRID === */
+.content-grid {
+  display: grid;
+  grid-template-columns: 60% 40%;
+  gap: 24px;
+}
+
+/* === SECTION HEADERS === */
+.section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+.section-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--primary);
+  letter-spacing: -0.01em;
+}
+.section-link {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--accent);
+  text-decoration: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  transition: background 200ms ease-out;
+}
+.section-link:hover { background: var(--accent-glow); }
+.section-link:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* === SIGNAL CARDS === */
+.signal-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: border-color 200ms ease-out, box-shadow 200ms ease-out;
+}
+.signal-card:hover {
+  border-color: rgba(59,130,246,0.3);
+  box-shadow: 0 0 20px var(--accent-glow), inset 0 0 20px rgba(59,130,246,0.03);
+}
+.signal-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.signal-top {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.priority-badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 8px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+.priority-badge.high {
+  background: rgba(239,68,68,0.15);
+  color: var(--risk-red);
+  border: 1px solid rgba(239,68,68,0.25);
+}
+.priority-badge.medium {
+  background: rgba(245,158,11,0.15);
+  color: var(--warning-amber);
+  border: 1px solid rgba(245,158,11,0.25);
+}
+.signal-headline {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--primary);
+  letter-spacing: -0.01em;
+}
+.signal-summary {
+  font-size: 13px;
+  color: var(--primary-dim);
+  margin-bottom: 10px;
+  line-height: 1.45;
+}
+.signal-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.confidence-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--trust-high);
+  background: rgba(20,184,166,0.1);
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+.confidence-badge svg { flex-shrink: 0; }
+.freshness-badge {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--primary-dim);
+  opacity: 0.8;
+}
+
+/* === ACTIVITY FEED === */
+.feed-section { margin-top: 24px; }
+.feed-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border);
+}
+.feed-item:last-child { border-bottom: none; }
+.feed-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.feed-icon.success { background: rgba(34,197,94,0.12); color: var(--success-green); }
+.feed-icon.signal { background: var(--accent-glow); color: var(--accent); }
+.feed-icon.enrichment { background: rgba(6,182,212,0.12); color: var(--enrichment-cyan); }
+.feed-text {
+  font-size: 13px;
+  color: var(--primary);
+  line-height: 1.4;
+  flex: 1;
+}
+.feed-text strong { font-weight: 600; }
+.feed-time {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--primary-dim);
+  opacity: 0.7;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+/* === RECOMMENDATION CARDS === */
+.reco-card {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 12px;
+  transition: opacity 200ms ease-out, border-color 200ms ease-out;
+}
+.reco-card.dismissed { opacity: 0.5; pointer-events: none; }
+.reco-ai-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--accent-secondary);
+  background: rgba(139,92,246,0.12);
+  border: 1px solid rgba(139,92,246,0.2);
+  padding: 3px 8px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+.reco-text {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--primary);
+  margin-bottom: 4px;
+  line-height: 1.45;
+}
+.reco-confidence {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--primary-dim);
+  margin-bottom: 12px;
+}
+.reco-confidence span { color: var(--trust-high); font-weight: 600; }
+.reco-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn-accept, .btn-dismiss {
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 600;
+  padding: 7px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  transition: background 200ms ease-out, color 200ms ease-out, border-color 200ms ease-out;
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.btn-accept {
+  background: var(--accent);
+  color: #fff;
+}
+.btn-accept:hover { background: #2563eb; }
+.btn-accept:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.btn-accept.accepted {
+  background: rgba(34,197,94,0.15);
+  color: var(--success-green);
+  cursor: default;
+  pointer-events: none;
+}
+.btn-dismiss {
+  background: transparent;
+  color: var(--primary-dim);
+  border: 1px solid var(--border);
+}
+.btn-dismiss:hover { border-color: var(--border-light); color: var(--primary); }
+.btn-dismiss:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* === QUICK ACTIONS === */
+.quick-actions-section { margin-top: 24px; }
+.quick-actions-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+.action-btn {
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 12px;
+  color: var(--primary);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  transition: border-color 200ms ease-out, background 200ms ease-out;
+  min-height: 44px;
+}
+.action-btn:hover {
+  border-color: var(--accent);
+  background: rgba(59,130,246,0.04);
+}
+.action-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.action-btn svg { color: var(--primary-dim); }
+.action-btn:hover svg { color: var(--accent); }
+
+/* === ANNOTATION SECTION === */
+.annotation {
+  margin-top: 48px;
+  padding: 20px 24px;
+  background: var(--bg-deep);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+.annotation-title {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin-bottom: 14px;
+}
+.annotation-group {
+  margin-bottom: 10px;
+}
+.annotation-group:last-child { margin-bottom: 0; }
+.annotation-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--primary-dim);
+  margin-bottom: 4px;
+}
+.annotation-label span { color: var(--accent); }
+.annotation-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.annotation-tag {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--primary-dim);
+  background: var(--bg-card);
+  border: 1px solid var(--border);
+  padding: 3px 8px;
+  border-radius: 4px;
+}
+
+/* === TABLET (1024px) === */
+@media (max-width: 1024px) {
+  .main-container { padding: 20px 20px 40px; }
+  .top-nav { padding: 0 20px; }
+  .nav-center { margin: 0 16px; }
+  .content-grid { grid-template-columns: 1fr; }
+  .stats-row { grid-template-columns: repeat(4, 1fr); gap: 12px; }
+  .stat-card { padding: 16px; }
+  .stat-number { font-size: 28px; }
+  .intel-greeting { font-size: 24px; }
+}
+
+/* === MOBILE (640px) === */
+@media (max-width: 640px) {
+  .main-container { padding: 16px 16px 32px; }
+  .top-nav { padding: 0 16px; height: 52px; }
+  .nav-center { display: none; }
+  .nav-logo { font-size: 16px; }
+  .stats-row { grid-template-columns: 1fr 1fr; gap: 10px; }
+  .stat-card { padding: 14px; }
+  .stat-number { font-size: 24px; }
+  .intel-greeting { font-size: 20px; }
+  .intel-subtitle { font-size: 13px; }
+  .signal-card { padding: 14px; }
+  .reco-card { padding: 14px; }
+  .reco-actions { flex-direction: column; }
+  .btn-accept, .btn-dismiss { width: 100%; justify-content: center; }
+  .quick-actions-grid { grid-template-columns: 1fr; }
+  .feed-item { gap: 10px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Prototype Label -->
+<div class="proto-label" aria-hidden="true">MS6 Phase 3 — Reference Screen A</div>
+
+<!-- Top Navigation -->
+<nav class="top-nav" role="navigation" aria-label="Main navigation">
+  <div class="nav-logo">
+    <svg width="20" height="20" viewBox="0 0 20 20" fill="none" aria-hidden="true">
+      <rect x="2" y="2" width="16" height="16" rx="4" stroke="currentColor" stroke-width="1.5"/>
+      <circle cx="10" cy="10" r="3" fill="var(--accent)"/>
+      <line x1="10" y1="4" x2="10" y2="7" stroke="currentColor" stroke-width="1.2"/>
+      <line x1="10" y1="13" x2="10" y2="16" stroke="currentColor" stroke-width="1.2"/>
+      <line x1="4" y1="10" x2="7" y2="10" stroke="currentColor" stroke-width="1.2"/>
+      <line x1="13" y1="10" x2="16" y2="10" stroke="currentColor" stroke-width="1.2"/>
+    </svg>
+    DeepMind<span class="q">Q</span>
+  </div>
+  <div class="nav-center">
+    <div class="search-wrapper">
+      <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+        <circle cx="6" cy="6" r="4.5" stroke="currentColor" stroke-width="1.3"/>
+        <line x1="9.5" y1="9.5" x2="13" y2="13" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+      <input type="text" class="nav-search" placeholder="Search accounts, signals, reports..." aria-label="Search">
+    </div>
+  </div>
+  <div class="nav-right">
+    <button class="nav-icon-btn" aria-label="Notifications">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none">
+        <path d="M5 6.5a4 4 0 018 0c0 4.5 1.5 5.5 1.5 5.5H3.5S5 11 5 6.5z" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+        <path d="M7.2 14.5h3.6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+      </svg>
+      <span class="notif-dot" aria-label="3 unread notifications"></span>
+    </button>
+    <div class="nav-avatar" role="button" tabindex="0" aria-label="User menu: Alex Morgan">AM</div>
+  </div>
+</nav>
+
+<!-- Main Container -->
+<main class="main-container">
+
+  <!-- Morning Intelligence Header -->
+  <header class="intel-header">
+    <div class="intel-date">Aug 6, 2026 — 07:15</div>
+    <h1 class="intel-greeting">Good morning. Here is your intelligence briefing.</h1>
+    <p class="intel-subtitle"><span>3 priority signals</span>, 2 recommendations, 12 monitored accounts active</p>
+  </header>
+
+  <!-- Stats Row -->
+  <section class="stats-row" aria-label="Key metrics">
+    <div class="stat-card">
+      <div class="stat-number blue">3</div>
+      <div class="stat-label">Priority Signals</div>
+      <div class="stat-sublabel">+1 since yesterday</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number purple">2</div>
+      <div class="stat-label">Active Opportunities</div>
+      <div class="stat-sublabel">AI-identified</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number teal">74%</div>
+      <div class="stat-label">Confidence Average</div>
+      <div class="stat-sublabel">Across all signals</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number primary">12</div>
+      <div class="stat-label">Accounts Monitored</div>
+      <div class="stat-sublabel">All active</div>
+    </div>
+  </section>
+
+  <!-- Main Content Grid -->
+  <div class="content-grid">
+
+    <!-- Left Column (60%) -->
+    <div class="left-col">
+
+      <!-- Priority Signals -->
+      <section aria-label="Priority Signals">
+        <div class="section-header">
+          <h2 class="section-title">Priority Signals</h2>
+          <a class="section-link" tabindex="0" role="button">View all signals</a>
+        </div>
+
+        <!-- Signal Card 1 -->
+        <div class="signal-card" tabindex="0" role="button" aria-label="High priority signal: Acme Corp signals expansion timing">
+          <div class="signal-top">
+            <span class="priority-badge high" aria-label="High priority">HIGH</span>
+            <span class="signal-headline">Acme Corp signals expansion timing</span>
+          </div>
+          <p class="signal-summary">Multiple data points suggest Acme is preparing for a Q4 infrastructure expansion. Procurement patterns and job postings indicate accelerated timeline.</p>
+          <div class="signal-meta">
+            <span class="confidence-badge" aria-label="Confidence 78%">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M3 5l1.5 1.5L7 4" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              78% confidence
+            </span>
+            <span class="freshness-badge">2h ago</span>
+          </div>
+        </div>
+
+        <!-- Signal Card 2 -->
+        <div class="signal-card" tabindex="0" role="button" aria-label="Medium priority signal: TechVenture Inc approaching renewal">
+          <div class="signal-top">
+            <span class="priority-badge medium" aria-label="Medium priority">MEDIUM</span>
+            <span class="signal-headline">TechVenture Inc approaching renewal</span>
+          </div>
+          <p class="signal-summary">Contract renewal window opening in 45 days. Current engagement scoring suggests elevated churn risk based on support ticket volume trends.</p>
+          <div class="signal-meta">
+            <span class="confidence-badge" aria-label="Confidence 65%">
+              <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" stroke="currentColor" stroke-width="1.2"/><path d="M3 5l1.5 1.5L7 4" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              65% confidence
+            </span>
+            <span class="freshness-badge">6h ago</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Recent Activity Feed -->
+      <section class="feed-section" aria-label="Recent Activity">
+        <div class="section-header">
+          <h2 class="section-title">Recent Activity</h2>
+          <a class="section-link" tabindex="0" role="button">Full activity log</a>
+        </div>
+
+        <div class="feed-item">
+          <div class="feed-icon success" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="feed-text"><strong>Enrichment complete</strong> for Nexus Ltd — 14 new data points ingested</div>
+          <span class="feed-time">12m ago</span>
+        </div>
+
+        <div class="feed-item">
+          <div class="feed-icon signal" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1v4M7 9v4M1 7h4M9 7h4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/><circle cx="7" cy="7" r="2" stroke="currentColor" stroke-width="1.2"/></svg>
+          </div>
+          <div class="feed-text"><strong>New signal detected:</strong> Vertex AI partnership — potential expansion opportunity</div>
+          <span class="feed-time">47m ago</span>
+        </div>
+
+        <div class="feed-item">
+          <div class="feed-icon enrichment" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="4.5" stroke="currentColor" stroke-width="1.2"/><path d="M7 4.5v3l2 1.5" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="feed-text"><strong>Confidence updated</strong> for DataFlow Inc — 61% → 72% after news analysis</div>
+          <span class="feed-time">1h ago</span>
+        </div>
+
+        <div class="feed-item">
+          <div class="feed-icon success" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M3 7l3 3 5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <div class="feed-text"><strong>Monitoring updated</strong> — Acme Corp tech stack scan completed</div>
+          <span class="feed-time">2h ago</span>
+        </div>
+      </section>
+
+    </div>
+
+    <!-- Right Column (40%) -->
+    <div class="right-col">
+
+      <!-- AI Recommendations -->
+      <section aria-label="AI Recommendations">
+        <div class="section-header">
+          <h2 class="section-title">AI Recommendations</h2>
+        </div>
+
+        <!-- Recommendation Card 1 -->
+        <div class="reco-card" id="reco-1">
+          <div class="reco-ai-badge">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1L1 9h8L5 1z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>
+            AI-IDENTIFIED
+          </div>
+          <p class="reco-text">Schedule briefing with Acme Corp CTO</p>
+          <div class="reco-confidence">Confidence: <span>82%</span></div>
+          <div class="reco-actions">
+            <button class="btn-accept" onclick="acceptReco(this)" aria-label="Accept recommendation: Schedule briefing with Acme Corp CTO">Accept</button>
+            <button class="btn-dismiss" onclick="dismissReco('reco-1')" aria-label="Dismiss recommendation: Schedule briefing with Acme Corp CTO">Dismiss</button>
+          </div>
+        </div>
+
+        <!-- Recommendation Card 2 -->
+        <div class="reco-card" id="reco-2">
+          <div class="reco-ai-badge">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" aria-hidden="true"><path d="M5 1L1 9h8L5 1z" stroke="currentColor" stroke-width="1" stroke-linejoin="round"/></svg>
+            AI-IDENTIFIED
+          </div>
+          <p class="reco-text">Expand coverage to adjacent market segment</p>
+          <div class="reco-confidence">Confidence: <span>71%</span></div>
+          <div class="reco-actions">
+            <button class="btn-accept" onclick="acceptReco(this)" aria-label="Accept recommendation: Expand coverage to adjacent market segment">Accept</button>
+            <button class="btn-dismiss" onclick="dismissReco('reco-2')" aria-label="Dismiss recommendation: Expand coverage to adjacent market segment">Dismiss</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Quick Actions -->
+      <section class="quick-actions-section" aria-label="Quick Actions">
+        <div class="section-header">
+          <h2 class="section-title">Quick Actions</h2>
+        </div>
+        <div class="quick-actions-grid">
+          <button class="action-btn" aria-label="New Analysis">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <circle cx="9" cy="9" r="6" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M9 6v6M6 9h6" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            New Analysis
+          </button>
+          <button class="action-btn" aria-label="Import Accounts">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M9 3v9M5 8l4 4 4-4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M3 14h12" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+            </svg>
+            Import Accounts
+          </button>
+          <button class="action-btn" aria-label="Configure Sources">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <circle cx="9" cy="7" r="3" stroke="currentColor" stroke-width="1.3"/>
+              <path d="M3 14c0-2.5 2.7-4 6-4s6 1.5 6 4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <path d="M14.5 3.5l1 1" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/>
+              <circle cx="15.5" cy="3" r="1.5" stroke="currentColor" stroke-width="1.2"/>
+            </svg>
+            Configure Sources
+          </button>
+          <button class="action-btn" aria-label="Export Report">
+            <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden="true">
+              <path d="M3 12v3h12v-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+              <path d="M9 3v8M6 8l3 3 3-3" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            Export Report
+          </button>
+        </div>
+      </section>
+
+    </div>
+  </div>
+
+  <!-- Component Annotation -->
+  <aside class="annotation" aria-label="Component library reference">
+    <div class="annotation-title">Component Library Reference</div>
+    <div class="annotation-group">
+      <div class="annotation-label"><span>Organisms</span></div>
+      <div class="annotation-items">
+        <span class="annotation-tag">IntelligenceHub</span>
+        <span class="annotation-tag">CommandCenter</span>
+      </div>
+    </div>
+    <div class="annotation-group">
+      <div class="annotation-label"><span>Molecules</span></div>
+      <div class="annotation-items">
+        <span class="annotation-tag">IntelligenceBriefing</span>
+        <span class="annotation-tag">RecommendationCard</span>
+        <span class="annotation-tag">IntelligenceNarrative</span>
+      </div>
+    </div>
+    <div class="annotation-group">
+      <div class="annotation-label"><span>Atoms</span></div>
+      <div class="annotation-items">
+        <span class="annotation-tag">ConfidenceIndicator</span>
+        <span class="annotation-tag">FreshnessIndicator</span>
+        <span class="annotation-tag">StatusBadge</span>
+        <span class="annotation-tag">ActionCTA</span>
+        <span class="annotation-tag">EvidenceChain</span>
+        <span class="annotation-tag">InlineReasoning</span>
+      </div>
+    </div>
+  </aside>
+
+</main>
+
+<script>
+function acceptReco(btn) {
+  btn.classList.add('accepted');
+  btn.innerHTML = '<svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M2.5 6l2.5 2.5 4.5-5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg> Accepted';
+}
+
+function dismissReco(cardId) {
+  var card = document.getElementById(cardId);
+  if (card) {
+    card.classList.add('dismissed');
+  }
+}
+</script>
+
+</body>
+</html>

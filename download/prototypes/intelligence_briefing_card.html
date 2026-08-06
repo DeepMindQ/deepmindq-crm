@@ -1,0 +1,685 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prototype: Intelligence Briefing Card — L1-L4 Progressive Disclosure</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════
+ * DeepMindQ Intelligence Briefing Card Prototype
+ * Demonstrates full L1 → L2 → L3 → L4 progressive disclosure
+ * MS6 Phase 3 — Reference Prototype
+ * ═══════════════════════════════════════════════════════════════ */
+
+:root {
+  --bg-deep: #060810; --bg: #0a0d14; --bg-elevated: #111520;
+  --bg-card: #161c2a; --bg-surface: #1c2336;
+  --border: #252e42; --border-light: #2d3854;
+  --primary: #e8ecf4; --primary-dim: #8b95ad;
+  --accent: #3b82f6; --accent-glow: rgba(59,130,246,0.15);
+  --accent-secondary: #8b5cf6;
+  --risk-red: #ef4444; --success-green: #22c55e;
+  --warning-amber: #f59e0b; --enrichment-cyan: #06b6d4;
+  --trust-verified: #22c55e; --trust-high: #14b8a6;
+  --trust-medium: #f59e0b; --trust-low: #f97316;
+  --trust-unverified: #6b7280;
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  font-size: 15px;
+  color: var(--primary);
+  background: var(--bg);
+  -webkit-font-smoothing: antialiased;
+  min-height: 100vh;
+  padding: 40px 24px;
+}
+
+.prototype-container {
+  max-width: 900px;
+  margin: 0 auto;
+}
+
+/* ── Prototype Header ── */
+.proto-header { margin-bottom: 48px; text-align: center; }
+.proto-header .label {
+  font-size: 10px; font-weight: 600; letter-spacing: 2.5px;
+  text-transform: uppercase; color: var(--accent); margin-bottom: 12px;
+  display: block;
+}
+.proto-header h1 {
+  font-size: 28px; font-weight: 700; color: var(--primary);
+  letter-spacing: -0.02em; margin-bottom: 8px;
+}
+.proto-header .subtitle {
+  font-size: 14px; color: var(--primary-dim); line-height: 1.6;
+  max-width: 640px; margin: 0 auto;
+}
+
+/* ── Level Indicator Bar ── */
+.level-indicator {
+  display: flex; align-items: center; justify-content: center;
+  gap: 8px; margin-bottom: 40px;
+}
+.level-step {
+  display: flex; align-items: center; gap: 6px;
+  padding: 6px 14px; border-radius: 999px;
+  font-size: 11px; font-weight: 600; letter-spacing: 0.5px;
+  text-transform: uppercase;
+  background: var(--bg-card); border: 1px solid var(--border);
+  color: var(--primary-dim); transition: all 200ms ease-out;
+}
+.level-step.active {
+  background: rgba(59,130,246,0.12); border-color: rgba(59,130,246,0.4);
+  color: var(--accent);
+}
+.level-connector {
+  width: 24px; height: 1px;
+  background: var(--border);
+}
+
+/* ── Briefing Card ── */
+.briefing-card {
+  background: rgba(22,28,42,0.7);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 16px;
+  overflow: hidden;
+  transition: all 200ms ease-out;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
+}
+
+.briefing-card.level-2 { border-color: rgba(59,130,246,0.2); }
+.briefing-card.level-3 { border-color: rgba(59,130,246,0.3); }
+.briefing-card.level-4 { border-color: rgba(59,130,246,0.4); box-shadow: 0 4px 24px rgba(0,0,0,0.4), 0 0 30px rgba(59,130,246,0.08); }
+
+/* ── L1: Decision (Default) ── */
+.briefing-l1 {
+  padding: 20px 24px;
+  cursor: pointer;
+  transition: all 200ms ease-out;
+}
+.briefing-l1:hover { background: rgba(22,28,42,0.9); }
+
+.briefing-l1-header {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px; margin-bottom: 12px;
+}
+.briefing-priority {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 10px; border-radius: 999px;
+  font-size: 10px; font-weight: 600; letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.priority-high { background: rgba(239,68,68,0.12); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+.priority-medium { background: rgba(245,158,11,0.12); color: #fbbf24; border: 1px solid rgba(245,158,11,0.3); }
+.priority-low { background: rgba(59,130,246,0.1); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+
+.briefing-meta {
+  display: flex; align-items: center; gap: 12px;
+  font-size: 11px; font-family: var(--font-mono);
+  color: var(--primary-dim);
+}
+.meta-freshness {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 8px; border-radius: 999px;
+}
+.freshness-recent { background: rgba(34,197,94,0.1); color: var(--trust-verified); }
+.freshness-stale { background: rgba(245,158,11,0.1); color: var(--warning-amber); }
+
+.briefing-l1-headline {
+  font-size: 16px; font-weight: 600; color: var(--primary);
+  line-height: 1.4; letter-spacing: -0.01em;
+  margin-bottom: 8px;
+}
+.briefing-l1-summary {
+  font-size: 14px; color: var(--primary-dim); line-height: 1.6;
+}
+.briefing-l1-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  margin-top: 14px; padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.briefing-confidence {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 600; font-family: var(--font-mono);
+  color: var(--trust-high);
+}
+.confidence-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: currentColor;
+}
+.briefing-expand-hint {
+  font-size: 11px; color: var(--primary-dim);
+  display: flex; align-items: center; gap: 4px;
+  transition: color 200ms ease-out;
+}
+.briefing-card:hover .briefing-expand-hint { color: var(--accent); }
+.expand-chevron {
+  display: inline-block; width: 14px; height: 14px;
+  transition: transform 200ms ease-out;
+}
+.briefing-card.level-2 .expand-chevron,
+.briefing-card.level-3 .expand-chevron,
+.briefing-card.level-4 .expand-chevron {
+  transform: rotate(180deg);
+}
+
+/* ── L2: Reasoning (First Expand) ── */
+.briefing-l2 {
+  max-height: 0; overflow: hidden;
+  transition: max-height 400ms ease-out, padding 400ms ease-out;
+  padding: 0 24px;
+  border-top: 0px solid transparent;
+}
+.briefing-card.level-2 .briefing-l2,
+.briefing-card.level-3 .briefing-l2,
+.briefing-card.level-4 .briefing-l2 {
+  max-height: 600px;
+  padding: 20px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.l2-section-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--primary-dim);
+  margin-bottom: 12px; display: flex; align-items: center; gap: 6px;
+}
+.l2-section-label::before {
+  content: ''; display: block; width: 3px; height: 12px;
+  border-radius: 2px; background: var(--accent);
+}
+
+.l2-reasoning {
+  font-size: 14px; line-height: 1.75; color: var(--primary);
+  margin-bottom: 16px;
+}
+.l2-reasoning strong { color: var(--primary); font-weight: 600; }
+
+.l2-signals {
+  display: flex; flex-wrap: wrap; gap: 8px;
+  margin-bottom: 16px;
+}
+.signal-tag {
+  display: inline-flex; align-items: center; gap: 5px;
+  padding: 4px 10px; border-radius: 8px;
+  font-size: 11px; font-weight: 500;
+  background: rgba(59,130,246,0.08);
+  border: 1px solid rgba(59,130,246,0.2);
+  color: #93c5fd;
+}
+.signal-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--accent);
+}
+
+.l2-actions {
+  display: flex; gap: 10px; flex-wrap: wrap;
+}
+.action-btn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 8px 16px; border-radius: 10px;
+  font-size: 12px; font-weight: 600; font-family: var(--font-sans);
+  border: 1px solid;
+  cursor: pointer;
+  transition: all 150ms ease-out;
+}
+.action-primary {
+  background: rgba(59,130,246,0.15); border-color: rgba(59,130,246,0.4);
+  color: #93c5fd;
+}
+.action-primary:hover { background: rgba(59,130,246,0.25); }
+.action-secondary {
+  background: transparent; border-color: var(--border);
+  color: var(--primary-dim);
+}
+.action-secondary:hover { border-color: var(--border-light); color: var(--primary); }
+
+.l2-deepen {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(37,46,66,0.5);
+}
+.deepen-btn {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none; border: none; cursor: pointer;
+  font-size: 12px; font-weight: 500; font-family: var(--font-sans);
+  color: var(--primary-dim); padding: 4px 0;
+  transition: color 200ms ease-out;
+}
+.deepen-btn:hover { color: var(--accent); }
+
+/* ── L3: Evidence (Second Expand) ── */
+.briefing-l3 {
+  max-height: 0; overflow: hidden;
+  transition: max-height 400ms ease-out, padding 400ms ease-out;
+  padding: 0 24px;
+  border-top: 0px solid transparent;
+}
+.briefing-card.level-3 .briefing-l3,
+.briefing-card.level-4 .briefing-l3 {
+  max-height: 800px;
+  padding: 20px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.evidence-item {
+  display: flex; gap: 12px;
+  padding: 12px; border-radius: 10px;
+  background: var(--bg-surface);
+  margin-bottom: 8px;
+  border: 1px solid var(--border);
+}
+.evidence-icon {
+  width: 32px; height: 32px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 8px; font-size: 14px;
+  background: rgba(59,130,246,0.1);
+  color: var(--accent);
+}
+.evidence-content { flex: 1; }
+.evidence-title {
+  font-size: 13px; font-weight: 600; color: var(--primary);
+  margin-bottom: 4px;
+}
+.evidence-desc {
+  font-size: 12px; color: var(--primary-dim); line-height: 1.6;
+}
+.evidence-meta {
+  display: flex; gap: 8px; margin-top: 6px;
+  font-size: 10px; font-family: var(--font-mono); color: var(--primary-dim);
+}
+.evidence-trust-badge {
+  display: inline-flex; align-items: center; gap: 3px;
+  padding: 1px 6px; border-radius: 999px; font-weight: 500;
+}
+.trust-badge-verified { background: rgba(34,197,94,0.1); color: var(--trust-verified); }
+.trust-badge-high { background: rgba(20,184,166,0.1); color: var(--trust-high); }
+.trust-badge-medium { background: rgba(245,158,11,0.1); color: var(--trust-medium); }
+
+.l3-deepen {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(37,46,66,0.5);
+}
+
+/* ── L4: Exploration (Full Expand) ── */
+.briefing-l4 {
+  max-height: 0; overflow: hidden;
+  transition: max-height 400ms ease-out, padding 400ms ease-out;
+  padding: 0 24px;
+  border-top: 0px solid transparent;
+}
+.briefing-card.level-4 .briefing-l4 {
+  max-height: 1000px;
+  padding: 20px 24px 24px;
+  border-top: 1px solid var(--border);
+}
+
+.exploration-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  margin-bottom: 16px;
+}
+.exploration-card {
+  padding: 14px; border-radius: 10px;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+}
+.exploration-card-label {
+  font-size: 10px; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--primary-dim);
+  margin-bottom: 6px;
+}
+.exploration-card-value {
+  font-size: 13px; color: var(--primary); line-height: 1.5;
+}
+
+.ai-context-box {
+  padding: 14px 16px; border-radius: 10px;
+  background: rgba(139,92,246,0.06);
+  border: 1px solid rgba(139,92,246,0.2);
+  margin-bottom: 14px;
+}
+.ai-context-label {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 10px; font-weight: 600; letter-spacing: 1.5px;
+  text-transform: uppercase; color: #a78bfa;
+  margin-bottom: 6px;
+}
+.ai-context-text {
+  font-size: 12px; color: var(--primary-dim); line-height: 1.6;
+}
+
+.l4-footer {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.collapse-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  background: none; border: none; cursor: pointer;
+  font-size: 11px; font-weight: 500; font-family: var(--font-sans);
+  color: var(--primary-dim); padding: 4px 0;
+  transition: color 200ms ease-out;
+}
+.collapse-btn:hover { color: var(--accent); }
+.export-actions {
+  display: flex; gap: 8px;
+}
+.export-btn {
+  padding: 6px 12px; border-radius: 8px;
+  font-size: 11px; font-weight: 500; font-family: var(--font-sans);
+  background: transparent; border: 1px solid var(--border);
+  color: var(--primary-dim); cursor: pointer;
+  transition: all 150ms ease-out;
+}
+.export-btn:hover { border-color: var(--border-light); color: var(--primary); }
+
+
+/* ── Responsive: Tablet (1024px) ── */
+@media (max-width: 1024px) {
+  .prototype-container { max-width: 100%; padding: 0 16px; }
+  .exploration-grid { grid-template-columns: 1fr; }
+}
+
+/* ── Responsive: Mobile (640px) ── */
+@media (max-width: 640px) {
+  body { padding: 20px 12px; }
+  .briefing-l1 { padding: 16px 18px; }
+  .briefing-l2, .briefing-l3, .briefing-l4 { padding-left: 18px; padding-right: 18px; }
+  .briefing-l1-header { flex-direction: column; gap: 8px; }
+  .l2-actions { flex-direction: column; }
+  .action-btn { width: 100%; justify-content: center; }
+  .l4-footer { flex-direction: column; gap: 12px; align-items: flex-start; }
+}
+</style>
+</head>
+<body>
+
+<div class="prototype-container">
+  <!-- Prototype Header -->
+  <div class="proto-header">
+    <span class="label">MS6 Phase 3 — Reference Prototype</span>
+    <h1>Intelligence Briefing Card</h1>
+    <p class="subtitle">
+      Full interactive demonstration of L1 → L2 → L3 → L4 progressive disclosure.
+      Click the card to expand each level. Pattern IDs: PD-01, PD-02, PD-03, PD-04.
+    </p>
+  </div>
+
+  <!-- Level Indicator -->
+  <div class="level-indicator">
+    <div class="level-step active" id="step-1">L1 Decision</div>
+    <div class="level-connector"></div>
+    <div class="level-step" id="step-2">L2 Reasoning</div>
+    <div class="level-connector"></div>
+    <div class="level-step" id="step-3">L3 Evidence</div>
+    <div class="level-connector"></div>
+    <div class="level-step" id="step-4">L4 Exploration</div>
+  </div>
+
+  <!-- ═══════════════════════════════════════════════════════════
+       BRIEFING CARD: Acme Corp — Revenue Expansion Signal
+       ═══════════════════════════════════════════════════════════ -->
+  <div class="briefing-card level-1" id="briefingCard">
+
+    <!-- L1: Decision Layer (Always Visible) -->
+    <div class="briefing-l1" id="l1Layer">
+      <div class="briefing-l1-header">
+        <div>
+          <span class="briefing-priority priority-high">
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none"><circle cx="5" cy="5" r="4" fill="currentColor" opacity="0.8"/></svg>
+            High Priority
+          </span>
+        </div>
+        <div class="briefing-meta">
+          <span class="meta-freshness freshness-recent">
+            <svg width="8" height="8" viewBox="0 0 8 8" fill="none"><circle cx="4" cy="4" r="3" fill="currentColor"/></svg>
+            2h ago
+          </span>
+          <span>Signal #2024-0847</span>
+        </div>
+      </div>
+      <div class="briefing-l1-headline">Acme Corp signals expansion timing based on 23% quarterly revenue growth</div>
+      <div class="briefing-l1-summary">Three converging indicators suggest Acme Corp is entering a procurement cycle. Leadership change, technology investment signals, and revenue acceleration align with historical ICP buying patterns.</div>
+      <div class="briefing-l1-footer">
+        <div class="briefing-confidence">
+          <span class="confidence-dot"></span>
+          Confidence: 78%
+        </div>
+        <span class="briefing-expand-hint">
+          <span class="expand-chevron">
+            <svg viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3.5 5.25L7 8.75l3.5-3.5"/></svg>
+          </span>
+          Tap to see reasoning
+        </span>
+      </div>
+    </div>
+
+    <!-- L2: Reasoning Layer (First Expand) -->
+    <div class="briefing-l2" id="l2Layer">
+      <div class="l2-section-label">AI Reasoning</div>
+      <div class="l2-reasoning">
+        <strong>Why this matters now:</strong> Acme Corp's Q2 revenue grew 23% YoY, exceeding analyst estimates by 8 points. This growth acceleration correlates with <strong>increased technology spending</strong> in their sector over the past 18 months. Combined with the recent CTO appointment (Sarah Chen, formerly at Microsoft Azure) and two new engineering job postings for "enterprise platform integration," the timing window for engagement is estimated at <strong>60-90 days</strong>.
+      </div>
+
+      <div class="l2-signals">
+        <span class="signal-tag"><span class="signal-dot"></span> Revenue Acceleration</span>
+        <span class="signal-tag"><span class="signal-dot"></span> Leadership Change</span>
+        <span class="signal-tag"><span class="signal-dot"></span> Hiring Signals</span>
+        <span class="signal-tag"><span class="signal-dot"></span> Technology Investment</span>
+      </div>
+
+      <div class="l2-actions">
+        <button class="action-btn action-primary">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 7h8M9 4l3 3-3 3"/></svg>
+          Schedule Briefing
+        </button>
+        <button class="action-btn action-secondary">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M7 1v8M4 6l3 3 3-3"/><path d="M2 9v2a2 2 0 002 2h6a2 2 0 002-2V9"/></svg>
+          Save to Watchlist
+        </button>
+        <button class="action-btn action-secondary">
+          <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M1 3h5v4H1zM8 3h5v4H8zM1 7h5v4H1zM8 7h5v4H8z"/></svg>
+          Dismiss
+        </button>
+      </div>
+
+      <div class="l2-deepen">
+        <button class="deepen-btn" id="deepenToL3">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 4.5L6 8l3.5-3.5"/></svg>
+          View evidence sources
+        </button>
+      </div>
+    </div>
+
+    <!-- L3: Evidence Layer (Second Expand) -->
+    <div class="briefing-l3" id="l3Layer">
+      <div class="l2-section-label">Evidence Chain</div>
+
+      <div class="evidence-item">
+        <div class="evidence-icon">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2 4h12M2 8h12M2 12h12"/></svg>
+        </div>
+        <div class="evidence-content">
+          <div class="evidence-title">Quarterly Financial Filing (10-Q)</div>
+          <div class="evidence-desc">Q2 2026 revenue reported at $487M, representing 23% YoY growth. Gross margin expanded 340bps to 68.2%, indicating pricing power in core segments.</div>
+          <div class="evidence-meta">
+            <span class="evidence-trust-badge trust-badge-verified">Verified — SEC Filing</span>
+            <span>Source: Edgar</span>
+            <span>Updated: 3 days ago</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="evidence-item">
+        <div class="evidence-icon" style="background:rgba(139,92,246,0.1); color:var(--accent-secondary);">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1a4 4 0 014 4c0 3-4 6-4 6S4 8 4 5a4 4 0 014-4z"/><circle cx="8" cy="5" r="1.5"/></svg>
+        </div>
+        <div class="evidence-content">
+          <div class="evidence-title">CTO Leadership Change</div>
+          <div class="evidence-desc">Sarah Chen appointed CTO on June 15, 2026. Previously VP of Engineering at Microsoft Azure for 6 years. Her LinkedIn profile lists "enterprise platform modernization" as a core initiative.</div>
+          <div class="evidence-meta">
+            <span class="evidence-trust-badge trust-badge-verified">Verified — LinkedIn</span>
+            <span>Source: LinkedIn</span>
+            <span>Updated: 7 weeks ago</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="evidence-item">
+        <div class="evidence-icon" style="background:rgba(6,182,212,0.1); color:var(--enrichment-cyan);">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="2" y="2" width="12" height="12" rx="2"/><path d="M5 6h6M5 9h4"/></svg>
+        </div>
+        <div class="evidence-content">
+          <div class="evidence-title">Engineering Job Postings</div>
+          <div class="evidence-desc">Two new postings: "Senior Engineer, Enterprise Platform Integration" and "Staff Engineer, Cloud Architecture." Both reference "legacy system modernization" and "API-first architecture."</div>
+          <div class="evidence-meta">
+            <span class="evidence-trust-badge trust-badge-high">High — Web Signal</span>
+            <span>Source: Greenhouse</span>
+            <span>Updated: 5 days ago</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="evidence-item">
+        <div class="evidence-icon" style="background:rgba(34,197,94,0.1); color:var(--success-green);">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M8 1l2 4 4.5.7-3.3 3.1.8 4.5L8 11.3 3.5 13.3l.8-4.5L1 5.7 5.5 5z"/></svg>
+        </div>
+        <div class="evidence-content">
+          <div class="evidence-title">Historical ICP Buying Pattern Match</div>
+          <div class="evidence-desc">Revenue growth + leadership change + hiring signals in this sector historically precedes procurement cycles within 60-90 days (confidence: 72%, based on 47 historical observations in our CRM dataset).</div>
+          <div class="evidence-meta">
+            <span class="evidence-trust-badge trust-badge-medium">Medium — AI Inference</span>
+            <span>Source: CRM Analytics</span>
+            <span>Computed: 2 hours ago</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="l3-deepen">
+        <button class="deepen-btn" id="deepenToL4">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 4.5L6 8l3.5-3.5"/></svg>
+          View full analysis and exploration
+        </button>
+      </div>
+    </div>
+
+    <!-- L4: Exploration Layer (Full Expand) -->
+    <div class="briefing-l4" id="l4Layer">
+      <div class="l2-section-label">Exploration</div>
+
+      <div class="exploration-grid">
+        <div class="exploration-card">
+          <div class="exploration-card-label">Estimated Budget Range</div>
+          <div class="exploration-card-value">$2.4M — $8.1M</div>
+          <div style="font-size:10px; color:var(--primary-dim); margin-top:4px; font-family:var(--font-mono);">Based on company size, sector, and growth rate</div>
+        </div>
+        <div class="exploration-card">
+          <div class="exploration-card-label">Decision Maker</div>
+          <div class="exploration-card-value">Sarah Chen, CTO</div>
+          <div style="font-size:10px; color:var(--primary-dim); margin-top:4px; font-family:var(--font-mono);">Appointed June 15, 2026 — 7 weeks in role</div>
+        </div>
+        <div class="exploration-card">
+          <div class="exploration-card-label">Engagement Window</div>
+          <div class="exploration-card-value">60 — 90 days</div>
+          <div style="font-size:10px; color:var(--primary-dim); margin-top:4px; font-family:var(--font-mono);">Estimated procurement cycle timing</div>
+        </div>
+        <div class="exploration-card">
+          <div class="exploration-card-label">Competitive Position</div>
+          <div class="exploration-card-value">No active competitors detected</div>
+          <div style="font-size:10px; color:var(--primary-dim); margin-top:4px; font-family:var(--font-mono);">Last checked: 12 hours ago</div>
+        </div>
+      </div>
+
+      <div class="ai-context-box">
+        <div class="ai-context-label">
+          <svg width="10" height="10" viewBox="0 0 10 10" fill="currentColor"><circle cx="5" cy="5" r="4"/></svg>
+          AI Context — Not a Directive
+        </div>
+        <div class="ai-context-text">
+          This analysis was generated by AI based on 4 evidence sources and 47 historical patterns. The 78% confidence score reflects the strength of signal convergence, not a prediction. All recommended actions require your judgment. The 60-90 day engagement window is an estimate based on historical patterns and should be validated against direct account intelligence.
+        </div>
+      </div>
+
+      <div class="l4-footer">
+        <button class="collapse-btn" id="collapseAll">
+          <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M2.5 7.5L6 4l3.5 3.5"/></svg>
+          Collapse to summary
+        </button>
+        <div class="export-actions">
+          <button class="export-btn">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-right:4px"><path d="M1 8v2a1 1 0 001 1h8a1 1 0 001-1V8M6 1v6M3.5 4.5L6 7l2.5-2.5"/></svg>
+            Export PDF
+          </button>
+          <button class="export-btn">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5" style="margin-right:4px"><path d="M2 3h8v7H2zM1 1h10"/></svg>
+            Share Briefing
+          </button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+ * Progressive Disclosure Interaction Controller
+ * Implements PD-01 through PD-04 interaction patterns
+ * ═══════════════════════════════════════════════════════════════ */
+
+const card = document.getElementById('briefingCard');
+const steps = [
+  document.getElementById('step-1'),
+  document.getElementById('step-2'),
+  document.getElementById('step-3'),
+  document.getElementById('step-4')
+];
+
+let currentLevel = 1;
+
+function setLevel(level) {
+  currentLevel = level;
+  card.className = 'briefing-card level-' + level;
+  steps.forEach((step, i) => {
+    step.classList.toggle('active', i < level);
+  });
+}
+
+/* L1 click → expand to L2 */
+document.getElementById('l1Layer').addEventListener('click', function(e) {
+  if (e.target.closest('button') || e.target.closest('a')) return;
+  if (currentLevel === 1) {
+    setLevel(2);
+  } else if (currentLevel > 1) {
+    setLevel(1);
+  }
+});
+
+/* L2 deepen → expand to L3 */
+document.getElementById('deepenToL3').addEventListener('click', function(e) {
+  e.stopPropagation();
+  if (currentLevel === 2) setLevel(3);
+});
+
+/* L3 deepen → expand to L4 */
+document.getElementById('deepenToL4').addEventListener('click', function(e) {
+  e.stopPropagation();
+  if (currentLevel === 3) setLevel(4);
+});
+
+/* L4 collapse → back to L1 */
+document.getElementById('collapseAll').addEventListener('click', function(e) {
+  e.stopPropagation();
+  setLevel(1);
+});
+</script>
+
+</body>
+</html>

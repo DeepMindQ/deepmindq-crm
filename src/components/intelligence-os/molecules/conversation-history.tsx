@@ -18,6 +18,7 @@ import { AdvisorMessageBubble } from '../atoms/advisor-message-bubble';
 import { UserMessageBubble } from './user-message-bubble';
 import { TypingIndicator } from '../atoms/typing-indicator';
 import { InlineReasoningBlock } from './inline-reasoning-block';
+import { StructuredBriefingRenderer } from '../structured-briefing-renderer';
 import type {
   AdvisorMessage,
   AdvisorProcessingState,
@@ -174,6 +175,16 @@ export function ConversationHistory({
                 {/* Structured briefing summary text */}
                 <span>{briefing.summary}</span>
               </AdvisorMessageBubble>
+
+              {/* Structured briefing blocks — the CORE MS9 rendering */}
+              {briefing.blocks.length > 0 && (
+                <div className="ml-11">
+                  <StructuredBriefingRenderer
+                    blocks={briefing.blocks}
+                    onSignalClick={onSignalClick}
+                  />
+                </div>
+              )}
 
               {/* Inline reasoning block (if present) */}
               {inlineReasoning && (

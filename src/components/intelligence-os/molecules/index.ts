@@ -16,3 +16,12 @@ export { ConversationHistory, type ConversationHistoryProps } from './conversati
 export { ContextAccountCard, type ContextAccountCardProps } from './context-account-card';
 export { RelatedAccountList, type RelatedAccountListProps } from './related-account-list';
 export { DataFreshnessPanel, type DataFreshnessPanelProps } from './data-freshness-panel';
+export { BriefingBlockShell, type BriefingBlockShellProps } from './briefing-block-shell';
+export { KeyFindingsBlock, type KeyFindingsBlockProps } from './key-findings-block';
+export { SignalsBlock, type SignalsBlockProps } from './signals-block';
+export { RecommendationsBlock, type RecommendationsBlockProps } from './recommendations-block';
+export { TimelineInsightsBlock, type TimelineInsightsBlockProps } from './timeline-insights-block';
+export { CompetitiveIntelBlock, type CompetitiveIntelBlockProps } from './competitive-intel-block';
+export { RiskFlagsBlock, type RiskFlagsBlockProps } from './risk-flags-block';
+export { NarrativeBlock, type NarrativeBlockProps } from './narrative-block';
+export { DataSummaryBlock, type DataSummaryBlockProps } from './data-summary-block';

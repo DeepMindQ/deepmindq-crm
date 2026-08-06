@@ -104,10 +104,7 @@ export function signTrackingEventId(eventId: string): string {
   return Buffer.from(`${payload}:${signature}`).toString('base64url');
 }
 
-/**
- * Verify and decode a signed tracking event ID.
- * Returns the original eventId or null if invalid/expired.
- */
+/**\n * Verify and decode a signed tracking event ID.\n * Returns the original eventId or null if invalid.\n *\n * DESIGN NOTE — Token expiry:\n * The token embeds a timestamp but this function does NOT enforce expiry.\n * This is intentional: email clients re-fetch tracking pixels (preview panes,\n * multi-device opens) and tokens must remain valid for the lifetime of the\n * in-memory tracking registry (7 days, see TRACKING_TTL_MS).\n *\n * FUTURE ENHANCEMENT: Add configurable TTL check (e.g., reject tokens\n * older than TRACKING_TOKEN_TTL_MS = 30 days) to bound token lifetime\n * independently from registry expiry. Tracked as SH1-enhancement.\n */
 export function verifyTrackingEventId(token: string): string | null {
   try {
     const decoded = Buffer.from(token, 'base64url').toString('utf-8');

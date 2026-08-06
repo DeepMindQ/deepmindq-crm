@@ -14,7 +14,9 @@ import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
-const VALID_ROLES = ['admin', 'operator', 'user', 'viewer'] as const;
+// Phase 0 RBAC: admin (full access) and user (standard access) only.
+// operator/viewer are documented for Phase 2 RBAC expansion (see rbac.ts).
+const VALID_ROLES = ['admin', 'user'] as const;
 
 const patchUserSchema = z.object({
   id: z.string().min(1),
@@ -100,6 +102,18 @@ export async function PATCH(request: NextRequest) {
     if (role !== undefined) updateData.role = role;
     if (isActive !== undefined) updateData.isActive = isActive;
 
+    // Snapshot current user for audit trail before mutation
+    const targetUser = await db.user.findUnique({
+      where: { id },
+      select: { role: true, isActive: true },
+    });
+    if (!targetUser) {
+      return NextResponse.json(
+        { success: false, error: 'User not found' },
+        { status: 404 }
+      );
+    }
+
     const updatedUser = await db.user.update({
       where: { id },
       data: updateData,
@@ -118,6 +132,42 @@ export async function PATCH(request: NextRequest) {
       updatedBy: session!.id,
       changes: updateData,
     });
+
+    // ── Audit trail: record every admin user-management action ──
+    try {
+      const auditActions: string[] = [];
+      const auditMetadata: Record<string, unknown> = { targetEmail: updatedUser.email };
+
+      if (role !== undefined && role !== targetUser.role) {
+        auditActions.push('ROLE_CHANGED');
+        auditMetadata.previousRole = targetUser.role;
+        auditMetadata.newRole = role;
+      }
+      if (isActive !== undefined && isActive !== targetUser.isActive) {
+        auditActions.push(isActive ? 'USER_ACTIVATED' : 'USER_DEACTIVATED');
+        auditMetadata.previousStatus = targetUser.isActive ? 'active' : 'inactive';
+        auditMetadata.newStatus = isActive ? 'active' : 'inactive';
+      }
+      if (auditActions.length === 0) {
+        auditActions.push('USER_STATUS_CHANGED');
+      }
+
+      for (const action of auditActions) {
+        await db.auditLog.create({
+          data: {
+            action,
+            entity: 'User',
+            userId: session!.id,
+            details: JSON.stringify({
+              targetUserId: id,
+              ...auditMetadata,
+            }),
+          },
+        });
+      }
+    } catch (auditErr) {
+      logger.warn('[users:update] Audit logging failed (non-blocking)', { error: String(auditErr) });
+    }
 
     return NextResponse.json({ success: true, user: updatedUser });
   } catch (error) {

@@ -3,19 +3,13 @@
  *
  * Tracks per-domain reliability based on user feedback.
  * Used to weight evidence quality scoring.
- *
- * TODO: Re-enable once evidenceSourceReliability table is added to Prisma schema.
  */
 
 import { db } from '@/lib/db';
 
 const DEFAULT_RELIABILITY = 0.5;
 
- 
-// TODO: Re-enable once evidenceSourceReliability table is added to Prisma schema.
-// Model exists in schema.prisma (line 1832) but Prisma client may not be generated yet.
-// After `prisma generate`, replace this with: const esr = () => db.evidenceSourceReliability;
-const esr: () => any = () => (db as any).evidenceSourceReliability;
+const esr = () => db.evidenceSourceReliability;
 
 export async function getSourceReliability(domain: string): Promise<number> {
   const record = await esr().findUnique({

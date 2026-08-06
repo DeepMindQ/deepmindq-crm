@@ -2,7 +2,8 @@
  * WI-18.5 Phase 5 — Role-Based Access Control (RBAC)
  *
  * Enterprise authorization layer providing:
- *   - Role definitions: admin, operator, user, viewer
+ *   - Role definitions: admin, user (Phase 0 — production)
+ *   - Future roles: operator, viewer (Phase 2 RBAC expansion)
  *   - Permission definitions mapped to API routes
  *   - Route-by-route authorization matrix
  *   - Tenant isolation verification
@@ -12,6 +13,10 @@
  *   - Single-user deployment: all routes currently share one tenant
  *   - Multi-tenant ready: architecture supports tenant isolation
  *   - Permission checks are composable and reusable across routes
+ *
+ * PHASE 0 NOTE: Only 'admin' and 'user' are active in production.
+ * The operator/viewer definitions below are retained for Phase 2
+ * expansion but are NOT currently exposed in the UI or user management API.
  */
 
 import { logger } from '@/lib/logger';

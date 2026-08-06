@@ -13,7 +13,6 @@ import {
 import { useAppStore } from '@/lib/store';
 import { NAV_SECTIONS, type NavItem as NavConfigItem } from '@/lib/nav-config';
 import { useSession } from '@/providers/auth-provider';
-import type { UserRole } from '@/lib/rbac';
 import { Input } from '@/components/ui/input';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -113,24 +112,19 @@ function NavButton({
 
 /**
  * Nav items restricted to admin-only access.
- * All other items are visible to all authenticated roles.
+ * Phase 0 RBAC: 2 roles (admin, user). Admin sees everything; user sees intelligence + read-only.
+ * operator/viewer roles are reserved for Phase 2 RBAC expansion.
  */
 const ADMIN_ONLY_NAV_KEYS = new Set([
   'settings',
   'users',
   'audit',
   'ai-health',
-]);
-
-/**
- * Nav items visible to operator+ roles (hidden from user/viewer).
- */
-const OPERATOR_PLUS_NAV_KEYS = new Set([
-  'pipeline',
-  'email-studio',
   'data-import',
   'data-health',
   'trust-dashboard',
+  'pipeline',
+  'email-studio',
 ]);
 
 function filterSectionsByRole(sections: typeof NAV_SECTIONS, role: string) {
@@ -139,7 +133,6 @@ function filterSectionsByRole(sections: typeof NAV_SECTIONS, role: string) {
       ...section,
       items: section.items.filter((item) => {
         if (ADMIN_ONLY_NAV_KEYS.has(item.key)) return role === 'admin';
-        if (OPERATOR_PLUS_NAV_KEYS.has(item.key)) return role === 'admin' || role === 'operator';
         return true;
       }),
     }))
@@ -262,7 +255,9 @@ function Sidebar() {
           <div className="flex items-center gap-3">
             <Avatar className="h-8 w-8 shrink-0">
               <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-                {session?.email ? session.email.slice(0, 2).toUpperCase() : 'DQ'}
+                {session?.email
+                  ? session.email.split('@')[0].slice(0, 2).toUpperCase()
+                  : 'DQ'}
               </AvatarFallback>
             </Avatar>
             <div className="flex flex-col min-w-0">
@@ -277,7 +272,9 @@ function Sidebar() {
         <div className="shrink-0 border-t border-[oklch(0.22_0.005_260)] px-2 py-2 flex justify-center">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-              {session?.email ? session.email.slice(0, 2).toUpperCase() : 'DQ'}
+              {session?.email
+                ? session.email.split('@')[0].slice(0, 2).toUpperCase()
+                : 'DQ'}
             </AvatarFallback>
           </Avatar>
         </div>
@@ -329,6 +326,7 @@ function Sidebar() {
 
 function Header() {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
+  const { session } = useSession();
 
   return (
     <header
@@ -383,12 +381,14 @@ function Header() {
         <div className="flex items-center gap-3 pl-1">
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-primary/15 text-primary text-xs font-semibold">
-              DQ
+              {session?.email
+                ? session.email.split('@')[0].slice(0, 2).toUpperCase()
+                : 'DQ'}
             </AvatarFallback>
           </Avatar>
           <div className="hidden md:flex flex-col">
-            <span className="text-sm font-medium text-foreground leading-tight">DeepMindQ User</span>
-            <span className="text-[11px] text-muted-foreground leading-tight">User</span>
+            <span className="text-sm font-medium text-foreground leading-tight">{session?.email ?? 'DeepMindQ User'}</span>
+            <span className="text-[11px] text-muted-foreground leading-tight capitalize">{session?.role ?? 'user'}</span>
           </div>
         </div>
       </div>

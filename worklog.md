@@ -151,3 +151,25 @@ Stage Summary:
 - Pre-commit hooks passed (ESLint + TypeScript)
 - Commit: 456865d fix(ms8): align Account Intelligence screen with MS6 reference single-page briefing layout
 - MS8 design alignment complete — ready for formal closure
+
+---
+Task ID: ms8-ci-fix
+Agent: Main Agent
+Task: MS8 CI Fix — Unit test coverage OOM resolution
+
+Work Log:
+- Identified root cause: NODE_OPTIONS=2048 insufficient for vitest v8 coverage on GitHub runners
+- Updated .github/workflows/ci.yml: coverage step NODE_OPTIONS from 2048 to 4096
+- Increased unit tests job timeout from 5min to 10min
+- Pushed fix, CI triggered on commit 2fa935f
+- CI Run #31111518835 completed: 20/20 jobs passed, conclusion: success
+- Unit Tests: Step 6 (Run unit tests) = success, Step 7 (Generate coverage) = success
+- Lint + Typecheck: npm run lint = success, npx tsc --noEmit = success
+- Build Verification: Build = success
+
+Stage Summary:
+- 1 file changed: .github/workflows/ci.yml (2 insertions, 2 deletions)
+- Commit: 2fa935f fix(ci): increase heap allocation for unit test coverage step
+- CI: 20/20 jobs passed, 0 failures, 0 cancellations
+- MS8 CI evidence: https://github.com/DeepMindQ/deepmindq-crm/actions/runs/31111518835
+- MS8 formally closed

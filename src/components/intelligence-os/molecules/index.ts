@@ -13,3 +13,6 @@ export { UserMessageBubble, type UserMessageBubbleProps } from './user-message-b
 export { InlineReasoningBlock, type InlineReasoningBlockProps } from './inline-reasoning-block';
 export { AdvisorInputArea, type AdvisorInputAreaProps } from './advisor-input-area';
 export { ConversationHistory, type ConversationHistoryProps } from './conversation-history';
+export { ContextAccountCard, type ContextAccountCardProps } from './context-account-card';
+export { RelatedAccountList, type RelatedAccountListProps } from './related-account-list';
+export { DataFreshnessPanel, type DataFreshnessPanelProps } from './data-freshness-panel';

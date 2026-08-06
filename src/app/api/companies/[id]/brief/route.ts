@@ -47,7 +47,7 @@ try {
     // Build the brief
     const brief: ExecutiveBriefData = {
       companyName: company.rawName,
-      industry: company.industry,
+      industry: company.industry ?? undefined,
       generatedAt: new Date().toISOString(),
       intelligenceScore: company.intelligenceScore ?? 0,
 

@@ -479,7 +479,7 @@ function IntelligenceSurface({
                           <ExternalLink className="w-2 h-2" /> Source
                         </a>
                       )}
-                      <EvidenceStateBadge state={ev.state} />
+                      <EvidenceStateBadge state={ev.state as EvidenceState} />
                     </div>
                   </div>
                 </div>
@@ -603,11 +603,11 @@ function collectAllEvidence(intel: CompanyIntelligence): FlattenedEvidence[] {
   for (const { obj, label } of sources) {
     for (const ev of obj.evidence) {
       all.push({
-        snippet: ev.snippet,
+        snippet: ev.snippet ?? '',
         source: ev.source,
         url: ev.url,
         date: ev.date,
-        state: ev.state,
+        state: ev.state as EvidenceState,
         parentTitle: obj.title,
         parentType: label,
         parentConfidence: obj.confidence,
@@ -1057,7 +1057,7 @@ function ExecutiveBriefModal({
                     className="flex items-start gap-2 px-3 py-2.5 rounded-lg"
                     style={{ background: IOS.bgSecondary, border: `1px solid ${IOS.border}` }}
                   >
-                    <EvidenceStateBadge state={ev.state} />
+                    <EvidenceStateBadge state={ev.state as EvidenceState} />
                     <div>
                       <p className="text-xs font-medium" style={{ color: IOS.textPrimary }}>{ev.title}</p>
                       <p className="text-[10px]" style={{ color: IOS.textMuted }}>
@@ -2404,7 +2404,7 @@ export function CompanyWorkspace() {
                                     <ExternalLink className="w-2 h-2" /> View
                                   </a>
                                 )}
-                                <EvidenceStateBadge state={ev.state} />
+                                <EvidenceStateBadge state={ev.state as EvidenceState} />
                               </div>
                             </div>
                           </div>

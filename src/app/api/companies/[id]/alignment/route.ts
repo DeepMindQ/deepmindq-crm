@@ -185,8 +185,8 @@ try {
       company: {
         id: company.id,
         name: company.rawName,
-        industry: company.industry,
-        domain: company.domain,
+        industry: company.industry ?? undefined,
+        domain: company.domain ?? undefined,
         intelligenceScore: company.intelligenceScore ?? 0,
       },
       executiveUnderstanding,

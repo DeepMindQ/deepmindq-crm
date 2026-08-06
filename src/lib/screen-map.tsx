@@ -54,7 +54,8 @@ const IntelligenceBriefingScreen = lazy(() => import('@/components/intelligence-
 const IntelligenceSearchScreen = lazy(() => import('@/components/intelligence-os/intelligence-search').then(m => ({ default: m.IntelligenceSearch })));
 
 /* ── Primary nav screens (legacy, accessible) ── */
-const DashboardScreen = lazy(() => import('@/components/screens/dashboard-screen'));
+// MS7: Intelligence Hub replaces the legacy dashboard as the default experience
+const DashboardScreen = lazy(() => import('@/components/screens/intelligence-hub-screen'));
 const AICommandCenterScreen = lazy(() => import('@/components/screens/ai-command-center-screen'));
 const RevenueIntelligenceScreen = lazy(() => import('@/components/screens/revenue-intelligence-screen'));
 const SignalIntelligenceScreen = lazy(() => import('@/components/screens/signal-intelligence-screen'));

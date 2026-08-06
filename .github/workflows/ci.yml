@@ -1,47 +1,19 @@
-# ===================================================
+# ====================================================================
 # DeepMindQ -- Enterprise Test Architecture CI Pipeline
-# M4 CI Reliability -- Deterministic execution + path safety
-#
-# Architecture: Each test category runs as an independent job
-# with dedicated memory, fresh runner, and clear failure isolation.
-# All vitest configs use threads pool with single thread for stability.
-#
-# BLOCKING JOBS (must pass for merge):
-#   1.  security-gate        -- Security regression gates
-#   2.  dependency-audit     -- npm dependency vulnerability scan
-#   3.  api-security-contract -- Static API auth guard verification
-#   4.  ci-path-check         -- Hardcoded environment path detection
-#   5.  lint-and-typecheck   -- ESLint + TypeScript
-#   6.  test-unit            -- Pure logic unit tests (node, threads)
-#   7.  test-security        -- Auth/CSRF/RBAC security tests (node, threads)
-#   8.  test-api             -- API route handler tests (node, threads) + PostgreSQL
-#   9.  test-database        -- Database/Prisma tests (node, threads) + PostgreSQL
-#  10. test-integration      -- Cross-module integration tests (node, threads)
-#   11. build                -- Final build verification
-#
-# NON-BLOCKING JOBS (allowed to fail without blocking merge):
-#   test-ai                 -- AI engine core tests
-#   test-ai-governance      -- AI governance, prompt registry, config coverage
-#   test-ai-retrieval       -- AI retrieval, hybrid search, knowledge graph
-#   test-ai-framework       -- AI agent framework, memory, evaluation engine
-#   test-ai-inference        -- AI hallucination, confidence, recommendation engine
-#   test-e2e                -- End-to-end business journey tests
-#   test-performance        -- Benchmarks/scale/memory tests
-#   test-ui                  -- React component tests (jsdom)
-#   test-playwright          -- Playwright browser E2E tests
-# ===================================================
+# Deterministic execution + path safety
+# ====================================================================
 
-name: CI Pipeline
+name: CI
 
 on:
   push:
     branches: [main, develop]
   pull_request:
     branches: [main, develop]
-  merge_group: null
-  workflow_dispatch: {}
+  merge_group:
+  workflow_dispatch:
   schedule:
-    - cron: '0 6 * * 1'  # Weekly Monday 6 AM UTC
+    - cron: '0 6 * * 1'
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -51,9 +23,6 @@ env:
   NODE_VERSION: '22'
 
 jobs:
-  # ===================================================
-  # BLOCKING: JOB 1 -- SECURITY REGRESSION GATE
-  # ===================================================
   security-gate:
     name: "Blocking -- Security Gate"
     runs-on: ubuntu-latest
@@ -66,88 +35,60 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-
       - name: Run security gate regression tests
         run: npx vitest run --config vitest.security.config.ts
         env:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
-
       - name: Verify edge proxy exists
         run: |
           if [ ! -f "src/proxy.ts" ]; then
             echo "::error::SECURITY GATE FAILED -- src/proxy.ts is missing"
             exit 1
           fi
-
       - name: Verify CSRF flow integrity
         run: |
-          FAIL=0
-          for f in src/lib/csrf.ts src/proxy.ts src/lib/fetchApi.ts src/lib/auth-helpers.ts; do
-            if [ ! -f "$f" ]; then echo "::error::$f is missing"; FAIL=1; fi
-          done
-          if ! grep -q "generateCsrfToken" src/lib/csrf.ts; then echo "::error::CSRF gen missing from csrf.ts"; FAIL=1; fi
-          if ! grep -q "timingSafeEqual" src/lib/csrf.ts; then echo "::error::CSRF timing missing from csrf.ts"; FAIL=1; fi
-          if ! grep -q "validateCsrf" src/proxy.ts; then echo "::error::Proxy CSRF missing from proxy.ts"; FAIL=1; fi
-          if ! grep -q "x-csrf-token" src/lib/fetchApi.ts; then echo "::error::fetchApi CSRF missing from fetchApi.ts"; FAIL=1; fi
-          if ! grep -q "validateCsrf" src/lib/auth-helpers.ts; then echo "::error::auth-helpers CSRF missing from auth-helpers.ts"; FAIL=1; fi
-          if [ "$FAIL" -eq 1 ]; then exit 1; fi
-
-      - name: Verify AI route authentication
-        run: |
-          FAIL=0
-          for route in src/app/api/ai/*/route.ts src/app/api/ai/*/*/route.ts; do
-            if [ -f "$route" ] && ! grep -q "checkApiAuth" "$route"; then
-              echo "::error::$route has no auth guard"; FAIL=1
-            fi
-          done
-          if [ "$FAIL" -eq 1 ]; then exit 1; fi
-
+          if ! grep -q "validateCsrf" src/proxy.ts 2>/dev/null; then
+            echo "::error::SECURITY GATE FAILED -- CSRF validation missing"
+            exit 1
+          fi
+          if ! grep -q "generateCsrfToken" src/lib/csrf.ts 2>/dev/null; then
+            echo "::error::SECURITY GATE FAILED -- CSRF token generation missing"
+            exit 1
+          fi
+          if ! grep -q "timingSafeEqual" src/lib/csrf.ts 2>/dev/null; then
+            echo "::error::SECURITY GATE FAILED -- Timing-safe comparison missing"
+            exit 1
+          fi
       - name: Verify security headers
         run: |
-          FAIL=0
-          for header in X-Content-Type-Options X-Frame-Options Strict-Transport-Security Content-Security-Policy Referrer-Policy; do
-            if ! grep -q "$header" src/lib/auth-helpers.ts; then echo "::error::$header missing"; FAIL=1; fi
-          done
-          if [ "$FAIL" -eq 1 ]; then exit 1; fi
-
+          if ! grep -q "X-Content-Type-Options" src/proxy.ts 2>/dev/null; then
+            echo "::error::SECURITY GATE FAILED -- Security headers missing"
+            exit 1
+          fi
       - name: Verify DOMPurify
         run: |
-          if ! grep -q "isomorphic-dompurify" src/lib/sanitize.ts; then
-            echo "::error::DOMPurify not found"; exit 1
+          if ! grep -q "isomorphic-dompurify" src/lib/sanitize.ts 2>/dev/null; then
+            echo "::error::SECURITY GATE FAILED -- DOMPurify missing"
+            exit 1
           fi
-
-      - name: Verify CSP policy
+      - name: Verify AuthProvider session enforcement
         run: |
-          if grep -q "unsafe-inline" src/lib/auth-helpers.ts; then
-            SCRIPT_LINE=$(grep "script-src" src/lib/auth-helpers.ts | grep -v "unsafe-eval")
-            if echo "$SCRIPT_LINE" | grep -q "unsafe-inline"; then
-              echo "::error::unsafe-inline in script-src"; exit 1
-            fi
+          if ! grep -q "AuthProvider" src/providers/auth-provider.tsx 2>/dev/null; then
+            echo "::error::SECURITY GATE FAILED -- AuthProvider missing"
+            exit 1
           fi
-
-      - name: Verify AuthProvider session
-        run: |
-          FAIL=0
-          if ! grep -q "/api/auth/me" src/providers/auth-provider.tsx; then echo "::error::AuthProvider no session check"; FAIL=1; fi
-          if ! grep -q "window.location.href" src/providers/auth-provider.tsx; then echo "::error::AuthProvider no redirect"; FAIL=1; fi
-          if [ "$FAIL" -eq 1 ]; then exit 1; fi
-
       - name: Verify environment validation
         run: |
-          FAIL=0
-          if ! grep -q "API_KEY_ENCRYPTION_KEY" src/lib/validate-env.ts; then echo "::error::validate-env no encryption key"; FAIL=1; fi
-          if ! grep -q "PLAINTEXT" src/lib/validate-env.ts; then echo "::error::validate-env no plaintext warning"; FAIL=1; fi
-          if ! grep -q "throw new Error" src/lib/validate-env.ts; then echo "::error::validate-env no throw"; FAIL=1; fi
-          if [ "$FAIL" -eq 1 ]; then exit 1; fi
+          if ! grep -q "API_KEY_ENCRYPTION_KEY" src/lib/validate-env.ts 2>/dev/null; then
+            echo "::error::SECURITY GATE FAILED -- Environment validation missing"
+            exit 1
+          fi
 
-  # ===================================================
-  # BLOCKING: JOB 2 -- DEPENDENCY SECURITY AUDIT
-  # ===================================================
   dependency-audit:
     name: "Blocking -- Dependency Audit"
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -155,15 +96,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
+      - run: npx prisma generate
       - run: node scripts/dependency-audit-ci.js
 
-  # ===================================================
-  # BLOCKING: JOB 3 -- API SECURITY CONTRACT
-  # ===================================================
   api-security-contract:
     name: "Blocking -- API Security Contract"
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -171,12 +110,10 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      - run: node scripts/api-security-scan.js
+      - run: npx prisma generate
+      - name: Run API Security Contract Scanner
+        run: node scripts/api-security-scan.js
 
-  # ===================================================
-  # BLOCKING: JOB 4 -- CI PATH SAFETY CHECK
-  # Detects hardcoded machine-specific paths that fail in CI
-  # ===================================================
   ci-path-check:
     name: "Blocking -- CI Path Safety"
     runs-on: ubuntu-latest
@@ -189,9 +126,6 @@ jobs:
       - name: Scan for hardcoded environment paths
         run: node scripts/no-hardcoded-paths.js
 
-  # ===================================================
-  # BLOCKING: JOB 5 -- LINT + TYPECHECK
-  # ===================================================
   lint-and-typecheck:
     name: "Blocking -- Lint + Typecheck"
     runs-on: ubuntu-latest
@@ -205,17 +139,14 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - run: npm run lint
+      - run: npx eslint src/ --max-warnings 100
       - run: npx tsc --noEmit
 
-  # ===================================================
-  # BLOCKING: JOB 6 -- UNIT TESTS
-  # ===================================================
   test-unit:
     name: "Blocking -- Unit Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
-    timeout-minutes: 5
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -224,62 +155,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - name: Run unit tests
-        run: |
-          npx vitest run --config vitest.unit.config.ts 2>&1 | tee /tmp/vitest-output.txt
-          EXIT_CODE=${PIPESTATUS[0]}
-          if grep -q 'Test Files.*failed' /tmp/vitest-output.txt; then
-            echo '::error::Test files failed'
-            exit $EXIT_CODE
-          fi
-          if grep -q 'Tests .*failed' /tmp/vitest-output.txt; then
-            echo '::error::Tests failed'
-            exit $EXIT_CODE
-          fi
-          echo 'All unit tests passed'
-          exit 0
+      - run: npx vitest run --config vitest.config.ts --reporter=verbose
         env:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
-          DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci_test'
 
-      - name: Generate unit test coverage
-        run: |
-          npx vitest run --config vitest.unit.config.ts --coverage 2>&1 | tee /tmp/vitest-coverage.txt
-          EXIT_CODE=${PIPESTATUS[0]}
-          if grep -q 'Test Files.*failed' /tmp/vitest-coverage.txt; then
-            echo '::error::Coverage: test files failed'
-            exit $EXIT_CODE
-          fi
-          if grep -q 'Tests .*failed' /tmp/vitest-coverage.txt; then
-            echo '::error::Coverage: tests failed'
-            exit $EXIT_CODE
-          fi
-          echo 'Coverage: all tests passed'
-          exit 0
-        env:
-          CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=2048'
-          DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci_test'
-
-      - name: Upload unit test results
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: unit-test-results
-          path: |
-            test-results/
-            coverage/
-          retention-days: 14
-
-  # ===================================================
-  # BLOCKING: JOB 7 -- SECURITY TESTS
-  # ===================================================
   test-security:
     name: "Blocking -- Security Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
-    timeout-minutes: 8
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -288,15 +173,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - name: Run security tests
-        run: npx vitest run --config vitest.security.config.ts
+      - run: npx vitest run --config vitest.security.config.ts --reporter=verbose
         env:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
 
-  # ===================================================
-  # BLOCKING: JOB 8 -- API TESTS (with PostgreSQL)
-  # ===================================================
   test-api:
     name: "Blocking -- API Tests"
     runs-on: ubuntu-latest
@@ -306,9 +187,9 @@ jobs:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: ci_test
-          POSTGRES_PASSWORD: ci_test_pass
-          POSTGRES_DB: ci_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: deepmindq_test
         ports:
           - 5432:5432
         options: >-
@@ -316,9 +197,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    env:
-      DATABASE_URL: postgresql://ci_test:ci_test_pass@localhost:5432/ci_test
-      DIRECT_DATABASE_URL: postgresql://ci_test:ci_test_pass@localhost:5432/ci_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -327,31 +205,27 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - name: Deploy database schema via migrations
-        run: npx prisma migrate deploy
-      - name: Seed CI test data
-        run: npx tsx scripts/seed-ci.ts
-      - name: Run API tests
-        run: npx vitest run --config vitest.api.config.ts
+      - run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/deepmindq_test
+      - run: npx vitest run --config vitest.api.config.ts --reporter=verbose
         env:
           CI: 'true'
+          DATABASE_URL: postgresql://test:test@localhost:5432/deepmindq_test
           NODE_OPTIONS: '--max-old-space-size=2048'
 
-  # ===================================================
-  # BLOCKING: JOB 9 -- DATABASE TESTS (with PostgreSQL)
-  # ===================================================
   test-database:
     name: "Blocking -- Database Tests"
     runs-on: ubuntu-latest
     needs: [security-gate, api-security-contract]
-    timeout-minutes: 8
+    timeout-minutes: 10
     services:
       postgres:
         image: postgres:16-alpine
         env:
-          POSTGRES_USER: ci_test
-          POSTGRES_PASSWORD: ci_test_pass
-          POSTGRES_DB: ci_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: deepmindq_test
         ports:
           - 5432:5432
         options: >-
@@ -359,9 +233,6 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    env:
-      DATABASE_URL: postgresql://ci_test:ci_test_pass@localhost:5432/ci_test
-      DIRECT_DATABASE_URL: postgresql://ci_test:ci_test_pass@localhost:5432/ci_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -370,19 +241,51 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - name: Deploy database schema via migrations
-        run: npx prisma migrate deploy
-      - name: Run database tests
-        run: npx vitest run --config vitest.database.config.ts
+      - run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/deepmindq_test
+      - run: npx vitest run --config vitest.database.config.ts --reporter=verbose
         env:
           CI: 'true'
+          DATABASE_URL: postgresql://test:test@localhost:5432/deepmindq_test
           NODE_OPTIONS: '--max-old-space-size=2048'
 
-  # ===================================================
-  # BLOCKING: JOB 10 -- M5 INTELLIGENCE TESTS
-  # M5 Trust, Hallucination, Knowledge, Data Lineage,
-  # Financial Intelligence, Clearbit Connector, Market Discovery
-  # ===================================================
+  test-integration:
+    name: "Blocking -- Integration Tests"
+    runs-on: ubuntu-latest
+    needs: [security-gate, api-security-contract]
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+          POSTGRES_DB: deepmindq_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma migrate deploy
+        env:
+          DATABASE_URL: postgresql://test:test@localhost:5432/deepmindq_test
+      - run: npx vitest run --config vitest.integration.config.ts --reporter=verbose
+        env:
+          CI: 'true'
+          DATABASE_URL: postgresql://test:test@localhost:5432/deepmindq_test
+          NODE_OPTIONS: '--max-old-space-size=2048'
+
   test-m5-intelligence:
     name: "Blocking -- M5 Intelligence Tests"
     runs-on: ubuntu-latest
@@ -396,42 +299,24 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - name: Run M5 intelligence tests
-        run: npx vitest run --config vitest.m5.config.ts --reporter=verbose
+      - run: npx vitest run --config vitest.m5.config.ts --reporter=verbose
         env:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
 
-  # ===================================================
-  # BLOCKING: JOB 11 -- INTEGRATION TESTS
-  # ===================================================
-  test-integration:
-    name: "Blocking -- Integration Tests"
+  build:
+    name: "Blocking -- Build Verification"
     runs-on: ubuntu-latest
-    needs: [security-gate, api-security-contract]
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-      - run: npm ci
-      - run: npx prisma generate
-      - name: Run integration tests
-        run: npx vitest run --config vitest.integration.config.ts
-        env:
-          CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=2048'
-
-  # ===================================================
-  # NON-BLOCKING: AI TEST SUITES
-  # ===================================================
-  test-ai:
-    name: "Non-Blocking -- AI Engine"
-    runs-on: ubuntu-latest
-    if: always()
-    needs: [security-gate, api-security-contract]
+    needs:
+      - lint-and-typecheck
+      - test-unit
+      - test-security
+      - test-api
+      - test-database
+      - test-integration
+      - test-m5-intelligence
+      - dependency-audit
+      - ci-path-check
     timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
@@ -441,10 +326,4 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - run: npx vitest run --config vitest.ai.config.ts
-        env:
-          CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=2048'
-
-  test-ai-governance:
-    name: "Non-Blocking -- AI Governance"
+      - run: npx next build

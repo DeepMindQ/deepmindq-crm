@@ -73,6 +73,10 @@ export const ALL_CATEGORIES: KnowledgeCategory[] = [
 
 // ─── Source Reliability (static, no ML) ────────────────────────
 
+/**
+ * @deprecated Use `getReliabilityScore()` from `@/lib/intelligence-sources/trust-metadata` instead.
+ * This uses a different scale (0-1) than the canonical TRUST framework (0-100).
+ */
 export const SOURCE_RELIABILITY: Record<SourceType, number> = {
   csv: 0.95,
   excel: 0.95,

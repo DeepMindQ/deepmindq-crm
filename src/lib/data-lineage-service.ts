@@ -322,6 +322,9 @@ export async function recordLineageBatch(
 /**
  * Get data freshness statistics for a company.
  * Returns the age of each field's latest lineage event.
+ *
+ * If no lineage records exist for the company, returns a meaningful response
+ * with `noLineageRecords: true` and age 999 for common fields.
  */
 export async function getDataFreshnessStats(
   companyId: string
@@ -329,15 +332,40 @@ export async function getDataFreshnessStats(
   ageDays: number;
   source: TrustSource;
   lastUpdated: string;
+  noLineageRecords?: true;
+} | {
+  ageDays: number;
+  source: 'ai_inference';
+  lastUpdated: string;
+  noData: true;
 }>> {
   const summary = await getCompanyLineageSummary(companyId);
+
+  // Safety: if no lineage records exist, return unknown freshness for common fields
+  if (Object.keys(summary).length === 0) {
+    const now = new Date().toISOString();
+    const commonFields = ['revenue', 'employees', 'fundingStage', 'techStack', 'industry'];
+    const stats: Record<string, { ageDays: number; source: TrustSource; lastUpdated: string; noLineageRecords?: true }> = {};
+    for (const field of commonFields) {
+      stats[field] = {
+        ageDays: 999,
+        source: 'ai_inference',
+        lastUpdated: now,
+        noLineageRecords: true,
+      };
+    }
+    return stats;
+  }
+
   const now = Date.now();
   const stats: Record<string, { ageDays: number; source: TrustSource; lastUpdated: string }> = {};
 
   for (const [field, info] of Object.entries(summary)) {
-    const ageMs = now - new Date(info.timestamp).getTime();
+    const timestampMs = new Date(info.timestamp).getTime();
+    // Guard against invalid/stale timestamps
+    const ageMs = isNaN(timestampMs) ? now : now - timestampMs;
     stats[field] = {
-      ageDays: Math.round(ageMs / (1000 * 60 * 60 * 24)),
+      ageDays: Math.max(0, Math.round(ageMs / (1000 * 60 * 60 * 24))),
       source: info.source,
       lastUpdated: info.timestamp,
     };

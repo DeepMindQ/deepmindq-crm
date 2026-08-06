@@ -86,6 +86,8 @@ export type ViewId =
   | 'ai-strategy'
   | 'duplicates'
   | 'data-import'
+  | 'trust-dashboard'
+  | 'company-trust-detail'
   | 'builder';
 
 interface AppState {

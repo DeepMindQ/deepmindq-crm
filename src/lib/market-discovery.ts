@@ -24,6 +24,7 @@ import { scoreBuyingIntent, type BuyingIntentScore } from '@/lib/scoring/buying-
 import {
   aggregateTrust,
   platformComputedTrust,
+  withTrust,
   type TrustMetadata,
 } from '@/lib/intelligence-sources/trust-metadata';
 
@@ -104,6 +105,8 @@ export interface MarketDiscoveryResult {
 
   // ── TRUST ──
   trust: TrustMetadata;
+  /** Decorated trust metadata via withTrust() */
+  _trust: TrustMetadata;
 }
 
 /** Full discovery response */
@@ -568,7 +571,7 @@ export async function discoverMarket(
       const resultTrust = aggregateTrust(trustItems);
       allTrustItems.push(resultTrust);
 
-      results.push({
+      const result = {
         companyId: company.id,
         companyName: company.rawName,
         domain: company.domain,
@@ -587,7 +590,9 @@ export async function discoverMarket(
         recommendedApproach,
         timingWindow,
         trust: resultTrust,
-      });
+      };
+
+      results.push(withTrust(result, resultTrust) as MarketDiscoveryResult);
     } catch (err) {
       logger.warn('[market-discovery] Failed to score company', {
         companyId: company.id,

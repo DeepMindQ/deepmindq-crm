@@ -136,6 +136,43 @@ export const SOURCE_RELIABILITY_SCORES: Record<TrustSource, number> = {
   ai_inference: 55,
 };
 
+// ─── Consolidated Reliability Score ──────────────────────────────
+
+/** Mapping from legacy SourceType strings to their equivalent TrustSource */
+const SOURCE_TYPE_TO_TRUST_SOURCE: Record<string, TrustSource> = {
+  clearbit: 'verified_api',
+  apollo: 'verified_api',
+  csv: 'customer_data',
+  excel: 'customer_data',
+  document: 'internal_document',
+  human: 'customer_data',
+  website: 'web_intelligence',
+  rss: 'web_intelligence',
+};
+
+/**
+ * Get the reliability score (0-100) for a given source.
+ *
+ * This is the SINGLE SOURCE OF TRUTH for source reliability.
+ * Accepts either a TrustSource or a legacy SourceType string.
+ *
+ * @param source - A TrustSource (e.g., 'verified_api') or SourceType (e.g., 'clearbit')
+ * @returns Reliability score 0-100
+ */
+export function getReliabilityScore(source: string): number {
+  // If it's a direct TrustSource, look it up
+  if (source in SOURCE_RELIABILITY_SCORES) {
+    return SOURCE_RELIABILITY_SCORES[source as TrustSource];
+  }
+  // Otherwise, map from legacy SourceType to TrustSource
+  const mappedTrustSource = SOURCE_TYPE_TO_TRUST_SOURCE[source];
+  if (mappedTrustSource) {
+    return SOURCE_RELIABILITY_SCORES[mappedTrustSource];
+  }
+  // Unknown source — return lowest default
+  return 55;
+}
+
 /** Human-readable labels for source types */
 export const SOURCE_LABELS: Record<TrustSource, string> = {
   verified_api: 'Verified API Data',

@@ -124,6 +124,8 @@ const AccountRankingScreen = lazy(() => import('@/components/screens/account-ran
 const OpportunityWorkspaceScreen = lazy(() => import('@/components/screens/opportunity-workspace-screen'));
 const PursuitWorkspaceScreen = lazy(() => import('@/components/screens/pursuit-workspace-screen'));
 const ICPSettingsScreen = lazy(() => import('@/components/screens/icp-settings-screen'));
+const TrustDashboardScreen = lazy(() => import('@/components/screens/trust-dashboard-screen'));
+const CompanyTrustDetailScreen = lazy(() => import('@/components/screens/company-trust-detail-screen'));
 
 /* ── Bridge wrappers ── */
 
@@ -162,6 +164,8 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'ai-usage': withScreenErrorBoundary(AIUsageDashboardScreen, 'ai-usage'),
   'research-agent': withScreenErrorBoundary(ResearchAgentScreen, 'research-agent'),
   'audit-logs': withScreenErrorBoundary(AuditLogsScreen, 'audit-logs'),
+  'trust-dashboard': withScreenErrorBoundary(TrustDashboardScreen, 'trust-dashboard'),
+  'company-trust-detail': withScreenErrorBoundary(CompanyTrustDetailScreen, 'company-trust-detail'),
 
   // ── Detail views ──
   // DEPRECATED: company-detail now routes to Intelligence OS CompanyWorkspace

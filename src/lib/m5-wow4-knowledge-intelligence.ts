@@ -57,6 +57,7 @@ import {
   aggregateTrust,
   platformComputedTrust,
   computeTrustScore,
+  withTrust,
   type TrustMetadata,
   type TrustConfidence,
 } from '@/lib/intelligence-sources/trust-metadata';
@@ -65,6 +66,10 @@ import {
   type ConfidenceResult,
   type ConfidenceInput,
 } from '@/lib/ai-unified-confidence';
+import {
+  guardAgainstHallucination,
+  type AnswerSafetyReport,
+} from '@/lib/hallucination-prevention';
 
 // ── Public Types ──────────────────────────────────────────────────────────────
 
@@ -141,6 +146,10 @@ export interface KnowledgeAnswer {
       signalDiversity: number;
     };
   };
+  /** Hallucination safety report (computed by the prevention module). */
+  safetyReport: AnswerSafetyReport;
+  /** Hallucination risk level: negligible | low | medium | high. */
+  hallucinationRisk: 'negligible' | 'low' | 'medium' | 'high';
   /** Timestamp. */
   timestamp: string;
 }
@@ -533,6 +542,63 @@ export function queryKnowledgeIntelligence(
     knowledgeFound,
   );
 
+  // ── Phase 8.5: Hallucination Check ────────────────────────────────
+  const hallucinationStart = Date.now();
+
+  // Build a preliminary answer object for the guard
+  const preliminaryAnswer: Omit<KnowledgeAnswer, 'safetyReport' | 'hallucinationRisk' | 'timestamp'> & {
+    safetyReport?: AnswerSafetyReport;
+    hallucinationRisk?: 'negligible' | 'low' | 'medium' | 'high';
+  } = {
+    answerId,
+    question: input.query,
+    reasoning,
+    evidence: evidenceData,
+    sources: citedSources,
+    confidence: confidenceResult,
+    answer,
+    knowledgeFound,
+    graphEntities: resolvedEntities.map(e => ({
+      id: e.node.id,
+      label: e.node.label,
+      type: e.node.type,
+    })),
+    memoryContextSummary:
+      memoryContext.totalMemories > 0
+        ? `${memoryContext.totalMemories} memory item(s) contributed (working: ${memoryContext.working.length}, conversation: ${memoryContext.conversation.length}, enterprise: ${memoryContext.enterprise.length}, institutional: ${memoryContext.institutional.length}).`
+        : 'No relevant memories found.',
+    retrievalMetrics: {
+      retrievalLatencyMs,
+      graphLatencyMs,
+      memoryLatencyMs,
+      totalLatencyMs: 0, // will be updated below
+      hybridSignalCount: evidencePackage.activeSignalCount,
+      evidencePackageQuality: {
+        averageConfidence: evidencePackage.quality.averageConfidence,
+        premiumSourceCount: evidencePackage.quality.premiumSourceCount,
+        signalDiversity: evidencePackage.quality.signalDiversity,
+      },
+    },
+  };
+
+  // Run hallucination guard — may modify answer text, adds safety report
+  const guardedAnswer = guardAgainstHallucination(preliminaryAnswer);
+
+  const hallucinationLatencyMs = Date.now() - hallucinationStart;
+
+  logger.info('[M5-WOW4] Phase 8.5 — Hallucination prevention completed', {
+    answerId,
+    safetyScore: guardedAnswer.safetyReport.safetyScore,
+    riskLevel: guardedAnswer.safetyReport.riskLevel,
+    hallucinationRisk: guardedAnswer.hallucinationRisk,
+    verifiedClaims: guardedAnswer.safetyReport.verifiedClaims,
+    unsupportedClaims: guardedAnswer.safetyReport.unsupportedClaims,
+    contradictedClaims: guardedAnswer.safetyReport.contradictedClaims,
+    safeToDisplay: guardedAnswer.safetyReport.safeToDisplay,
+    answerModified: guardedAnswer.answer !== answer,
+    latencyMs: hallucinationLatencyMs,
+  });
+
   // ── Phase 9: TRUST Metadata ───────────────────────────────────────
   const trust = buildAnswerTrust(
     evidencePackage,
@@ -553,7 +619,7 @@ export function queryKnowledgeIntelligence(
     evidence: evidenceData,
     sources: citedSources,
     confidence: confidenceResult,
-    answer,
+    answer: guardedAnswer.answer,
     knowledgeFound,
     graphEntities: resolvedEntities.map(e => ({
       id: e.node.id,
@@ -576,6 +642,8 @@ export function queryKnowledgeIntelligence(
         signalDiversity: evidencePackage.quality.signalDiversity,
       },
     },
+    safetyReport: guardedAnswer.safetyReport,
+    hallucinationRisk: guardedAnswer.hallucinationRisk,
     timestamp: new Date().toISOString(),
   };
 
@@ -588,12 +656,18 @@ export function queryKnowledgeIntelligence(
     trustScore: trustScore.score,
     trustGrade: trustScore.grade,
     latencyMs: totalLatencyMs,
+    safetyScore: knowledgeAnswer.safetyReport.safetyScore,
+    riskLevel: knowledgeAnswer.safetyReport.riskLevel,
+    hallucinationRisk: knowledgeAnswer.hallucinationRisk,
+    safeToDisplay: knowledgeAnswer.safetyReport.safeToDisplay,
   });
 
-  return {
+  const output: KnowledgeIntelligenceOutput = {
     success: true,
     answer: knowledgeAnswer,
     trust,
     trustScore,
   };
+
+  return withTrust(output, trust) as KnowledgeIntelligenceOutput;
 }

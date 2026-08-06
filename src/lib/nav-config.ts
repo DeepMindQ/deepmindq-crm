@@ -74,6 +74,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: 'data-import', label: 'Import Data', icon: FileDown },
       { key: 'data-health', label: 'Data Health', icon: Activity },
+      { key: 'trust-dashboard', label: 'AI Trust', icon: Shield },
     ],
   },
 

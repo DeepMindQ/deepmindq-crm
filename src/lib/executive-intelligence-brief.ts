@@ -41,6 +41,7 @@ import { logger } from '@/lib/logger';
 import { computeUnifiedConfidence } from '@/lib/ai-unified-confidence';
 import { aggregateTrust, computeTrustScore, type TrustMetadata } from './intelligence-sources/trust-metadata';
 import { computeFinancialProfile, buildFieldConfidence } from './financial-intelligence-framework';
+import { recordLineage } from './data-lineage-service';
 
 // ─── Brief Types ─────────────────────────────────────────────────
 
@@ -270,6 +271,18 @@ export async function generateExecutiveBrief(companyId: string): Promise<Executi
   );
 
   const durationMs = Date.now() - startTime;
+
+  // Record lineage for the generated executive brief
+  await recordLineage({
+    companyId,
+    field: 'executive_brief',
+    event: 'computed',
+    source: 'platform_computed',
+    provider: 'executive_brief_engine',
+    newValue: compositeTrustScore.score,
+    description: `Executive intelligence brief generated with trust score ${compositeTrustScore.score}/100 (${compositeTrustScore.grade})`,
+    triggeredBy: 'executive_brief_engine',
+  });
 
   return {
     meta: {

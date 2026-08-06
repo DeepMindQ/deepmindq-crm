@@ -7,6 +7,7 @@ import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
 import { clearbitConnector } from '@/lib/intelligence-sources/connectors/clearbit-connector';
 import { computeTrustScore, type TrustMetadata } from '@/lib/intelligence-sources/trust-metadata';
+import { recordLineageBatch } from '@/lib/data-lineage-service';
 
 /* ═══════════════════════════════════════════════════
    M5 Phase 1: Company Data Enrichment
@@ -93,6 +94,15 @@ try {
             companyId: company.id,
             objectsFound: apiResult.intelligenceObjects.length,
           });
+
+          // Record lineage for each enriched field from verified API
+          await recordLineageBatch(company.id, [
+            { field: 'revenue', event: 'enriched', source: 'verified_api', provider: 'clearbit', newValue: enrichmentData.revenue, description: 'Revenue enriched via Clearbit API' },
+            { field: 'employees', event: 'enriched', source: 'verified_api', provider: 'clearbit', newValue: enrichmentData.employeeCount, description: 'Employee count enriched via Clearbit API' },
+            { field: 'fundingStage', event: 'enriched', source: 'verified_api', provider: 'clearbit', newValue: enrichmentData.fundingStage, description: 'Funding stage enriched via Clearbit API' },
+            { field: 'techStack', event: 'enriched', source: 'verified_api', provider: 'clearbit', newValue: enrichmentData.techStack, description: 'Tech stack enriched via Clearbit API' },
+            { field: 'businessOverview', event: 'enriched', source: 'verified_api', provider: 'clearbit', newValue: enrichmentData.businessOverview, description: 'Business overview enriched via Clearbit API' },
+          ]);
         } else {
           // API returned no data — fall through to AI
           logger.info('[enrich] Clearbit returned no data, falling back to AI', {
@@ -109,6 +119,15 @@ try {
               reasoning: 'All fields AI-estimated. No verified external data available. Treat as signals only, not facts.',
             },
           };
+
+          // Record lineage for AI-estimated enrichment
+          await recordLineageBatch(company.id, [
+            { field: 'revenue', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.revenue, description: 'Revenue AI-estimated (Clearbit returned no data)' },
+            { field: 'employees', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.employeeCount, description: 'Employee count AI-estimated' },
+            { field: 'fundingStage', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.fundingStage, description: 'Funding stage AI-estimated' },
+            { field: 'techStack', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.techStack, description: 'Tech stack AI-estimated' },
+            { field: 'businessOverview', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.businessOverview, description: 'Business overview AI-estimated' },
+          ]);
         }
       } catch (err) {
         logger.warn('[enrich] Clearbit API failed, falling back to AI', { error: err });
@@ -122,6 +141,15 @@ try {
             reasoning: 'Clearbit API unavailable. All fields AI-estimated.',
           },
         };
+
+        // Record lineage for AI fallback enrichment (API error path)
+        await recordLineageBatch(company.id, [
+          { field: 'revenue', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.revenue, description: 'Revenue AI-estimated (Clearbit API failed)' },
+          { field: 'employees', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.employeeCount, description: 'Employee count AI-estimated' },
+          { field: 'fundingStage', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.fundingStage, description: 'Funding stage AI-estimated' },
+          { field: 'techStack', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.techStack, description: 'Tech stack AI-estimated' },
+          { field: 'businessOverview', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.businessOverview, description: 'Business overview AI-estimated' },
+        ]);
       }
     } else {
       // Explicit AI fallback request
@@ -135,6 +163,15 @@ try {
           reasoning: 'User requested AI estimation. All fields are estimates, not verified data.',
         },
       };
+
+      // Record lineage for explicit AI fallback enrichment
+      await recordLineageBatch(company.id, [
+        { field: 'revenue', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.revenue, description: 'Revenue AI-estimated (user-requested)' },
+        { field: 'employees', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.employeeCount, description: 'Employee count AI-estimated' },
+        { field: 'fundingStage', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.fundingStage, description: 'Funding stage AI-estimated' },
+        { field: 'techStack', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.techStack, description: 'Tech stack AI-estimated' },
+        { field: 'businessOverview', event: 'enriched', source: 'ai_inference', provider: 'ai_estimation', newValue: enrichmentData.businessOverview, description: 'Business overview AI-estimated' },
+      ]);
     }
 
     // ── Upsert research card with enrichment data + TRUST ──

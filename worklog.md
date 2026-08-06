@@ -280,3 +280,33 @@ Stage Summary:
   .freshness-list + .freshness-item → DataFreshnessPanel
   .context-panel → AdvisorContextSidebar
 - Chapter 4 complete
+
+---
+Task ID: ms9-5
+Agent: Main Agent
+Task: MS9 Chapter 5 — Structured Briefing Blocks
+
+Work Log:
+- Implemented 8 block molecules + 1 shell + 1 renderer organism
+- BriefingBlockShell: shared collapsible wrapper with chevron animation, title, trust badge
+- KeyFindingsBlock: findings list with confidence dots (green/amber/red threshold)
+- SignalsBlock: signal pills via Chapter 2 atom, show-more hint for overflow
+- RecommendationsBlock: action-type badges (review/save/monitor/schedule/export/escalate), priority colors, reasoning
+- TimelineInsightsBlock: chronological events with significance dots (critical=red, high=amber, medium=blue)
+- CompetitiveIntelBlock: competitor cards with threat level indicators, positioning summary
+- RiskFlagsBlock: severity-colored left border, mitigation strategies, risk assessment
+- NarrativeBlock: structured paragraphs with emphasis differentiation
+- DataSummaryBlock: 2-column metrics grid with trend icons (up/down/stable/new)
+- StructuredBriefingRenderer: exhaustive discriminated union routing with never-type fallback
+- Updated ConversationHistory to render briefing.blocks via StructuredBriefingRenderer
+- Updated molecules/index.ts with 10 new MS9 exports
+- TypeScript: 0 errors, ESLint: 0 errors, pre-commit hooks passed
+- Committed as 4ad6cc9, pushed to origin/main
+
+Stage Summary:
+- Created 10 new files (8 block molecules + 1 shell + 1 renderer), modified 2 files (molecules/index.ts, conversation-history.tsx)
+- 876 lines of new code
+- All types from ms9-advisor.ts BriefingBlockContent discriminated union
+- Design tokens only — no hardcoded colors
+- Exhaustive type checking via never-type fallback
+- Chapter 5 complete

@@ -16,7 +16,7 @@ import {
   Brain, BookOpen, Layers, Radar, Target,
   Settings, Shield, Database, Plug, Activity,
   BarChart3, Inbox, Upload, Radio,
-  TrendingUp, Telescope, ScrollText,
+  TrendingUp, Telescope, ScrollText, Sparkles,
   Users, GitBranch, Mail, FileDown,
 } from 'lucide-react';
 
@@ -40,6 +40,7 @@ export const NAV_SECTIONS: NavSection[] = [
     defaultOpen: true,
     items: [
       { key: 'intelligence-operations', label: 'Executive Dashboard', icon: LayoutDashboard },
+      { key: 'ai-advisor', label: 'AI Advisor', icon: Sparkles },
       { key: 'accounts', label: 'Company Intelligence', icon: Building2 },
       { key: 'contacts', label: 'Contact Intelligence', icon: Users },
       { key: 'signal-intelligence', label: 'AI Insights', icon: Radar },

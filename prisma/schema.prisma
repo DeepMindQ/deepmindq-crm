@@ -464,6 +464,10 @@ model Company {
   pipelineRuns             PipelineRun[]
   fusionResults            FusionResult[]
 
+  // MS9: Intelligence Advisor
+  advisorConversations     AdvisorConversation[]
+  advisorSavedBriefings    AdvisorSavedBriefing[]
+
   @@index([domain])
   @@index([normalizedName])
   @@index([industry])
@@ -3359,4 +3363,149 @@ model ShadowModeReconciliation {
 
   @@index([store, createdAt(sort: Desc)])
   @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+// MS9 Intelligence Advisor — Persistence Models
+//
+// Enterprise-grade persistence for advisor conversations, messages,
+// workspaces, escalations, and saved briefings.
+// ═══════════════════════════════════════════════════════════════════════
+
+enum AdvisorConversationScope {
+  account_intelligence
+  market_intelligence
+  competitive_analysis
+  signal_investigation
+  general_intelligence
+}
+
+enum AdvisorConversationStatus {
+  active
+  archived
+}
+
+enum AdvisorMessageRole {
+  user
+  assistant
+  system
+}
+
+enum AdvisorMessageStatus {
+  pending
+  streaming
+  delivered
+  error
+}
+
+enum AdvisorEscalationReason {
+  low_confidence
+  conflicting_evidence
+  complex_analysis
+  data_gap
+  user_request
+}
+
+enum AdvisorEscalationStatus {
+  requested
+  acknowledged
+  in_progress
+  resolved
+  dismissed
+}
+
+model AdvisorConversation {
+  id              String                      @id @default(cuid())
+  title           String                      @default("New Intelligence Briefing")
+  scope           AdvisorConversationScope    @default(general_intelligence)
+  status          AdvisorConversationStatus   @default(active)
+  companyId       String?
+  userId          String?
+  messageCount    Int                         @default(0)
+  lastActiveAt    DateTime                    @default(now())
+  createdAt       DateTime                    @default(now())
+
+  messages        AdvisorMessage[]
+  escalations     AdvisorEscalation[]
+  workspace       AdvisorWorkspace?
+  savedBriefings  AdvisorSavedBriefing[]
+
+  company         Company?                    @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, lastActiveAt(sort: Desc)])
+  @@index([userId, lastActiveAt(sort: Desc)])
+  @@index([status, lastActiveAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
+}
+
+model AdvisorMessage {
+  id                    String                @id @default(cuid())
+  conversationId        String
+  role                  AdvisorMessageRole
+  status                AdvisorMessageStatus   @default(pending)
+  content               String
+  contentJson           String?               // JSON: structured content (briefing, error, event)
+  briefingId            String?
+  queryText             String?
+  position              Int
+  processingDurationMs  Int?
+  modelUsed             String?
+  feedbackType          String?
+  feedbackComment       String?
+  feedbackProvidedAt    DateTime?
+  createdAt             DateTime              @default(now())
+
+  conversation          AdvisorConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, position])
+  @@index([conversationId, createdAt(sort: Desc)])
+  @@index([briefingId])
+}
+
+model AdvisorWorkspace {
+  id              String                @id @default(cuid())
+  conversationId  String                @unique
+  workspaceData    String                // JSON: AdvisorWorkspace
+  totalItems      Int                   @default(0)
+  updatedAt       DateTime              @default(now())
+  createdAt       DateTime              @default(now())
+
+  conversation    AdvisorConversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([updatedAt(sort: Desc)])
+}
+
+model AdvisorEscalation {
+  id               String                   @id @default(cuid())
+  conversationId   String
+  messageId        String
+  reason           AdvisorEscalationReason
+  priority         String                   @default("medium")
+  description      String
+  contextSnapshot  String                   // JSON: conversation/message context
+  status           AdvisorEscalationStatus @default(requested)
+  requestedAt      DateTime                 @default(now())
+  acknowledgedAt   DateTime?
+  resolvedAt       DateTime?
+
+  conversation     AdvisorConversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, requestedAt(sort: Desc)])
+  @@index([status, requestedAt(sort: Desc)])
+  @@index([reason, status])
+}
+
+model AdvisorSavedBriefing {
+  id              String                @id @default(cuid())
+  conversationId  String
+  title           String
+  briefingData    String                // JSON: StructuredBriefing
+  companyId       String?
+  createdAt       DateTime              @default(now())
+
+  conversation    AdvisorConversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  company         Company?              @relation(fields: [companyId], references: [id])
+
+  @@index([companyId, createdAt(sort: Desc)])
+  @@index([createdAt(sort: Desc)])
 }

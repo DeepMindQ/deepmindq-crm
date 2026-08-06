@@ -386,3 +386,29 @@ Stage Summary:
 - All unconsumed types are forward-looking MS10 scope (streaming, feedback, message persistence)
 - No scope leakage detected (no MS10 types imported)
 - MS9 formally closed
+---
+Task ID: 1
+Agent: Main Agent
+Task: MS9 Integration Layer — AI Advisor Activation
+
+Work Log:
+- Explored full codebase: MS9 types (1078 lines), existing backend (synthesis engine, recommendation engine, confidence engine, AI governance), Prisma schema (3363 lines), hooks, navigation, screen map
+- Created Briefing Adapter (briefing-adapter.ts) — translates SynthesisEngine Brief → StructuredBriefing with 6 block types, signal pills, trust footer, confidence footer, inline reasoning chain
+- Created Context Builders (context-builders.ts) — builds AdvisorAccountContext and ContextSidebarData from Prisma models (Company, CompanySignal, AccountScore)
+- Created Advisor Orchestrator (advisor-orchestrator.ts) — central pipeline: context → synthesis → recommendations → confidence → adaptation, with graceful degradation at each step
+- Created Advisor Persistence (advisor-persistence.ts) — enterprise CRUD for conversations, messages, workspaces, escalations, saved briefings
+- Created barrel export (index.ts) for clean public API
+- Created 4 API routes: POST /api/ai/advisor (query), GET /api/ai/advisor (list), GET /api/ai/advisor/conversation/[id], POST /api/ai/advisor/workspace, POST /api/ai/advisor/escalation
+- Added 6 Prisma models: AdvisorConversation, AdvisorMessage, AdvisorWorkspace, AdvisorEscalation, AdvisorSavedBriefing with 6 enums
+- Registered AI Advisor in nav-config.ts (INTELLIGENCE section, Sparkles icon) and screen-map.tsx
+- Created AI Advisor Screen wrapper (ai-advisor-screen.tsx) — wires MS9 hooks to live API endpoints
+- Created 33 unit tests across 2 test files — all passing
+
+Stage Summary:
+- New files: 12 (5 lib, 5 API routes, 1 screen, 2 test files)
+- Modified files: 4 (prisma schema, nav-config, screen-map, barrel export for Company model)
+- ~2,600 lines new code
+- Zero TypeScript errors, zero ESLint errors, 33/33 tests passing
+- Existing 34 MS9 UI component files untouched
+- Existing MS9 type contracts unchanged
+

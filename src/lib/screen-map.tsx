@@ -52,6 +52,7 @@ const KnowledgeWorkspaceScreen = lazy(() => import('@/components/intelligence-os
 const CapabilityWorkspaceScreen = lazy(() => import('@/components/intelligence-os/capability-workspace').then(m => ({ default: m.CapabilityWorkspace })));
 const IntelligenceBriefingScreen = lazy(() => import('@/components/intelligence-os/intelligence-briefing').then(m => ({ default: m.IntelligenceBriefing })));
 const IntelligenceSearchScreen = lazy(() => import('@/components/intelligence-os/intelligence-search').then(m => ({ default: m.IntelligenceSearch })));
+const AIAdvisorScreen = lazy(() => import('@/components/screens/ai-advisor-screen'));
 
 /* ── Primary nav screens (legacy, accessible) ── */
 // MS7: Intelligence Hub replaces the legacy dashboard as the default experience
@@ -151,6 +152,7 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'capability-workspace': withScreenErrorBoundary(CapabilityWorkspaceScreen, 'capability-workspace'),
   'intelligence-briefing': withScreenErrorBoundary(IntelligenceBriefingScreen, 'intelligence-briefing'),
   'intelligence-search': withScreenErrorBoundary(IntelligenceSearchScreen, 'intelligence-search'),
+  'ai-advisor': withScreenErrorBoundary(AIAdvisorScreen, 'ai-advisor'),
 
   // ── INTELLIGENCE nav ──
   accounts: withScreenErrorBoundary(CompaniesScreen, 'accounts'),

@@ -27,6 +27,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 import { orchestrateAdvisorQuery } from '@/lib/advisor/advisor-orchestrator';
 import { advisorConversationApi } from '@/lib/advisor/advisor-persistence';
 import { buildContextSidebarData } from '@/lib/advisor/context-builders';
@@ -53,6 +54,11 @@ const AdvisorQuerySchema = z.object({
 
 export async function POST(request: NextRequest) {
   const correlationId = `advisor-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+
+  // ── Auth guard ──
+  const { session, errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+  const userId = session!.id;
 
   try {
     // Parse and validate request
@@ -94,6 +100,7 @@ export async function POST(request: NextRequest) {
         title: queryRequest.query.slice(0, 80),
         scope: 'account_intelligence',
         companyId: queryRequest.accountId,
+        userId,
       });
     } else {
       // Update existing conversation
@@ -213,9 +220,12 @@ export async function GET(request: NextRequest) {
   const limit = parseInt(searchParams.get('limit') || '20', 10);
 
   try {
+    const { session: listSession, errorResponse: listError } = await checkApiAuth();
+    if (listError) return listError;
+
     const conversations = await advisorConversationApi.listConversations({
       companyId: companyId || undefined,
-      userId: undefined,
+      userId: listSession!.id,
       limit,
     });
 

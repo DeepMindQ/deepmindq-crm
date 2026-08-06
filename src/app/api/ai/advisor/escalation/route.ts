@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 import { advisorConversationApi } from '@/lib/advisor/advisor-persistence';
 
 const EscalationSchema = z.object({
@@ -18,6 +19,10 @@ const EscalationSchema = z.object({
 });
 
 export async function POST(request: NextRequest) {
+  // ── Auth guard ──
+  const { errorResponse } = await checkApiAuth();
+  if (errorResponse) return errorResponse;
+
   try {
     const body = await request.json();
     const parsed = EscalationSchema.safeParse(body);

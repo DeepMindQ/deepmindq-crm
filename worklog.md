@@ -339,3 +339,50 @@ Stage Summary:
   human escalation patterns → HumanAssistanceBanner + Dialog
   workspace patterns → AdvisorWorkspacePanel
 - Chapter 6 complete — MS9 UI implementation complete (all type contracts fulfilled)
+
+---
+Task ID: ms9-7
+Agent: Main Agent
+Task: MS9 Chapter 7 — Custom Hooks & State Management
+
+Work Log:
+- Implemented 3 React hooks for MS9 state management
+- useAdvisorConversation: full conversation lifecycle management — messages, processing state machine (7 states), confidence history tracking, query submission with API bridge, retry, feedback, new briefing
+- useHumanAssistance: escalation lifecycle — banner/dialog control, auto-detection of low confidence (<40) and conflicting evidence (trust tier spread >50), manual trigger, submit/dismiss/reset
+- useAdvisorWorkspace: workspace CRUD — add/remove/update/touch/pin/unpin items, 4-section management (briefings, accounts, history, quick_access), persist to backend, max items per section
+- Updated index.ts with 3 new MS9 hook exports (types + hooks)
+- Fixed TypeScript error: removed `scope` from AdvisorQueryRequest (not in type contract)
+- Fixed React Compiler ESLint error: broadened useCallback dependency from optional chain to full property
+- TypeScript: 0 errors, ESLint: 0 errors, pre-commit hooks passed
+- Committed as 2d0e48d, pushed to origin/main
+
+Stage Summary:
+- Created 3 new files, modified 1 file (index.ts)
+- 1017 lines of new code
+- All hooks consume ms9-advisor.ts types exclusively
+- Full conversation lifecycle: query → processing states → structured briefing → confidence tracking
+- Chapter 7 complete
+
+---
+Task ID: ms9-8
+Agent: Main Agent
+Task: MS9 Chapter 8 — MS9 Closure & Type Contract Audit
+
+Work Log:
+- Ran comprehensive type contract audit via Explore agent
+- Audited all 69 exports from ms9-advisor.ts
+- Results: 46/69 actively consumed (66.7%); after removing 14 bypassed MS8/MS7 re-exports, MS9-native consumption = 46/55 (83.6%)
+- Identified 8 types with zero consumers (forward-looking MS10 types: AdvisorRole, MessageStatus, AdvisorMessageFeedback, AdvisorStreamChunk, IntelligenceStatus, ExecutiveStats)
+- Identified 2 unused utility functions (signalTypeToPillVariant, buildAccountContextFromTrust)
+- Identified 1 unused import in useAdvisorConversation.ts (TrustFooter, SignalPill, ConfidenceFooter, InlineReasoning — all removed)
+- Cleaned up 4 unused type imports from use-advisor-conversation.ts
+- TypeScript: 0 errors, ESLint: 0 errors, pre-commit hooks passed
+- Committed as c033b18, pushed to origin/main
+
+Stage Summary:
+- 1 file changed (use-advisor-conversation.ts, 4 deletions)
+- MS9 type contract audit complete
+- 83.6% MS9-native type consumption rate
+- All unconsumed types are forward-looking MS10 scope (streaming, feedback, message persistence)
+- No scope leakage detected (no MS10 types imported)
+- MS9 formally closed

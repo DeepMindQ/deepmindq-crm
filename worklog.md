@@ -127,3 +127,27 @@ Stage Summary:
 - Build: compiled successfully
 - Evidence package: /home/z/my-project/download/DeepMindQ_MS8_Completion_Evidence_Package.pdf
 - MS8 ready for closure review
+
+---
+Task ID: ms8-design-alignment
+Agent: Main Agent
+Task: MS8 Design Alignment — Account Intelligence tab-to-single-page refactor
+
+Work Log:
+- Identified design alignment item from closure review: tab-based layout does not match MS6 reference
+- MS6 reference_account_intelligence.html uses single-page vertical briefing flow with glass cards in a grid
+- Removed Tabs/TabsList/TabsTrigger/TabsContent imports and usage
+- Created CollapsibleSection wrapper component for progressive disclosure on secondary sections
+- Primary briefing row (Trust Analysis + Confidence Breakdown) is always visible
+- Secondary sections (Signals, Contacts) use CollapsibleSection with expand/collapse
+- AI Recommendations section uses CollapsibleSection with purple accent badge (matching MS6 "AI Assessment" card)
+- Preserved all existing sub-components: SignalTimelineEntry, ContactRow, RecommendationEntry, MetricCard, etc.
+- No new components, no new types, no scope changes — layout refactor only
+
+Stage Summary:
+- 1 file changed: account-intelligence-screen.tsx (298 insertions, 299 deletions)
+- TypeScript: 0 errors
+- ESLint: 0 errors, 0 warnings
+- Pre-commit hooks passed (ESLint + TypeScript)
+- Commit: 456865d fix(ms8): align Account Intelligence screen with MS6 reference single-page briefing layout
+- MS8 design alignment complete — ready for formal closure

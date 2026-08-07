@@ -18,9 +18,14 @@ import { inferSignalMeaning, batchInferMeaning } from '@/lib/research-engine/sig
 import { validateCompanySignals, getSignalValidationSummary } from '@/lib/signal-validation';
 import { detectContradictions } from '@/lib/contradiction-detection';
 import { logger } from '@/lib/logger';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export async function POST(request: Request) {
   try {
+    // ── Authentication Gate ──
+    const { errorResponse } = await checkApiAuth();
+    if (errorResponse) return errorResponse;
+
     const body = await request.json();
     const { companyId } = body;
 

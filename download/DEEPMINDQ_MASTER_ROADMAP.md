@@ -4,7 +4,7 @@
 
 ---
 
-## STATUS: Phase 1.2 ACTIVE | 9 DONE | 81 PENDING | 10% COMPLETE
+## STATUS: Phase 1.6 READY | 13 DONE | 77 PENDING | 14% COMPLETE
 ## LAST UPDATED: 2026-08-07
 
 ---
@@ -43,11 +43,11 @@
 | ID | Track | Title | Depends On | Status |
 |----|-------|-------|------------|--------|
 | 1.1 | INT | Learning Loop Circuit Closure | 0.x | DONE |
-| 1.2 | PST | registerMapStateProvider Wiring | 0.x | ACTIVE |
-| 1.3 | PST | Maps Cold-Start Hydration | 1.2 | NEXT |
-| 1.4 | PST | Cold-Start Trigger on Boot | 1.3 | NEXT |
-| 1.5 | PST | Score Config Persistence Validation | 1.2 | PENDING |
-| 1.6 | INT | Signal Detection Accuracy Hardening | 1.1 | PENDING |
+| 1.2 | PST | registerMapStateProvider Wiring | 0.x | DONE |
+| 1.3 | PST | Maps Cold-Start Hydration | 1.2 | DONE |
+| 1.4 | PST | Cold-Start Trigger on Boot | 1.3 | DONE |
+| 1.5 | PST | Score Config Persistence Validation | 1.2 | DONE |
+| 1.6 | INT | Signal Detection Accuracy Hardening | 1.1 | NEXT |
 | 1.7 | INT | Technology Detection Calibration | 1.1, 1.6 | PENDING |
 
 ### Phase 2 — Knowledge & Learning
@@ -212,3 +212,7 @@ With 3-4 parallel tracks active from Phase 2 onward, wall-clock estimate: **~28-
 | 2026-08-07 | 0.7 | DONE | Health endpoints (pre-existing) | 0.8 |
 | 2026-08-07 | 0.8 | DONE | CI/CD GitHub Actions (pre-existing) | 1.1 |
 | 2026-08-07 | 1.1 | DONE | Validation report PDF, 8/8 tests, AI 417/417, Retrieval 91/91 | 1.2 |
+| 2026-08-07 | 1.2 | DONE | map-state-provider.ts wired, registers all 6 stores to shadow-mode comparator | 1.3 |
+| 2026-08-07 | 1.3 | DONE | hydrateMapsFromRecords() in cold-start-loader.ts, all 5 stores → Map.set() with index rebuild | 1.4 |
+| 2026-08-07 | 1.4 | DONE | instrumentation.ts calls wireMapStateProvider + executeColdStartLoad + getScoringConfig on boot | 1.5 |
+| 2026-08-07 | 1.5 | DONE | scoring-config.ts wired into revenue-opportunity-engine.ts, GET/PUT API at /api/scoring-config | 1.6 |

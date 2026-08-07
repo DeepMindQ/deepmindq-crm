@@ -1,4 +1,30 @@
 ---
+Task ID: session1-persistence-batch
+Agent: Main Agent
+Task: Session 1 — Persistence Batch (1.2 + 1.3 + 1.4 + 1.5)
+
+Work Log:
+- Deep-audited existing codebase: 3 parallel exploration agents mapped all Map state, cold-start, persistence, and scoring code
+- Identified 3 critical persistence gaps: registerMapStateProvider never called, Maps never hydrated from DB, cold-start never triggered
+- Identified orphaned scoring-config.ts: fully implemented DB persistence but 0 runtime callers
+- Item 1.2: Created /src/lib/persistence/map-state-provider.ts (117 lines) — implements MapStateProvider bridging all 3 AI modules to shadow-mode comparator
+- Added getKnowledgeGraphMaps(), hydrateNodes(), hydrateEdges() to ai-knowledge-graph.ts
+- Added getMemoryMaps(), hydrateMemories() to ai-memory.ts
+- Added getRetrievalMaps(), hydrateRetrievalEntries() to ai-hybrid-retrieval.ts
+- Item 1.3: Replaced placeholder comment in cold-start-loader.ts with hydrateMapsFromRecords() function (60 lines) — routes DB records to correct AI module hydrate functions, rebuilds derived indices
+- Item 1.4: Wired wireMapStateProvider() + executeColdStartLoad() + getScoringConfig() into instrumentation.ts startup sequence
+- Item 1.5: Wired getCachedScoringConfig() into revenue-opportunity-engine.ts toPriorityTier() and insight type classification
+- Created /api/scoring-config/route.ts (GET/PUT) for admin score config management
+- Zero TypeScript compilation errors after implementation
+- 17/17 tests passing in session1-persistence-batch.test.ts
+
+Stage Summary:
+- 4 items completed: 1.2 (MapStateProvider), 1.3 (Cold-Start Hydration), 1.4 (Cold-Start Trigger), 1.5 (Score Config)
+- Files created: map-state-provider.ts, scoring-config API route, session1 test file
+- Files modified: shadow-mode-comparator.ts, cold-start-loader.ts, instrumentation.ts, ai-knowledge-graph.ts, ai-memory.ts, ai-hybrid-retrieval.ts, persistence/index.ts, revenue-opportunity-engine.ts
+- All changes follow reuse-existing-pattern: no new persistence infrastructure, just wiring
+---
+
 Task ID: v3-full-audit
 Agent: Main Agent
 Task: DeepMindQ Intelligence Architecture Maturity Audit v3 — Dedicated Enterprise Instance

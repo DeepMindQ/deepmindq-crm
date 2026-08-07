@@ -16,6 +16,38 @@ export async function register() {
         process.exit(1);
       }
     }
+
+    // ── WI-18.2 Phase 3: Persistence Cold-Start Initialization ──
+    // Wire the map state provider (enables shadow-mode reconciliation)
+    // and execute cold-start load (populates in-memory Maps from DB).
+    try {
+      const { wireMapStateProvider } = await import('@/lib/persistence/map-state-provider');
+      wireMapStateProvider();
+    } catch (err) {
+      console.error('[startup] Failed to wire map state provider:', err);
+    }
+
+    try {
+      const { executeColdStartLoad } = await import('@/lib/persistence/cold-start-loader');
+      const report = await executeColdStartLoad();
+      console.log(
+        `[startup] Persistence cold-start complete: status=${report.status}, ` +
+        `completeness=${(report.overallCompleteness * 100).toFixed(1)}%, ` +
+        `duration=${report.startupDurationMs}ms`
+      );
+    } catch (err) {
+      console.error('[startup] Persistence cold-start failed (non-fatal, Maps start empty):', err);
+    }
+
+    // Pre-load scoring config from DB so the cache is warm
+    try {
+      const { getScoringConfig } = await import('@/lib/scoring-config');
+      const config = await getScoringConfig();
+      console.log(`[startup] Scoring config loaded: tiers=${JSON.stringify(config.tierThresholds)}, recencyDays=${config.signalRecencyDays}`);
+    } catch (err) {
+      console.error('[startup] Failed to pre-load scoring config (non-fatal, using defaults):', err);
+    }
+
     // Register graceful shutdown
     if (!_shutdownRegistered) {
       _shutdownRegistered = true;

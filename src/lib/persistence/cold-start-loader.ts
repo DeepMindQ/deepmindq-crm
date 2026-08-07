@@ -236,12 +236,11 @@ async function loadStore(
     const loadTimeMs = Date.now() - startMs;
     const mapCount = records.length;
 
-    // For now, we load records and log counts.
-    // The actual Map population happens during integration (Phase 3 of WI-18.2)
-    // when the adapter is connected to the AI module Maps.
-    //
-    // This loader establishes the infrastructure. The Map.set() integration
-    // will populate the actual in-memory Maps from these loaded records.
+    // WI-18.2 Phase 3: Populate the in-memory Maps from loaded DB records.
+    // This is the "cold-start hydration" — after a server restart, all Maps
+    // start empty. This function repopulates them from the DB so the AI
+    // modules can serve requests immediately without waiting for new writes.
+    hydrateMapsFromRecords(store, records as Record<string, unknown>[]);
 
     if (COLD_START_COMPANY_ID) {
       logger.info(
@@ -261,7 +260,7 @@ async function loadStore(
       loaded: true,
       loadTimeMs,
       completeness: 1.0,
-      indicesRebuilt: false,
+      indicesRebuilt: true, // WI-18.2 Phase 3: hydrateMapsFromRecords rebuilds derived indices
     };
   } catch (error) {
     const loadTimeMs = Date.now() - startMs;
@@ -343,4 +342,80 @@ export function getColdStartTenantMode(): { mode: 'single_tenant' | 'multi_tenan
     mode: COLD_START_COMPANY_ID ? 'single_tenant' : 'multi_tenant',
     companyId: COLD_START_COMPANY_ID,
   };
+}
+
+/**
+ * Populate the in-memory Maps from loaded DB records.
+ *
+ * This is the critical WI-18.2 Phase 3 integration point:
+ *   DB records (from adapter.readAll) → Map.set() in AI modules
+ *
+ * Each store maps to a specific AI module's hydrate function:
+ *   - knowledge_graph_nodes → ai-knowledge-graph.hydrateNodes()
+ *   - knowledge_graph_edges → ai-knowledge-graph.hydrateEdges()
+ *   - ai_memory              → ai-memory.hydrateMemories()
+ *   - retrieval_index        → ai-hybrid-retrieval.hydrateRetrievalEntries()
+ *   - retrieval_corpus_stats → ai-hybrid-retrieval.hydrateRetrievalEntries() (IDF data)
+ *
+ * Uses dynamic require() to avoid circular module dependencies.
+ */
+function hydrateMapsFromRecords(
+  store: IntelligencePersistenceStore,
+  records: Record<string, unknown>[]
+): void {
+  if (records.length === 0) {
+    logger.info(`[cold-start] No records to hydrate for ${store}`);
+    return;
+  }
+
+  try {
+    switch (store) {
+      case 'knowledge_graph_nodes': {
+        const kg = require('@/lib/ai-knowledge-graph');
+        kg.hydrateNodes(records);
+        break;
+      }
+      case 'knowledge_graph_edges': {
+        const kg = require('@/lib/ai-knowledge-graph');
+        kg.hydrateEdges(records);
+        break;
+      }
+      case 'ai_memory': {
+        const mem = require('@/lib/ai-memory');
+        mem.hydrateMemories(records);
+        break;
+      }
+      case 'retrieval_index': {
+        const ret = require('@/lib/ai-hybrid-retrieval');
+        ret.hydrateRetrievalEntries(records);
+        break;
+      }
+      case 'retrieval_corpus_stats': {
+        // Corpus stats is a singleton record containing documentFrequency.
+        // Parse it and restore the IDF map.
+        if (records.length > 0) {
+          const statsRecord = records[0];
+          const docFreq = statsRecord.documentFrequency as Record<string, number> | undefined;
+          const totalDocs = statsRecord.totalDocuments as number | undefined;
+          if (docFreq) {
+            const ret = require('@/lib/ai-hybrid-retrieval');
+            const docFreqMap = new Map(Object.entries(docFreq).map(([k, v]) => [k, v as number]));
+            ret.hydrateRetrievalEntries([], docFreqMap, totalDocs);
+          }
+        }
+        break;
+      }
+      case 'retrieval_metrics': {
+        // Metrics store is telemetry-only — no Map to hydrate.
+        logger.info(`[cold-start] Skipping Map hydration for telemetry store: ${store}`);
+        break;
+      }
+      default: {
+        logger.warn(`[cold-start] Unknown store during hydration: ${store}`);
+      }
+    }
+  } catch (error) {
+    logger.error(`[cold-start] Failed to hydrate Maps for ${store}: ${error}`);
+    // Non-fatal: Maps will be empty but server continues. Next write will populate.
+  }
 }

@@ -37,6 +37,7 @@ export {
   registerMapStateProvider,
   startShadowModeComparator,
 } from './shadow-mode-comparator';
+export { wireMapStateProvider } from './map-state-provider';
 export {
   PERSISTENCE_REGISTRY,
   getPrimaryStores,

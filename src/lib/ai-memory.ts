@@ -900,6 +900,51 @@ export function getAllMemories(): MemoryItem[] {
   return Array.from(memoryStore.values());
 }
 
+/**
+ * WI-18.2 Phase 3: Get raw Map references for cold-start hydration and
+ * shadow-mode reconciliation.
+ */
+export function getMemoryMaps(): {
+  memoryStore: ReadonlyMap<string, MemoryItem>;
+  layerIndex: ReadonlyMap<MemoryLayer, Set<string>>;
+  categoryIndex: ReadonlyMap<MemoryCategory, Set<string>>;
+  scopeIndex: ReadonlyMap<string, Set<string>>;
+  tagIndex: ReadonlyMap<string, Set<string>>;
+} {
+  return { memoryStore, layerIndex, categoryIndex, scopeIndex, tagIndex };
+}
+
+/**
+ * WI-18.2 Phase 3: Bulk-insert memories during cold-start hydration.
+ * Rebuilds derived indices. Skips persistence writes.
+ */
+export function hydrateMemories(memories: MemoryItem[]): void {
+  for (const memory of memories) {
+    memoryStore.set(memory.id, memory);
+    // Rebuild indices inline (same as updateIndices but without persist)
+    let layerIds = layerIndex.get(memory.layer);
+    if (!layerIds) { layerIds = new Set(); layerIndex.set(memory.layer, layerIds); }
+    layerIds.add(memory.id);
+
+    let catIds = categoryIndex.get(memory.category);
+    if (!catIds) { catIds = new Set(); categoryIndex.set(memory.category, catIds); }
+    catIds.add(memory.id);
+
+    if (memory.scope !== 'global' && memory.scope?.entityId) {
+      let scopeIds = scopeIndex.get(memory.scope.entityId);
+      if (!scopeIds) { scopeIds = new Set(); scopeIndex.set(memory.scope.entityId, scopeIds); }
+      scopeIds.add(memory.id);
+    }
+
+    for (const tag of memory.tags || []) {
+      let tagIds = tagIndex.get(tag);
+      if (!tagIds) { tagIds = new Set(); tagIndex.set(tag, tagIds); }
+      tagIds.add(memory.id);
+    }
+  }
+  logger.info(`[cold-start] Hydrated ${memories.length} memories (indices rebuilt)`);
+}
+
 // ── Index Management ───────────────────────────────────────────────
 
 function updateIndices(memory: MemoryItem): void {

@@ -1558,6 +1558,91 @@ export function clearGraph(): void {
 }
 
 /**
+ * WI-18.2 Phase 3: Get raw Map references for cold-start hydration and
+ * shadow-mode reconciliation. Returns Map copies to prevent external mutation.
+ */
+export function getKnowledgeGraphMaps(): {
+  nodeStore: ReadonlyMap<string, GraphNode>;
+  edgeStore: ReadonlyMap<string, GraphEdge>;
+  sourceEdgeIndex: ReadonlyMap<string, string[]>;
+  targetEdgeIndex: ReadonlyMap<string, string[]>;
+  labelIndex: ReadonlyMap<string, string[]>;
+  typeIndex: ReadonlyMap<string, string[]>;
+  relationshipIndex: ReadonlyMap<string, string[]>;
+} {
+  return {
+    nodeStore,
+    edgeStore,
+    sourceEdgeIndex,
+    targetEdgeIndex,
+    labelIndex,
+    typeIndex,
+    relationshipIndex,
+  };
+}
+
+/**
+ * WI-18.2 Phase 3: Bulk-insert nodes during cold-start hydration.
+ * Rebuilds derived indices after insertion. Skips persistence writes
+ * (data is already loaded from DB).
+ */
+export function hydrateNodes(nodes: GraphNode[]): void {
+  for (const node of nodes) {
+    nodeStore.set(node.id, node);
+    // Rebuild derived indices
+    const normalizedLabel = normalizeLabel(node.label);
+    const labelNodes = labelIndex.get(normalizedLabel) || [];
+    if (!labelNodes.includes(node.id)) {
+      labelNodes.push(node.id);
+      labelIndex.set(normalizedLabel, labelNodes);
+    }
+    const typeNodes = typeIndex.get(node.type) || [];
+    if (!typeNodes.includes(node.id)) {
+      typeNodes.push(node.id);
+      typeIndex.set(node.type, typeNodes);
+    }
+    for (const alias of node.aliases || []) {
+      const normAlias = normalizeLabel(alias);
+      const aliasNodes = labelIndex.get(normAlias) || [];
+      if (!aliasNodes.includes(node.id)) {
+        aliasNodes.push(node.id);
+        labelIndex.set(normAlias, aliasNodes);
+      }
+    }
+  }
+  logger.info(`[cold-start] Hydrated ${nodes.length} nodes into knowledge graph (indices rebuilt)`);
+}
+
+/**
+ * WI-18.2 Phase 3: Bulk-insert edges during cold-start hydration.
+ * Rebuilds derived indices after insertion.
+ */
+export function hydrateEdges(edges: GraphEdge[]): void {
+  for (const edge of edges) {
+    edgeStore.set(edge.id, edge);
+    // Source edge index
+    const srcEdges = sourceEdgeIndex.get(edge.sourceId) || [];
+    if (!srcEdges.includes(edge.id)) {
+      srcEdges.push(edge.id);
+      sourceEdgeIndex.set(edge.sourceId, srcEdges);
+    }
+    // Target edge index
+    const tgtEdges = targetEdgeIndex.get(edge.targetId) || [];
+    if (!tgtEdges.includes(edge.id)) {
+      tgtEdges.push(edge.id);
+      targetEdgeIndex.set(edge.targetId, tgtEdges);
+    }
+    // Relationship index
+    const relEdges = relationshipIndex.get(edge.relationship) || [];
+    if (!relEdges.includes(edge.id)) {
+      relEdges.push(edge.id);
+      relationshipIndex.set(edge.relationship, relEdges);
+    }
+  }
+  logger.info(`[cold-start] Hydrated ${edges.length} edges into knowledge graph (indices rebuilt)`);
+}
+
+/**
  * Get all nodes in the graph.
  */
 export function getAllNodes(): GraphNode[] {

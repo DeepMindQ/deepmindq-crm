@@ -59,7 +59,8 @@ describe('S3 — Item 2.5: Learning Event Pipeline', () => {
       const fs = require('fs');
       const content = fs.readFileSync('src/lib/feedback-learning-loop.ts', 'utf-8');
       expect(content).toContain('learningEvent.create');
-      expect(content).toContain('feedback_positive') || expect(content).toContain('feedback_negative');
+      const hasFeedback = content.includes('feedback_positive') || content.includes('feedback_negative');
+      expect(hasFeedback).toBe(true);
     });
   });
 

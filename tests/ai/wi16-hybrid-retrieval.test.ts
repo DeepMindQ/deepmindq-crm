@@ -262,7 +262,8 @@ describe('WI-16F: Query Understanding', () => {
 
     expect(qu.expandedTerms.length).toBeGreaterThan(0);
     const expanded = qu.expandedTerms.join(' ').toLowerCase();
-    expect(expanded).toContain('amazon web services') || expect(expanded).toContain('cloud');
+    const hasTechMatch = expanded.includes('amazon web services') || expanded.includes('cloud');
+    expect(hasTechMatch).toBe(true);
   });
 
   it('generates expanded terms for industry queries', () => {
@@ -270,7 +271,8 @@ describe('WI-16F: Query Understanding', () => {
 
     expect(qu.expandedTerms.length).toBeGreaterThan(0);
     const expanded = qu.expandedTerms.join(' ').toLowerCase();
-    expect(expanded).toContain('software') || expect(expanded).toContain('financial');
+    const hasMatch = expanded.includes('software') || expanded.includes('financial');
+    expect(hasMatch).toBe(true);
   });
 });
 

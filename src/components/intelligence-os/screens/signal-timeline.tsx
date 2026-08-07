@@ -1,5 +1,7 @@
 'use client';
 
+import React from 'react';
+
 /* ═══════════════════════════════════════════════════════════════
    MS8 §7 — Signal Timeline (Screen Component)
    
@@ -64,6 +66,11 @@ function getImpactIcon(impact: AccountSignalEntry['impactLevel']): React.Element
   }
 }
 
+function renderImpactIcon(impact: AccountSignalEntry['impactLevel'], color: string) {
+  const IconComponent = getImpactIcon(impact);
+  return <IconComponent className="w-4 h-4" style={{ color }} />;
+}
+
 // ─── Props ──────────────────────────────────────────────────
 export interface SignalTimelineProps {
   /** Signal entries to display */
@@ -93,7 +100,6 @@ function SignalEntry({
   onToggle: () => void;
   onClick?: (signal: AccountSignalEntry) => void;
 }) {
-  const ImpactIcon = getImpactIcon(signal.impactLevel);
   const trustTier = getConfidenceTrustLevel(signal.confidenceScore);
   const trustColor = getTrustColor(trustTier);
   const trustBg = getTrustBg(trustTier);
@@ -134,10 +140,7 @@ function SignalEntry({
             border: `1px solid ${getImpactBorder(signal.impactLevel)}`,
           }}
         >
-          <ImpactIcon
-            className="w-4 h-4"
-            style={{ color: getImpactColor(signal.impactLevel) }}
-          />
+          {renderImpactIcon(signal.impactLevel, getImpactColor(signal.impactLevel))}
         </div>
 
         {/* Content */}

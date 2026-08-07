@@ -4,7 +4,7 @@
 
 ---
 
-## STATUS: Phase 1.7 READY | 14 DONE | 76 PENDING | 15% COMPLETE
+## STATUS: Phase 2.1 READY | 15 DONE | 75 PENDING | 16% COMPLETE
 ## LAST UPDATED: 2026-08-07
 
 ---
@@ -48,12 +48,12 @@
 | 1.4 | PST | Cold-Start Trigger on Boot | 1.3 | DONE |
 | 1.5 | PST | Score Config Persistence Validation | 1.2 | DONE |
 | 1.6 | INT | Signal Detection Accuracy Hardening | 1.1 | DONE |
-| 1.7 | INT | Technology Detection Calibration | 1.1, 1.6 | NEXT |
+| 1.7 | INT | Technology Detection Calibration | 1.1, 1.6 | DONE |
 
 ### Phase 2 — Knowledge & Learning
 | ID | Track | Title | Depends On | Status |
 |----|-------|-------|------------|--------|
-| 2.1 | KNO | Knowledge Graph Cold-Start Hydration | 1.3 | PENDING |
+| 2.1 | KNO | Knowledge Graph Cold-Start Hydration | 1.3 | NEXT |
 | 2.2 | KNO | Institutional Memory Search & Reuse | 1.1 | PENDING |
 | 2.3 | KNO | Cross-Company Learning Transfer | 2.1, 2.2 | PENDING |
 | 2.4 | KNO | Decision Learning Confidence Blending | 1.1, 2.2 | PENDING |
@@ -217,3 +217,4 @@ With 3-4 parallel tracks active from Phase 2 onward, wall-clock estimate: **~28-
 | 2026-08-07 | 1.4 | DONE | instrumentation.ts calls wireMapStateProvider + executeColdStartLoad + getScoringConfig on boot | 1.5 |
 | 2026-08-07 | 1.5 | DONE | scoring-config.ts wired into revenue-opportunity-engine.ts, GET/PUT API at /api/scoring-config | 1.6 |
 | 2026-08-07 | 1.6 | DONE | 3 orphaned modules wired: signal-meaning→storeSignals, contradiction→recommendation engine (contradictions:0→real count), validation+accuracy-pipeline API created, 51/51 tests | 1.7 |
+| 2026-08-07 | 1.7 | DONE | Centralized tech-keywords.ts registry (100+ keywords, 8 categories), wired into signal-creator, signals.ts, contradiction-detection, 36/36 tests | 2.1 |

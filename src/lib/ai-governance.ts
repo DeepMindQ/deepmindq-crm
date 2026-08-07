@@ -12,11 +12,19 @@
  *
  * Non-throwing design: governance checks return results, never throw.
  * AI routes inspect the result and decide whether to proceed or reject.
+ *
+ * S5 INTEGRATION:
+ *   6. Prompt Registry — resolves system prompts from centralized registry (3.4)
+ *   7. A/B Testing — variant assignment for running experiments (3.5)
+ *   8. Unified Cost Tracking — records token/cost after every LLM call (3.6)
  */
 
 import { db } from '@/lib/db';
 import type { ResearchContext } from '@/lib/intelligence-contract';
 import { AICacheLayer } from '@/lib/ai-cache-layer';
+import { getSystemPrompt as getRegistrySystemPrompt, getPrompt } from '@/lib/ai-prompt-registry';
+import { assignVariant as assignABVariant, getVariant as getABVariant, listExperiments as listABExperiments, type ExperimentVariant as ABExperimentVariant } from '@/lib/prompt-ab-testing';
+import { recordUnifiedCost } from '@/lib/unified-ai-cost-tracking';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -1157,6 +1165,10 @@ interface GovernedAICallParams {
   enableHallucinationCheck?: boolean;
   /** Whether to use AI cache for this call (default: true for cacheable generation types). */
   useCache?: boolean;
+  /** S5-3.4: Prompt registry ID — if set, resolves system prompt from registry instead of inline. */
+  promptRegistryId?: string;
+  /** S5-3.5: A/B testing sample key — if set, assigns variant from any running experiment for this prompt. */
+  abSampleKey?: string;
 }
 
 export interface GovernedAIResult {
@@ -1176,6 +1188,10 @@ export interface GovernedAIResult {
   hallucinationCheck: HallucinationCheckResult | null;
   /** Whether the response was served from cache. */
   cacheHit?: boolean;
+  /** S5-3.5: A/B test variant ID assigned for this call (if applicable). */
+  abVariantId?: string;
+  /** S5-3.6: Unified cost record ID (if cost tracking succeeded). */
+  costRecordId?: string;
 }
 
 /**
@@ -1218,6 +1234,8 @@ export async function governedAICall(
     signalIds,
     capabilityAssetIds,
     inputParams,
+    promptRegistryId,
+    abSampleKey,
   } = params;
 
   // ── Step 1: Run governance checks ──
@@ -1232,6 +1250,45 @@ export async function governedAICall(
   // ── Step 2: Build prompt addons ──
   const groundingNote = buildEvidenceGroundingNote(ctx);
   const promptAddon = buildGovernancePromptAddon(governanceResult, generationType);
+
+  // ── Step 2.5: S5 — Prompt Registry + A/B Testing Resolution ──
+  let resolvedSystemPrompt = systemPrompt;
+  let abVariantId: string | undefined;
+
+  // S5-3.4: Resolve system prompt from registry if promptRegistryId is provided
+  if (promptRegistryId) {
+    try {
+      const registryPrompt = getRegistrySystemPrompt(promptRegistryId);
+      if (registryPrompt) {
+        resolvedSystemPrompt = registryPrompt;
+      } else {
+        logger.warn(`[ai-governance] Prompt registry ID "${promptRegistryId}" not found, falling back to inline systemPrompt`);
+      }
+    } catch (err) {
+      logger.error(`[ai-governance] Failed to resolve prompt from registry: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  // S5-3.5: A/B Testing — assign variant if experiment is running for this prompt
+  if (promptRegistryId && abSampleKey) {
+    try {
+      const runningExperiments = listABExperiments('running');
+      const matchingExp = runningExperiments.find(e => e.promptId === promptRegistryId);
+      if (matchingExp) {
+        const variantId = assignABVariant(matchingExp.id, abSampleKey);
+        if (variantId) {
+          abVariantId = variantId;
+          const variant = getABVariant(matchingExp.id, variantId);
+          if (variant?.systemPromptOverride) {
+            resolvedSystemPrompt = variant.systemPromptOverride;
+          }
+          logger.info(`[ai-governance] A/B test "${matchingExp.name}": variant "${variantId}" assigned for sample "${abSampleKey}"`);
+        }
+      }
+    } catch (err) {
+      logger.error(`[ai-governance] A/B testing variant assignment failed (non-blocking): ${err instanceof Error ? err.message : err}`);
+    }
+  }
 
   // ── Step 3: Check if blocked ──
   if (!governanceResult.canProceed && enforceGovernance) {
@@ -1291,7 +1348,7 @@ export async function governedAICall(
     ? `${generationType}:${companyId}:${contactId || 'none'}:${params.tier || 'smart'}`
     : `aggregate:${generationType}:${params.tier || 'smart'}`;
 
-  const governedSystemPrompt = `${systemPrompt}\n\n${HALLUCINATION_PREVENTION_RULES}${stalenessWarning}`;
+  const governedSystemPrompt = `${resolvedSystemPrompt}\n\n${HALLUCINATION_PREVENTION_RULES}${stalenessWarning}`;
   const governedUserPrompt = `${userPrompt}\n\n${groundingNote}\n${promptAddon}${freshnessWarning}`;
 
   // Check cache before LLM call (skip for conversational/unpredictable generation types)
@@ -1316,6 +1373,9 @@ export async function governedAICall(
   }
 
   // ── Step 4: Call LLM with governed prompt (if cache miss) ──
+  let llmPromptTokens = 0;
+  let llmCompletionTokens = 0;
+  let llmDurationMs = 0;
   if (!response) {
     try {
       const result = await ModelRouter.complete({
@@ -1331,6 +1391,9 @@ export async function governedAICall(
       if (!result.success) throw new Error(result.error ?? 'ModelRouter failed');
       response = result.text;
       actualModel = result.modelUsed;
+      llmPromptTokens = result.promptTokens;
+      llmCompletionTokens = result.completionTokens;
+      llmDurationMs = result.durationMs;
     } catch (llmErr) {
       logger.error(`[ai-governance] LLM call failed for ${generationType}:`, { error: llmErr instanceof Error ? llmErr.message : llmErr });
       // Record failed LLM call
@@ -1413,6 +1476,28 @@ export async function governedAICall(
     modelUsed: actualModel,
   });
 
+  // ── Step 5.5: S5-3.6 — Unified Cost Tracking ──
+  let costRecordId: string | undefined;
+  if (llmPromptTokens > 0 || llmCompletionTokens > 0) {
+    try {
+      costRecordId = await recordUnifiedCost({
+        route: generationType || 'unknown',
+        capability: generationType || 'governed_ai_call',
+        provider: actualModel.split('/')[0] || 'unknown',
+        model: actualModel,
+        promptVersion: promptRegistryId,
+        inputTokens: llmPromptTokens,
+        outputTokens: llmCompletionTokens,
+        latencyMs: llmDurationMs,
+        success: true,
+        companyId,
+      });
+    } catch (costErr) {
+      // Cost tracking is non-blocking — must never break the AI call flow
+      logger.error(`[ai-governance] Unified cost tracking failed (non-blocking): ${costErr instanceof Error ? costErr.message : costErr}`);
+    }
+  }
+
   return {
     success: true,
     response,
@@ -1422,6 +1507,8 @@ export async function governedAICall(
     promptAddon,
     hallucinationCheck,
     cacheHit,
+    abVariantId,
+    costRecordId,
   };
 }
 

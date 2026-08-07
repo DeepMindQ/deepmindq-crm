@@ -34,6 +34,7 @@ export default defineConfig({
       'tests/ai/recommendation-generator.test.ts',
       'tests/ai/opportunity-radar.test.ts',
       'tests/ai/research-engine.test.ts',
+      'tests/phase-s5-prompt-ab-cost.test.ts',
     ],
     exclude: ['tests/legacy/**'],
     globals: true,

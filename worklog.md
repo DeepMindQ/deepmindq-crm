@@ -646,3 +646,27 @@ Stage Summary:
 - 8/8 closed-circuit tests pass proving: positive feedback increases score, negative decreases, magnitude is exact, graceful degradation works
 - Files modified: recommendation-engine.ts, ai-hybrid-retrieval.ts, vitest.ai.config.ts
 - Files created: tests/ai/learning-loop-closed-circuit.test.ts
+---
+Task ID: phase1-validation
+Agent: Main Agent
+Task: Phase 1 Learning Loop Circuit Closure — Full Validation Evidence
+
+Work Log:
+- Explored full codebase to map all files related to recommendation engine, calibration, feedback, scoring, hybrid retrieval
+- Read recommendation-engine.ts (1175 lines): SCORE_WEIGHTS, applyCalibrationToScore(), generateAllRecommendations(), buildCompanyRecommendation()
+- Read feedback-learning-loop.ts (954 lines): processFeedback(), getCalibrationAdjustments(), storeFeedbackRecord()
+- Read ai-hybrid-retrieval.ts (1260 lines): DEFAULT_WEIGHTS, calibration impact on retrieval scoring
+- Read scoring-config.ts: DEFAULT_SCORING_CONFIG with staticFit/dynamicIntelligence/timingUrgency weights
+- Ran learning-loop-closed-circuit.test.ts: 8/8 tests passed (closed loop proven)
+- Ran full AI suite: 417/417 tests passed across 23 files
+- Ran AI retrieval suite: 91/91 tests passed across 2 files
+- Ran unit suite: 930/931 passed (1 OOM failure = pre-existing infrastructure issue)
+- Generated 15-page PDF validation report with all 5 validation dimensions
+
+Stage Summary:
+- All 7 acceptance criteria validated: feedback stored, calibration generated, calibration reaches scoring, ranking changes, user-visible impact, retrieval affected, no regression
+- Report: /home/z/my-project/download/phase1-learning-loop-validation-report.pdf (15 pages, 100KB)
+- Key evidence: applyCalibrationToScore() (lines 237-269), hybrid retrieval calibration (lines 1175-1194)
+- Score delta precision verified: 7 useful vs 1 not_useful = exactly +15 points
+- Calibration scope isolation confirmed: company-specific (full), reason-level (50% dampened), system-wide (50% dampened, higher threshold)
+- Ready for next priority: G1 Persistence Validation

@@ -48,6 +48,14 @@ export async function register() {
       console.error('[startup] Failed to pre-load scoring config (non-fatal, using defaults):', err);
     }
 
+    // ── S5-3.4: Prompt Registry Persistence & Tracing Sync ──
+    try {
+      const { initializePromptPersistence } = await import('@/lib/prompt-registry-persistence');
+      initializePromptPersistence();
+    } catch (err) {
+      console.error('[startup] Failed to initialize prompt persistence (non-fatal):', err);
+    }
+
     // Register graceful shutdown
     if (!_shutdownRegistered) {
       _shutdownRegistered = true;

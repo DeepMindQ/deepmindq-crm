@@ -3,9 +3,8 @@ generator client {
 }
 
 datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_DATABASE_URL")
+  provider  = "sqlite"
+  url      = env("DATABASE_URL")
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -470,6 +469,10 @@ model Company {
   // MS9: Intelligence Advisor
   advisorConversations     AdvisorConversation[]
   advisorSavedBriefings    AdvisorSavedBriefing[]
+
+  // Task 4.4: Company Deduplication Engine
+  mergesAsSurvivor    MergeRecord[]  @relation("MergeSurvivor")
+  mergesAsDuplicate   MergeRecord[]  @relation("MergeDuplicate")
 
   @@index([domain])
   @@index([normalizedName])
@@ -3591,4 +3594,145 @@ model SecurityFinding {
   @@index([category])
   @@index([remediationDeadline])
   @@index([discoveredAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Task 4.5: CRM Integration Framework — Salesforce / HubSpot
+// Models for managing external CRM connections and bidirectional sync.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model CRMConnection {
+  id            String    @id @default(cuid())
+  provider      String                          // "salesforce" or "hubspot"
+  name          String
+  accessToken   String?
+  refreshToken  String?
+  tokenExpiresAt DateTime?
+  instanceUrl   String?
+  scopes        String?                         // JSON array of OAuth scopes
+  isActive      Boolean   @default(true)
+  lastSyncAt    DateTime?
+  syncMode      String    @default("manual")     // "manual", "scheduled", "realtime"
+  syncInterval  Int       @default(3600)         // seconds
+  fieldMapping  Json?                           // custom field mapping overrides
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  syncLogs CRMSyncLog[]
+
+  @@index([provider])
+  @@index([isActive])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Task 4.4: Company Deduplication Engine — Merge Records
+// Audit trail for every merge/skip action performed by the dedup engine.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model MergeRecord {
+  id          String   @id @default(cuid())
+  survivorId  String
+  duplicateId String
+  entityType  String                    // "company" or "contact"
+  mergedBy    String?                   // user who triggered merge
+  mergedAt    DateTime @default(now())
+  mergeReason String                    // "auto_dedup", "manual_merge", "bulk_merge", etc.
+  fieldsKept  Json?                     // which fields were kept from which source
+
+  survivor  Company  @relation("MergeSurvivor", fields: [survivorId], references: [id])
+  duplicate Company  @relation("MergeDuplicate", fields: [duplicateId], references: [id])
+
+  @@index([survivorId])
+  @@index([duplicateId])
+  @@index([entityType])
+  @@index([mergedAt])
+}
+
+model CRMSyncLog {
+  id             String   @id @default(cuid())
+  connectionId   String
+  direction      String                       // "import" or "export"
+  entityType     String                       // "company", "contact", "opportunity"
+  entityId       String?
+  crmExternalId  String?
+  action         String                       // "created", "updated", "skipped", "failed"
+  syncDuration   Int?                         // ms
+  errorMessage   String?
+  syncedAt       DateTime @default(now())
+
+  connection     CRMConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId])
+  @@index([entityType])
+  @@index([syncedAt])
+  @@index([direction])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Task 4.7: Data Enrichment API Integration
+// Tracks enrichment jobs for companies and contacts with provider
+// fallback, retry, credit usage, and deduplication.
+// ═══════════════════════════════════════════════════════════════════════════
+
+model EnrichmentJob {
+  id              String    @id @default(cuid())
+  entityType      String                              // "company", "contact"
+  entityId        String
+  providerId      String?
+  providerName    String?
+  status          String    @default("queued")        // "queued", "processing", "completed", "failed", "skipped"
+  confidence      Float?                              // 0-1
+  creditsUsed     Int       @default(0)
+  retryCount      Int       @default(0)
+  maxRetries      Int       @default(3)
+  errorMessage    String?
+  resultData      Json?
+  startedAt       DateTime?
+  completedAt     DateTime?
+  createdAt       DateTime  @default(now())
+
+  @@index([entityType, entityId])
+  @@index([status])
+  @@index([providerId])
+  @@index([createdAt])
+}
+
+// ── Data Export (Task 4.6: Bulk Import/Export Pipeline) ──
+
+model DataExport {
+  id            String   @id @default(cuid())
+  format        String                       // "csv", "json", "xlsx"
+  entityType    String                       // "companies", "contacts", "opportunities", "signals"
+  filters       Json?                        // export filter criteria
+  fields        Json?                        // selected column names
+  status        String   @default("pending") // "pending", "processing", "completed", "failed", "cancelled"
+  totalRows     Int      @default(0)
+  exportedRows  Int      @default(0)
+  fileSize      Int?                          // bytes
+  filePath      String?                       // path to exported file
+  errorMessage  String?
+  startedAt     DateTime?
+  completedAt   DateTime?
+  createdBy     String?
+  createdAt     DateTime @default(now())
+
+  @@index([status])
+  @@index([entityType])
+  @@index([createdBy])
+  @@index([createdAt])
+}
+
+// ── Import Templates (Task 4.6: Bulk Import/Export Pipeline) ──
+
+model ImportTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  source      String                       // "salesforce", "hubspot", "csv_standard", "custom"
+  entityType  String                       // "companies", "contacts"
+  columnMap   Json                         // mapping rules: { "SF Account Name": "rawName", "SF Website": "domain" }
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@index([source])
+  @@index([entityType])
 }

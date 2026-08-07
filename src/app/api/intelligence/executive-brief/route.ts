@@ -49,7 +49,7 @@ export async function POST(request: Request) {
         where: {
           OR: [
             { normalizedName },
-            { rawName: { equals: companyName, mode: 'insensitive' } },
+            { rawName: { equals: companyName } },
           ],
         },
         select: { id: true },

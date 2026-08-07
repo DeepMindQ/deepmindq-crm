@@ -70,6 +70,7 @@ import {
 } from '@/lib/feedback-learning-loop';
 import { getSignalValidationSummary } from '@/lib/signal-validation';
 import { inferSignalMeaning, type MeaningCategory } from '@/lib/research-engine/signal-meaning';
+import { ContinuousLearningLoop } from '@/lib/continuous-learning-loop';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -802,6 +803,34 @@ async function buildCompanyRecommendation(
     }
   } catch (_) {
     // Memory enrichment failed — non-blocking
+  }
+
+  // ── Step 3b: Enrich with Reusable Learnings ──
+  try {
+    const reusableLearnings = await ContinuousLearningLoop.findReusableLearnings({
+      industry: company.industry || undefined,
+      companySize: company.sizeRange || undefined,
+      technology: undefined, // TODO: extract from signals or research card when available
+    });
+
+    if (reusableLearnings.length > 0) {
+      // Mark learnings as reused and boost recommendation confidence
+      const topInsights = reusableLearnings.slice(0, 3);
+      for (const learning of topInsights) {
+        ContinuousLearningLoop.markReused(learning.id).catch(() => {});
+      }
+
+      if (memoryPatterns) {
+        memoryPatterns.enterpriseContext += `\n\nReusable Learnings:\n${topInsights.map(l => `- ${l.insight} (source: ${l.source}, reused ${l.reuseCount}x)`).join('\n')}`;
+      } else {
+        memoryPatterns = {
+          relevantMemories: 0,
+          enterpriseContext: `Reusable Learnings:\n${topInsights.map(l => `- ${l.insight} (source: ${l.source}, reused ${l.reuseCount}x)`).join('\n')}`,
+        };
+      }
+    }
+  } catch (_) {
+    // Learning enrichment failed — non-blocking
   }
 
   // ── Step 4: Build risks ──

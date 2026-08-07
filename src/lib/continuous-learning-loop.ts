@@ -114,8 +114,9 @@ export const ContinuousLearningLoop = {
     try {
       const learnings = await db.learningEvent.findMany({
         where: {
-          confidence: { gte: 0.5 },
-          verified: true,
+          confidence: { gte: 0.4 },
+          // Include both verified and unverified — verified gets a boost in scoring
+          // (verified flag is aspirational; feedback creates high-quality unverified events)
         },
         orderBy: [{ reuseCount: 'desc' }, { confidence: 'desc' }],
         take: 20,
@@ -131,6 +132,8 @@ export const ContinuousLearningLoop = {
 
         // Score based on tag overlap
         const overlap = tags.filter(t => contextTags.some(ct => ct != null && t.toLowerCase().includes(ct.toLowerCase())));
+        // Bonus for verified learnings
+        const verifiedBonus = l.verified ? 0.1 : 0;
         return {
           id: l.id,
           insight: l.learnedInsight,
@@ -138,7 +141,7 @@ export const ContinuousLearningLoop = {
           confidence: l.confidence,
           applicableContext,
           reuseCount: l.reuseCount,
-          relevanceScore: overlap.length > 0 ? Math.min(1, 0.5 + overlap.length * 0.15) : 0,
+          relevanceScore: overlap.length > 0 ? Math.min(1, 0.5 + overlap.length * 0.15 + verifiedBonus) : verifiedBonus > 0 ? verifiedBonus : 0,
         };
       });
 

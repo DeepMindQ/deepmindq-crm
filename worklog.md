@@ -614,3 +614,35 @@ Stage Summary:
 - Phase 0 status: ALL 6 items verified. Phase 0 CLEARED for Phase 1.
 - Phase 1 priority: (1) Learning loop closure - wire getCalibrationAdjustments to recommendation engines, (2) Persistence validation - 6-stage plan
 - Enterprise hardening (prompt registry, cost dashboard, retention) deprioritized
+
+---
+Task ID: p1-1
+Agent: Main Agent
+Task: Phase 1 — Learning Loop Circuit Closure
+
+Work Log:
+- Audited getCalibrationAdjustments() at feedback-learning-loop.ts:644-755 — computes CalibrationAdjustment[] from DB feedback
+- Audited SCORE_WEIGHTS at recommendation-engine.ts:218-224 — hardcoded static weights, zero calibration input
+- Audited score formula at recommendation-engine.ts:799-805 (now 858-884) — pure static multiplication
+- Audited DEFAULT_WEIGHTS at ai-hybrid-retrieval.ts:248-255 — hardcoded signal weights
+- Audited rerank at ai-hybrid-retrieval.ts:907-946 — no calibration input
+
+- Implemented applyCalibrationToScore() function in recommendation-engine.ts:237-269
+- Imported getCalibrationAdjustments + CalibrationAdjustment type in recommendation-engine.ts:67-70
+- Added Step 3.5 in generateAllRecommendations: fetches system-wide + per-company calibration adjustments (lines 408-427)
+- Passed calibrationAdjustments to buildCompanyRecommendation data parameter
+- Applied calibration at Step 5.5 (lines 866-882): raw score → calibrated score with clamp [0,100]
+- Added calibration as visible reasons so users can see why scores shifted
+
+- Added calibrationAdjustments to HybridSearchInput in ai-hybrid-retrieval.ts:213-218
+- Added Step 5.5 in hybridSearch (lines 1175-1194): signal_detection_accuracy boost, technology_detection dampening
+
+- Wrote comprehensive closed-circuit test: tests/ai/learning-loop-closed-circuit.test.ts (8 tests, ALL PASS)
+- Added test to vitest.ai.config.ts include list
+- Verified no regressions: learning-loop.test.ts (16 pass), wi-17e-feedback-learning-loop.test.ts (52 pass)
+
+Stage Summary:
+- Circuit CLOSED: feedback → DB storage → getCalibrationAdjustments() → applyCalibrationToScore() → recommendation score changes
+- 8/8 closed-circuit tests pass proving: positive feedback increases score, negative decreases, magnitude is exact, graceful degradation works
+- Files modified: recommendation-engine.ts, ai-hybrid-retrieval.ts, vitest.ai.config.ts
+- Files created: tests/ai/learning-loop-closed-circuit.test.ts

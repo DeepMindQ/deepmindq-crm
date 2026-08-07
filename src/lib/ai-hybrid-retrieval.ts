@@ -210,6 +210,12 @@ export interface HybridSearchInput {
     technology?: string[];
     signals?: Array<{ type: string; description: string }>;
   };
+  /** Calibration adjustments from feedback learning loop. Circuit closure for signal ranking. */
+  calibrationAdjustments?: Array<{
+    pattern: string;
+    direction: 'up' | 'down';
+    magnitude: number;
+  }>;
 }
 
 /** Signal weight configuration for fusion. */
@@ -1165,6 +1171,27 @@ export function hybridSearch(input: HybridSearchInput): EvidencePackage {
 
   // Step 5: Re-ranking
   const reranked = rerank(fusedResults, allResults);
+
+  // Step 5.5: Apply calibration adjustments from feedback learning loop
+  // THIS IS THE CIRCUIT CLOSURE for signal ranking: feedback → calibration → rank adjustment
+  if (input.calibrationAdjustments && input.calibrationAdjustments.length > 0) {
+    for (const adj of input.calibrationAdjustments) {
+      if (adj.pattern === 'signal_detection_accuracy' && adj.direction === 'up') {
+        // Boost all signal-driven results slightly
+        for (const r of reranked) {
+          r.finalScore = Math.min(1, r.finalScore * (1 + adj.magnitude * 0.5));
+        }
+      }
+      if (adj.pattern === 'technology_detection' && adj.direction === 'down') {
+        // Dampen entity-signal results for technology
+        for (const r of reranked) {
+          if (r.activeSignals.includes('entity') && r.entityType === 'technology') {
+            r.finalScore = Math.max(0, r.finalScore * (1 - adj.magnitude * 0.5));
+          }
+        }
+      }
+    }
+  }
 
   // Step 6: Apply minimum relevance filter
   const minRelevance = input.minRelevance ?? 0.1;

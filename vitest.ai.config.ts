@@ -27,6 +27,7 @@ export default defineConfig({
       'tests/ai/brief-generator.test.ts',
       'tests/ai/evidence-adapter.test.ts',
       'tests/ai/learning-loop.test.ts',
+      'tests/ai/learning-loop-closed-circuit.test.ts',
       'tests/ai/association-engine.test.ts',
       'tests/ai/data-import-navigation.test.ts',
       'tests/ai/index.test.ts',

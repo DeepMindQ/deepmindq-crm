@@ -64,6 +64,10 @@ import {
   buildMemoryContext,
   type MemoryRecallResult,
 } from '@/lib/ai-memory';
+import {
+  getCalibrationAdjustments,
+  type CalibrationAdjustment,
+} from '@/lib/feedback-learning-loop';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -223,6 +227,47 @@ const SCORE_WEIGHTS = {
   engagementReadiness: 0.15, // Contact coverage + enrichment level
 } as const;
 
+/**
+ * Apply calibration adjustments from the feedback learning loop to a raw score.
+ *
+ * For each matching adjustment, the score is shifted by magnitude (as a fraction of 100).
+ * Company-specific adjustments take priority over reason-specific ones.
+ * Returns the calibrated score clamped to [0, 100].
+ */
+function applyCalibrationToScore(
+  rawScore: number,
+  companyId: string,
+  adjustments: CalibrationAdjustment[],
+): { calibratedScore: number; appliedAdjustments: CalibrationAdjustment[] } {
+  if (adjustments.length === 0) {
+    return { calibratedScore: rawScore, appliedAdjustments: [] };
+  }
+
+  const applied: CalibrationAdjustment[] = [];
+  let totalShift = 0;
+
+  for (const adj of adjustments) {
+    // Company-specific adjustments apply directly
+    if (adj.pattern === `company:${companyId}`) {
+      const shift = adj.direction === 'up' ? adj.magnitude * 100 : -adj.magnitude * 100;
+      totalShift += shift;
+      applied.push(adj);
+    }
+    // Reason/signal-type adjustments also apply
+    else if (adj.pattern.startsWith('reason:') || adj.pattern === 'signal_detection_accuracy') {
+      const shift = adj.direction === 'up' ? adj.magnitude * 100 : -adj.magnitude * 100;
+      // Reason-level adjustments are dampened (they're less specific)
+      totalShift += shift * 0.5;
+      applied.push(adj);
+    }
+  }
+
+  return {
+    calibratedScore: Math.max(0, Math.min(100, Math.round(rawScore + totalShift))),
+    appliedAdjustments: applied,
+  };
+}
+
 // ── Core Engine ─────────────────────────────────────────────────────────
 
 /**
@@ -360,6 +405,27 @@ export async function generateAllRecommendations(
     kgAvailable = stats.totalNodes > 0;
   } catch (_) { /* KG not seeded or unavailable */ }
 
+  // ── Step 3.5: Fetch calibration adjustments from feedback learning loop ──
+  // This is the circuit closure: feedback → calibration → score adjustment
+  // Fetch both system-wide adjustments and per-company adjustments
+  let calibrationAdjustments: CalibrationAdjustment[] = [];
+  try {
+    // System-wide adjustments (signal type accuracy, etc.)
+    calibrationAdjustments = await getCalibrationAdjustments();
+
+    // Per-company adjustments: fetch for each company and merge
+    for (const company of companies) {
+      const companyAdjs = await getCalibrationAdjustments(company.id);
+      calibrationAdjustments.push(...companyAdjs);
+    }
+
+    if (calibrationAdjustments.length > 0) {
+      logger.info(`[RecommendationEngine] Applied ${calibrationAdjustments.length} calibration adjustments from feedback loop`);
+    }
+  } catch (err) {
+    logger.warn(`[RecommendationEngine] Calibration fetch failed, using raw scores: ${err instanceof Error ? err.message : err}`);
+  }
+
   // ── Step 4: Generate per-company recommendations ──
   const recommendations: AccountRecommendation[] = [];
 
@@ -372,6 +438,7 @@ export async function generateAllRecommendations(
         capabilityMatches: capMap.get(company.id) || [],
         insights: insightMap.get(company.id) || [],
         kgAvailable,
+        calibrationAdjustments,
       });
 
       if (rec.opportunityScore >= minScore) {
@@ -555,6 +622,7 @@ async function buildCompanyRecommendation(
       confidenceScore: number;
     }>;
     kgAvailable: boolean;
+    calibrationAdjustments?: CalibrationAdjustment[];
   }
 ): Promise<AccountRecommendation> {
   // ── Step 1: Build recommendation reasons ──
@@ -796,13 +864,33 @@ async function buildCompanyRecommendation(
     : 0;
   const engagementReadiness = Math.min(100, company._count.contacts * 20 + (company.lastEnrichedAt ? 30 : 0) + (company._count.evidence > 0 ? 20 : 0));
 
-  const opportunityScore = Math.round(
+  const rawOpportunityScore = Math.round(
     accountScoreVal * SCORE_WEIGHTS.accountScore +
     bestOppScore * SCORE_WEIGHTS.opportunityScore +
     signalStrength * SCORE_WEIGHTS.signalStrength +
     bestCapScore * SCORE_WEIGHTS.capabilityMatch +
     engagementReadiness * SCORE_WEIGHTS.engagementReadiness
   );
+
+  // ── Step 5.5: Apply calibration adjustments from feedback learning loop ──
+  // THIS IS THE CIRCUIT CLOSURE: feedback → stored → calibrated → score adjusted
+  const { calibratedScore, appliedAdjustments } = applyCalibrationToScore(
+    rawOpportunityScore,
+    company.id,
+    data.calibrationAdjustments || [],
+  );
+
+  // Add calibration as a visible reason so users can see why scores shifted
+  for (const adj of appliedAdjustments) {
+    reasons.push({
+      text: adj.reason,
+      category: 'pattern',
+      strength: adj.magnitude,
+      sourceId: `calibration:${adj.pattern}`,
+    });
+  }
+
+  const opportunityScore = calibratedScore;
 
   // ── Step 6: Determine priority ──
   let priority: RecommendationPriority;

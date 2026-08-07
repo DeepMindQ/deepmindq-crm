@@ -68,6 +68,8 @@ import {
   getCalibrationAdjustments,
   type CalibrationAdjustment,
 } from '@/lib/feedback-learning-loop';
+import { getSignalValidationSummary } from '@/lib/signal-validation';
+import { inferSignalMeaning, type MeaningCategory } from '@/lib/research-engine/signal-meaning';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -568,6 +570,19 @@ export async function generateCompanyRecommendation(
   });
 }
 
+// ── Internal: Count open contradictions for a company ─────────────────
+
+async function getOpenConflictCount(companyId: string): Promise<number> {
+  try {
+    const count = await db.intelligenceConflict.count({
+      where: { companyId, status: 'open' },
+    });
+    return count;
+  } catch {
+    return 0; // Graceful degradation — table may not exist in early deployments
+  }
+}
+
 // ── Internal: Build a single company recommendation ─────────────────────
 
 async function buildCompanyRecommendation(
@@ -939,7 +954,7 @@ async function buildCompanyRecommendation(
       freshnessScore: company.lastEnrichedAt ? Math.max(0, 100 - daysSinceEnrichment * 2) : 0,
       crossValidatedFacts: company._count.evidence,
       totalFacts: company._count.signals + company._count.evidence,
-      contradictions: 0,
+      contradictions: await getOpenConflictCount(company.id),
       evidenceCount: company._count.evidence,
       evidenceCoverage: company._count.signals > 0
         ? Math.min(1.0, company._count.evidence / 5)

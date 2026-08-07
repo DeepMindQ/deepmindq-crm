@@ -60,6 +60,14 @@ try {
           company: {
             select: { id: true, normalizedName: true, website: true },
           },
+          signalValidation: {
+            select: {
+              validationStatus: true,
+              confidenceScore: true,
+              reason: true,
+              evidenceCount: true,
+            },
+          },
           signalCapabilityMatches: {
             include: {
               capability: {

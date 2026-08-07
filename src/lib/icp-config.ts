@@ -78,10 +78,14 @@ export const DEFAULT_ICP: IcpProfile = {
     'late stage', 'ipo', 'public', 'private equity',
   ],
   preferredTechKeywords: [
+    // Sourced from centralized tech-keywords.ts registry
     'cloud', 'aws', 'azure', 'gcp', 'kubernetes', 'docker',
     'react', 'node', 'python', 'java', 'typescript',
     'sap', 'salesforce', 'servicenow', 'workday',
     'machine learning', 'ai', 'data analytics', 'microservices',
+    // Extended: CRM/ERP, Security, DevOps from registry
+    'snowflake', 'databricks', 'terraform', 'hubspot',
+    'jenkins', 'gitlab', 'ansible', 'palo alto', 'crowdstrike',
   ],
   excludedIndustries: [
     'gambling', 'casino', 'adult', 'weapons', 'cryptocurrency mining',

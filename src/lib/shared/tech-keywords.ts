@@ -128,7 +128,7 @@ export const TECH_ACTION_VERBS = [
 /** Matches "[verb] ... [technology]" patterns in text */
 export const TECH_SIGNAL_REGEX = new RegExp(
   `(${TECH_ACTION_VERBS.map(v => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})\\s+(?:to\\s+)?(?:the\\s+)?(?:a\\s+)?(?:our\\s+)?` +
-  `(cloud|ai|ml|data|platform|kubernetes|aws|azure|gcp|snowflake|databricks|salesforce|sap|servicenow|terraform|docker)`,
+  `(cloud|ai|ml|data|platform|kubernetes|aws|azure|gcp|snowflake|databricks|salesforce|sap|servicenow|terraform|docker|hubspot|workday|oracle|jenkins|gitlab|ansible|palo alto|crowdstrike|datadog|new relic|grafana)`,
   'i'
 );
 
@@ -143,7 +143,7 @@ export const TECH_MENTION_REGEX = new RegExp(
 // ── Platform competition groups for contradiction detection ──
 
 export const COMPETING_PLATFORMS: Array<{ platforms: string[]; category: string }> = [
-  { platforms: ['aws', 'amazon web services', 'aws'], category: 'cloud' },
+  { platforms: ['aws', 'amazon web services'], category: 'cloud' },
   { platforms: ['azure', 'microsoft azure'], category: 'cloud' },
   { platforms: ['gcp', 'google cloud', 'google cloud platform'], category: 'cloud' },
   { platforms: ['oracle cloud', 'oci'], category: 'cloud' },
@@ -151,10 +151,10 @@ export const COMPETING_PLATFORMS: Array<{ platforms: string[]; category: string 
   { platforms: ['hubspot', 'hubspot crm'], category: 'crm' },
   { platforms: ['sap', 'sap s/4hana'], category: 'erp' },
   { platforms: ['oracle', 'oracle erp'], category: 'erp' },
-  { platforms: ['snowflake', 'snowflake'], category: 'data' },
-  { platforms: ['databricks', 'databricks'], category: 'data' },
+  { platforms: ['snowflake'], category: 'data' },
+  { platforms: ['databricks'], category: 'data' },
   { platforms: ['kubernetes', 'k8s'], category: 'orchestration' },
-  { platforms: ['docker swarm'], category: 'orchestration' },
+  { platforms: ['docker', 'docker swarm'], category: 'orchestration' },
 ];
 
 // ── Helper: Detect technology keywords in text ──

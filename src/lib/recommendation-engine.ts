@@ -236,7 +236,7 @@ const SCORE_WEIGHTS = {
  * Company-specific adjustments take priority over reason-specific ones.
  * Returns the calibrated score clamped to [0, 100].
  */
-function applyCalibrationToScore(
+export function applyCalibrationToScore(
   rawScore: number,
   companyId: string,
   adjustments: CalibrationAdjustment[],
@@ -255,8 +255,12 @@ function applyCalibrationToScore(
       totalShift += shift;
       applied.push(adj);
     }
-    // Reason/signal-type adjustments also apply
-    else if (adj.pattern.startsWith('reason:') || adj.pattern === 'signal_detection_accuracy') {
+    // Reason/signal-type/technology-detection adjustments also apply (dampened)
+    else if (
+      adj.pattern.startsWith('reason:') ||
+      adj.pattern === 'signal_detection_accuracy' ||
+      adj.pattern === 'technology_detection'
+    ) {
       const shift = adj.direction === 'up' ? adj.magnitude * 100 : -adj.magnitude * 100;
       // Reason-level adjustments are dampened (they're less specific)
       totalShift += shift * 0.5;

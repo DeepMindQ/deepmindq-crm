@@ -9,6 +9,8 @@
  * New types pass through unchanged. Legacy types are contextually mapped using
  * keyword analysis on the signal's title and description.
  *
+ * Technology keywords sourced from centralized tech-keywords.ts registry.
+ *
  * Architecture principle:
  *   - This is a mapping LAYER, not a migration. Zero DB changes. Zero data loss.
  *   - Every downstream engine calls normalizeSignalType() before type comparison.
@@ -20,6 +22,8 @@
  *   3. Fall back to contextual keyword analysis on title + description
  *   4. Final fallback: 'news' (lowest specificity but never crashes)
  */
+
+import { ALL_TECH_KEYWORDS, TECH_ACTION_VERBS } from '@/lib/shared/tech-keywords';
 
 // ─── Canonical Taxonomy (Sprint 1, 10 types) ────────────────────
 
@@ -136,12 +140,21 @@ const CONTEXTUAL_RULES: ContextualRule[] = [
   },
   {
     type: 'technology_adoption',
-    keywords: ['implements', 'adopting', 'deploying', 'standardizes on', 'chooses', 'selects', 'partners with', 'integrates', 'cloud-native', 'kubernetes', 'snowflake', 'databricks', 'terraform', 'servicenow', 'salesforce', 'workday', 'sap', 'oracle cloud'],
+    keywords: [
+      ...TECH_ACTION_VERBS.map(v => v.replace(/ing$/, '').replace(/s$/, '').replace(/ to$/, '')),
+      ...ALL_TECH_KEYWORDS.filter(kw => ['kubernetes', 'snowflake', 'databricks', 'terraform', 'servicenow', 'salesforce', 'workday', 'sap', 'oracle cloud', 'cloud-native'].includes(kw)),
+    ],
     weight: 9,
   },
   {
     type: 'tech_change',
-    keywords: ['migration', 'cloud', 'ai', 'artificial intelligence', 'machine learning', 'digital transformation', 'moderniz', 'platform', 'infrastructure', 'technology', 'deploying', 'implementing', 'upgrading', 'devops', 'microservice', 'saas', 'erp', 'crm', 'data platform'],
+    keywords: [
+      'migration', 'cloud', 'ai', 'artificial intelligence', 'machine learning',
+      'digital transformation', 'moderniz', 'platform', 'infrastructure', 'technology',
+      'deploying', 'implementing', 'upgrading', 'devops', 'microservice', 'saas',
+      'erp', 'crm', 'data platform',
+      ...ALL_TECH_KEYWORDS.filter(kw => !['kubernetes', 'snowflake', 'databricks', 'terraform', 'servicenow', 'salesforce', 'workday', 'sap', 'oracle cloud', 'cloud-native'].includes(kw)),
+    ],
     weight: 7,
   },
   {

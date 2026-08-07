@@ -4,8 +4,12 @@
  * Configurable keyword maps for detecting buying signals
  * from intelligence content. Rule-based, no ML/NLP.
  *
+ * Technology keywords sourced from centralized tech-keywords.ts registry.
+ *
  * Future: Load from DB for admin customization.
  */
+
+import { ALL_TECH_KEYWORDS } from '@/lib/shared/tech-keywords';
 
 export type SignalCategory = 'growth' | 'technology' | 'leadership' | 'partnership' | 'pain';
 
@@ -20,11 +24,16 @@ export const SIGNAL_PATTERNS: SignalPattern[] = [
     category: 'technology',
     importance: 9,
     keywords: [
+      // Core AI/ML terms (from centralized registry + extended)
       'artificial intelligence', 'AI', 'machine learning', 'cloud migration',
       'automation', 'digital transformation', 'data platform', 'data engineering',
       'cloud native', 'kubernetes', 'microservices', 'API platform',
       'generative AI', 'LLM', 'large language model', 'copilot',
       'data lake', 'data warehouse', 'real-time analytics',
+      // Extended from centralized tech-keywords registry
+      ...ALL_TECH_KEYWORDS.filter(kw =>
+        !['ai', 'cloud', 'kubernetes', 'docker', 'sap', 'salesforce'].includes(kw)
+      ),
     ],
   },
   {

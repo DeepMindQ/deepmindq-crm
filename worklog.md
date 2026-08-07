@@ -945,3 +945,39 @@ Stage Summary:
 - SSO provides actionable readiness diagnostics for admins
 - .env.example no longer contradicts code defaults
 - Field-level permissions are applied to sensitive data endpoints
+---
+Task ID: s7-4.4-4.5-4.6-4.7
+Agent: Main Agent
+Task: S7 — Revenue Intelligence Data Pipeline (4.4, 4.5, 4.6, 4.7)
+
+Work Log:
+- Explored full codebase: roadmap definitions, existing dedup/import/export/enrichment code, Prisma models
+- Identified existing foundations: deduplicator.ts (296 lines), import pipeline (856 lines), export route (141 lines), clearbit connector, revenue-opportunity-engine (539 lines)
+- 4.4: Created dedup-engine.ts (910 lines) — Union-Find clustering, 3-strategy edge detection, survival rules, atomic merge, bulk merge, skip, idempotent
+- 4.4: Created 5 API routes: scan, merge, bulk-merge, merge-history, enhanced GET
+- 4.4: Added MergeRecord Prisma model with audit trail
+- 4.5: Created CRM connector abstraction (196 lines), Salesforce adapter (719 lines), HubSpot adapter (688 lines)
+- 4.5: Created CRM sync service (975 lines) — bidirectional sync with conflict resolution
+- 4.5: Created 6 API routes: connections CRUD, sync, push, sync-log, providers
+- 4.5: Added CRMConnection + CRMSyncLog Prisma models
+- 4.6: Created streaming export engine (693 lines) — cursor-based pagination, 100K+ rows, async processing
+- 4.6: Created 3 format handlers: CSV (182), JSON (148), XLSX (158)
+- 4.6: Created enhanced import (793 lines) — 6 templates, preview, scheduling, rollback, incremental
+- 4.6: Created 5 API routes: export CRUD+download, import templates CRUD
+- 4.6: Added DataExport + ImportTemplate Prisma models
+- 4.7: Created enrichment provider abstraction (111 lines), Clearbit provider (169), Apollo provider (243)
+- 4.7: Created enrichment queue (371 lines) — rate limit, 3 retries, 24h dedup, provider fallback
+- 4.7: Created enrichment orchestrator (583 lines) — full flow with DB persistence
+- 4.7: Created 2 API routes: company/contact/batch enrichment, jobs/providers
+- 4.7: Added EnrichmentJob Prisma model
+- Fixed 5 pre-existing TypeScript errors (Prisma mode:insensitive removed)
+- Wrote 124 tests: 31 dedup + 24 CRM + 57 bulk + 12 enrichment
+
+Stage Summary:
+- 4 items completed: 4.4 (Dedup Engine), 4.5 (CRM Integration), 4.6 (Bulk Import/Export), 4.7 (Enrichment API)
+- Files created: 38 new files (12 library, 18 API routes, 4 test files, 4 barrel exports)
+- Files modified: 6 (schema, dedup/route.ts, data-intelligence/index.ts, 3 TS fixes)
+- Total: ~10,700 lines new code
+- TypeScript: 0 errors
+- Tests: 124/124 S7 + 446/446 security + 445/445 AI
+- Commit: de4acb15

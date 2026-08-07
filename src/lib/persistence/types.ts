@@ -223,8 +223,10 @@ export interface PersistentMapRegistration {
 // ── Feature Flags ─────────────────────────────────────────────────────
 
 export const PERSISTENCE_FEATURE_FLAGS = {
-  /** Master switch: enables DB-backed persistence. */
-  USE_DB_PERSISTENCE: process.env.USE_DB_PERSISTENCE === 'true',
+  /** Master switch: enables DB-backed persistence.
+   *  Default: true — cold-start hydration loads KG, memory, retrieval from DB on boot.
+   *  Set to 'false' to disable persistence entirely (dev/testing only). */
+  USE_DB_PERSISTENCE: process.env.USE_DB_PERSISTENCE !== 'false',
   /** Shadow mode: writes go to both Map and DB, Map remains authoritative. */
   PERSISTENCE_SHADOW_MODE: process.env.PERSISTENCE_SHADOW_MODE === 'true',
   /** Cold start: require full load or allow degraded mode. */

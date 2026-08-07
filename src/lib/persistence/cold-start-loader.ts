@@ -188,6 +188,26 @@ export async function executeColdStartLoad(
       storeResults[store] = result;
     }
 
+    // ── Phase 4: KG Cold-Start Hydration (S4-2.1) ──
+    // If the knowledge graph is empty after DB hydration, auto-build
+    // initial nodes/edges from existing companies, signals, and evidence.
+    try {
+      const { hydrateKnowledgeGraphFromDB } = await import('@/lib/kg-cold-start-hydration');
+      const kgResult = await hydrateKnowledgeGraphFromDB();
+      if (kgResult.hydrated) {
+        logger.info(
+          `[cold-start] KG auto-hydrated: ${kgResult.companyNodesCreated} companies, ` +
+          `${kgResult.signalNodesCreated} signals, ${kgResult.technologyNodesCreated} tech, ` +
+          `${kgResult.industryNodesCreated} industries, ${kgResult.edgesCreated} edges ` +
+          `in ${kgResult.durationMs}ms`
+        );
+      } else {
+        logger.info(`[cold-start] KG auto-hydration skipped: ${kgResult.reason}`);
+      }
+    } catch (err) {
+      logger.warn(`[cold-start] KG auto-hydration failed (non-fatal): ${err instanceof Error ? err.message : err}`);
+    }
+
     // ── Final Assessment ──
     overallCompleteness = computeCompleteness(Object.values(storeResults));
 

@@ -71,6 +71,9 @@ import {
 import { getSignalValidationSummary } from '@/lib/signal-validation';
 import { inferSignalMeaning, type MeaningCategory } from '@/lib/research-engine/signal-meaning';
 import { ContinuousLearningLoop } from '@/lib/continuous-learning-loop';
+import { adjustConfidence as adjustDecisionConfidence } from '@/lib/decision-learning';
+import { transferLearningsToCompany, type CrossCompanyLearning } from '@/lib/cross-company-learning';
+import { computeBlendedConfidence, type BlendedConfidenceResult } from '@/lib/blended-confidence';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -81,7 +84,7 @@ export interface RecommendationReason {
   /** Human-readable reason statement */
   text: string;
   /** Category of the reason */
-  category: 'signal' | 'capability' | 'pattern' | 'timing' | 'contact' | 'similarity' | 'icp_fit';
+  category: 'signal' | 'capability' | 'pattern' | 'timing' | 'contact' | 'similarity' | 'icp_fit' | 'cross_company_learning';
   /** How strong this reason is (0-1) */
   strength: number;
   /** Source signal/opportunity/insight ID if available */
@@ -833,6 +836,42 @@ async function buildCompanyRecommendation(
     // Learning enrichment failed — non-blocking
   }
 
+  // ── Step 3c: Cross-Company Learning Transfer (S4-2.3) ──
+  // Find learnings from similar companies via KG and transfer them.
+  try {
+    const crossCompanyResult = await transferLearningsToCompany(company.id, {
+      industry: company.industry || undefined,
+      companySize: company.sizeRange || undefined,
+      maxLearnings: 3,
+    });
+
+    if (crossCompanyResult.transferCount > 0) {
+      const crossInsights = crossCompanyResult.learnings.slice(0, 3);
+      const crossInsightText = crossInsights.map(l =>
+        `- [${l.sourceCompanyName}] ${l.insight} (confidence: ${l.transferConfidence})`
+      ).join('\n');
+
+      if (memoryPatterns) {
+        memoryPatterns.enterpriseContext += `\n\nCross-Company Learnings (${crossCompanyResult.similarCompaniesScanned} companies scanned):\n${crossInsightText}`;
+      } else {
+        memoryPatterns = {
+          relevantMemories: 0,
+          enterpriseContext: `Cross-Company Learnings (${crossCompanyResult.similarCompaniesScanned} companies scanned):\n${crossInsightText}`,
+        };
+      }
+
+      // Add a reason for cross-company learning boost
+      reasons.push({
+        text: `${crossCompanyResult.transferCount} learnings transferred from ${crossCompanyResult.similarCompaniesScanned} similar companies`,
+        category: 'cross_company_learning',
+        strength: Math.min(0.8, crossCompanyResult.transferCount * 0.25),
+        sourceType: 'CrossCompanyLearning',
+      });
+    }
+  } catch (_) {
+    // Cross-company learning failed — non-blocking
+  }
+
   // ── Step 4: Build risks ──
   const risks: RecommendationRisk[] = [];
 
@@ -940,13 +979,40 @@ async function buildCompanyRecommendation(
 
   const opportunityScore = calibratedScore;
 
+  // ── Step 5b: Multi-source confidence blending (S4-2.4) ──
+  // Blends: base score, calibration delta, decision-learning effectiveness,
+  // KG evidence chain confidence, memory match quality, and evidence quality.
+  let decisionAdjustedScore = opportunityScore;
+  let blendedConfidenceBreakdown: BlendedConfidenceResult | null = null;
+  try {
+    if (data.opportunities.length > 0) {
+      const agentType = data.opportunities[0].recommendedCapability || 'recommendation';
+      const calibrationDelta = opportunityScore - rawOpportunityScore;
+
+      blendedConfidenceBreakdown = await computeBlendedConfidence({
+        baseScore: opportunityScore,
+        calibrationDelta,
+        agentType,
+        companyId: company.id,
+        kgConfidence: graphInsights && graphInsights.similarCompanies > 0
+          ? Math.min(95, 50 + graphInsights.similarCompanies * 10) : undefined,
+        memoryConfidence: memoryPatterns && memoryPatterns.relevantMemories > 0
+          ? Math.min(90, 50 + memoryPatterns.relevantMemories * 8) : undefined,
+        evidenceQuality: company._count.evidence > 0
+          ? Math.min(90, 50 + company._count.evidence * 5) : undefined,
+      });
+
+      decisionAdjustedScore = blendedConfidenceBreakdown.blendedScore;
+    }
+  } catch (_) { /* non-blocking: blended confidence unavailable, fall back to base */ }
+
   // ── Step 6: Determine priority ──
   let priority: RecommendationPriority;
-  if (opportunityScore >= 80) {
+  if (decisionAdjustedScore >= 80) {
     priority = 'critical';
-  } else if (opportunityScore >= 60) {
+  } else if (decisionAdjustedScore >= 60) {
     priority = 'high';
-  } else if (opportunityScore >= 35) {
+  } else if (decisionAdjustedScore >= 35) {
     priority = 'medium';
   } else {
     priority = 'low';

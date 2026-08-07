@@ -10,6 +10,7 @@
 
 import { db } from '@/lib/db';
 import type { SignalType as PrismaSignalType } from '@prisma/client';
+import { TECH_MENTION_REGEX } from '@/lib/shared/tech-keywords';
 
 type TimingWindow =
   | 'immediate' | 'within_7_days' | 'within_30_days' | 'within_90_days' | 'ongoing' | 'expired'
@@ -68,7 +69,8 @@ export function classifySignalType(text: string): string {
   if (/\bhiring\b|\brecruiting\b|\bjob(s| posting)?\b/i.test(lower)) return 'hiring'
   if (/\bceo\b|\bcto\b|\bcio\b|\bcfo\b|\bvp\b|\bleadership\b|\bstepped down\b|\bdeparted\b/i.test(lower)) return 'leadership'
   if (/\bpartner\w*\b|\balliance\b|\bjoint venture\b/i.test(lower)) return 'partnership'
-  if (/\bcloud\b|\bmigrat\w*\b|\baws\b|\bgcp\b|\bazure\b|\bkubernetes\b|\bdocker\b/i.test(lower)) return 'tech_change'
+  // Use centralized tech keyword registry (100+ keywords across 8 categories)
+  if (TECH_MENTION_REGEX.test(lower)) return 'tech_change'
   if (/\bexpanding\b|\bexpansion\b|\bgrowth\b/i.test(lower)) return 'expansion'
   // product: new product, launched, released (before news catch-all)
   if (/\bnew product\b|\bproduct launch\b|\blaunched\b|\bnew feature\b/i.test(lower)) return 'product'

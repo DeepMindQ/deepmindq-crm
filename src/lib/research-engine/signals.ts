@@ -21,6 +21,7 @@ import { extractJSON, type NewsSignal } from '@/lib/llm-client';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { CANONICAL_SIGNAL_TYPE_LIST, normalizeSignalType } from '@/lib/signal-types';
 import { inferSignalMeaning } from './signal-meaning';
+import { TECH_SIGNAL_REGEX } from '@/lib/shared/tech-keywords';
 import { logger } from '@/lib/logger';
 
 // ── Types ──
@@ -343,7 +344,7 @@ function ruleBasedSignalDetection(
     { type: 'hiring', regex: /hiring|(looking for|seeking)\s+\d+\s+(engineers|developers|sales|people)/i, impact: 'medium', description: 'Significant hiring activity' },
     { type: 'leadership_change', regex: /(new|appointed|named)\s+(CEO|CTO|CFO|COO|CMO|VP|president|head)/i, impact: 'high', description: 'Leadership change detected' },
     { type: 'expansion', regex: /(expand|opening|launch|new office|new market|new location)/i, impact: 'medium', description: 'Business expansion detected' },
-    { type: 'technology', regex: /(migrat|adopt|implement|deploy|launch)\s+(cloud|AI|ML|data|platform|kubernetes|aws|azure)/i, impact: 'medium', description: 'Technology adoption signal' },
+    { type: 'technology_adoption', regex: TECH_SIGNAL_REGEX, impact: 'medium', description: 'Technology adoption signal' },
     { type: 'product', regex: /(launch|release|announce)\s+(new\s+)?(product|feature|version|update|beta)/i, impact: 'medium', description: 'Product launch or update signal' },
     { type: 'partnership', regex: /(partner|integrat|collaborat)\s+(with|and)/i, impact: 'medium', description: 'Partnership signal detected' },
     { type: 'acquisition', regex: /(acquir|merg|purchas|buyout|takeover)\s+(by|with|of)/i, impact: 'high', description: 'Acquisition or merger activity detected' },

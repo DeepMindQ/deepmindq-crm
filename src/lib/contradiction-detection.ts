@@ -12,6 +12,7 @@
 
 import { db } from '@/lib/db';
 import { Prisma } from '@prisma/client';
+import { COMPETING_PLATFORMS as CENTRALIZED_COMPETING_PLATFORMS } from '@/lib/shared/tech-keywords';
 
 export type ConflictType = 'SIGNAL_CONTRADICTION' | 'TECHNOLOGY_CONFLICT' | 'FUNDING_CONFLICT' | 'EVIDENCE_CONTRADICTION';
 export type ConflictSeverity = 'low' | 'medium' | 'high' | 'critical';
@@ -23,22 +24,9 @@ export interface DetectedConflict {
   severity: ConflictSeverity;
 }
 
-// ── Known competing technology platforms ──
+// ── Known competing technology platforms (from centralized registry) ──
 
-const COMPETING_PLATFORMS: Array<{ platforms: string[]; category: string }> = [
-  { platforms: ['AWS', 'Amazon Web Services', 'aws'], category: 'cloud' },
-  { platforms: ['Azure', 'Microsoft Azure'], category: 'cloud' },
-  { platforms: ['GCP', 'Google Cloud', 'Google Cloud Platform'], category: 'cloud' },
-  { platforms: ['Oracle Cloud', 'OCI'], category: 'cloud' },
-  { platforms: ['Salesforce', 'Salesforce CRM'], category: 'crm' },
-  { platforms: ['HubSpot', 'HubSpot CRM'], category: 'crm' },
-  { platforms: ['SAP', 'SAP S/4HANA'], category: 'erp' },
-  { platforms: ['Oracle', 'Oracle ERP'], category: 'erp' },
-  { platforms: ['Snowflake', 'snowflake'], category: 'data' },
-  { platforms: ['Databricks', 'databricks'], category: 'data' },
-  { platforms: ['Kubernetes', 'k8s'], category: 'orchestration' },
-  { platforms: ['Docker Swarm'], category: 'orchestration' },
-];
+const COMPETING_PLATFORMS: Array<{ platforms: string[]; category: string }> = CENTRALIZED_COMPETING_PLATFORMS;
 
 // Map each platform keyword to its category
 function getPlatformCategory(text: string): { category: string; keyword: string } | null {

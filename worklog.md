@@ -696,3 +696,25 @@ Stage Summary:
 - Score delta precision verified: 7 useful vs 1 not_useful = exactly +15 points
 - Calibration scope isolation confirmed: company-specific (full), reason-level (50% dampened), system-wide (50% dampened, higher threshold)
 - Ready for next priority: G1 Persistence Validation
+---
+Task ID: session2-phase1.6-signal-accuracy
+Agent: Main Agent
+Task: Phase 1.6 — Signal Detection Accuracy Hardening
+
+Work Log:
+- Audited full signal detection codebase: 47 library files, 27 API routes, 36 test files
+- Identified 4 critical gaps: (1) contradictions:0 hard-coded, (2) signal-meaning.ts orphaned, (3) signal-validation.ts orphaned, (4) contradiction-detection.ts orphaned
+- Gap 1 Fix: Added getOpenConflictCount() helper to recommendation-engine.ts, replaced contradictions:0 with real DB query
+- Gap 2 Fix: Wired inferSignalMeaning() into storeSignals() Phase 3 loop — meaningCategory auto-inferred on signal creation
+- Gap 3 Fix: Added signalValidation include to signals list API route
+- Gap 4 Fix: Created POST /api/signals/accuracy-pipeline — runs all 3 modules (meaning inference + validation + contradiction detection)
+- Updated research-engine/index.ts barrel to export signal-meaning, signal-validation, contradiction-detection
+- Created 51 tests across 10 test suites covering pure functions, module wiring, barrel exports, API routes
+- Zero TypeScript errors, all tests passing
+
+Stage Summary:
+- 1 item completed: 1.6 (Signal Detection Accuracy Hardening)
+- Files modified: recommendation-engine.ts, signals.ts, index.ts (barrel), route.ts (signals API)
+- Files created: accuracy-pipeline/route.ts, phase1-6-signal-accuracy.test.ts
+- 51/51 tests passing, 0 tsc errors, pushed to GitHub
+- Roadmap: 15% complete (14/91), 1.7 NEXT

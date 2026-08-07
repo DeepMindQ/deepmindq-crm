@@ -294,6 +294,15 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
   { path: '/api/verify-email', methods: { GET: [] }, public: true, description: 'Email verification' },
   { path: '/api/verify-queue', methods: { GET: [] }, public: true, description: 'Queue verification' },
 
+  // Phase 5: Security & Compliance endpoints (admin-only)
+  { path: '/api/security/roles', methods: { GET: ['users:read'], POST: ['users:manage'], PUT: ['users:manage'] }, description: 'Role management' },
+  { path: '/api/security/audit', methods: { GET: ['audit:read'], POST: ['audit:read'] }, description: 'Comprehensive audit trail' },
+  { path: '/api/security/privacy', methods: { GET: ['audit:read'], POST: ['users:manage'] }, description: 'GDPR/CCPA compliance' },
+  { path: '/api/security/encryption', methods: { GET: ['settings:read'] }, description: 'Encryption health' },
+  { path: '/api/security/rate-limits', methods: { GET: ['settings:read'], POST: ['settings:write'] }, description: 'Rate limit management' },
+  { path: '/api/security/sso', methods: { GET: ['settings:read'], POST: ['settings:write'] }, description: 'SSO configuration' },
+  { path: '/api/security/scan', methods: { GET: ['audit:read'], POST: ['audit:read'] }, description: 'Security scanner' },
+
   // Milestone 1 H-01: Wildcard allows for route groups not individually listed.
   // These routes require authentication (enforced by proxy) but allow any authenticated user.
   // Admin-only routes are listed individually above.

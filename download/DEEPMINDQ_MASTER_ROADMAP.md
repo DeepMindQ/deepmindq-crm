@@ -4,7 +4,8 @@
 
 ---
 
-## STATUS: Phase 1.2 ACTIVE | 9 DONE | 81 PENDING
+## STATUS: Phase 1.2 ACTIVE | 9 DONE | 81 PENDING | 10% COMPLETE
+## LAST UPDATED: 2026-08-07
 
 ---
 
@@ -195,3 +196,19 @@ Wave E (Phase 9-10):  OPS 9.1-9.8 + TST 10.1-10.9 (after Wave D)
 | **TOTAL** | **91** | **~93w** |
 
 With 3-4 parallel tracks active from Phase 2 onward, wall-clock estimate: **~28-32 weeks to go-live**
+
+---
+
+## COMPLETION LOG
+
+| Date | Item | Status | Evidence | Next |
+|------|------|--------|---------|------|
+| 2026-08-07 | 0.1 | DONE | Baseline audit PDF, git tag phase0-baseline | 0.2 |
+| 2026-08-07 | 0.2 | DONE | Hard 403 in route.ts:32-43, ESLint error-level | 0.3 |
+| 2026-08-07 | 0.3 | DONE | Real DB queries, fake data removed | 0.4 |
+| 2026-08-07 | 0.4 | DONE | Schema + index + 3-mode API | 0.5 |
+| 2026-08-07 | 0.5 | DONE | Password auth + session (pre-existing) | 0.6 |
+| 2026-08-07 | 0.6 | DONE | API key management (pre-existing) | 0.7 |
+| 2026-08-07 | 0.7 | DONE | Health endpoints (pre-existing) | 0.8 |
+| 2026-08-07 | 0.8 | DONE | CI/CD GitHub Actions (pre-existing) | 1.1 |
+| 2026-08-07 | 1.1 | DONE | Validation report PDF, 8/8 tests, AI 417/417, Retrieval 91/91 | 1.2 |

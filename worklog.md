@@ -718,3 +718,24 @@ Stage Summary:
 - Files created: accuracy-pipeline/route.ts, phase1-6-signal-accuracy.test.ts
 - 51/51 tests passing, 0 tsc errors, pushed to GitHub
 - Roadmap: 15% complete (14/91), 1.7 NEXT
+
+---
+Task ID: ci-green-sync
+Agent: Main Agent
+Task: Fix CI failures and sync GitHub to fully green
+
+Work Log:
+- Investigated CI run 31154573443: 3 failures (API Security Contract, API Tests, AI Engine)
+- Fix 1: Added checkApiAuth() to /api/signals/accuracy-pipeline/route.ts (Phase 1.6 regression)
+- Fix 2: Canonicalized signal type 'technology_adoption' → 'technology' in ruleBasedSignalDetection() + added base-form verb variants (implement, migrate, adopt...) to TECH_ACTION_VERBS
+- Fix 3: Created migration 20260807000000_add_company_parent_subsidiary for schema drift: Company.parentId, Company.subidiaryType columns + 5 Advisor tables (Conversation, Message, Workspace, Escalation, SavedBriefing) + 6 enums
+- Fix 4: Added missing migration_lock.toml to init_baseline migration
+- 3 commits pushed: 800cc336, 5df157ab, 82797bea
+- CI run 31156022364: 20/20 jobs GREEN, conclusion=success
+
+Stage Summary:
+- CI fully green: 20/20 jobs passing
+- 3 bugs fixed: auth guard missing, signal type mismatch, migration schema drift
+- Local and GitHub in sync at commit 82797bea
+- Session mapping confirmed: Session 1=1.2-1.5 (DONE), Session 2=1.6+1.7 (DONE), Session 3=2.1 (NEXT)
+- Roadmap status: 16% complete (15/91), 2.1 NEXT

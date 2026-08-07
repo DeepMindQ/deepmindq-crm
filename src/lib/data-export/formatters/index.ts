@@ -10,5 +10,5 @@ export type { CsvFormatterOptions } from './csv-formatter';
 export { createJsonFormatterStream, formatJsonSync, getJsonContentType, getJsonExtension } from './json-formatter';
 export type { JsonFormatterOptions } from './json-formatter';
 
-export { createXlsxFormatterStream, formatXlsxSync, getXlsxContentType, getXlsxExtension } from './xlsx-formatter';
+export { createXlsxFormatterStream, formatXlsxToBuffer, getXlsxContentType, getXlsxExtension } from './xlsx-formatter';
 export type { XlsxFormatterOptions } from './xlsx-formatter';

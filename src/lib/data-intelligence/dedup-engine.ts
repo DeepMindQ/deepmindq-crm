@@ -16,6 +16,7 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { audit } from '@/lib/audit-logger';
 import { invalidateDedupCache } from './deduplicator';
+import { normalizeForMatch, levenshtein, companySimilarity } from './dedup-matching-utils';
 
 // ── Types ───────────────────────────────────────────────────────────────
 
@@ -140,48 +141,8 @@ class UnionFind {
 
 // ── Name Normalization (mirrors deduplicator.ts logic) ──────────────────
 
-function normalizeForMatch(name: string): string {
-  return name
-    .toLowerCase()
-    .replace(/[^a-z0-9\s]/g, '')
-    .replace(/\s+(inc|llc|ltd|corp|corporation|limited|co|company|pvt|private|gmbh|ag|bv|sa|pte|srl|pty|plc)\b/g, '')
-    .replace(/\s+/g, ' ')
-    .trim();
-}
-
-function levenshtein(a: string, b: string): number {
-  const m = a.length;
-  const n = b.length;
-  const dp: number[][] = Array.from({ length: m + 1 }, () => Array(n + 1).fill(0));
-  for (let i = 0; i <= m; i++) dp[i][0] = i;
-  for (let j = 0; j <= n; j++) dp[0][j] = j;
-  for (let i = 1; i <= m; i++) {
-    for (let j = 1; j <= n; j++) {
-      if (a[i - 1] === b[j - 1]) {
-        dp[i][j] = dp[i - 1][j - 1];
-      } else {
-        dp[i][j] = 1 + Math.min(dp[i - 1][j - 1], dp[i][j - 1], dp[i - 1][j]);
-      }
-    }
-  }
-  return dp[m][n];
-}
-
-function companySimilarity(a: string, b: string): number {
-  const na = normalizeForMatch(a);
-  const nb = normalizeForMatch(b);
-  if (na === nb) return 95;
-  if (na.includes(nb) || nb.includes(na)) return 75;
-  const wordsA = na.split(/\s+/).filter(Boolean);
-  const wordsB = nb.split(/\s+/).filter(Boolean);
-  const overlap = wordsA.filter(wa =>
-    wordsB.some(wb => wb === wa || levenshtein(wa, wb) <= 1)
-  );
-  if (overlap.length === 0) return 0;
-  return Math.round(
-    (overlap.length / Math.max(wordsA.length, wordsB.length)) * 70
-  );
-}
+// Matching functions are now imported from dedup-matching-utils.ts
+// to eliminate code duplication with deduplicator.ts.
 
 // ── Full Company Scan ───────────────────────────────────────────────────
 

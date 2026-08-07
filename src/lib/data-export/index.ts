@@ -43,7 +43,7 @@ export {
 
 export {
   createXlsxFormatterStream,
-  formatXlsxSync,
+  formatXlsxToBuffer,
   getXlsxContentType,
   getXlsxExtension,
 } from './formatters/xlsx-formatter';

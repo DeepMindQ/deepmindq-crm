@@ -3,10 +3,12 @@
  *
  * Produces real .xlsx binary output using ExcelJS.
  * Supports streaming via workbook.xlsx.writeBuffer() for large datasets.
+ *
+ * Note: The legacy formatXlsxSync() has been removed. All export paths
+ * use the async formatXlsxToBuffer() or the streaming Transform.
  */
 
 import ExcelJS from 'exceljs';
-import { sanitizeString } from '@/lib/sanitize';
 
 // ─── Configuration ──────────────────────────────────────────
 
@@ -58,38 +60,8 @@ export function createXlsxFormatterStream(
 }
 
 /**
- * Synchronous XLSX formatting for small datasets.
- * Returns the complete xlsx file as a string (base64 or similar).
- * For streaming export, use formatXlsxToBuffer() instead.
- */
-export function formatXlsxSync(
-  rows: Record<string, unknown>[],
-  fields: string[],
-  options: XlsxFormatterOptions = {},
-): string {
-  // For sync context, we return a placeholder message since we can't do async here
-  // The streaming path should be used for actual export
-  // This is kept for API compatibility
-  const opts = { ...DEFAULT_OPTIONS, ...options };
-  const lines: string[] = [];
-
-  // Header
-  lines.push(fields.map(f => escapeTabValue(f, opts.nullValue)).join('\t'));
-  for (const row of rows) {
-    lines.push(fields.map(f => {
-      const val = row[f];
-      if (val === null || val === undefined) return opts.nullValue;
-      if (val instanceof Date) return escapeTabValue(val.toISOString(), opts.nullValue);
-      if (typeof val === 'object') return escapeTabValue(JSON.stringify(val), opts.nullValue);
-      return escapeTabValue(sanitizeString(String(val)), opts.nullValue);
-    }).join('\t'));
-  }
-
-  return lines.join('\n');
-}
-
-/**
  * Format rows as a real .xlsx Buffer (async).
+ * This is the primary export method for XLSX format.
  */
 export async function formatXlsxToBuffer(
   rows: Record<string, unknown>[],
@@ -124,7 +96,7 @@ export async function formatXlsxToBuffer(
       if (typeof val === 'number') return val;
       if (typeof val === 'boolean') return val;
       if (typeof val === 'object') return JSON.stringify(val);
-      return sanitizeString(String(val));
+      return String(val).replace(/[\x00-\x1F]/g, ''); // Strip control characters
     });
     worksheet.addRow(values);
   }
@@ -158,20 +130,4 @@ export function getXlsxContentType(): string {
  */
 export function getXlsxExtension(): string {
   return '.xlsx';
-}
-
-// ─── Helpers ────────────────────────────────────────
-
-function escapeTabValue(
-  value: unknown,
-  nullValue: string = '',
-): string {
-  if (value === null || value === undefined) {
-    return nullValue;
-  }
-  const raw = typeof value === 'string' ? value : String(value);
-  if (raw.includes('\t') || raw.includes('\n') || raw.includes('"')) {
-    return `"${raw.replace(/"/g, '""')}"`;
-  }
-  return raw;
 }

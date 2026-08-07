@@ -1,6 +1,21 @@
 /**
  * M5 Phase 1.1 — Clearbit Data Provider Connector
  *
+ * ⚠️ DEPRECATED: This connector is the legacy M5 enrichment system.
+ * For new enrichment operations, use the unified 4.7 system:
+ *   - Provider: src/lib/enrichment/providers/clearbit-provider.ts
+ *   - Queue:   src/lib/enrichment/enrichment-queue.ts
+ *   - Orchestrator: src/lib/enrichment/enrichment-orchestrator.ts
+ *
+ * The 4.7 system provides persistent usage tracking, rate limiting,
+ * provider fallback, and batch processing — all features not present
+ * in this legacy connector. Both systems share the CLEARBIT_API_KEY
+ * environment variable.
+ *
+ * This connector remains for backward compatibility with M5-era code
+ * (intelligence-activation, intelligence-sources) and will be fully
+ * removed in a future major version.
+ *
  * Enriches company data with verified external intelligence:
  *   - Company profile (name, domain, industry, employees, revenue, description)
  *   - Technology stack detection (via Clearbit logo/reveal API)
@@ -29,6 +44,7 @@
  */
 
 import { BaseConnector } from '../base-connector';
+import { logger } from '@/lib/logger';
 import type {
   ConnectorAcquisitionResult,
   ConnectorConfig,
@@ -275,6 +291,10 @@ export class ClearbitConnector extends BaseConnector {
   // ── Legacy run() adapter ───────────────────────────────────────
 
   async run(config: ConnectorConfig): Promise<ConnectorResult> {
+    // Runtime deprecation notice — redirect to 4.7 system
+    if (process.env.NODE_ENV === 'production') {
+      logger.warn('[clearbit-connector] DEPRECATED: M5 legacy connector invoked. Migrate to 4.7 enrichment system (enrichment-orchestrator.ts).');
+    }
     const result = await this.acquire(config);
     const status = result.success ? 'success' : 'error';
     return this.createResult(

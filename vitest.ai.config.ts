@@ -35,6 +35,7 @@ export default defineConfig({
       'tests/ai/opportunity-radar.test.ts',
       'tests/ai/research-engine.test.ts',
       'tests/phase-s5-prompt-ab-cost.test.ts',
+      'tests/phase-s6-governance-router-cache.test.ts',
     ],
     exclude: ['tests/legacy/**'],
     globals: true,

@@ -831,3 +831,33 @@ Stage Summary:
 - 3 files modified: cold-start-loader.ts, recommendation-engine.ts, phase-s4 test file
 - Total items DONE: 18/91 (20% complete)
 - Next: S5 (3.4, 3.5, 3.6) — Prompt Registry, A/B Testing, Cost Tracking
+
+---
+Task ID: session5-phase3.4-3.5-3.6
+Agent: Main Agent
+Task: Session 5 — Items 3.4, 3.5, 3.6 (Prompt Registry, A/B Testing, Cost Tracking)
+
+Work Log:
+- Audited existing S5 codebase: ai-prompt-registry.ts (753 lines), prompt-ab-testing.ts (462 lines), unified-ai-cost-tracking.ts (395 lines) — all exist but NOT wired into production
+- Identified critical gaps: 3 modules fully implemented but 0 production consumers, 0 API routes for experiments/cost
+- 3.4: Added promptRegistryId to GovernedAICallParams — governedAICall now resolves system prompts from centralized registry
+- 3.4: Created GET/POST /api/ai/prompt-registry + GET /api/ai/prompt-registry/[id] API routes
+- 3.5: Added abSampleKey to GovernedAICallParams — variant assignment from running experiments with system prompt override
+- 3.5: Created GET/POST /api/ai/experiments + GET/PATCH /api/ai/experiments/[id] API routes (lifecycle + metric recording)
+- 3.6: Added unified cost tracking (recordUnifiedCost) after every LLM call in governedAICall Step 5.5
+- 3.6: Captures promptTokens, completionTokens, durationMs from ModelRouter.complete() result
+- 3.6: Created GET/POST /api/ai/cost API route (unified report, daily summary, model registry, budget config)
+- Added abVariantId + costRecordId to GovernedAIResult for caller observability
+- All S5 integration is non-blocking: failures in registry lookup, AB assignment, or cost tracking never break AI calls
+- 14/14 S5 tests passing (phase-s5-prompt-ab-cost.test.ts)
+- 431/431 AI suite tests passing (0 regressions)
+- TypeScript: 0 errors, ESLint: 0 errors, pre-commit hooks passed
+
+Stage Summary:
+- 3 items completed: 3.4 (Prompt Registry Wiring), 3.5 (A/B Testing Wiring), 3.6 (Cost Tracking Wiring)
+- Files modified: ai-governance.ts, vitest.ai.config.ts
+- Files created: 5 API routes, 1 test file
+- 989 lines of new code
+- Total items DONE: 21/91 (23% complete)
+- Next: S6 (3.1, 3.2, 3.3) — Governance Dashboard, Model Router Optimization, Cache Intelligence
+- Commit: c3408eb3

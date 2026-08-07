@@ -50,8 +50,8 @@ function validateInput(body: unknown): { data: MarketDiscoveryInput; error: stri
 export async function POST(req: NextRequest) {
   const startedAt = Date.now();
 
-  // ── Auth guard ──
-  const { errorResponse } = await checkApiAuth();
+  // ── Auth + RBAC guard ──
+  const { errorResponse } = await checkApiAuth(req);
   if (errorResponse) return errorResponse;
 
   try {

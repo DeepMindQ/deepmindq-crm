@@ -25,9 +25,9 @@ function jaccard(a: string, b: string): number {
 }
 
 /* ── GET: Find Duplicates ── */
-export async function GET() {
-    // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+export async function GET(request: Request) {
+    // ── Authentication + RBAC Guard ──
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

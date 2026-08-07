@@ -17,8 +17,8 @@ import {
 } from '@/lib/rbac-enforcement';
 import { getAllRoles, type UserRole } from '@/lib/rbac';
 
-export async function GET() {
-  const { session, errorResponse } = await checkApiAuth();
+export async function GET(request: Request) {
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

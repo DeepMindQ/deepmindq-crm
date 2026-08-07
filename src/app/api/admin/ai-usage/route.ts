@@ -4,9 +4,9 @@ import { getDailyCostStatus } from '@/lib/intelligence-sources/ai-cost-governanc
 import { logger } from '@/lib/logger';
 
 // GET /api/admin/ai-usage — AI cost dashboard (admin-only)
-export async function GET() {
+export async function GET(request: Request) {
   // Auth gate: require authenticated admin
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   const adminCheck = requireAdminRole(session!);

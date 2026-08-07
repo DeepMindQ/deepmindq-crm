@@ -8,9 +8,9 @@ import { checkApiAuth } from '@/lib/api-auth';
    Returns performance stats by lead source
    ═══════════════════════════════════════════════════ */
 
-export async function GET() {
-    // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+export async function GET(request: Request) {
+    // ── Authentication + RBAC Guard ──
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

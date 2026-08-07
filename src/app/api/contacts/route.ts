@@ -4,12 +4,12 @@ import { Prisma, ContactStatus, ContactEmailHealth } from "@prisma/client";
 import { apiError, apiSuccess, validateBody, sanitizeFields, safeInt } from "@/lib/apiHelpers";
 import { createContactSchema } from "@/lib/validations";
 import { logger } from '@/lib/logger';
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, filterResponseArrayByRole } from '@/lib/api-auth';
 import { activateIntelligenceAsync } from '@/lib/intelligence-activation';
 
 export async function GET(request: NextRequest) {
-    // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth(request);
+    // ── Authentication + RBAC Guard ──
+  const { errorResponse, session } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -104,8 +104,13 @@ try {
       createdAt: c.createdAt,
     }));
 
+    // ── Field-Level Permission Filtering (5.3) ──
+    const filteredContacts = session
+      ? filterResponseArrayByRole(contactRows, session, 'Contact')
+      : contactRows;
+
     return apiSuccess({
-      contacts: contactRows,
+      contacts: filteredContacts,
       total,
       page,
       pageSize,

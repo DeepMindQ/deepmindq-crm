@@ -99,6 +99,11 @@ export const FIELD_PERMISSIONS: FieldPermissionRule[] = [
   { field: 'sourceDetails', model: 'IntelligenceSignal', roles: ['admin', 'operator'], sensitive: true },
   { field: 'rawData', model: 'IntelligenceSignal', roles: ['admin'], sensitive: true },
 
+  // Report sensitive fields
+  { field: 'generatedBy', model: 'Report', roles: ['admin', 'operator'], sensitive: false },
+  { field: 'queryDetails', model: 'Report', roles: ['admin'], sensitive: true },
+  { field: 'exportPath', model: 'Report', roles: ['admin'], sensitive: true },
+
   // User management fields
   { field: 'passwordHash', model: 'User', roles: [], sensitive: true }, // nobody can read this
   { field: 'lastLoginAt', model: 'User', roles: ['admin'], sensitive: false },

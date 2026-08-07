@@ -17,8 +17,8 @@ import {
   resetLimits,
 } from '@/lib/rate-limit-middleware';
 
-export async function GET() {
-  const { session, errorResponse } = await checkApiAuth();
+export async function GET(request: Request) {
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminCheck = requireAdminRole(session!);
   if (adminCheck) return adminCheck;

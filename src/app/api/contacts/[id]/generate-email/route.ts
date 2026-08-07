@@ -128,7 +128,7 @@ function calculateScores(
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(req);
   if (errorResponse) return errorResponse;
 
 try {

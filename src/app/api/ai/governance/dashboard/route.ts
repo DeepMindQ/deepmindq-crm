@@ -26,7 +26,7 @@ const HOURS_MAX = 720;
 const HOURS_DEFAULT = 24;
 
 export async function GET(req: NextRequest) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(req);
   if (errorResponse) return errorResponse;
 
   try {

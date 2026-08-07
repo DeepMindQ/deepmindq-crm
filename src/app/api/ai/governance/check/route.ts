@@ -42,9 +42,9 @@ interface AuditSummary {
   }>
 }
 
-export async function GET(_request: NextRequest) {
+export async function GET(request: NextRequest) {
   // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth()
+  const { errorResponse } = await checkApiAuth(request)
   if (errorResponse) return errorResponse
 
   try {

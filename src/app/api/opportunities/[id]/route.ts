@@ -5,14 +5,14 @@ import { apiError, apiSuccess, validateBody, sanitize } from "@/lib/apiHelpers";
 import { updateOpportunitySchema } from "@/lib/validations";
 import { OPPORTUNITY_STATUSES } from "@/lib/constants";
 import { logger } from '@/lib/logger';
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, filterResponseByRole } from '@/lib/api-auth';
 
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse, session } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -24,7 +24,11 @@ try {
     if (!opp) {
       return apiError("Opportunity not found", 404);
     }
-    return apiSuccess(opp);
+    // ── Field-Level Permission Filtering (5.3) ──
+    const filteredOpp = session
+      ? filterResponseByRole(opp as unknown as Record<string, unknown>, session, 'Opportunity')
+      : opp;
+    return apiSuccess(filteredOpp);
   } catch (error) {
     logger.error("Failed to fetch opportunity:", { error: error });
     return apiError("Failed to fetch opportunity", 500);
@@ -36,7 +40,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -99,11 +103,11 @@ try {
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

@@ -24,7 +24,7 @@ const VALID_METRICS: ExperimentMetric[] = [
 
 export async function GET(req: NextRequest) {
   try {
-    const auth = await checkApiAuth();
+    const auth = await checkApiAuth(req);
     if (auth.errorResponse) return auth.errorResponse;
 
     const { searchParams } = new URL(req.url);
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   try {
-    const auth = await checkApiAuth();
+    const auth = await checkApiAuth(req);
     if (auth.errorResponse) return auth.errorResponse;
 
     const body = await req.json();

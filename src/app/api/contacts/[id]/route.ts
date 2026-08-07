@@ -3,14 +3,14 @@ import { db } from "@/lib/db";
 import { apiError, apiSuccess, validateBody, sanitizeFields } from "@/lib/apiHelpers";
 import { updateContactSchema } from "@/lib/validations";
 import { logger } from '@/lib/logger';
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, filterResponseByRole } from '@/lib/api-auth';
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse, session } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -39,7 +39,12 @@ try {
       return apiError("Contact not found", 404);
     }
 
-    return apiSuccess(contact);
+    // ── Field-Level Permission Filtering (5.3) ──
+    const filteredContact = session
+      ? filterResponseByRole(contact as unknown as Record<string, unknown>, session, 'Contact')
+      : contact;
+
+    return apiSuccess(filteredContact);
   } catch (error) {
     logger.error("Failed to fetch contact:", { error: error });
     return apiError("Failed to fetch contact", 500);
@@ -51,7 +56,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -132,11 +137,11 @@ try {
 }
 
 export async function DELETE(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

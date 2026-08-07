@@ -246,6 +246,7 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
 
   // Email
   { path: '/api/email-templates', methods: { GET: ['templates:read'], POST: ['templates:write'] }, description: 'Email templates' },
+  { path: '/api/emails/', methods: { GET: ['email:read'], POST: ['email:write', 'email:send'], PUT: ['email:write'], DELETE: ['email:write'] }, description: 'Email operations (send, track, etc.)' },
   { path: '/api/sequences', methods: { GET: ['sequences:read'], POST: ['sequences:write'], PUT: ['sequences:write'], DELETE: ['sequences:write'] }, description: 'Email sequences' },
   { path: '/api/replies', methods: { GET: ['email:read'], POST: ['email:write'] }, description: 'Email replies' },
   { path: '/api/bounces', methods: { GET: ['email:read'] }, description: 'Email bounces' },
@@ -266,6 +267,9 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
   { path: '/api/audit', methods: { GET: ['audit:read'] }, description: 'Audit logs' },
   { path: '/api/audit-logs', methods: { GET: ['audit:read'] }, description: 'Audit log viewer' },
   { path: '/api/compliance', methods: { GET: ['audit:read'] }, description: 'Compliance status' },
+
+  // User Management
+  { path: '/api/users', methods: { GET: ['users:read'], PATCH: ['users:write'] }, description: 'User management (admin-only enforced at route level)' },
 
   // System & Health
   { path: '/api/system-health', methods: { GET: ['health:read'] }, description: 'System health details' },

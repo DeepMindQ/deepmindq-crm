@@ -9,9 +9,9 @@ import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { checkApiAuth } from '@/lib/api-auth'
 import { runFreshnessScan, getFreshnessStats } from '@/lib/intelligence-sources/freshness-decay'
 
-export async function POST() {
+export async function POST(request: Request) {
   // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth()
+  const { errorResponse } = await checkApiAuth(request)
   if (errorResponse) return errorResponse
 
   try {
@@ -22,9 +22,9 @@ export async function POST() {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth()
+  const { errorResponse } = await checkApiAuth(request)
   if (errorResponse) return errorResponse
 
   try {

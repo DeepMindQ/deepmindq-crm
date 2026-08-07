@@ -9,11 +9,11 @@ import { checkApiAuth, filterResponseByRole } from '@/lib/api-auth';
    GET — Single company with counts and research card
    ═══════════════════════════════════════════════════ */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse, session: detailSession } = await checkApiAuth();
+  const { errorResponse, session: detailSession } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -63,7 +63,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -136,11 +136,11 @@ try {
    DELETE — Remove company (cascade deletes relations)
    ═══════════════════════════════════════════════════ */
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
     // Admin-only: only admins can delete companies

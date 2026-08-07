@@ -3,9 +3,9 @@ import { apiError, apiSuccess } from "@/lib/apiHelpers";
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
 
-export async function GET() {
+export async function GET(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

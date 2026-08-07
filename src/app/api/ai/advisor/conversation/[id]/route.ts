@@ -9,13 +9,13 @@ import { checkApiAuth } from '@/lib/api-auth';
 import { advisorConversationApi } from '@/lib/advisor/advisor-persistence';
 
 export async function GET(
-  _request: NextRequest,
+  request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params;
 
   // ── Auth guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

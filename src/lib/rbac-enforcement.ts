@@ -85,6 +85,19 @@ export const FIELD_PERMISSIONS: FieldPermissionRule[] = [
   { field: 'phone', model: 'Contact', roles: ['admin', 'operator'], sensitive: true },
   { field: 'enrichmentData', model: 'Contact', roles: ['admin', 'operator'], sensitive: true },
   { field: 'consentIp', model: 'Contact', roles: ['admin'], sensitive: true },
+  { field: 'emailHealthScore', model: 'Contact', roles: ['admin', 'operator'], sensitive: false },
+  { field: 'linkedinUrl', model: 'Contact', roles: ['admin', 'operator'], sensitive: false },
+
+  // Opportunity/Deal sensitive fields
+  { field: 'opportunityScore', model: 'Opportunity', roles: ['admin', 'operator'], sensitive: false },
+  { field: 'winProbability', model: 'Opportunity', roles: ['admin', 'operator'], sensitive: false },
+  { field: 'estimatedValue', model: 'Opportunity', roles: ['admin', 'operator'], sensitive: true },
+  { field: 'internalNotes', model: 'Opportunity', roles: ['admin'], sensitive: true },
+
+  // Intelligence/AI sensitive fields
+  { field: 'confidenceScore', model: 'IntelligenceSignal', roles: ['admin', 'operator'], sensitive: false },
+  { field: 'sourceDetails', model: 'IntelligenceSignal', roles: ['admin', 'operator'], sensitive: true },
+  { field: 'rawData', model: 'IntelligenceSignal', roles: ['admin'], sensitive: true },
 
   // User management fields
   { field: 'passwordHash', model: 'User', roles: [], sensitive: true }, // nobody can read this

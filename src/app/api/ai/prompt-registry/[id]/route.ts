@@ -14,7 +14,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const auth = await checkApiAuth();
+    const auth = await checkApiAuth(req);
     if (auth.errorResponse) return auth.errorResponse;
     const { id } = await params;
 

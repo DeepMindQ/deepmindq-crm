@@ -20,7 +20,7 @@ import { activateIntelligenceAsync } from '@/lib/intelligence-activation';
    ═══════════════════════════════════════════════════ */
 export async function GET(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth(request);
+  const { errorResponse, session } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -172,9 +172,8 @@ try {
     }));
 
     // ── Field-Level Permission Filtering (5.3) ──
-    const { session: listSession } = await checkApiAuth(request);
-    const filteredResult = listSession
-      ? filterResponseArrayByRole(result, listSession, 'Company')
+    const filteredResult = session
+      ? filterResponseArrayByRole(result, session, 'Company')
       : result;
 
     return NextResponse.json({

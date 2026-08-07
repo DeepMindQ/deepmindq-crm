@@ -12,7 +12,7 @@ import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { AICacheLayer } from '@/lib/ai-cache-layer';
 
 export async function GET(req: NextRequest) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(req);
   if (errorResponse) return errorResponse;
 
   try {
@@ -37,7 +37,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function DELETE(req: NextRequest) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(req);
   if (errorResponse) return errorResponse;
 
   try {

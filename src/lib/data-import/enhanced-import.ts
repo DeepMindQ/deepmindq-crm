@@ -543,8 +543,24 @@ export async function rollbackImport(uploadId: string): Promise<RollbackResult> 
     importBatchesDeleted = batchDeleteResult.count;
   }
 
-  // Delete companies that were created during import and no longer have contacts
   if (affectedCompanyIds.length > 0) {
+    // ── Cascade: Clean up signals, notes, and timeline events ──
+    await db.companySignal.deleteMany({
+      where: { companyId: { in: affectedCompanyIds } },
+    });
+    logger.info('[rollback] Cleaned up signals for affected companies', { count: affectedCompanyIds.length });
+
+    await db.companyNote.deleteMany({
+      where: { companyId: { in: affectedCompanyIds } },
+    });
+    logger.info('[rollback] Cleaned up notes for affected companies', { count: affectedCompanyIds.length });
+
+    await db.companyTimelineEvent.deleteMany({
+      where: { companyId: { in: affectedCompanyIds } },
+    });
+    logger.info('[rollback] Cleaned up timeline events for affected companies', { count: affectedCompanyIds.length });
+
+    // Delete companies that were created during import and no longer have contacts
     for (const companyId of affectedCompanyIds) {
       const contactCount = await db.contact.count({ where: { companyId } });
       if (contactCount === 0) {

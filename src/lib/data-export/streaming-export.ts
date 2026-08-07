@@ -15,14 +15,14 @@
 
 import { pipeline as streamPipeline, Readable, PassThrough } from 'stream';
 import { promisify } from 'util';
-import { createWriteStream, mkdirSync, existsSync, unlinkSync, statSync } from 'fs';
+import { createWriteStream, mkdirSync, existsSync, unlinkSync, statSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { logAction } from '@/lib/audit';
 import { createCsvFormatterStream, getCsvBom, getCsvContentType, getCsvExtension } from './formatters/csv-formatter';
 import { createJsonFormatterStream, getJsonContentType, getJsonExtension } from './formatters/json-formatter';
-import { createXlsxFormatterStream, getXlsxContentType, getXlsxExtension } from './formatters/xlsx-formatter';
+import { createXlsxFormatterStream, formatXlsxToBuffer, getXlsxContentType, getXlsxExtension } from './formatters/xlsx-formatter';
 import type { CsvFormatterOptions } from './formatters/csv-formatter';
 import type { JsonFormatterOptions } from './formatters/json-formatter';
 import type { XlsxFormatterOptions } from './formatters/xlsx-formatter';
@@ -198,40 +198,54 @@ async function processExport(
   let exportedRows = 0;
 
   try {
-    // Create file write stream
-    const fileStream = createWriteStream(filePath);
+    // XLSX: collect all rows then generate buffer (ExcelJS requires full data)
+    if (exportRecord.format === 'xlsx') {
+      const allRows = await collectAllRows(
+        exportRecord.entityType as ExportEntityType,
+        exportRecord.filters as ExportFilter | null,
+        fields,
+      );
+      exportedRows = allRows.length;
 
-    // Get the formatter stream
-    const formatterStream = createFormatterStream(
-      exportRecord.format as ExportFormat,
-      fields,
-    );
+      const buffer = await formatXlsxToBuffer(allRows, fields);
+      writeFileSync(filePath, buffer);
+    } else {
+      // CSV / JSON: use streaming pipeline
+      // Create file write stream
+      const fileStream = createWriteStream(filePath);
 
-    // Add BOM for CSV
-    if (exportRecord.format === 'csv') {
-      fileStream.write(getCsvBom());
+      // Get the formatter stream
+      const formatterStream = createFormatterStream(
+        exportRecord.format as ExportFormat,
+        fields,
+      );
+
+      // Add BOM for CSV
+      if (exportRecord.format === 'csv') {
+        fileStream.write(getCsvBom());
+      }
+
+      // Create cursor-based readable stream from DB
+      const dbStream = createDbStream(
+        exportRecord.entityType as ExportEntityType,
+        exportRecord.filters as ExportFilter | null,
+        fields,
+      );
+
+      // Track progress
+      const progressTracker = new PassThrough({ objectMode: true });
+      progressTracker.on('data', () => {
+        exportedRows++;
+      });
+
+      // Pipeline: DB → progress counter → formatter → file
+      await pipeline(
+        dbStream,
+        progressTracker,
+        formatterStream,
+        fileStream,
+      );
     }
-
-    // Create cursor-based readable stream from DB
-    const dbStream = createDbStream(
-      exportRecord.entityType as ExportEntityType,
-      exportRecord.filters as ExportFilter | null,
-      fields,
-    );
-
-    // Track progress
-    const progressTracker = new PassThrough({ objectMode: true });
-    progressTracker.on('data', () => {
-      exportedRows++;
-    });
-
-    // Pipeline: DB → progress counter → formatter → file
-    await pipeline(
-      dbStream,
-      progressTracker,
-      formatterStream,
-      fileStream,
-    );
 
     // Get file size
     let fileSize: number | null = null;
@@ -338,6 +352,29 @@ function createDbStream(
         });
     },
   });
+}
+
+/**
+ * Collect all rows from DB for XLSX export (ExcelJS needs the full dataset).
+ * Uses cursor-based pagination to avoid loading everything into a single query.
+ */
+async function collectAllRows(
+  entityType: ExportEntityType,
+  filters: ExportFilter | null,
+  fields: string[],
+): Promise<Record<string, unknown>[]> {
+  const allRows: Record<string, unknown>[] = [];
+  let cursor: string | null = null;
+
+  while (true) {
+    const batch = await fetchBatch(entityType, filters, fields, cursor, BATCH_SIZE);
+    if (batch.length === 0) break;
+    allRows.push(...batch);
+    const lastRow = batch[batch.length - 1];
+    cursor = (lastRow as Record<string, unknown>).id as string;
+  }
+
+  return allRows;
 }
 
 /**

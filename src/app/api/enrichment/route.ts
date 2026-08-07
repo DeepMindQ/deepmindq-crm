@@ -1,6 +1,13 @@
 /**
- * Task 4.7 — Unified Enrichment API
- *
+ * Unified Enrichment API — Task 4.7
+ * 
+ * Provider-agnostic enrichment with queue, rate limiting, retry, and fallback.
+ * This is the recommended enrichment endpoint for all new integrations.
+ * 
+ * Note: The legacy M5 endpoint at /api/companies/enrich provides additional
+ * TRUST metadata and AI fallback capabilities. For full enrichment with
+ * data lineage, consider using that endpoint instead.
+ * 
  * Routes:
  *   POST /api/enrichment/company    — enrich a company by { companyId } or { domain }
  *   POST /api/enrichment/contact    — enrich a contact by { contactId } or { email }

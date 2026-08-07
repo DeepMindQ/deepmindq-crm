@@ -37,3 +37,10 @@ export type {
   SyncFromCRMOptions,
   SyncConflictResolution,
 } from './crm-sync-service';
+
+// ─── Sync Scheduler ─────────────────────────────────────────────
+export {
+  startSyncScheduler,
+  stopSyncScheduler,
+  getSchedulerStatus,
+} from './sync-scheduler';

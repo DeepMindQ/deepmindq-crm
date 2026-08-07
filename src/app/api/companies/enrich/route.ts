@@ -1,3 +1,11 @@
+/**
+ * DEPRECATED: This endpoint uses the M5 TRUST-framework enrichment system.
+ * For new integrations, prefer the unified enrichment API at /api/enrichment/*
+ * which provides provider-agnostic queue, rate limiting, and fallback chain.
+ * 
+ * This endpoint remains available for backward compatibility and TRUST metadata features.
+ */
+
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { governedAICall } from '@/lib/ai-governance';

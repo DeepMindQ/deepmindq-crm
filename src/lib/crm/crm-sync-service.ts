@@ -25,6 +25,24 @@ import type {
 } from './crm-connector';
 import { getConnectorForProvider } from './crm-connector';
 
+// ─── Custom Field Mapping Helper ─────────────────────────────────
+
+function applyCustomFieldMapping(
+  data: Record<string, unknown>,
+  fieldMapping: Record<string, string> | null | undefined,
+): Record<string, unknown> {
+  if (!fieldMapping || Object.keys(fieldMapping).length === 0) return data;
+
+  const mapped = { ...data };
+  for (const [targetField, sourceField] of Object.entries(fieldMapping)) {
+    if (sourceField in mapped && sourceField !== targetField) {
+      mapped[targetField] = mapped[sourceField];
+      // Keep original field too
+    }
+  }
+  return mapped;
+}
+
 // ─── Types ─────────────────────────────────────────────────────────
 
 export type SyncConflictResolution = 'local_wins' | 'crm_wins' | 'skip';
@@ -109,6 +127,62 @@ export function getConnector(provider: string): CRMConnector | null {
   return connector;
 }
 
+// ─── Token Refresh ─────────────────────────────────────────────────
+
+async function refreshTokenIfNeeded(
+  connection: { id: string; accessToken: string | null; refreshToken: string | null; tokenExpiresAt: Date | null; instanceUrl: string | null; provider: string },
+  connector: CRMConnector,
+  token: CRMToken,
+  log: ReturnType<typeof childLogger>,
+): Promise<CRMToken> {
+  // If no expiry info, skip refresh check
+  if (!token.expiresAt) return token;
+
+  const now = new Date();
+  const expiresAt = new Date(token.expiresAt);
+  const bufferMs = 5 * 60 * 1000; // 5-minute buffer
+
+  if (expiresAt.getTime() - bufferMs > now.getTime()) {
+    return token; // Token is still valid
+  }
+
+  // Token is expired or about to expire - refresh
+  log.info('[sync] Token expired or expiring, refreshing...', {
+    expiresAt: token.expiresAt,
+    connectionId: connection.id,
+  });
+
+  if (!token.refreshToken) {
+    throw new Error(`CRM connection ${connection.id} token is expired and no refresh token available. Please re-authenticate.`);
+  }
+
+  try {
+    const newToken = await connector.refreshToken(token);
+
+    // Persist new tokens to DB
+    await db.cRMConnection.update({
+      where: { id: connection.id },
+      data: {
+        accessToken: newToken.accessToken,
+        refreshToken: newToken.refreshToken || token.refreshToken,
+        tokenExpiresAt: newToken.expiresAt ? new Date(newToken.expiresAt) : null,
+        instanceUrl: newToken.instanceUrl || connection.instanceUrl,
+      },
+    });
+
+    log.info('[sync] Token refreshed successfully', {
+      connectionId: connection.id,
+      newExpiresAt: newToken.expiresAt,
+    });
+
+    return newToken;
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    log.error('[sync] Token refresh failed', { error: msg, connectionId: connection.id });
+    throw new Error(`CRM token refresh failed for connection ${connection.id}: ${msg}`);
+  }
+}
+
 // ─── Sync: CRM → Local ────────────────────────────────────────────
 
 export async function syncFromCRM(
@@ -157,6 +231,9 @@ export async function syncFromCRM(
       throw new Error(`CRM connection ${connectionId} has no access token`);
     }
 
+    // ── Extract custom field mapping ──
+    const fieldMapping = connection.fieldMapping as Record<string, string> | null;
+
     // ── Resolve connector ──
     const connector = getConnector(connection.provider);
     if (!connector) {
@@ -173,18 +250,22 @@ export async function syncFromCRM(
       instanceUrl: connection.instanceUrl || undefined,
     };
 
+    // ── Refresh token if needed ──
+    const activeToken = await refreshTokenIfNeeded(connection, connector, token, log);
+
     // ── Sync accounts (companies) ──
     if (options.syncAccounts !== false) {
       log.info('[sync] Fetching accounts from CRM', { provider: connection.provider });
       await syncAccounts(
         connector,
-        token,
+        activeToken,
         connection,
         conflictResolution,
         limit,
         modifiedAfter,
         result,
         log,
+        fieldMapping,
       );
     }
 
@@ -193,7 +274,7 @@ export async function syncFromCRM(
       log.info('[sync] Fetching contacts from CRM', { provider: connection.provider });
       await syncContacts(
         connector,
-        token,
+        activeToken,
         connection,
         conflictResolution,
         limit,
@@ -208,7 +289,7 @@ export async function syncFromCRM(
       log.info('[sync] Fetching deals from CRM', { provider: connection.provider });
       await syncDeals(
         connector,
-        token,
+        activeToken,
         connection,
         limit,
         modifiedAfter,
@@ -310,8 +391,11 @@ export async function syncToCRM(
       instanceUrl: connection.instanceUrl || undefined,
     };
 
+    // ── Refresh token if needed ──
+    const activeToken = await refreshTokenIfNeeded(connection, connector, token, log);
+
     // ── Push account ──
-    const pushResult = await connector.pushAccount(token, {
+    const pushResult = await connector.pushAccount(activeToken, {
       name: company.rawName,
       domain: company.domain || undefined,
       industry: company.industry || undefined,
@@ -384,6 +468,7 @@ async function syncAccounts(
   modifiedAfter: string | undefined,
   result: SyncResult,
   log: ReturnType<typeof childLogger>,
+  fieldMapping?: Record<string, string> | null,
 ): Promise<void> {
   try {
     const accounts = await connector.fetchAccounts(token, {
@@ -405,6 +490,7 @@ async function syncAccounts(
           conflictResolution,
           result,
           log,
+          fieldMapping,
         );
       } catch (err) {
         result.companiesFailed++;
@@ -441,6 +527,7 @@ async function processCRMAccount(
   conflictResolution: SyncConflictResolution,
   result: SyncResult,
   log: ReturnType<typeof childLogger>,
+  fieldMapping?: Record<string, string> | null,
 ): Promise<void> {
   // ── Step 1: Check if a matching company already exists ──
   const existingByExternalId = await db.company.findFirst({
@@ -526,15 +613,28 @@ async function processCRMAccount(
   }
 
   // ── Step 3: Create new company ──
-  const newCompany = await db.company.create({
-    data: {
-      rawName: account.name,
-      normalizedName: account.name.trim().toLowerCase(),
+  // Apply custom field mapping to account data before creating
+  const accountData = applyCustomFieldMapping(
+    {
+      name: account.name,
       domain: account.domain || null,
       industry: account.industry || null,
-      location: account.billingAddress || null,
-      sizeRange: account.employeeCount ? String(account.employeeCount) : null,
+      billingAddress: account.billingAddress || null,
+      employeeCount: account.employeeCount ? String(account.employeeCount) : null,
       website: account.website || null,
+    },
+    fieldMapping,
+  );
+
+  const newCompany = await db.company.create({
+    data: {
+      rawName: (accountData.name as string) || account.name,
+      normalizedName: ((accountData.name as string) || account.name).trim().toLowerCase(),
+      domain: (accountData.domain as string) || null,
+      industry: (accountData.industry as string) || null,
+      location: (accountData.billingAddress as string) || null,
+      sizeRange: (accountData.employeeCount as string) || null,
+      website: (accountData.website as string) || null,
       source: 'crm',
       status: 'prospect',
       lastEnrichedAt: new Date(),
@@ -850,29 +950,189 @@ async function processCRMDeal(
     return;
   }
 
-  // ── Create a timeline event as the opportunity record ──
-  // (OpportunityRecommendation requires a signal and capabilityMatch
-  //  which we don't have from CRM, so we record as a timeline event) ──
+  // ── Create a timeline event for the deal ──
   await createTimelineEvent(
     companyId,
     connection.provider,
     `Deal synced from ${connection.provider}`,
-    `Deal "${deal.name}" — Stage: ${deal.stage || 'Unknown'}, Amount: ${deal.amount ? `$${deal.amount.toLocaleString()}` : 'Unknown'}, Close: ${deal.closeDate || 'TBD'}`,
+    `Deal "${deal.name}" — Stage: ${deal.stage || 'Unknown'}, Amount: ${deal.amount ? `$${deal.amount.toLocaleString()}` : 'Unknown'}, Probability: ${deal.probability != null ? `${deal.probability}%` : 'Unknown'}, Close: ${deal.closeDate || 'TBD'}`,
     {
       crmProvider: connection.provider,
       crmExternalId: deal.externalId,
       dealStage: deal.stage,
       dealAmount: deal.amount,
+      dealProbability: deal.probability,
       dealCloseDate: deal.closeDate,
       dealType: deal.type,
     },
   );
+
+  // ── Also create an OpportunityRecommendation if possible ──
+  await createOpportunityFromCRMDeal(companyId, deal, connection, log);
 
   result.opportunitiesCreated++;
   await logSyncEntry(connection.id, 'import', 'opportunity', undefined, deal.externalId, 'created');
 }
 
 // ─── Helpers ───────────────────────────────────────────────────────
+
+/**
+ * Create an OpportunityRecommendation from a CRM deal.
+ * Since OpportunityRecommendation requires signalId and capabilityMatchId,
+ * we create lightweight placeholder records to satisfy the FK constraints.
+ */
+async function createOpportunityFromCRMDeal(
+  companyId: string,
+  deal: CRMDeal,
+  connection: { id: string; provider: string },
+  log: ReturnType<typeof childLogger>,
+): Promise<void> {
+  try {
+    // Check if an OpportunityRecommendation already exists for this CRM deal
+    const existing = await db.opportunityRecommendation.findFirst({
+      where: {
+        companyId,
+        opportunityTitle: `CRM Deal: ${deal.name}`,
+      },
+    });
+
+    if (existing) {
+      log.info('[sync:deals] OpportunityRecommendation already exists for deal', {
+        deal: deal.name,
+        opportunityId: existing.id,
+      });
+      return;
+    }
+
+    // ── Step 1: Create a placeholder signal for this company ──
+    let signal = await db.companySignal.findFirst({
+      where: {
+        companyId,
+        signalType: 'news',
+        source: { contains: connection.provider },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!signal) {
+      signal = await db.companySignal.create({
+        data: {
+          companyId,
+          signalType: 'news',
+          title: `CRM Deal: ${deal.name}`,
+          description: `Deal imported from ${connection.provider}: ${deal.name} (Stage: ${deal.stage || 'Unknown'})`,
+          source: `${connection.provider}_crm`,
+          severity: 'medium',
+          impact: deal.amount && deal.amount > 50000 ? 'high' : 'medium',
+          confidence: deal.probability ? deal.probability / 100 : 0.5,
+          evidenceIds: JSON.stringify({
+            crmProvider: connection.provider,
+            crmExternalId: deal.externalId,
+            dealStage: deal.stage,
+            dealAmount: deal.amount,
+            dealProbability: deal.probability,
+            dealCloseDate: deal.closeDate,
+          }),
+          isRead: true,
+          status: 'active',
+        },
+      });
+    }
+
+    // ── Step 2: Create a placeholder capability match ──
+    // Look for an existing one first
+    let capMatch = await db.signalCapabilityMatch.findFirst({
+      where: {
+        companyId,
+        signalId: signal.id,
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!capMatch) {
+      // Find any capability asset to use as a placeholder
+      const anyCapability = await db.capabilityAsset.findFirst({
+        select: { id: true },
+      });
+
+      if (!anyCapability) {
+        // No capability assets exist yet — we cannot create the
+        // OpportunityRecommendation without a capability match FK.
+        // The timeline event already records the deal data.
+        log.info('[sync:deals] No CapabilityAsset found; skipping OpportunityRecommendation creation', {
+          deal: deal.name,
+        });
+        return;
+      }
+
+      capMatch = await db.signalCapabilityMatch.create({
+        data: {
+          companyId,
+          signalId: signal.id,
+          capabilityId: anyCapability.id,
+          matchScore: deal.probability ? deal.probability / 100 : 0.3,
+          reason: `CRM deal "${deal.name}" imported from ${connection.provider}`,
+          businessProblem: deal.name,
+          expectedOutcome: deal.amount ? `Revenue opportunity: $${deal.amount.toLocaleString()}` : 'Revenue opportunity from CRM deal',
+          salesAngle: deal.type || 'General engagement',
+        },
+      });
+    }
+
+    // ── Step 3: Create the OpportunityRecommendation ──
+    const probability = deal.probability ?? 50;
+    const amount = deal.amount ?? 0;
+
+    await db.opportunityRecommendation.create({
+      data: {
+        companyId,
+        signalId: signal.id,
+        capabilityMatchId: capMatch.id,
+        opportunityTitle: `CRM Deal: ${deal.name}`,
+        businessTrigger: `Deal imported from ${connection.provider}`,
+        whyNow: deal.closeDate
+          ? `Deal close date: ${deal.closeDate}`
+          : `Active ${deal.stage || 'open'} deal in ${connection.provider}`,
+        businessProblem: deal.name,
+        recommendedCapability: deal.type || 'General',
+        recommendedStakeholders: JSON.stringify(
+          deal.contactName ? [deal.contactName] : [],
+        ),
+        suggestedConversation: `Discuss the ${deal.name} deal — currently at ${deal.stage || 'unknown'} stage${deal.amount ? ` with $${deal.amount.toLocaleString()} value` : ''}`,
+        confidenceScore: probability / 100,
+        freshnessScore: 80,
+        matchScore: probability / 100,
+        opportunityScore: Math.round(probability * 0.8 + (amount > 100000 ? 20 : amount > 50000 ? 10 : 0)),
+        priority: probability >= 70 ? 'high' : probability >= 40 ? 'medium' : 'low',
+        status: 'pending_review',
+        evidenceIds: JSON.stringify({
+          crmProvider: connection.provider,
+          crmExternalId: deal.externalId,
+          dealStage: deal.stage,
+          dealAmount: amount,
+          dealProbability: probability,
+          dealCloseDate: deal.closeDate,
+          dealType: deal.type,
+        }),
+      },
+    });
+
+    log.info('[sync:deals] Created OpportunityRecommendation from CRM deal', {
+      deal: deal.name,
+      companyId,
+    });
+  } catch (err) {
+    // Best-effort: don't let OpportunityRecommendation creation failure
+    // break the overall deal sync — the timeline event already captured it
+    const msg = err instanceof Error ? err.message : String(err);
+    log.warn('[sync:deals] Failed to create OpportunityRecommendation, continuing with timeline event only', {
+      deal: deal.name,
+      error: msg,
+    });
+  }
+}
+
+// ─── Logging Helpers ──────────────────────────────────────────────
 
 async function logSyncEntry(
   connectionId: string,

@@ -550,29 +550,32 @@ describe('JSON Streaming', () => {
 // ═══════════════════════════════════════════════════════════════
 
 describe('XLSX Streaming', () => {
-  it('should stream tab-delimited data through Transform stream', async () => {
+  it('should stream rows and produce real XLSX binary output', async () => {
     const fields = ['name', 'email'];
     const rows = [
       { name: 'Alice', email: 'alice@example.com' },
       { name: 'Bob', email: 'bob@example.com' },
     ];
 
+    // Real XLSX produces binary output, not tab-delimited text.
+    // The stream buffers all rows and flushes an xlsx buffer on end.
     const readable = Readable.from(rows, { objectMode: true });
     const formatter = createXlsxFormatterStream(fields);
 
-    const chunks: string[] = [];
+    const chunks: Buffer[] = [];
     readable.pipe(formatter).on('data', (chunk: Buffer) => {
-      chunks.push(chunk.toString());
+      chunks.push(chunk);
     });
 
     await new Promise<void>((resolve) => {
       formatter.on('end', resolve);
     });
 
-    const output = chunks.join('');
-    const lines = output.trim().split('\n');
-    expect(lines[0]).toBe('name\temail');
-    expect(lines[1]).toBe('Alice\talice@example.com');
+    const output = Buffer.concat(chunks);
+    // Verify it's a real XLSX file (starts with PK magic bytes for ZIP)
+    expect(output.length).toBeGreaterThan(0);
+    expect(output[0]).toBe(0x50); // 'P'
+    expect(output[1]).toBe(0x4B); // 'K'
   });
 });
 

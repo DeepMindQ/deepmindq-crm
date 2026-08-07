@@ -187,47 +187,79 @@ function companySimilarity(a: string, b: string): number {
 
 /**
  * Fetch all companies with their relation counts for dedup scanning.
- * Uses unsafeFindMany because dedup requires full table scan.
+ * Uses cursor-based pagination to avoid memory pressure on large datasets.
  */
 async function fetchAllCompanies(): Promise<ClusteredCompany[]> {
-  // Requires full table scan for dedup — intentionally unbounded
+  const BATCH_SIZE = 1000;
+  const allCompanies: ClusteredCompany[] = [];
+  let cursor: string | undefined = undefined;
+
   if (process.env.NODE_ENV === 'production') {
-    console.warn('[QUERY-SAFETY] Unbounded findMany executed: Dedup engine requires full company table scan for cross-record comparison');
+    logger.info('[dedup-engine] Starting cursor-based company scan for dedup');
   }
 
-  const companies = await db.company.findMany({
-    select: {
-      id: true,
-      rawName: true,
-      normalizedName: true,
-      domain: true,
-      industry: true,
-      createdAt: true,
-      intelligenceScore: true,
-      status: true,
-      _count: {
-        select: {
-          contacts: true,
-          signals: true,
-          notes: true,
+  while (true) {
+    const companies: Array<{
+      id: string;
+      rawName: string;
+      normalizedName: string;
+      domain: string | null;
+      industry: string | null;
+      createdAt: Date;
+      intelligenceScore: number;
+      status: string;
+      _count: { contacts: number; signals: number; notes: number };
+    }> = await db.company.findMany({
+      where: cursor ? { id: { gt: cursor } } : undefined,
+      select: {
+        id: true,
+        rawName: true,
+        normalizedName: true,
+        domain: true,
+        industry: true,
+        createdAt: true,
+        intelligenceScore: true,
+        status: true,
+        _count: {
+          select: {
+            contacts: true,
+            signals: true,
+            notes: true,
+          },
         },
       },
-    },
-  });
+      orderBy: { id: 'asc' },
+      take: BATCH_SIZE,
+    });
 
-  return companies.map(c => ({
-    id: c.id,
-    rawName: c.rawName,
-    normalizedName: c.normalizedName,
-    domain: c.domain,
-    industry: c.industry,
-    createdAt: c.createdAt,
-    contactCount: c._count.contacts,
-    signalCount: c._count.signals,
-    noteCount: c._count.notes,
-    intelligenceScore: c.intelligenceScore,
-    status: c.status,
-  }));
+    if (companies.length === 0) break;
+
+    for (const c of companies) {
+      allCompanies.push({
+        id: c.id,
+        rawName: c.rawName,
+        normalizedName: c.normalizedName,
+        domain: c.domain,
+        industry: c.industry,
+        createdAt: c.createdAt,
+        contactCount: c._count.contacts,
+        signalCount: c._count.signals,
+        noteCount: c._count.notes,
+        intelligenceScore: c.intelligenceScore,
+        status: c.status,
+      });
+    }
+
+    cursor = companies[companies.length - 1].id;
+
+    if (companies.length < BATCH_SIZE) break;
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    logger.info('[dedup-engine] Cursor-based scan complete', { totalCompanies: allCompanies.length });
+  }
+
+  return allCompanies;
 }
 
 // ── Edge Detection ──────────────────────────────────────────────────────
@@ -903,7 +935,7 @@ export async function getMergeHistory(options?: {
       mergeReason: r.mergeReason,
       fieldsKept: r.fieldsKept as Record<string, string> | null,
       survivorName: r.survivor.rawName,
-      duplicateName: r.duplicate.rawName,
+      duplicateName: r.duplicate?.rawName ?? undefined,
     })),
     total,
   };

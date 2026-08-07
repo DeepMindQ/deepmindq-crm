@@ -12,6 +12,8 @@ import type {
   ContactEnrichmentResult,
 } from '../enrichment-provider';
 import { logger } from '@/lib/logger';
+import { promises as fs } from 'fs';
+import path from 'path';
 
 // ─── Configuration ────────────────────────────────────────────────────
 
@@ -21,9 +23,36 @@ const CLEARBIT_COMPANY_API =
 const CLEARBIT_MONTHLY_LIMIT = 50;
 const CLEARBIT_REQUEST_TIMEOUT_MS = 15000;
 
-// ─── Internal State ───────────────────────────────────────────────────
+// ─── Persistent Usage Tracking ─────────────────────────────────────────
 
-let monthlyUsageCount = 0;
+const USAGE_DIR = path.join(process.cwd(), 'db', 'enrichment-usage');
+const USAGE_FILE = path.join(USAGE_DIR, 'clearbit-usage.json');
+
+interface UsageRecord {
+  month: string; // 'YYYY-MM'
+  count: number;
+}
+
+async function getCurrentMonthUsage(): Promise<number> {
+  try {
+    const data = await fs.readFile(USAGE_FILE, 'utf-8');
+    const record: UsageRecord = JSON.parse(data);
+    const currentMonth = new Date().toISOString().slice(0, 7);
+    if (record.month === currentMonth) {
+      return record.count;
+    }
+    return 0; // New month, reset
+  } catch {
+    return 0; // File doesn't exist or corrupt
+  }
+}
+
+async function incrementUsage(): Promise<void> {
+  const currentMonth = new Date().toISOString().slice(0, 7);
+  const currentCount = await getCurrentMonthUsage();
+  await fs.mkdir(USAGE_DIR, { recursive: true });
+  await fs.writeFile(USAGE_FILE, JSON.stringify({ month: currentMonth, count: currentCount + 1 }), 'utf-8');
+}
 
 // ─── Clearbit Response Types ──────────────────────────────────────────
 
@@ -67,12 +96,14 @@ export class ClearbitProvider implements EnrichmentProvider {
   async isAvailable(): Promise<boolean> {
     const key = this.getApiKey();
     if (!key) return false;
-    if (monthlyUsageCount >= CLEARBIT_MONTHLY_LIMIT) return false;
+    const currentUsage = await getCurrentMonthUsage();
+    if (currentUsage >= CLEARBIT_MONTHLY_LIMIT) return false;
     return true;
   }
 
   async getRemainingCredits(): Promise<number> {
-    return Math.max(0, CLEARBIT_MONTHLY_LIMIT - monthlyUsageCount);
+    const currentUsage = await getCurrentMonthUsage();
+    return Math.max(0, CLEARBIT_MONTHLY_LIMIT - currentUsage);
   }
 
   async enrichCompany(domain: string): Promise<EnrichmentResult> {
@@ -81,7 +112,8 @@ export class ClearbitProvider implements EnrichmentProvider {
       throw new Error('CLEARBIT_API_KEY not configured');
     }
 
-    if (monthlyUsageCount >= CLEARBIT_MONTHLY_LIMIT) {
+    const currentUsage = await getCurrentMonthUsage();
+    if (currentUsage >= CLEARBIT_MONTHLY_LIMIT) {
       throw new Error('Clearbit monthly rate limit reached');
     }
 
@@ -96,7 +128,7 @@ export class ClearbitProvider implements EnrichmentProvider {
       signal: AbortSignal.timeout(CLEARBIT_REQUEST_TIMEOUT_MS),
     });
 
-    monthlyUsageCount++;
+    await incrementUsage();
 
     if (response.status === 404) {
       return {

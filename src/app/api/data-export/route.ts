@@ -16,6 +16,7 @@ import {
   listExports,
 } from '@/lib/data-export/streaming-export';
 import { logAction } from '@/lib/audit';
+import { checkRateLimit } from '@/lib/rate-limit';
 
 // ═══════════════════════════════════════════════════════════════
 // POST /api/data-export — Create export job
@@ -24,6 +25,11 @@ import { logAction } from '@/lib/audit';
 export async function POST(req: NextRequest) {
   const { session, errorResponse } = await checkApiAuth(req);
   if (errorResponse) return errorResponse;
+
+  const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+  if (!checkRateLimit(clientIp, 10)) {
+    return apiError('Rate limit exceeded. Maximum 10 export operations per minute.', 429);
+  }
 
   try {
     const body = await req.json();

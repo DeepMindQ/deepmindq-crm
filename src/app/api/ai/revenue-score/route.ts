@@ -27,7 +27,7 @@ const schema = z.object({
 
 export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 const startedAt = Date.now();

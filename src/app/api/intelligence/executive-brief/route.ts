@@ -22,7 +22,7 @@ import { checkApiAuth } from '@/lib/api-auth';
 import { generateExecutiveBrief } from '@/lib/executive-intelligence-brief';
 
 export async function POST(request: Request) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

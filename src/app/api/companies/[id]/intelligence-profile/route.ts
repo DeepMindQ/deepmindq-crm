@@ -32,7 +32,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   const { id } = await params;

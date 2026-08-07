@@ -108,7 +108,7 @@ async function assignIndustry(contactIds: string[]) {
 /* POST — Assign leads */
 export async function POST(request: Request) {
     // ── Authentication Guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

@@ -21,7 +21,7 @@ import {
 
 export async function POST(request: Request): Promise<Response> {
   // ── Auth guard ─────────────────────────────────────────────────────
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

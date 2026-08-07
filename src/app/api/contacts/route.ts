@@ -9,7 +9,7 @@ import { activateIntelligenceAsync } from '@/lib/intelligence-activation';
 
 export async function GET(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -126,7 +126,7 @@ try {
 
 export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

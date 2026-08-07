@@ -22,7 +22,7 @@ import { queryAuditTrail } from '@/lib/audit-trail-service';
 
 export async function GET(request: NextRequest) {
   // ── Authentication Guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   // ── Admin-only: audit trail requires admin role ──

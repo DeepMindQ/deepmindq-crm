@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
   // Auth gate: authenticated users only for batch progress
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {
@@ -71,7 +71,7 @@ export async function POST(
   { params }: { params: Promise<{ id: string }> }
 ) {
   // Auth gate: authenticated users only for batch cancel
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

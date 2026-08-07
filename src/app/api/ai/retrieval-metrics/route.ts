@@ -40,7 +40,7 @@ const VALID_VIEWS = new Set(['dashboard', 'benchmark', 'latency', 'cost', 'degra
 const VALID_ACTIONS = new Set(['benchmark', 'before-after', 'latency-test', 'cost-compare', 'clear']);
 
 export async function GET(request: NextRequest): Promise<Response> {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {
@@ -128,7 +128,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

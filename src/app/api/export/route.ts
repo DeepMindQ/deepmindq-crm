@@ -101,7 +101,7 @@ async function buildContactsCSV(): Promise<string> {
 
 export async function GET(request: NextRequest) {
   // Auth gate: admin-only for data export
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminError = requireAdminRole(session!);
   if (adminError) return adminError;

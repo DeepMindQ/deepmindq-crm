@@ -9,7 +9,7 @@ import { logger } from '@/lib/logger';
    ═══════════════════════════════════════════════════ */
 export async function GET(request: Request) {
   // Auth gate: authenticated users only for capability export
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

@@ -21,7 +21,7 @@ interface ChatStreamRequest {
 
 export async function POST(request: NextRequest) {
   // ── Authentication Guard ──
-  const { errorResponse, session } = await checkApiAuth()
+  const { errorResponse, session } = await checkApiAuth(request)
   if (errorResponse) return errorResponse
 
   // ── GOVERNANCE GATE (Phase 0: Temporary Block) ──

@@ -22,7 +22,7 @@ import { recordLineageBatch } from '@/lib/data-lineage-service';
 
 export async function POST(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

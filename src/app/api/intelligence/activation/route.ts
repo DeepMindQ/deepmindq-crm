@@ -22,7 +22,7 @@ import { logger } from '@/lib/logger';
 // POST — Activate intelligence for a single company
 // ═══════════════════════════════════════════════════
 export async function POST(request: Request) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {
@@ -64,7 +64,7 @@ export async function POST(request: Request) {
 // GET — Activation stats and health
 // ═══════════════════════════════════════════════════
 export async function GET(request: Request) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   const { searchParams } = new URL(request.url);

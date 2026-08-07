@@ -303,7 +303,7 @@ async function seedValidationData() {
 
 export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 let ctx: { correlationId: string; responseHeaders: Record<string, string> };

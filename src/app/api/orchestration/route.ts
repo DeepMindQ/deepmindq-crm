@@ -7,7 +7,7 @@ import { checkApiAuth } from '@/lib/api-auth';
 // POST /api/orchestration — Run full multi-agent orchestration
 export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -26,7 +26,7 @@ try {
 // GET /api/orchestration?companyId=xxx — Get orchestration history
 export async function GET(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 const companyId = new URL(request.url).searchParams.get('companyId');

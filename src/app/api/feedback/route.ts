@@ -37,7 +37,7 @@ const VALID_OUTCOMES = [
 ];
 
 export async function POST(request: Request) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

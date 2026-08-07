@@ -16,7 +16,7 @@ const MAX_SSE_CONNECTIONS_PER_USER = 3;
 
 export async function GET(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   // Check per-user connection limit

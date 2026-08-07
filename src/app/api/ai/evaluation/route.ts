@@ -118,7 +118,7 @@ function scoreToGrade(score: number): 'A' | 'B' | 'C' | 'D' | 'F' {
 
 export async function GET(request: NextRequest) {
   // ── WI-18.1-03: Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse as NextResponse;
 
   try {
@@ -265,7 +265,7 @@ async function handleAlerts(): Promise<NextResponse> {
 
 export async function POST(request: NextRequest) {
   // ── WI-18.1-03: Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse as NextResponse;
 
   try {

@@ -396,19 +396,67 @@ export async function processSSOCallback(
 export async function getSSOStatus(): Promise<{
   configured: boolean;
   activeProviders: number;
-  providers: Array<{ id: string; name: string; provider: string; isActive: boolean; lastUsed: string | null }>;
+  providerReady: boolean;
+  readinessIssues: string[];
+  providers: Array<{ id: string; name: string; provider: string; isActive: boolean; lastUsed: string | null; ready: boolean; issues: string[] }>;
 }> {
   const configs = await getSSOConfigsFromDB();
 
-  return {
-    configured: configs.length > 0,
-    activeProviders: configs.filter((c) => c.isActive).length,
-    providers: configs.map((c) => ({
+  const providerStatuses = configs.map((c) => {
+    const issues: string[] = [];
+    let ready = false;
+
+    if (c.isActive) {
+      // OIDC readiness checks
+      if (c.oidc) {
+        if (!c.oidc.clientId) issues.push('Missing OIDC clientId');
+        if (!c.oidc.clientSecret) issues.push('Missing OIDC clientSecret');
+        if (!c.oidc.issuerUrl) issues.push('Missing OIDC issuer URL');
+        if (!c.oidc.callbackUrl) issues.push('Missing OIDC callback URL');
+        if (issues.length === 0) ready = true;
+      }
+
+      // SAML readiness checks
+      if (c.saml) {
+        if (!c.saml.entryPoint) issues.push('Missing SAML entry point');
+        if (!c.saml.issuer) issues.push('Missing SAML issuer');
+        if (!c.saml.certificate) issues.push('Missing SAML certificate');
+        if (issues.length === 0) ready = true;
+      }
+    }
+
+    return {
       id: c.id,
       name: c.name,
       provider: c.provider,
       isActive: c.isActive,
       lastUsed: c.lastUsedAt,
-    })),
+      ready,
+      issues,
+    };
+  });
+
+  const activeConfigs = configs.filter((c) => c.isActive);
+  const readinessIssues: string[] = [];
+
+  if (activeConfigs.length === 0 && configs.length > 0) {
+    readinessIssues.push('All configured providers are inactive');
+  }
+
+  const anyReady = providerStatuses.some((p) => p.ready);
+  if (!anyReady && activeConfigs.length > 0) {
+    readinessIssues.push('No active provider has complete configuration (check clientId, clientSecret, issuer)');
+  }
+
+  if (configs.length === 0) {
+    readinessIssues.push('No SSO providers configured. Add a SAML or OIDC provider to enable SSO login.');
+  }
+
+  return {
+    configured: configs.length > 0,
+    activeProviders: activeConfigs.length,
+    providerReady: anyReady,
+    readinessIssues,
+    providers: providerStatuses,
   };
 }

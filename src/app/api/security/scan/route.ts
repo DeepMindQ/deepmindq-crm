@@ -15,7 +15,7 @@ import {
 } from '@/lib/security-scanner';
 
 export async function GET(request: NextRequest) {
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminCheck = requireAdminRole(session!);
   if (adminCheck) return adminCheck;
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminCheck = requireAdminRole(session!);
   if (adminCheck) return adminCheck;

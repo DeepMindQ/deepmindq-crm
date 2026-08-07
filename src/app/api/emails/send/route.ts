@@ -60,7 +60,7 @@ function injectClickTracking(html: string, eventId: string, origin: string): str
 
 export async function POST(request: NextRequest) {
   // Auth gate: authenticated users only for email sending
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   // Rate limit: 50 emails per hour per user

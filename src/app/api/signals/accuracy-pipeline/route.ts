@@ -23,7 +23,7 @@ import { checkApiAuth } from '@/lib/api-auth';
 export async function POST(request: Request) {
   try {
     // ── Authentication Gate ──
-    const { errorResponse } = await checkApiAuth();
+    const { errorResponse } = await checkApiAuth(request);
     if (errorResponse) return errorResponse;
 
     const body = await request.json();

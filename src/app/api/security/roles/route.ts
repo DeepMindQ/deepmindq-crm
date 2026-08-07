@@ -47,7 +47,7 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminCheck = requireAdminRole(session!);
   if (adminCheck) return adminCheck;
@@ -94,7 +94,7 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminCheck = requireAdminRole(session!);
   if (adminCheck) return adminCheck;

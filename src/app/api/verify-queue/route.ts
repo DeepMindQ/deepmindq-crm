@@ -13,7 +13,7 @@ import { checkApiAuth } from '@/lib/api-auth';
 /* POST /api/verify-queue — Add contacts to verification queue */
 export async function POST(request: Request) {
     // ── Authentication Guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

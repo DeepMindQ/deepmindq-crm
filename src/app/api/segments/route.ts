@@ -47,7 +47,7 @@ function buildWhereClause(filters: SegmentFilters): any {
 /* ── GET ── */
 export async function GET(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -133,7 +133,7 @@ const createSegmentSchema = z.object({
 
 export async function POST(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -188,7 +188,7 @@ try {
 /* ── PUT: Update Segment ── */
 export async function PUT(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -240,7 +240,7 @@ try {
 /* ── DELETE: Archive Segment ── */
 export async function DELETE(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

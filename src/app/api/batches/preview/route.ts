@@ -34,7 +34,7 @@ const MAPPING_FIELDS = ['name', 'email', 'company', 'title', 'phone', 'linkedin'
 
 export async function POST(request: Request) {
   // Auth gate: authenticated users only for batch preview
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

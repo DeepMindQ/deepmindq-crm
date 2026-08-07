@@ -18,7 +18,7 @@ import {
 // ── POST: Generate meeting brief ──
 
 export async function POST(request: Request) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

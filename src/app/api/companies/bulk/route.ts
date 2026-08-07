@@ -10,7 +10,7 @@ import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
     // ── Authentication Guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminError = requireAdminRole(session!);
   if (adminError) return adminError;

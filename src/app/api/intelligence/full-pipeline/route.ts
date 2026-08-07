@@ -93,7 +93,7 @@ async function aiCall(
 export async function GET(request: NextRequest) {
   let ctx: ReturnType<typeof utilityGuard>;
   // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {
@@ -216,7 +216,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   let ctx: ReturnType<typeof utilityGuard>;
   // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

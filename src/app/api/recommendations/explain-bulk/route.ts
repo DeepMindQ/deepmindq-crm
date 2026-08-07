@@ -23,7 +23,7 @@ import { checkApiAuth } from '@/lib/api-auth';
 import { generateBulkExplainabilitySummaries, getExplainabilityStats } from '@/lib/explainability-engine';
 
 export async function GET(request: Request) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   const { searchParams } = new URL(request.url);

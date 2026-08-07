@@ -243,7 +243,7 @@ async function processChunk(
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
   // Auth gate: authenticated users only for file import
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

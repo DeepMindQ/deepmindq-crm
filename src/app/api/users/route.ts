@@ -10,7 +10,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
-import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
+import { checkApiAuth, requireAdminRole, filterResponseArrayByRole } from '@/lib/api-auth';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
@@ -51,7 +51,12 @@ export async function GET() {
       orderBy: { createdAt: 'desc' },
     });
 
-    return NextResponse.json({ success: true, users });
+    // ── Field-Level Permission Filtering (5.3) ──
+    const filteredUsers = session
+      ? filterResponseArrayByRole(users, session, 'User')
+      : users;
+
+    return NextResponse.json({ success: true, users: filteredUsers });
   } catch (error) {
     logger.error('[users:list] Error:', { error });
     return NextResponse.json(
@@ -64,7 +69,7 @@ export async function GET() {
 // ── PATCH: Update user role/status ───────────────────────────────
 
 export async function PATCH(request: NextRequest) {
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminCheck = requireAdminRole(session!);
   if (adminCheck) return adminCheck;

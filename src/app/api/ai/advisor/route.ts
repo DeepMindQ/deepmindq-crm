@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
   const correlationId = `advisor-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
 
   // ── Auth guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const userId = session!.id;
 
@@ -220,7 +220,7 @@ export async function GET(request: NextRequest) {
   const limit = parseInt(searchParams.get('limit') || '20', 10);
 
   try {
-    const { session: listSession, errorResponse: listError } = await checkApiAuth();
+    const { session: listSession, errorResponse: listError } = await checkApiAuth(request);
     if (listError) return listError;
 
     const conversations = await advisorConversationApi.listConversations({

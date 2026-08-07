@@ -39,7 +39,7 @@ const VALID_CATEGORIES = [
 
 export async function POST(request: Request) {
   // Auth gate: authenticated users only for capability import
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

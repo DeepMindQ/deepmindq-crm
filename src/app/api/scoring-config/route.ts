@@ -38,7 +38,7 @@ export async function GET() {
  */
 export async function PUT(request: NextRequest) {
   try {
-    await checkApiAuth();
+    await checkApiAuth(request);
 
     const body = await request.json();
 

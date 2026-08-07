@@ -17,7 +17,7 @@ import { utilityGuard, RateLimitedError, utilityCatchError, utilitySuccess } fro
 
 export async function GET(request: NextRequest) {
   // ── Authentication Guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   // ── Admin-only: security audit requires admin role ──

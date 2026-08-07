@@ -112,10 +112,15 @@ function categorizeKeyword(keyword: string): TechCategory {
 // ── Action verbs that indicate technology adoption/change ──
 
 export const TECH_ACTION_VERBS = [
-  'migrating', 'adopting', 'implementing', 'deploying', 'launching',
-  'standardizing on', 'chooses', 'selects', 'partners with', 'integrates',
-  'migrates to', 'transitioning to', 'moving to', 'upgrading',
-  'modernizing', 'consolidating', 'replacing', 'switching to',
+  'migrating', 'migrate', 'adopting', 'adopt', 'implementing', 'implement',
+  'deploying', 'deploy', 'launching', 'launch',
+  'standardizing on', 'standardize on', 'chooses', 'choose',
+  'selects', 'select', 'partners with', 'partner with',
+  'integrates', 'integrate',
+  'migrates to', 'migrate to', 'transitioning to', 'transition to',
+  'moving to', 'move to', 'upgrading', 'upgrade',
+  'modernizing', 'modernize', 'consolidating', 'consolidate',
+  'replacing', 'replace', 'switching to', 'switch to',
 ] as const;
 
 // ── Regex pattern for rule-based tech signal detection ──

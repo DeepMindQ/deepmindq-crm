@@ -783,3 +783,51 @@ Stage Summary:
 - Session 3 COMPLETE. Session 2 (1.6+1.7) + Session 3 (2.2+2.5+2.6) DONE
 - Next: S4 (2.1, 2.3, 2.4)
 - Commit: 7c4a3ff3
+
+---
+Task ID: session4-kno-learning
+Agent: Main Agent
+Task: Session 4 — Knowledge & Learning (2.1, 2.3, 2.4)
+
+Work Log:
+- Audited existing KG code: hydrateNodes/hydrateEdges exist for DB→Map hydration, seedKnowledgeGraph() exists but NEVER called on boot, no auto-build from DB data
+- Audited existing cross-company code: findReusableLearnings exists with tag-overlap similarity only — NO KG traversal for similar company discovery
+- Audited existing confidence code: adjustDecisionConfidence only considers decision-learning feedback — NO multi-source blending
+
+S4-2.1: Knowledge Graph Cold-Start Hydration
+- Created src/lib/kg-cold-start-hydration.ts (335 lines)
+- Auto-builds KG from DB when empty: company→signal→technology→industry nodes + typed edges
+- Phases: company nodes (db.company), signal nodes (db.companySignal), technology nodes (from tags), industry nodes (from industry), edges (HAS_SIGNAL, RELATED_TO, USES_TECHNOLOGY, SIMILAR_TO)
+- Cross-company SIMILAR_TO edges for same-industry companies
+- Idempotent: skips when graph populated or insufficient data (<3 companies)
+- Wired into cold-start-loader.ts Phase 4 (after telemetry stores)
+- Technology category inference (cloud, database, containerization, IaC, CI/CD, CRM, language)
+
+S4-2.3: Cross-Company Learning Transfer
+- Created src/lib/cross-company-learning.ts (310 lines)
+- 3-strategy similar company discovery: KG BFS traversal (SIMILAR_TO/RELATED_TO edges), DB industry match fallback, technology overlap via USES_TECHNOLOGY edges
+- Transfer relevance scoring: industry match (0.4), tech overlap (0.3), size match (0.2), source quality (0.1)
+- Confidence cap at MAX_TRANSFER_CONFIDENCE=0.85 with hop penalty decay
+- Auto-marks transferred learnings as reused via ContinuousLearningLoop.markReused
+- Wired into recommendation-engine.ts Step 3c (after existing Step 3b reusable learnings)
+
+S4-2.4: Decision Confidence Blending
+- Created src/lib/blended-confidence.ts (244 lines)
+- 6-source blending: base score (0.35), calibration delta (0.15), decision-learning (0.20), KG confidence (0.15), memory match (0.10), evidence quality (0.05)
+- BlendedConfidenceResult: blended score + per-source breakdown + dominant source + explainability
+- explainBlendedConfidence() generates human-readable explanation
+- Replaced single-source adjustDecisionConfidence in Step 5b with full multi-source blending
+- Wired into recommendation-engine.ts Step 5b with calibration delta, KG, memory, evidence quality
+
+Verification:
+- TypeScript: 0 errors (npx tsc --noEmit)
+- Tests: 49/49 S4 tests passing (phase-s4-kno-learning.test.ts)
+- Full phase suite: 96/96 (34 S1/S2 + 13 S3 + 49 S4)
+- Git: committed and pushed to main (8e01dce0)
+
+Stage Summary:
+- 3 items completed: 2.1 (KG Cold-Start Hydration), 2.3 (Cross-Company Learning), 2.4 (Confidence Blending)
+- 3 new files created: kg-cold-start-hydration.ts, cross-company-learning.ts, blended-confidence.ts
+- 3 files modified: cold-start-loader.ts, recommendation-engine.ts, phase-s4 test file
+- Total items DONE: 18/91 (20% complete)
+- Next: S5 (3.4, 3.5, 3.6) — Prompt Registry, A/B Testing, Cost Tracking

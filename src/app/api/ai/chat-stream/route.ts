@@ -24,6 +24,24 @@ export async function POST(request: NextRequest) {
   const { errorResponse, session } = await checkApiAuth()
   if (errorResponse) return errorResponse
 
+  // ── GOVERNANCE GATE (Phase 0: Temporary Block) ──
+  // This streaming endpoint bypasses the AI Governance Layer (ai-governance.ts).
+  // Until governedStreamAICall() is implemented (Phase 5), this endpoint is
+  // DISABLED to prevent ungoverned AI output from reaching users.
+  // Tracked: G9 in Master Product Specification.
+  return new Response(
+    JSON.stringify({
+      success: false,
+      error: 'This endpoint is temporarily disabled during Phase 0 governance hardening.',
+      detail: 'The chat-stream endpoint bypasses AI governance controls (hallucination prevention, evidence grounding, audit trail, cost governance). A governed streaming implementation (governedStreamAICall) will be available in Phase 5. Use /api/ai/advisor for governed AI interactions.',
+      timestamp: new Date().toISOString(),
+    }),
+    {
+      status: 403,
+      headers: { 'Content-Type': 'application/json' },
+    },
+  )
+
   // ── Parse request body ──
   let body: ChatStreamRequest
   try {
@@ -134,7 +152,8 @@ export async function POST(request: NextRequest) {
       },
     })
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Unknown error'
+    // @ts-expect-error -- unreachable code (403 block above), but TypeScript still checks
+    const msg = (err instanceof Error) ? err.message : String(err)
     logger.error(`[chat-stream] Failed to create stream: ${msg}`)
 
     return new Response(

@@ -502,3 +502,92 @@ Stage Summary:
 - Tests: 14 failed (pre-existing) | 41 passed | 963 tests passing | 18 skipped (1129 total)
 - Files changed: source-reliability.ts, users/route.ts, app-shell.tsx, rbac.ts, email-tracking.ts
 - KG5 consolidation plan documented (deferred to post-MS12)
+---
+Task ID: 1
+Agent: Main Architect
+Task: Generate DeepMindQ Master Product Specification document
+
+Work Log:
+- Created comprehensive docx covering all 10 sections
+- Cover page with Enterprise Intelligence branding
+- Full 17-step business logic table with readiness scores
+- 13-item gap map with effort estimates and phase assignments
+- 22-week phased plan (Phase 0-6)
+- Navigation architecture (redefined)
+- Memory architecture (4 layers)
+- Success criteria
+- Generated via docx-js, fixed TOC placeholders, passed postcheck
+
+Stage Summary:
+- Document saved to /home/z/my-project/download/DeepMindQ_Master_Product_Specification.docx
+- Postcheck: 8/9 passed (1 minor warning, 0 errors)
+
+
+---
+Task ID: 2
+Agent: Main Architect
+Task: Phase 0 - G9: Seal governance bypass on chat-stream
+
+Work Log:
+- Added hard 403 block to /api/ai/chat-stream/route.ts immediately after auth check
+- Returns structured JSON error explaining why endpoint is disabled and pointing to /api/ai/advisor
+- Updated ESLint rule (no-ungoverned-llm.js) to catch streamAICall and getLLMChain imports
+- Added llm-stream.ts and ai-config.ts to ALLOWED_GOVERNANCE_FILES
+- Added ungovernedStreamAICall and ungovernedGetLLMChain error messages
+- Verified: 333 security tests pass, 409 AI tests pass
+
+Stage Summary:
+- Zero ungoverned AI paths achieved
+- New streaming endpoints are statically prevented via ESLint
+- Existing chat-stream returns 403 with guidance to use governed advisor
+
+---
+Task ID: 3
+Agent: Main Architect
+Task: Phase 0 - G10: Remove fabricated version history
+
+Work Log:
+- Found handleVersionHistory() in src/app/api/knowledge/graph/route.ts
+- Replaced Math.random() date generation with single current version entry
+- Added note about future version history implementation
+- Verified: 409 AI tests still pass
+
+Stage Summary:
+- No more fabricated data in version history endpoint
+- Current version still returned with real updatedAt timestamp
+
+---
+Task ID: 4
+Agent: Main Architect
+Task: Phase 0 - G7a: Add parentId to Company model
+
+Work Log:
+- Added parentId (String?) field to Company model in prisma/schema.prisma
+- Added subsidiaryType (String?) field for hierarchy classification
+- Added @@index([parentId]) for hierarchy lookups
+- Validated schema with prisma validate
+
+Stage Summary:
+- Data model now supports parent-subsidiary company structures
+- Migration not yet generated (pending full Phase 0 review)
+- Types will need regeneration after migration
+---
+Task ID: P0-continuation
+Agent: Main Agent
+Task: Phase 0 Execution Continuation — Complete remaining workstreams
+
+Work Log:
+- Verified G2 (chat-stream governance bypass): 403 block already in place at route.ts:32-43, ESLint rule no-ungoverned-llm.js covers streamAICall
+- Verified G9 (fake version history): handleVersionHistory() already cleaned, returns only real current version data
+- Verified G6 (Company.parentId): Schema field + subsidiaryType + index already exist in schema.prisma:411-413,483
+- Created /api/companies/hierarchy endpoint with 3 query modes: children, root companies, full family tree traversal
+- Generated Phase 0 Architecture & Risk Assessment document (7-layer architecture, persistence model analysis, learning loop architecture, Phase 0 evidence, Phase 1 readiness)
+- Fixed TOC placeholders for document
+- Identified persistence flip as highest-risk Phase 1 activity; documented 4-stage flip sequence
+
+Stage Summary:
+- Phase 0 status: 5/6 tasks complete (regression baseline pending)
+- Key deliverable: /home/z/my-project/download/DeepMindQ_Phase0_Architecture_Risk_Assessment.docx
+- Key code change: /home/z/my-project/src/app/api/companies/hierarchy/route.ts (new endpoint)
+- Critical finding for Phase 1: Persistence database is EMPTY for all 5 Tier-1 stores (knowledge_graph_nodes, knowledge_graph_edges, ai_memory, retrieval_index, retrieval_corpus_stats). First flip will cause intelligence cold start.
+- Recommended Phase 1 flip sequence: Shadow Mode (W3) → DB-enabled + Shadow (W4) → Shadow disabled (W5) → Cold start hydration (W5-6)

@@ -407,6 +407,9 @@ model Company {
   lastEnrichedAt       DateTime?
   lastActivityAt       DateTime?
   source               CompanySource @default(import) // import, manual, crm, webhook
+  // Phase 0 (G7a): Parent-subsidiary hierarchy support
+  parentId              String?                    // Parent company ID for subsidiary relationships
+  subsidiaryType        String?                    // Type: subsidiary, business_unit, division, regional_office, joint_venture
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -477,6 +480,7 @@ model Company {
   @@index([intelligenceScore])
   @@index([priorityTier])
   @@index([accountPriorityScore(sort: Desc)])
+  @@index([parentId]) // Phase 0 (G7a): Parent-subsidiary lookup
 }
 
 model ImportBatch {

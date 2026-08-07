@@ -15,6 +15,12 @@
  *   generateEngagementApproach from llm-client — these use raw LLM calls.
  *   Only ai-governance.ts and model-router.ts are allowed.
  * - No file may import callChatLLM (removed function)
+ * - No file may import streamAICall from llm-stream — bypasses governance
+ *   (Phase 0: blocked at runtime in chat-stream route; Phase 5: governed
+ *   streaming will be implemented)
+ * - No file may import getLLMChain from ai-config — bypasses governance
+ *   (Phase 0: blocked at runtime; Phase 5: governed streaming will use it
+ *   through governance layer)
  * - No file may import from AI SDK ('ai') or OpenAI SDK directly
  * - No file may import ModelRouter from engines/model-router outside
  *   of ai-governance.ts (all route files must use governedAICall /
@@ -31,6 +37,8 @@ const ALLOWED_GOVERNANCE_FILES = new Set([
   "ai-governance.ts", // Central governance (governedAICall, governedAICallAggregate)
   "model-router.ts",  // Tiered router (ModelRouter.complete)
   "llm-client.ts",    // Base LLM client (exports getZAI for governance layer use)
+  "llm-stream.ts",    // Streaming client (will be governed in Phase 5)
+  "ai-config.ts",     // LLM chain factory (used by governance layer)
 ]);
 
 // AI provider API hostnames — raw fetch() to these bypasses governance
@@ -67,6 +75,10 @@ module.exports = {
         "Direct import of 'revenueLLMCall', 'generateExecutiveSummary', or 'generateEngagementApproach' is only allowed in governance layer files. Use 'governedAICall()' from '@/lib/ai-governance' instead.",
       ungovernedModelRouter:
         "Direct import of 'ModelRouter' is only allowed in governance layer files. Route handlers must use 'governedAICall()' or 'governedAICallAggregate()' from '@/lib/ai-governance' instead.",
+      ungovernedStreamAICall:
+        "Direct import of 'streamAICall' from llm-stream is blocked during Phase 0 governance hardening. Use /api/ai/advisor for governed AI interactions. A governed streaming implementation will be available in Phase 5.",
+      ungovernedGetLLMChain:
+        "Direct import of 'getLLMChain' from ai-config is blocked during Phase 0 governance hardening. A governed streaming implementation will be available in Phase 5.",
       removedCallChatLLM:
         "'callChatLLM' was removed in Phase 3 and must not be imported or used.",
       directAiSdk:

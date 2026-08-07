@@ -175,44 +175,24 @@ async function handleVersionHistory(assetId: string, started: number) {
     }
 
     const currentVersion = (asset as any).version || 1;
-    const updatedAt = new Date((asset as any).updatedAt).toISOString();
 
-    const changeDescriptions: Record<number, string> = {
-      1: 'Initial creation of knowledge asset',
-      2: 'Updated summary and added target industries',
-      3: 'Refined content with additional evidence',
-      4: 'Added case study references and proof points',
-      5: 'Comprehensive review and content expansion',
-    };
-
-    const history: Array<{
-      version: number;
-      updatedAt: string;
-      changes: string;
-    }> = [];
-
-    history.push({
-      version: currentVersion,
-      updatedAt,
-      changes: 'Current version',
-    });
-
-    const historyCount = Math.min(currentVersion - 1, 3);
-    for (let i = 1; i <= historyCount; i++) {
-      const v = currentVersion - i;
-      if (v < 1) break;
-      const daysAgo = i * 7 + Math.floor(Math.random() * 5);
-      const pastDate = new Date(new Date(updatedAt).getTime() - daysAgo * 86400000);
-      history.push({
-        version: v,
-        updatedAt: pastDate.toISOString(),
-        changes: changeDescriptions[v] || `Version ${v} update`,
-      });
-    }
-
+    // Phase 0 (G10): Removed fabricated version history with random dates.
+    // Version history requires a dedicated KnowledgeVersion tracking table
+    // to be implemented in a future phase. Returning current version only.
     return Response.json({
       success: true,
-      data: { currentVersion, assetTitle: (asset as any).title, history },
+      data: {
+        currentVersion,
+        assetTitle: (asset as any).title,
+        history: [
+          {
+            version: currentVersion,
+            updatedAt: new Date((asset as any).updatedAt).toISOString(),
+            changes: 'Current version',
+          },
+        ],
+        note: 'Full version history tracking will be available in a future release.',
+      },
       meta: { endpoint: 'knowledge:versions', durationMs: Date.now() - started },
     });
   } catch (error) {

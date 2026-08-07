@@ -4,7 +4,7 @@
 
 ---
 
-## STATUS: Phase 1.6 READY | 13 DONE | 77 PENDING | 14% COMPLETE
+## STATUS: Phase 1.7 READY | 14 DONE | 76 PENDING | 15% COMPLETE
 ## LAST UPDATED: 2026-08-07
 
 ---
@@ -47,8 +47,8 @@
 | 1.3 | PST | Maps Cold-Start Hydration | 1.2 | DONE |
 | 1.4 | PST | Cold-Start Trigger on Boot | 1.3 | DONE |
 | 1.5 | PST | Score Config Persistence Validation | 1.2 | DONE |
-| 1.6 | INT | Signal Detection Accuracy Hardening | 1.1 | NEXT |
-| 1.7 | INT | Technology Detection Calibration | 1.1, 1.6 | PENDING |
+| 1.6 | INT | Signal Detection Accuracy Hardening | 1.1 | DONE |
+| 1.7 | INT | Technology Detection Calibration | 1.1, 1.6 | NEXT |
 
 ### Phase 2 — Knowledge & Learning
 | ID | Track | Title | Depends On | Status |
@@ -216,3 +216,4 @@ With 3-4 parallel tracks active from Phase 2 onward, wall-clock estimate: **~28-
 | 2026-08-07 | 1.3 | DONE | hydrateMapsFromRecords() in cold-start-loader.ts, all 5 stores → Map.set() with index rebuild | 1.4 |
 | 2026-08-07 | 1.4 | DONE | instrumentation.ts calls wireMapStateProvider + executeColdStartLoad + getScoringConfig on boot | 1.5 |
 | 2026-08-07 | 1.5 | DONE | scoring-config.ts wired into revenue-opportunity-engine.ts, GET/PUT API at /api/scoring-config | 1.6 |
+| 2026-08-07 | 1.6 | DONE | 3 orphaned modules wired: signal-meaning→storeSignals, contradiction→recommendation engine (contradictions:0→real count), validation+accuracy-pipeline API created, 51/51 tests | 1.7 |

@@ -739,3 +739,26 @@ Stage Summary:
 - Local and GitHub in sync at commit 82797bea
 - Session mapping confirmed: Session 1=1.2-1.5 (DONE), Session 2=1.6+1.7 (DONE), Session 3=2.1 (NEXT)
 - Roadmap status: 16% complete (15/91), 2.1 NEXT
+
+---
+Task ID: session2-phase1.7-tech-calibration
+Agent: Main Agent
+Task: Phase 1.7 — Technology Detection Calibration
+
+Work Log:
+- Audit A: Mapped entire tech detection codebase (10+ files)
+- Audit B: Identified 7 gaps (G1-G7)
+- G1 Fix: Added technology_detection to applyCalibrationToScore() pattern matching
+- G2 Fix: Added tech_change to meaning inference rules
+- G3 Fix: Migrated 3 files from hardcoded keywords to centralized registry
+- G4 Fix: Wired detectTechInText() into signal-creator via detectTechEnrichment()
+- G5 Fix: Expanded TECH_SIGNAL_REGEX from 15 to 24 platforms
+- G6 Fix: Deduplicated COMPETING_PLATFORMS
+- G7 Fix: Exported applyCalibrationToScore for testability
+- 34/34 evidence tests, 417/417 AI tests, CI 20/20 GREEN
+
+Stage Summary:
+- 1 item completed: 1.7 (Technology Detection Calibration)
+- Session 2 (1.6 + 1.7) now FULLY COMPLETE
+- Next: S3 (2.2, 2.5, 2.6)
+- Commit: 7be55d5a

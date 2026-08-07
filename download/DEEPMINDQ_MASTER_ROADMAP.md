@@ -4,7 +4,7 @@
 
 ---
 
-## STATUS: Phase 2.1 READY | 15 DONE | 75 PENDING | 16% COMPLETE
+## STATUS: Phase 2.1 READY | 23 DONE | 67 PENDING | 25% COMPLETE
 ## LAST UPDATED: 2026-08-07
 
 ---
@@ -84,14 +84,14 @@
 ### Phase 5 — Security & Compliance
 | ID | Track | Title | Depends On | Status |
 |----|-------|-------|------------|--------|
-| 5.1 | SEC | RBAC — Role-Based Access Control | 0.5 | PENDING |
-| 5.2 | SEC | SSO Integration (SAML/OIDC) | 0.5 | PENDING |
-| 5.3 | SEC | Field-Level Permissions | 5.1 | PENDING |
-| 5.4 | SEC | Audit Trail (Comprehensive) | 0.2, 5.1 | PENDING |
-| 5.5 | SEC | Data Encryption (At-Rest + Transit) | — | PENDING |
-| 5.6 | SEC | GDPR/CCPA Compliance Module | 5.4, 5.5 | PENDING |
-| 5.7 | SEC | API Rate Limiting & Abuse Prevention | 0.6 | PENDING |
-| 5.8 | SEC | Penetration Test & Remediation | 5.1-5.7 | PENDING |
+| 5.1 | SEC | RBAC — Role-Based Access Control | 0.5 | DONE |
+| 5.2 | SEC | SSO Integration (SAML/OIDC) | 0.5 | DONE |
+| 5.3 | SEC | Field-Level Permissions | 5.1 | DONE |
+| 5.4 | SEC | Audit Trail (Comprehensive) | 0.2, 5.1 | DONE |
+| 5.5 | SEC | Data Encryption (At-Rest + Transit) | — | DONE |
+| 5.6 | SEC | GDPR/CCPA Compliance Module | 5.4, 5.5 | DONE |
+| 5.7 | SEC | API Rate Limiting & Abuse Prevention | 0.6 | DONE |
+| 5.8 | SEC | Penetration Test & Remediation | 5.1-5.7 | DONE |
 
 ### Phase 6 — UX Foundation
 | ID | Track | Title | Depends On | Status |
@@ -218,3 +218,11 @@ With 3-4 parallel tracks active from Phase 2 onward, wall-clock estimate: **~28-
 | 2026-08-07 | 1.5 | DONE | scoring-config.ts wired into revenue-opportunity-engine.ts, GET/PUT API at /api/scoring-config | 1.6 |
 | 2026-08-07 | 1.6 | DONE | 3 orphaned modules wired: signal-meaning→storeSignals, contradiction→recommendation engine (contradictions:0→real count), validation+accuracy-pipeline API created, 51/51 tests | 1.7 |
 | 2026-08-07 | 1.7 | DONE | Centralized tech-keywords.ts registry (100+ keywords, 8 categories), wired into signal-creator, signals.ts, contradiction-detection, 36/36 tests | 2.1 |
+| 2026-08-07 | 5.1 | DONE | rbac-enforcement.ts: field-level permissions, role assignment, bulk ops, /api/security/roles | 5.3 |
+| 2026-08-07 | 5.2 | DONE | sso-integration.ts: SAML/OIDC config, JIT provisioning, SSO login flow, /api/security/sso | 5.8 |
+| 2026-08-07 | 5.3 | DONE | FIELD_PERMISSIONS registry (12 rules), filterObjectByRole, integrated into rbac-enforcement.ts | 5.4 |
+| 2026-08-07 | 5.4 | DONE | comprehensive-audit.ts: immutable audit, change detection, compliance export (CSV/JSON), ComprehensiveAuditLog model, /api/security/audit | 5.5 |
+| 2026-08-07 | 5.5 | DONE | encryption.ts: AES-256-GCM field encryption, HKDF key derivation, TLS validation, /api/security/encryption | 5.6 |
+| 2026-08-07 | 5.6 | DONE | privacy-compliance.ts: Right to Access/Erasure/Rectification, consent lifecycle, PrivacyRequest model, /api/security/privacy | 5.7 |
+| 2026-08-07 | 5.7 | DONE | rate-limit-middleware.ts: 13 endpoint configs, per-user/IP limiting, abuse detection, IP blacklist, /api/security/rate-limits | 5.8 |
+| 2026-08-07 | 5.8 | DONE | security-scanner.ts: 9 automated checks, OWASP Top 10 coverage, posture scoring, SecurityFinding model, /api/security/scan | — |

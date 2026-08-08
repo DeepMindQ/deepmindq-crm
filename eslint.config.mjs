@@ -25,8 +25,8 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-ungoverned-llm/no-ungoverned-llm": "error",
     "no-hardcoded-env-paths/no-hardcoded-env-paths": "error",
     // TypeScript rules
-    "@typescript-eslint/no-explicit-any": "warn",
-    "@typescript-eslint/no-unused-vars": "off",
+    "@typescript-eslint/no-explicit-any": "error",
+    "@typescript-eslint/no-unused-vars": ["error", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }],
     "@typescript-eslint/no-non-null-assertion": "off",
     "@typescript-eslint/ban-ts-comment": "off",
     "@typescript-eslint/prefer-as-const": "off",
@@ -49,9 +49,9 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "@next/next/no-html-link-for-pages": "off",
     
     // General JavaScript rules
-    "prefer-const": "warn",
+    "prefer-const": "error",
     "no-unused-vars": "warn",
-    "no-console": "warn",
+    "no-console": ["error", { "allow": ["warn", "error", "info"] }],
     "no-debugger": "error",
     "no-empty": "warn",
     "no-irregular-whitespace": "off",
@@ -64,7 +64,5 @@ const eslintConfig = [...nextCoreWebVitals, ...nextTypescript, {
     "no-useless-escape": "off",
   },
 }, {
-  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "scripts/**"]
+  ignores: ["node_modules/**", ".next/**", "out/**", "build/**", "next-env.d.ts", "examples/**", "skills", "scripts/**", "tests/**", "coverage/**", "playwright-report/**", "test-results/**", "download/**", "**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx", "vitest.*.config.ts"]
 }];
-
-export default eslintConfig;

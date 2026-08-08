@@ -10,6 +10,8 @@ import { IntelligenceBriefingCard } from '@/components/intelligence-os/molecules
 import { RecommendationCard } from '@/components/intelligence-os/molecules/recommendation-card';
 import { ActivityFeed } from '@/components/intelligence-os/molecules/activity-feed';
 import { useRealtimeData, useMutation } from '@/lib/realtime-hooks';
+import { ScreenBreadcrumb } from '@/components/shared/screen-breadcrumb';
+import { useTranslation } from '@/lib/use-translation';
 import type {
   IntelligenceSignal, Recommendation, ActivityEvent, ExecutiveStats,
 } from '@/lib/intelligence-types';
@@ -384,6 +386,8 @@ function ExecutiveStatCard({
    Intelligence Hub Screen
    ═══════════════════════════════════════════════════════════════ */
 export default function IntelligenceHubScreen() {
+  const { t } = useTranslation();
+
   // ── Real API Data Hooks ──
   const stats = useExecutiveStats();
   const signals = useIntelligenceSignals();
@@ -462,7 +466,9 @@ export default function IntelligenceHubScreen() {
   return (
     <div className="min-h-screen bg-[var(--bg)]" style={{ color: 'var(--primary)' }}>
       <div className="max-w-[1400px] mx-auto px-4 lg:px-6 py-6 lg:py-8">
-        
+
+        <ScreenBreadcrumb items={[{ label: 'Intelligence Hub' }]} />
+
         {/* ── Header ── */}
         <header className="mb-6 lg:mb-8">
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4 mb-6">
@@ -516,28 +522,28 @@ export default function IntelligenceHubScreen() {
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
               <ExecutiveStatCard
                 icon={Radar}
-                label="Priority Signals"
+                label={t('hub.prioritySignals')}
                 value={statsData.prioritySignals}
                 delta={statsData.prioritySignalsDelta}
                 color="var(--signal-blue)"
               />
               <ExecutiveStatCard
                 icon={Target}
-                label="Active Opportunities"
+                label={t('hub.activeOpportunities')}
                 value={statsData.activeOpportunities}
                 delta={statsData.activeOpportunitiesDelta}
                 color="var(--opportunity-purple)"
               />
               <ExecutiveStatCard
                 icon={Brain}
-                label="Confidence Avg"
+                label={t('hub.confidenceAvg')}
                 value={`${statsData.confidenceAverage}%`}
                 delta={statsData.confidenceAverageDelta}
                 color="var(--trust-high)"
               />
               <ExecutiveStatCard
                 icon={Building2}
-                label="Accounts Monitored"
+                label={t('hub.accountsMonitored')}
                 value={statsData.accountsMonitored}
                 delta={statsData.accountsMonitoredDelta}
                 color="var(--enrichment-cyan)"
@@ -557,7 +563,7 @@ export default function IntelligenceHubScreen() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Radar className="w-4 h-4 text-[var(--signal-blue)]" />
-                  <h2 className="text-[15px] font-semibold tracking-tight">Signal Intelligence</h2>
+                  <h2 className="text-[15px] font-semibold tracking-tight">{t('hub.signalIntelligence')}</h2>
                   {!signals.loading && signalsData.length > 0 && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--signal-blue-low)] text-[var(--signal-blue)]">
                       {signalsData.length} signals
@@ -601,7 +607,7 @@ export default function IntelligenceHubScreen() {
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-[var(--opportunity-purple)]" />
-                  <h2 className="text-[15px] font-semibold tracking-tight">AI Recommendations</h2>
+                  <h2 className="text-[15px] font-semibold tracking-tight">{t('hub.aiRecommendations')}</h2>
                   {!recommendations.loading && pendingRecommendations.length > 0 && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--opportunity-purple-low)] text-[var(--opportunity-purple)]">
                       {pendingRecommendations.length} pending
@@ -645,7 +651,7 @@ export default function IntelligenceHubScreen() {
               <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--border)]">
                 <div className="flex items-center gap-2">
                   <Activity className="w-4 h-4 text-[var(--enrichment-cyan)]" />
-                  <h2 className="text-[13px] font-semibold">Activity Feed</h2>
+                  <h2 className="text-[13px] font-semibold">{t('hub.activityFeed')}</h2>
                 </div>
                 <span className="text-[11px] text-[var(--primary-dim)]">Last 24h</span>
               </div>
@@ -671,13 +677,13 @@ export default function IntelligenceHubScreen() {
 
             {/* ── Quick Actions ── */}
             <section className="dmq-glass-card p-4">
-              <h2 className="text-[13px] font-semibold mb-3">Quick Actions</h2>
+              <h2 className="text-[13px] font-semibold mb-3">{t('hub.quickActions')}</h2>
               <div className="grid grid-cols-2 gap-2">
                 {[
-                  { icon: Search, label: 'New Analysis', color: 'var(--signal-blue)' },
-                  { icon: Upload, label: 'Import Accounts', color: 'var(--enrichment-cyan)' },
-                  { icon: TrendingUp, label: 'Configure Sources', color: 'var(--success-green)' },
-                  { icon: FileDown, label: 'Export Report', color: 'var(--warning-amber)' },
+                  { icon: Search, label: t('hub.newAnalysis'), color: 'var(--signal-blue)' },
+                  { icon: Upload, label: t('hub.importAccounts'), color: 'var(--enrichment-cyan)' },
+                  { icon: TrendingUp, label: t('hub.configureSources'), color: 'var(--success-green)' },
+                  { icon: FileDown, label: t('hub.exportReport'), color: 'var(--warning-amber)' },
                 ].map(({ icon: Icon, label, color }) => (
                   <button
                     key={label}
@@ -697,7 +703,7 @@ export default function IntelligenceHubScreen() {
 
             {/* ── Intelligence Summary ── */}
             <section className="dmq-glass-card p-4">
-              <h2 className="text-[13px] font-semibold mb-2">Intelligence Summary</h2>
+              <h2 className="text-[13px] font-semibold mb-2">{t('hub.intelligenceSummary')}</h2>
               {stats.loading ? (
                 <div className="space-y-2">
                   <SkeletonPulse className="h-3 w-full" />

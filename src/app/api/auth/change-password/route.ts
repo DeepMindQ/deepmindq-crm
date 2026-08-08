@@ -6,6 +6,7 @@ import { requireAuth, AuthError } from '@/lib/session';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { generalApiRateLimit } from '@/lib/auth-helpers';
+import { withCsrf } from '@/lib/with-csrf';
 
 const schema = z.object({
   email: z.string().email(),
@@ -13,7 +14,7 @@ const schema = z.object({
   newPassword: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
-export async function POST(request: NextRequest) {
+export const POST = withCsrf(async function POST(request: NextRequest) {
   try {
     const ip = request.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     const rl = generalApiRateLimit(ip, 'change-password');
@@ -73,4 +74,4 @@ export async function POST(request: NextRequest) {
     logger.error('[auth/change-password] Error:', { error: error });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

@@ -1,9 +1,10 @@
-import { NextRequest, NextResponse } from 'next/server'
+import { NextRequest } from 'next/server'
 import { db } from '@/lib/db'
 import { apiError, apiSuccess } from '@/lib/apiHelpers'
 import { governedAICall } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { approvalService } from '@/lib/approval-service';
 
 // ---------------------------------------------------------------------------
 // LLM helper — governed call (high-stakes: email generation)
@@ -173,8 +174,8 @@ try {
     const queryTokens = tok(`${industry} ${jobTitle} ${companyName}`)
     const scoredSnippets = allSnippets.map(s => {
       let sc = 0
-      const cLower = (s.content || '').toLowerCase()
-      const tLower = s.title.toLowerCase()
+      const _cLower = (s.content || '').toLowerCase()
+      const _tLower = s.title.toLowerCase()
       const sTokens = new Set(tok(s.title+' '+s.content))
       if (s.targetIndustries) {
         const si = s.targetIndustries.split(',').map(x=>x.trim().toLowerCase())
@@ -277,7 +278,24 @@ ${researchContext ? `${researchContext}\n` : ''}${knowledgeContext ? `${knowledg
       },
     })
 
-    // 9. Return
+    // 9. Request approval for AI-generated email
+    const confidence = confidenceScore / 100
+    const approval = await approvalService.autoApproveIfNeeded(
+      draft.id,
+      'ai_email_draft',
+      confidence,
+      { contactId: id, companyId: contact.companyId, tone, emailLength, ctaStyle, usedLlm },
+    )
+
+    if (approval.status === 'pending_approval') {
+      await db.draft.update({
+        where: { id: draft.id },
+        data: { status: 'pending_review' },
+      })
+      logger.info('[generate-email] Draft requires approval', { draftId: draft.id, approvalId: approval.id, confidence })
+    }
+
+    // 10. Return
     return apiSuccess({
       subject,
       body: emailBody,
@@ -289,6 +307,7 @@ ${researchContext ? `${researchContext}\n` : ''}${knowledgeContext ? `${knowledg
       draftId: draft.id,
       knowledgeUsed: retrievedContext,
       knowledgeAvailable: allSnippets.length,
+      approvalStatus: approval.status,
     })
   } catch {
     // H8: Don't leak raw error messages

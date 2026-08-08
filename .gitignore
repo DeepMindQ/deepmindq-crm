@@ -69,3 +69,9 @@ scripts/seed-data/
 scripts/set-github-secrets.js
 scripts/set-github-secrets.py
 scripts/set-staging-secrets.py
+
+# Playwright test artifacts (videos, screenshots, traces)
+playwright-results.json/
+playwright-report/
+test-results/
+blob-report/

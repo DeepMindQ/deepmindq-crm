@@ -17,6 +17,7 @@ import { SCREEN_MAP } from '@/lib/screen-map';
 import { useSession } from '@/providers/auth-provider';
 import { logger } from '@/lib/logger';
 import { useBrandConfig } from '@/lib/use-brand-config';
+import { useTranslation } from '@/lib/use-translation';
 import {
   ChevronRight,
   PanelLeftClose,
@@ -281,6 +282,7 @@ interface SidebarProps {
 }
 
 function Sidebar({ stageCounts, onLogout, mobileOpen, onMobileClose }: SidebarProps) {
+  const { t } = useTranslation();
   const { activeView, sidebarCollapsed, setActiveView, toggleSidebar } = useAppStore();
   const { session } = useSession();
   const brand = useBrandConfig();
@@ -543,14 +545,14 @@ function Sidebar({ stageCounts, onLogout, mobileOpen, onMobileClose }: SidebarPr
                   focus-visible:ring-2 focus-visible:ring-ring
                   ${sidebarCollapsed ? 'justify-center px-2 py-2.5' : 'px-3 py-2.5'}
                 `}
-                aria-label={sidebarCollapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+                aria-label={sidebarCollapsed ? t('nav.expandSidebar') : t('nav.collapse')}
               >
                 {sidebarCollapsed ? (
                   <ChevronRight className="w-5 h-5" />
                 ) : (
                   <>
                     <PanelLeftClose className="w-[18px] h-[18px]" strokeWidth={1.8} />
-                    <span className="truncate">Collapse</span>
+                    <span className="truncate">{t('nav.collapse')}</span>
                   </>
                 )}
               </button>
@@ -561,7 +563,7 @@ function Sidebar({ stageCounts, onLogout, mobileOpen, onMobileClose }: SidebarPr
                 sideOffset={12}
                 className="bg-[oklch(0.17_0.01_260)] border-[oklch(0.27_0.005_260)] text-foreground"
               >
-                Expand sidebar
+                {t('nav.expandSidebar')}
               </TooltipContent>
             )}
           </Tooltip>
@@ -703,6 +705,7 @@ function Header({
    ═══════════════════════════════════════════════════════════════════════ */
 
 export function AppShell({ onLogout }: { onLogout: () => void }) {
+  const { t } = useTranslation();
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
@@ -806,11 +809,11 @@ export function AppShell({ onLogout }: { onLogout: () => void }) {
   // ── Breadcrumb trail ──
   const breadcrumbs = [
     ...(activeScreen === 'company-workspace' && selectedCompanyId
-      ? [{ label: 'Command Center', key: 'command-center' }, { label: 'Company Workspace' }]
+      ? [{ label: t('nav.commandCenter'), key: 'command-center' }, { label: t('nav.companyWorkspace') }]
       : selectedCompanyId
-      ? [{ label: 'Companies', key: 'companies' }, { label: 'Company Detail' }]
+      ? [{ label: t('nav.companies'), key: 'companies' }, { label: t('nav.companyDetail') }]
       : selectedContactId
-      ? [{ label: 'Contacts', key: 'contacts' }, { label: 'Contact Detail' }]
+      ? [{ label: t('nav.contacts'), key: 'contacts' }, { label: t('nav.contactDetail') }]
       : [{ label: activeLabel }]),
   ];
 

@@ -1,9 +1,12 @@
 /**
- * DeepMindQ Intelligence OS — Slack & Microsoft Teams Notification Integration
+ * Slack & Microsoft Teams Notification Integration
  *
  * Provides unified notification helpers for both Slack (incoming webhook with
  * attachments) and Microsoft Teams (Adaptive Card) formats.
+ * Branding is fetched from the brand-helper module.
  */
+
+import { getBrandNameSync } from '@/lib/brand-helper';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -47,7 +50,7 @@ const LEVEL_COLORS: Record<NotificationPayload['level'], string> = {
   critical: '#e01e5a',
 };
 
-const LEVEL_THEME_COLORS: Record<NotificationPayload['level'], string> = {
+const _LEVEL_THEME_COLORS: Record<NotificationPayload['level'], string> = {
   info: 'good',
   warning: 'warning',
   critical: 'attention',
@@ -66,7 +69,7 @@ function buildSlackPayload(
     title: payload.title,
     text: payload.message,
     fallback: `${payload.title}: ${payload.message}`,
-    footer: 'DeepMindQ Intelligence',
+    footer: `${getBrandNameSync()} Intelligence`,
     ts: payload.timestamp ?? Math.floor(Date.now() / 1000).toString(),
     fields: payload.fields?.map((f) => ({
       title: f.title,
@@ -149,7 +152,7 @@ function buildTeamsPayload(
     sections: [
       {
         activityTitle: `**${payload.title}**`,
-        activitySubtitle: 'DeepMindQ Intelligence',
+        activitySubtitle: `${getBrandNameSync()} Intelligence`,
         activityImage: 'https://deepmindq.io/logo.png',
         text: payload.message,
         facts,

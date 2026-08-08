@@ -122,6 +122,7 @@ interface PendingOAuthState {
   state: string;
   codeVerifier: string;
   ssoConfigId: string;
+  nonce: string;
   createdAt: number;
   expiresAt: number;
 }
@@ -144,6 +145,7 @@ export function storePendingState(
   state: string,
   codeVerifier: string,
   ssoConfigId: string,
+  nonce: string = '',
   ttlMs: number = TEN_MINUTES_MS,
 ): void {
   pruneExpiredStates();
@@ -151,6 +153,7 @@ export function storePendingState(
     state,
     codeVerifier,
     ssoConfigId,
+    nonce,
     createdAt: Date.now(),
     expiresAt: Date.now() + ttlMs,
   });
@@ -159,7 +162,7 @@ export function storePendingState(
 /** Retrieve and consume a pending OAuth state (one-time use). */
 export function consumePendingState(
   state: string,
-): { codeVerifier: string; ssoConfigId: string } | null {
+): { codeVerifier: string; ssoConfigId: string; nonce: string } | null {
   pruneExpiredStates();
   const entry = pendingStates.get(state);
   if (!entry) return null;
@@ -168,7 +171,7 @@ export function consumePendingState(
     return null;
   }
   pendingStates.delete(state); // one-time use
-  return { codeVerifier: entry.codeVerifier, ssoConfigId: entry.ssoConfigId };
+  return { codeVerifier: entry.codeVerifier, ssoConfigId: entry.ssoConfigId, nonce: entry.nonce };
 }
 
 // ── Config Management ────────────────────────────────────────────────
@@ -355,8 +358,8 @@ export function initiateSSOLogin(config: SSOConfig): SSOURLs {
     const codeVerifier = generateCodeVerifier();
     const codeChallenge = generateCodeChallenge(codeVerifier);
 
-    // Persist state + code_verifier for callback verification (10min TTL)
-    storePendingState(state, codeVerifier, config.id);
+    // Persist state + code_verifier + nonce for callback verification (10min TTL)
+    storePendingState(state, codeVerifier, config.id, nonce);
 
     const scopes = ['openid', 'email', 'profile', ...config.oidc.scopes.filter(s => s !== 'openid' && s !== 'email' && s !== 'profile')];
 
@@ -435,13 +438,13 @@ export async function handleSSOCallback(
   ipAddress?: string,
 ): Promise<SSOLoginResult> {
   try {
-    // 1. Validate state & retrieve PKCE verifier
+    // 1. Validate state & retrieve PKCE verifier and nonce
     const pending = consumePendingState(params.state);
     if (!pending) {
       return { success: false, error: 'Invalid or expired OAuth state' };
     }
 
-    const { codeVerifier, ssoConfigId } = pending;
+    const { codeVerifier, ssoConfigId, nonce } = pending;
     const config = await getSSOConfig(ssoConfigId);
     if (!config || !config.oidc) {
       return { success: false, error: 'SSO configuration not found or not OIDC' };
@@ -491,7 +494,7 @@ export async function handleSSOCallback(
     const idTokenAttributes: Record<string, unknown> = {};
 
     if (tokens.id_token) {
-      const idClaims = decodeJWT(tokens.id_token);
+      const idClaims = await verifyIdToken(tokens.id_token, config, nonce);
       externalId = (idClaims.sub as string) || '';
       email = (idClaims.email as string) || '';
       name = (idClaims.name as string) || (idClaims.preferred_username as string) || email;
@@ -557,6 +560,63 @@ function decodeJWT(token: string): Record<string, unknown> {
   } catch {
     return {};
   }
+}
+
+/**
+ * Verify an OIDC ID token's claims (iss, aud, exp, iat, nonce).
+ * Validates standard OIDC claims against the provider configuration.
+ * Note: Full RSA/ECDSA signature verification against JWKS requires
+ * a crypto library (e.g., node-jose, @boxyhq/jackson). This function
+ * validates all standard claims and logs a reminder for JWKS integration.
+ */
+async function verifyIdToken(
+  idToken: string,
+  config: SSOConfig,
+  expectedNonce?: string,
+): Promise<Record<string, unknown>> {
+  const oidc = config.oidc!;
+  const claims = decodeJWT(idToken);
+
+  // Validate iss (issuer)
+  if (claims.iss !== oidc.issuerUrl) {
+    throw new Error(`ID token iss mismatch: expected ${oidc.issuerUrl}, got ${claims.iss}`);
+  }
+
+  // Validate aud (audience)
+  const aud = Array.isArray(claims.aud) ? claims.aud : [claims.aud];
+  if (!aud.includes(oidc.clientId)) {
+    throw new Error(`ID token aud mismatch: expected ${oidc.clientId}, got ${claims.aud}`);
+  }
+
+  // Validate exp (expiration)
+  const exp = claims.exp as number | undefined;
+  if (exp && Date.now() / 1000 >= exp) {
+    throw new Error('ID token expired');
+  }
+
+  // Validate iat (issued at) - not too far in the past (5 min clock skew)
+  const iat = claims.iat as number | undefined;
+  if (iat && Date.now() / 1000 < iat - 300) {
+    throw new Error('ID token issued too far in the past');
+  }
+
+  // Validate nonce if provided (replay protection)
+  if (expectedNonce && claims.nonce !== expectedNonce) {
+    throw new Error('ID token nonce mismatch — possible replay attack');
+  }
+
+  // Log that signature verification should use JWKS in production
+  // For enterprise deployments, integrate with @boxyhq/jackson or node-jose
+  logger.info('[SSO] ID token claims validated', {
+    iss: claims.iss,
+    sub: claims.sub,
+    aud: claims.aud,
+    exp: claims.exp ? new Date((claims.exp as number) * 1000).toISOString() : 'missing',
+    nonceVerified: !!expectedNonce,
+    note: 'JWKS signature verification requires crypto library integration (see SAML NOTE in module header)',
+  });
+
+  return claims;
 }
 
 /**

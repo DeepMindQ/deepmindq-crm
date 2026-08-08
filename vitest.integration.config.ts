@@ -2,6 +2,10 @@
  * Vitest Configuration — INTEGRATION
  * M3 Stabilization — threads pool, single thread
  */
+
+// Ensure persistence defaults to disabled for integration tests that expect the disabled code path
+process.env.USE_DB_PERSISTENCE = 'false';
+
 import { defineConfig } from 'vitest/config'
 import path from 'path'
 

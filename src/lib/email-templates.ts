@@ -1,8 +1,11 @@
 /**
- * DeepMindQ Intelligence OS — Email Notification Template Engine
+ * Email Notification Template Engine
  *
  * Provides 7 pre-built notification templates with HTML and plain-text versions.
  * All HTML uses inline styles for maximum email-client compatibility.
+ *
+ * Branding is configured via the EmailContext parameter or defaults
+ * to values from the brand-helper module.
  */
 
 // ---------------------------------------------------------------------------
@@ -38,12 +41,14 @@ export interface RenderedEmail {
 // Default context
 // ---------------------------------------------------------------------------
 
+import { getBrandNameSync } from '@/lib/brand-helper';
+
 const DEFAULT_CONTEXT: Required<EmailContext> = {
   companyName: 'DeepMindQ Intelligence',
   productUrl: 'https://deepmindq.io',
   logoUrl: 'https://deepmindq.io/logo.png',
   primaryColor: '#1a56db',
-  footerText: '© {{year}} DeepMindQ Intelligence. All rights reserved.',
+  footerText: `© {{year}} ${getBrandNameSync()} Intelligence. All rights reserved.`,
 };
 
 // ---------------------------------------------------------------------------
@@ -418,12 +423,13 @@ const userWelcomeTemplate: TemplateDefinition = {
   name: 'Welcome',
   description: 'Onboarding email sent when a new user signs up',
   category: 'user',
-  subject: 'Welcome to DeepMindQ Intelligence 🎉',
+  subject: `Welcome to ${getBrandNameSync()} Intelligence 🎉`,
   variables: ['userName', 'workspaceName', 'setupUrl', 'docsUrl'],
   htmlTemplate(vars, ctx) {
+    const merged = { ...DEFAULT_CONTEXT, ...ctx };
     const body = `
       <p>Hi ${vars.userName},</p>
-      <p>Welcome to <strong>DeepMindQ Intelligence</strong>! We're excited to have you on board.</p>
+      <p>Welcome to <strong>${merged.companyName}</strong>! We're excited to have you on board.</p>
       <p>Your workspace <strong>"${vars.workspaceName}"</strong> is ready to go. Here's how to get started:</p>
       <ol style="padding-left: 24px; color: #374151; line-height: 2;">
         <li>Complete your profile and connect your data sources</li>
@@ -439,7 +445,7 @@ const userWelcomeTemplate: TemplateDefinition = {
     });
   },
   textTemplate(vars) {
-    return `Welcome to DeepMindQ Intelligence!
+    return `Welcome to ${getBrandNameSync()} Intelligence!
 ==================================
 
 Hi ${vars.userName},

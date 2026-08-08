@@ -533,7 +533,7 @@ async function processCRMAccount(
   const existingByExternalId = await db.company.findFirst({
     where: {
       tags: {
-        path: '$.crmExternalIds',
+        path: ['$.crmExternalIds'],
         string_contains: account.externalId,
       },
     },
@@ -733,7 +733,7 @@ async function processCRMContact(
     const companyByExternalId = await db.company.findFirst({
       where: {
         tags: {
-          path: '$.crmExternalIds',
+          path: ['$.crmExternalIds'],
           string_contains: contact.accountId,
         },
       },
@@ -922,7 +922,7 @@ async function processCRMDeal(
     const companyByExternalId = await db.company.findFirst({
       where: {
         tags: {
-          path: '$.crmExternalIds',
+          path: ['$.crmExternalIds'],
           string_contains: deal.accountId,
         },
       },

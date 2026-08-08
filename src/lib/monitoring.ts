@@ -5,6 +5,7 @@
  * Designed for production deployment with minimal overhead.
  */
 
+import * as Sentry from '@sentry/nextjs'
 import { performance } from 'perf_hooks'
 import { db } from '@/lib/db'
 
@@ -65,7 +66,7 @@ class MetricsCollector {
   }
 
   getAggregates(): Record<string, { avg: number; min: number; max: number; count: number; sum: number; last: number }> {
-    const result: Record<string, any> = {}
+    const result: Record<string, { avg: number; min: number; max: number; count: number; sum: number; last: number }> = {}
     for (const [name, agg] of this.aggregates) {
       result[name] = { avg: agg.sum / agg.count, min: agg.min, max: agg.max, count: agg.count, sum: agg.sum, last: agg.last }
     }
@@ -143,7 +144,16 @@ export function evaluateAlerts(): Alert[] {
       triggered.push(alert)
 
       // Log alert
-      console.log(`[ALERT] [${rule.severity.toUpperCase()}] ${alert.message}`)
+      console.info(`[ALERT] [${rule.severity.toUpperCase()}] ${alert.message}`)
+
+      // Send critical alerts to Sentry
+      if (rule.severity === 'critical') {
+        Sentry.captureMessage(alert.message, {
+          level: 'error',
+          tags: { alertRule: rule.id, metric: rule.metric },
+          extra: { value, threshold: rule.threshold },
+        });
+      }
     }
   }
   return triggered

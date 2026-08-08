@@ -15,6 +15,7 @@ import {
   AnimatedCard,
   StatCard,
 } from '@/components/ui/animated-components';
+import { ScreenBreadcrumb } from '@/components/shared/screen-breadcrumb';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -1230,6 +1231,9 @@ export default function SettingsScreen({ navigateTo }: { navigateTo?: (screen: s
   return (
     <PageTransition>
       <div role="main" aria-label="Settings" className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-8 pr-1 pb-8">
+
+        <ScreenBreadcrumb items={[{ label: 'Settings' }]} />
+
         {/* ── Toast notification ─────────────────────────────── */}
         <AnimatePresence>
           {toastMessage && (

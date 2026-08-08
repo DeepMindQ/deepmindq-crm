@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { ScreenBreadcrumb } from '@/components/shared/screen-breadcrumb';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
   Upload, ShieldCheck, FileText, CheckCircle2, Clock,
@@ -160,6 +161,8 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
      ═══════════════════════════════════════════════════ */
   return (
     <div className={cls.scrollContainer} style={spacing.sectionGap as React.CSSProperties}>
+
+      <ScreenBreadcrumb items={[{ label: 'Pipeline' }]} />
 
       {/* ═══════ HERO BANNER ═══════ */}
       <motion.div

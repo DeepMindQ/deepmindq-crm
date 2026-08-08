@@ -4,6 +4,7 @@ import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { ScreenBreadcrumb } from '@/components/shared/screen-breadcrumb';
 import {
   Building2, Globe, MapPin, Users, Search, Download,
   ChevronLeft, ChevronRight, MoreHorizontal, Sparkles, Loader2,
@@ -423,6 +424,7 @@ export default function CompaniesScreen() {
   return (
     <ErrorBoundary>
     <div role="main" aria-label="Company Intelligence" className="flex flex-col gap-5 h-full overflow-hidden">
+      <ScreenBreadcrumb items={[{ label: 'Companies' }]} />
       {/* ── Header ── */}
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between flex-wrap gap-3">

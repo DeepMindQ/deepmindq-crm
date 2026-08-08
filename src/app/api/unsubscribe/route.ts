@@ -2,6 +2,7 @@ import { db } from '@/lib/db';
 import { verifyUnsubscribeToken } from '@/lib/unsubscribe';
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { getBrandName, getBrandNameSync } from '@/lib/brand-helper';
 
 /* ═══════════════════════════════════════════════════
    E-09: Unsubscribe Endpoint
@@ -13,7 +14,6 @@ import { logger } from '@/lib/logger';
    and returns a branded HTML confirmation page.
    ═══════════════════════════════════════════════════ */
 
-const COMPANY_NAME = process.env.COMPANY_NAME || 'DeepMindQ';
 const BRAND_COLOR = '#D4AF37';
 
 function escapeHtml(str: string): string {
@@ -26,12 +26,13 @@ function escapeHtml(str: string): string {
 }
 
 function renderConfirmationHtml(email: string, success: boolean, error?: string): string {
+  const companyName = getBrandNameSync();
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>${success ? 'Unsubscribed' : 'Unsubscribe Error'} — ${COMPANY_NAME}</title>
+  <title>${success ? 'Unsubscribed' : 'Unsubscribe Error'} — ${companyName}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -101,12 +102,12 @@ function renderConfirmationHtml(email: string, success: boolean, error?: string)
     <div class="icon">${success ? '&#10003;' : '!'}</div>
     <h1>${success ? 'You&#39;ve been unsubscribed' : 'Unsubscribe Error'}</h1>
     ${success
-      ? `<p>The email address <span class="email">${escapeHtml(email)}</span> has been removed from our mailing list. You will no longer receive outreach emails from ${escapeHtml(COMPANY_NAME)}.</p>`
+      ? `<p>The email address <span class="email">${escapeHtml(email)}</span> has been removed from our mailing list. You will no longer receive outreach emails from ${escapeHtml(companyName)}.</p>`
       : `<p>${escapeHtml(error || 'We could not process your request. The link may have expired or is invalid.')}</p>`
     }
     <div class="divider"></div>
     <p class="footer">
-      ${escapeHtml(COMPANY_NAME)} Outreach Platform<br>
+      ${escapeHtml(companyName)} Outreach Platform<br>
       If you believe this was an error, please contact us.
     </p>
   </div>
@@ -115,12 +116,13 @@ function renderConfirmationHtml(email: string, success: boolean, error?: string)
 }
 
 function renderMissingParamsHtml(): string {
+  const companyName = getBrandNameSync();
   return `<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Invalid Request — ${COMPANY_NAME}</title>
+  <title>Invalid Request — ${companyName}</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -159,6 +161,8 @@ function renderMissingParamsHtml(): string {
    GET /api/unsubscribe?email=xxx&token=xxx
    ═══════════════════════════════════════════════════ */
 export async function GET(request: NextRequest) {
+  // Pre-warm brand name cache for HTML rendering
+  await getBrandName();
   const { searchParams } = new URL(request.url);
   const email = searchParams.get('email');
   const token = searchParams.get('token');

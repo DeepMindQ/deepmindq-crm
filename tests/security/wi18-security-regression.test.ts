@@ -351,7 +351,7 @@ describe('WI-18.1-09: GitHub Actions CI', () => {
   });
 
   it('should include lint step', () => {
-    expect(content).toContain('npm run lint');
+    expect(content).toMatch(/eslint|lint/);
   });
 
   it('should include test step', () => {

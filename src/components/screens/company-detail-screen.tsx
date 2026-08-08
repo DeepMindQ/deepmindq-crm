@@ -47,6 +47,7 @@ import {
 } from '@/components/ui/breadcrumb';
 import { CompletenessBar } from '@/components/data/completeness-bar';
 import type { DataField } from '@/components/data/completeness-bar';
+import { useTranslation } from '@/lib/use-translation';
 
 /* ===================================================
    Constants & Colors
@@ -532,6 +533,7 @@ function SectionPanel({ title, icon, accent, count, children, collapsible, defau
    Main Component - AI Account Intelligence Workspace
    =================================================== */
 export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: any) {
+  const { t } = useTranslation();
   const store = useAppStore;
   const setSelectedContactId = useAppStore((s: any) => s.setSelectedContactId);
   const setSelectedCompanyId = useAppStore((s: any) => s.setSelectedCompanyId);
@@ -875,11 +877,11 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
           {/* ── View Switcher ── */}
           <div className="mt-5 flex items-center gap-1 p-1 bg-gray-100 rounded-xl border border-gray-200 w-fit">
             {[
-              { key: 'intelligence' as const, label: 'AI Intelligence', icon: Brain },
-              { key: 'profile' as const, label: 'Company Profile', icon: Building2 },
-              { key: 'mindmap' as const, label: 'Org Chart', icon: Network },
-              { key: 'timeline' as const, label: 'Activity Timeline', icon: Clock },
-              { key: 'evidence' as const, label: 'Evidence Sources', icon: Database },
+              { key: 'intelligence' as const, label: t('company.aiIntelligence'), icon: Brain },
+              { key: 'profile' as const, label: t('company.companyProfile'), icon: Building2 },
+              { key: 'mindmap' as const, label: t('company.orgChart'), icon: Network },
+              { key: 'timeline' as const, label: t('company.activityTimeline'), icon: Clock },
+              { key: 'evidence' as const, label: t('company.evidenceSources'), icon: Database },
             ].map(v => (
               <button key={v.key}
                 onClick={() => setActiveView(v.key)}
@@ -902,7 +904,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               {/* LEFT COLUMN - Signals + Contacts */}
               <div className="space-y-5">
                 {/* AI Signals */}
-                <SectionPanel title="Active Signals" icon={Bell} accent="#ea580c" count={signals.length} onRefresh={fetchSignals}>
+                <SectionPanel title={t('company.activeSignals')} icon={Bell} accent="#ea580c" count={signals.length} onRefresh={fetchSignals}>
                   {signals.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground">
                       <Bell size={24} className="mx-auto mb-2 opacity-30" />
@@ -920,7 +922,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                 </SectionPanel>
 
                 {/* Key Contacts */}
-                <SectionPanel title="Key Contacts" icon={Users} accent="#7c3aed" count={contacts.length} onRefresh={fetchContacts}>
+                <SectionPanel title={t('company.keyContacts')} icon={Users} accent="#7c3aed" count={contacts.length} onRefresh={fetchContacts}>
                   {contacts.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground">
                       <Users size={24} className="mx-auto mb-2 opacity-30" />
@@ -948,7 +950,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               <div className="space-y-5">
                 {/* AI Intelligence Insights */}
                 <ErrorBoundary>
-                <SectionPanel title="AI Intelligence Insights" icon={Brain} accent={INTEL} onRefresh={fetchIntelligence}>
+                <SectionPanel title={t('company.aiIntelligenceInsights')} icon={Brain} accent={INTEL} onRefresh={fetchIntelligence}>
                   {loadingIntel ? (
                     <div className="flex flex-col items-center py-8 gap-3">
                       <Loader2 size={24} className="animate-spin text-blue-500" />
@@ -1077,7 +1079,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                 </ErrorBoundary>
 
                 {/* Evidence Sources */}
-                <SectionPanel title="Evidence Sources" icon={Database} accent="#7c3aed" count={evidence.length} onRefresh={fetchEvidence} collapsible>
+                <SectionPanel title={t('company.evidenceSources')} icon={Database} accent="#7c3aed" count={evidence.length} onRefresh={fetchEvidence} collapsible>
                   {evidence.length === 0 ? (
                     <div className="text-center py-4 text-muted-foreground">
                       <Database size={20} className="mx-auto mb-2 opacity-30" />
@@ -1091,7 +1093,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                 </SectionPanel>
 
                 {/* Recent Notes */}
-                <SectionPanel title="Research Notes" icon={FileText} accent="#3b82f6" count={notes.length} onRefresh={fetchNotes} collapsible>
+                <SectionPanel title={t('company.researchNotes')} icon={FileText} accent="#3b82f6" count={notes.length} onRefresh={fetchNotes} collapsible>
                   {notes.length === 0 ? (
                     <div className="text-center py-4 text-muted-foreground">
                       <FileText size={20} className="mx-auto mb-2 opacity-30" />
@@ -1247,7 +1249,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               ============================================= */}
           {activeView === 'timeline' && (
             <div className="mt-5">
-              <SectionPanel title="Activity Timeline" icon={Clock} accent="#3b82f6" count={timeline.length} onRefresh={fetchTimeline}>
+              <SectionPanel title={t('company.activityTimeline')} icon={Clock} accent="#3b82f6" count={timeline.length} onRefresh={fetchTimeline}>
                 {timeline.length === 0 ? (
                   <div className="text-center py-10 text-muted-foreground">
                     <Clock size={32} className="mx-auto mb-3 opacity-30" />
@@ -1267,7 +1269,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               ============================================= */}
           {activeView === 'evidence' && (
             <div className="mt-5">
-              <SectionPanel title="Evidence Sources" icon={Database} accent="#7c3aed" count={evidence.length} onRefresh={fetchEvidence}>
+              <SectionPanel title={t('company.evidenceSources')} icon={Database} accent="#7c3aed" count={evidence.length} onRefresh={fetchEvidence}>
                 {evidence.length === 0 ? (
                   <div className="text-center py-10 text-muted-foreground">
                     <Database size={32} className="mx-auto mb-3 opacity-30" />

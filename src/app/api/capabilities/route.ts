@@ -209,7 +209,7 @@ try {
 
     const capability = await db.capabilityAsset.update({
       where: { id },
-      data: updateData,
+      data: updateData as any,
     });
 
     // Re-embed on version-worthy changes

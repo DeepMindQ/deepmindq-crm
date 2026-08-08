@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { otpRateLimit } from '@/lib/auth-helpers';
 import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
+import { encryptUserFields } from '@/lib/encryption';
+import { getBrandName } from '@/lib/brand-helper';
 
 // ═══════════════════════════════════════════════════════════════
 // Single-User OTP Login — DeepMindQ Enterprise
@@ -84,12 +86,12 @@ export async function POST(request: NextRequest) {
           body: JSON.stringify({
             from: fromAddr,
             to: [email],
-            subject: 'DeepMindQ - Login Verification',
+            subject: `${await getBrandName()} - Login Verification`,
             html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f9fafb;font-family:system-ui,-apple-system,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;"><tr><td align="center">
 <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1);overflow:hidden;">
 <tr><td style="background:linear-gradient(135deg,#B8860B,#D4A843);padding:32px 40px;text-align:center;">
-<h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">DeepMindQ</h1></td></tr>
+<h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">${await getBrandName()}</h1></td></tr>
 <tr><td style="padding:40px;">
 <h2 style="margin:0 0 8px;color:#111827;font-size:20px;">Login Verification</h2>
 <p style="margin:0 0 24px;color:#6b7280;font-size:15px;line-height:1.5;">Use the following code to sign in. This code expires in 10 minutes.</p>
@@ -98,7 +100,7 @@ export async function POST(request: NextRequest) {
 <p style="margin:0;color:#9ca3af;font-size:13px;line-height:1.5;">If you did not request this code, please ignore this email.</p>
 </td></tr>
 <tr><td style="padding:20px 40px;border-top:1px solid #f3f4f6;text-align:center;">
-<p style="margin:0;color:#9ca3af;font-size:12px;">&copy; ${new Date().getFullYear()} DeepMindQ. All rights reserved.</p>
+<p style="margin:0;color:#9ca3af;font-size:12px;">&copy; ${new Date().getFullYear()} ${await getBrandName()}. All rights reserved.</p>
 </td></tr></table></td></tr></table></body></html>`,
           }),
         });
@@ -145,7 +147,8 @@ export async function POST(request: NextRequest) {
       });
       const user = await db.user.findUnique({ where: { email } });
       if (!user) {
-        await db.user.create({ data: { email, name: AUTHORIZED_EMAIL ? AUTHORIZED_EMAIL.split('@')[0] : 'Admin', role: 'admin', isActive: true } });
+        const encryptedData = await encryptUserFields({ email });
+        await db.user.create({ data: { email: encryptedData.email as string, name: AUTHORIZED_EMAIL ? AUTHORIZED_EMAIL.split('@')[0] : 'Admin', role: 'admin', isActive: true } });
       }
       await db.otpCode.create({
         data: { email, code: await hashOtp(code), purpose: 'login', expiresAt: new Date(Date.now() + 10 * 60 * 1000) },

@@ -139,7 +139,7 @@ try {
 
     const sequence = await db.emailSequence.update({
       where: { id },
-      data: seqUpdate,
+      data: seqUpdate as any,
     });
 
     return NextResponse.json({ success: true, sequence });

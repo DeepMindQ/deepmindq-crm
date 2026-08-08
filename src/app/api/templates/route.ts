@@ -123,7 +123,7 @@ try {
 
     const template = await db.emailTemplate.update({
       where: { id },
-      data: updateData,
+      data: updateData as any,
     });
 
     return NextResponse.json({ success: true, template });

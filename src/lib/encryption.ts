@@ -14,7 +14,7 @@
  *   - Field keys are derived via HKDF (SHA-256) with field-specific salt
  *   - Encrypted format: version(1 byte) + iv(12 bytes) + ciphertext + tag
  *   - All operations use Web Crypto API (SubtleCrypto)
- *   - Non-throwing: errors are logged and null is returned
+ *   - FAIL-CLOSED in production: throws ENCRYPTION_REQUIRED if encryption cannot be performed
  *
  * SECURITY NOTES:
  *   - Master key MUST be 32 bytes (256 bits) hex-encoded
@@ -126,7 +126,9 @@ async function deriveFieldKey(
 
 /**
  * Encrypt a plaintext string for a specific field.
- * Returns base64-encoded encrypted data or null on failure.
+ * Returns base64-encoded encrypted data.
+ * In production, THROWS if encryption cannot be performed (fail-closed).
+ * In development, returns plaintext if encryption is not configured (convenience).
  *
  * Format: version(1) + iv(12) + ciphertext + tag(16)
  */
@@ -139,13 +141,11 @@ export async function encryptField(
 
   const key = await deriveFieldKey(fieldName, keyVersion);
   if (!key) {
-    // Fallback: return plaintext if encryption is not configured
+    // FAIL-CLOSED: In production, refuse to store plaintext
     if (process.env.NODE_ENV === 'production') {
-      console.warn(
-        'CRITICAL: [Encryption] Encryption key not configured — returning plaintext in production. ' +
-        `Field "${fieldName}" is unencrypted. Set ENCRYPTION_MASTER_KEY environment variable immediately.`,
-      );
+      throw new Error('ENCRYPTION_REQUIRED');
     }
+    // Dev-mode fallback: return plaintext when encryption is not configured
     return plaintext;
   }
 
@@ -186,13 +186,12 @@ export async function encryptField(
       error: err instanceof Error ? err.message : String(err),
       field: fieldName,
     });
+    // FAIL-CLOSED: In production, throw instead of returning plaintext
     if (process.env.NODE_ENV === 'production') {
-      console.warn(
-        'CRITICAL: [Encryption] Encryption failed — returning plaintext in production. ' +
-        `Field "${fieldName}" is unencrypted. Investigate and re-encrypt this record.`,
-      );
+      throw new Error('ENCRYPTION_REQUIRED');
     }
-    return plaintext; // Fail open — return plaintext
+    // Dev-mode fallback: return plaintext on encryption failure
+    return plaintext;
   }
 }
 
@@ -243,7 +242,7 @@ export async function decryptField(
 
     const decoder = new TextDecoder();
     return decoder.decode(decrypted);
-  } catch (err) {
+  } catch {
     // If decryption fails, likely not encrypted data — return as-is
     return encrypted;
   }
@@ -370,6 +369,79 @@ export function isTlsEnforced(): boolean {
     process.env.NODE_ENV === 'production' &&
     process.env.ENFORCE_TLS !== 'false'
   );
+}
+
+// ── Contact/User Field-Level Helpers ──────────────────────────────────
+
+const CONTACT_PII_FIELDS = ['email', 'phone', 'linkedinUrl', 'rawName', 'normalizedName'];
+const USER_PII_FIELDS = ['email', 'phone'];
+
+/**
+ * Encrypt contact-specific PII fields in a data object.
+ * Encrypts: email, phone, linkedinUrl, rawName, normalizedName
+ */
+export async function encryptContactFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const result = { ...data };
+  for (const field of CONTACT_PII_FIELDS) {
+    if (typeof result[field] === 'string' && result[field]) {
+      const encrypted = await encryptField(field, result[field]);
+      if (encrypted !== null) {
+        result[field] = encrypted;
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Decrypt contact-specific PII fields in a data object.
+ * Decrypts: email, phone, linkedinUrl, rawName, normalizedName
+ */
+export async function decryptContactFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const result = { ...data };
+  for (const field of CONTACT_PII_FIELDS) {
+    if (typeof result[field] === 'string' && result[field]) {
+      const decrypted = await decryptField(field, result[field]);
+      if (decrypted !== null) {
+        result[field] = decrypted;
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Encrypt user-specific PII fields in a data object.
+ * Encrypts: email, phone
+ */
+export async function encryptUserFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const result = { ...data };
+  for (const field of USER_PII_FIELDS) {
+    if (typeof result[field] === 'string' && result[field]) {
+      const encrypted = await encryptField(field, result[field]);
+      if (encrypted !== null) {
+        result[field] = encrypted;
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Decrypt user-specific PII fields in a data object.
+ * Decrypts: email, phone
+ */
+export async function decryptUserFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const result = { ...data };
+  for (const field of USER_PII_FIELDS) {
+    if (typeof result[field] === 'string' && result[field]) {
+      const decrypted = await decryptField(field, result[field]);
+      if (decrypted !== null) {
+        result[field] = decrypted;
+      }
+    }
+  }
+  return result;
 }
 
 /**

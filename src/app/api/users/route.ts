@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { checkApiAuth, requireAdminRole, filterResponseArrayByRole } from '@/lib/api-auth';
 import { logger } from '@/lib/logger';
+import { withCsrf } from '@/lib/with-csrf';
 import { z } from 'zod';
 
 // Phase 0 RBAC: admin (full access) and user (standard access) only.
@@ -68,7 +69,7 @@ export async function GET(request: Request) {
 
 // ── PATCH: Update user role/status ───────────────────────────────
 
-export async function PATCH(request: NextRequest) {
+export const PATCH = withCsrf(async function PATCH(request: NextRequest) {
   const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminCheck = requireAdminRole(session!);
@@ -182,4 +183,4 @@ export async function PATCH(request: NextRequest) {
       { status: 500 }
     );
   }
-}
+});

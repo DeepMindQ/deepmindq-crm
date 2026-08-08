@@ -98,6 +98,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: 'batch-operations', label: 'Batch Operations', icon: Layers },
       { key: 'users', label: 'Users', icon: Users },
       { key: 'audit', label: 'Audit & Governance', icon: Shield },
+      { key: 'admin-settings', label: 'Admin Panel', icon: Shield },
     ],
   },
 ];

@@ -137,6 +137,8 @@ const RecommendationQueueV2Screen = lazy(() => import('@/components/screens/reco
 const ScoringConfigWizardScreen = lazy(() => import('@/components/screens/scoring-config-wizard').then(m => ({ default: m.ScoringConfigWizard })));
 const BatchOperationsPanelScreen = lazy(() => import('@/components/screens/batch-operations-panel').then(m => ({ default: m.BatchOperationsPanel })));
 const UserOnboardingWizardScreen = lazy(() => import('@/components/onboarding/user-onboarding-wizard').then(m => ({ default: m.UserOnboardingWizard })));
+const AdminSettingsPanelScreen = lazy(() => import('@/components/screens/admin-settings-panel').then(m => ({ default: m.AdminSettingsPanel })));
+
 
 /* ── Bridge wrappers ── */
 
@@ -255,4 +257,5 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'scoring-wizard': withScreenErrorBoundary(ScoringConfigWizardScreen, 'scoring-wizard'),
   'batch-operations': withScreenErrorBoundary(BatchOperationsPanelScreen, 'batch-operations'),
   'onboarding-wizard': withScreenErrorBoundary(UserOnboardingWizardScreen, 'onboarding-wizard'),
+  'admin-settings': withScreenErrorBoundary(AdminSettingsPanelScreen, 'admin-settings'),
 };

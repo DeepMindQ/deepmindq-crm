@@ -1,71 +1,41 @@
 #!/bin/bash
-# ──────────────────────────────────────────────────────────────
 # DeepMindQ — Database Backup Script
-#
-# Creates timestamped PostgreSQL backups with rotation.
-# Designed for cron-based scheduled backups.
-#
-# Usage:
-#   ./scripts/backup.sh                   # Manual backup
-#   ./scripts/backup.sh --rotate 7        # Keep last 7 backups
-#   crontab: 0 2 * * * /app/scripts/backup.sh --rotate 30
-#
-# Required env vars:
-#   DATABASE_URL or PGHOST/PGUSER/PGPASSWORD/PGDATABASE
-# ──────────────────────────────────────────────────────────────
+# Usage: ./scripts/backup.sh [backup_type]
+# Types: full (default), schema-only, data-only
 
 set -euo pipefail
 
-# ── Configuration ──────────────────────────────────────────
-BACKUP_DIR="${BACKUP_DIR:-/app/backups}"
-ROTATE_COUNT="${1:-30}"  # Default: keep 30 backups
+BACKUP_DIR="${BACKUP_DIR:-./backups}"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
-BACKUP_FILE="${BACKUP_DIR}/deepmindq_${TIMESTAMP}.sql.gz"
+DB_NAME="${DB_NAME:-deepmindq}"
+RETENTION_DAYS="${RETENTION_DAYS:-30}"
 
-# ── Resolve database connection ─────────────────────────────
-if [ -n "${DATABASE_URL:-}" ]; then
-  # Parse DATABASE_URL: postgresql://user:pass@host:port/dbname
-  # Extract components for pg_dump
-  DB_URL_NO_PREFIX="${DATABASE_URL#postgresql://}"
-  DB_URL_NO_QUERY="${DB_URL_NO_PREFIX%%\?*}"
-  DB_USER="$(echo "$DB_URL_NO_QUERY" | cut -d: -f1)"
-  DB_PASS="$(echo "$DB_URL_NO_QUERY" | cut -d: -f2 | cut -d@ -f1)"
-  DB_HOST_PORT="$(echo "$DB_URL_NO_QUERY" | cut -d@ -f2)"
-  DB_HOST="$(echo "$DB_HOST_PORT" | cut -d: -f1)"
-  DB_PORT="$(echo "$DB_HOST_PORT" | cut -d: -f2)"
-  DB_NAME="$(echo "$DB_URL_NO_QUERY" | cut -d/ -f2)"
-
-  export PGHOST="${DB_HOST:-localhost}"
-  export PGPORT="${DB_PORT:-5432}"
-  export PGUSER="$DB_USER"
-  export PGPASSWORD="$DB_PASS"
-  export PGDATABASE="${DB_NAME:-deepmindq}"
-fi
-
-# ── Create backup directory ────────────────────────────────
 mkdir -p "$BACKUP_DIR"
 
-# ── Perform backup ─────────────────────────────────────────
-echo "[backup] Starting backup: ${BACKUP_FILE}"
+case "${1:-full}" in
+  full)
+    echo "[$(date)] Starting full backup..."
+    pg_dump "$DATABASE_URL" --compress=6 --format=custom \
+      --file="$BACKUP_DIR/${DB_NAME}_full_${TIMESTAMP}.dump"
+    ;;
+  schema-only)
+    echo "[$(date)] Starting schema-only backup..."
+    pg_dump "$DATABASE_URL" --schema-only \
+      --file="$BACKUP_DIR/${DB_NAME}_schema_${TIMESTAMP}.sql"
+    ;;
+  data-only)
+    echo "[$(date)] Starting data-only backup..."
+    pg_dump "$DATABASE_URL" --data-only --compress=6 \
+      --file="$BACKUP_DIR/${DB_NAME}_data_${TIMESTAMP}.sql.gz"
+    ;;
+  *)
+    echo "Usage: $0 [full|schema-only|data-only]"
+    exit 1
+    ;;
+esac
 
-if pg_dump --compress=9 --format=plain > "${BACKUP_FILE%.gz}" 2>/dev/null; then
-  gzip -f "${BACKUP_FILE%.gz}"
-  BACKUP_SIZE=$(du -h "$BACKUP_FILE" | cut -f1)
-  echo "[backup] Success: ${BACKUP_FILE} (${BACKUP_SIZE})"
-else
-  echo "[backup] ERROR: pg_dump failed" >&2
-  rm -f "${BACKUP_FILE}" "${BACKUP_FILE%.gz}"
-  exit 1
-fi
+echo "[$(date)] Backup completed: $BACKUP_DIR/${DB_NAME}_${1:-full}_${TIMESTAMP}.*"
 
-# ── Rotate old backups ──────────────────────────────────────
-KEEP=$((ROTATE_COUNT))
-BACKUP_COUNT=$(ls -1 "${BACKUP_DIR}"/deepmindq_*.sql.gz 2>/dev/null | wc -l)
-
-if [ "$BACKUP_COUNT" -gt "$KEEP" ]; then
-  REMOVE_COUNT=$((BACKUP_COUNT - KEEP))
-  echo "[backup] Rotating: removing ${REMOVE_COUNT} old backup(s)"
-  ls -1t "${BACKUP_DIR}"/deepmindq_*.sql.gz | tail -n "$REMOVE_COUNT" | xargs rm -f
-fi
-
-echo "[backup] Done. ${BACKUP_COUNT} backup(s) in ${BACKUP_DIR}"
+# Cleanup old backups
+find "$BACKUP_DIR" -name "${DB_NAME}_*" -mtime +$RETENTION_DAYS -delete
+echo "[$(date)] Cleaned up backups older than $RETENTION_DAYS days"

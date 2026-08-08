@@ -99,6 +99,7 @@ export type ViewId =
   | 'scoring-wizard'
   | 'batch-operations'
   | 'onboarding-wizard'
+  | 'admin-settings'
   | 'builder';
 
 interface AppState {

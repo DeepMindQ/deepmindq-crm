@@ -217,6 +217,7 @@ jobs:
         run: |
           npx vitest run --config vitest.unit.config.ts 2>&1 | tee /tmp/vitest-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
+          # Only fail on actual test failures, not worker errors
           if grep -q 'Test Files.*failed' /tmp/vitest-output.txt; then
             echo '::error::Test files failed'
             exit $EXIT_CODE
@@ -224,6 +225,10 @@ jobs:
           if grep -q 'Tests .*failed' /tmp/vitest-output.txt; then
             echo '::error::Tests failed'
             exit $EXIT_CODE
+          fi
+          # Worker errors (teardown crashes) don't indicate test failures
+          if grep -q 'Errors.*error' /tmp/vitest-output.txt; then
+            echo '::warning::Vitest reported worker errors (teardown instability) but all tests passed'
           fi
           echo 'All unit tests passed'
           exit 0

@@ -1,6 +1,9 @@
 /**
  * Vitest Configuration — SECURITY
- * M3 Stabilization — threads pool, single thread
+ * M5 Governance Hardening — forks pool, standardized timeouts
+ *
+ * Pool: forks — eliminates Vitest 4.x + Node 22.x worker teardown crash.
+ * Standardized: 15s test, 10s hook, 10s teardown, 1 worker.
  */
 import { defineConfig } from 'vitest/config'
 import path from 'path'
@@ -17,11 +20,11 @@ export default defineConfig({
       'tests/legacy/**',
     ],
     globals: true,
-    pool: 'threads',
-    maxThreads: 1,
-    minThreads: 1,
+    pool: 'forks',
+    maxWorkers: 1,
     testTimeout: 15000,
     hookTimeout: 10000,
+    teardownTimeout: 10000,
   },
   resolve: {
     alias: {

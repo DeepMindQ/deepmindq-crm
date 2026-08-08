@@ -1,22 +1,24 @@
 # ═══════════════════════════════════════════════════
 # DeepMindQ -- Enterprise Test Architecture CI Pipeline
-# M3 Stabilization -- Deterministic execution
+# M5 Governance Hardening -- Deterministic, deduplicated execution
 #
 # Architecture: Each test category runs as an independent job
 # with dedicated memory, fresh runner, and clear failure isolation.
-# All vitest configs use threads pool with single thread for stability.
+# All vitest configs use forks pool with single worker for stability
+# (eliminates Vitest 4.x + Node 22.x worker teardown crash).
 #
 # BLOCKING JOBS (must pass for merge):
-#   1. security-gate        -- Security regression gates
+#   1. security-gate        -- Static security guards (grep-based, no vitest)
 #   2. dependency-audit     -- npm dependency vulnerability scan
 #   3. api-security-contract -- Static API auth guard verification
 #   4. lint-and-typecheck   -- ESLint + TypeScript
-#   5. test-unit            -- Pure logic unit tests (node, threads)
-#   6. test-security        -- Auth/CSRF/RBAC security tests (node, threads)
-#   7. test-api             -- API route handler tests (node, threads) + PostgreSQL
-#   8. test-database        -- Database/Prisma tests (node, threads) + PostgreSQL
-#   9. test-integration      -- Cross-module integration tests (node, threads)
-#   10. build                -- Final build verification
+#   5. test-unit            -- Pure logic unit tests (forks, 1 worker)
+#   6. test-security        -- Auth/CSRF/RBAC security tests (forks, 1 worker)
+#   7. test-api             -- API route handler tests (forks, 1 worker) + PostgreSQL
+#   8. test-database        -- Database/Prisma tests (forks, 1 worker) + PostgreSQL
+#   9. test-integration      -- Cross-module integration tests (forks, 1 worker)
+#   10. test-m5-intelligence -- M5 trust & intelligence tests (forks, 1 worker)
+#   11. build                -- Final build verification
 #
 # NON-BLOCKING JOBS (allowed to fail without blocking merge):
 #   test-ai                 -- AI engine core tests
@@ -28,6 +30,8 @@
 #   test-performance        -- Benchmarks/scale/memory tests
 #   test-ui                  -- React component tests (jsdom)
 #   test-playwright          -- Playwright browser E2E tests
+#
+# EXECUTION MAP: See docs/CI_TEST_EXECUTION_MAP.md
 # ═══════════════════════════════════════════════════
 
 name: CI
@@ -48,12 +52,15 @@ env:
 
 jobs:
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 1 -- SECURITY REGRESSION GATE
+  # BLOCKING: JOB 1 -- SECURITY STATIC GATES
+  # M5 Change: Removed duplicate vitest run. This job now runs
+  # static grep-based guards ONLY. Security vitest tests run
+  # exclusively in test-security (Job 6) — no duplication.
   # ═══════════════════════════════════════════════════
   security-gate:
-    name: "Blocking -- Security Gate"
+    name: "Blocking -- Security Gate (Static)"
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -61,14 +68,6 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
       - run: npm ci
-      - run: npx prisma generate
-
-      - name: Run security gate regression tests
-        run: npx vitest run --config vitest.security.config.ts
-        env:
-          CI: 'true'
-          NODE_OPTIONS: '--max-old-space-size=2048'
-          DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci_test'
 
       - name: Verify edge proxy exists
         run: |
@@ -186,16 +185,20 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - name: Run ESLint (full project — blocking)
+      - name: Run ESLint (full project -- blocking)
         run: npm run lint
 
-      - name: Run ESLint strict gate (new code — must be clean)
+      - name: Run ESLint strict gate (new code -- must be clean)
         run: npm run lint:strict
 
       - run: npx tsc --noEmit
 
   # ═══════════════════════════════════════════════════
   # BLOCKING: JOB 5 -- UNIT TESTS
+  # M5: Includes orphaned unit tests reassigned from
+  #     tests/crm, tests/data-intelligence (pure logic),
+  #     tests/enrichment, tests/scoring
+  # Pool: forks, 1 worker, standardized timeouts
   # ═══════════════════════════════════════════════════
   test-unit:
     name: "Blocking -- Unit Tests"
@@ -214,7 +217,6 @@ jobs:
         run: |
           npx vitest run --config vitest.unit.config.ts 2>&1 | tee /tmp/vitest-output.txt
           EXIT_CODE=${PIPESTATUS[0]}
-          # Only fail on actual test failures, not worker errors
           if grep -q 'Test Files.*failed' /tmp/vitest-output.txt; then
             echo '::error::Test files failed'
             exit $EXIT_CODE
@@ -222,10 +224,6 @@ jobs:
           if grep -q 'Tests .*failed' /tmp/vitest-output.txt; then
             echo '::error::Tests failed'
             exit $EXIT_CODE
-          fi
-          # Worker errors (teardown crashes) don't indicate test failures
-          if grep -q 'Errors.*error' /tmp/vitest-output.txt; then
-            echo '::warning::Vitest reported worker errors (teardown instability) but all tests passed'
           fi
           echo 'All unit tests passed'
           exit 0
@@ -265,6 +263,9 @@ jobs:
 
   # ═══════════════════════════════════════════════════
   # BLOCKING: JOB 6 -- SECURITY TESTS
+  # M5: Exclusive owner of tests/security/** vitest run.
+  #     Job 1 (security-gate) now runs static checks only.
+  # Pool: forks, 1 worker, standardized timeouts
   # ═══════════════════════════════════════════════════
   test-security:
     name: "Blocking -- Security Tests"
@@ -287,6 +288,7 @@ jobs:
 
   # ═══════════════════════════════════════════════════
   # BLOCKING: JOB 7 -- API TESTS (with PostgreSQL)
+  # Pool: forks, 1 worker, standardized timeouts
   # ═══════════════════════════════════════════════════
   test-api:
     name: "Blocking -- API Tests"
@@ -330,6 +332,7 @@ jobs:
 
   # ═══════════════════════════════════════════════════
   # BLOCKING: JOB 8 -- DATABASE TESTS (with PostgreSQL)
+  # Pool: forks, 1 worker, standardized timeouts
   # ═══════════════════════════════════════════════════
   test-database:
     name: "Blocking -- Database Tests"
@@ -371,6 +374,10 @@ jobs:
 
   # ═══════════════════════════════════════════════════
   # BLOCKING: JOB 9 -- INTEGRATION TESTS
+  # M5: Includes orphaned cross-module test reassigned
+  #     from tests/persistence and tests/data-intelligence
+  #     (integration-pattern tests).
+  # Pool: forks, 1 worker, standardized timeouts
   # ═══════════════════════════════════════════════════
   test-integration:
     name: "Blocking -- Integration Tests"
@@ -623,7 +630,8 @@ jobs:
           retention-days: 14
 
   # ═══════════════════════════════════════════════════
-  # BLOCKING: JOB 11 -- M5 INTELLIGENCE TESTS (MS5 addition)
+  # BLOCKING: JOB 10 -- M5 INTELLIGENCE TESTS
+  # Pool: forks, 1 worker, standardized timeouts
   # ═══════════════════════════════════════════════════
   test-m5-intelligence:
     name: "Blocking -- M5 Intelligence Tests"

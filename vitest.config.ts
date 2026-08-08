@@ -17,6 +17,10 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import path from 'path'
 
+// Match vitest.integration.config.ts: ensure persistence defaults to disabled
+// for integration tests that expect the disabled code path.
+process.env.USE_DB_PERSISTENCE = 'false';
+
 export default defineConfig({
   plugins: [react()],
   test: {
@@ -35,6 +39,9 @@ export default defineConfig({
       'tests/unit/sprint1-modules.test.ts',
       'tests/unit/ai-governance/golden-dataset-hallucination.test.ts',
       'tests/unit/ai-governance/hallucination-prevention-certification.test.ts',
+      // DB-dependent persistence tests — covered by test-integration CI job
+      // Skip here to avoid Prisma constructor errors without PostgreSQL
+      'tests/integration/session1-persistence-batch.test.ts',
     ],
     globals: true,
     pool: 'forks',

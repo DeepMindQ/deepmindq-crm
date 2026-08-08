@@ -8,7 +8,7 @@ import { checkApiAuth } from '@/lib/api-auth';
    Returns chronological activity timeline for a contact
    ═══════════════════════════════════════════════════ */
 
-const EVENT_ICONS: Record<string, string> = {
+const _EVENT_ICONS: Record<string, string> = {
   import: 'Database',
   verify: 'MailCheck',
   draft_created: 'FileEdit',

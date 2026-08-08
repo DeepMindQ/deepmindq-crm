@@ -1,0 +1,2553 @@
+{
+  "generated": "2026-08-08T10:20:20.497Z",
+  "total_routes": 318,
+  "protected": 277,
+  "public": 41,
+  "unprotected": 0,
+  "routes": [
+    {
+      "path": "/api/admin/ai-usage",
+      "file": "src/app/api/admin/ai-usage/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/admin/bias-report",
+      "file": "src/app/api/admin/bias-report/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/agents",
+      "file": "src/app/api/agents/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/account-brief",
+      "file": "src/app/api/ai/account-brief/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/advisor",
+      "file": "src/app/api/ai/advisor/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/advisor/conversation/[id]",
+      "file": "src/app/api/ai/advisor/conversation/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/advisor/escalation",
+      "file": "src/app/api/ai/advisor/escalation/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/advisor/workspace",
+      "file": "src/app/api/ai/advisor/workspace/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/buying-intent",
+      "file": "src/app/api/ai/buying-intent/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/cache",
+      "file": "src/app/api/ai/cache/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/chat",
+      "file": "src/app/api/ai/chat/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/chat-stream",
+      "file": "src/app/api/ai/chat-stream/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/contact-engagement",
+      "file": "src/app/api/ai/contact-engagement/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/contact-intelligence",
+      "file": "src/app/api/ai/contact-intelligence/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/conversation-plan",
+      "file": "src/app/api/ai/conversation-plan/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/conversation-studio",
+      "file": "src/app/api/ai/conversation-studio/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/cost",
+      "file": "src/app/api/ai/cost/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/deal-coaching",
+      "file": "src/app/api/ai/deal-coaching/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/deal-risk",
+      "file": "src/app/api/ai/deal-risk/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/email-intelligence",
+      "file": "src/app/api/ai/email-intelligence/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/enrich",
+      "file": "src/app/api/ai/enrich/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/evaluation",
+      "file": "src/app/api/ai/evaluation/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/experiments",
+      "file": "src/app/api/ai/experiments/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/experiments/[id]",
+      "file": "src/app/api/ai/experiments/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/freshness",
+      "file": "src/app/api/ai/freshness/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/generate",
+      "file": "src/app/api/ai/generate/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/governance/check",
+      "file": "src/app/api/ai/governance/check/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/governance/dashboard",
+      "file": "src/app/api/ai/governance/dashboard/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/health",
+      "file": "src/app/api/ai/health/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/insights",
+      "file": "src/app/api/ai/insights/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/memory",
+      "file": "src/app/api/ai/memory/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/opportunities",
+      "file": "src/app/api/ai/opportunities/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/opportunities/[id]/accept",
+      "file": "src/app/api/ai/opportunities/[id]/accept/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/opportunities/[id]/reject",
+      "file": "src/app/api/ai/opportunities/[id]/reject/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/prompt-registry",
+      "file": "src/app/api/ai/prompt-registry/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/prompt-registry/[id]",
+      "file": "src/app/api/ai/prompt-registry/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/query",
+      "file": "src/app/api/ai/query/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/recommendations",
+      "file": "src/app/api/ai/recommendations/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/relationship-memory",
+      "file": "src/app/api/ai/relationship-memory/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/reliability",
+      "file": "src/app/api/ai/reliability/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/retrieval-metrics",
+      "file": "src/app/api/ai/retrieval-metrics/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/revenue-score",
+      "file": "src/app/api/ai/revenue-score/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/score-contacts",
+      "file": "src/app/api/ai/score-contacts/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/score-leads",
+      "file": "src/app/api/ai/score-leads/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/score-opportunities",
+      "file": "src/app/api/ai/score-opportunities/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/signals",
+      "file": "src/app/api/ai/signals/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/suggested-contacts",
+      "file": "src/app/api/ai/suggested-contacts/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/summarize",
+      "file": "src/app/api/ai/summarize/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ai/usage",
+      "file": "src/app/api/ai/usage/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/analytics",
+      "file": "src/app/api/analytics/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/api-metrics",
+      "file": "src/app/api/api-metrics/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/approvals",
+      "file": "src/app/api/approvals/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/audit",
+      "file": "src/app/api/audit/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/audit-logs",
+      "file": "src/app/api/audit-logs/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/auth/change-password",
+      "file": "src/app/api/auth/change-password/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/auth/"
+    },
+    {
+      "path": "/api/auth/login",
+      "file": "src/app/api/auth/login/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/auth/"
+    },
+    {
+      "path": "/api/auth/logout",
+      "file": "src/app/api/auth/logout/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/auth/"
+    },
+    {
+      "path": "/api/auth/me",
+      "file": "src/app/api/auth/me/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/auth/"
+    },
+    {
+      "path": "/api/auth/register",
+      "file": "src/app/api/auth/register/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/auth/"
+    },
+    {
+      "path": "/api/auth/request-otp",
+      "file": "src/app/api/auth/request-otp/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/auth/"
+    },
+    {
+      "path": "/api/auth/set-password",
+      "file": "src/app/api/auth/set-password/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/auth/"
+    },
+    {
+      "path": "/api/auth/update-profile",
+      "file": "src/app/api/auth/update-profile/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/auth/"
+    },
+    {
+      "path": "/api/auth/verify-otp",
+      "file": "src/app/api/auth/verify-otp/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/auth/"
+    },
+    {
+      "path": "/api/batches",
+      "file": "src/app/api/batches/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth + withCsrf",
+      "csrf": true,
+      "public_reason": null
+    },
+    {
+      "path": "/api/batches/[id]/progress",
+      "file": "src/app/api/batches/[id]/progress/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/batches/preview",
+      "file": "src/app/api/batches/preview/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/bounces",
+      "file": "src/app/api/bounces/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/brand",
+      "file": "src/app/api/brand/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/brand"
+    },
+    {
+      "path": "/api/capabilities",
+      "file": "src/app/api/capabilities/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/capabilities/[id]/children",
+      "file": "src/app/api/capabilities/[id]/children/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/capabilities/dedup-check",
+      "file": "src/app/api/capabilities/dedup-check/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/capabilities/enrich",
+      "file": "src/app/api/capabilities/enrich/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/capabilities/export",
+      "file": "src/app/api/capabilities/export/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/capabilities/import",
+      "file": "src/app/api/capabilities/import/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/command-center/insights",
+      "file": "src/app/api/command-center/insights/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/command-center/query",
+      "file": "src/app/api/command-center/query/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies",
+      "file": "src/app/api/companies/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]",
+      "file": "src/app/api/companies/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/actions",
+      "file": "src/app/api/companies/[id]/actions/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/activation-status",
+      "file": "src/app/api/companies/[id]/activation-status/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/alignment",
+      "file": "src/app/api/companies/[id]/alignment/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/brief",
+      "file": "src/app/api/companies/[id]/brief/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/contacts",
+      "file": "src/app/api/companies/[id]/contacts/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/feedback",
+      "file": "src/app/api/companies/[id]/feedback/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/intelligence",
+      "file": "src/app/api/companies/[id]/intelligence/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/intelligence-profile",
+      "file": "src/app/api/companies/[id]/intelligence-profile/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/notes",
+      "file": "src/app/api/companies/[id]/notes/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/notes/[noteId]",
+      "file": "src/app/api/companies/[id]/notes/[noteId]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/score",
+      "file": "src/app/api/companies/[id]/score/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/scores",
+      "file": "src/app/api/companies/[id]/scores/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/signals",
+      "file": "src/app/api/companies/[id]/signals/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/signals/[signalId]",
+      "file": "src/app/api/companies/[id]/signals/[signalId]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/[id]/timeline",
+      "file": "src/app/api/companies/[id]/timeline/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/bulk",
+      "file": "src/app/api/companies/bulk/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/compare",
+      "file": "src/app/api/companies/compare/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/enrich",
+      "file": "src/app/api/companies/enrich/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/hierarchy",
+      "file": "src/app/api/companies/hierarchy/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/meta",
+      "file": "src/app/api/companies/meta/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/mind-map",
+      "file": "src/app/api/companies/mind-map/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/refresh-scores",
+      "file": "src/app/api/companies/refresh-scores/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/companies/stats",
+      "file": "src/app/api/companies/stats/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/compliance",
+      "file": "src/app/api/compliance/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/contacts",
+      "file": "src/app/api/contacts/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/contacts/[id]",
+      "file": "src/app/api/contacts/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/contacts/[id]/briefing",
+      "file": "src/app/api/contacts/[id]/briefing/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/contacts/[id]/generate-email",
+      "file": "src/app/api/contacts/[id]/generate-email/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/contacts/[id]/notes",
+      "file": "src/app/api/contacts/[id]/notes/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/contacts/[id]/timeline",
+      "file": "src/app/api/contacts/[id]/timeline/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/contacts/engagement-prediction",
+      "file": "src/app/api/contacts/engagement-prediction/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/contacts/person-profile",
+      "file": "src/app/api/contacts/person-profile/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/contacts/relationship-map",
+      "file": "src/app/api/contacts/relationship-map/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/conversation-plans",
+      "file": "src/app/api/conversation-plans/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/conversation-plans/[id]",
+      "file": "src/app/api/conversation-plans/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/crm",
+      "file": "src/app/api/crm/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/crm/[id]",
+      "file": "src/app/api/crm/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/crm/[id]/push",
+      "file": "src/app/api/crm/[id]/push/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/crm/[id]/sync",
+      "file": "src/app/api/crm/[id]/sync/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/crm/[id]/sync-log",
+      "file": "src/app/api/crm/[id]/sync-log/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/crm/providers",
+      "file": "src/app/api/crm/providers/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/cro-dashboard",
+      "file": "src/app/api/cro-dashboard/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/cron/job-processor",
+      "file": "src/app/api/cron/job-processor/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/cron/"
+    },
+    {
+      "path": "/api/cron/persistence-evidence",
+      "file": "src/app/api/cron/persistence-evidence/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/cron/"
+    },
+    {
+      "path": "/api/cron/persistence-performance",
+      "file": "src/app/api/cron/persistence-performance/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/cron/"
+    },
+    {
+      "path": "/api/dashboard",
+      "file": "src/app/api/dashboard/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/dashboard/stats",
+      "file": "src/app/api/dashboard/stats/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/data-export",
+      "file": "src/app/api/data-export/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/data-export/[id]",
+      "file": "src/app/api/data-export/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/data-export/[id]/download",
+      "file": "src/app/api/data-export/[id]/download/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/data-health",
+      "file": "src/app/api/data-health/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/data-import",
+      "file": "src/app/api/data-import/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/data-import/[id]",
+      "file": "src/app/api/data-import/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/docs",
+      "file": "src/app/api/docs/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/docs"
+    },
+    {
+      "path": "/api/drafts",
+      "file": "src/app/api/drafts/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/drafts/[id]",
+      "file": "src/app/api/drafts/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/duplicates",
+      "file": "src/app/api/duplicates/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/duplicates/bulk-merge",
+      "file": "src/app/api/duplicates/bulk-merge/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/duplicates/merge",
+      "file": "src/app/api/duplicates/merge/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/duplicates/merge-history",
+      "file": "src/app/api/duplicates/merge-history/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/duplicates/scan",
+      "file": "src/app/api/duplicates/scan/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/email-templates",
+      "file": "src/app/api/email-templates/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/email-templates/[id]",
+      "file": "src/app/api/email-templates/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/email-worker",
+      "file": "src/app/api/email-worker/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/emails/send",
+      "file": "src/app/api/emails/send/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/emails/track",
+      "file": "src/app/api/emails/track/route.ts",
+      "classification": "protected",
+      "auth_method": "HMAC token (verifyTrackingEventId)",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/engines/actions",
+      "file": "src/app/api/engines/actions/route.ts",
+      "classification": "protected",
+      "auth_method": "requireAuth / withApiMiddleware",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/engines/brief",
+      "file": "src/app/api/engines/brief/route.ts",
+      "classification": "protected",
+      "auth_method": "requireAuth / withApiMiddleware",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/engines/conversation",
+      "file": "src/app/api/engines/conversation/route.ts",
+      "classification": "protected",
+      "auth_method": "requireAuth / withApiMiddleware",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/engines/score",
+      "file": "src/app/api/engines/score/route.ts",
+      "classification": "protected",
+      "auth_method": "requireAuth / withApiMiddleware",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/enrichment",
+      "file": "src/app/api/enrichment/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/enrichment/status/[entityType]/[entityId]",
+      "file": "src/app/api/enrichment/status/[entityType]/[entityId]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/enterprise",
+      "file": "src/app/api/enterprise/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/export",
+      "file": "src/app/api/export/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/export-center",
+      "file": "src/app/api/export-center/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/feedback",
+      "file": "src/app/api/feedback/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/feedback/[companyId]",
+      "file": "src/app/api/feedback/[companyId]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/feedback/learning",
+      "file": "src/app/api/feedback/learning/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/fusion",
+      "file": "src/app/api/fusion/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/g-intel-acquisition/inbox",
+      "file": "src/app/api/g-intel-acquisition/inbox/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/g-intel-acquisition/inbox/[id]/convert",
+      "file": "src/app/api/g-intel-acquisition/inbox/[id]/convert/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/g-intel-acquisition/inbox/[id]/dismiss",
+      "file": "src/app/api/g-intel-acquisition/inbox/[id]/dismiss/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/g-intel-acquisition/inbox/[id]/review",
+      "file": "src/app/api/g-intel-acquisition/inbox/[id]/review/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/g-intel-acquisition/inbox/batch-dismiss",
+      "file": "src/app/api/g-intel-acquisition/inbox/batch-dismiss/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/g-intel-acquisition/inbox/stats",
+      "file": "src/app/api/g-intel-acquisition/inbox/stats/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/health",
+      "file": "src/app/api/health/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Liveness probe — intentionally no auth (docs: NO auth). Note: /api/health prefix gap — PUBLIC_PATH_PREFIXES has /api/health/ (trailing slash) but this is /api/health (bare)."
+    },
+    {
+      "path": "/api/health/ai",
+      "file": "src/app/api/health/ai/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/health/"
+    },
+    {
+      "path": "/api/health/database",
+      "file": "src/app/api/health/database/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/health/"
+    },
+    {
+      "path": "/api/health/deps",
+      "file": "src/app/api/health/deps/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/health/"
+    },
+    {
+      "path": "/api/health/persistence",
+      "file": "src/app/api/health/persistence/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/health/"
+    },
+    {
+      "path": "/api/health/ready",
+      "file": "src/app/api/health/ready/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/health/"
+    },
+    {
+      "path": "/api/import-templates",
+      "file": "src/app/api/import-templates/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/import-templates/[id]",
+      "file": "src/app/api/import-templates/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/imports",
+      "file": "src/app/api/imports/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/incidents",
+      "file": "src/app/api/incidents/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/integrations/automation",
+      "file": "src/app/api/integrations/automation/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/integrations/slack",
+      "file": "src/app/api/integrations/slack/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/integrations/slack"
+    },
+    {
+      "path": "/api/integrations/zapier",
+      "file": "src/app/api/integrations/zapier/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/integrations/zapier"
+    },
+    {
+      "path": "/api/intelligence/action-history",
+      "file": "src/app/api/intelligence/action-history/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/action/[id]",
+      "file": "src/app/api/intelligence/action/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/activation",
+      "file": "src/app/api/intelligence/activation/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/agents",
+      "file": "src/app/api/intelligence/agents/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/audit",
+      "file": "src/app/api/intelligence/audit/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/brief/[id]",
+      "file": "src/app/api/intelligence/brief/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/capability-pipeline",
+      "file": "src/app/api/intelligence/capability-pipeline/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/collect-external",
+      "file": "src/app/api/intelligence/collect-external/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/company/[id]",
+      "file": "src/app/api/intelligence/company/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/competitive",
+      "file": "src/app/api/intelligence/competitive/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/conversation/[id]",
+      "file": "src/app/api/intelligence/conversation/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/correlations",
+      "file": "src/app/api/intelligence/correlations/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/cross-account",
+      "file": "src/app/api/intelligence/cross-account/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/deltas",
+      "file": "src/app/api/intelligence/deltas/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/enrich",
+      "file": "src/app/api/intelligence/enrich/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/enrich-batch",
+      "file": "src/app/api/intelligence/enrich-batch/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/executive-brief",
+      "file": "src/app/api/intelligence/executive-brief/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/feedback",
+      "file": "src/app/api/intelligence/feedback/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/full-pipeline",
+      "file": "src/app/api/intelligence/full-pipeline/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/graph",
+      "file": "src/app/api/intelligence/graph/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/grounding/[id]",
+      "file": "src/app/api/intelligence/grounding/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/health",
+      "file": "src/app/api/intelligence/health/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/internal-memory",
+      "file": "src/app/api/intelligence/internal-memory/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/knowledge-query",
+      "file": "src/app/api/intelligence/knowledge-query/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/knowledge/[id]",
+      "file": "src/app/api/intelligence/knowledge/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/market-discovery",
+      "file": "src/app/api/intelligence/market-discovery/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/meeting-brief",
+      "file": "src/app/api/intelligence/meeting-brief/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/mindmap/[id]",
+      "file": "src/app/api/intelligence/mindmap/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/monitor",
+      "file": "src/app/api/intelligence/monitor/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/narratives",
+      "file": "src/app/api/intelligence/narratives/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/opportunity/[id]",
+      "file": "src/app/api/intelligence/opportunity/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/people-enrich",
+      "file": "src/app/api/intelligence/people-enrich/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/predictions",
+      "file": "src/app/api/intelligence/predictions/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/reasoning/[id]",
+      "file": "src/app/api/intelligence/reasoning/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/refresh",
+      "file": "src/app/api/intelligence/refresh/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/retrieval/[id]",
+      "file": "src/app/api/intelligence/retrieval/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/security-audit",
+      "file": "src/app/api/intelligence/security-audit/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/sprint3",
+      "file": "src/app/api/intelligence/sprint3/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/stats",
+      "file": "src/app/api/intelligence/stats/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/unified",
+      "file": "src/app/api/intelligence/unified/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/intelligence/website-monitor",
+      "file": "src/app/api/intelligence/website-monitor/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/knowledge",
+      "file": "src/app/api/knowledge/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/knowledge/[id]",
+      "file": "src/app/api/knowledge/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/knowledge/graph",
+      "file": "src/app/api/knowledge/graph/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/knowledge/ingest",
+      "file": "src/app/api/knowledge/ingest/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/leads",
+      "file": "src/app/api/leads/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/leads/assign",
+      "file": "src/app/api/leads/assign/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth + withCsrf",
+      "csrf": true,
+      "public_reason": null
+    },
+    {
+      "path": "/api/leads/consent",
+      "file": "src/app/api/leads/consent/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth + withCsrf",
+      "csrf": true,
+      "public_reason": null
+    },
+    {
+      "path": "/api/leads/dedup",
+      "file": "src/app/api/leads/dedup/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/leads/export",
+      "file": "src/app/api/leads/export/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/leads/lookalike",
+      "file": "src/app/api/leads/lookalike/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/leads/recalculate-scores",
+      "file": "src/app/api/leads/recalculate-scores/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/leads/schedule-optimal",
+      "file": "src/app/api/leads/schedule-optimal/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/leads/source-stats",
+      "file": "src/app/api/leads/source-stats/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/leads/status",
+      "file": "src/app/api/leads/status/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/learning",
+      "file": "src/app/api/learning/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/monitoring",
+      "file": "src/app/api/monitoring/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/monitoring"
+    },
+    {
+      "path": "/api/notes",
+      "file": "src/app/api/notes/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/opportunities",
+      "file": "src/app/api/opportunities/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/opportunities/[id]",
+      "file": "src/app/api/opportunities/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/orchestration",
+      "file": "src/app/api/orchestration/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/performance",
+      "file": "src/app/api/performance/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ping",
+      "file": "src/app/api/ping/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/ping"
+    },
+    {
+      "path": "/api/pipeline",
+      "file": "src/app/api/pipeline/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/pipeline/forecast",
+      "file": "src/app/api/pipeline/forecast/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/pipeline/health",
+      "file": "src/app/api/pipeline/health/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/playbooks",
+      "file": "src/app/api/playbooks/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/playbooks/[id]",
+      "file": "src/app/api/playbooks/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/preferences",
+      "file": "src/app/api/preferences/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/prompt-templates",
+      "file": "src/app/api/prompt-templates/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/prompt-templates/[id]",
+      "file": "src/app/api/prompt-templates/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/queue",
+      "file": "src/app/api/queue/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/ready",
+      "file": "src/app/api/ready/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/ready"
+    },
+    {
+      "path": "/api/realtime",
+      "file": "src/app/api/realtime/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/reasoning",
+      "file": "src/app/api/reasoning/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/recommendations",
+      "file": "src/app/api/recommendations/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/recommendations/[companyId]",
+      "file": "src/app/api/recommendations/[companyId]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/recommendations/[companyId]/explain",
+      "file": "src/app/api/recommendations/[companyId]/explain/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/recommendations/explain-bulk",
+      "file": "src/app/api/recommendations/explain-bulk/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/replies",
+      "file": "src/app/api/replies/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/reports/data-quality",
+      "file": "src/app/api/reports/data-quality/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/reports/pipeline",
+      "file": "src/app/api/reports/pipeline/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/reports/revenue",
+      "file": "src/app/api/reports/revenue/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/reports/team-performance",
+      "file": "src/app/api/reports/team-performance/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/research",
+      "file": "src/app/api/research/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/research-agent",
+      "file": "src/app/api/research-agent/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/revops",
+      "file": "src/app/api/revops/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/route.ts",
+      "file": "src/app/api/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/sales-execution",
+      "file": "src/app/api/sales-execution/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/scoring-config",
+      "file": "src/app/api/scoring-config/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/scoring/completeness",
+      "file": "src/app/api/scoring/completeness/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/scoring/reliability",
+      "file": "src/app/api/scoring/reliability/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/security/audit",
+      "file": "src/app/api/security/audit/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/security/encryption",
+      "file": "src/app/api/security/encryption/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/security/privacy",
+      "file": "src/app/api/security/privacy/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/security/rate-limits",
+      "file": "src/app/api/security/rate-limits/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/security/roles",
+      "file": "src/app/api/security/roles/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/security/scan",
+      "file": "src/app/api/security/scan/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/security/sso",
+      "file": "src/app/api/security/sso/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/seed",
+      "file": "src/app/api/seed/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/seed/gold-standard",
+      "file": "src/app/api/seed/gold-standard/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/segments",
+      "file": "src/app/api/segments/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/segments/[id]/contacts",
+      "file": "src/app/api/segments/[id]/contacts/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/sequences",
+      "file": "src/app/api/sequences/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/sequences/[id]",
+      "file": "src/app/api/sequences/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/sequences/[id]/execute",
+      "file": "src/app/api/sequences/[id]/execute/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/sequences/[id]/steps/[stepId]",
+      "file": "src/app/api/sequences/[id]/steps/[stepId]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/sequences/enroll",
+      "file": "src/app/api/sequences/enroll/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/sequences/process",
+      "file": "src/app/api/sequences/process/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/sessions",
+      "file": "src/app/api/sessions/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/settings",
+      "file": "src/app/api/settings/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/settings/locale",
+      "file": "src/app/api/settings/locale/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/setup-db",
+      "file": "src/app/api/setup-db/route.ts",
+      "classification": "protected",
+      "auth_method": "Token-gated (X-Setup-Token)",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/signals",
+      "file": "src/app/api/signals/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/signals/[id]/evidence",
+      "file": "src/app/api/signals/[id]/evidence/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/signals/accuracy-pipeline",
+      "file": "src/app/api/signals/accuracy-pipeline/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/signals/operational",
+      "file": "src/app/api/signals/operational/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/stats",
+      "file": "src/app/api/stats/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/suppressions",
+      "file": "src/app/api/suppressions/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/system-health",
+      "file": "src/app/api/system-health/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/team/performance",
+      "file": "src/app/api/team/performance/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/templates",
+      "file": "src/app/api/templates/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/timeline",
+      "file": "src/app/api/timeline/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/tracking/click",
+      "file": "src/app/api/tracking/click/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/tracking/"
+    },
+    {
+      "path": "/api/tracking/open",
+      "file": "src/app/api/tracking/open/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/tracking/"
+    },
+    {
+      "path": "/api/trust/company/[id]",
+      "file": "src/app/api/trust/company/[id]/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/trust/dashboard",
+      "file": "src/app/api/trust/dashboard/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth",
+      "csrf": false,
+      "public_reason": null
+    },
+    {
+      "path": "/api/unsubscribe",
+      "file": "src/app/api/unsubscribe/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/unsubscribe"
+    },
+    {
+      "path": "/api/users",
+      "file": "src/app/api/users/route.ts",
+      "classification": "protected",
+      "auth_method": "checkApiAuth + withCsrf",
+      "csrf": true,
+      "public_reason": null
+    },
+    {
+      "path": "/api/v1",
+      "file": "src/app/api/v1/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/v1"
+    },
+    {
+      "path": "/api/v1/[...path]",
+      "file": "src/app/api/v1/[...path]/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/v1"
+    },
+    {
+      "path": "/api/verify-email",
+      "file": "src/app/api/verify-email/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/verify-email"
+    },
+    {
+      "path": "/api/verify-queue",
+      "file": "src/app/api/verify-queue/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/verify-queue"
+    },
+    {
+      "path": "/api/verify-queue/process",
+      "file": "src/app/api/verify-queue/process/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/verify-queue"
+    },
+    {
+      "path": "/api/version",
+      "file": "src/app/api/version/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/version"
+    },
+    {
+      "path": "/api/webhooks/bounce",
+      "file": "src/app/api/webhooks/bounce/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/webhooks/"
+    },
+    {
+      "path": "/api/webhooks/crm/hubspot",
+      "file": "src/app/api/webhooks/crm/hubspot/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/webhooks/"
+    },
+    {
+      "path": "/api/webhooks/crm/salesforce",
+      "file": "src/app/api/webhooks/crm/salesforce/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/webhooks/"
+    },
+    {
+      "path": "/api/webhooks/events",
+      "file": "src/app/api/webhooks/events/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/webhooks/"
+    },
+    {
+      "path": "/api/webhooks/manage",
+      "file": "src/app/api/webhooks/manage/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/webhooks/"
+    },
+    {
+      "path": "/api/webhooks/reply",
+      "file": "src/app/api/webhooks/reply/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/webhooks/"
+    },
+    {
+      "path": "/api/webhooks/test",
+      "file": "src/app/api/webhooks/test/route.ts",
+      "classification": "public",
+      "auth_method": null,
+      "csrf": false,
+      "public_reason": "Matches public prefix: /api/webhooks/"
+    }
+  ]
+}

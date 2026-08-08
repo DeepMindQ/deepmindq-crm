@@ -1,6 +1,7 @@
 import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
+import { Prisma, type CompanySignal, type Contact, type CapabilityAsset } from '@prisma/client';
 import type {
   CompanyIntelligence,
   IntelligenceObject,
@@ -9,10 +10,20 @@ import type {
   TemporalConfidence,
 } from '@/lib/intelligence-types';
 import { checkApiAuth } from '@/lib/api-auth';
+
+
+// ── Type aliases for Prisma query results used in composition functions ──
+type CompanyWithIncludes = Prisma.CompanyGetPayload<{
+  include: { researchCard: true; _count: { select: { signals: true; contacts: true; notes: true } } };
+}>;
+
+type RawSignal = CompanySignal;
+type RawContact = Contact;
+type RawCapability = CapabilityAsset;
+
 import {
   computeIntelligenceRanking,
   computeFreshnessState,
-  sourceQualityWeight,
   type IntelligenceRankingResult,
 } from '@/lib/scoring/freshness-ranking';
 
@@ -79,7 +90,7 @@ function computeFreshness(createdAt: string, signalDate?: string | null, signalT
  * Phase 2A: Derive intelligence origin from signal source field.
  * Maps the CompanySignal.source string to the IntelligenceObject.origin type.
  */
-function deriveOrigin(signal: any): IntelligenceObject['origin'] {
+function deriveOrigin(signal: RawSignal): IntelligenceObject['origin'] {
   const src = (signal.source || '').toLowerCase();
   let type: IntelligenceObject['origin'] extends { type: infer T } | undefined ? (T extends string ? T : never) : 'enrichment';
   if (src === 'external_discovery') type = 'external_discovery';
@@ -217,8 +228,8 @@ try {
    ═══════════════════════════════════════ */
 
 function composeSignalObjects(
-  signals: any[],
-  company: any,
+  signals: RawSignal[],
+  company: CompanyWithIncludes,
   feedbackMap: Map<string, { status: 'accurate' | 'outdated' | 'incorrect'; reason?: string }>,
   signalRankings: Map<string, IntelligenceRankingResult>
 ): IntelligenceObject[] {
@@ -285,8 +296,8 @@ const SIGNAL_TO_NEED_MAP: Record<string, string[]> = {
 
 function composeNeedObjects(
   signalObjects: IntelligenceObject[],
-  company: any,
-  signalRankings?: Map<string, IntelligenceRankingResult>
+  company: CompanyWithIncludes,
+  _signalRankings?: Map<string, IntelligenceRankingResult>
 ): IntelligenceObject[] {
   if (signalObjects.length === 0) return [];
 
@@ -340,9 +351,9 @@ function composeNeedObjects(
 
 function composeCapabilityMatchObjects(
   needs: IntelligenceObject[],
-  capabilities: any[],
-  signals: any[],
-  company: any,
+  capabilities: RawCapability[],
+  signals: RawSignal[],
+  company: CompanyWithIncludes,
   feedbackMap: Map<string, { status: 'accurate' | 'outdated' | 'incorrect'; reason?: string }>,
   signalRankings?: Map<string, IntelligenceRankingResult>
 ): IntelligenceObject[] {
@@ -358,7 +369,7 @@ function composeCapabilityMatchObjects(
       cap.targetIndustries,
     ].filter(Boolean).join(' ').toLowerCase();
 
-    const companyText = [company.industry, company.domain, company.sizeRange, company.country].filter(Boolean).join(' ').toLowerCase();
+    const _companyText = [company.industry, company.domain, company.sizeRange, company.country].filter(Boolean).join(' ').toLowerCase();
     const signalText = signals.map(s => `${s.title} ${s.description} ${s.signalType}`).filter(Boolean).join(' ').toLowerCase();
 
     let bestScore = 0;
@@ -432,10 +443,10 @@ function composeCapabilityMatchObjects(
 }
 
 function composeActionObjects(
-  company: any,
+  company: CompanyWithIncludes,
   signalObjects: IntelligenceObject[],
   matchObjects: IntelligenceObject[],
-  contacts: any[],
+  contacts: RawContact[],
   feedbackMap: Map<string, { status: 'accurate' | 'outdated' | 'incorrect'; reason?: string }>
 ): IntelligenceObject[] {
   const actions: IntelligenceObject[] = [];
@@ -549,7 +560,7 @@ function classifyStakeholderType(title: string): string {
   return 'Stakeholder';
 }
 
-function composeWhyImportant(contact: any, companyName: string, signalCategories: Set<string>): string {
+function composeWhyImportant(contact: RawContact, companyName: string, signalCategories: Set<string>): string {
   const title = (contact.title || contact.role || '').toLowerCase();
   const isTech = /engineering|technology|tech|it |information|development|cloud|data|security|platform/.test(title);
   const isCLevel = /ceo|cto|cio|cfo|coo|ciso|chief|president/.test(title);
@@ -580,7 +591,7 @@ function composeRecommendedAction(
   stakeholderType: string,
   hasTopMatch: boolean,
   topCapability: string | undefined,
-  contact: any,
+  contact: RawContact,
   engagementStatus: string
 ): string {
   if (stakeholderType === 'Decision Maker' && hasTopMatch && topCapability) {
@@ -596,8 +607,8 @@ function composeRecommendedAction(
 }
 
 function composeStakeholderObjects(
-  contacts: any[],
-  company: any,
+  contacts: RawContact[],
+  company: CompanyWithIncludes,
   signalObjects: IntelligenceObject[],
   topCapabilityMatch?: IntelligenceObject
 ): IntelligenceObject[] {
@@ -635,7 +646,7 @@ function composeStakeholderObjects(
 }
 
 function composeExecutiveUnderstanding(
-  company: any,
+  company: CompanyWithIncludes,
   signals: IntelligenceObject[],
   matches: IntelligenceObject[],
   actions: IntelligenceObject[]
@@ -695,10 +706,10 @@ function composeExecutiveUnderstanding(
 }
 
 function composePositioning(
-  company: any,
+  company: CompanyWithIncludes,
   needs: IntelligenceObject[],
   matches: IntelligenceObject[],
-  contacts: any[]
+  contacts: RawContact[]
 ): CompanyIntelligence['positioning'] {
   if (matches.length === 0) {
     return {
@@ -775,7 +786,7 @@ function composeTechnologyBusinessInsights(knownTech: string[]): string[] {
 }
 
 function composeTechnologyProfile(
-  company: any,
+  company: CompanyWithIncludes,
   signalObjects: IntelligenceObject[]
 ): CompanyIntelligence['technology'] {
   const techStack: string[] = [];
@@ -787,10 +798,10 @@ function composeTechnologyProfile(
     techStack.push(...ts.split(',').map((t: string) => t.trim()).filter(Boolean));
   }
   if (rc?.techLandscape && typeof rc.techLandscape === 'string') {
-    techStack.push(...rc.techLandscape.split(',').map((t: string) => t.trim()).filter(Boolean));
+    techStack.push(...String(rc.techLandscape).split(',').map((t: string) => t.trim()).filter(Boolean));
   }
 
-  const maturity = (rc?.digitalMaturity as string) || (
+  const maturity = (
     techStack.length > 10 ? 'advanced' : techStack.length > 5 ? 'high' : techStack.length > 2 ? 'medium' : 'low'
   );
 
@@ -802,14 +813,14 @@ function composeTechnologyProfile(
       : undefined;
     return {
       ...signal,
-      whyItMatters: relevantInsight || signal.whyItMatters || `Technology change at ${company.rawName} may indicate evolving infrastructure needs`,
+      whyItMatters: relevantInsight || signal.whyItMatters || `Technology change at ${String(company.rawName || 'this company')} may indicate evolving infrastructure needs`,
     };
   });
 
   return {
     knownTech: [...new Set(techStack)],
     digitalMaturity: maturity,
-    techDescription: rc?.techLandscape || null,
+    techDescription: rc?.techLandscape ? String(rc.techLandscape) : null,
     techSignals: enhancedTechSignals,
   };
 }
@@ -831,8 +842,8 @@ function composeTechnologyProfile(
  *   5. What should we do?    → recommended action
  */
 function buildSignalReasoningChain(
-  signal: any,
-  company: any,
+  signal: RawSignal,
+  company: CompanyWithIncludes,
   ranking?: IntelligenceRankingResult
 ): {
   whatHappened: string;
@@ -841,35 +852,35 @@ function buildSignalReasoningChain(
   whatToDo: string;
   fullReasoning: string;
 } {
-  const signalType = signal.signalType || 'unknown';
+  const signalType = String(signal.signalType || 'unknown');
   const signalLabel = signalType.replace(/_/g, ' ');
-  const ageDays = Math.floor((Date.now() - new Date(signal.createdAt).getTime()) / (1000 * 60 * 60 * 24));
+  const ageDays = Math.floor((Date.now() - new Date(String(signal.createdAt)).getTime()) / (1000 * 60 * 60 * 24));
   const recencyLabel = ageDays === 0 ? 'today' : ageDays === 1 ? 'yesterday' : ageDays <= 7 ? `${ageDays} days ago` : ageDays <= 30 ? `${Math.floor(ageDays / 7)} weeks ago` : `${Math.floor(ageDays / 30)} months ago`;
 
   // 1. What happened?
   const whatHappened = signal.businessImpact
-    ? signal.title
+    ? String(signal.title)
     : `${signal.title} (detected ${recencyLabel})`;
 
   // 2. Why does it matter?
-  const whyItMatters = signal.businessImpact || buildDefaultWhyItMatters(signalType, company.rawName, recencyLabel);
+  const whyItMatters = signal.businessImpact ? String(signal.businessImpact) : buildDefaultWhyItMatters(signalType, String(company.rawName || ''), recencyLabel);
 
   // 3. Why are we relevant?
-  const whyWeRelevant = buildWhyWeRelevant(signalType, company.rawName, signal.recommendedAction);
+  const whyWeRelevant = buildWhyWeRelevant(signalType, String(company.rawName || ''), signal.recommendedAction ? String(signal.recommendedAction) : null);
 
   // 4. What should we do?
-  const whatToDo = signal.recommendedAction || buildDefaultAction(signalType, company.rawName);
+  const whatToDo = signal.recommendedAction ? String(signal.recommendedAction) : buildDefaultAction(signalType, String(company.rawName || ''));
 
   // Build full reasoning text
   const freshnessNote = ranking
     ? ` Intelligence ranking: ${ranking.rankingScore}/100 (freshness: ${ranking.freshness.staleness}, ${ranking.freshness.daysSinceSignal}d old).`
     : '';
-  const fullReasoning = `${signalLabel.charAt(0).toUpperCase() + signalLabel.slice(1)} signal detected ${recencyLabel} for ${company.rawName}. Severity: ${signal.severity}.${freshnessNote}`;
+  const fullReasoning = `${signalLabel.charAt(0).toUpperCase() + signalLabel.slice(1)} signal detected ${recencyLabel} for ${String(company.rawName || 'this company')}. Severity: ${String(signal.severity || 'medium')}.${freshnessNote}`;
 
   return { whatHappened, whyItMatters, whyWeRelevant, whatToDo, fullReasoning };
 }
 
-function buildDefaultWhyItMatters(signalType: string, companyName: string, recency: string): string {
+function buildDefaultWhyItMatters(signalType: string, companyName: string, _recency: string): string {
   const impacts: Record<string, string> = {
     funding: `Recent funding event at ${companyName} indicates available budget and active investment phase — prime window for vendor engagement`,
     hiring: `Active hiring at ${companyName} signals growth trajectory and potential resource gaps that may require external solutions`,
@@ -915,18 +926,20 @@ function buildDefaultAction(signalType: string, companyName: string): string {
  * Estimate business relevance of a signal (0-1).
  * Higher for signals that directly indicate buying intent or urgent need.
  */
-function estimateBusinessRelevance(signal: any, capabilities: any[]): number {
+function estimateBusinessRelevance(signal: RawSignal, _capabilities: RawCapability[]): number {
   // High-relevance signal types
   const highRelevanceTypes = ['funding', 'acquisition', 'expansion', 'leadership_change'];
   const mediumRelevanceTypes = ['hiring', 'tech_change', 'partnership', 'people_change', 'technology_adoption'];
   const lowRelevanceTypes = ['news', 'mention'];
 
-  if (highRelevanceTypes.includes(signal.signalType)) return 0.8;
-  if (mediumRelevanceTypes.includes(signal.signalType)) return 0.6;
-  if (lowRelevanceTypes.includes(signal.signalType)) return 0.3;
+  const sigType = String(signal.signalType ?? '');
+  if (highRelevanceTypes.includes(sigType)) return 0.8;
+  if (mediumRelevanceTypes.includes(sigType)) return 0.6;
+  if (lowRelevanceTypes.includes(sigType)) return 0.3;
 
   // Boost if has explicit business impact
-  if (signal.businessImpact && signal.businessImpact.length > 30) return 0.7;
+  const bizImpact = String(signal.businessImpact || '');
+  if (bizImpact.length > 30) return 0.7;
 
   return 0.5;
 }
@@ -935,12 +948,12 @@ function estimateBusinessRelevance(signal: any, capabilities: any[]): number {
  * Estimate capability relevance of a signal (0-1).
  * Checks if signal keywords overlap with our capability library.
  */
-function estimateCapabilityRelevance(signal: any, capabilities: any[]): number {
+function estimateCapabilityRelevance(signal: RawSignal, capabilities: RawCapability[]): number {
   if (capabilities.length === 0) return 0.3;
 
-  const signalText = `${signal.title} ${signal.description} ${signal.signalType}`.toLowerCase();
+  const signalText = `${signal.title ?? ''} ${signal.description ?? ''} ${signal.signalType ?? ''}`.toLowerCase();
   const capTexts = capabilities.map(c =>
-    `${c.title} ${c.summary} ${c.keywords} ${c.businessProblem} ${c.solution}`.toLowerCase()
+    `${c.title ?? ''} ${c.summary ?? ''} ${c.keywords ?? ''} ${c.businessProblem ?? ''} ${c.solution ?? ''}`.toLowerCase()
   );
 
   // Quick overlap check
@@ -962,16 +975,16 @@ function estimateCapabilityRelevance(signal: any, capabilities: any[]): number {
  * Convenience wrapper for ranking a raw DB signal record.
  */
 function rankSignalWithRecord(
-  signal: any,
+  signal: RawSignal,
   businessRelevance: number,
   capabilityRelevance: number
 ): IntelligenceRankingResult {
   return computeIntelligenceRanking({
-    confidence: Math.round((signal.confidence ?? 0.5) * 100),
-    signalDate: signal.signalDate?.toISOString?.() ?? null,
-    createdAt: signal.createdAt instanceof Date ? signal.createdAt.toISOString() : String(signal.createdAt),
-    signalType: signal.signalType,
-    sourceQuality: signal.sourceQuality || 'standard',
+    confidence: Math.round(Number(signal.confidence ?? 0.5) * 100),
+    signalDate: signal.signalDate instanceof Date ? signal.signalDate.toISOString() : null,
+    createdAt: signal.createdAt instanceof Date ? (signal.createdAt as Date).toISOString() : String(signal.createdAt),
+    signalType: String(signal.signalType ?? ''),
+    sourceQuality: String(signal.sourceQuality || 'standard'),
     businessRelevance,
     capabilityRelevance,
   });
@@ -988,7 +1001,7 @@ function rankSignalWithRecord(
  */
 function composeRecentChanges(
   signalObjects: IntelligenceObject[],
-  company: any
+  company: CompanyWithIncludes
 ): string {
   if (signalObjects.length === 0) {
     return `No recent intelligence changes detected for ${company.rawName}.`;

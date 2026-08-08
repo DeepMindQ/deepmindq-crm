@@ -9,7 +9,7 @@ import { apiError, apiNotFound } from '@/lib/apiHelpers';
 import { checkApiAuth } from '@/lib/api-auth';
 import { getExport, getContentType } from '@/lib/data-export/streaming-export';
 import { createReadStream, existsSync, statSync } from 'fs';
-import { basename, join } from 'path';
+import { basename } from 'path';
 import { logAction } from '@/lib/audit';
 
 export async function GET(

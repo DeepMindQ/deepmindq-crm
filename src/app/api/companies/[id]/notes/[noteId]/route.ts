@@ -27,7 +27,7 @@ try {
       return NextResponse.json({ error: 'Note not found' }, { status: 404 });
     }
 
-    const data: Record<string, any> = {};
+    const data: Record<string, unknown> = {};
 
     if (body.title !== undefined) {
       data.title = typeof body.title === 'string' ? body.title.trim() : body.title;

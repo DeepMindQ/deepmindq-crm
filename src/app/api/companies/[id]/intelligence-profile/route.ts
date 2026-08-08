@@ -475,7 +475,7 @@ function buildWhyThisAccount(
   contacts: string[];
   dataQuality: string;
 } {
-  const reasons: string[] = [];
+  const _reasons: string[] = [];
   const signalReasons: Array<{ title: string; why: string }> = [];
   const opportunityReasons: string[] = [];
   const contactHighlights: string[] = [];

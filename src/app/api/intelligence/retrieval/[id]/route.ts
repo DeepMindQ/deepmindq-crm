@@ -28,13 +28,10 @@ import {
   quickSearch,
   getHybridStats,
   type HybridResult,
-  type HybridIndexEntry,
-  addToIndex,
 } from '@/lib/ai-hybrid-retrieval';
 import {
   recordRetrievalMetrics,
   calculateEvidenceQuality,
-  type EvidenceQualityBreakdown,
 } from '@/lib/ai-retrieval-validation';
 import {
   createResponse,

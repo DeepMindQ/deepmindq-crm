@@ -4,9 +4,9 @@ generator client {
 }
 
 datasource db {
-  provider        = "postgresql"
-  url             = env("DATABASE_URL")
-  relationMode    = "foreignKeys"
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  relationMode = "foreignKeys"
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -337,11 +337,11 @@ enum IntelligenceScopeType {
 // ── Core Entities (per SDD Section 5) ──
 
 model Contact {
-  id                String    @id @default(cuid())
+  id                String               @id @default(cuid())
   rawName           String
   normalizedName    String
   editedName        String?
-  email             String    @unique
+  email             String               @unique
   linkedinUrl       String?
   title             String?
   role              String?
@@ -350,11 +350,11 @@ model Contact {
   companyId         String
   batchId           String
   consentStatus     ContactConsentStatus @default(unknown) // unknown, opted_in, opted_out
-  emailHealth       ContactEmailHealth @default(unknown) // unknown, valid, risky, invalid
-  emailHealthScore  Int       @default(0)
-  status            ContactStatus @default(imported) // imported, cleaned, duplicate, drafted, queued, sent, replied, bounced, suppressed, archived
-  leadScore         Int       @default(0)
-  isSuppressed      Boolean   @default(false)
+  emailHealth       ContactEmailHealth   @default(unknown) // unknown, valid, risky, invalid
+  emailHealthScore  Int                  @default(0)
+  status            ContactStatus        @default(imported) // imported, cleaned, duplicate, drafted, queued, sent, replied, bounced, suppressed, archived
+  leadScore         Int                  @default(0)
+  isSuppressed      Boolean              @default(false)
   suppressionReason String?
   lastCheckedAt     DateTime?
   lastContactedAt   DateTime?
@@ -395,7 +395,8 @@ model Contact {
   aiInsights          AIInsight[]
   aiGenerationAudits  AIGenerationAudit[]
   aiCallLogs          AICallLog[]
-  jobs                 Job[]
+  jobs                Job[]
+
   @@index([companyId])
   @@index([status])
   @@index([batchId])
@@ -405,7 +406,7 @@ model Contact {
 }
 
 model Company {
-  id                   String    @id @default(cuid())
+  id                   String                @id @default(cuid())
   rawName              String
   normalizedName       String
   domain               String?
@@ -415,12 +416,12 @@ model Company {
   country              String?
   website              String?
   internalSummary      String?
-  tags                 Json @default("[]") // JSON array of tag strings
-  status               CompanyStatus @default(prospect) // prospect, researching, active, engaged, paused, closed_won, closed_lost
+  tags                 Json                  @default("[]") // JSON array of tag strings
+  status               CompanyStatus         @default(prospect) // prospect, researching, active, engaged, paused, closed_won, closed_lost
   lifecycleStage       CompanyLifecycleStage @default(discovery) // discovery, qualification, proposal, negotiation, closed
   assignedTo           String?
-  intelligenceScore    Int       @default(0) // 0-100 composite score (from intelligence-contract.ts)
-  engagementScore      Int       @default(0) // 0-100 based on email opens/replies/clicks
+  intelligenceScore    Int                   @default(0) // 0-100 composite score (from intelligence-contract.ts)
+  engagementScore      Int                   @default(0) // 0-100 based on email opens/replies/clicks
   // Phase 5: Account Prioritization (separate from intelligenceScore)
   // Nullable: only set when explicitly computed. NOT same as intelligenceScore.
   accountPriorityScore Float? // Phase 5: 0-100 sales priority score
@@ -428,12 +429,12 @@ model Company {
   priorityComputedAt   DateTime? // Phase 5: last computation timestamp
   lastEnrichedAt       DateTime?
   lastActivityAt       DateTime?
-  source               CompanySource @default(import) // import, manual, crm, webhook
+  source               CompanySource         @default(import) // import, manual, crm, webhook
   // Phase 0 (G7a): Parent-subsidiary hierarchy support
-  parentId              String?                    // Parent company ID for subsidiary relationships
-  subsidiaryType        String?                    // Type: subsidiary, business_unit, division, regional_office, joint_venture
-  createdAt            DateTime  @default(now())
-  updatedAt            DateTime  @updatedAt
+  parentId             String? // Parent company ID for subsidiary relationships
+  subsidiaryType       String? // Type: subsidiary, business_unit, division, regional_office, joint_venture
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
 
   contacts                   Contact[]
   researchCard               CompanyResearchCard?
@@ -450,7 +451,7 @@ model Company {
   intelligenceHealth         CompanyIntelligenceHealth?
   intelligenceConflicts      IntelligenceConflict[]
   recommendationFeedbacks    RecommendationFeedback[]
-  intelligenceFeedbacks        IntelligenceFeedback[]
+  intelligenceFeedbacks      IntelligenceFeedback[]
 
   // Phase 7.5: Intelligence Acquisition & Fabric
   aliases                  CompanyAlias[]
@@ -465,37 +466,37 @@ model Company {
   accountScore             AccountScore?
   strategicInsights        StrategicInsight[]
   engagementStrategies     AIEngagementStrategy[]
-  aiInsights              AIInsight[]
+  aiInsights               AIInsight[]
   actionArtifacts          ActionArtifact[]
 
   // Email Sequences linked to this company
-  emailSequences           EmailSequence[]
-  conversationPlans         ConversationPlan[]
-  accountStrategies        AccountStrategy[]
-  jobs                     Job[]
+  emailSequences    EmailSequence[]
+  conversationPlans ConversationPlan[]
+  accountStrategies AccountStrategy[]
+  jobs              Job[]
 
   // Phase 1.3: @relation back-fields
-  aiGenerationAudits       AIGenerationAudit[]
-  aiCallLogs               AICallLog[]
-  aiUsageLogs              AIUsageLog[]
-  intelligenceActions      IntelligenceActionHistory[]
+  aiGenerationAudits  AIGenerationAudit[]
+  aiCallLogs          AICallLog[]
+  aiUsageLogs         AIUsageLog[]
+  intelligenceActions IntelligenceActionHistory[]
 
   // Phase 9: Enterprise Reasoning Engine
-  reasoningContext         ReasoningContext?
-  agentOrchestrations      AgentOrchestration[]
-  learningEvents          LearningEvent[]
+  reasoningContext    ReasoningContext?
+  agentOrchestrations AgentOrchestration[]
+  learningEvents      LearningEvent[]
 
   // Phase 10: Pipeline Tracking & Fusion
-  pipelineRuns             PipelineRun[]
-  fusionResults            FusionResult[]
+  pipelineRuns  PipelineRun[]
+  fusionResults FusionResult[]
 
   // MS9: Intelligence Advisor
-  advisorConversations     AdvisorConversation[]
-  advisorSavedBriefings    AdvisorSavedBriefing[]
+  advisorConversations  AdvisorConversation[]
+  advisorSavedBriefings AdvisorSavedBriefing[]
 
   // Task 4.4: Company Deduplication Engine
-  mergesAsSurvivor    MergeRecord[]  @relation("MergeSurvivor")
-  mergesAsDuplicate   MergeRecord[]  @relation("MergeDuplicate")
+  mergesAsSurvivor  MergeRecord[] @relation("MergeSurvivor")
+  mergesAsDuplicate MergeRecord[] @relation("MergeDuplicate")
 
   @@index([domain])
   @@index([normalizedName])
@@ -510,18 +511,18 @@ model Company {
 }
 
 model ImportBatch {
-  id               String   @id @default(cuid())
+  id               String            @id @default(cuid())
   fileName         String
-  fileHash         String   @unique
-  totalRows        Int      @default(0)
-  acceptedRows     Int      @default(0)
-  duplicateRows    Int      @default(0)
-  invalidRows      Int      @default(0)
-  questionableRows Int      @default(0)
+  fileHash         String            @unique
+  totalRows        Int               @default(0)
+  acceptedRows     Int               @default(0)
+  duplicateRows    Int               @default(0)
+  invalidRows      Int               @default(0)
+  questionableRows Int               @default(0)
   status           ImportBatchStatus @default(staged) // staged, processing, completed, archived
   mappingProfile   String?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
 
   contacts Contact[]
   jobs     Job[]
@@ -554,8 +555,8 @@ model CompanyResearchCard {
   // Phase 3: Research engine fields
   industry   String?
   website    String?
-  keyPeople  Json? @default("[]") // JSON: [{name, title, department, linkedInUrl, source}]
-  recentNews Json? @default("[]") // JSON: [{title, snippet, source, url, signalType, impact}]
+  keyPeople  Json?   @default("[]") // JSON: [{name, title, department, linkedInUrl, source}]
+  recentNews Json?   @default("[]") // JSON: [{title, snippet, source, url, signalType, impact}]
 
   // Phase 3 Hardening: Structured Technology Landscape
   structuredTechLandscape Json? @default("{}") // JSON: {cloud:[], data:[], ai:[], applications:[]}
@@ -598,18 +599,18 @@ model CompanyNote {
 }
 
 model CompanySignal {
-  id                 String    @id @default(cuid())
+  id                 String                 @id @default(cuid())
   companyId          String
   signalType         SignalType // funding, hiring, leadership_change, tech_change, news, mention, partnership, expansion
   title              String
   description        String?
   source             String?
   sourceUrl          String?
-  severity           SignalSeverity @default(medium) // low, medium, high, critical
-  impact             SignalImpact @default(medium) // high, medium, low — sales opportunity impact
+  severity           SignalSeverity         @default(medium) // low, medium, high, critical
+  impact             SignalImpact           @default(medium) // high, medium, low — sales opportunity impact
   signalDate         DateTime? // when the signal event occurred (not when we detected it)
-  extractedAt        DateTime  @default(now()) // when our system detected/stored it
-  confidence         Float     @default(0.5) // 0-1 confidence score from research engine
+  extractedAt        DateTime               @default(now()) // when our system detected/stored it
+  confidence         Float                  @default(0.5) // 0-1 confidence score from research engine
   // RFP/RFI/Tender Intelligence Architecture (Phase 3)
   opportunityType    String? // rfp, rfi, tender, vendor_search, procurement, tech_transformation, partner_requirement
   publicationDate    DateTime? // When the opportunity was published
@@ -618,8 +619,8 @@ model CompanySignal {
   techRequirement    String? // e.g. "AWS, Python, Data Engineering"
   serviceRequirement String? // e.g. "Implementation, Managed Services"
   matchingCapability String? // ID of matched CapabilityAsset
-  sourceQuality      SignalSourceQuality @default(standard) // premium, standard, low
-  evidenceIds        Json @default("[]") // JSON array of Evidence IDs supporting this signal
+  sourceQuality      SignalSourceQuality    @default(standard) // premium, standard, low
+  evidenceIds        Json                   @default("[]") // JSON array of Evidence IDs supporting this signal
   // Track C: Signal meaning — buying stage implication inferred from signal attributes
   meaningCategory    SignalMeaningCategory? // budget_available, leadership_openness, tech_dissatisfaction, growth_pressure, compliance_requirement, vendor_evaluation, unknown
 
@@ -631,9 +632,9 @@ model CompanySignal {
   timingWindow      SignalTimingWindow? // "immediate" | "within_7_days" | "within_30_days" | "within_90_days" | "ongoing" | "expired"
   expiresAt         DateTime? // When this signal's intelligence value decays to zero (NULL = never expires)
 
-  isRead    Boolean  @default(false)
-  status    SignalStatus   @default(detected) // detected, validated, active, aging, expired, archived
-  createdAt DateTime @default(now())
+  isRead    Boolean      @default(false)
+  status    SignalStatus @default(detected) // detected, validated, active, aging, expired, archived
+  createdAt DateTime     @default(now())
 
   company                    Company                     @relation(fields: [companyId], references: [id], onDelete: Cascade)
   signalCapabilityMatches    SignalCapabilityMatch[]
@@ -696,7 +697,7 @@ model CompanyTimelineEvent {
   eventType   String // email_sent, email_opened, email_replied, email_bounced, note_added, enrichment, status_change, signal, contact_added, research_saved
   title       String
   description String?
-  metadata    Json?  @default("{}") // JSON with event-specific data
+  metadata    Json?    @default("{}") // JSON with event-specific data
   createdAt   DateTime @default(now())
 
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -770,7 +771,7 @@ model CapabilityAsset {
   updatedAt DateTime @updatedAt
 
   signalCapabilityMatches SignalCapabilityMatch[]
-  knowledgeDocuments    KnowledgeDocument[]
+  knowledgeDocuments      KnowledgeDocument[]
 
   @@index([category])
   @@index([serviceLine])
@@ -812,11 +813,11 @@ model EmailSequence {
 
   // Phase 4 C1: Signal-driven sequence intelligence
   companyId                String?
-  company                  Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company                  Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   triggerSignalId          String? // Which buying signal triggered this
   triggerCapabilityMatchId String? // Which capability match drove the strategy
   triggerReason            String? // AI-generated rationale: why this company, why now, why this capability
-  generatedBy              String  @default("manual") // "signal_driven" | "manual"
+  generatedBy              String   @default("manual") // "signal_driven" | "manual"
 
   // Phase 4 C1-integrate: Opportunity link
   opportunityId String? // Which OpportunityRecommendation this sequence fulfills
@@ -873,7 +874,7 @@ model SequenceEnrollment {
 // ── Draft & Send (per SDD Sections 11-12) ──
 
 model Draft {
-  id                 String  @id @default(cuid())
+  id                 String      @id @default(cuid())
   contactId          String
   subject            String
   body               String
@@ -882,7 +883,7 @@ model Draft {
   sourceSnippetsUsed String?
   assumptionFlags    String?
   reviewNotes        String?
-  status             DraftStatus  @default(pending_review) // pending_review, approved, rejected, sent
+  status             DraftStatus @default(pending_review) // pending_review, approved, rejected, sent
   rejectReason       String?
 
   // E-06: Email thread tracking
@@ -1081,7 +1082,7 @@ model AuditLog {
 model ConversationPlan {
   id            String   @id @default(cuid())
   companyId     String?
-  companyName   String   // denormalized for display — authoritative link is companyId
+  companyName   String // denormalized for display — authoritative link is companyId
   company       Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
   executiveRole String
   executiveName String?
@@ -1176,7 +1177,7 @@ model OtpCode {
   email     String // email this OTP was sent to
   code      String // 6-digit code
   purpose   String // login, set_password, change_email, change_password, update_profile
-  metadata  Json?  @default("{}") // JSON: e.g. { newEmail: "..." } for change_email
+  metadata  Json?    @default("{}") // JSON: e.g. { newEmail: "..." } for change_email
   verified  Boolean  @default(false)
   attempts  Int      @default(0)
   expiresAt DateTime
@@ -1402,10 +1403,10 @@ model DataQualityScore {
 // ── Phase 2: Workflow Automation Engine ──
 
 model Job {
-  id        String  @id @default(cuid())
+  id        String    @id @default(cuid())
   type      JobType // enrichment, research, scoring, signal_detection, email_generation
-  status    JobStatus  @default(pending) // pending, queued, running, completed, failed, cancelled
-  priority  Int     @default(5) // 1 (highest) – 10 (lowest)
+  status    JobStatus @default(pending) // pending, queued, running, completed, failed, cancelled
+  priority  Int       @default(5) // 1 (highest) – 10 (lowest)
   companyId String? // optional: entity this job operates on
   contactId String? // optional: for contact-level jobs
   batchId   String? // optional: for batch operations
@@ -1436,10 +1437,10 @@ model Job {
   logs JobLog[]
 
   // Phase 1.3: @relation for FK fields (was previously unmodeled)
-  company    Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contact    Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  batch      ImportBatch? @relation(fields: [batchId], references: [id], onDelete: Cascade)
-  evidence   Evidence[]
+  company  Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contact  Contact?     @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  batch    ImportBatch? @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  evidence Evidence[]
 
   @@index([type])
   @@index([status])
@@ -1477,17 +1478,17 @@ model AIGenerationAudit {
   companyId              String? // linked company (if applicable)
   contactId              String? // linked contact (if applicable)
   researchContextVersion String? // snapshot of freshness.score at generation time
-  evidenceIdsUsed        Json   @default("[]") // JSON: ["evidence_id_1", "evidence_id_2"]
-  signalIdsUsed          Json   @default("[]") // JSON: ["signal_id_1"]
-  capabilityAssetIdsUsed Json   @default("[]") // JSON: ["asset_id_1"]
+  evidenceIdsUsed        Json     @default("[]") // JSON: ["evidence_id_1", "evidence_id_2"]
+  signalIdsUsed          Json     @default("[]") // JSON: ["signal_id_1"]
+  capabilityAssetIdsUsed Json     @default("[]") // JSON: ["asset_id_1"]
   researchConfidence     Float    @default(0) // 0-1 average field confidence at generation time
   freshnessScore         Int      @default(0) // 0-100 freshness at generation time
   governancePassed       Boolean  @default(true) // did it pass confidence gates?
-  governanceChecks       Json?  @default("{}") // JSON
+  governanceChecks       Json?    @default("{}") // JSON
   outputSummary          String? // brief summary of what was generated (not full output)
   modelUsed              String? // which LLM model was used
   promptVersion          String? // governance prompt version hash for reproducibility
-  inputParams            Json?  @default("{}") // JSON: the input parameters (sanitized, no PII)
+  inputParams            Json?    @default("{}") // JSON: the input parameters (sanitized, no PII)
   createdAt              DateTime @default(now())
 
   // Phase 1.3: @relation for FK fields
@@ -1775,11 +1776,11 @@ model PriorityScoreHistory {
   whyNowReasons      String? // JSON array
 
   // Ticket 4: Unified 3-Score History — track all 3 score dimensions
-  intelligenceScore   Int?       // Company.intelligenceScore at time of recording
-  intelligenceTier    String?    // hot/warm/cold/unknown at time of recording
-  revenueScore        Float?     // AccountScore.score at time of recording
-  revenueCategory     String?    // HOT_ACCOUNT/WARM_ACCOUNT/NURTURE/AT_RISK at time of recording
-  scoreTriggerType    String? @default("priority") // "priority", "intelligence", "revenue", "batch"
+  intelligenceScore Int? // Company.intelligenceScore at time of recording
+  intelligenceTier  String? // hot/warm/cold/unknown at time of recording
+  revenueScore      Float? // AccountScore.score at time of recording
+  revenueCategory   String? // HOT_ACCOUNT/WARM_ACCOUNT/NURTURE/AT_RISK at time of recording
+  scoreTriggerType  String? @default("priority") // "priority", "intelligence", "revenue", "batch"
 
   computedAt DateTime @default(now())
   createdAt  DateTime @default(now())
@@ -1813,41 +1814,41 @@ model RecommendationFeedback {
 // Drives institutional learning, confidence calibration, and model improvement.
 
 model IntelligenceFeedback {
-  id                String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // What was rated
-  companyId         String
+  companyId              String
   recommendationSnapshot String // JSON: key fields from the recommendation at feedback time
 
   // User's verdict
-  verdict           String   // useful | not_useful | partially_useful | incorrect_action | wrong_account
-  sentiment         String   @default("neutral") // positive | negative | neutral
+  verdict   String // useful | not_useful | partially_useful | incorrect_action | wrong_account
+  sentiment String @default("neutral") // positive | negative | neutral
 
   // Why
-  feedbackReason    String?  // reason category code (see FeedbackReasonCode in engine)
-  feedbackDetail    String?  // free-text explanation
+  feedbackReason String? // reason category code (see FeedbackReasonCode in engine)
+  feedbackDetail String? // free-text explanation
 
   // What was right/wrong
-  correctSignals    String?  @default("[]") // JSON: signal IDs that were accurate
-  incorrectSignals  String?  @default("[]") // JSON: signal IDs that were wrong
-  correctAction     Boolean? // was the recommended action appropriate?
-  actualOutcome     String?  // what actually happened (converted, rejected, no_response, meeting_held, etc.)
+  correctSignals   String?  @default("[]") // JSON: signal IDs that were accurate
+  incorrectSignals String?  @default("[]") // JSON: signal IDs that were wrong
+  correctAction    Boolean? // was the recommended action appropriate?
+  actualOutcome    String? // what actually happened (converted, rejected, no_response, meeting_held, etc.)
 
   // Context at feedback time
-  priorityAtFeedback String? // what priority was shown (critical/high/medium/low)
-  scoreAtFeedback   Int?     // what score was shown (0-100)
+  priorityAtFeedback   String? // what priority was shown (critical/high/medium/low)
+  scoreAtFeedback      Int? // what score was shown (0-100)
   confidenceAtFeedback String? // what confidence grade was shown
 
   // Learning integration
-  memoryCreated      Boolean  @default(false) // did this feedback create a memory?
-  learningEventId    String?  // linked learning event if created
-  calibrationApplied Boolean  @default(false) // did this affect confidence calibration?
+  memoryCreated      Boolean @default(false) // did this feedback create a memory?
+  learningEventId    String? // linked learning event if created
+  calibrationApplied Boolean @default(false) // did this affect confidence calibration?
 
   // Metadata
-  userId            String?
-  createdAt         DateTime @default(now())
+  userId    String?
+  createdAt DateTime @default(now())
 
-  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   @@index([companyId])
   @@index([verdict])
@@ -1910,7 +1911,7 @@ model ConnectorRun {
   recordsAcquired Int       @default(0)
   errorsCount     Int       @default(0)
   errorMessage    String?
-  metadata        Json    @default("{}") // JSON: run-specific data (URLs fetched, rows processed, etc.)
+  metadata        Json      @default("{}") // JSON: run-specific data (URLs fetched, rows processed, etc.)
   createdAt       DateTime  @default(now())
 
   @@index([connectorId])
@@ -1929,11 +1930,11 @@ model IntelligenceObject {
   origin              String // csv_upload, excel_upload, website_scrape, rss_feed, human_submission
   content             String // full intelligence content
   summary             String? // abbreviated summary
-  metadata            Json                    @default("{}") // JSON: category, title, tags, custom fields
+  metadata            Json                      @default("{}") // JSON: category, title, tags, custom fields
   sourceUrl           String?
   capturedAt          DateTime? // when the source was published/captured
   originalConfidence  Float                     @default(0.5) // 0-1 initial confidence from acquisition
-  confidenceBreakdown  Json?                     @default("{}") // JSON: {sourceQuality, freshness, validation, evidenceAgreement}
+  confidenceBreakdown Json?                     @default("{}") // JSON: {sourceQuality, freshness, validation, evidenceAgreement}
   status              String                    @default("new") // new, processing, active, stale, superseded, archived, rejected, pending_evidence_mapping
   evidenceId          String? // reference to downstream Evidence record (upstream lineage)
   createdAt           DateTime                  @default(now())
@@ -2008,7 +2009,7 @@ model IntelligenceAssociation {
   target          IntelligenceObject @relation("AssocTarget", fields: [targetId], references: [id], onDelete: Cascade)
   associationType String // duplicate, contradicts, supports, extends, mentions_same_entity
   confidence      Float              @default(0.5) // 0-1, how confident the association is
-  metadata        Json             @default("{}") // JSON: {reason, field, overlap, ...}
+  metadata        Json               @default("{}") // JSON: {reason, field, overlap, ...}
   resolved        Boolean            @default(false) // has this association been reviewed/resolved?
   resolvedAt      DateTime?
   resolvedAction  String? // merged, dismissed, superseded, manual
@@ -2082,7 +2083,7 @@ model HumanIntelligenceInbox {
   reviewNotes          String? // reviewer comments
   intelligenceObjectId String? // FK → IntelligenceObject after conversion
   priority             String    @default("normal") // low, normal, high, critical
-  tags                 Json @default("[]") // JSON array of string tags
+  tags                 Json      @default("[]") // JSON array of string tags
   createdAt            DateTime  @default(now())
   updatedAt            DateTime  @updatedAt
 
@@ -2192,14 +2193,14 @@ model OpportunitySignal {
 }
 
 model AccountScore {
-  id             String   @id @default(cuid())
-  companyId      String   @unique
-  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id             String          @id @default(cuid())
+  companyId      String          @unique
+  company        Company         @relation(fields: [companyId], references: [id], onDelete: Cascade)
   score          Float // 0-100 overall
-  scoreBreakdown        Json     @default("{}") // JSON: { intelligenceCoverage, signalStrength, freshness, strategicFit, overallScore }
+  scoreBreakdown Json            @default("{}") // JSON: { intelligenceCoverage, signalStrength, freshness, strategicFit, overallScore }
   category       AccountCategory @default(NURTURE)
-  calculatedAt   DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  calculatedAt   DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
 
   @@index([companyId])
   @@index([category])
@@ -2221,9 +2222,9 @@ model StrategicInsight {
 
   insightType        String // STRATEGIC_SHIFT | OPPORTUNITY | RISK | PATTERN_EMERGED
   summary            String // concise human-readable insight summary
-  keyThemes          Json    @default("[]") // JSON: string[]
-  reasoningSummary   Json    @default("{}") // JSON: { observations: string[], interpretation: string, confidenceFactors: string[] }
-  supportingEvidence Json    @default("[]") // JSON: { evidenceId: string, relevance: string, quote: string }[]
+  keyThemes          Json   @default("[]") // JSON: string[]
+  reasoningSummary   Json   @default("{}") // JSON: { observations: string[], interpretation: string, confidenceFactors: string[] }
+  supportingEvidence Json   @default("[]") // JSON: { evidenceId: string, relevance: string, quote: string }[]
   confidenceScore    Int    @default(0) // 0-100
 
   generatedBy String    @default("LLM") // LLM | HYBRID | MANUAL
@@ -2251,11 +2252,11 @@ model AIEngagementStrategy {
   strategicInsightId String
   strategicInsight   StrategicInsight @relation(fields: [strategicInsightId], references: [id], onDelete: Cascade)
 
-  situationAssessment   Json    @default("{}") // JSON: { currentPhase, keyDrivers: string[], maturityLevel }
-  recommendedEntry      Json    @default("{}") // JSON: { role, rationale, department }
+  situationAssessment   Json   @default("{}") // JSON: { currentPhase, keyDrivers: string[], maturityLevel }
+  recommendedEntry      Json   @default("{}") // JSON: { role, rationale, department }
   firstMeetingObjective String @default("discovery") // discovery | technical | executive_alignment
-  conversationAngles    Json    @default("[]") // JSON: { angle, talkingPoints: string[] }[]
-  riskFactors           Json    @default("[]") // JSON: { risk, severity, mitigation }[]
+  conversationAngles    Json   @default("[]") // JSON: { angle, talkingPoints: string[] }[]
+  riskFactors           Json   @default("[]") // JSON: { risk, severity, mitigation }[]
   priorityScore         Int    @default(0) // 0-100
 
   generatedBy String    @default("LLM")
@@ -2275,49 +2276,49 @@ model AIEngagementStrategy {
 // ═══════════════════════════════════════════════════════════════════════
 
 model AIInsight {
-  id                  String                    @id @default(cuid())
-  companyId           String?
-  company             Company?                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  contactId           String?
-  contact             Contact?                  @relation(fields: [contactId], references: [id], onDelete: Cascade)
-  opportunityId       String?
+  id            String   @id @default(cuid())
+  companyId     String?
+  company       Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  contactId     String?
+  contact       Contact? @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  opportunityId String?
 
   // What type of insight
-  type                String                    @default("SIGNAL") // SIGNAL, RISK, OPPORTUNITY, RECOMMENDATION, SCORING, FORECAST
+  type String @default("SIGNAL") // SIGNAL, RISK, OPPORTUNITY, RECOMMENDATION, SCORING, FORECAST
 
   // Core content
-  title               String                   
-  description         String                   
+  title       String
+  description String
 
   // Evidence chain — JSON array of { source, url, date, snippet, reliability }
-  evidence            String                    @default("[]")
+  evidence String @default("[]")
 
   // Scores
-  confidenceScore     Float                     @default(0)       // 0-100
-  impactScore         Float                     @default(0)       // 0-100
-  urgencyScore        Float                     @default(0)       // 0-100
+  confidenceScore Float @default(0) // 0-100
+  impactScore     Float @default(0) // 0-100
+  urgencyScore    Float @default(0) // 0-100
 
   // Reasoning — why AI thinks this
-  reasoning           String?                  
+  reasoning String?
 
   // Actionability
-  recommendedAction   String?                  
+  recommendedAction String?
 
   // Source tracking
-  sourceType          String                    @default("ai_generated") // ai_generated, signal, enrichment, manual
-  sourceRoute         String?                   // which API route produced this
-  modelUsed           String?                   // which AI model
-  metadata            String                    @default("{}")     // JSON: any extra data
+  sourceType  String  @default("ai_generated") // ai_generated, signal, enrichment, manual
+  sourceRoute String? // which API route produced this
+  modelUsed   String? // which AI model
+  metadata    String  @default("{}") // JSON: any extra data
 
   // Lifecycle
-  status              String                    @default("active") // active, consumed, expired, superseded, rejected
-  expiresAt           DateTime?
-  consumedAt          DateTime?
-  feedback            String?                   // positive, negative, neutral
-  feedbackNote        String?                  
+  status       String    @default("active") // active, consumed, expired, superseded, rejected
+  expiresAt    DateTime?
+  consumedAt   DateTime?
+  feedback     String? // positive, negative, neutral
+  feedbackNote String?
 
-  createdAt           DateTime                  @default(now())
-  updatedAt           DateTime                  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([companyId])
   @@index([contactId])
@@ -2348,15 +2349,15 @@ model AIInsight {
 // contact IDs). AI interprets existing data — it never invents.
 
 model ActionArtifact {
-  id                    String   @id @default(cuid())
-  companyId             String
-  company               Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Which of the 6 action types this artifact represents
-  actionType            String   // meeting_prep | executive_outreach | account_strategy | stakeholder_map | opportunity_qualification | next_best_action
+  actionType String // meeting_prep | executive_outreach | account_strategy | stakeholder_map | opportunity_qualification | next_best_action
 
   // Executive summary — 2-3 sentence TL;DR of the action
-  summary               String
+  summary String
 
   // Full structured output — JSON with action-type-specific schema
   // meeting_prep:       { executiveSummary, keyChanges, talkingPoints, discoveryQuestions, icebreakers }
@@ -2365,26 +2366,26 @@ model ActionArtifact {
   // stakeholder_map:    { decisionMakers, influencers, champions, relationships }
   // opportunity_qual:   { buyingSignals, timing, strategicFit, confidenceScore, verdict }
   // next_best_action:   { action, reason, urgency, effort, expectedOutcome, evidenceLinks }
-  content               Json   // JSON: structured output with action-type-specific schema
+  content Json // JSON: structured output with action-type-specific schema
 
   // Priority scoring
-  priorityScore         Int      @default(0)  // 0-100
-  confidence            Float    @default(0)  // 0-1
+  priorityScore Int   @default(0) // 0-100
+  confidence    Float @default(0) // 0-1
 
   // Evidence traceability — every claim links back to source data
   // JSON: [{ type: "signal"|"evidence"|"contact"|"insight", id: string, snippet: string }]
-  evidenceReferences    Json   @default("[]")
+  evidenceReferences Json @default("[]")
 
   // How many source signals/artifacts fed into this generation
-  sourceSignalCount     Int      @default(0)
-  sourceContactCount    Int      @default(0)
+  sourceSignalCount  Int @default(0)
+  sourceContactCount Int @default(0)
 
   // Lifecycle
-  status                String   @default("draft") // draft | approved | executed | expired | superseded
-  expiresAt             DateTime?
-  generatedBy           String   @default("sprint3_engine")
-  generatedAt           DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  status      String    @default("draft") // draft | approved | executed | expired | superseded
+  expiresAt   DateTime?
+  generatedBy String    @default("sprint3_engine")
+  generatedAt DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
   @@index([companyId])
   @@index([actionType])
@@ -2404,27 +2405,27 @@ model ActionArtifact {
 //      level via llmCallCount + llmTokensUsed + llmCostUsd aggregates)
 
 model Embedding {
-  id          String   @id @default(cuid())
+  id         String @id @default(cuid())
   // What this embedding represents: 'capability_asset', 'ai_insight',
   // 'company_signal', 'company', 'contact', 'opportunity', etc.
-  entityType  String
+  entityType String
   // Stable ID of the entity this embedding represents (e.g. 'cap_xyz')
-  entityId    String   @unique
+  entityId   String @unique
   // The source text that was embedded (for re-embedding if model changes)
-  sourceText  String  
+  sourceText String
   // SHA-256 of sourceText — used to detect stale embeddings that need refresh
-  textHash    String
+  textHash   String
   // The embedding vector serialized as JSON string (e.g. "[0.1,0.2,...]")
   // Stored as Text rather than a native vector type because we don't depend
   // on pgvector — cosine similarity is computed in JS after parsing.
-  vector      String  
+  vector     String
   // Which model produced this embedding (e.g. 'Xenova/all-MiniLM-L6-v2')
-  model       String
+  model      String
   // Vector dimensionality (e.g. 384 for all-MiniLM-L6-v2)
-  dimensions  Int
+  dimensions Int
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([entityType])
   @@index([entityId])
@@ -2432,37 +2433,37 @@ model Embedding {
 }
 
 model EngineRun {
-  id              String   @id @default(cuid())
+  id            String  @id @default(cuid())
   // Which composition engine ran: 'synthesis', 'scoring', 'action', 'conversation'
-  engine          String
+  engine        String
   // Composition ID — links related runs (e.g. one compositionId per chat session)
-  compositionId   String?
+  compositionId String?
   // Brief summary of the input (JSON: { briefType, companyId, ... })
-  inputSummary    Json
+  inputSummary  Json
   // Brief summary of the output (JSON: { wordCount, confidence, ... })
-  outputSummary   Json  
+  outputSummary Json
   // Engine-level confidence (0-1)
-  confidence      Float    @default(0)
+  confidence    Float   @default(0)
   // Wall-clock duration
-  durationMs      Int
+  durationMs    Int
   // Whether the engine returned success=true
-  success         Boolean  @default(true)
+  success       Boolean @default(true)
   // Error message if !success
-  errorMessage    String?
+  errorMessage  String?
 
   // Context entities (nullable — not all runs target a specific entity)
-  companyId       String?
-  contactId       String?
-  opportunityId   String?
+  companyId     String?
+  contactId     String?
+  opportunityId String?
 
   // Aggregate LLM stats for this composition run (links to AIGenerationAudit
   // at the per-call level — one EngineRun may include multiple LLM calls
   // across Deep/Smart/Fast tiers)
-  llmCallCount    Int      @default(0)
-  llmTokensUsed   Int      @default(0)
-  llmCostUsd      Float    @default(0)
+  llmCallCount  Int   @default(0)
+  llmTokensUsed Int   @default(0)
+  llmCostUsd    Float @default(0)
 
-  createdAt       DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([engine])
   @@index([compositionId])
@@ -2493,41 +2494,41 @@ model EngineRun {
 // ═══════════════════════════════════════════════════════════════════════
 
 model ReasoningContext {
-  id                 String   @id @default(cuid())
-  companyId          String   @unique
-  company            Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // The cumulative reasoning state — JSON blob containing the full
   // reasoning chain with each step's output and evidence references.
   // Structure: { steps: [{ id, name, output, evidence, confidence }], summary }
-  reasoningState     Json    @default("{}")
+  reasoningState Json @default("{}")
 
   // High-level derived outputs (computed from reasoning state)
-  overallConfidence  Float    @default(0)       // 0-1 composite confidence
-  winProbability     Float?                     // 0-1 estimated win probability
-  opportunityScore   Float?                     // 0-100 composite opportunity score
-  recommendedActions Json    @default("[]")    // JSON: [{ action, reason, priority, timing }]
-  matchedCapabilities Json    @default("[]")   // JSON: [{ capabilityId, score, reason }]
-  matchedCaseStudies Json    @default("[]")   // JSON: [{ caseStudyId, relevance, outcome }]
-  competitivePosition Json    @default("{}")  // JSON: { position, strengths, weaknesses, threats }
+  overallConfidence   Float  @default(0) // 0-1 composite confidence
+  winProbability      Float? // 0-1 estimated win probability
+  opportunityScore    Float? // 0-100 composite opportunity score
+  recommendedActions  Json   @default("[]") // JSON: [{ action, reason, priority, timing }]
+  matchedCapabilities Json   @default("[]") // JSON: [{ capabilityId, score, reason }]
+  matchedCaseStudies  Json   @default("[]") // JSON: [{ caseStudyId, relevance, outcome }]
+  competitivePosition Json   @default("{}") // JSON: { position, strengths, weaknesses, threats }
 
   // Pipeline metadata
-  status             String   @default("empty") // empty | building | ready | stale | failed
-  totalSteps         Int      @default(0)       // completed reasoning steps
-  totalAIcalls       Int      @default(0)       // AI calls made
-  totalTokensUsed    Int      @default(0)
-  totalCostUsd       Float    @default(0)
-  buildDurationMs    Int?                        // total build time
+  status          String @default("empty") // empty | building | ready | stale | failed
+  totalSteps      Int    @default(0) // completed reasoning steps
+  totalAIcalls    Int    @default(0) // AI calls made
+  totalTokensUsed Int    @default(0)
+  totalCostUsd    Float  @default(0)
+  buildDurationMs Int? // total build time
 
   // Freshness — auto-stale after 7 days, re-buildable on demand
-  builtAt            DateTime?
-  staleAt            DateTime?
-  lastRebuiltAt      DateTime?
+  builtAt       DateTime?
+  staleAt       DateTime?
+  lastRebuiltAt DateTime?
 
-  createdAt          DateTime @default(now())
-  updatedAt          DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  steps              ReasoningStep[]
+  steps               ReasoningStep[]
   agentOrchestrations AgentOrchestration[]
 
   @@index([companyId])
@@ -2538,34 +2539,34 @@ model ReasoningContext {
 }
 
 model ReasoningStep {
-  id                 String   @id @default(cuid())
+  id                 String           @id @default(cuid())
   reasoningContextId String
   reasoningContext   ReasoningContext @relation(fields: [reasoningContextId], references: [id], onDelete: Cascade)
 
   // Step identity
-  stepNumber         Int                        // ordered position in reasoning chain
-  stepName           String                     // e.g. "company_profile", "signal_analysis", "capability_match"
-  stepGroup          String                     // external_intel | internal_match | fusion | strategy
+  stepNumber Int // ordered position in reasoning chain
+  stepName   String // e.g. "company_profile", "signal_analysis", "capability_match"
+  stepGroup  String // external_intel | internal_match | fusion | strategy
 
   // Step output — what this step concluded
-  output             Json                       // JSON: the structured output of this step
-  summary            String?                    // human-readable 1-2 sentence summary
+  output  Json // JSON: the structured output of this step
+  summary String? // human-readable 1-2 sentence summary
 
   // Evidence — what this step used
-  evidenceIds        Json     @default("[]")    // JSON: string[] — IDs of evidence used
-  knowledgeIds       Json     @default("[]")    // JSON: string[] — IDs of CapabilityAssets referenced
+  evidenceIds  Json @default("[]") // JSON: string[] — IDs of evidence used
+  knowledgeIds Json @default("[]") // JSON: string[] — IDs of CapabilityAssets referenced
 
   // Confidence & cost
-  confidence         Float    @default(0.5)      // 0-1 confidence in this step's output
-  aiCalls            Int      @default(0)
-  tokensUsed         Int      @default(0)
-  costUsd            Float    @default(0)
-  durationMs         Int?
+  confidence Float @default(0.5) // 0-1 confidence in this step's output
+  aiCalls    Int   @default(0)
+  tokensUsed Int   @default(0)
+  costUsd    Float @default(0)
+  durationMs Int?
 
   // Dependencies — this step reads output from previous steps
-  dependsOnSteps     Json     @default("[]")    // JSON: stepNumber[] — which steps this builds on
+  dependsOnSteps Json @default("[]") // JSON: stepNumber[] — which steps this builds on
 
-  createdAt          DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@unique([reasoningContextId, stepNumber])
   @@index([reasoningContextId])
@@ -2587,38 +2588,38 @@ model ReasoningStep {
 // ═══════════════════════════════════════════════════════════════════════
 
 model AgentOrchestration {
-  id                  String   @id @default(cuid())
-  companyId           String
-  company             Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  reasoningContextId  String?  // links to the shared ReasoningContext
-  reasoningContext    ReasoningContext? @relation(fields: [reasoningContextId], references: [id], onDelete: SetNull)
+  id                 String            @id @default(cuid())
+  companyId          String
+  company            Company           @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  reasoningContextId String? // links to the shared ReasoningContext
+  reasoningContext   ReasoningContext? @relation(fields: [reasoningContextId], references: [id], onDelete: SetNull)
 
   // Orchestration metadata
-  triggerType         String   @default("manual") // manual | signal_detected | scheduled | enrichment
-  triggerSignalId     String?  // which signal triggered this orchestration
-  status              String   @default("pending") // pending | running | completed | failed | cancelled
+  triggerType     String  @default("manual") // manual | signal_detected | scheduled | enrichment
+  triggerSignalId String? // which signal triggered this orchestration
+  status          String  @default("pending") // pending | running | completed | failed | cancelled
 
   // Agent execution plan — JSON: [{ agent, step, dependsOn, status }]
-  executionPlan       String   @default("[]")
+  executionPlan String @default("[]")
 
   // Aggregate stats
-  totalAgents        Int      @default(0)
-  completedAgents     Int      @default(0)
-  failedAgents        Int      @default(0)
-  totalDurationMs     Int      @default(0)
-  totalAIcalls        Int      @default(0)
-  totalTokensUsed     Int      @default(0)
-  totalCostUsd        Float    @default(0)
+  totalAgents     Int   @default(0)
+  completedAgents Int   @default(0)
+  failedAgents    Int   @default(0)
+  totalDurationMs Int   @default(0)
+  totalAIcalls    Int   @default(0)
+  totalTokensUsed Int   @default(0)
+  totalCostUsd    Float @default(0)
 
   // Output reference
-  outputSummary       Json    @default("{}") // JSON: summary of orchestration output
+  outputSummary Json @default("{}") // JSON: summary of orchestration output
 
-  startedAt           DateTime?
-  completedAt         DateTime?
-  createdAt           DateTime @default(now())
-  updatedAt           DateTime @updatedAt
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
 
-  agentRuns           AgentRun[]
+  agentRuns AgentRun[]
 
   @@index([companyId])
   @@index([status])
@@ -2627,35 +2628,35 @@ model AgentOrchestration {
 }
 
 model AgentRun {
-  id                  String   @id @default(cuid())
-  orchestrationId     String
-  orchestration       AgentOrchestration @relation(fields: [orchestrationId], references: [id], onDelete: Cascade)
+  id              String             @id @default(cuid())
+  orchestrationId String
+  orchestration   AgentOrchestration @relation(fields: [orchestrationId], references: [id], onDelete: Cascade)
 
   // Agent identity
-  agentName           String   // research | capability_matcher | scorer | strategist | conversation | proposal | executive_brief | fusion | learning | health_check
-  agentType           String   // foundation | composition | specialist
+  agentName String // research | capability_matcher | scorer | strategist | conversation | proposal | executive_brief | fusion | learning | health_check
+  agentType String // foundation | composition | specialist
 
   // Agent task
-  task                String   // what this agent was asked to do
-  inputContext        Json    @default("{}") // JSON: context from ReasoningContext used as input
-  output              Json?  // JSON: agent's structured output
+  task         String // what this agent was asked to do
+  inputContext Json   @default("{}") // JSON: context from ReasoningContext used as input
+  output       Json? // JSON: agent's structured output
 
   // Execution
-  status              String   @default("pending") // pending | running | completed | failed | skipped
-  dependsOn           Json    @default("[]") // JSON: agentName[] — which agents must complete first
+  status    String @default("pending") // pending | running | completed | failed | skipped
+  dependsOn Json   @default("[]") // JSON: agentName[] — which agents must complete first
 
   // Cost tracking
-  aiCalls             Int      @default(0)
-  tokensUsed          Int      @default(0)
-  costUsd             Float    @default(0)
-  durationMs          Int?
+  aiCalls    Int   @default(0)
+  tokensUsed Int   @default(0)
+  costUsd    Float @default(0)
+  durationMs Int?
 
   // Errors
-  error               String?
+  error String?
 
-  startedAt           DateTime?
-  completedAt         DateTime?
-  createdAt           DateTime @default(now())
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime  @default(now())
 
   @@index([orchestrationId])
   @@index([agentName])
@@ -2673,26 +2674,26 @@ model AgentRun {
 // ═══════════════════════════════════════════════════════════════════════
 
 model AICache {
-  id              String   @id @default(cuid())
+  id           String @id @default(cuid())
   // SHA-256 hash of (systemPrompt + userPrompt + contextFingerprint)
-  cacheKey        String   @unique
+  cacheKey     String @unique
   // What was cached
-  systemPrompt    String
-  userPrompt      String
-  contextHash     String   // hash of the context data used (companyId + signals + evidence)
-  response        String   // the LLM response text
-  modelUsed       String
-  tier            String   // deep | smart | fast
+  systemPrompt String
+  userPrompt   String
+  contextHash  String // hash of the context data used (companyId + signals + evidence)
+  response     String // the LLM response text
+  modelUsed    String
+  tier         String // deep | smart | fast
 
   // Cost savings
-  tokensUsed      Int      @default(0)
-  costUsd         Float    @default(0)
-  hitCount        Int      @default(0) // how many times this cache was hit
-  lastHitAt       DateTime?
+  tokensUsed Int       @default(0)
+  costUsd    Float     @default(0)
+  hitCount   Int       @default(0) // how many times this cache was hit
+  lastHitAt  DateTime?
 
   // TTL — cache expires after 7 days for signals, 30 days for static knowledge
-  expiresAt       DateTime
-  createdAt       DateTime @default(now())
+  expiresAt DateTime
+  createdAt DateTime @default(now())
 
   @@index([cacheKey])
   @@index([expiresAt])
@@ -2710,37 +2711,37 @@ model AICache {
 // ═══════════════════════════════════════════════════════════════════════
 
 model LearningEvent {
-  id                String   @id @default(cuid())
-  companyId         String?
-  company           Company?  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id        String   @id @default(cuid())
+  companyId String?
+  company   Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // What happened
-  eventType         String   // win | loss | feedback_positive | feedback_negative | email_replied | meeting_held | proposal_sent | objection_raised | competitive_loss | new_case_study | methodology_improved | pricing_updated | lesson_learned
-  source            String   // system | user | ai_recommendation | email | calendar
-  description       String   // what happened
+  eventType   String // win | loss | feedback_positive | feedback_negative | email_replied | meeting_held | proposal_sent | objection_raised | competitive_loss | new_case_study | methodology_improved | pricing_updated | lesson_learned
+  source      String // system | user | ai_recommendation | email | calendar
+  description String // what happened
 
   // What was learned
-  learnedInsight    String   // the extracted insight / lesson
-  applicableContext String   @default("{}") // JSON: { industry, companySize, technology, role, serviceLine } — when this learning applies
-  applicableTags    String   @default("[]") // JSON: string[] — tags for matching
+  learnedInsight    String // the extracted insight / lesson
+  applicableContext String @default("{}") // JSON: { industry, companySize, technology, role, serviceLine } — when this learning applies
+  applicableTags    String @default("[]") // JSON: string[] — tags for matching
 
   // Knowledge creation — did this event create new organizational knowledge?
   createdCapabilityAssetId String? // if this created a new CapabilityAsset
   updatedCapabilityAssetId String? // if this updated an existing one
 
   // Quality
-  confidence        Float    @default(0.5) // 0-1 how confident we are in this learning
-  verified          Boolean  @default(false) // has a human verified this learning?
+  confidence Float   @default(0.5) // 0-1 how confident we are in this learning
+  verified   Boolean @default(false) // has a human verified this learning?
 
   // Reusability tracking
-  reuseCount        Int      @default(0) // how many times this learning was reused
-  lastReusedAt      DateTime?
+  reuseCount   Int       @default(0) // how many times this learning was reused
+  lastReusedAt DateTime?
 
   // Feedback on the learning itself
-  feedback          String?  // positive | negative | needs_refinement
-  feedbackNote      String?
+  feedback     String? // positive | negative | needs_refinement
+  feedbackNote String?
 
-  createdAt         DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([companyId])
   @@index([eventType])
@@ -2761,29 +2762,29 @@ model LearningEvent {
 // ═══════════════════════════════════════════════════════════════════════
 
 model KnowledgeDocument {
-  id                String   @id @default(cuid())
-  title             String
-  documentType      String   // proposal | whitepaper | case_study | email | meeting_note | rfp_response | sales_deck | methodology | architecture_doc | competitive_report
-  sourceUrl         String?
-  sourceType        String   @default("upload") // upload | email | crm | website | manual
-  originalContent   String   // full original text
-  contentHash       String   // SHA-256 for dedup detection
-  metadata          String   @default("{}") // JSON: { author, date, client, project, industry, technology }
+  id              String  @id @default(cuid())
+  title           String
+  documentType    String // proposal | whitepaper | case_study | email | meeting_note | rfp_response | sales_deck | methodology | architecture_doc | competitive_report
+  sourceUrl       String?
+  sourceType      String  @default("upload") // upload | email | crm | website | manual
+  originalContent String // full original text
+  contentHash     String // SHA-256 for dedup detection
+  metadata        String  @default("{}") // JSON: { author, date, client, project, industry, technology }
 
   // Processing status
-  status            String   @default("pending") // pending | extracting | chunking | classifying | embedding | linking | completed | failed
-  processingError   String?
-  totalChunks       Int      @default(0)
-  processedChunks   Int      @default(0)
+  status          String  @default("pending") // pending | extracting | chunking | classifying | embedding | linking | completed | failed
+  processingError String?
+  totalChunks     Int     @default(0)
+  processedChunks Int     @default(0)
 
   // Link to parent CapabilityAsset (if this document IS a capability)
   capabilityAssetId String?
   capabilityAsset   CapabilityAsset? @relation(fields: [capabilityAssetId], references: [id], onDelete: SetNull)
 
-  createdAt         DateTime @default(now())
-  updatedAt         DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  chunks            KnowledgeChunk[]
+  chunks KnowledgeChunk[]
 
   @@index([documentType])
   @@index([status])
@@ -2793,32 +2794,33 @@ model KnowledgeDocument {
 }
 
 model KnowledgeChunk {
-  id                String   @id @default(cuid())
-  documentId        String
-  document          KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  id         String            @id @default(cuid())
+  documentId String
+  document   KnowledgeDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   // Chunk content
-  chunkIndex        Int                          // position within document
-  content           String                       // the chunk text
-  summary           String?                      // AI-generated summary
-  keywords          String   @default("[]")       // JSON: string[] — extracted keywords
+  chunkIndex Int // position within document
+  content    String // the chunk text
+  summary    String? // AI-generated summary
+  keywords   String  @default("[]") // JSON: string[] — extracted keywords
 
   // Classification
-  category          String?                      // knowledge category (service_line, case_study, etc.)
-  subCategory       String?                      // finer classification
-  industry          String?                      // applicable industry
-  technology        String?                      // applicable technology
-  relevanceScore    Float    @default(0.5)       // 0-1 how relevant this chunk is
+  category       String? // knowledge category (service_line, case_study, etc.)
+  subCategory    String? // finer classification
+  industry       String? // applicable industry
+  technology     String? // applicable technology
+  relevanceScore Float   @default(0.5) // 0-1 how relevant this chunk is
 
   // Embedding reference
-  embeddingId       String?                      // links to Embedding table
-  contentHash       String                       // SHA-256 for cache/dedup
+  embeddingId String? // links to Embedding table
+  contentHash String // SHA-256 for cache/dedup
 
   // Metadata
-  metadata          String   @default("{}")      // JSON: { page, section, speaker, topic }
+  metadata String @default("{}") // JSON: { page, section, speaker, topic }
 
-  createdAt         DateTime @default(now())
+  createdAt DateTime @default(now())
 
+  @@unique([documentId, chunkIndex])
   @@index([documentId])
   @@index([chunkIndex])
   @@index([category])
@@ -2826,7 +2828,6 @@ model KnowledgeChunk {
   @@index([technology])
   @@index([embeddingId])
   @@index([contentHash])
-  @@unique([documentId, chunkIndex])
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -2837,38 +2838,38 @@ model KnowledgeChunk {
 // Enables cost tracking, dedup detection, and performance monitoring.
 
 model PipelineRun {
-  id                String   @id @default(cuid())
-  companyId         String
-  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // Execution metadata
-  pipelineType      String   @default("full")       // full | enrich | capability_only | fusion
-  status            String   @default("running")    // running | completed | failed | partial
+  pipelineType String @default("full") // full | enrich | capability_only | fusion
+  status       String @default("running") // running | completed | failed | partial
 
   // Stage tracking
-  totalStages       Int      @default(16)
-  completedStages  Int      @default(0)
-  failedStages      Int      @default(0)
-  skippedStages     Int      @default(0)
+  totalStages     Int @default(16)
+  completedStages Int @default(0)
+  failedStages    Int @default(0)
+  skippedStages   Int @default(0)
 
   // Stage results (JSON: StageResult[])
-  stageResults      String   @default("[]")
+  stageResults String @default("[]")
 
   // Cost tracking
-  aiCallsMade       Int      @default(0)
-  tavilyCallsMade   Int      @default(0)
-  embeddingCallsMade Int    @default(0)
-  estimatedCostUsd  Float    @default(0)
-  totalTokensUsed   Int      @default(0)
+  aiCallsMade        Int   @default(0)
+  tavilyCallsMade    Int   @default(0)
+  embeddingCallsMade Int   @default(0)
+  estimatedCostUsd   Float @default(0)
+  totalTokensUsed    Int   @default(0)
 
   // Timing
-  startedAt         DateTime @default(now())
-  completedAt       DateTime?
-  durationMs        Int?
+  startedAt   DateTime  @default(now())
+  completedAt DateTime?
+  durationMs  Int?
 
   // Output references
-  accountBriefId    String?
-  accountScoreId    String?
+  accountBriefId     String?
+  accountScoreId     String?
   strategicInsightId String?
 
   // Phase 1.3: @relation back-field
@@ -2889,33 +2890,33 @@ model PipelineRun {
 // This is the "external × internal = opportunity" equation.
 
 model FusionResult {
-  id                String   @id @default(cuid())
-  companyId         String
-  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
 
   // What was fused
-  signalIds         Json    @default("[]")    // JSON: string[]
-  capabilityIds     Json    @default("[]")    // JSON: string[]
-  evidenceIds       Json    @default("[]")    // JSON: string[]
+  signalIds     Json @default("[]") // JSON: string[]
+  capabilityIds Json @default("[]") // JSON: string[]
+  evidenceIds   Json @default("[]") // JSON: string[]
 
   // Fusion output
-  fusionType        String                     // signal_capability | evidence_case_study | signal_solution | full_fusion
-  fusionScore       Float    @default(0)       // 0-1 overall alignment score
-  businessProblem   String?                     // identified business problem
-  recommendedCapability String?                // which capability to position
-  relevantCaseStudy String?                   // which case study to reference
-  proofPoints       Json    @default("[]")    // JSON: string[] — supporting proof points
+  fusionType            String // signal_capability | evidence_case_study | signal_solution | full_fusion
+  fusionScore           Float   @default(0) // 0-1 overall alignment score
+  businessProblem       String? // identified business problem
+  recommendedCapability String? // which capability to position
+  relevantCaseStudy     String? // which case study to reference
+  proofPoints           Json    @default("[]") // JSON: string[] — supporting proof points
 
   // Explainability
-  reasoningChain    Json    @default("[]")    // JSON: { step, input, output, confidence }[]
-  confidenceScore   Float    @default(0)       // 0-1
-  evidenceStrength  Float    @default(0)       // 0-1
+  reasoningChain   Json  @default("[]") // JSON: { step, input, output, confidence }[]
+  confidenceScore  Float @default(0) // 0-1
+  evidenceStrength Float @default(0) // 0-1
 
   // Status
-  status            String   @default("active") // active | consumed | expired
-  expiresAt         DateTime?
+  status    String    @default("active") // active | consumed | expired
+  expiresAt DateTime?
 
-  createdAt         DateTime @default(now())
+  createdAt DateTime @default(now())
 
   @@index([companyId])
   @@index([fusionType])
@@ -2931,36 +2932,36 @@ model FusionResult {
 // Tracks every AI call for cost accounting and budget enforcement.
 
 model AICallLog {
-  id                String   @id @default(cuid())
+  id String @id @default(cuid())
 
   // What was called
-  provider          String                     // gemini | groq | zai | nvidia
-  model             String                     // specific model name
-  tier              String                     // deep | smart | fast
-  genType           String                     // company_enrichment | capability_matching | etc.
+  provider String // gemini | groq | zai | nvidia
+  model    String // specific model name
+  tier     String // deep | smart | fast
+  genType  String // company_enrichment | capability_matching | etc.
 
   // Attribution
-  companyId         String?
-  contactId         String?
-  pipelineRunId     String?
+  companyId     String?
+  contactId     String?
+  pipelineRunId String?
 
   // Token usage
-  promptTokens      Int      @default(0)
-  completionTokens  Int      @default(0)
-  totalTokens       Int      @default(0)
+  promptTokens     Int @default(0)
+  completionTokens Int @default(0)
+  totalTokens      Int @default(0)
 
   // Cost
-  estimatedCostUsd  Float    @default(0)
+  estimatedCostUsd Float @default(0)
 
   // Outcome
-  success           Boolean  @default(true)
-  error             String?
-  durationMs        Int?
+  success    Boolean @default(true)
+  error      String?
+  durationMs Int?
 
   // Cache
-  wasCached         Boolean  @default(false)
+  wasCached Boolean @default(false)
 
-  createdAt         DateTime @default(now())
+  createdAt DateTime @default(now())
 
   // Phase 1.3: @relation for FK fields
   company     Company?     @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -2996,19 +2997,19 @@ model CustomEmailTemplate {
 
 // AI usage tracking — persist cost estimates from ai-caller
 model AIUsageLog {
-  id              String   @id @default(cuid())
-  feature         String   // meeting-prep, nba, signal-classification, etc.
-  provider        String   // nvidia, fireworks, groq, gemini
-  model           String
-  promptTokens    Int      @default(0)
-  completionTokens Int     @default(0)
-  totalTokens     Int      @default(0)
-  estimatedCost   Float    @default(0)
-  durationMs      Int      @default(0)
-  companyId       String?
-  userId          String?
-  status          String   @default("success") // success, failed, degraded
-  createdAt       DateTime @default(now())
+  id               String   @id @default(cuid())
+  feature          String // meeting-prep, nba, signal-classification, etc.
+  provider         String // nvidia, fireworks, groq, gemini
+  model            String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  totalTokens      Int      @default(0)
+  estimatedCost    Float    @default(0)
+  durationMs       Int      @default(0)
+  companyId        String?
+  userId           String?
+  status           String   @default("success") // success, failed, degraded
+  createdAt        DateTime @default(now())
 
   // Phase 1.3: @relation for FK fields
   company Company? @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -3022,17 +3023,17 @@ model AIUsageLog {
 
 // Intelligence action history — version tracking for recommendations
 model IntelligenceActionHistory {
-  id            String   @id @default(cuid())
-  companyId     String
-  actionType    String   // meeting_prep, next_best_action, account_strategy, etc.
-  summary       String   // AI-generated summary
-  content       String   // Full JSON content of the action
-  confidence    Float    @default(0)
-  signalCount   Int      @default(0)
-  contactCount  Int      @default(0)
-  evidenceIds   String   // JSON array of evidence/signal IDs referenced
-  supersededAt  DateTime? // When a newer action replaced this one
-  createdAt     DateTime @default(now())
+  id           String    @id @default(cuid())
+  companyId    String
+  actionType   String // meeting_prep, next_best_action, account_strategy, etc.
+  summary      String // AI-generated summary
+  content      String // Full JSON content of the action
+  confidence   Float     @default(0)
+  signalCount  Int       @default(0)
+  contactCount Int       @default(0)
+  evidenceIds  String // JSON array of evidence/signal IDs referenced
+  supersededAt DateTime? // When a newer action replaced this one
+  createdAt    DateTime  @default(now())
 
   // Phase 1.3: @relation for FK field
   company Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
@@ -3044,16 +3045,16 @@ model IntelligenceActionHistory {
 
 // Intelligence freshness tracking
 model CompanyIntelligenceFreshness {
-  id               String   @id @default(cuid())
-  companyId        String   @unique
-  lastRefreshAt    DateTime @default(now())
-  lastSignalCount  Int      @default(0)
-  lastEvidenceCount Int     @default(0)
-  freshnessScore   Float    @default(1.0) // 1.0 = fresh, decays over time
-  degradationLevel String   @default("fresh") // fresh, aging, stale
-  nextRefreshAt    DateTime?
-  createdAt        DateTime @default(now())
-  updatedAt        DateTime @updatedAt
+  id                String    @id @default(cuid())
+  companyId         String    @unique
+  lastRefreshAt     DateTime  @default(now())
+  lastSignalCount   Int       @default(0)
+  lastEvidenceCount Int       @default(0)
+  freshnessScore    Float     @default(1.0) // 1.0 = fresh, decays over time
+  degradationLevel  String    @default("fresh") // fresh, aging, stale
+  nextRefreshAt     DateTime?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
 
   @@index([freshnessScore])
   @@index([degradationLevel])
@@ -3062,21 +3063,21 @@ model CompanyIntelligenceFreshness {
 
 // LinkedIn/People profile enrichment cache
 model PeopleProfileEnrichment {
-  id               String   @id @default(cuid())
-  contactId        String   @unique
-  linkedinUrl      String?
-  headline         String?
-  currentCompany   String?
-  currentTitle     String?
-  location         String?
-  profileSummary   String?  // AI-generated summary of profile
-  skills           String?  // JSON array of skills
+  id                   String   @id @default(cuid())
+  contactId            String   @unique
+  linkedinUrl          String?
+  headline             String?
+  currentCompany       String?
+  currentTitle         String?
+  location             String?
+  profileSummary       String? // AI-generated summary of profile
+  skills               String? // JSON array of skills
   experienceHighlights String? // JSON array of key experiences
-  sourceProvider   String?  // apollo, proxycurl, manual
-  rawProfileData   String?  // Full raw response for re-processing
-  enrichedAt       DateTime @default(now())
-  confidenceScore  Float    @default(0)
-  status           String   @default("pending") // pending, enriched, failed, outdated
+  sourceProvider       String? // apollo, proxycurl, manual
+  rawProfileData       String? // Full raw response for re-processing
+  enrichedAt           DateTime @default(now())
+  confidenceScore      Float    @default(0)
+  status               String   @default("pending") // pending, enriched, failed, outdated
 
   @@index([status])
   @@index([enrichedAt])
@@ -3084,16 +3085,16 @@ model PeopleProfileEnrichment {
 
 // Website change detection — page snapshots
 model WebsiteSnapshot {
-  id          String   @id @default(cuid())
-  companyId   String
-  pageUrl     String
-  pageType    String   @default("homepage") // homepage, pricing, careers, about, blog
-  contentHash String   // SHA-256 of page content for change detection
-  contentText String?  // Extracted text content
-  pageTitle   String?
+  id              String   @id @default(cuid())
+  companyId       String
+  pageUrl         String
+  pageType        String   @default("homepage") // homepage, pricing, careers, about, blog
+  contentHash     String // SHA-256 of page content for change detection
+  contentText     String? // Extracted text content
+  pageTitle       String?
   detectedChanges String? // JSON array of detected changes
-  status      String   @default("active") // active, archived
-  createdAt   DateTime @default(now())
+  status          String   @default("active") // active, archived
+  createdAt       DateTime @default(now())
 
   @@index([companyId, pageType])
   @@index([contentHash])
@@ -3102,18 +3103,18 @@ model WebsiteSnapshot {
 
 // Competitive intelligence signals
 model CompetitiveSignal {
-  id              String   @id @default(cuid())
-  competitorName  String
-  eventTitle      String
-  eventType       String  // product_launch, pricing_change, partnership, acquisition, hiring, leadership
-  eventSummary    String
-  sourceUrl       String?
-  sourceName      String?
-  detectedAt      DateTime @default(now())
-  impactAnalysis  String? // AI analysis of which accounts this affects
+  id               String   @id @default(cuid())
+  competitorName   String
+  eventTitle       String
+  eventType        String // product_launch, pricing_change, partnership, acquisition, hiring, leadership
+  eventSummary     String
+  sourceUrl        String?
+  sourceName       String?
+  detectedAt       DateTime @default(now())
+  impactAnalysis   String? // AI analysis of which accounts this affects
   affectedAccounts String? // JSON array of company IDs that should see this signal
-  status          String   @default("active") // active, processed, dismissed
-  createdAt       DateTime @default(now())
+  status           String   @default("active") // active, processed, dismissed
+  createdAt        DateTime @default(now())
 
   @@index([competitorName])
   @@index([eventType])
@@ -3131,13 +3132,13 @@ model CompetitiveSignal {
 model IntelligenceSnapshot {
   id                  String   @id @default(cuid())
   companyId           String
-  intelligenceScore   Int      @default(0)   // Company.intelligenceScore at capture time
-  priorityTier        String?               // Company.priorityTier at capture time
-  activeSignalCount   Int      @default(0)   // Count of active (non-expired) signals
-  activeEvidenceCount Int      @default(0)   // Count of active evidence records
-  highSeverityCount   Int      @default(0)   // Count of high/critical severity signals
-  topSignalTypes      String?               // JSON array of top signal types, e.g. ["funding","hiring"]
-  topSignalIds        String?               // JSON array of signal IDs for latest signals
+  intelligenceScore   Int      @default(0) // Company.intelligenceScore at capture time
+  priorityTier        String? // Company.priorityTier at capture time
+  activeSignalCount   Int      @default(0) // Count of active (non-expired) signals
+  activeEvidenceCount Int      @default(0) // Count of active evidence records
+  highSeverityCount   Int      @default(0) // Count of high/critical severity signals
+  topSignalTypes      String? // JSON array of top signal types, e.g. ["funding","hiring"]
+  topSignalIds        String? // JSON array of signal IDs for latest signals
   captureReason       String   @default("scheduled") // enrichment | score_refresh | signal_detected | scheduled
   capturedAt          DateTime @default(now())
 
@@ -3157,62 +3158,63 @@ model IntelligenceSnapshot {
 // ── Knowledge Graph: Nodes ──────────────────────────────────────────────────
 
 model KnowledgeGraphNode {
-  id               String                    @id // In-memory node ID as PK
-  label            String                    // Normalized label
-  type             KnowledgeGraphEntityType
-  aliases          String                    // JSON array of string aliases
-  properties       Json                      @default("{}") // Key-value entity properties
-  source           String?                   // Provenance: where extracted from
-  confidence       Float                     @default(0.7)
+  id         String                   @id // In-memory node ID as PK
+  label      String // Normalized label
+  type       KnowledgeGraphEntityType
+  aliases    String // JSON array of string aliases
+  properties Json                     @default("{}") // Key-value entity properties
+  source     String? // Provenance: where extracted from
+  confidence Float                    @default(0.7)
 
   // ── Lock L3: Multi-Tenant Isolation ──
-  companyId        String?                   // NULL = global node; non-NULL = tenant-scoped
-  isGlobal         Boolean                   @default(false) // Explicit global flag
+  companyId String? // NULL = global node; non-NULL = tenant-scoped
+  isGlobal  Boolean @default(false) // Explicit global flag
 
   // ── Lock L7: Provenance & Audit ──
-  createdBy        String?                   // User/system that created this node
-  sourceAttribution String?                  // External source URI/reference
-  confidenceHistory String?                  // JSON: [{value, timestamp, reason}]
+  createdBy         String? // User/system that created this node
+  sourceAttribution String? // External source URI/reference
+  confidenceHistory String? // JSON: [{value, timestamp, reason}]
 
-  createdAtMs      Int                       // Unix ms — preserves in-memory precision
-  updatedAtMs      Int                       // Unix ms
+  createdAtMs Int // Unix ms — preserves in-memory precision
+  updatedAtMs Int // Unix ms
 
+  @@unique([id])
   @@index([type])
   @@index([companyId])
   @@index([label])
   @@index([companyId, type])
   @@index([isGlobal])
   @@index([updatedAtMs(sort: Desc)])
-  @@unique([id])
 }
 
 // ── Knowledge Graph: Edges ──────────────────────────────────────────────────
 
 model KnowledgeGraphEdge {
-  id               String                    @id
-  sourceId         String                    // FK → KnowledgeGraphNode.id
-  targetId         String                    // FK → KnowledgeGraphNode.id
-  relationship     KnowledgeGraphRelationship
-  weight           Float                     @default(0.5)
-  confidence       Float                     @default(0.7)
-  observedAt       String?                   // ISO date string
-  expiresAt        String?                   // ISO date string — edge decay
-  reason           String                    @default("") // Human-readable explanation
-  source           String?                   // Provenance
-  evidenceIds      String                    // JSON array of evidence IDs
+  id           String                     @id
+  sourceId     String // FK → KnowledgeGraphNode.id
+  targetId     String // FK → KnowledgeGraphNode.id
+  relationship KnowledgeGraphRelationship
+  weight       Float                      @default(0.5)
+  confidence   Float                      @default(0.7)
+  observedAt   String? // ISO date string
+  expiresAt    String? // ISO date string — edge decay
+  reason       String                     @default("") // Human-readable explanation
+  source       String? // Provenance
+  evidenceIds  String // JSON array of evidence IDs
 
   // ── Lock L3: Multi-Tenant Isolation ──
-  companyId        String?                   // Inherited from nodes; NULL for global edges
-  isGlobal         Boolean                   @default(false)
+  companyId String? // Inherited from nodes; NULL for global edges
+  isGlobal  Boolean @default(false)
 
   // ── Lock L7: Provenance & Audit ──
-  createdBy        String?
+  createdBy         String?
   sourceAttribution String?
-  confidenceHistory String?                  // JSON: [{value, timestamp, reason}]
+  confidenceHistory String? // JSON: [{value, timestamp, reason}]
 
-  createdAtMs      Int
-  updatedAtMs      Int
+  createdAtMs Int
+  updatedAtMs Int
 
+  @@unique([id])
   @@index([sourceId])
   @@index([targetId])
   @@index([companyId])
@@ -3221,49 +3223,49 @@ model KnowledgeGraphEdge {
   @@index([sourceId, targetId])
   @@index([isGlobal])
   @@index([createdAtMs(sort: Desc)])
-  @@unique([id])
 }
 
 // ── AI Memory Entries ──────────────────────────────────────────────────────
 
 model AIMemoryEntry {
-  id               String                    @id
-  layer            AIMemoryLayer
-  category         AIMemoryCategory
-  priority         AIMemoryPriority
-  scopeType        IntelligenceScopeType     @default(global)
-  scopeEntityType  String?                   // 'company', 'contact', etc.
-  scopeEntityId    String?                   // Entity ID for scoped memories
-  content          String                    // The actual knowledge
-  summary          String?                   // Condensed version
-  tags             String                    // JSON array of tags
-  referencedEntityIds String                  // JSON array of entity IDs
-  sourceType       AIMemorySource
-  sourceDescription String
-  sourceId         String?                   // Original source record ID
-  sourceTimestampMs Int?                     // Original source event time
-  confidence       Float                     @default(0.7)
-  importance       Float                     @default(0.5)
-  accessCount      Int                       @default(0)
-  lastAccessedAtMs Int                       @default(0)
-  expiresAtMs      Int?                      // NULL = never expires
-  version          Int                       @default(1)
-  parentMemoryId   String?                   // Consolidated from parent
-  childMemoryIds   String                    // JSON array of child memory IDs
-  metadata         Json                      @default("{}")
+  id                  String                @id
+  layer               AIMemoryLayer
+  category            AIMemoryCategory
+  priority            AIMemoryPriority
+  scopeType           IntelligenceScopeType @default(global)
+  scopeEntityType     String? // 'company', 'contact', etc.
+  scopeEntityId       String? // Entity ID for scoped memories
+  content             String // The actual knowledge
+  summary             String? // Condensed version
+  tags                String // JSON array of tags
+  referencedEntityIds String // JSON array of entity IDs
+  sourceType          AIMemorySource
+  sourceDescription   String
+  sourceId            String? // Original source record ID
+  sourceTimestampMs   Int? // Original source event time
+  confidence          Float                 @default(0.7)
+  importance          Float                 @default(0.5)
+  accessCount         Int                   @default(0)
+  lastAccessedAtMs    Int                   @default(0)
+  expiresAtMs         Int? // NULL = never expires
+  version             Int                   @default(1)
+  parentMemoryId      String? // Consolidated from parent
+  childMemoryIds      String // JSON array of child memory IDs
+  metadata            Json                  @default("{}")
 
   // ── Lock L3: Multi-Tenant Isolation ──
-  companyId        String?                   // Scoped memories carry companyId
-  isGlobal         Boolean                   @default(true) // Default = global
+  companyId String? // Scoped memories carry companyId
+  isGlobal  Boolean @default(true) // Default = global
 
   // ── Lock L7: Provenance & Audit ──
-  createdBy        String?                   // User/system that created this memory
-  confidenceHistory String?                  // JSON: [{value, timestamp, reason}]
-  versionHistory   String?                  // JSON: [{version, content, timestamp, reason}]
+  createdBy         String? // User/system that created this memory
+  confidenceHistory String? // JSON: [{value, timestamp, reason}]
+  versionHistory    String? // JSON: [{version, content, timestamp, reason}]
 
-  createdAtMs      Int
-  updatedAtMs      Int
+  createdAtMs Int
+  updatedAtMs Int
 
+  @@unique([id])
   @@index([layer])
   @@index([category])
   @@index([companyId])
@@ -3274,37 +3276,37 @@ model AIMemoryEntry {
   @@index([expiresAtMs])
   @@index([updatedAtMs(sort: Desc)])
   @@index([isGlobal])
-  @@unique([id])
 }
 
 // ── Hybrid Retrieval Index ────────────────────────────────────────────────
 
 model RetrievalIndexEntry {
-  id               String                    @id
-  entityId         String                    // Entity/data ID this index covers
-  entityType       String                    // 'company_signal', 'contact', etc.
-  content          String                    // Full text content
-  snippet          String                    // Display snippet
-  vector           Bytes?                    // Float64Array serialized as bytes
-  termFrequencies  String                    // JSON: Map<string, number> — BM25 term freqs
-  source           String?
-  sourceDate       String?
-  sourceTier       RetrievalSourceTier       @default(unknown)
-  entities         String                    // JSON: ExtractedEntity[]
-  metadata         Json                      @default("{}")
+  id              String              @id
+  entityId        String // Entity/data ID this index covers
+  entityType      String // 'company_signal', 'contact', etc.
+  content         String // Full text content
+  snippet         String // Display snippet
+  vector          Bytes? // Float64Array serialized as bytes
+  termFrequencies String // JSON: Map<string, number> — BM25 term freqs
+  source          String?
+  sourceDate      String?
+  sourceTier      RetrievalSourceTier @default(unknown)
+  entities        String // JSON: ExtractedEntity[]
+  metadata        Json                @default("{}")
 
   // ── Lock L3: Multi-Tenant ──
-  companyId        String?
-  isGlobal         Boolean                   @default(true)
+  companyId String?
+  isGlobal  Boolean @default(true)
 
   // ── Lock L7: Provenance ──
-  createdBy        String?
+  createdBy         String?
   sourceAttribution String?
 
-  indexedAtMs      Int                       // = in-memory indexedAt
-  createdAtMs      Int
-  updatedAtMs      Int
+  indexedAtMs Int // = in-memory indexedAt
+  createdAtMs Int
+  updatedAtMs Int
 
+  @@unique([id])
   @@index([entityId])
   @@index([companyId])
   @@index([companyId, entityType])
@@ -3312,16 +3314,15 @@ model RetrievalIndexEntry {
   @@index([indexedAtMs(sort: Desc)])
   @@index([entityType])
   @@index([isGlobal])
-  @@unique([id])
 }
 
 // ── Retrieval Corpus Statistics (IDF) ─────────────────────────────────────
 
 model RetrievalCorpusStats {
-  id               String                    @id @default("singleton_corpus")
-  documentFrequency String                    // JSON: Map<string, number> — term → doc count
-  totalDocuments   Int                       @default(0)
-  lastUpdatedAtMs  Int                       @default(0)
+  id                String @id @default("singleton_corpus")
+  documentFrequency String // JSON: Map<string, number> — term → doc count
+  totalDocuments    Int    @default(0)
+  lastUpdatedAtMs   Int    @default(0)
 
   @@unique([id])
 }
@@ -3335,20 +3336,20 @@ model RetrievalCorpusStats {
 // ── Persistence Operation Log (audit trail + dead-letter queue) ───────────
 
 model PersistenceOperationLog {
-  id               String                      @id @default(cuid())
-  store            IntelligencePersistenceStore
-  operation        String                      // 'upsert', 'delete', 'batch_upsert'
-  mapKey           String                      // The Map key that triggered this
-  companyId        String?                     // Tenant context
-  payloadSummary   String                      // First 500 chars of serialized data
-  status           PersistenceOperationStatus  @default(pending)
-  latencyMs        Int?                        // NULL = failed before completing
-  errorMessage     String?                     // Failure reason
-  retryCount       Int                         @default(0)
-  maxRetries       Int                         @default(3)
-  nextRetryAt      DateTime?                   // Exponential backoff
-  resolvedAt       DateTime?                   // When completed or dead-lettered
-  createdAt        DateTime                    @default(now())
+  id             String                       @id @default(cuid())
+  store          IntelligencePersistenceStore
+  operation      String // 'upsert', 'delete', 'batch_upsert'
+  mapKey         String // The Map key that triggered this
+  companyId      String? // Tenant context
+  payloadSummary String // First 500 chars of serialized data
+  status         PersistenceOperationStatus   @default(pending)
+  latencyMs      Int? // NULL = failed before completing
+  errorMessage   String? // Failure reason
+  retryCount     Int                          @default(0)
+  maxRetries     Int                          @default(3)
+  nextRetryAt    DateTime? // Exponential backoff
+  resolvedAt     DateTime? // When completed or dead-lettered
+  createdAt      DateTime                     @default(now())
 
   @@index([store, status])
   @@index([companyId, store])
@@ -3360,17 +3361,17 @@ model PersistenceOperationLog {
 // ── Persistence Health Snapshots ────────────────────────────────────────────
 
 model PersistenceHealthSnapshot {
-  id               String                      @id @default(cuid())
-  store            IntelligencePersistenceStore
-  healthy          Boolean
-  lastWriteAtMs    Int?
-  lastWriteLatencyMs Int?
-  consecutiveFailures Int                     @default(0)
-  failureQueueDepth   Int                     @default(0)
-  totalWrites      Int                         @default(0)
-  totalFailures    Int                         @default(0)
-  snapshotReason   String                      // 'scheduled', 'state_change', 'alert'
-  createdAt        DateTime                    @default(now())
+  id                  String                       @id @default(cuid())
+  store               IntelligencePersistenceStore
+  healthy             Boolean
+  lastWriteAtMs       Int?
+  lastWriteLatencyMs  Int?
+  consecutiveFailures Int                          @default(0)
+  failureQueueDepth   Int                          @default(0)
+  totalWrites         Int                          @default(0)
+  totalFailures       Int                          @default(0)
+  snapshotReason      String // 'scheduled', 'state_change', 'alert'
+  createdAt           DateTime                     @default(now())
 
   @@index([store, createdAt(sort: Desc)])
   @@index([healthy])
@@ -3380,16 +3381,16 @@ model PersistenceHealthSnapshot {
 // ── Shadow Mode Reconciliation Log (L4) ──────────────────────────────────────
 
 model ShadowModeReconciliation {
-  id               String                      @id @default(cuid())
-  store            IntelligencePersistenceStore
-  mapCount         Int                         // Map entry count at snapshot time
-  dbCount          Int                         // DB entry count at snapshot time
-  missingFromDb   Int                         // In Map but not in DB
-  missingFromMap  Int                         // In DB but not in Map
-  mismatchedEntries Int                        // Count of entries that differ
-  mismatchDetails String                      // JSON: [{mapKey, mapHash, dbHash}]
-  durationMs       Int
-  createdAt        DateTime                    @default(now())
+  id                String                       @id @default(cuid())
+  store             IntelligencePersistenceStore
+  mapCount          Int // Map entry count at snapshot time
+  dbCount           Int // DB entry count at snapshot time
+  missingFromDb     Int // In Map but not in DB
+  missingFromMap    Int // In DB but not in Map
+  mismatchedEntries Int // Count of entries that differ
+  mismatchDetails   String // JSON: [{mapKey, mapHash, dbHash}]
+  durationMs        Int
+  createdAt         DateTime                     @default(now())
 
   @@index([store, createdAt(sort: Desc)])
   @@index([createdAt])
@@ -3445,22 +3446,22 @@ enum AdvisorEscalationStatus {
 }
 
 model AdvisorConversation {
-  id              String                      @id @default(cuid())
-  title           String                      @default("New Intelligence Briefing")
-  scope           AdvisorConversationScope    @default(general_intelligence)
-  status          AdvisorConversationStatus   @default(active)
-  companyId       String?
-  userId          String?
-  messageCount    Int                         @default(0)
-  lastActiveAt    DateTime                    @default(now())
-  createdAt       DateTime                    @default(now())
+  id           String                    @id @default(cuid())
+  title        String                    @default("New Intelligence Briefing")
+  scope        AdvisorConversationScope  @default(general_intelligence)
+  status       AdvisorConversationStatus @default(active)
+  companyId    String?
+  userId       String?
+  messageCount Int                       @default(0)
+  lastActiveAt DateTime                  @default(now())
+  createdAt    DateTime                  @default(now())
 
-  messages        AdvisorMessage[]
-  escalations     AdvisorEscalation[]
-  workspace       AdvisorWorkspace?
-  savedBriefings  AdvisorSavedBriefing[]
+  messages       AdvisorMessage[]
+  escalations    AdvisorEscalation[]
+  workspace      AdvisorWorkspace?
+  savedBriefings AdvisorSavedBriefing[]
 
-  company         Company?                    @relation(fields: [companyId], references: [id])
+  company Company? @relation(fields: [companyId], references: [id])
 
   @@index([companyId, lastActiveAt(sort: Desc)])
   @@index([userId, lastActiveAt(sort: Desc)])
@@ -3469,23 +3470,23 @@ model AdvisorConversation {
 }
 
 model AdvisorMessage {
-  id                    String                @id @default(cuid())
-  conversationId        String
-  role                  AdvisorMessageRole
-  status                AdvisorMessageStatus   @default(pending)
-  content               String
-  contentJson           String?               // JSON: structured content (briefing, error, event)
-  briefingId            String?
-  queryText             String?
-  position              Int
-  processingDurationMs  Int?
-  modelUsed             String?
-  feedbackType          String?
-  feedbackComment       String?
-  feedbackProvidedAt    DateTime?
-  createdAt             DateTime              @default(now())
+  id                   String               @id @default(cuid())
+  conversationId       String
+  role                 AdvisorMessageRole
+  status               AdvisorMessageStatus @default(pending)
+  content              String
+  contentJson          String? // JSON: structured content (briefing, error, event)
+  briefingId           String?
+  queryText            String?
+  position             Int
+  processingDurationMs Int?
+  modelUsed            String?
+  feedbackType         String?
+  feedbackComment      String?
+  feedbackProvidedAt   DateTime?
+  createdAt            DateTime             @default(now())
 
-  conversation          AdvisorConversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation AdvisorConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, position])
   @@index([conversationId, createdAt(sort: Desc)])
@@ -3493,32 +3494,32 @@ model AdvisorMessage {
 }
 
 model AdvisorWorkspace {
-  id              String                @id @default(cuid())
-  conversationId  String                @unique
-  workspaceData    String                // JSON: AdvisorWorkspace
-  totalItems      Int                   @default(0)
-  updatedAt       DateTime              @default(now())
-  createdAt       DateTime              @default(now())
+  id             String   @id @default(cuid())
+  conversationId String   @unique
+  workspaceData  String // JSON: AdvisorWorkspace
+  totalItems     Int      @default(0)
+  updatedAt      DateTime @default(now())
+  createdAt      DateTime @default(now())
 
-  conversation    AdvisorConversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation AdvisorConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([updatedAt(sort: Desc)])
 }
 
 model AdvisorEscalation {
-  id               String                   @id @default(cuid())
-  conversationId   String
-  messageId        String
-  reason           AdvisorEscalationReason
-  priority         String                   @default("medium")
-  description      String
-  contextSnapshot  String                   // JSON: conversation/message context
-  status           AdvisorEscalationStatus @default(requested)
-  requestedAt      DateTime                 @default(now())
-  acknowledgedAt   DateTime?
-  resolvedAt       DateTime?
+  id              String                  @id @default(cuid())
+  conversationId  String
+  messageId       String
+  reason          AdvisorEscalationReason
+  priority        String                  @default("medium")
+  description     String
+  contextSnapshot String // JSON: conversation/message context
+  status          AdvisorEscalationStatus @default(requested)
+  requestedAt     DateTime                @default(now())
+  acknowledgedAt  DateTime?
+  resolvedAt      DateTime?
 
-  conversation     AdvisorConversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  conversation AdvisorConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
 
   @@index([conversationId, requestedAt(sort: Desc)])
   @@index([status, requestedAt(sort: Desc)])
@@ -3526,15 +3527,15 @@ model AdvisorEscalation {
 }
 
 model AdvisorSavedBriefing {
-  id              String                @id @default(cuid())
-  conversationId  String
-  title           String
-  briefingData    String                // JSON: StructuredBriefing
-  companyId       String?
-  createdAt       DateTime              @default(now())
+  id             String   @id @default(cuid())
+  conversationId String
+  title          String
+  briefingData   String // JSON: StructuredBriefing
+  companyId      String?
+  createdAt      DateTime @default(now())
 
-  conversation    AdvisorConversation   @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  company         Company?              @relation(fields: [companyId], references: [id])
+  conversation AdvisorConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  company      Company?            @relation(fields: [companyId], references: [id])
 
   @@index([companyId, createdAt(sort: Desc)])
   @@index([createdAt(sort: Desc)])
@@ -3548,19 +3549,19 @@ model AdvisorSavedBriefing {
 // ═══════════════════════════════════════════════════════════════
 
 model ComprehensiveAuditLog {
-  id          String   @id @default(cuid())
-  action      String   // create, read, update, delete, login, logout, role_change, export, etc.
-  entity      String   // Company, Contact, User, Session, SystemSetting, etc.
-  entityId    String
-  actorId     String
-  actorEmail  String?
-  actorRole   String?
-  ipAddress   String?
-  userAgent   String?
-  changes     Json     @default("[]") // Array of { field, oldValue, newValue }
-  metadata    Json     @default("{}") // Additional context
-  requestId   String?  // Correlation ID for distributed tracing
-  createdAt   DateTime @default(now()) // Immutable — no updatedAt
+  id         String   @id @default(cuid())
+  action     String // create, read, update, delete, login, logout, role_change, export, etc.
+  entity     String // Company, Contact, User, Session, SystemSetting, etc.
+  entityId   String
+  actorId    String
+  actorEmail String?
+  actorRole  String?
+  ipAddress  String?
+  userAgent  String?
+  changes    Json     @default("[]") // Array of { field, oldValue, newValue }
+  metadata   Json     @default("{}") // Additional context
+  requestId  String? // Correlation ID for distributed tracing
+  createdAt  DateTime @default(now()) // Immutable — no updatedAt
 
   @@index([action])
   @@index([entity])
@@ -3572,9 +3573,9 @@ model ComprehensiveAuditLog {
 }
 
 model PrivacyRequest {
-  id             String   @id @default(cuid())
-  type           String   // access, erasure, rectification, objection, restriction, portability
-  status         String   @default("received") // received, verified, processing, completed, rejected, expired
+  id             String    @id @default(cuid())
+  type           String // access, erasure, rectification, objection, restriction, portability
+  status         String    @default("received") // received, verified, processing, completed, rejected, expired
   requesterEmail String
   requesterName  String
   contactId      String?
@@ -3584,8 +3585,8 @@ model PrivacyRequest {
   completedAt    DateTime?
   expiresAt      DateTime
   slaDeadline    DateTime
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   @@index([status])
   @@index([type])
@@ -3595,21 +3596,21 @@ model PrivacyRequest {
 }
 
 model SecurityFinding {
-  id                  String   @id @default(cuid())
+  id                  String    @id @default(cuid())
   title               String
   description         String
-  severity            String   // critical, high, medium, low, info
-  category            String   // authentication, authorization, injection, data_protection, etc.
-  status              String   @default("open") // open, in_progress, remediated, accepted_risk, false_positive
+  severity            String // critical, high, medium, low, info
+  category            String // authentication, authorization, injection, data_protection, etc.
+  status              String    @default("open") // open, in_progress, remediated, accepted_risk, false_positive
   owaspCategory       String?
-  cvssScore           Float    @default(0)
-  affectedEndpoints   String   @default("[]") // JSON array of endpoint paths
+  cvssScore           Float     @default(0)
+  affectedEndpoints   String    @default("[]") // JSON array of endpoint paths
   remediation         String
   remediationDeadline DateTime?
   assignedTo          String?
   evidence            String?
   externalTestRef     String?
-  discoveredAt        DateTime @default(now())
+  discoveredAt        DateTime  @default(now())
   remediatedAt        DateTime?
 
   @@index([severity])
@@ -3625,21 +3626,21 @@ model SecurityFinding {
 // ═══════════════════════════════════════════════════════════════════════════
 
 model CRMConnection {
-  id            String    @id @default(cuid())
-  provider      String                          // "salesforce" or "hubspot"
-  name          String
-  accessToken   String?
-  refreshToken  String?
+  id             String    @id @default(cuid())
+  provider       String // "salesforce" or "hubspot"
+  name           String
+  accessToken    String?
+  refreshToken   String?
   tokenExpiresAt DateTime?
-  instanceUrl   String?
-  scopes        String?                         // JSON array of OAuth scopes
-  isActive      Boolean   @default(true)
-  lastSyncAt    DateTime?
-  syncMode      String    @default("manual")     // "manual", "scheduled", "realtime"
-  syncInterval  Int       @default(3600)         // seconds
-  fieldMapping  Json?                           // custom field mapping overrides
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  instanceUrl    String?
+  scopes         String? // JSON array of OAuth scopes
+  isActive       Boolean   @default(true)
+  lastSyncAt     DateTime?
+  syncMode       String    @default("manual") // "manual", "scheduled", "realtime"
+  syncInterval   Int       @default(3600) // seconds
+  fieldMapping   Json? // custom field mapping overrides
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime  @updatedAt
 
   syncLogs CRMSyncLog[]
 
@@ -3656,14 +3657,14 @@ model MergeRecord {
   id          String   @id @default(cuid())
   survivorId  String
   duplicateId String
-  entityType  String                    // "company" or "contact"
-  mergedBy    String?                   // user who triggered merge
+  entityType  String // "company" or "contact"
+  mergedBy    String? // user who triggered merge
   mergedAt    DateTime @default(now())
-  mergeReason String                    // "auto_dedup", "manual_merge", "bulk_merge", etc.
-  fieldsKept  Json?                     // which fields were kept from which source
+  mergeReason String // "auto_dedup", "manual_merge", "bulk_merge", etc.
+  fieldsKept  Json? // which fields were kept from which source
 
-  survivor  Company  @relation("MergeSurvivor", fields: [survivorId], references: [id])
-  duplicate Company  @relation("MergeDuplicate", fields: [duplicateId], references: [id])
+  survivor  Company @relation("MergeSurvivor", fields: [survivorId], references: [id])
+  duplicate Company @relation("MergeDuplicate", fields: [duplicateId], references: [id])
 
   @@index([survivorId])
   @@index([duplicateId])
@@ -3672,18 +3673,18 @@ model MergeRecord {
 }
 
 model CRMSyncLog {
-  id             String   @id @default(cuid())
-  connectionId   String
-  direction      String                       // "import" or "export"
-  entityType     String                       // "company", "contact", "opportunity"
-  entityId       String?
-  crmExternalId  String?
-  action         String                       // "created", "updated", "skipped", "failed"
-  syncDuration   Int?                         // ms
-  errorMessage   String?
-  syncedAt       DateTime @default(now())
+  id            String   @id @default(cuid())
+  connectionId  String
+  direction     String // "import" or "export"
+  entityType    String // "company", "contact", "opportunity"
+  entityId      String?
+  crmExternalId String?
+  action        String // "created", "updated", "skipped", "failed"
+  syncDuration  Int? // ms
+  errorMessage  String?
+  syncedAt      DateTime @default(now())
 
-  connection     CRMConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  connection CRMConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
 
   @@index([connectionId])
   @@index([entityType])
@@ -3698,21 +3699,21 @@ model CRMSyncLog {
 // ═══════════════════════════════════════════════════════════════════════════
 
 model EnrichmentJob {
-  id              String    @id @default(cuid())
-  entityType      String                              // "company", "contact"
-  entityId        String
-  providerId      String?
-  providerName    String?
-  status          String    @default("queued")        // "queued", "processing", "completed", "failed", "skipped"
-  confidence      Float?                              // 0-1
-  creditsUsed     Int       @default(0)
-  retryCount      Int       @default(0)
-  maxRetries      Int       @default(3)
-  errorMessage    String?
-  resultData      Json?
-  startedAt       DateTime?
-  completedAt     DateTime?
-  createdAt       DateTime  @default(now())
+  id           String    @id @default(cuid())
+  entityType   String // "company", "contact"
+  entityId     String
+  providerId   String?
+  providerName String?
+  status       String    @default("queued") // "queued", "processing", "completed", "failed", "skipped"
+  confidence   Float? // 0-1
+  creditsUsed  Int       @default(0)
+  retryCount   Int       @default(0)
+  maxRetries   Int       @default(3)
+  errorMessage String?
+  resultData   Json?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdAt    DateTime  @default(now())
 
   @@index([entityType, entityId])
   @@index([status])
@@ -3723,21 +3724,21 @@ model EnrichmentJob {
 // ── Data Export (Task 4.6: Bulk Import/Export Pipeline) ──
 
 model DataExport {
-  id            String   @id @default(cuid())
-  format        String                       // "csv", "json", "xlsx"
-  entityType    String                       // "companies", "contacts", "opportunities", "signals"
-  filters       Json?                        // export filter criteria
-  fields        Json?                        // selected column names
-  status        String   @default("pending") // "pending", "processing", "completed", "failed", "cancelled"
-  totalRows     Int      @default(0)
-  exportedRows  Int      @default(0)
-  fileSize      Int?                          // bytes
-  filePath      String?                       // path to exported file
-  errorMessage  String?
-  startedAt     DateTime?
-  completedAt   DateTime?
-  createdBy     String?
-  createdAt     DateTime @default(now())
+  id           String    @id @default(cuid())
+  format       String // "csv", "json", "xlsx"
+  entityType   String // "companies", "contacts", "opportunities", "signals"
+  filters      Json? // export filter criteria
+  fields       Json? // selected column names
+  status       String    @default("pending") // "pending", "processing", "completed", "failed", "cancelled"
+  totalRows    Int       @default(0)
+  exportedRows Int       @default(0)
+  fileSize     Int? // bytes
+  filePath     String? // path to exported file
+  errorMessage String?
+  startedAt    DateTime?
+  completedAt  DateTime?
+  createdBy    String?
+  createdAt    DateTime  @default(now())
 
   @@index([status])
   @@index([entityType])
@@ -3748,13 +3749,13 @@ model DataExport {
 // ── Import Templates (Task 4.6: Bulk Import/Export Pipeline) ──
 
 model ImportTemplate {
-  id          String   @id @default(cuid())
-  name        String
-  source      String                       // "salesforce", "hubspot", "csv_standard", "custom"
-  entityType  String                       // "companies", "contacts"
-  columnMap   Json                         // mapping rules: { "SF Account Name": "rawName", "SF Website": "domain" }
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
+  id         String   @id @default(cuid())
+  name       String
+  source     String // "salesforce", "hubspot", "csv_standard", "custom"
+  entityType String // "companies", "contacts"
+  columnMap  Json // mapping rules: { "SF Account Name": "rawName", "SF Website": "domain" }
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
 
   @@index([source])
   @@index([entityType])

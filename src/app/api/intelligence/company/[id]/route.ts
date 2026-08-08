@@ -25,7 +25,6 @@ import type { RevenueScore } from '@/lib/engines/scoring-engine';
 import { ActionEngine } from '@/lib/engines/action-engine';
 import type { ActionResult } from '@/lib/engines/action-engine';
 import { ConversationEngine } from '@/lib/engines/conversation-engine';
-import type { ConversationResult } from '@/lib/engines/conversation-engine';
 import {
   shouldInclude,
   createResponse,

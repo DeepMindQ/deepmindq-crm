@@ -29,7 +29,7 @@ import {
   SECURITY_HEADERS,
 } from '@/lib/intelligence-api/intelligence-middleware';
 import { IntelligenceErrors } from '@/lib/intelligence-api/types';
-import type { IntelligenceBriefOutput, IntelligenceBrief, IntelligenceInclude } from '@/lib/intelligence-api/types';
+import type { IntelligenceBriefOutput, IntelligenceBrief } from '@/lib/intelligence-api/types';
 import { intelligenceGuard } from '@/lib/intelligence-api/guard';
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';

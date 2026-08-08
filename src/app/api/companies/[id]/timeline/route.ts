@@ -26,7 +26,7 @@ try {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    const where: Record<string, any> = { companyId };
+    const where: Record<string, unknown> = { companyId };
     if (type) {
       where.eventType = type;
     }

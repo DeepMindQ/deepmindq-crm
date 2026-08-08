@@ -79,14 +79,14 @@ try {
     }
 
     // Build update data from Zod-validated fields (WI-18.1-04)
-    const data: Record<string, any> = {};
+    const data: Record<string, unknown> = {};
 
     // Use only the validated/parsed fields from Zod, not raw body
     // validateBody returns z.infer<T> directly (not wrapped in {data: ...})
     const validatedFields = Object.keys(parsed || {});
     for (const field of validatedFields) {
-      if ((parsed as Record<string, any>)[field] !== undefined) {
-        data[field] = (parsed as Record<string, any>)[field];
+      if ((parsed as Record<string, unknown>)[field] !== undefined) {
+        data[field] = (parsed as Record<string, unknown>)[field];
       }
     }
 
@@ -101,7 +101,7 @@ try {
 
     // Auto-update normalizedName if rawName changes
     if (data.rawName) {
-      data.normalizedName = data.rawName.trim().toLowerCase();
+      data.normalizedName = String(data.rawName).trim().toLowerCase();
     }
 
     // Auto-update lastActivityAt on status change

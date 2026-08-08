@@ -10,15 +10,11 @@
  */
 
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
 import { checkApiAuth } from '@/lib/api-auth';
 import { validateBody } from '@/lib/apiHelpers';
-import { apiSuccess, apiError, apiNotFound, apiPaginated } from '@/lib/apiHelpers';
+import { apiSuccess, apiError, apiNotFound } from '@/lib/apiHelpers';
 import { z } from 'zod';
 import { logger } from '@/lib/logger';
-import { parsePaginationFromUrl } from '@/lib/pagination';
-import { syncFromCRM, syncToCRM } from '@/lib/crm/crm-sync-service';
-import { getConnectorForProvider } from '@/lib/crm/crm-connector';
 
 // ─── Route segment params ──────────────────────────────────────────
 

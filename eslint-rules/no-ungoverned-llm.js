@@ -115,7 +115,7 @@ module.exports = {
     }
 
     // Helper: check for default import
-    function hasDefaultImport(specifiers, name) {
+    function _hasDefaultImport(specifiers, name) {
       if (!specifiers) return false;
       return specifiers.some(
         (s) => s.type === "ImportDefaultSpecifier" && s.local?.name === name

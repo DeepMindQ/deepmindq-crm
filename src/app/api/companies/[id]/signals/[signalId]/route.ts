@@ -26,7 +26,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Signal not found' }, { status: 404 });
     }
 
-    const data: Record<string, any> = {};
+    const data: Record<string, unknown> = {};
 
     if (body.title !== undefined) {
       data.title = typeof body.title === 'string' ? body.title.trim() : body.title;

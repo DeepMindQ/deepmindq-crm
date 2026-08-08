@@ -86,6 +86,10 @@ vi.mock('@/lib/session', () => ({
   }),
 }));
 
+vi.mock('@/lib/rate-limit', () => ({
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true }),
+}));
+
 // ═══════════════════════════════════════════════════════════════
 // GET /api/data-import — List uploads
 // ═══════════════════════════════════════════════════════════════

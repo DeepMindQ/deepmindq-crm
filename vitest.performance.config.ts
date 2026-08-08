@@ -4,7 +4,16 @@
  *
  * Performance tests need controlled single-worker execution
  * for consistent benchmarking results.
+ *
+ * IMPORTANT: Persistence must be disabled so DB-dependent code paths
+ * short-circuit and tests validate Map-only behavior and rollback safety.
  */
+
+// Match vitest.config.ts and vitest.integration.config.ts:
+// persistence must default to disabled for performance tests
+// that validate Map-only behavior and rollback safety.
+process.env.USE_DB_PERSISTENCE = 'false';
+
 import { defineConfig } from 'vitest/config'
 import path from 'path'
 

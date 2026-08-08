@@ -83,6 +83,15 @@ vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn() },
 }));
 
+vi.mock('@/lib/blended-confidence', () => ({
+  computeBlendedConfidence: async (input: { baseScore: number }) => ({
+    blendedScore: input.baseScore,
+    sources: [],
+    totalWeightApplied: 1,
+    dominantSource: 'base_score',
+  }),
+}));
+
 // ── Import after mocks ──
 
 const {

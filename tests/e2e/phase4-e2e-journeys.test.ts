@@ -244,6 +244,8 @@ describe('Journey: Company CRUD (POST → GET → PATCH)', () => {
   it('POST /api/companies creates a new company and returns 201', async () => {
     vi.doMock('@/lib/api-auth', () => ({
       checkApiAuth: vi.fn().mockResolvedValue({ session: MOCK_SESSION }),
+      filterResponseByRole: vi.fn((data: any) => data),
+      filterResponseArrayByRole: vi.fn((data: any[]) => data),
     }));
 
     vi.doMock('@/lib/db', () => ({
@@ -281,6 +283,8 @@ describe('Journey: Company CRUD (POST → GET → PATCH)', () => {
   it('GET /api/companies/:id returns company by ID', async () => {
     vi.doMock('@/lib/api-auth', () => ({
       checkApiAuth: vi.fn().mockResolvedValue({ session: MOCK_SESSION }),
+      filterResponseByRole: vi.fn((data: any) => data),
+      filterResponseArrayByRole: vi.fn((data: any[]) => data),
     }));
 
     vi.doMock('@/lib/db', () => ({
@@ -312,6 +316,8 @@ describe('Journey: Company CRUD (POST → GET → PATCH)', () => {
   it('GET /api/companies/:id returns 404 for nonexistent company', async () => {
     vi.doMock('@/lib/api-auth', () => ({
       checkApiAuth: vi.fn().mockResolvedValue({ session: MOCK_SESSION }),
+      filterResponseByRole: vi.fn((data: any) => data),
+      filterResponseArrayByRole: vi.fn((data: any[]) => data),
     }));
 
     vi.doMock('@/lib/db', () => ({
@@ -349,6 +355,8 @@ describe('Journey: Company CRUD (POST → GET → PATCH)', () => {
 
     vi.doMock('@/lib/api-auth', () => ({
       checkApiAuth: vi.fn().mockResolvedValue({ session: MOCK_SESSION }),
+      filterResponseByRole: vi.fn((data: any) => data),
+      filterResponseArrayByRole: vi.fn((data: any[]) => data),
     }));
 
     vi.doMock('@/lib/db', () => ({
@@ -416,6 +424,8 @@ describe('Journey: Contact Intelligence (POST /api/ai/contact-intelligence)', ()
 
     vi.doMock('@/lib/api-auth', () => ({
       checkApiAuth: vi.fn().mockResolvedValue({ session: MOCK_SESSION }),
+      filterResponseByRole: vi.fn((data: any) => data),
+      filterResponseArrayByRole: vi.fn((data: any[]) => data),
     }));
 
     vi.doMock('@/lib/db', () => ({
@@ -449,6 +459,8 @@ describe('Journey: Contact Intelligence (POST /api/ai/contact-intelligence)', ()
   it('POST returns 400 when companyId is missing', async () => {
     vi.doMock('@/lib/api-auth', () => ({
       checkApiAuth: vi.fn().mockResolvedValue({ session: MOCK_SESSION }),
+      filterResponseByRole: vi.fn((data: any) => data),
+      filterResponseArrayByRole: vi.fn((data: any[]) => data),
     }));
 
     vi.doMock('@/lib/db', () => ({
@@ -488,6 +500,8 @@ describe('Journey: AI Chat (POST /api/ai/chat)', () => {
   it('POST returns a response message', async () => {
     vi.doMock('@/lib/api-auth', () => ({
       checkApiAuth: vi.fn().mockResolvedValue({ session: MOCK_SESSION }),
+      filterResponseByRole: vi.fn((data: any) => data),
+      filterResponseArrayByRole: vi.fn((data: any[]) => data),
     }));
 
     vi.doMock('@/lib/db', () => ({
@@ -527,6 +541,8 @@ describe('Journey: AI Chat (POST /api/ai/chat)', () => {
   it('POST returns 400 when message is missing', async () => {
     vi.doMock('@/lib/api-auth', () => ({
       checkApiAuth: vi.fn().mockResolvedValue({ session: MOCK_SESSION }),
+      filterResponseByRole: vi.fn((data: any) => data),
+      filterResponseArrayByRole: vi.fn((data: any[]) => data),
     }));
 
     vi.resetModules();
@@ -564,6 +580,8 @@ describe('Journey: AI Chat (POST /api/ai/chat)', () => {
 
     vi.doMock('@/lib/api-auth', () => ({
       checkApiAuth: vi.fn().mockResolvedValue({ session: MOCK_SESSION }),
+      filterResponseByRole: vi.fn((data: any) => data),
+      filterResponseArrayByRole: vi.fn((data: any[]) => data),
     }));
 
     vi.doMock('@/lib/db', () => ({
@@ -639,6 +657,8 @@ describe('Journey: Recommendation Flow (GET /api/ai/opportunities)', () => {
   it('GET returns paginated opportunities with stats', async () => {
     vi.doMock('@/lib/api-auth', () => ({
       checkApiAuth: vi.fn().mockResolvedValue({ session: MOCK_SESSION }),
+      filterResponseByRole: vi.fn((data: any) => data),
+      filterResponseArrayByRole: vi.fn((data: any[]) => data),
     }));
 
     vi.doMock('@/lib/db', () => ({
@@ -683,6 +703,8 @@ describe('Journey: Recommendation Flow (GET /api/ai/opportunities)', () => {
   it('GET filters by status parameter', async () => {
     vi.doMock('@/lib/api-auth', () => ({
       checkApiAuth: vi.fn().mockResolvedValue({ session: MOCK_SESSION }),
+      filterResponseByRole: vi.fn((data: any) => data),
+      filterResponseArrayByRole: vi.fn((data: any[]) => data),
     }));
 
     vi.doMock('@/lib/db', () => ({
@@ -716,6 +738,8 @@ describe('Journey: Recommendation Flow (GET /api/ai/opportunities)', () => {
   it('GET ignores invalid status and returns all', async () => {
     vi.doMock('@/lib/api-auth', () => ({
       checkApiAuth: vi.fn().mockResolvedValue({ session: MOCK_SESSION }),
+      filterResponseByRole: vi.fn((data: any) => data),
+      filterResponseArrayByRole: vi.fn((data: any[]) => data),
     }));
 
     vi.doMock('@/lib/db', () => ({

@@ -61,10 +61,13 @@ test.describe('Enterprise User Journey', () => {
     expect(response!.status()).toBe(200);
   });
 
-  test('6. API docs endpoint responds', async ({ page }) => {
-    const response = await page.goto(`${BASE_URL}/api/docs`);
+  test('6. API docs endpoint responds', async ({ request }) => {
+    // Use request API instead of page.goto — /api/docs returns YAML which
+    // triggers Playwright's download handler on page.goto
+    const response = await request.get(`${BASE_URL}/api/docs`);
     expect(response).not.toBeNull();
-    expect(response!.status()).toBeLessThan(500);
+    expect(response.status()).toBeLessThan(500);
+    expect(response.headers()['content-type']).toBeTruthy();
   });
 
   test('7. Marketing page loads', async ({ page }) => {
@@ -105,40 +108,18 @@ test.describe('Accessibility — WCAG 2.2 AA Basics', () => {
     // Filter to only truly critical errors (security vulnerabilities, crashes)
     // Dev environment triggers startup warnings which are expected behavior.
     // All env-related, DNS, and startup errors are filtered out.
+    // Use an allow-list approach: only count genuine crash-inducing errors.
+    // Dev/CI environments produce many expected startup warnings (DNS, DB,
+    // rate limits, env checks) that are not actual application crashes.
     const criticalErrors = errors.filter(e =>
-      !e.includes('Next.js') &&
-      !e.includes('Dev overlay') &&
-      !e.includes('favicon') &&
-      !e.includes('Environment validation') &&
-      !e.includes('startup') &&
-      !e.includes('audit') &&
-      !e.includes('Failed to record generation') &&
-      !e.includes('API rate limit') &&
-      !e.includes('DB connection error') &&
-      !e.includes('aggregate LLM') &&
-      !e.includes('MX lookup') &&
-      !e.includes('SPF lookup') &&
-      !e.includes('DMARC lookup') &&
-      !e.includes('ENOTFOUND') &&
-      !e.includes('email-verification') &&
-      !e.includes('Cache') &&
-      !e.includes('signal_detection') &&
-      !e.includes('governance') &&
-      !e.includes(' RBAC') &&
-      !e.includes('tracking') &&
-      !e.includes('allowed') &&
-      !e.includes('WARN') &&
-      !e.includes('ENOTFOUND') &&
-      !e.includes('ECONNREFUSED') &&
-      !e.includes('connect') &&
-      !e.includes('fetch') &&
-      !e.includes('prisma') &&
-      !e.includes('Prisma') &&
-      !e.includes('database') &&
-      !e.includes('Database')
+      e.includes('Uncaught') ||
+      e.includes('TypeError: ') ||
+      e.includes('RangeError: ') ||
+      e.includes('SyntaxError: ') ||
+      e.includes('SecurityError:')
     );
-    // Allow startup noise in dev; only fail on genuine crash errors
-    expect(criticalErrors.length).toBeLessThan(5);
+    // No genuine JavaScript crashes should occur
+    expect(criticalErrors.length).toBe(0);
   });
 
   test('No uncaught JavaScript exceptions on page load', async ({ page }) => {

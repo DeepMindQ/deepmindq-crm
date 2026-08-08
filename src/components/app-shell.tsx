@@ -16,6 +16,7 @@ import { NAV_SECTIONS, type NavItem as NavConfigItem } from '@/lib/nav-config';
 import { SCREEN_MAP } from '@/lib/screen-map';
 import { useSession } from '@/providers/auth-provider';
 import { logger } from '@/lib/logger';
+import { useBrandConfig } from '@/lib/use-brand-config';
 import {
   ChevronRight,
   PanelLeftClose,
@@ -282,6 +283,7 @@ interface SidebarProps {
 function Sidebar({ stageCounts, onLogout, mobileOpen, onMobileClose }: SidebarProps) {
   const { activeView, sidebarCollapsed, setActiveView, toggleSidebar } = useAppStore();
   const { session } = useSession();
+  const brand = useBrandConfig();
   const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
 
   // Filter navigation based on user role (admin sees all)
@@ -344,7 +346,11 @@ function Sidebar({ stageCounts, onLogout, mobileOpen, onMobileClose }: SidebarPr
             </div>
             {!sidebarCollapsed && (
               <span className="text-[17px] font-bold tracking-tight text-foreground whitespace-nowrap fade-in">
-                DeepMind<span className="text-primary">Q</span>
+                {brand.name.endsWith('Q') ? (
+                  <>{brand.name.slice(0, -1)}<span className="text-primary">Q</span></>
+                ) : (
+                  brand.name
+                )}
               </span>
             )}
           </div>
@@ -479,7 +485,7 @@ function Sidebar({ stageCounts, onLogout, mobileOpen, onMobileClose }: SidebarPr
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col min-w-0 flex-1">
-                <span className="text-sm font-medium text-foreground leading-tight truncate">{session?.email ?? 'DeepMindQ User'}</span>
+                <span className="text-sm font-medium text-foreground leading-tight truncate">{session?.email ?? `${brand.name} User`}</span>
                 <span className="text-[11px] text-muted-foreground leading-tight capitalize">{session?.role ?? 'user'}</span>
               </div>
               <motion.button
@@ -509,7 +515,7 @@ function Sidebar({ stageCounts, onLogout, mobileOpen, onMobileClose }: SidebarPr
                 sideOffset={12}
                 className="bg-[oklch(0.17_0.01_260)] border-[oklch(0.27_0.005_260)] text-foreground"
               >
-                <p className="font-medium">{session?.email ?? 'DeepMindQ User'}</p>
+                <p className="font-medium">{session?.email ?? `${brand.name} User`}</p>
                 <p className="text-xs text-muted-foreground capitalize">{session?.role ?? 'user'}</p>
               </TooltipContent>
             </Tooltip>
@@ -588,6 +594,7 @@ function Header({
 }: HeaderProps) {
   const sidebarCollapsed = useAppStore((s) => s.sidebarCollapsed);
   const { session } = useSession();
+  const brand = useBrandConfig();
 
   return (
     <header
@@ -682,7 +689,7 @@ function Header({
             </AvatarFallback>
           </Avatar>
           <div className="hidden lg:flex flex-col">
-            <span className="text-sm font-medium text-foreground leading-tight">{session?.email ?? 'DeepMindQ User'}</span>
+            <span className="text-sm font-medium text-foreground leading-tight">{session?.email ?? `${brand.name} User`}</span>
             <span className="text-[11px] text-muted-foreground leading-tight capitalize">{session?.role ?? 'user'}</span>
           </div>
         </div>
@@ -699,6 +706,7 @@ export function AppShell({ onLogout }: { onLogout: () => void }) {
   const [stageCounts, setStageCounts] = useState<Record<string, number>>({});
   const [aiChatOpen, setAiChatOpen] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const brand = useBrandConfig();
 
   // Single source of truth: useAppStore
   const activeScreen = useAppStore((s) => s.activeView);
@@ -727,7 +735,7 @@ export function AppShell({ onLogout }: { onLogout: () => void }) {
   useEffect(() => {
     if (activeScreen) {
       window.location.hash = activeScreen;
-      document.title = `${SCREEN_LABELS[activeScreen] || 'DeepMindQ'} — DeepMindQ`;
+      document.title = `${SCREEN_LABELS[activeScreen] || brand.name} — ${brand.name}`;
     }
   }, [activeScreen]);
 
@@ -793,7 +801,7 @@ export function AppShell({ onLogout }: { onLogout: () => void }) {
 
   // ── Screen component ──
   const LazyComponent = SCREEN_MAP[activeScreen] || SCREEN_MAP['dashboard'];
-  const activeLabel = SCREEN_LABELS[activeScreen] || 'DeepMindQ';
+  const activeLabel = SCREEN_LABELS[activeScreen] || brand.name;
 
   // ── Breadcrumb trail ──
   const breadcrumbs = [

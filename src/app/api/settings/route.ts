@@ -1,11 +1,18 @@
 import { NextResponse } from 'next/server';
 import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { logger } from '@/lib/logger';
+import { db } from '@/lib/db';
 
 /* ═══════════════════════════════════════════════════
    Types
    ═══════════════════════════════════════════════════ */
 interface SettingsObject {
+  brand: {
+    name: string;
+    logoUrl: string;
+    primaryColor: string;
+    secondaryColor: string;
+  };
   mailbox: {
     fromName: string;
     fromEmail: string;
@@ -51,6 +58,12 @@ interface SettingsObject {
    Default settings
    ═══════════════════════════════════════════════════ */
 const DEFAULT_SETTINGS: SettingsObject = {
+  brand: {
+    name: 'DeepMindQ',
+    logoUrl: '',
+    primaryColor: '#d6bf79',
+    secondaryColor: '#73b4c9',
+  },
   mailbox: {
     fromName: 'DeepMindQ',
     fromEmail: 'noreply@deepmindq.com',
@@ -94,10 +107,34 @@ const DEFAULT_SETTINGS: SettingsObject = {
 };
 
 /* ═══════════════════════════════════════════════════
-   In-memory settings store (survives hot reloads,
-   resets on server restart — safe for Vercel)
+   Database-backed settings via SystemSetting table
    ═══════════════════════════════════════════════════ */
-let currentSettings: SettingsObject = DEFAULT_SETTINGS;
+const SETTINGS_DB_KEY = 'app_settings';
+
+/** Load settings from DB, merging with defaults for any missing keys. */
+async function loadSettings(): Promise<SettingsObject> {
+  try {
+    const row = await db.systemSetting.findUnique({
+      where: { key: SETTINGS_DB_KEY },
+    });
+    if (!row) return DEFAULT_SETTINGS;
+    const stored = JSON.parse(row.value || '{}') as Partial<SettingsObject>;
+    // Deep-merge stored values over defaults so any new default keys survive
+    return deepMerge(DEFAULT_SETTINGS, stored) as SettingsObject;
+  } catch (error) {
+    logger.error('Failed to load settings from DB, using defaults:', { error });
+    return DEFAULT_SETTINGS;
+  }
+}
+
+/** Persist the full settings object to the DB (upsert). */
+async function persistSettings(settings: SettingsObject): Promise<void> {
+  await db.systemSetting.upsert({
+    where: { key: SETTINGS_DB_KEY },
+    create: { key: SETTINGS_DB_KEY, value: JSON.stringify(settings) },
+    update: { value: JSON.stringify(settings) },
+  });
+}
 
 /* ═══════════════════════════════════════════════════
    Deep-merge helper — merges partial updates into
@@ -136,7 +173,8 @@ export async function GET() {
   if (adminCheck) return adminCheck;
 
   try {
-    return NextResponse.json({ settings: currentSettings });
+    const settings = await loadSettings();
+    return NextResponse.json({ settings });
   } catch (error) {
     logger.error('Settings GET error:', { error: error });
     return NextResponse.json({ error: 'Failed to load settings' }, { status: 500 });
@@ -164,12 +202,14 @@ export async function PUT(request: Request) {
       );
     }
 
-    // Deep merge the incoming partial settings
-    currentSettings = deepMerge(currentSettings, body) as SettingsObject;
+    // Deep merge the incoming partial settings over current DB values
+    const current = await loadSettings();
+    const merged = deepMerge(current, body) as SettingsObject;
+    await persistSettings(merged);
 
     return NextResponse.json({
       success: true,
-      settings: currentSettings,
+      settings: merged,
     });
   } catch (error) {
     logger.error('Settings PUT error:', { error: error });

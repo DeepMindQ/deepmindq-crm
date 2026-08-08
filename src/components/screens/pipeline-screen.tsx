@@ -19,8 +19,8 @@ import {
 } from '@/components/shared/enterprise-components';
 import {
   gold, goldLight, card, border, glassPanel,
-  animations, colors, spacing, cls, badgeColors,
-} from '@/components/shared/enterprise-theme';
+  animations, colors, enterpriseSpacing as spacing, cls, badgeColors,
+} from '@/components/design-system';
 import { useAppStore } from '@/lib/store';
 
 // ── Theme color opacity helpers ─────────────────────

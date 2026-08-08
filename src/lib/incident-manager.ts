@@ -10,6 +10,8 @@
  *   const incident = incidentManager.create('DB Down', 'SEV1', '...', 'on-call')
  */
 
+import { db } from '@/lib/db'
+
 export type Severity = 'SEV1' | 'SEV2' | 'SEV3' | 'SEV4'
 export type IncidentStatus = 'investigating' | 'identified' | 'monitoring' | 'resolved' | 'postmortem'
 
@@ -84,8 +86,11 @@ const VALID_TRANSITIONS: Record<IncidentStatus, IncidentStatus[]> = {
   postmortem: [],
 }
 
+const INCIDENTS_PERSIST_KEY = 'incidents_persist'
+
 class IncidentManager {
   private incidents = new Map<string, Incident>()
+  private loaded = false
 
   /**
    * Response SLA in milliseconds for each severity level.
@@ -138,6 +143,7 @@ class IncidentManager {
     }
 
     this.incidents.set(id, incident)
+    this.persistIncidents()
     return incident
   }
 
@@ -179,6 +185,7 @@ class IncidentManager {
       message: message || `Status changed to ${newStatus}`,
     })
 
+    this.persistIncidents()
     return incident
   }
 
@@ -203,6 +210,7 @@ class IncidentManager {
         : `Assigned to ${assignee}`,
     })
 
+    this.persistIncidents()
     return incident
   }
 
@@ -223,6 +231,7 @@ class IncidentManager {
       message,
     })
 
+    this.persistIncidents()
     return incident
   }
 
@@ -243,6 +252,7 @@ class IncidentManager {
       message: message || `Escalated by ${author}`,
     })
 
+    this.persistIncidents()
     return incident
   }
 
@@ -261,6 +271,7 @@ class IncidentManager {
     incident.impact.affectedUsers = affectedUsers
     incident.updatedAt = new Date().toISOString()
 
+    this.persistIncidents()
     return incident
   }
 
@@ -371,7 +382,9 @@ class IncidentManager {
    * Delete an incident (for testing/cleanup purposes).
    */
   delete(id: string): boolean {
-    return this.incidents.delete(id)
+    const result = this.incidents.delete(id)
+    this.persistIncidents()
+    return result
   }
 
   /**
@@ -379,6 +392,7 @@ class IncidentManager {
    */
   clear(): void {
     this.incidents.clear()
+    this.persistIncidents()
   }
 
   /**
@@ -386,6 +400,58 @@ class IncidentManager {
    */
   get count(): number {
     return this.incidents.size
+  }
+
+  // ── Persistence (Gap 2) ──────────────────────────────────────────
+  // Store incidents in SystemSetting for durability across restarts.
+
+  /**
+   * Load incidents from SystemSetting into memory.
+   * Call this once at startup to restore state from a previous session.
+   */
+  async loadIncidents(): Promise<void> {
+    if (this.loaded) return
+
+    try {
+      const row = await db.systemSetting.findUnique({
+        where: { key: INCIDENTS_PERSIST_KEY },
+      })
+
+      if (row) {
+        const parsed: Incident[] = JSON.parse(row.value)
+        for (const inc of parsed) {
+          this.incidents.set(inc.id, inc)
+        }
+        console.log(`[IncidentManager] Loaded ${parsed.length} incidents from DB`)
+      }
+    } catch (error) {
+      console.warn('[IncidentManager] Failed to load incidents from DB:', error)
+    }
+
+    this.loaded = true
+  }
+
+  /**
+   * Persist current in-memory incidents to SystemSetting.
+   * Non-blocking (fire-and-forget) to avoid changing sync method signatures.
+   */
+  private persistIncidents(): void {
+    // Fire-and-forget: don't await, don't block callers
+    const incidentList: Incident[] = [];
+    this.incidents.forEach((inc) => incidentList.push(inc));
+
+    (async () => {
+      try {
+        await db.systemSetting.upsert({
+          where: { key: INCIDENTS_PERSIST_KEY },
+          update: { value: JSON.stringify(incidentList) },
+          create: { key: INCIDENTS_PERSIST_KEY, value: JSON.stringify(incidentList) },
+        })
+      } catch (error) {
+        // Non-blocking — never let persistence break incident management
+        console.warn('[IncidentManager] Failed to persist incidents to DB:', error)
+      }
+    })()
   }
 
   /**

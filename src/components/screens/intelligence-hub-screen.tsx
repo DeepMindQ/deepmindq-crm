@@ -1,189 +1,339 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import {
   Radar, Target, Brain, Building2,
   TrendingUp, Search, Upload, FileDown,
-  Sparkles, Activity, ChevronRight, Zap
+  Sparkles, Activity, ChevronRight, Zap,
 } from 'lucide-react';
-import { TrustIndicator } from '@/components/intelligence-os/atoms/trust-indicator';
-import { ActionCTA, type CTAAction } from '@/components/intelligence-os/atoms/action-cta';
 import { IntelligenceBriefingCard } from '@/components/intelligence-os/molecules/intelligence-briefing-card';
 import { RecommendationCard } from '@/components/intelligence-os/molecules/recommendation-card';
 import { ActivityFeed } from '@/components/intelligence-os/molecules/activity-feed';
+import { useRealtimeData, useMutation } from '@/lib/realtime-hooks';
 import type {
   IntelligenceSignal, Recommendation, ActivityEvent, ExecutiveStats,
 } from '@/lib/intelligence-types';
 
-/* ── Mock Data ── */
-const mockStats: ExecutiveStats = {
-  prioritySignals: 8,
-  activeOpportunities: 12,
-  confidenceAverage: 78,
-  accountsMonitored: 147,
-  prioritySignalsDelta: 3,
-  activeOpportunitiesDelta: 2,
-  confidenceAverageDelta: -2,
-  accountsMonitoredDelta: 5,
-};
+/* ═══════════════════════════════════════════════════════════════
+   API Response Unwrapper
+   All API routes wrap responses in { success, data, timestamp }.
+   useRealtimeData receives the full JSON — we unwrap .data in transforms.
+   ═══════════════════════════════════════════════════════════════ */
+function unwrapData<T>(json: any): T {
+  return json?.data ?? json;
+}
 
-const mockSignals: IntelligenceSignal[] = [
-  {
-    id: 'sig-1',
-    type: 'leadership_change',
-    headline: 'New CTO appointed at Meridian Systems',
-    summary: 'Meridian Systems appointed a new Chief Technology Officer from a cloud-native background. This signals potential technology stack migration and partnership opportunities.',
-    confidenceScore: 92,
-    freshnessTimestamp: new Date(Date.now() - 12 * 60000).toISOString(),
-    source: 'LinkedIn + SEC Filing',
-    priority: 'high',
-    reasoning: 'Leadership changes at the CTO level typically precede technology strategy shifts within 6-12 months. Combined with recent job postings for Kubernetes engineers, this suggests a cloud migration initiative. Historical analysis shows 73% of similar signals led to vendor changes within the quarter.',
-    status: 'active',
-    accountId: 'acc-meridian',
-    accountName: 'Meridian Systems',
-    evidenceAvailable: true,
-    evidenceCount: 4,
-    tags: ['Leadership', 'Cloud Migration', 'Technology'],
-  },
-  {
-    id: 'sig-2',
-    type: 'funding_event',
-    headline: 'Vertex AI closed $45M Series C round',
-    summary: 'Vertex AI secured $45M in Series C funding led by Sequoia Capital, bringing total funding to $120M. Expansion signals are strong.',
-    confidenceScore: 96,
-    freshnessTimestamp: new Date(Date.now() - 3 * 60000).toISOString(),
-    source: 'PitchBook + Press Release',
-    priority: 'critical',
-    reasoning: 'Series C funding at this level typically correlates with aggressive sales team expansion within 3-6 months. Historical pattern analysis indicates 82% probability of CRM/platform purchase within the next 2 quarters. The Sequoia investment validates the business model and reduces risk.',
-    status: 'active',
-    accountId: 'acc-vertex',
-    accountName: 'Vertex AI',
-    evidenceAvailable: true,
-    evidenceCount: 6,
-    tags: ['Funding', 'Expansion', 'High Priority'],
-  },
-  {
-    id: 'sig-3',
-    type: 'competitive_move',
-    headline: 'Apex Analytics launched enterprise tier',
-    summary: 'Direct competitor Apex Analytics announced an enterprise-focused tier with AI-driven analytics. May impact positioning for shared prospects.',
-    confidenceScore: 71,
-    freshnessTimestamp: new Date(Date.now() - 2 * 3600000).toISOString(),
-    source: 'Product Hunt + Blog',
-    priority: 'medium',
-    reasoning: 'Apex Analytics entering the enterprise segment creates competitive overlap with 15 shared accounts in your pipeline. Their pricing model appears 20% lower but lacks the intelligence depth of DeepMindQ. This is a positioning opportunity, not a threat.',
-    status: 'active',
-    evidenceAvailable: true,
-    evidenceCount: 2,
-    tags: ['Competitive', 'Enterprise', 'Market'],
-  },
-  {
-    id: 'sig-4',
-    type: 'technology_investment',
-    headline: 'NovaTech evaluating data intelligence platforms',
-    summary: 'Web activity analysis shows NovaTech engineering team researching AI-powered customer intelligence solutions. Three RFPs detected.',
-    confidenceScore: 65,
-    freshnessTimestamp: new Date(Date.now() - 26 * 3600000).toISOString(),
-    source: 'Website Intelligence + Intent Data',
-    priority: 'high',
-    reasoning: 'Multiple visits to competitor pricing pages, combined with RFP activity detected through public procurement databases, suggests active buying intent. The engineering team focus indicates a technical evaluation rather than executive-driven purchase.',
-    status: 'active',
-    accountId: 'acc-novatech',
-    accountName: 'NovaTech Solutions',
-    evidenceAvailable: true,
-    evidenceCount: 3,
-    tags: ['Buying Intent', 'Evaluation', 'RFP'],
-  },
-];
+/* ═══════════════════════════════════════════════════════════════
+   1. Dashboard Stats Hook → ExecutiveStats
+   GET /api/dashboard returns { success, data: { contactsByStatus, totalCompanies, ... } }
+   We map to ExecutiveStats shape used by the UI.
+   ═══════════════════════════════════════════════════════════════ */
+function useExecutiveStats() {
+  return useRealtimeData<ExecutiveStats>({
+    endpoint: '/api/dashboard',
+    interval: 30000,
+    transform: (json) => {
+      const d = unwrapData<any>(json);
+      return {
+        prioritySignals: d.aiSignalsToday ?? d.queuePending ?? 0,
+        activeOpportunities: d.activeOpportunities ?? 0,
+        confidenceAverage: d.intelligenceScore ?? 0,
+        accountsMonitored: d.totalCompanies ?? 0,
+        prioritySignalsDelta: undefined,
+        activeOpportunitiesDelta: undefined,
+        confidenceAverageDelta: undefined,
+        accountsMonitoredDelta: undefined,
+      };
+    },
+  });
+}
 
-const mockRecommendations: Recommendation[] = [
-  {
-    id: 'rec-1',
-    title: 'Prioritize Meridian Systems outreach',
-    description: 'The CTO transition creates a 90-day window for technology vendor engagement. Their current contract expires in Q4.',
-    confidence: 88,
-    reasoning: 'Leadership transitions create a unique 90-day window where new executives evaluate existing vendor relationships. Meridian\'s current CRM contract expires Q4, and their new CTO\'s cloud-native background aligns perfectly with your platform capabilities.',
-    actionType: 'schedule',
-    status: 'pending',
-    signalId: 'sig-1',
-    accountId: 'acc-meridian',
-    accountName: 'Meridian Systems',
-    createdAt: new Date(Date.now() - 15 * 60000).toISOString(),
-  },
-  {
-    id: 'rec-2',
-    title: 'Prepare competitive brief for Apex Analytics',
-    description: 'Update battle cards and positioning documents to address their new enterprise tier pricing.',
-    confidence: 76,
-    reasoning: 'With Apex Analytics entering your competitive space, updating positioning documents ensures your sales team can effectively differentiate. Focus on intelligence depth and AI reasoning capabilities where DeepMindQ has clear advantage.',
-    actionType: 'review',
-    status: 'pending',
-    signalId: 'sig-3',
-    createdAt: new Date(Date.now() - 45 * 60000).toISOString(),
-  },
-  {
-    id: 'rec-3',
-    title: 'Accelerate NovaTech qualification',
-    description: 'Three RFP signals indicate active buying process. Schedule discovery call this week.',
-    confidence: 72,
-    reasoning: 'The combination of website research patterns and RFP activity strongly suggests NovaTech is in the evaluation phase. Speed of engagement correlates with win rate — teams that engage within 5 days of first intent signal see 3x higher conversion.',
-    actionType: 'schedule',
-    status: 'pending',
-    signalId: 'sig-4',
-    accountId: 'acc-novatech',
-    accountName: 'NovaTech Solutions',
-    createdAt: new Date(Date.now() - 60 * 60000).toISOString(),
-  },
-];
+/* ═══════════════════════════════════════════════════════════════
+   2. Signals Hook → IntelligenceSignal[]
+   GET /api/signals returns { success, data: { signals: CompanySignal[], evidenceCounts, ... } }
+   We map CompanySignal (Prisma model) → IntelligenceSignal (UI type).
+   ═══════════════════════════════════════════════════════════════ */
+function useIntelligenceSignals() {
+  return useRealtimeData<IntelligenceSignal[]>({
+    endpoint: '/api/signals?status=active&limit=20',
+    interval: 20000,
+    transform: (json) => {
+      const d = unwrapData<any>(json);
+      const signals: any[] = d.signals ?? d ?? [];
+      const evidenceCounts: Record<string, number> = d.evidenceCounts ?? {};
 
-const mockActivity: ActivityEvent[] = [
-  {
-    id: 'evt-1',
-    type: 'signal_detected',
-    headline: 'New signal: Vertex AI $45M Series C',
-    description: 'Funding event detected',
-    timestamp: new Date(Date.now() - 3 * 60000).toISOString(),
-    source: 'PitchBook',
-    confidence: 96,
-    trustLevel: 'verified',
-  },
-  {
-    id: 'evt-2',
-    type: 'confidence_updated',
-    headline: 'Meridian Systems confidence increased to 92%',
-    description: 'New evidence strengthened signal',
-    timestamp: new Date(Date.now() - 18 * 60000).toISOString(),
-    source: 'Multi-source',
-    confidence: 92,
-    trustLevel: 'high',
-  },
-  {
-    id: 'evt-3',
-    type: 'recommendation_generated',
-    headline: 'New recommendation: Prioritize Meridian outreach',
-    description: 'AI identified 90-day engagement window',
-    timestamp: new Date(Date.now() - 15 * 60000).toISOString(),
-    source: 'AI Reasoning Engine',
-  },
-  {
-    id: 'evt-4',
-    type: 'data_refreshed',
-    headline: 'Company data refreshed for 147 accounts',
-    description: 'Scheduled enrichment cycle complete',
-    timestamp: new Date(Date.now() - 120 * 60000).toISOString(),
-    source: 'Data Pipeline',
-  },
-  {
-    id: 'evt-5',
-    type: 'account_changed',
-    headline: 'NovaTech added 3 new engineering roles',
-    description: 'Job posting analysis detected',
-    timestamp: new Date(Date.now() - 4 * 3600000).toISOString(),
-    source: 'Job Intelligence',
-    confidence: 65,
-    trustLevel: 'medium',
-  },
-];
+      return signals.map((s: any) => {
+        const confidence = s.confidence != null
+          ? Math.round(s.confidence * 100)
+          : s.signalValidation?.confidenceScore ?? 50;
+
+        // Map Prisma SignalType to UI SignalType
+        const typeMap: Record<string, IntelligenceSignal['type']> = {
+          funding: 'funding_event',
+          funding_event: 'funding_event',
+          hiring: 'hiring_surge',
+          hiring_surge: 'hiring_surge',
+          leadership_change: 'leadership_change',
+          leadership: 'leadership_change',
+          tech_change: 'technology_investment',
+          technology: 'technology_investment',
+          technology_investment: 'technology_investment',
+          news: 'competitive_move',
+          mention: 'competitive_move',
+          partnership: 'partnership',
+          expansion: 'market_expansion',
+          market_expansion: 'market_expansion',
+          product_launch: 'product_launch',
+          financial_signal: 'financial_signal',
+          competitive_move: 'competitive_move',
+          risk_indicator: 'risk_indicator',
+          people_change: 'leadership_change',
+          internal_memory: 'leadership_change',
+        };
+
+        // Map Prisma SignalSeverity to UI PriorityLevel
+        const priorityMap: Record<string, IntelligenceSignal['priority']> = {
+          critical: 'critical',
+          high: 'high',
+          medium: 'medium',
+          low: 'low',
+        };
+
+        return {
+          id: s.id,
+          type: typeMap[s.signalType] ?? 'competitive_move',
+          headline: s.title ?? s.signalType ?? 'Signal detected',
+          summary: s.description ?? '',
+          confidenceScore: confidence,
+          freshnessTimestamp: s.signalDate ?? s.extractedAt ?? s.createdAt ?? new Date().toISOString(),
+          source: s.source ?? 'System',
+          priority: priorityMap[s.severity] ?? 'medium',
+          reasoning: s.signalValidation?.reason ?? s.businessImpact ?? s.recommendedAction ?? '',
+          status: 'active' as const,
+          accountId: s.companyId,
+          accountName: s.company?.normalizedName ?? s.company?.rawName,
+          evidenceAvailable: (evidenceCounts[s.id] ?? 0) > 0,
+          evidenceCount: evidenceCounts[s.id] ?? s.signalValidation?.evidenceCount ?? 0,
+          tags: [s.signalType, s.meaningCategory, s.severity].filter(Boolean) as string[],
+        };
+      });
+    },
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   3. Recommendations Hook → Recommendation[]
+   GET /api/recommendations returns { success, data: { recommendations: AccountRecommendation[], summary } }
+   We map AccountRecommendation → Recommendation (UI type).
+   ═══════════════════════════════════════════════════════════════ */
+function useAIRecommendations() {
+  return useRealtimeData<Recommendation[]>({
+    endpoint: '/api/recommendations?limit=10',
+    interval: 30000,
+    transform: (json) => {
+      const d = unwrapData<any>(json);
+      const recs: any[] = d.recommendations ?? d ?? [];
+
+      return recs.map((r: any, idx: number) => {
+        // Determine actionType from recommended action content
+        const actionText = r.recommendedAction?.text ?? '';
+        let actionType: Recommendation['actionType'] = 'review';
+        if (/schedule|call|meeting|outreach/i.test(actionText)) actionType = 'schedule';
+        else if (/save|monitor|watch/i.test(actionText)) actionType = 'save';
+        else if (/export|report/i.test(actionText)) actionType = 'export';
+        else if (/review|evaluate|assess/i.test(actionText)) actionType = 'review';
+        else if (/monitor/i.test(actionText)) actionType = 'monitor';
+
+        return {
+          id: r.companyId ?? `rec-${idx}`,
+          title: `Prioritize ${r.companyName ?? 'account'} outreach`,
+          description: r.recommendedAction?.text ?? r.whyThisAccount ?? '',
+          confidence: r.confidenceScore ?? r.opportunityScore ?? 0,
+          reasoning: ((r.reasons ?? []).map((reason: any) => reason.text).join(' ') || r.whyThisAccount) ?? '',
+          actionType,
+          status: 'pending' as const,
+          signalId: r.topOpportunity?.id,
+          accountId: r.companyId,
+          accountName: r.companyName,
+          createdAt: r.generatedAt ?? new Date().toISOString(),
+        };
+      });
+    },
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   4. Activity Feed Hook → ActivityEvent[]
+   GET /api/timeline returns { success, data: CompanyTimelineEvent[] }
+   We map timeline events → ActivityEvent (UI type).
+   ═══════════════════════════════════════════════════════════════ */
+function useActivityFeed() {
+  return useRealtimeData<ActivityEvent[]>({
+    endpoint: '/api/timeline?limit=25',
+    interval: 30000,
+    transform: (json) => {
+      const events: any[] = Array.isArray(json?.data) ? json.data
+        : Array.isArray(json) ? json
+        : [];
+
+      return events.map((evt: any, idx: number) => {
+        const eventType = evt.eventType ?? 'data_refreshed';
+        const typeMap: Record<string, ActivityEvent['type']> = {
+          signal_detected: 'signal_detected',
+          signal_created: 'signal_detected',
+          confidence_updated: 'confidence_updated',
+          score_updated: 'confidence_updated',
+          recommendation_generated: 'recommendation_generated',
+          data_refreshed: 'data_refreshed',
+          enrichment_completed: 'data_refreshed',
+          account_changed: 'account_changed',
+          company_updated: 'account_changed',
+          contact_added: 'account_changed',
+          intelligence_generated: 'recommendation_generated',
+          email_sent: 'account_changed',
+          email_reply: 'signal_detected',
+        };
+
+        // Infer trust level from event type
+        const trustMap: Record<string, ActivityEvent['trustLevel']> = {
+          signal_detected: 'high',
+          confidence_updated: 'verified',
+          recommendation_generated: 'high',
+          data_refreshed: 'medium',
+          account_changed: 'medium',
+        };
+
+        return {
+          id: evt.id ?? `evt-${idx}`,
+          type: typeMap[eventType] ?? 'data_refreshed',
+          headline: evt.title ?? evt.eventType ?? 'Activity event',
+          description: evt.description ?? '',
+          timestamp: evt.createdAt ?? new Date().toISOString(),
+          source: evt.company?.rawName ?? 'System',
+          trustLevel: trustMap[typeMap[eventType]] ?? 'medium',
+        };
+      });
+    },
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Skeleton Component — shown while data is loading
+   ═══════════════════════════════════════════════════════════════ */
+function SkeletonPulse({ className = '' }: { className?: string }) {
+  return (
+    <div className={`animate-pulse rounded-lg bg-[var(--border)] ${className}`} />
+  );
+}
+
+function StatCardSkeleton() {
+  return (
+    <div className="dmq-glass-card p-4 lg:p-5">
+      <div className="flex items-center justify-between mb-2">
+        <SkeletonPulse className="h-3 w-24" />
+        <SkeletonPulse className="h-8 w-8 rounded-lg" />
+      </div>
+      <div className="flex items-end gap-2">
+        <SkeletonPulse className="h-7 w-16" />
+        <SkeletonPulse className="h-3 w-8" />
+      </div>
+    </div>
+  );
+}
+
+function SignalCardSkeleton() {
+  return (
+    <div className="dmq-glass-card p-4">
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <SkeletonPulse className="h-5 w-5" />
+          <SkeletonPulse className="h-4 w-48" />
+        </div>
+        <SkeletonPulse className="h-3 w-full" />
+        <SkeletonPulse className="h-3 w-3/4" />
+        <div className="flex gap-2 pt-1">
+          <SkeletonPulse className="h-6 w-16 rounded-full" />
+          <SkeletonPulse className="h-6 w-20 rounded-full" />
+          <SkeletonPulse className="h-6 w-14 rounded-full" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RecommendationCardSkeleton() {
+  return (
+    <div className="dmq-glass-card p-4">
+      <div className="space-y-2">
+        <SkeletonPulse className="h-4 w-56" />
+        <SkeletonPulse className="h-3 w-full" />
+        <SkeletonPulse className="h-3 w-5/6" />
+        <div className="flex gap-2 pt-2">
+          <SkeletonPulse className="h-8 w-20 rounded-lg" />
+          <SkeletonPulse className="h-8 w-20 rounded-lg" />
+          <SkeletonPulse className="h-8 w-16 rounded-lg" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ActivitySkeleton() {
+  return (
+    <div className="p-4 space-y-4">
+      {[1, 2, 3, 4, 5].map((i) => (
+        <div key={i} className="flex gap-3">
+          <SkeletonPulse className="h-8 w-8 rounded-full flex-shrink-0" />
+          <div className="flex-1 space-y-1">
+            <SkeletonPulse className="h-3 w-full" />
+            <SkeletonPulse className="h-3 w-2/3" />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Empty State Component
+   ═══════════════════════════════════════════════════════════════ */
+function EmptyState({ message }: { message: string }) {
+  return (
+    <div className="dmq-glass-card p-8 text-center">
+      <p className="text-[13px] text-[var(--primary-dim)]">{message}</p>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Error Banner Component
+   ═══════════════════════════════════════════════════════════════ */
+function ErrorBanner({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry?: () => void;
+}) {
+  return (
+    <div className="dmq-glass-card p-4 border-[var(--risk-red)]/30">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <div className="w-2 h-2 rounded-full bg-[var(--risk-red)]" />
+          <p className="text-[12px] text-[var(--risk-red)]">{message}</p>
+        </div>
+        {onRetry && (
+          <button
+            onClick={onRetry}
+            className="text-[11px] font-medium text-[var(--primary-dim)] hover:text-[var(--accent)] transition-colors px-2 py-1"
+          >
+            Retry
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
 
 /* ── Stat Card Component ── */
 function ExecutiveStatCard({
@@ -230,31 +380,85 @@ function ExecutiveStatCard({
   );
 }
 
-/* ── Intelligence Hub Screen ── */
+/* ═══════════════════════════════════════════════════════════════
+   Intelligence Hub Screen
+   ═══════════════════════════════════════════════════════════════ */
 export default function IntelligenceHubScreen() {
-  const [recommendations, setRecommendations] = useState(mockRecommendations);
+  // ── Real API Data Hooks ──
+  const stats = useExecutiveStats();
+  const signals = useIntelligenceSignals();
+  const recommendations = useAIRecommendations();
+  const activity = useActivityFeed();
+
+  // ── Signal Action Mutation (PATCH /api/signals/{id} or POST to timeline) ──
+  const signalActionMutation = useMutation<any, { signalId: string; action: string; companyId?: string }>({
+    endpoint: '/api/signals/operational',
+    method: 'POST',
+  });
+
+  // ── Recommendation Accept/Dismiss Mutation ──
+  const recommendationActionMutation = useMutation<any, { recommendationId: string; action: string }>({
+    endpoint: '/api/recommendations',
+    method: 'PATCH',
+  });
+
+  // ── Local optimistic state for recommendations (overlay on top of API data) ──
+  const [localRecStatus, setLocalRecStatus] = useState<Record<string, Recommendation['status']>>({});
+
   const now = new Date();
   const dateStr = now.toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
   const timeStr = now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
   const greeting = now.getHours() < 12 ? 'Good morning' : now.getHours() < 17 ? 'Good afternoon' : 'Good evening';
 
-  const handleRecommendationAction = (action: string, id: string) => {
-    setRecommendations(prev =>
-      prev.map(r =>
-        r.id === id
-          ? { ...r, status: action === 'accept' ? 'accepted' as const : action === 'dismiss' ? 'dismissed' as const : 'saved' as const }
-          : r
-      )
-    );
-  };
+  // ── Derived data with local overrides ──
+  const statsData = stats.data;
+  const signalsData = signals.data ?? [];
+  const rawRecs = recommendations.data ?? [];
+  const recommendationsData = rawRecs.map((r) => ({
+    ...r,
+    status: localRecStatus[r.id] ?? r.status,
+  }));
+  const activityData = activity.data ?? [];
 
-  const handleSignalAction = (action: string, signalId: string) => {
-    // Placeholder for MS7 — will be wired to real intelligence actions in MS8+
-    console.log('Signal action:', action, signalId);
-  };
+  const pendingRecommendations = recommendationsData.filter((r) => r.status === 'pending');
 
-  const pendingRecommendations = recommendations.filter(r => r.status === 'pending');
+  // ── Handlers ──
+  const handleRecommendationAction = useCallback(async (action: string, id: string) => {
+    // Optimistic local update
+    const newStatus: Recommendation['status'] =
+      action === 'accept' ? 'accepted' : action === 'dismiss' ? 'dismissed' : 'saved';
+    setLocalRecStatus((prev) => ({ ...prev, [id]: newStatus }));
 
+    // Fire-and-forget API call
+    try {
+      await recommendationActionMutation.mutate({ recommendationId: id, action });
+    } catch {
+      // Revert on error
+      setLocalRecStatus((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    }
+  }, [recommendationActionMutation]);
+
+  const handleSignalAction = useCallback(async (action: string, signalId: string) => {
+    // Find the signal to get its companyId
+    const signal = signalsData.find((s) => s.id === signalId);
+    try {
+      await signalActionMutation.mutate({
+        signalId,
+        action,
+        companyId: signal?.accountId,
+      });
+      // Refetch signals to get updated state
+      signals.refetch();
+    } catch (err) {
+      console.error('Signal action failed:', err);
+    }
+  }, [signalActionMutation, signalsData, signals]);
+
+  // ── Render ──
   return (
     <div className="min-h-screen bg-[var(--bg)]" style={{ color: 'var(--primary)' }}>
       <div className="max-w-[1400px] mx-auto px-4 lg:px-6 py-6 lg:py-8">
@@ -282,46 +486,64 @@ export default function IntelligenceHubScreen() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--success-green-low)] border border-[var(--trust-verified-border)]">
-                <span className="w-2 h-2 rounded-full bg-[var(--trust-verified)] animate-pulse" />
-                <span className="text-[12px] font-medium text-[var(--trust-verified)]">
-                  {mockStats.prioritySignals} priority signals
-                </span>
-              </div>
+              {stats.loading ? (
+                <SkeletonPulse className="h-8 w-40 rounded-lg" />
+              ) : statsData ? (
+                <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-[var(--success-green-low)] border border-[var(--trust-verified-border)]">
+                  <span className="w-2 h-2 rounded-full bg-[var(--trust-verified)] animate-pulse" />
+                  <span className="text-[12px] font-medium text-[var(--trust-verified)]">
+                    {statsData.prioritySignals} priority signals
+                  </span>
+                </div>
+              ) : null}
             </div>
           </div>
 
           {/* ── Executive Stats Row ── */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-            <ExecutiveStatCard
-              icon={Radar}
-              label="Priority Signals"
-              value={mockStats.prioritySignals}
-              delta={mockStats.prioritySignalsDelta}
-              color="var(--signal-blue)"
-            />
-            <ExecutiveStatCard
-              icon={Target}
-              label="Active Opportunities"
-              value={mockStats.activeOpportunities}
-              delta={mockStats.activeOpportunitiesDelta}
-              color="var(--opportunity-purple)"
-            />
-            <ExecutiveStatCard
-              icon={Brain}
-              label="Confidence Avg"
-              value={`${mockStats.confidenceAverage}%`}
-              delta={mockStats.confidenceAverageDelta}
-              color="var(--trust-high)"
-            />
-            <ExecutiveStatCard
-              icon={Building2}
-              label="Accounts Monitored"
-              value={mockStats.accountsMonitored}
-              delta={mockStats.accountsMonitoredDelta}
-              color="var(--enrichment-cyan)"
-            />
-          </div>
+          {stats.loading ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+              <StatCardSkeleton />
+            </div>
+          ) : stats.error ? (
+            <ErrorBanner
+                  message="Failed to load dashboard stats"
+                  onRetry={stats.refetch}
+                />
+          ) : statsData ? (
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+              <ExecutiveStatCard
+                icon={Radar}
+                label="Priority Signals"
+                value={statsData.prioritySignals}
+                delta={statsData.prioritySignalsDelta}
+                color="var(--signal-blue)"
+              />
+              <ExecutiveStatCard
+                icon={Target}
+                label="Active Opportunities"
+                value={statsData.activeOpportunities}
+                delta={statsData.activeOpportunitiesDelta}
+                color="var(--opportunity-purple)"
+              />
+              <ExecutiveStatCard
+                icon={Brain}
+                label="Confidence Avg"
+                value={`${statsData.confidenceAverage}%`}
+                delta={statsData.confidenceAverageDelta}
+                color="var(--trust-high)"
+              />
+              <ExecutiveStatCard
+                icon={Building2}
+                label="Accounts Monitored"
+                value={statsData.accountsMonitored}
+                delta={statsData.accountsMonitoredDelta}
+                color="var(--enrichment-cyan)"
+              />
+            </div>
+          ) : null}
         </header>
 
         {/* ── Main Content ── */}
@@ -336,24 +558,42 @@ export default function IntelligenceHubScreen() {
                 <div className="flex items-center gap-2">
                   <Radar className="w-4 h-4 text-[var(--signal-blue)]" />
                   <h2 className="text-[15px] font-semibold tracking-tight">Signal Intelligence</h2>
-                  <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--signal-blue-low)] text-[var(--signal-blue)]">
-                    {mockSignals.length} signals
-                  </span>
+                  {!signals.loading && signalsData.length > 0 && (
+                    <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--signal-blue-low)] text-[var(--signal-blue)]">
+                      {signalsData.length} signals
+                    </span>
+                  )}
                 </div>
                 <button className="flex items-center gap-1 text-[12px] font-medium text-[var(--primary-dim)] hover:text-[var(--accent)] transition-colors min-h-[44px] px-2">
                   View all
                   <ChevronRight className="w-3.5 h-3.5" />
                 </button>
               </div>
-              <div className="space-y-3">
-                {mockSignals.map((signal) => (
-                  <IntelligenceBriefingCard
-                    key={signal.id}
-                    signal={signal}
-                    onAction={handleSignalAction}
-                  />
-                ))}
-              </div>
+
+              {signals.loading ? (
+                <div className="space-y-3">
+                  <SignalCardSkeleton />
+                  <SignalCardSkeleton />
+                  <SignalCardSkeleton />
+                </div>
+              ) : signals.error ? (
+                <ErrorBanner
+                  message="Failed to load signals"
+                  onRetry={signals.refetch}
+                />
+              ) : signalsData.length === 0 ? (
+                <EmptyState message="No intelligence signals detected yet. Signals will appear here as the system monitors your accounts." />
+              ) : (
+                <div className="space-y-3">
+                  {signalsData.map((signal) => (
+                    <IntelligenceBriefingCard
+                      key={signal.id}
+                      signal={signal}
+                      onAction={handleSignalAction}
+                    />
+                  ))}
+                </div>
+              )}
             </section>
 
             {/* ── Recommendations Section ── */}
@@ -362,22 +602,38 @@ export default function IntelligenceHubScreen() {
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-4 h-4 text-[var(--opportunity-purple)]" />
                   <h2 className="text-[15px] font-semibold tracking-tight">AI Recommendations</h2>
-                  {pendingRecommendations.length > 0 && (
+                  {!recommendations.loading && pendingRecommendations.length > 0 && (
                     <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-[var(--opportunity-purple-low)] text-[var(--opportunity-purple)]">
                       {pendingRecommendations.length} pending
                     </span>
                   )}
                 </div>
               </div>
-              <div className="space-y-3">
-                {recommendations.map((rec) => (
-                  <RecommendationCard
-                    key={rec.id}
-                    recommendation={rec}
-                    onAction={handleRecommendationAction}
-                  />
-                ))}
-              </div>
+
+              {recommendations.loading ? (
+                <div className="space-y-3">
+                  <RecommendationCardSkeleton />
+                  <RecommendationCardSkeleton />
+                  <RecommendationCardSkeleton />
+                </div>
+              ) : recommendations.error ? (
+                <ErrorBanner
+                  message="Failed to load recommendations"
+                  onRetry={recommendations.refetch}
+                />
+              ) : recommendationsData.length === 0 ? (
+                <EmptyState message="No AI recommendations available yet. Recommendations will appear as the system analyzes your accounts and signals." />
+              ) : (
+                <div className="space-y-3">
+                  {recommendationsData.map((rec) => (
+                    <RecommendationCard
+                      key={rec.id}
+                      recommendation={rec}
+                      onAction={handleRecommendationAction}
+                    />
+                  ))}
+                </div>
+              )}
             </section>
           </div>
 
@@ -393,9 +649,24 @@ export default function IntelligenceHubScreen() {
                 </div>
                 <span className="text-[11px] text-[var(--primary-dim)]">Last 24h</span>
               </div>
-              <div className="max-h-[480px] overflow-y-auto">
-                <ActivityFeed events={mockActivity} />
-              </div>
+              {activity.loading ? (
+                <ActivitySkeleton />
+              ) : activity.error ? (
+                <div className="p-4">
+                  <ErrorBanner
+                    message="Failed to load activity"
+                    onRetry={activity.refetch}
+                  />
+                </div>
+              ) : activityData.length === 0 ? (
+                <div className="p-6 text-center">
+                  <p className="text-[12px] text-[var(--primary-dim)]">No recent activity</p>
+                </div>
+              ) : (
+                <div className="max-h-[480px] overflow-y-auto">
+                  <ActivityFeed events={activityData} />
+                </div>
+              )}
             </section>
 
             {/* ── Quick Actions ── */}
@@ -427,11 +698,23 @@ export default function IntelligenceHubScreen() {
             {/* ── Intelligence Summary ── */}
             <section className="dmq-glass-card p-4">
               <h2 className="text-[13px] font-semibold mb-2">Intelligence Summary</h2>
-              <p className="text-[12px] text-[var(--primary-dim)] leading-relaxed">
-                Enterprise SaaS buying signals increased 18% this week, primarily driven by leadership 
-                changes and technology investment patterns. 3 accounts show critical engagement signals 
-                requiring immediate attention.
-              </p>
+              {stats.loading ? (
+                <div className="space-y-2">
+                  <SkeletonPulse className="h-3 w-full" />
+                  <SkeletonPulse className="h-3 w-5/6" />
+                  <SkeletonPulse className="h-3 w-4/6" />
+                </div>
+              ) : statsData ? (
+                <p className="text-[12px] text-[var(--primary-dim)] leading-relaxed">
+                  Monitoring {statsData.accountsMonitored} accounts with {statsData.prioritySignals} priority signals.
+                  {statsData.activeOpportunities > 0
+                    ? ` ${statsData.activeOpportunities} active opportunity${statsData.activeOpportunities > 1 ? 'ies' : 'y'} identified.`
+                    : ' No active opportunities at this time.'}
+                  {' '}Average confidence: {statsData.confidenceAverage}%.
+                </p>
+              ) : (
+                <p className="text-[12px] text-[var(--primary-dim)]">Unable to load intelligence summary.</p>
+              )}
             </section>
           </div>
         </div>

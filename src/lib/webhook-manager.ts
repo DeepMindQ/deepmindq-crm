@@ -1,3 +1,5 @@
+import { db } from '@/lib/db';
+
 // Types
 export interface WebhookConfig {
   id: string
@@ -27,8 +29,40 @@ export interface WebhookDeliveryResult {
   duration: number
 }
 
-// In-memory store (would be Prisma in production)
-const webhookConfigs: Map<string, WebhookConfig> = new Map()
+const WEBHOOK_DB_KEY = 'webhook_configs';
+
+// In-memory cache backed by SystemSetting table
+const webhookConfigs: Map<string, WebhookConfig> = new Map();
+let webhooksLoaded = false;
+
+/** Load webhook configs from DB into the in-memory Map (called lazily on first access). */
+async function ensureWebhooksLoaded(): Promise<void> {
+  if (webhooksLoaded) return;
+  try {
+    const row = await db.systemSetting.findUnique({
+      where: { key: WEBHOOK_DB_KEY },
+    });
+    if (row) {
+      const parsed = JSON.parse(row.value || '[]') as WebhookConfig[];
+      for (const cfg of parsed) {
+        webhookConfigs.set(cfg.id, cfg);
+      }
+    }
+  } catch {
+    // DB unavailable — start with empty in-memory map
+  }
+  webhooksLoaded = true;
+}
+
+/** Persist the current in-memory webhook configs to the DB. */
+async function persistWebhooks(): Promise<void> {
+  const all = Array.from(webhookConfigs.values());
+  await db.systemSetting.upsert({
+    where: { key: WEBHOOK_DB_KEY },
+    create: { key: WEBHOOK_DB_KEY, value: JSON.stringify(all) },
+    update: { value: JSON.stringify(all) },
+  });
+}
 
 // Supported events
 export const WEBHOOK_EVENTS = [
@@ -62,6 +96,8 @@ export async function dispatchWebhook(
   payload: WebhookEvent['payload'],
   meta?: Partial<Pick<WebhookEvent, 'companyId' | 'contactId'>>,
 ): Promise<WebhookDeliveryResult[]> {
+  await ensureWebhooksLoaded();
+
   const results: WebhookDeliveryResult[] = []
   const fullEvent: WebhookEvent = {
     event,
@@ -113,6 +149,9 @@ export async function dispatchWebhook(
     }
   }
 
+  // Persist updated counters/timestamps (fire-and-forget)
+  persistWebhooks().catch(() => {})
+
   return results
 }
 
@@ -161,18 +200,21 @@ export async function dispatchSingleWebhook(
   }
 }
 
-// CRUD for webhook configs
-export function getWebhookConfigs(): WebhookConfig[] {
-  return Array.from(webhookConfigs.values())
+// CRUD for webhook configs (async — DB-backed)
+
+export async function getWebhookConfigs(): Promise<WebhookConfig[]> {
+  await ensureWebhooksLoaded();
+  return Array.from(webhookConfigs.values());
 }
 
-export function registerWebhook(
+export async function registerWebhook(
   config: Omit<
     WebhookConfig,
     'id' | 'createdAt' | 'lastTriggeredAt' | 'successCount' | 'failureCount'
   >,
-): WebhookConfig {
-  const id = `wh_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+): Promise<WebhookConfig> {
+  await ensureWebhooksLoaded();
+  const id = `wh_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
   const webhook: WebhookConfig = {
     ...config,
     id,
@@ -180,23 +222,28 @@ export function registerWebhook(
     lastTriggeredAt: null,
     successCount: 0,
     failureCount: 0,
-  }
-  webhookConfigs.set(id, webhook)
-  return webhook
+  };
+  webhookConfigs.set(id, webhook);
+  await persistWebhooks();
+  return webhook;
 }
 
-export function deleteWebhook(id: string): boolean {
-  return webhookConfigs.delete(id)
+export async function deleteWebhook(id: string): Promise<boolean> {
+  await ensureWebhooksLoaded();
+  const deleted = webhookConfigs.delete(id);
+  if (deleted) await persistWebhooks();
+  return deleted;
 }
 
-export function getWebhookDeliveryHistory(webhookId: string) {
-  const config = webhookConfigs.get(webhookId)
-  if (!config) return null
+export async function getWebhookDeliveryHistory(webhookId: string) {
+  await ensureWebhooksLoaded();
+  const config = webhookConfigs.get(webhookId);
+  if (!config) return null;
   return {
     webhookId: config.id,
     url: config.url,
     lastTriggeredAt: config.lastTriggeredAt,
     successCount: config.successCount,
     failureCount: config.failureCount,
-  }
+  };
 }

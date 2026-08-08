@@ -6,6 +6,7 @@
  */
 
 import { performance } from 'perf_hooks'
+import { db } from '@/lib/db'
 
 // ── Metric Types ──
 interface MetricPoint {
@@ -170,4 +171,90 @@ export function collectSystemMetrics(): void {
     const lag = Date.now() - start
     metrics.record('system.event_loop_lag', lag, {}, 'ms')
   })
+}
+
+// ── Metrics Persistence (Gap 2) ──────────────────────────────────────
+// Periodically saves aggregated metric snapshots to SystemSetting.
+// In-memory collection remains untouched for fast reads.
+
+const METRICS_SNAPSHOT_PREFIX = 'metrics_snapshot_'
+
+/**
+ * Persist current aggregated metrics to SystemSetting under a date-keyed entry.
+ * Call this on a timer (e.g., every 5 minutes) from a cron or interval.
+ */
+export async function persistMetricSnapshot(): Promise<void> {
+  try {
+    const aggregates = metrics.getAggregates()
+    const alerts = getActiveAlerts()
+    const snapshot = {
+      timestamp: new Date().toISOString(),
+      aggregates,
+      activeAlertCount: alerts.length,
+      activeAlertIds: alerts.map(a => a.id),
+    }
+
+    const today = new Date().toISOString().split('T')[0] // YYYY-MM-DD
+    const key = `${METRICS_SNAPSHOT_PREFIX}${today}`
+
+    // Merge with any existing snapshot for today (keep last N entries)
+    const existing = await db.systemSetting.findUnique({ where: { key } })
+    let entries: typeof snapshot[] = []
+    if (existing) {
+      entries = JSON.parse(existing.value)
+    }
+    entries.push(snapshot)
+
+    // Keep max 288 entries (every 5 min for 24h)
+    const MAX_ENTRIES = 288
+    if (entries.length > MAX_ENTRIES) {
+      entries = entries.slice(-MAX_ENTRIES)
+    }
+
+    await db.systemSetting.upsert({
+      where: { key },
+      update: { value: JSON.stringify(entries) },
+      create: { key, value: JSON.stringify(entries) },
+    })
+  } catch (error) {
+    // Non-blocking — never let persistence break metrics collection
+    console.warn('[Monitoring] Failed to persist metric snapshot:', error)
+  }
+}
+
+/**
+ * Load persisted metric snapshots for a given date (defaults to today).
+ * Returns an array of snapshots (one per persistMetricSnapshot call).
+ */
+export async function loadMetricSnapshots(date?: string): Promise<{
+  timestamp: string
+  aggregates: Record<string, { avg: number; min: number; max: number; count: number; sum: number; last: number }>
+  activeAlertCount: number
+  activeAlertIds: string[]
+}[]> {
+  const key = `${METRICS_SNAPSHOT_PREFIX}${date || new Date().toISOString().split('T')[0]}`
+  try {
+    const row = await db.systemSetting.findUnique({ where: { key } })
+    return row ? JSON.parse(row.value) : []
+  } catch {
+    return []
+  }
+}
+
+/**
+ * Start a periodic persistence interval (e.g., call from startup).
+ * Returns a cleanup function to stop the interval.
+ */
+export function startMetricsPersistence(intervalMs = 5 * 60 * 1000): () => void {
+  const timer = setInterval(() => {
+    persistMetricSnapshot()
+  }, intervalMs)
+
+  // Don't prevent process exit
+  if (timer.unref) timer.unref()
+
+  // Fire once immediately
+  persistMetricSnapshot()
+
+  return () => clearInterval(timer)
 }

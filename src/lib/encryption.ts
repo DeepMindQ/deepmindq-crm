@@ -140,6 +140,12 @@ export async function encryptField(
   const key = await deriveFieldKey(fieldName, keyVersion);
   if (!key) {
     // Fallback: return plaintext if encryption is not configured
+    if (process.env.NODE_ENV === 'production') {
+      console.warn(
+        'CRITICAL: [Encryption] Encryption key not configured — returning plaintext in production. ' +
+        `Field "${fieldName}" is unencrypted. Set ENCRYPTION_MASTER_KEY environment variable immediately.`,
+      );
+    }
     return plaintext;
   }
 
@@ -180,6 +186,12 @@ export async function encryptField(
       error: err instanceof Error ? err.message : String(err),
       field: fieldName,
     });
+    if (process.env.NODE_ENV === 'production') {
+      console.warn(
+        'CRITICAL: [Encryption] Encryption failed — returning plaintext in production. ' +
+        `Field "${fieldName}" is unencrypted. Investigate and re-encrypt this record.`,
+      );
+    }
     return plaintext; // Fail open — return plaintext
   }
 }
@@ -341,10 +353,13 @@ export function getEncryptionHealth(): EncryptionHealthStatus {
 export const ENCRYPTED_FIELDS = [
   // Contact PII
   'phone',
-  // Add more fields as needed for compliance
-  // 'bankAccountNumber',
-  // 'socialSecurityNumber',
-  // etc.
+  'email',
+  'linkedinUrl',
+  'rawName',
+  'normalizedName',
+  // User PII
+  'userEmail',
+  'userPhone',
 ] as const;
 
 /**

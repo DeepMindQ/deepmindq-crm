@@ -70,7 +70,7 @@ import {
   PieChart,
   Pie,
 } from 'recharts';
-import { cardSolid, colors, gold, goldLight, textSecondary, borderSubtle } from '@/components/shared/enterprise-theme';
+import { cardSolid, colors, gold, goldLight, textSecondary, borderSubtle } from '@/components/design-system';
 
 // ── Theme color opacity helpers ─────────────────────
 const goldAlpha = (a: number) => `rgba(212,175,55,${a})`;
@@ -248,7 +248,7 @@ function TeamPerformanceSection() {
     setAssigning(true);
     try {
       // First, get the contact IDs
-      let url = '/api/leads/assign';
+      const url = '/api/leads/assign';
       const res = await fetch(url);
       const summary = await res.json();
 

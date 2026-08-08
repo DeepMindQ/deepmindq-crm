@@ -3,8 +3,10 @@ generator client {
 }
 
 datasource db {
-  provider  = "sqlite"
-  url      = env("DATABASE_URL")
+  provider        = "postgresql"
+  url             = env("DATABASE_URL")
+  relationMode     = "prisma_client_join_on"
+  previewFeatures  = ["typedRelations"]
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -169,6 +171,27 @@ enum DraftStatus {
   approved
   rejected
   sent
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Phase N: AI Content Approval — ApprovalStatus enum
+// Used by approval-service.ts (records stored in SystemSetting, no new table).
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum ApprovalStatus {
+  pending_approval
+  approved
+  rejected
+  auto_approved
+}
+
+enum ApprovalContentType {
+  ai_email_draft
+  ai_score
+  ai_brief
+  ai_recommendation
+  ai_signal_analysis
+  other
 }
 
 enum ImportBatchStatus {

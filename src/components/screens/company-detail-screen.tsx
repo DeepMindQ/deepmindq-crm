@@ -42,6 +42,9 @@ import { AccountTierBadge, getTierFromScore } from '@/components/tier/account-ti
 import { CalibrationReason } from '@/components/calibration/calibration-reason';
 import { InlineFeedback } from '@/components/feedback/inline-feedback';
 import { ErrorBoundary } from '@/components/error-boundary';
+import {
+  Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import { CompletenessBar } from '@/components/data/completeness-bar';
 import type { DataField } from '@/components/data/completeness-bar';
 
@@ -798,6 +801,25 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               )}
             </div>
           </div>
+        </div>
+
+        {/* ── Breadcrumbs ── */}
+        <div className="max-w-[1600px] mx-auto px-5 pt-4 pb-1">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild><span className="cursor-pointer hover:text-foreground text-muted-foreground" onClick={onBack}>Intelligence</span></BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild><span className="cursor-pointer hover:text-foreground text-muted-foreground" onClick={onBack}>Companies</span></BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="font-medium">{companyName}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
 
         <div className="max-w-[1600px] mx-auto px-5 py-5">

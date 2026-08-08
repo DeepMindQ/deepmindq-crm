@@ -27,8 +27,8 @@ import {
   EmptyScreenState,
 } from '@/components/shared/enterprise-components';
 import {
-  gold, goldLight, card, border, colors, spacing, cls,
-} from '@/components/shared/enterprise-theme';
+  gold, goldLight, card, border, colors, enterpriseSpacing as spacing, cls,
+} from '@/components/design-system';
 
 /* ═══════════════════════════════════════════════════
    Types

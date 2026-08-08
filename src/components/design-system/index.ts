@@ -1,15 +1,16 @@
 /* ═══════════════════════════════════════════════════
    DeepMindQ Enterprise Intelligence OS — Unified Design System
    
-   Single entry point that re-exports from all three design token sources:
-   1. intelligence-os/design-tokens.ts  (TypeScript token objects)
-   2. shared/enterprise-theme.ts        (CSS class utilities, card styles, badges)
-   3. globals.css                       (CSS custom properties / Tailwind theme)
+   **Single entry point for ALL design tokens and utilities.**
    
-   PLUS unified typography, spacing, animation, card, and z-index helpers.
+   Primary source: intelligence-os/design-tokens.ts (dark/blue semantic tokens)
+   Legacy source:  shared/enterprise-theme.ts   (DEPRECATED — gold/light utilities)
+   
+   New code should import from this file. The enterprise-theme.ts re-exports
+   design-tokens primitives for backward compatibility with existing consumers.
    ═══════════════════════════════════════════════════ */
 
-// ── Re-export core token objects ──
+// ── Primary: canonical token objects from design-tokens ──
 export {
   tokens,
   getConfidenceTier,
@@ -22,12 +23,16 @@ export {
   elevation,
 } from '@/components/intelligence-os/design-tokens';
 
-// ── Re-export enterprise theme utilities ──
+// ── Legacy: enterprise-theme utilities (DEPRECATED) ──
+// These unique exports have no design-tokens equivalent yet.
+// Migrate consumers to tokens.* as each is replaced.
 export {
   gold,
   goldLight,
+  card,
   card as enterpriseCard,
   cardSolid,
+  border,
   border as enterpriseBorder,
   borderSubtle,
   textPrimary,

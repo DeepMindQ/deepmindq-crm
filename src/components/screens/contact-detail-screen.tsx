@@ -29,6 +29,9 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { PageTransition, AnimatedCard, GlassPanel } from '@/components/ui/animated-components';
+import {
+  Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
 import { EvidenceBadge } from '@/components/enterprise/EvidenceBadge';
 import { getHealthVariant } from '@/lib/constants';
@@ -322,6 +325,25 @@ export default function ContactDetailScreen() {
               </Button>
             </div>
           </div>
+        </div>
+
+        {/* ── Breadcrumbs ── */}
+        <div className="max-w-[1400px] mx-auto px-5 pt-4 pb-1">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild><span className="cursor-pointer hover:text-foreground text-muted-foreground" onClick={() => setActiveView('contacts')}>Intelligence</span></BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild><span className="cursor-pointer hover:text-foreground text-muted-foreground" onClick={() => setActiveView('contacts')}>Contacts</span></BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="font-medium">{data.name}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
         </div>
 
         <div className="max-w-[1400px] mx-auto px-5 py-5">

@@ -14,7 +14,7 @@ import {
 import { useAppStore, type ViewId } from '@/lib/store';
 import { EnterpriseErrorState } from '@/components/enterprise';
 import { ErrorBoundary } from '@/components/error-boundary';
-import { badgeColors, colors, gold, goldLight, card, border, borderSubtle } from '@/components/shared/enterprise-theme';
+import { badgeColors, colors, gold, goldLight, card, border, borderSubtle } from '@/components/design-system';
 
 // ── Theme color opacity helpers ─────────────────────
 const goldAlpha = (a: number) => `rgba(212,175,55,${a})`;
@@ -30,7 +30,7 @@ const indigoAlpha = (a: number) => `rgba(99,102,241,${a})`;
 
 
 /* ═══════════════════════════════════════════════════
-   Design Tokens — now imported from enterprise-theme
+   Design Tokens — now imported from design-system (unified)
    ═══════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════

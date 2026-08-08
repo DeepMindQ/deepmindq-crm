@@ -8,7 +8,8 @@ import {
 export const dynamic = 'force-dynamic'
 
 export async function GET() {
-  return NextResponse.json({ webhooks: getWebhookConfigs() })
+  const webhooks = await getWebhookConfigs()
+  return NextResponse.json({ webhooks })
 }
 
 export async function POST(request: NextRequest) {
@@ -22,7 +23,7 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  const webhook = registerWebhook({
+  const webhook = await registerWebhook({
     url,
     events,
     secret: secret || `whsec_${Math.random().toString(36).slice(2)}`,
@@ -39,7 +40,7 @@ export async function DELETE(request: NextRequest) {
   if (!id)
     return NextResponse.json({ error: 'id is required' }, { status: 400 })
 
-  const deleted = deleteWebhook(id)
+  const deleted = await deleteWebhook(id)
   if (!deleted)
     return NextResponse.json(
       { error: 'Webhook not found' },

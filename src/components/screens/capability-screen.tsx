@@ -40,7 +40,7 @@ import {
   Loader2, Zap, Workflow, ChevronDown, ChevronUp, Mail, Lightbulb,
   Hash, Filter, Download, Globe, Link2, GitBranch, Check, Ban,
 } from 'lucide-react';
-import { colors, gold, goldLight } from '@/components/shared/enterprise-theme';
+import { colors, gold, goldLight } from '@/components/design-system';
 
 // ── Theme color opacity helpers ─────────────────────
 const goldAlpha = (a: number) => `rgba(212,175,55,${a})`;

@@ -3,8 +3,8 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   compress: true,
   typescript: {
-    // Temporarily ignoring build errors for CI environment with limited memory
-    ignoreBuildErrors: true,
+    // Enterprise builds must fail on type errors
+    ignoreBuildErrors: false,
   },
   reactStrictMode: true,
   poweredByHeader: false,

@@ -16,7 +16,7 @@ import { X, Search, RefreshCw, Loader2, Plus } from 'lucide-react';
 import {
   gold, goldLight, card, border, glassPanel,
   animations, goldButton, colors, cls,
-} from './enterprise-theme';
+} from '@/components/design-system';
 import { cn } from '@/lib/utils';
 
 /* ═══════════════════════════════════════════════════

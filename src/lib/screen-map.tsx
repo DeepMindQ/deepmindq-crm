@@ -127,8 +127,16 @@ const AccountRankingScreen = lazy(() => import('@/components/screens/account-ran
 const OpportunityWorkspaceScreen = lazy(() => import('@/components/screens/opportunity-workspace-screen'));
 const PursuitWorkspaceScreen = lazy(() => import('@/components/screens/pursuit-workspace-screen'));
 const ICPSettingsScreen = lazy(() => import('@/components/screens/icp-settings-screen'));
+const RecommendationQueueScreen = lazy(() => import('@/components/screens/recommendation-queue-screen'));
 const TrustDashboardScreen = lazy(() => import('@/components/screens/trust-dashboard-screen'));
 const CompanyTrustDetailScreen = lazy(() => import('@/components/screens/company-trust-detail-screen'));
+const ScoringConfigScreen = lazy(() => import('@/components/screens/scoring-config-screen'));
+const MainIntelligenceDashboardScreen = lazy(() => import('@/components/screens/main-intelligence-dashboard').then(m => ({ default: m.MainIntelligenceDashboard })));
+const CompanyWorkspaceV2Screen = lazy(() => import('@/components/screens/company-workspace-v2').then(m => ({ default: m.CompanyWorkspaceV2 })));
+const RecommendationQueueV2Screen = lazy(() => import('@/components/screens/recommendation-queue-v2').then(m => ({ default: m.RecommendationQueueV2 })));
+const ScoringConfigWizardScreen = lazy(() => import('@/components/screens/scoring-config-wizard').then(m => ({ default: m.ScoringConfigWizard })));
+const BatchOperationsPanelScreen = lazy(() => import('@/components/screens/batch-operations-panel').then(m => ({ default: m.BatchOperationsPanel })));
+const UserOnboardingWizardScreen = lazy(() => import('@/components/onboarding/user-onboarding-wizard').then(m => ({ default: m.UserOnboardingWizard })));
 
 /* ── Bridge wrappers ── */
 
@@ -171,6 +179,7 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'audit-logs': withScreenErrorBoundary(AuditLogsScreen, 'audit-logs'),
   'trust-dashboard': withScreenErrorBoundary(TrustDashboardScreen, 'trust-dashboard'),
   'company-trust-detail': withScreenErrorBoundary(CompanyTrustDetailScreen, 'company-trust-detail'),
+  'scoring-config': withScreenErrorBoundary(ScoringConfigScreen, 'scoring-config'),
 
   // ── Detail views ──
   // DEPRECATED: company-detail now routes to Intelligence OS CompanyWorkspace
@@ -215,6 +224,7 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'revenue-intelligence-brief': withScreenErrorBoundary(RevenueIntelligenceBriefScreen, 'revenue-intelligence-brief'),
   'revenue-intelligence-opportunities': withScreenErrorBoundary(RevenueIntelligenceOpportunitiesScreen, 'revenue-intelligence-opportunities'),
   'revenue-intelligence-recommendations': withScreenErrorBoundary(RevenueIntelligenceRecommendationsScreen, 'revenue-intelligence-recommendations'),
+  'recommendation-queue': withScreenErrorBoundary(RecommendationQueueScreen, 'recommendation-queue'),
   'intelligence-reasoning': withScreenErrorBoundary(IntelligenceReasoningScreen, 'intelligence-reasoning'),
   'intelligence-report': withScreenErrorBoundary(IntelligenceReportScreen, 'intelligence-report'),
   'account-ranking': withScreenErrorBoundary(AccountRankingScreen, 'account-ranking'),
@@ -237,4 +247,12 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'ai-strategy': withScreenErrorBoundary(AIStrategyScreen, 'ai-strategy'),
   duplicates: withScreenErrorBoundary(DuplicatesScreen, 'duplicates'),
   builder: withScreenErrorBoundary(IntelligenceReportScreen, 'builder'),
+
+  // ── S11 UX Screens (new) ──
+  'main-dashboard': withScreenErrorBoundary(MainIntelligenceDashboardScreen, 'main-dashboard'),
+  'company-workspace-v2': withScreenErrorBoundary(CompanyWorkspaceV2Screen, 'company-workspace-v2'),
+  'recommendation-queue-v2': withScreenErrorBoundary(RecommendationQueueV2Screen, 'recommendation-queue-v2'),
+  'scoring-wizard': withScreenErrorBoundary(ScoringConfigWizardScreen, 'scoring-wizard'),
+  'batch-operations': withScreenErrorBoundary(BatchOperationsPanelScreen, 'batch-operations'),
+  'onboarding-wizard': withScreenErrorBoundary(UserOnboardingWizardScreen, 'onboarding-wizard'),
 };

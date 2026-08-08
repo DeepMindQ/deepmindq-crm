@@ -13,6 +13,8 @@ import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
 import { EvidenceBadge } from '@/components/enterprise/EvidenceBadge';
 import { ErrorState } from '@/components/enterprise/ErrorState';
 import { LoadingState } from '@/components/enterprise/LoadingState';
+import { FeedbackForm } from '@/components/feedback/feedback-form';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 /* ═══════════════════════════════════════════════════════════════
    Types — mirror real API response shapes
@@ -549,13 +551,26 @@ export default function RevenueIntelligenceScreen({
               <p className="text-sm text-muted-foreground">Decision intelligence across all engines</p>
             </div>
           </div>
-          <button
-            onClick={() => window.location.reload()}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-black/[0.04] transition-colors"
-          >
-            <RefreshCw className="w-3.5 h-3.5" />
-            Refresh
-          </button>
+          <div className="flex items-center gap-2">
+            <FeedbackForm
+              context="revenue-intelligence"
+              type="thumbs"
+              title="Revenue Intelligence Feedback"
+              description="How are these revenue insights?"
+              trigger={
+                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-black/[0.04] transition-colors">
+                  💬 Feedback
+                </button>
+              }
+            />
+            <button
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-black/[0.04] transition-colors"
+            >
+              <RefreshCw className="w-3.5 h-3.5" />
+              Refresh
+            </button>
+          </div>
         </div>
       </header>
 
@@ -581,6 +596,7 @@ export default function RevenueIntelligenceScreen({
         ))}
       </div>
 
+      <ErrorBoundary>
       {/* ═══════════════════════════════════════════════════════════
          SECTION 1: Revenue Overview Header — "What happened?"
          ═══════════════════════════════════════════════════════════ */}
@@ -836,6 +852,7 @@ export default function RevenueIntelligenceScreen({
           )}
         </div>
       </section>
+      </ErrorBoundary>
     </div>
   );
 }

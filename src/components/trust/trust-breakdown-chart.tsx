@@ -12,13 +12,13 @@ import { cn } from '@/lib/utils';
 
 // ─── Types ──────────────────────────────────────────────────────
 
-interface SourceBreakdownItem {
+export interface SourceBreakdownItem {
   source: string;
   count: number;
   avgScore: number;
 }
 
-interface ConfidenceDistribution {
+export interface ConfidenceDistribution {
   high: number;
   medium: number;
   low: number;

@@ -8,7 +8,7 @@
 
 'use client';
 
-import { useQuery } from '@tanstack/react-query';
+import { useTrustDashboard } from '@/lib/realtime-hooks';
 import {
   PageTransition,
   AnimatedCounter,
@@ -53,16 +53,8 @@ interface TrustDashboardResponse {
 export default function TrustDashboardScreen() {
   const { selectedCompanyId, setActiveView } = useAppStore();
 
-  const { data, isLoading, error, refetch, isFetching } = useQuery<TrustDashboardResponse>({
-    queryKey: ['trust-dashboard'],
-    queryFn: async () => {
-      const res = await fetch('/api/trust/dashboard');
-      if (!res.ok) throw new Error('Failed to load trust data');
-      return res.json();
-    },
-    staleTime: 60_000,
-    refetchInterval: 5 * 60_000,
-  });
+  const { data, loading: isLoading, error, refetch } = useTrustDashboard(5 * 60_000);
+  const isFetching = isLoading;
 
   // ─── Loading skeleton ──
   if (isLoading) return <TrustDashboardSkeleton />;

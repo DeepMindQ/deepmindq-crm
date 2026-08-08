@@ -17,7 +17,7 @@ import {
   Settings, Shield, Database, Plug, Activity,
   BarChart3, Inbox, Upload, Radio,
   TrendingUp, Telescope, ScrollText, Sparkles,
-  Users, GitBranch, Mail, FileDown,
+  Users, GitBranch, Mail, FileDown, Sliders, Lightbulb,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -45,6 +45,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: 'contacts', label: 'Contact Intelligence', icon: Users },
       { key: 'signal-intelligence', label: 'AI Insights', icon: Radar },
       { key: 'opportunity-radar', label: 'Opportunities', icon: Target },
+      { key: 'account-ranking', label: 'Account Ranking', icon: TrendingUp },
       { key: 'intelligence-search', label: 'Intelligence Search', icon: Search },
     ],
   },
@@ -55,6 +56,7 @@ export const NAV_SECTIONS: NavSection[] = [
     defaultOpen: true,
     items: [
       { key: 'pipeline', label: 'Pipeline', icon: GitBranch },
+      { key: 'recommendation-queue', label: 'Recommendations', icon: Lightbulb },
       { key: 'email-studio', label: 'Email Studio', icon: Mail },
     ],
   },
@@ -87,6 +89,7 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: 'analytics', label: 'Analytics', icon: BarChart3 },
       { key: 'ai-health', label: 'System Health', icon: Cpu },
       { key: 'settings', label: 'Settings', icon: Settings },
+      { key: 'scoring-config', label: 'Scoring Config', icon: Sliders },
       { key: 'users', label: 'Users', icon: Users },
       { key: 'audit', label: 'Audit & Governance', icon: Shield },
     ],

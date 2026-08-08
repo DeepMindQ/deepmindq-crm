@@ -32,6 +32,7 @@ import {
   isUserQueryContent,
   isTypingIndicator,
 } from '@/types/ms9-advisor';
+import { InlineFeedback } from '@/components/feedback/inline-feedback';
 
 export interface ConversationHistoryProps {
   /** Ordered list of advisor messages */
@@ -207,6 +208,17 @@ export function ConversationHistory({
                       <path d="M4 2 L9 6 L4 10" />
                     </svg>
                   </button>
+                </div>
+              )}
+
+              {/* Inline feedback for advisor messages */}
+              {message.role === 'assistant' && (
+                <div className="ml-11 flex justify-end mt-1.5 pt-1.5 border-t border-border/50">
+                  <InlineFeedback
+                    context={`advisor-msg-${message.id}`}
+                    itemId={message.id}
+                    itemType="intelligence"
+                  />
                 </div>
               )}
             </div>

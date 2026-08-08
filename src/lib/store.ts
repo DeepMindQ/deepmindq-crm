@@ -88,6 +88,9 @@ export type ViewId =
   | 'data-import'
   | 'trust-dashboard'
   | 'company-trust-detail'
+  | 'scoring-config'
+  | 'users'
+  | 'recommendation-queue'
   | 'builder';
 
 interface AppState {

@@ -16,6 +16,8 @@ import {
   AlertTriangle, CheckCircle2, Clock, TrendingUp, Users,
   Activity, BarChart3, User, FileText, Sparkles,
 } from 'lucide-react';
+import { ErrorBoundary } from '@/components/error-boundary';
+import { SkeletonCard } from '@/components/loading';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -346,6 +348,7 @@ export default function AccountIntelligenceScreen() {
       </div>
 
       {/* Score Summary Card */}
+      <ErrorBoundary>
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
         {/* Score Circle */}
         <Card className="lg:col-span-1">
@@ -453,8 +456,10 @@ export default function AccountIntelligenceScreen() {
           </div>
         </div>
       </div>
+      </ErrorBoundary>
 
       {/* Tabs */}
+      <ErrorBoundary>
       <Tabs value={activeTab} onValueChange={setActiveTab}>
         <TabsList>
           <TabsTrigger value="overview">Overview</TabsTrigger>
@@ -559,15 +564,7 @@ export default function AccountIntelligenceScreen() {
           {scoreMutation.isPending && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[1, 2, 3].map(i => (
-                <Card key={i}>
-                  <CardContent className="p-6">
-                    <div className="animate-pulse space-y-3">
-                      <div className="h-5 bg-muted rounded w-2/3" />
-                      <div className="h-4 bg-muted rounded w-full" />
-                      <div className="h-4 bg-muted rounded w-5/6" />
-                    </div>
-                  </CardContent>
-                </Card>
+                <SkeletonCard key={i} />
               ))}
             </div>
           )}
@@ -694,15 +691,7 @@ export default function AccountIntelligenceScreen() {
           {actionsMutation.isPending && (
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               {[1, 2, 3].map(i => (
-                <Card key={i}>
-                  <CardContent className="p-6">
-                    <div className="animate-pulse space-y-3">
-                      <div className="h-5 bg-muted rounded w-2/3" />
-                      <div className="h-4 bg-muted rounded w-full" />
-                      <div className="h-4 bg-muted rounded w-3/4" />
-                    </div>
-                  </CardContent>
-                </Card>
+                <SkeletonCard key={i} />
               ))}
             </div>
           )}
@@ -844,6 +833,7 @@ export default function AccountIntelligenceScreen() {
           )}
         </TabsContent>
       </Tabs>
+      </ErrorBoundary>
     </div>
   );
 }

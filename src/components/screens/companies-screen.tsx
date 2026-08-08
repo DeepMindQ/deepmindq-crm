@@ -34,6 +34,9 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from '@/components/ui/alert-dialog';
 import { EmptyState } from '@/components/shared/design-system';
+import { AccountTierBadge } from '@/components/tier/account-tier-badge';
+import { ScoreGauge } from '@/components/score/score-gauge';
+import { ErrorBoundary } from '@/components/error-boundary';
 import { useAppStore } from '@/lib/store';
 import { fetchApi } from '@/lib/fetchApi';
 import { cn } from '@/lib/utils';
@@ -418,6 +421,7 @@ export default function CompaniesScreen() {
      Render
      ═══════════════════════════════════════════════════════════════ */
   return (
+    <ErrorBoundary>
     <div role="main" aria-label="Company Intelligence" className="flex flex-col gap-5 h-full overflow-hidden">
       {/* ── Header ── */}
       <div className="flex flex-col gap-3">
@@ -540,7 +544,7 @@ export default function CompaniesScreen() {
                             {c.industry ? <p className="text-[10px] text-gray-400 truncate mt-0.5">{c.industry}{c.country ? ` · ${c.country}` : ''}</p> : c.country ? <p className="text-[10px] text-gray-400 truncate mt-0.5">{c.country}</p> : null}
                           </TableCell>
                           <TableCell className="hidden lg:table-cell">{c.domain ? <span className="text-xs text-gray-500 truncate">{c.domain}</span> : <span className="text-xs text-gray-300">—</span>}</TableCell>
-                          <TableCell><TierBadge tier={c.priorityTier} /></TableCell>
+                          <TableCell><AccountTierBadge tier={c.priorityTier?.toLowerCase() || 'cold'} score={c.intelligenceScore ?? undefined} size="sm" /></TableCell>
                           <TableCell><ScoreBar score={c.accountPriorityScore} /></TableCell>
                           <TableCell className="hidden md:table-cell"><ScoreBar score={c.intelligenceScore} /></TableCell>
                           <TableCell className="hidden lg:table-cell"><ScoreBar score={c.accountScore != null ? Math.round(c.accountScore) : null} /></TableCell>
@@ -616,6 +620,7 @@ export default function CompaniesScreen() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </ErrorBoundary>
   );
 }
 

@@ -34,6 +34,8 @@ import type {
   PriorityLevel,
 } from '@/types/ms9-advisor';
 import { useAppStore } from '@/lib/store';
+import { FeedbackForm } from '@/components/feedback/feedback-form';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 export default function AIAdvisorScreen() {
   const selectedCompanyId = useAppStore((s: any) => s.selectedCompanyId);
@@ -177,34 +179,52 @@ export default function AIAdvisorScreen() {
   const handleWorkspaceItemSelect = () => { /* Future */ };
 
   return (
-    <AIAdvisorExperience
-      // Conversation state
-      messages={conversationState.messages}
-      isProcessing={conversationState.isProcessing}
-      processingState={conversationState.processingState}
-      connectionStatus={conversationState.connectionStatus}
-      activeAccountName={conversationState.activeAccountName}
-      activeSourceCount={conversationState.activeSourceCount}
-      scope={selectedCompanyId ? 'account_intelligence' : 'general_intelligence'}
+    <ErrorBoundary>
+      <div className="relative">
+        <AIAdvisorExperience
+          // Conversation state
+          messages={conversationState.messages}
+          isProcessing={conversationState.isProcessing}
+          processingState={conversationState.processingState}
+          connectionStatus={conversationState.connectionStatus}
+          activeAccountName={conversationState.activeAccountName}
+          activeSourceCount={conversationState.activeSourceCount}
+          scope={selectedCompanyId ? 'account_intelligence' : 'general_intelligence'}
 
-      // Context sidebar
-      contextSidebarData={sidebarData}
+          // Context sidebar
+          contextSidebarData={sidebarData}
 
-      // Workspace
-      workspace={workspaceState.workspace}
+          // Workspace
+          workspace={workspaceState.workspace}
 
-      // Human assistance
-      humanAssistanceEntry={humanAssistanceState.activeEntry}
+          // Human assistance
+          humanAssistanceEntry={humanAssistanceState.activeEntry}
 
-      // Callbacks — matching AIAdvisorExperienceProps interface
-      onQuerySubmit={handleQuerySubmit}
-      onNewBriefing={conversationState.startNewBriefing}
-      onEscalate={handleEscalate}
-      onDismissAssistance={handleDismissAssistance}
-      onWorkspaceItemSelect={handleWorkspaceItemSelect}
-      onAccountClick={(companyId: string) => {
-        useAppStore.getState().setSelectedCompanyId?.(companyId);
-      }}
-    />
+          // Callbacks — matching AIAdvisorExperienceProps interface
+          onQuerySubmit={handleQuerySubmit}
+          onNewBriefing={conversationState.startNewBriefing}
+          onEscalate={handleEscalate}
+          onDismissAssistance={handleDismissAssistance}
+          onWorkspaceItemSelect={handleWorkspaceItemSelect}
+          onAccountClick={(companyId: string) => {
+            useAppStore.getState().setSelectedCompanyId?.(companyId);
+          }}
+        />
+        {/* Feedback trigger — floating bottom-right */}
+        <div className="absolute bottom-4 right-4 z-10">
+          <FeedbackForm
+            context="ai-advisor"
+            type="thumbs"
+            title="Advisor Feedback"
+            description="How was this AI advisory session?"
+            trigger={
+              <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-card border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:border-border-hover transition-colors shadow-sm">
+                💬 Feedback
+              </button>
+            }
+          />
+        </div>
+      </div>
+    </ErrorBoundary>
   );
 }

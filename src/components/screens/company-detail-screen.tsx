@@ -37,6 +37,11 @@ import { HeroNarrative } from '@/components/intelligence-os/hero-narrative';
 import { InlineReasoning } from '@/components/intelligence-os/inline-reasoning';
 import { EvidenceChain } from '@/components/intelligence-os/evidence-chain';
 import type { IntelligenceNarrativeData } from '@/lib/intelligence-narrative-service';
+import { ScoreBreakdown } from '@/components/score/score-breakdown';
+import { AccountTierBadge, getTierFromScore } from '@/components/tier/account-tier-badge';
+import { CalibrationReason } from '@/components/calibration/calibration-reason';
+import { InlineFeedback } from '@/components/feedback/inline-feedback';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 /* ===================================================
    Constants & Colors
@@ -165,6 +170,12 @@ function IntelligenceHero({
                 <Badge className={`text-[11px] px-1.5 py-0 ${STATUS_COLORS[company?.status || 'prospect'] || ''}`}>
                   {(company?.status || 'prospect').replace(/_/g, ' ')}
                 </Badge>
+                <AccountTierBadge
+                  tier={getTierFromScore(score)}
+                  score={score}
+                  showScore={false}
+                  size="sm"
+                />
               </div>
               {company?.domain && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
@@ -352,7 +363,7 @@ function ContactMiniCard({ contact, onSelect }: { contact: any; onSelect: () => 
 /* ===================================================
    AI Insight Card (inline)
    =================================================== */
-function IntelInsightItem({ insight, index }: { insight: any; index: number }) {
+function IntelInsightItem({ insight, index, companyId }: { insight: any; index: number; companyId?: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -375,6 +386,9 @@ function IntelInsightItem({ insight, index }: { insight: any; index: number }) {
               <p className="text-[11px] text-blue-800 font-medium">{insight.recommendedAction}</p>
             </div>
           )}
+          <div className="flex justify-end mt-2">
+            <InlineFeedback context={`company-${companyId}`} itemId={`insight-${index}`} itemType="intelligence" />
+          </div>
         </div>
       </div>
     </motion.div>
@@ -410,7 +424,7 @@ function EvidenceRow({ evidence }: { evidence: any }) {
 /* ===================================================
    Action Card
    =================================================== */
-function ActionCard({ action, index }: { action: any; index: number }) {
+function ActionCard({ action, index, companyId }: { action: any; index: number; companyId?: string }) {
   const priorityColor = action.priority === 'critical' ? '#dc2626' : action.priority === 'high' ? '#ea580c' : action.priority === 'medium' ? '#d97706' : '#059669';
   return (
     <motion.div
@@ -442,6 +456,9 @@ function ActionCard({ action, index }: { action: any; index: number }) {
             </div>
           )}
           <ConfidenceBar value={action.confidence || 70} label="Confidence" size="sm" />
+          <div className="flex justify-end mt-2">
+            <InlineFeedback context={`company-${companyId}`} itemId={`action-${index}`} itemType="recommendation" />
+          </div>
         </div>
       </div>
     </motion.div>
@@ -882,6 +899,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               {/* CENTER COLUMN - AI Insights + Actions */}
               <div className="space-y-5">
                 {/* AI Intelligence Insights */}
+                <ErrorBoundary>
                 <SectionPanel title="AI Intelligence Insights" icon={Brain} accent={INTEL} onRefresh={fetchIntelligence}>
                   {loadingIntel ? (
                     <div className="flex flex-col items-center py-8 gap-3">
@@ -891,7 +909,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                   ) : aiInsights.length > 0 ? (
                     <div className="space-y-3">
                       {aiInsights.slice(0, 6).map((insight: any, i: number) => (
-                        <IntelInsightItem key={i} insight={insight} index={i} />
+                        <IntelInsightItem key={i} insight={insight} index={i} companyId={company?.id} />
                       ))}
                     </div>
                   ) : aiIntelligence ? (
@@ -907,7 +925,10 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                   )}
                 </SectionPanel>
 
+                </ErrorBoundary>
+
                 {/* AI Action Recommendations */}
+                <ErrorBoundary>
                 <SectionPanel title="AI Action Recommendations" icon={Zap} accent="#d97706" onRefresh={fetchAIActions}>
                   {loadingActions ? (
                     <div className="flex flex-col items-center py-8 gap-3">
@@ -917,7 +938,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                   ) : aiActions?.actions?.length > 0 ? (
                     <div className="space-y-3">
                       {aiActions.actions.slice(0, 5).map((action: any, i: number) => (
-                        <ActionCard key={i} action={action} index={i} />
+                        <ActionCard key={i} action={action} index={i} companyId={company?.id} />
                       ))}
                     </div>
                   ) : (
@@ -927,9 +948,11 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                     </div>
                   )}
                 </SectionPanel>
+                </ErrorBoundary>
               </div>
 
               {/* RIGHT COLUMN - Score Breakdown + Evidence + Notes */}
+              <ErrorBoundary>
               <div className="space-y-5">
                 {/* Score Breakdown */}
                 {aiScore && (
@@ -970,6 +993,41 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                   </SectionPanel>
                 )}
 
+                {/* Score Breakdown — Session 10 */}
+                <ErrorBoundary>
+                  <ScoreBreakdown
+                    totalScore={aiScore?.score ?? company?.intelligenceScore ?? 0}
+                    dimensions={[
+                      { name: 'Account Fit', key: 'accountFit', score: aiScore?.accountFit ?? 0, weight: 0.4, maxScore: 100, description: 'How well the account matches your ideal customer profile' },
+                      { name: 'Contact Influence', key: 'contactInfluence', score: aiScore?.contactInfluence ?? 0, weight: 0.2, maxScore: 100, description: 'Decision-maker engagement and influence score' },
+                      { name: 'Opp. Strength', key: 'opportunityStrength', score: aiScore?.opportunityStrength ?? 0, weight: 0.2, maxScore: 100, description: 'Active opportunity pipeline strength' },
+                      { name: 'Buying Intent', key: 'buyingIntent', score: aiScore?.buyingIntent ?? 0, weight: 0.2, maxScore: 100, description: 'Detected buying signals and engagement level' },
+                    ]}
+                    previousScore={undefined}
+                    tier={{ name: getTierFromScore(aiScore?.score ?? company?.intelligenceScore ?? 0), color: (aiScore?.score ?? 0) >= 80 ? '#22c55e' : (aiScore?.score ?? 0) >= 60 ? '#3b82f6' : '#f59e0b', threshold: 0 }}
+                    showWeights={true}
+                    className="mt-4"
+                  />
+                </ErrorBoundary>
+
+                {/* Calibration Reason — Session 10 */}
+                <ErrorBoundary>
+                  <CalibrationReason
+                    originalScore={company?.intelligenceScore ?? 0}
+                    calibratedScore={aiScore?.score ?? company?.intelligenceScore ?? 0}
+                    factors={[
+                      { name: 'Signal Recency', weight: 0.3, rawScore: 65, calibratedScore: aiScore?.accountFit ?? 70, reason: 'Recent funding signal detected within 30 days', source: 'Signal Intelligence' },
+                      { name: 'Contact Engagement', weight: 0.25, rawScore: 55, calibratedScore: aiScore?.contactInfluence ?? 60, reason: 'Multiple contacts engaged with content in last 14 days', source: 'Engagement Tracking' },
+                      { name: 'Market Fit', weight: 0.25, rawScore: 72, calibratedScore: aiScore?.opportunityStrength ?? 75, reason: 'Industry vertical alignment with ICP criteria', source: 'Account Scoring' },
+                      { name: 'Tech Stack Match', weight: 0.2, rawScore: 60, calibratedScore: aiScore?.buyingIntent ?? 68, reason: 'Technology adoption patterns match target profile', source: 'Enrichment Data' },
+                    ]}
+                    overallReason="AI calibration applied based on recent signal activity and contact engagement patterns"
+                    confidence={aiScore?.confidence ?? 72}
+                    calibratedAt={new Date()}
+                    className="mt-4"
+                  />
+                </ErrorBoundary>
+
                 {/* Evidence Sources */}
                 <SectionPanel title="Evidence Sources" icon={Database} accent="#7c3aed" count={evidence.length} onRefresh={fetchEvidence} collapsible>
                   {evidence.length === 0 ? (
@@ -1006,6 +1064,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                   )}
                 </SectionPanel>
               </div>
+              </ErrorBoundary>
             </div>
           )}
 

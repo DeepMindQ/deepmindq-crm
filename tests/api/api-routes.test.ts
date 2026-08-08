@@ -406,14 +406,14 @@ describe.skipIf(!dbReachable)('Dashboard — Data Consistency', () => {
   it('email health categories cover all non-archived contacts', async () => {
     const total = await db.contact.count({ where: { status: { not: 'archived' } } })
 
-    // Use groupBy to get exact counts in a single query (avoids race conditions)
+    // Count each health category using a single groupBy query
     const healthGroups = await db.contact.groupBy({
       by: ['emailHealth'],
       where: { status: { not: 'archived' } },
-      _count: { emailHealth: true },
+      _count: true,
     })
 
-    const sumByHealth = healthGroups.reduce((sum, g) => sum + g._count.emailHealth, 0)
+    const sumByHealth = healthGroups.reduce((sum, g) => sum + g._count, 0)
     expect(sumByHealth).toBe(total)
   })
 

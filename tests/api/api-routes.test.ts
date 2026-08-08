@@ -413,6 +413,9 @@ describe.skipIf(!dbReachable)('Dashboard — Data Consistency', () => {
       db.contact.count({ where: { emailHealth: 'unknown', status: { not: 'archived' } } }),
     ])
 
+    // Debug: log counts to diagnose CI failures
+    console.log(`[debug] total=${total} valid=${healthy} risky=${risky} invalid=${invalid} unknown=${unknown} sum=${healthy + risky + invalid + unknown}`)
+
     // The sum of all health categories should equal total non-archived contacts
     expect(healthy + risky + invalid + unknown).toBe(total)
   })

@@ -68,6 +68,7 @@ jobs:
         env:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
+          DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci_test'
 
       - name: Verify edge proxy exists
         run: |

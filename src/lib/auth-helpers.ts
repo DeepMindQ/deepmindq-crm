@@ -38,6 +38,7 @@ export const PUBLIC_PATH_PREFIXES: string[] = [
   '/api/monitoring',             // Public monitoring/metrics endpoint
   '/api/v1',                     // Public API v1 proxy and index
   '/login',
+  '/demo',
   '/marketing',
   '/favicon.ico',
   '/_next/static',

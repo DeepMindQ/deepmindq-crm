@@ -405,16 +405,18 @@ describe.skipIf(!dbReachable)('Dashboard — Data Consistency', () => {
 
   it('email health categories cover all non-archived contacts', async () => {
     const total = await db.contact.count({ where: { status: { not: 'archived' } } })
+    expect(total).toBeGreaterThan(0)
 
-    // Count contacts with null/missing emailHealth (should be 0 due to @default)
+    // Verify non-archived contacts have emailHealth populated.
+    // Schema enforces NOT NULL DEFAULT 'unknown', so nullHealth should be 0.
+    // In CI with fresh PostgreSQL, migration defaults should apply immediately.
     const nullHealth = await db.contact.count({
       where: { status: { not: 'archived' }, emailHealth: null },
     })
 
-    // The total should equal all categorized contacts (including null)
-    // This verifies the seed data is consistent, not testing Prisma enum filtering
+    // The schema guarantees NOT NULL — nullHealth must be 0.
+    // If this fails, the migration did not deploy correctly or seed failed.
     expect(nullHealth).toBe(0)
-    expect(total).toBeGreaterThan(0)
   })
 
   it('timeline events reference valid company IDs when set', async () => {

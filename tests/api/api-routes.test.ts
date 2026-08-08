@@ -404,17 +404,17 @@ describe.skipIf(!dbReachable)('Dashboard — Data Consistency', () => {
   })
 
   it('email health categories cover all non-archived contacts', async () => {
-    const total = await db.contact.count({ where: { status: { not: 'archived' } } })
+    // Use a transaction to ensure consistent reads across all counts
+    const [total, healthy, risky, invalid, unknown] = await db.$transaction([
+      db.contact.count({ where: { status: { not: 'archived' } } }),
+      db.contact.count({ where: { emailHealth: 'valid', status: { not: 'archived' } } }),
+      db.contact.count({ where: { emailHealth: 'risky', status: { not: 'archived' } } }),
+      db.contact.count({ where: { emailHealth: 'invalid', status: { not: 'archived' } } }),
+      db.contact.count({ where: { emailHealth: 'unknown', status: { not: 'archived' } } }),
+    ])
 
-    // Count each health category using a single groupBy query
-    const healthGroups = await db.contact.groupBy({
-      by: ['emailHealth'],
-      where: { status: { not: 'archived' } },
-      _count: true,
-    })
-
-    const sumByHealth = healthGroups.reduce((sum, g) => sum + g._count, 0)
-    expect(sumByHealth).toBe(total)
+    // The sum of all health categories should equal total non-archived contacts
+    expect(healthy + risky + invalid + unknown).toBe(total)
   })
 
   it('timeline events reference valid company IDs when set', async () => {

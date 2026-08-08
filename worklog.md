@@ -116,3 +116,36 @@ Stage Summary:
 - Deployment pipelines (production + staging) documented with all gates and rollback
 - 6 non-blocking risks documented with mitigations
 - No code changes made (audit-only)
+
+---
+Task ID: 1
+Agent: main
+Task: CI Governance Hardening + 6-Phase Repair Roadmap Execution
+
+Work Log:
+- Phase 1: Created CI ↔ vitest ↔ local config mapping (RELEASE_READINESS.md)
+- Phase 2: Local repro of all 7 blocking vitest configs with CI=true
+  - unit: 34 files / 1137 tests ✅
+  - security: 17 files / 550 tests ✅ (after fixing job name assertion)
+  - integration: 9 files / 181 tests ✅
+  - m5: 8 files / 152 tests ✅
+- Phase 3: Config governance hardening
+  - Migrated 4 blocking configs from threads → forks (security, api, database, integration)
+  - Added teardownTimeout: 10000 to 4 configs that were missing it
+  - Renamed security-gate job to "Security Gate (Static)", removed duplicate vitest run
+  - Moved 7 orphan tests from 5 unassigned dirs to CI-assigned dirs
+  - Made npm test meaningful (67 files / 2003 tests)
+  - Added test:blocking and test:blocking:db scripts
+- Phase 4: Classified 15 npm test failures → all Category C (env/config)
+  - 13 fixed by adding USE_DB_PERSISTENCE=false to default config
+  - 2 fixed by excluding DB-dependent persistence test from default config
+- Phase 5: Teardown crash mitigated via forks pool + teardownTimeout standardization
+- Phase 6: Pushed 2 commits, monitored GitHub Actions
+  - ALL 10 blocking jobs + build verification = GREEN ✅
+
+Stage Summary:
+- All 6 phases complete
+- CI: https://github.com/DeepMindQ/deepmindq-crm/actions/runs/31261740443
+- Files modified: ci.yml, vitest.config.ts, 5 vitest.*.config.ts, package.json, 7 test files moved
+- Docs created: docs/CI_TEST_EXECUTION_MAP.md, docs/RELEASE_READINESS.md
+- Zero application logic changes (governance/infrastructure only)

@@ -8,6 +8,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ---------------------------------------------------------------------------
 // Connector definitions
@@ -146,7 +147,10 @@ const CONNECTORS: Connector[] = [
 // GET — list connectors & capabilities
 // ---------------------------------------------------------------------------
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<NextResponse> {
+  const auth = await checkApiAuth(request);
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   const summary = CONNECTORS.map((c) => ({
     id: c.id,
     name: c.name,
@@ -167,6 +171,9 @@ export async function GET(): Promise<NextResponse> {
 // ---------------------------------------------------------------------------
 
 export async function POST(request: NextRequest): Promise<NextResponse> {
+  const auth = await checkApiAuth(request);
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+
   try {
     const body = (await request.json()) as {
       connector?: string;

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { approvalService } from '@/lib/approval-service'
 import type { ApprovalStatus, ApprovalContentType } from '@/lib/approval-service'
+import { checkApiAuth } from '@/lib/api-auth'
 
 /**
  * GET /api/approvals
@@ -9,6 +10,9 @@ import type { ApprovalStatus, ApprovalContentType } from '@/lib/approval-service
  * Query params: status, contentType, contentId
  */
 export async function GET(request: NextRequest) {
+  const auth = await checkApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const { searchParams } = new URL(request.url)
   const status = searchParams.get('status') as ApprovalStatus | null
   const contentType = searchParams.get('contentType') as ApprovalContentType | null
@@ -48,6 +52,9 @@ export async function GET(request: NextRequest) {
  * Body: { approvalId, action: 'approve' | 'reject', reviewerId, reason? }
  */
 export async function PATCH(request: NextRequest) {
+  const auth = await checkApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   try {
     const body = await request.json()
     const { approvalId, action, reviewerId, reason } = body
@@ -98,6 +105,9 @@ export async function PATCH(request: NextRequest) {
  * Body: { contentId, contentType, metadata? }
  */
 export async function POST(request: NextRequest) {
+  const auth = await checkApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   try {
     const body = await request.json()
     const { contentId, contentType, metadata } = body

@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { incidentManager } from '@/lib/incident-manager'
 import type { Severity, IncidentStatus } from '@/lib/incident-manager'
+import { checkApiAuth } from '@/lib/api-auth'
 
 /**
  * GET /api/incidents
  *
  * Returns active and all incidents, plus a summary.
  */
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const auth = await checkApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   return NextResponse.json({
     active: incidentManager.getActiveIncidents(),
     all: incidentManager.getAllIncidents(),
@@ -21,6 +25,9 @@ export async function GET() {
  * Dispatches actions: create, update_status, assign, note, escalate, update_impact.
  */
 export async function POST(request: NextRequest) {
+  const auth = await checkApiAuth(request)
+  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
   const body = await request.json()
   const {
     action,

@@ -1,8 +1,8 @@
 /**
  * Vitest Configuration — PERFORMANCE
- * M3 Stabilization — threads pool, single thread
+ * M5 Governance Hardening -- forks pool
  *
- * Already using threads. Performance tests need controlled single-thread execution
+ * Performance tests need controlled single-worker execution
  * for consistent benchmarking results.
  */
 import { defineConfig } from 'vitest/config'
@@ -20,9 +20,9 @@ export default defineConfig({
       'tests/legacy/**',
     ],
     globals: true,
-    pool: 'threads',
-    maxThreads: 1,
-    minThreads: 1,
+    pool: 'forks',
+    maxWorkers: 1,
+    teardownTimeout: 10000,
     testTimeout: 120000,
     hookTimeout: 10000,
   },

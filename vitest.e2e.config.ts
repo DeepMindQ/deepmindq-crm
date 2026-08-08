@@ -1,6 +1,6 @@
 /**
  * Vitest Configuration — E2E
- * M3 Stabilization — threads pool, single thread
+ * M5 Governance Hardening -- forks pool
  */
 import { defineConfig } from 'vitest/config'
 import path from 'path'
@@ -17,9 +17,9 @@ export default defineConfig({
       'tests/legacy/**',
     ],
     globals: true,
-    pool: 'threads',
-    maxThreads: 1,
-    minThreads: 1,
+    pool: 'forks',
+    maxWorkers: 1,
+    teardownTimeout: 10000,
     testTimeout: 60000,
     hookTimeout: 10000,
   },

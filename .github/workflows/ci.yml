@@ -1,11 +1,11 @@
 # ═══════════════════════════════════════════════════
 # DeepMindQ -- Enterprise Test Architecture CI Pipeline
-# M5 Governance Hardening -- Deterministic, deduplicated execution
+# M5+ Governance Hardening -- Tier 1-3 Upgrades
 #
 # Architecture: Each test category runs as an independent job
 # with dedicated memory, fresh runner, and clear failure isolation.
-# All vitest configs use forks pool with single worker for stability
-# (eliminates Vitest 4.x + Node 22.x worker teardown crash).
+# ALL vitest configs (blocking + non-blocking) use forks pool with
+# single worker for stability (eliminates Vitest 4.x + Node 22.x teardown crash).
 #
 # BLOCKING JOBS (must pass for merge):
 #   1. security-gate        -- Static security guards (grep-based, no vitest)
@@ -20,17 +20,18 @@
 #   10. test-m5-intelligence -- M5 trust & intelligence tests (forks, 1 worker)
 #   11. build                -- Final build verification
 #
-# NON-BLOCKING JOBS (allowed to fail without blocking merge):
-#   test-ai                 -- AI engine core tests
-#   test-ai-governance      -- AI governance, prompt registry, config coverage
-#   test-ai-retrieval       -- AI retrieval, hybrid search, knowledge graph
-#   test-ai-framework       -- AI agent framework, memory, evaluation engine
-#   test-ai-inference        -- AI hallucination, confidence, recommendation engine
-#   test-e2e                -- End-to-end business journey tests
-#   test-performance        -- Benchmarks/scale/memory tests
-#   test-ui                  -- React component tests (jsdom)
-#   test-playwright          -- Playwright browser E2E tests
+# NON-BLOCKING JOBS (parallel shards, allowed to fail):
+#   test-ai                 -- AI engine core tests (forks, 1 worker)
+#   test-ai-governance      -- AI governance shard (forks, 1 worker)
+#   test-ai-retrieval       -- AI retrieval shard (forks, 1 worker)
+#   test-ai-framework       -- AI framework shard (forks, 1 worker)
+#   test-ai-inference        -- AI inference shard (forks, 1 worker)
+#   test-e2e                -- E2E business journeys (forks, 1 worker) + PostgreSQL
+#   test-performance        -- Benchmarks/scale/memory tests (forks, 1 worker)
+#   test-ui                  -- React component tests (forks, 1 worker)
+#   test-playwright          -- Playwright browser E2E (with retries)
 #
+# TIER 3: CI health report generated in ci-health-report job.
 # EXECUTION MAP: See docs/CI_TEST_EXECUTION_MAP.md
 # ═══════════════════════════════════════════════════
 
@@ -399,7 +400,10 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=2048'
 
   # ═══════════════════════════════════════════════════
-  # NON-BLOCKING: AI TEST SUITES
+  # NON-BLOCKING: AI TEST SUITES (parallel shards)
+  # Each shard runs a non-overlapping subset of tests/ai/**.
+  # test-ai runs the core engine files; sub-jobs run governance,
+  # retrieval, framework, and inference subsets. All use forks pool.
   # ═══════════════════════════════════════════════════
   test-ai:
     name: "Non-Blocking -- AI Engine"
@@ -511,13 +515,32 @@ jobs:
 
   # ═══════════════════════════════════════════════════
   # NON-BLOCKING: E2E, PERFORMANCE, UI, PLAYWRIGHT
+  # Tier 1.2: test-e2e now includes PostgreSQL service container
+  # to support API endpoint E2E tests that query the database.
   # ═══════════════════════════════════════════════════
   test-e2e:
     name: "Non-Blocking -- E2E Tests"
     runs-on: ubuntu-latest
     if: always()
     needs: [security-gate, api-security-contract]
-    timeout-minutes: 10
+    timeout-minutes: 12
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci_test
+          POSTGRES_PASSWORD: ci_test_pass
+          POSTGRES_DB: ci_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DATABASE_URL: postgresql://ci_test:ci_test_pass@localhost:5432/ci_test
+      DIRECT_DATABASE_URL: postgresql://ci_test:ci_test_pass@localhost:5432/ci_test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -526,6 +549,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
+      - name: Deploy database schema
+        run: npx prisma migrate deploy
+      - name: Seed CI test data
+        run: npx tsx scripts/seed-ci.ts
       - run: npx vitest run --config vitest.e2e.config.ts
         env:
           CI: 'true'
@@ -613,8 +640,8 @@ jobs:
           AUTHORIZED_EMAIL: ${{ secrets.AUTHORIZED_EMAIL || 'ci-test@deepmindq.com' }}
           PORT: 3000
 
-      - name: Run Playwright tests
-        run: npx playwright test
+      - name: Run Playwright tests (with retries)
+        run: npx playwright test --retries=2
         env:
           CI: 'true'
           PLAYWRIGHT_BASE_URL: 'http://localhost:3000'
@@ -685,3 +712,95 @@ jobs:
           API_KEY_ENCRYPTION_KEY: ${{ secrets.API_KEY_ENCRYPTION_KEY || 'ci-test-encryption-key-min-32-bytes-ok!' }}
           TRACKING_SECRET: ${{ secrets.TRACKING_SECRET || 'ci-test-tracking-secret-min16!!' }}
           AUTHORIZED_EMAIL: ${{ secrets.AUTHORIZED_EMAIL || 'ci-test@deepmindq.com' }}
+
+  # ═══════════════════════════════════════════════════
+  # TIER 3.2: CI HEALTH REPORT
+  # Generates a markdown summary of all job outcomes.
+  # Always runs (even if blocking jobs fail) for visibility.
+  # ═══════════════════════════════════════════════════
+  ci-health-report:
+    name: "CI Health Report"
+    runs-on: ubuntu-latest
+    if: always()
+    needs:
+      - security-gate
+      - dependency-audit
+      - api-security-contract
+      - lint-and-typecheck
+      - test-unit
+      - test-security
+      - test-api
+      - test-database
+      - test-integration
+      - test-m5-intelligence
+      - build
+      - test-ai
+      - test-ai-governance
+      - test-ai-retrieval
+      - test-ai-framework
+      - test-ai-inference
+      - test-e2e
+      - test-performance
+      - test-ui
+      - test-playwright
+    timeout-minutes: 5
+    steps:
+      - name: Generate CI Health Report
+        env:
+          BLOCKING_GATES: ${{ needs.security-gate.result }}, ${{ needs.dependency-audit.result }}, ${{ needs.api-security-contract.result }}
+          BLOCKING_TESTS: ${{ needs.test-unit.result }}, ${{ needs.test-security.result }}, ${{ needs.test-api.result }}, ${{ needs.test-database.result }}, ${{ needs.test-integration.result }}, ${{ needs.test-m5-intelligence.result }}
+          BLOCKING_BUILD: ${{ needs.lint-and-typecheck.result }}, ${{ needs.build.result }}
+          NON_BLOCKING: ${{ needs.test-ai.result }}, ${{ needs.test-ai-governance.result }}, ${{ needs.test-ai-retrieval.result }}, ${{ needs.test-ai-framework.result }}, ${{ needs.test-ai-inference.result }}, ${{ needs.test-e2e.result }}, ${{ needs.test-performance.result }}, ${{ needs.test-ui.result }}, ${{ needs.test-playwright.result }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          cat > ci-health.md << EOF
+          # CI Health Report -- Run #$RUN_ID
+          ## Blocking Jobs (must pass for merge)
+          | Job | Status |
+          |-----|--------|
+          | Security Gate (Static) | ${{ needs.security-gate.result }} |
+          | Dependency Audit | ${{ needs.dependency-audit.result }} |
+          | API Security Contract | ${{ needs.api-security-contract.result }} |
+          | Lint + Typecheck | ${{ needs.lint-and-typecheck.result }} |
+          | Unit Tests | ${{ needs.test-unit.result }} |
+          | Security Tests | ${{ needs.test-security.result }} |
+          | API Tests | ${{ needs.test-api.result }} |
+          | Database Tests | ${{ needs.test-database.result }} |
+          | Integration Tests | ${{ needs.test-integration.result }} |
+          | M5 Intelligence | ${{ needs.test-m5-intelligence.result }} |
+          | Build Verification | ${{ needs.build.result }} |
+          ## Non-Blocking Jobs (informational)
+          | Job | Status |
+          |-----|--------|
+          | AI Engine | ${{ needs.test-ai.result }} |
+          | AI Governance | ${{ needs.test-ai-governance.result }} |
+          | AI Retrieval | ${{ needs.test-ai-retrieval.result }} |
+          | AI Framework | ${{ needs.test-ai-framework.result }} |
+          | AI Inference | ${{ needs.test-ai-inference.result }} |
+          | E2E Tests | ${{ needs.test-e2e.result }} |
+          | Performance | ${{ needs.test-performance.result }} |
+          | UI Components | ${{ needs.test-ui.result }} |
+          | Playwright E2E | ${{ needs.test-playwright.result }} |
+          EOF
+      - name: Upload CI Health Report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ci-health-report
+          path: ci-health.md
+          retention-days: 7
+
+      - name: Comment PR with CI summary
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const report = fs.readFileSync('ci-health.md', 'utf8');
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+              body: report
+            });

@@ -48,10 +48,10 @@ export default defineConfig({
       'src/proxy.ts',
     ],
     thresholds: {
-      statements: 30,
-      branches: 20,
-      functions: 30,
-      lines: 30,
+      statements: 50,
+      branches: 40,
+      functions: 50,
+      lines: 50,
     },
   },
 })

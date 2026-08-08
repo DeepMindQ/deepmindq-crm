@@ -23,6 +23,8 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import type { SignalMeaningCategory } from '@prisma/client';
+import { SignalCardList } from '@/components/signals/signal-card-list';
+import type { Signal, SignalSeverity, SignalSource } from '@/components/signals/signal-card';
 
 /* ═══════════════════════════════════════════════════════════════
    Types — aligned with CompanySignal schema + T8 API contract
@@ -165,6 +167,22 @@ function getConfidenceLabel(conf: number | undefined): string {
   if (conf >= 80) return 'High';
   if (conf >= 60) return 'Medium';
   return 'Low';
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   S11 Adapter: SignalItem → Signal
+   ═══════════════════════════════════════════════════════════════ */
+function signalItemToCardSignal(item: SignalItem): Signal {
+  return {
+    id: item.id,
+    title: item.title,
+    description: item.description ?? '',
+    severity: (item.severity as SignalSeverity) || 'medium',
+    source: (item.source as SignalSource) || 'ai_detected',
+    detectedAt: item.signalDate ?? item.extractedAt,
+    confidence: Math.round((item.confidence ?? 0) * 100),
+    company: item.company ? { id: item.company.id, name: item.company.normalizedName } : undefined,
+  };
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -619,6 +637,9 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
   // Selected signal for evidence detail side panel
   const [selectedSignal, setSelectedSignal] = useState<SignalItem | null>(null);
 
+  // View mode toggle: table vs S11 card list
+  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+
   // WI-3: Group-by control and narrative summary collapse state
   const [groupBy, setGroupBy] = useState<'none' | 'account' | 'theme'>('none');
   const [narrativeCollapsed, setNarrativeCollapsed] = useState(false);
@@ -880,6 +901,32 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                     <option value="theme">Group by Theme</option>
                   </select>
 
+                  {/* S11 View Mode Toggle */}
+                  <div className="flex items-center rounded-lg border border-slate-200 overflow-hidden">
+                    <button
+                      onClick={() => setViewMode('table')}
+                      className={cn(
+                        'px-3 py-1.5 text-xs font-medium transition-colors',
+                        viewMode === 'table'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-slate-600 hover:bg-slate-50'
+                      )}
+                    >
+                      Table
+                    </button>
+                    <button
+                      onClick={() => setViewMode('cards')}
+                      className={cn(
+                        'px-3 py-1.5 text-xs font-medium transition-colors border-l border-slate-200',
+                        viewMode === 'cards'
+                          ? 'bg-blue-600 text-white'
+                          : 'bg-white text-slate-600 hover:bg-slate-50'
+                      )}
+                    >
+                      Cards
+                    </button>
+                  </div>
+
                   {/* Active filter indicator */}
                   {activeFilterCount > 0 && (
                     <button
@@ -945,6 +992,18 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                 }
               />
             </div>
+          ) : viewMode === 'cards' ? (
+            <SignalCardList
+              signals={filteredSignals.map(signalItemToCardSignal)}
+              onNavigate={(href) => {
+                if (href.startsWith('#company-')) {
+                  const cid = href.replace('#company-', '');
+                  navigateTo?.('company-detail', cid);
+                }
+              }}
+              variant="full"
+              title="Signal Intelligence"
+            />
           ) : (
             <div className="flex gap-4 h-[calc(100vh-300px)]">
               {/* Main table area */}

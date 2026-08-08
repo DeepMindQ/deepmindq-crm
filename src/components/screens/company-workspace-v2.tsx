@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Building2, Users, Target, Clock, Radar, Brain, ArrowLeft, ExternalLink, TrendingUp, FileText, Zap } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/components/intelligence-os/design-tokens'
+import { useCompanyDetail, useCompanySignals, useCompanyScore } from '@/lib/realtime-hooks'
 
 type TabId = 'overview' | 'contacts' | 'opportunities' | 'signals' | 'timeline'
 
@@ -36,32 +37,24 @@ const TABS: { id: TabId; label: string; icon: typeof Building2 }[] = [
 
 export function CompanyWorkspaceV2({ companyId, onBack, onNavigate, className }: CompanyWorkspaceV2Props) {
   const [activeTab, setActiveTab] = useState<TabId>('overview')
-  const [company, setCompany] = useState<CompanyData | null>(null)
-  const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (!companyId) return
-    const fetchCompany = async () => {
-      try {
-        const res = await fetch(`/api/companies/${companyId}`)
-        if (res.ok) {
-          const data = await res.json()
-          setCompany({
-            id: data.id || companyId,
-            name: data.name || 'Unknown Company',
-            domain: data.domain,
-            industry: data.industry,
-            employeeSize: data.employeeSize,
-            intelligenceScore: data.intelligenceScore ?? data.intelligence_score,
-            tier: data.priorityTier || data.tier,
-            description: data.description,
-          })
-        }
-      } catch { /* keep loading state */ }
-      finally { setLoading(false) }
+  const { data: companyData, loading, refetch } = useCompanyDetail(companyId, 60000)
+  const { data: signalsData } = useCompanySignals(companyId, 45000)
+  const { data: scoreData } = useCompanyScore(companyId)
+
+  const company = useMemo<CompanyData | null>(() => {
+    if (!companyData) return null
+    return {
+      id: (companyData as any).id || companyId,
+      name: (companyData as any).name || 'Unknown Company',
+      domain: (companyData as any).domain,
+      industry: (companyData as any).industry,
+      employeeSize: (companyData as any).employeeSize,
+      intelligenceScore: (companyData as any).intelligenceScore ?? (companyData as any).intelligence_score,
+      tier: (companyData as any).priorityTier || (companyData as any).tier,
+      description: (companyData as any).description,
     }
-    fetchCompany()
-  }, [companyId])
+  }, [companyData, companyId])
 
   const getScoreColor = (score?: number) => {
     if (!score) return tokens.text.muted

@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useMemo } from 'react'
+import { useDashboardStats } from '@/lib/realtime-hooks'
 import { motion } from 'framer-motion'
 import { Radar, Brain, Target, TrendingUp, AlertTriangle, Activity, Building2, Zap, ArrowRight, RefreshCw, Sparkles, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
@@ -49,45 +50,18 @@ function StatCard({ stat, index, onNavigate }: { stat: DashboardStat; index: num
 }
 
 export function MainIntelligenceDashboard({ className, onNavigate }: IntelligenceDashboardProps) {
-  const [stats, setStats] = useState<DashboardStat[]>([
-    { label: 'Companies Tracked', value: '—', icon: Building2, color: tokens.domain.signal, href: '#accounts' },
-    { label: 'Active Signals', value: '—', icon: Zap, color: tokens.domain.reasoning, href: '#signal-intelligence' },
-    { label: 'Avg. Intelligence Score', value: '—', icon: Brain, color: tokens.confidence.high.value },
-    { label: 'Open Opportunities', value: '—', icon: Target, color: tokens.domain.opportunity, href: '#opportunity-radar' },
-    { label: 'Pipeline Value', value: '—', icon: TrendingUp, color: tokens.domain.action, href: '#pipeline' },
-    { label: 'AI Health', value: '—', icon: Shield, color: tokens.confidence.high.value, href: '#ai-health' },
-    { label: 'High Priority Actions', value: '—', icon: AlertTriangle, color: tokens.priority.critical.value, href: '#recommendation-queue' },
-    { label: 'Data Freshness', value: '—', icon: Activity, color: tokens.domain.enrichment, href: '#data-health' },
-  ])
+  const { data: dashboardData, loading, refetch } = useDashboardStats(30000)
 
-  const [loading, setLoading] = useState(true)
-
-  useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const res = await fetch('/api/dashboard')
-        if (!res.ok) return
-        const data = await res.json()
-        setStats(prev => prev.map(s => {
-          switch(s.label) {
-            case 'Companies Tracked': return { ...s, value: data.totalLeads ?? data.totalCompanies ?? 0 }
-            case 'Active Signals': return { ...s, value: data.aiSignalsToday ?? data.activeSignals ?? 0 }
-            case 'Avg. Intelligence Score': return { ...s, value: data.intelligenceScore ?? 0 }
-            case 'Open Opportunities': return { ...s, value: data.activeOpportunities ?? 0 }
-            case 'Pipeline Value': return { ...s, value: `$${((data.pipelineValue ?? 0) / 1000).toFixed(0)}K` }
-            case 'AI Health': return { ...s, value: data.aiHealthStatus ?? 'Healthy' }
-            case 'High Priority Actions': return { ...s, value: data.pendingActions ?? 0 }
-            case 'Data Freshness': return { ...s, value: `${data.dataFreshness ?? 0}%` }
-            default: return s
-          }
-        }))
-      } catch { /* use defaults */ }
-      finally { setLoading(false) }
-    }
-    fetchStats()
-    const interval = setInterval(fetchStats, 30000)
-    return () => clearInterval(interval)
-  }, [])
+  const stats = useMemo<DashboardStat[]>(() => [
+    { label: 'Companies Tracked', value: dashboardData?.totalLeads ?? dashboardData?.importedCount ?? dashboardData?.totalCompanies ?? '—', icon: Building2, color: tokens.domain.signal, href: '#accounts' },
+    { label: 'Active Signals', value: dashboardData?.aiSignalsToday ?? '—', icon: Zap, color: tokens.domain.reasoning, href: '#signal-intelligence' },
+    { label: 'Avg. Intelligence Score', value: dashboardData?.intelligenceScore ?? '—', icon: Brain, color: tokens.confidence.high.value },
+    { label: 'Open Opportunities', value: dashboardData?.activeOpportunities ?? '—', icon: Target, color: tokens.domain.opportunity, href: '#opportunity-radar' },
+    { label: 'Pipeline Value', value: dashboardData ? `$${(((dashboardData as any).pipelineValue ?? 0) / 1000).toFixed(0)}K` : '—', icon: TrendingUp, color: tokens.domain.action, href: '#pipeline' },
+    { label: 'AI Health', value: (dashboardData as any)?.aiHealthStatus ?? '—', icon: Shield, color: tokens.confidence.high.value, href: '#ai-health' },
+    { label: 'High Priority Actions', value: (dashboardData as any)?.pendingActions ?? '—', icon: AlertTriangle, color: tokens.priority.critical.value, href: '#recommendation-queue' },
+    { label: 'Data Freshness', value: dashboardData ? `${(dashboardData as any).dataFreshness ?? 0}%` : '—', icon: Activity, color: tokens.domain.enrichment, href: '#data-health' },
+  ], [dashboardData])
 
   return (
     <div className={cn('space-y-6', className)}>

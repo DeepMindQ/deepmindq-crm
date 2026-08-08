@@ -2,9 +2,10 @@
 
 import { useState, useMemo } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { CheckCircle2, Clock, XCircle, ArrowRight, Star, Filter, Zap, Brain, Target, MoreVertical, ChevronDown, Sparkles } from 'lucide-react'
+import { CheckCircle2, Clock, XCircle, ArrowRight, Star, Filter, Zap, Brain, Target, MoreVertical, ChevronDown, Sparkles, RefreshCw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/components/intelligence-os/design-tokens'
+import { useRecommendations, useMutation } from '@/lib/realtime-hooks'
 
 type RecStatus = 'pending' | 'accepted' | 'dismissed' | 'snoozed' | 'executed'
 type RecPriority = 'critical' | 'high' | 'medium' | 'low'
@@ -63,12 +64,23 @@ export function RecommendationQueueV2({ recommendations = [], className, onActio
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [bulkAction, setBulkAction] = useState<RecStatus | null>(null)
 
+  const { data: fetchedRecommendations, loading: fetchLoading, refetch } = useRecommendations(null, 30000)
+
+  const acceptMutation = useMutation({
+    endpoint: '/api/recommendations',
+    method: 'POST',
+  })
+
+  const effectiveRecommendations: Recommendation[] = recommendations.length > 0
+    ? recommendations
+    : ((fetchedRecommendations as Recommendation[] | undefined) ?? [])
+
   const filtered = useMemo(() => {
-    return recommendations
+    return effectiveRecommendations
       .filter(r => statusFilter === 'all' || r.status === statusFilter)
       .filter(r => priorityFilter === 'all' || r.priority === priorityFilter)
       .sort((a, b) => PRIORITY_ORDER[a.priority] - PRIORITY_ORDER[b.priority])
-  }, [recommendations, statusFilter, priorityFilter])
+  }, [effectiveRecommendations, statusFilter, priorityFilter])
 
   const toggleSelect = (id: string) => {
     setSelectedIds(prev => {
@@ -91,10 +103,10 @@ export function RecommendationQueueV2({ recommendations = [], className, onActio
   }
 
   const counts = useMemo(() => {
-    const c: Record<string, number> = { all: recommendations.length }
-    recommendations.forEach(r => { c[r.status] = (c[r.status] || 0) + 1 })
+    const c: Record<string, number> = { all: effectiveRecommendations.length }
+    effectiveRecommendations.forEach(r => { c[r.status] = (c[r.status] || 0) + 1 })
     return c
-  }, [recommendations])
+  }, [effectiveRecommendations])
 
   return (
     <div className={cn('space-y-4', className)}>
@@ -109,6 +121,9 @@ export function RecommendationQueueV2({ recommendations = [], className, onActio
             {counts.pending ?? 0} pending · {filtered.length} shown
           </p>
         </div>
+        <button onClick={() => refetch()} className="p-1.5 rounded-lg hover:bg-white/5 transition-colors" title="Refresh" style={{ color: tokens.text.secondary }}>
+          <RefreshCw className="w-3.5 h-3.5" />
+        </button>
       </div>
 
       {/* Filters */}

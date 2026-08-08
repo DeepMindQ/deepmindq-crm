@@ -42,6 +42,8 @@ import { AccountTierBadge, getTierFromScore } from '@/components/tier/account-ti
 import { CalibrationReason } from '@/components/calibration/calibration-reason';
 import { InlineFeedback } from '@/components/feedback/inline-feedback';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { CompletenessBar } from '@/components/data/completeness-bar';
+import type { DataField } from '@/components/data/completeness-bar';
 
 /* ===================================================
    Constants & Colors
@@ -809,6 +811,30 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               }
             }}
           />
+
+          {/* ── S11: Data Completeness Bar ── */}
+          <ErrorBoundary>
+            <CompletenessBar
+              fields={[
+                { name: 'Domain', complete: !!company?.domain, value: company?.domain || undefined },
+                { name: 'Industry', complete: !!company?.industry, value: company?.industry || undefined },
+                { name: 'Size', complete: !!company?.employeeSize, value: company?.employeeSize || undefined },
+                { name: 'Website', complete: !!company?.website, value: company?.website || undefined },
+                { name: 'Location', complete: !!company?.location, value: company?.location || undefined },
+                { name: 'Country', complete: !!company?.country, value: company?.country || undefined },
+                { name: 'Research Card', complete: !!company?.researchCard, value: company?.researchCard ? 'Has research' : undefined },
+              ]}
+              overallScore={Math.round(
+                [!!company?.domain, !!company?.industry, !!company?.employeeSize, !!company?.website, !!company?.location, !!company?.country, !!company?.researchCard]
+                  .filter(Boolean).length / 7 * 100
+              )}
+              lastSync={company?.updatedAt || company?.createdAt}
+              entityName={companyName}
+              compact={false}
+              onRefresh={fetchCompany}
+              isRefreshing={false}
+            />
+          </ErrorBoundary>
 
           {/* ── Intelligence Metrics (demoted below narrative) ── */}
           <IntelligenceHero

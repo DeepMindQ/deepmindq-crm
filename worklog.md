@@ -64,3 +64,27 @@ Stage Summary:
 - 11 new S11 components: ExplainabilityPanel, KGGraph, MemoryBrowser, SignalCard, SignalCardList, CompletenessBar, MainIntelligenceDashboard, CompanyWorkspaceV2, RecommendationQueueV2, ScoringConfigWizard, BatchOperationsPanel, UserOnboardingWizard
 - AppShell now has RBAC (ADMIN_ONLY_NAV_KEYS, filterSectionsByRole), collapsible sidebar with tooltips, full routing logic
 - New barrel exports: signals/index.ts, data/index.ts, knowledge/index.ts
+
+---
+Task ID: s11-routing-integration
+Agent: Main Agent + 3 Sub-agents
+Task: Wire S11 screens into nav sidebar, integrate S11 components into existing screens, add realtime hooks
+
+Work Log:
+- Sub-agent 1: Wired 6 S11 ViewIds into store.ts (main-dashboard, company-workspace-v2, recommendation-queue-v2, scoring-wizard, batch-operations, onboarding-wizard)
+- Sub-agent 1: Added 5 S11 sidebar entries to nav-config.ts: Main Dashboard (INTELLIGENCE), Company V2 (INTELLIGENCE), Smart Queue (REVENUE), Scoring Wizard (OPERATIONS), Batch Operations (OPERATIONS). Added Zap, Wand2 to lucide imports.
+- Sub-agent 1: Fixed missing 'ai-advisor' in ViewId union (found during consistency check)
+- Sub-agent 2: Integrated SignalCardList into signal-intelligence-screen.tsx — added viewMode toggle (table/cards), signalItemToCardSignal adapter, cards render branch
+- Sub-agent 2: Integrated CompletenessBar into company-detail-screen.tsx — 7-field data completeness display, ErrorBoundary wrapped
+- Sub-agent 2: Integrated MainIntelligenceDashboard into intelligence-operations-center.tsx — collapsible section with navigate callback
+- Sub-agent 3: Replaced manual fetch with useDashboardStats in main-intelligence-dashboard.tsx
+- Sub-agent 3: Replaced manual fetch with useCompanyDetail/useCompanySignals/useCompanyScore in company-workspace-v2.tsx
+- Sub-agent 3: Added useRecommendations + useMutation to recommendation-queue-v2.tsx with fallback data flow
+- Sub-agent 3: Added useMutation to batch-operations-panel.tsx and scoring-config-wizard.tsx
+- Verification: npx tsc --noEmit = 0 errors, ESLint = 0 errors across all 11 modified files
+
+Stage Summary:
+- 3-layer routing consistency: store ViewId (7 new) → nav-config (5 sidebar entries) → screen-map (already registered)
+- 3 component integrations: SignalCardList (table/cards toggle), CompletenessBar (data completeness), MainIntelligenceDashboard (collapsible overview)
+- 5 screens connected to realtime-hooks: main-intelligence-dashboard, company-workspace-v2, recommendation-queue-v2, batch-operations-panel, scoring-config-wizard
+- 1 routing gap fixed: ai-advisor added to ViewId

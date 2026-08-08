@@ -2,9 +2,10 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Sliders, Save, RotateCcw, AlertTriangle, ChevronDown, ChevronRight, Target } from 'lucide-react'
+import { Sliders, Save, RotateCcw, AlertTriangle, ChevronDown, ChevronRight, Target, Loader2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/components/intelligence-os/design-tokens'
+import { useMutation } from '@/lib/realtime-hooks'
 
 interface WeightConfig {
   id: string
@@ -51,6 +52,16 @@ export function ScoringConfigWizard({ className, onSave, onReset }: ScoringConfi
   const [activeCategory, setActiveCategory] = useState<string | null>(null)
   const [hasChanges, setHasChanges] = useState(false)
 
+  const saveConfigMutation = useMutation({
+    endpoint: '/api/scoring/config',
+    method: 'PUT',
+  })
+
+  const resetConfigMutation = useMutation({
+    endpoint: '/api/scoring/config/reset',
+    method: 'POST',
+  })
+
   const categories = useMemo(() => [...new Set(weights.map(w => w.category))], [weights])
 
   const updateWeight = useCallback((id: string, newWeight: number) => {
@@ -63,14 +74,16 @@ export function ScoringConfigWizard({ className, onSave, onReset }: ScoringConfi
     setHasChanges(true)
   }, [])
 
-  const handleReset = () => {
+  const handleReset = async () => {
+    await resetConfigMutation.mutate()
     setWeights(DEFAULT_WEIGHTS)
     setTiers(DEFAULT_TIERS)
     setHasChanges(false)
     onReset?.()
   }
 
-  const handleSave = () => {
+  const handleSave = async () => {
+    await saveConfigMutation.mutate({ weights, tiers })
     onSave?.({ weights, tiers })
     setHasChanges(false)
   }
@@ -87,11 +100,11 @@ export function ScoringConfigWizard({ className, onSave, onReset }: ScoringConfi
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleReset} className="flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-lg hover:bg-white/5 border" style={{ color: tokens.text.secondary, borderColor: tokens.border.default }}>
-            <RotateCcw className="w-3.5 h-3.5" />Reset
+          <button onClick={handleReset} disabled={resetConfigMutation.loading} className="flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-lg hover:bg-white/5 border transition-colors" style={{ color: tokens.text.secondary, borderColor: tokens.border.default, opacity: resetConfigMutation.loading ? 0.5 : 1 }}>
+            {resetConfigMutation.loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}Reset
           </button>
-          <button onClick={handleSave} disabled={!hasChanges} className={cn('flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-colors', !hasChanges && 'opacity-50')} style={{ background: tokens.domain.signal, color: '#fff' }}>
-            <Save className="w-3.5 h-3.5" />Save
+          <button onClick={handleSave} disabled={!hasChanges || saveConfigMutation.loading} className={cn('flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-colors', (!hasChanges || saveConfigMutation.loading) && 'opacity-50')} style={{ background: tokens.domain.signal, color: '#fff' }}>
+            {saveConfigMutation.loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}Save
           </button>
         </div>
       </div>

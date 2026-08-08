@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { CheckSquare, Square, Play, XCircle, AlertTriangle, CheckCircle2, Loader2, BarChart3, ArrowRight } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/components/intelligence-os/design-tokens'
+import { useMutation } from '@/lib/realtime-hooks'
 
 type EntityType = 'company' | 'contact' | 'opportunity'
 type BatchAction = 'enrich' | 'rescore' | 'export' | 'tag' | 'archive' | 'delete'
@@ -57,6 +58,11 @@ export function BatchOperationsPanel({ entityType, items, className, onExecute, 
   const [activeOp, setActiveOp] = useState<BatchAction | null>(null)
   const [result, setResult] = useState<BatchResult | null>(null)
 
+  const batchMutation = useMutation<BatchResult, { action: BatchAction; ids: string [] }>({
+    endpoint: '/api/batch/execute',
+    method: 'POST',
+  })
+
   const selectedItems = useMemo(() => items.filter(i => selectedIds.has(i.id)), [items, selectedIds])
 
   const toggleAll = () => {
@@ -86,8 +92,13 @@ export function BatchOperationsPanel({ entityType, items, className, onExecute, 
     setActiveOp(action)
 
     try {
-      const res = await onExecute?.(action, [...selectedIds])
-      setResult(res || { success: selectedItems.length, failed: 0, skipped: 0, errors: [] })
+      if (onExecute) {
+        const res = await onExecute(action, [...selectedIds])
+        setResult(res || { success: selectedItems.length, failed: 0, skipped: 0, errors: [] })
+      } else {
+        const res = await batchMutation.mutate({ action, ids: [...selectedIds] })
+        setResult(res || { success: selectedItems.length, failed: 0, skipped: 0, errors: [] })
+      }
       setStatus('complete')
     } catch {
       setResult({ success: 0, failed: selectedItems.length, skipped: 0, errors: ['Operation failed'] })

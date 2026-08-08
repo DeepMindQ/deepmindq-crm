@@ -6,6 +6,7 @@ export type ViewId =
   | 'command-center'
   | 'accounts'
   | 'intelligence-search'
+  | 'ai-advisor'
   // WORKSPACES
   | 'company-workspace'
   | 'knowledge-workspace'
@@ -91,6 +92,13 @@ export type ViewId =
   | 'scoring-config'
   | 'users'
   | 'recommendation-queue'
+  // ── S11 UX Screens ──
+  | 'main-dashboard'
+  | 'company-workspace-v2'
+  | 'recommendation-queue-v2'
+  | 'scoring-wizard'
+  | 'batch-operations'
+  | 'onboarding-wizard'
   | 'builder';
 
 interface AppState {

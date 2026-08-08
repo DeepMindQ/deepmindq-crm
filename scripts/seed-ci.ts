@@ -409,15 +409,6 @@ async function main() {
   console.log(`  Assets:       ${assets.length}`)
   console.log(`  Drafts:       ${drafts.length}`)
   console.log(`  Timeline:     ${timelineEvents.length}`)
-
-  // Verify seed data integrity
-  const nullEmailHealth = await prisma.contact.count({
-    where: { status: { not: 'archived' }, emailHealth: null },
-  })
-  console.log(`[seed-ci] Contacts with null emailHealth: ${nullEmailHealth}`)
-  if (nullEmailHealth > 0) {
-    console.warn('[seed-ci] WARNING: Some contacts have null emailHealth despite seed setting explicit values')
-  }
 }
 
 main()

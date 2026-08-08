@@ -407,15 +407,15 @@ describe.skipIf(!dbReachable)('Dashboard — Data Consistency', () => {
     const total = await db.contact.count({ where: { status: { not: 'archived' } } })
     expect(total).toBeGreaterThan(0)
 
-    // Verify non-archived contacts have emailHealth populated.
-    // Schema enforces NOT NULL DEFAULT 'unknown', so nullHealth should be 0.
-    // In CI with fresh PostgreSQL, migration defaults should apply immediately.
-    const nullHealth = await db.contact.count({
-      where: { status: { not: 'archived' }, emailHealth: null },
-    })
+    // Verify all non-archived contacts have emailHealth populated.
+    // Schema enforces NOT NULL DEFAULT 'unknown', so we verify via raw SQL
+    // to avoid Prisma enum null-filtering quirks in different client versions.
+    const result: Array<{ count: string }> = await db.$queryRaw`
+      SELECT COUNT(*)::text as count FROM "Contact"
+      WHERE status != 'archived' AND "emailHealth" IS NULL
+    `
+    const nullHealth = parseInt(result[0].count, 10)
 
-    // The schema guarantees NOT NULL — nullHealth must be 0.
-    // If this fails, the migration did not deploy correctly or seed failed.
     expect(nullHealth).toBe(0)
   })
 

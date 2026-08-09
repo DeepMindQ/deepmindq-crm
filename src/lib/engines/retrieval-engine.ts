@@ -338,6 +338,9 @@ export async function embedEntity(
 /**
  * Semantic search across all indexed entities.
  * Returns top-K results sorted by cosine similarity (highest first).
+ *
+ * Phase 0.4: Tries native pgvector search first (fast, scalable).
+ * Falls back to in-memory brute-force cosine similarity if pgvector is unavailable.
  */
 export async function search(
   query: string,
@@ -345,6 +348,16 @@ export async function search(
   filter?: { type?: EmbeddableEntityType },
 ): Promise<RetrievalResult[]> {
   if (!query || !query.trim()) return [];
+
+  // Phase 0.4: Try pgvector native search first (scalable, indexed)
+  try {
+    const pgResults = await searchPgVector(query, topK, filter);
+    if (pgResults.length > 0) return pgResults;
+  } catch {
+    // pgvector unavailable — fall through to in-memory search
+  }
+
+  // Fallback: in-memory brute-force cosine similarity
   if (inMemoryIndex.size === 0) {
     await loadIndexFromDB();
   }
@@ -527,7 +540,11 @@ export async function searchPgVector(
   const vectorStr = `[${Array.from(queryEmbedding.vector).join(',')}]`;
 
   try {
-    const typeFilter = filter?.type ? `AND "entityType" = '${filter.type}'` : '';
+    // Parameterized query to prevent SQL injection (filter.type is user-facing)
+    const typeFilter = filter?.type ? `AND "entityType" = $3` : '';
+    const params: unknown[] = [vectorStr, topK];
+    if (filter?.type) params.push(filter.type);
+
     const results = await db.$queryRawUnsafe<Array<{
       entityId: string;
       entityType: string;
@@ -541,8 +558,7 @@ export async function searchPgVector(
        WHERE "embedding_vector" IS NOT NULL ${typeFilter}
        ORDER BY "embedding_vector" <=> $1::vector
        LIMIT $2`,
-      vectorStr,
-      topK
+      ...params
     );
 
     return results.map((r) => ({

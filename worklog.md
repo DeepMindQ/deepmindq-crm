@@ -215,3 +215,55 @@ Stage Summary:
 - DB impact: 1 additive migration (pgvector extension + vector columns), 0 breaking changes
 - Architecture impact: Zero — backward-compatible dual-write pattern
 - Business logic impact: Zero
+---
+Task ID: 0.1
+Agent: Super Z (main)
+Task: Delete src/lib/auth.ts mock auth file + verify zero imports
+
+Work Log:
+- Searched for src/lib/auth.ts — file does NOT exist at that path
+- Grep for "from '@/lib/auth'" across entire src/ — 0 matches
+- All lib/auth* references point to lib/auth-helpers.ts (legitimate)
+- Reviewed proxy.ts — Line 65: "NO DEV BYPASS — Production-safe authentication"
+- Reviewed auth/me/route.ts — explicitly returns 401 on failure, comment confirms previous hardcoded admin identity was removed
+- Reviewed auth-provider.tsx — proper session guard with /login redirect
+- Grep for mock/bypass patterns: only vi.mock in __tests__/ files (expected)
+- Grep for hardcoded credentials: none found in production code
+
+Stage Summary:
+- Task 0.1 ALREADY COMPLETE — mock auth.ts was already removed in prior work
+- Auth chain verified: proxy.ts → auth-helpers.ts → auth/me → auth-provider.tsx
+- Zero security bypass vectors found
+
+---
+Task ID: 0.3
+Agent: Super Z (main)
+Task: Fix Dockerfile Node version 20-alpine → 22-alpine
+
+Work Log:
+- Read Dockerfile — all 3 stages already use node:22-alpine (lines 21, 29, 42)
+
+Stage Summary:
+- Task 0.3 ALREADY COMPLETE — Dockerfile was already updated to node:22-alpine
+
+---
+Task ID: 0.4
+Agent: Super Z (main)
+Task: Migrate embeddings from JSON to pgvector — schema + migration + search upgrade
+
+Work Log:
+- Found pgvector migration already exists: prisma/migrations/20260809000000_pgvector_embedding_migration/migration.sql
+- Migration adds: CREATE EXTENSION vector, embedding_vector column on Embedding + RetrievalIndexEntry, HNSW + ivfflat indexes
+- Schema already documents embedding_vector column with @@ignore (Prisma doesn't support vector type)
+- retrieval-engine.ts already has dual-write (JSON + pgvector) in embedEntity()
+- Found searchPgVector() function was exported but NEVER called from main search()
+- Updated search() function to try pgvector first, fall back to in-memory brute-force
+- Fixed SQL injection in searchPgVector: changed string interpolation to parameterized query ($3)
+- TypeScript compiles clean (tsc --noEmit: 0 errors)
+- All tests pass: 80 files, 2142 tests, 0 failures
+
+Stage Summary:
+- pgvector migration and schema were already in place
+- KEY CHANGE: search() now routes to pgvector first (was only using in-memory)
+- SECURITY FIX: SQL injection in searchPgVector type filter patched
+- All 2142 tests still pass

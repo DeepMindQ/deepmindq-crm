@@ -275,6 +275,9 @@ describe('G1: Export API Data Integrity', () => {
         company: { findUnique: (...args: unknown[]) => mockCompanyFindUnique(...args) },
       },
     }));
+    vi.doMock('@/lib/api-auth', () => ({
+      checkApiAuth: () => Promise.resolve({ session: { id: '1', email: 'test@test.com', role: 'admin' } }),
+    }));
     vi.doMock('@/lib/logger', () => ({
       logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
     }));
@@ -313,6 +316,9 @@ describe('G1: Export API Data Integrity', () => {
       db: {
         company: { findUnique: (...args: unknown[]) => mockCompanyFindUnique(...args) },
       },
+    }));
+    vi.doMock('@/lib/api-auth', () => ({
+      checkApiAuth: () => Promise.resolve({ session: { id: '1', email: 'test@test.com', role: 'admin' } }),
     }));
     vi.doMock('@/lib/logger', () => ({
       logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },

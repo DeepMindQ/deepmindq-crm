@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ── Validation ──────────────────────────────────────────────────────────
 
@@ -47,6 +48,9 @@ export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const dimension = url.searchParams.get('dimension') || 'overall';
+
+    const { errorResponse } = await checkApiAuth(request);
+    if (errorResponse) return errorResponse;
 
     if (!VALID_DIMENSIONS.includes(dimension as typeof VALID_DIMENSIONS[number])) {
       return NextResponse.json(

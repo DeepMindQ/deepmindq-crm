@@ -20,6 +20,7 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { invalidateTenantConfigCache } from '@/lib/tenant-scoring-config';
 import { z } from 'zod';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ── Validation ──────────────────────────────────────────────────────────
 
@@ -41,6 +42,9 @@ export async function GET(request: NextRequest) {
   try {
     const url = new URL(request.url);
     const tenantId = url.searchParams.get('tenantId');
+
+    const { errorResponse } = await checkApiAuth(request);
+    if (errorResponse) return errorResponse;
 
     if (!tenantId) {
       return NextResponse.json(
@@ -172,6 +176,9 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    const { errorResponse } = await checkApiAuth(request);
+    if (errorResponse) return errorResponse;
+
     const body = await request.json();
     const parsed = ConfigBodySchema.safeParse(body);
     if (!parsed.success) {

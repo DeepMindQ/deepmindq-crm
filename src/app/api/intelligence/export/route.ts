@@ -16,6 +16,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { db } from '@/lib/db';
+import { checkApiAuth } from '@/lib/api-auth';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,6 +57,9 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const companyId = searchParams.get('companyId');
   const format = (searchParams.get('format') || 'json') as 'json' | 'pdf';
+
+  const { errorResponse } = await checkApiAuth(request);
+  if (errorResponse) return errorResponse;
 
   if (!companyId) {
     return NextResponse.json(

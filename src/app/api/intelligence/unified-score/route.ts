@@ -15,6 +15,7 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { computeUnifiedConfidence, type ConfidenceInput, type ConfidenceDimension } from '@/lib/ai-unified-confidence';
 import { getTenantConfig } from '@/lib/tenant-scoring-config';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ── GET ─────────────────────────────────────────────────────────────────
 
@@ -23,6 +24,9 @@ export async function GET(request: NextRequest) {
     const url = new URL(request.url);
     const companyId = url.searchParams.get('companyId');
     const tenantId = url.searchParams.get('tenantId') || undefined;
+
+    const { errorResponse } = await checkApiAuth(request);
+    if (errorResponse) return errorResponse;
 
     if (!companyId) {
       return NextResponse.json(

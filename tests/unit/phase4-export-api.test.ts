@@ -13,6 +13,14 @@ vi.mock('@/lib/db', () => ({
   },
 }));
 
+vi.mock('@/lib/api-auth', () => ({
+  checkApiAuth: () => Promise.resolve({ session: { id: '1', email: 'test@test.com', role: 'admin' } }),
+}));
+
+vi.mock('@/lib/logger', () => ({
+  logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
+}));
+
 describe('GET /api/intelligence/export', () => {
   beforeEach(() => {
     vi.clearAllMocks();

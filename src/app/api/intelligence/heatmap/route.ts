@@ -12,6 +12,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { computeUnifiedConfidence, type ConfidenceInput, type ConfidenceDimension } from '@/lib/ai-unified-confidence';
+import { checkApiAuth } from '@/lib/api-auth';
 
 // ── Dimensions ─────────────────────────────────────────────────────────
 
@@ -34,6 +35,9 @@ export async function GET(request: NextRequest) {
     const minScore = minScoreParam ? parseInt(minScoreParam, 10) : 0;
     const limitParam = url.searchParams.get('limit');
     const limit = limitParam ? Math.min(parseInt(limitParam, 10), 500) : 100;
+
+    const { errorResponse } = await checkApiAuth(request);
+    if (errorResponse) return errorResponse;
 
     // Build where clause
     const where: Record<string, unknown> = {};

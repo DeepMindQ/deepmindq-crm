@@ -3,6 +3,21 @@
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
+// Force memory-only mode so tests are deterministic regardless of CI/local env vars.
+// Without this, CI sets USE_DB_PERSISTENCE=true (default) and PERSISTENCE_MODE='memory',
+// which causes isEnabled() to return true, leading to write failures (no DB available in unit tests).
+vi.mock('@/lib/persistence/types', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/persistence/types')>();
+  return {
+    ...actual,
+    PERSISTENCE_FEATURE_FLAGS: {
+      ...actual.PERSISTENCE_FEATURE_FLAGS,
+      USE_DB_PERSISTENCE: false,
+      PERSISTENCE_MODE: 'memory' as const,
+    },
+  };
+});
+
 vi.mock('@/lib/logger', () => ({
   logger: { info: vi.fn(), warn: vi.fn(), error: vi.fn(), debug: vi.fn() },
 }));
@@ -67,7 +82,7 @@ describe('Batch Write Optimization (Phase 4.6.7)', () => {
     const { getPersistenceAdapter } = await import('@/lib/persistence/intelligence-persistence-adapter');
     const adapter = getPersistenceAdapter();
     const metrics = adapter.getPoolMetrics();
-    // When persistence is disabled, should return null
+    // When persistence is disabled (forced via mock), should return null
     expect(metrics).toBeNull();
   });
 });

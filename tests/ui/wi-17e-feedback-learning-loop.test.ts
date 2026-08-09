@@ -484,12 +484,15 @@ describe('WI-17E: Learning Event Creation', () => {
 // ── 5. Confidence Calibration ──
 
 describe('WI-17E: Confidence Calibration', () => {
-  it('should not calibrate with less than 3 feedback items', async () => {
+  it('should apply micro-calibration even with less than 3 feedback items (G9 fix)', async () => {
     mockDbIntelligenceFeedbackCount.mockResolvedValue(2);
 
     const result = await processFeedback(makePositiveSubmission());
 
-    expect(result.calibrationApplied).toBe(false);
+    // G9 FIX: Micro-calibration applies on single feedback with reason
+    expect(result.calibrationApplied).toBe(true);
+    expect(result.calibrationDetails).toBeDefined();
+    expect(result.calibrationDetails!.direction).toBe('increased');
   });
 
   it('should increase confidence with 3+ useful and 0 negative', async () => {
@@ -524,7 +527,7 @@ describe('WI-17E: Confidence Calibration', () => {
     expect(result.calibrationDetails!.newConfidence).toBeLessThan(70);
   });
 
-  it('should not calibrate with mixed feedback', async () => {
+  it('should apply micro-calibration even with mixed feedback (G9 fix)', async () => {
     mockDbIntelligenceFeedbackCount.mockResolvedValue(5);
     mockDbIntelligenceFeedbackFindMany.mockResolvedValue([
       makeFeedbackRecord({ verdict: 'useful' }),
@@ -536,7 +539,8 @@ describe('WI-17E: Confidence Calibration', () => {
 
     const result = await processFeedback(makePositiveSubmission());
 
-    expect(result.calibrationApplied).toBe(false);
+    // G9 FIX: Micro-calibration applies based on verdict + reason, regardless of mix
+    expect(result.calibrationApplied).toBe(true);
   });
 });
 
@@ -873,11 +877,12 @@ describe('WI-17E: Integration Validation', () => {
   it('should log processing details', async () => {
     await processFeedback(makePositiveSubmission());
 
-    // logger.info is called with format string + data object
-    expect(logger.info).toHaveBeenCalled();
-    const logCall = logger.info.mock.calls[0];
-    // First arg is string, second is data object
-    const logData = logCall[1] || logCall[0];
+    // logger.info is called multiple times; find the "Feedback processed" log
+    const processedLog = logger.info.mock.calls.find((call: unknown[]) =>
+      typeof call[0] === 'string' && call[0].includes('Feedback processed')
+    );
+    expect(processedLog).toBeDefined();
+    const logData = processedLog![1];
     expect(logData).toHaveProperty('feedbackId');
     expect(logData).toHaveProperty('companyId');
     expect(logData).toHaveProperty('verdict');

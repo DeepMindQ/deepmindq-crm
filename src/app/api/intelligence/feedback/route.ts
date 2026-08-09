@@ -23,6 +23,7 @@ import {
   getRecommendationHistory,
   getFeedbackSummary,
 } from '@/lib/decision-learning';
+import { processFeedback, type FeedbackVerdict, type ActualOutcome, type FeedbackResult } from '@/lib/feedback-learning-loop';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
 import { checkApiAuth } from '@/lib/api-auth';
 
@@ -100,7 +101,36 @@ export async function POST(request: NextRequest) {
         userId,
       });
 
-      return utilitySuccess(ctx, { success: true, feedbackId }, 'feedback', Date.now() - startedAt);
+      // Phase 3 Item 4.7: Also run calibration-integrated feedback learning loop
+      let calibrationResult: FeedbackResult | undefined;
+      try {
+        const verdictMapping: Record<number, FeedbackVerdict> = {
+          5: 'useful',
+          4: 'useful',
+          3: 'partially_useful',
+          2: 'not_useful',
+          1: 'incorrect_action',
+        };
+        const outcomeMapping: Record<string, ActualOutcome> = {
+          positive: 'opportunity_created',
+          neutral: 'meeting_held',
+          negative: 'rejected',
+        };
+
+        calibrationResult = await processFeedback({
+          companyId,
+          verdict: verdictMapping[rating] || 'partially_useful',
+          sentiment: rating >= 4 ? 'positive' : rating <= 2 ? 'negative' : 'neutral',
+          actualOutcome: outcome ? outcomeMapping[outcome] : undefined,
+          feedbackDetail: context,
+          userId,
+        });
+      } catch (calErr) {
+        // Calibration is best-effort — don't fail the request
+        console.warn(`[feedback] Calibration loop failed: ${calErr instanceof Error ? calErr.message : calErr}`);
+      }
+
+      return utilitySuccess(ctx, { success: true, feedbackId, calibrationResult }, 'feedback', Date.now() - startedAt);
     }
 
     // ── Legacy: Signal Feedback ──

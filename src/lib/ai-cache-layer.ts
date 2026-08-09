@@ -24,6 +24,23 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { LRUCache } from '@/lib/lru-cache';
+
+// ─── In-Memory LRU Cache Layer ────────────────────────────────────────
+// Provides fast O(1) lookups before hitting the database.
+// 1000 entries capacity, 5-minute TTL per entry.
+
+interface MemoryCacheEntry {
+  response: string;
+  modelUsed: string;
+  tier: string;
+  tokensUsed: number;
+  costUsd: number;
+  expiresAt: number;
+}
+
+const MEMORY_CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+const memoryCache = new LRUCache<string, MemoryCacheEntry>(1000);
 
 // ─── Hashing ────────────────────────────────────────────────────────────
 
@@ -59,6 +76,24 @@ export const AICacheLayer = {
       const combinedText = `${systemPrompt}|||${userPrompt}|||${contextFingerprint}`;
       const cacheKey = await sha256(combinedText);
 
+      // ── L1: In-memory LRU cache check ──
+      const memEntry = memoryCache.get(cacheKey);
+      if (memEntry && memEntry.expiresAt > Date.now()) {
+        logger.debug(`[ai-cache] L1 HIT (memory) for key=${cacheKey.slice(0, 16)}...`);
+        return {
+          response: memEntry.response,
+          modelUsed: memEntry.modelUsed,
+          tier: memEntry.tier,
+          tokensUsed: memEntry.tokensUsed,
+          costUsd: memEntry.costUsd,
+        };
+      }
+      // Expired memory entry — evict
+      if (memEntry) {
+        memoryCache.delete(cacheKey);
+      }
+
+      // ── L2: Database cache check ──
       const cached = await db.aICache.findUnique({ where: { cacheKey } });
 
       if (!cached) return null;
@@ -74,7 +109,17 @@ export const AICacheLayer = {
         data: { hitCount: { increment: 1 }, lastHitAt: new Date() },
       }).catch(() => {});
 
-      logger.info(`[ai-cache] HIT for key=${cacheKey.slice(0, 16)}... (hits=${cached.hitCount + 1})`);
+      // Populate L1 from L2
+      memoryCache.set(cacheKey, {
+        response: cached.response,
+        modelUsed: cached.modelUsed,
+        tier: cached.tier,
+        tokensUsed: cached.tokensUsed,
+        costUsd: cached.costUsd,
+        expiresAt: cached.expiresAt.getTime(),
+      });
+
+      logger.info(`[ai-cache] L2 HIT (db) for key=${cacheKey.slice(0, 16)}... (hits=${cached.hitCount + 1})`);
 
       return {
         response: cached.response,
@@ -135,6 +180,16 @@ export const AICacheLayer = {
         },
       });
 
+      // Populate L1 memory cache
+      memoryCache.set(cacheKey, {
+        response,
+        modelUsed,
+        tier,
+        tokensUsed,
+        costUsd,
+        expiresAt: expiresAt.getTime(),
+      });
+
       logger.info(`[ai-cache] SET key=${cacheKey.slice(0, 16)}... ttl=${ttlDays}d, cost=$${costUsd.toFixed(4)}`);
     } catch (err) {
       logger.error(`[ai-cache] set failed: ${err instanceof Error ? err.message : err}`);
@@ -169,6 +224,7 @@ export const AICacheLayer = {
     activeEntries: number;
     hitRate: number;
     topModels: Array<{ model: string; entries: number; hits: number; costSaved: number }>;
+    memoryCacheStats: { size: number; capacity: number; utilization: number };
   }> {
     try {
       const now = new Date();
@@ -230,14 +286,24 @@ export const AICacheLayer = {
         activeEntries,
         hitRate,
         topModels,
+        memoryCacheStats: memoryCache.getStats(),
       };
     } catch (err) {
       logger.error(`[ai-cache] getStats failed: ${err instanceof Error ? err.message : err}`);
       return {
         totalEntries: 0, totalHits: 0, totalCostSaved: 0, avgTtlDays: 7,
         expiredEntries: 0, activeEntries: 0, hitRate: 0, topModels: [],
+        memoryCacheStats: { size: 0, capacity: 1000, utilization: 0 },
       };
     }
+  },
+
+  /**
+   * Clear the in-memory LRU cache. Useful for testing or admin actions.
+   */
+  clearMemoryCache(): void {
+    memoryCache.clear();
+    logger.info('[ai-cache] Memory LRU cache cleared');
   },
 
   /**

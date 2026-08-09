@@ -52,6 +52,7 @@ import type {
   RawIntelligenceObject,
 } from '../types';
 import type { TrustMetadata } from '../trust-metadata';
+import { withRetry, buildConnectorErrorDetail, DEFAULT_RETRY_CONFIG } from '../retry-utilities';
 
 // ─── Constants ─────────────────────────────────────────────────
 
@@ -63,10 +64,6 @@ const CLEARBIT_REVEAL_API_BASE = 'https://reveal.clearbit.com/v1';
  * The connector tracks usage and warns when approaching the limit.
  */
 const MONTHLY_RATE_LIMIT = 50;
-
-/** Max retries for transient API failures */
-const MAX_RETRIES = 2;
-const RETRY_DELAY_MS = 1000;
 
 // ─── TRUST Metadata Helpers ────────────────────────────────────
 
@@ -239,12 +236,9 @@ function checkRateLimit(): { allowed: boolean; remaining: number; message?: stri
 async function fetchWithRetry(
   url: string,
   apiKey: string,
-  retries = MAX_RETRIES
 ): Promise<Response> {
-  let lastError: Error | null = null;
-
-  for (let i = 0; i <= retries; i++) {
-    try {
+  return withRetry(
+    async () => {
       const response = await fetch(url, {
         headers: {
           Authorization: `Bearer ${apiKey}`,
@@ -254,32 +248,24 @@ async function fetchWithRetry(
         signal: AbortSignal.timeout(15000), // 15s timeout
       });
 
-      if (response.status === 429) {
-        // Rate limited — wait and retry
-        const retryAfter = response.headers.get('Retry-After');
-        const delay = retryAfter ? parseInt(retryAfter, 10) * 1000 : RETRY_DELAY_MS * (i + 1);
-        await new Promise(resolve => setTimeout(resolve, Math.min(delay, 5000)));
-        continue;
-      }
-
       if (response.status === 404) {
-        return response; // Not found is not an error to retry
+        // Not found is not retryable — re-throw with status so withRetry skips retry
+        const err = new Error(`Clearbit API returned 404: Not Found`);
+        (err as any).status = 404;
+        throw err;
       }
 
       if (!response.ok) {
-        throw new Error(`Clearbit API returned ${response.status}: ${response.statusText}`);
+        const err = new Error(`Clearbit API returned ${response.status}: ${response.statusText}`);
+        (err as any).status = response.status;
+        throw err;
       }
 
       return response;
-    } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err));
-      if (i < retries) {
-        await new Promise(resolve => setTimeout(resolve, RETRY_DELAY_MS * (i + 1)));
-      }
-    }
-  }
-
-  throw lastError || new Error('Clearbit API request failed after retries');
+    },
+    'Clearbit API fetch',
+    DEFAULT_RETRY_CONFIG,
+  );
 }
 
 // ─── Connector Implementation ──────────────────────────────────
@@ -498,7 +484,7 @@ export class ClearbitConnector extends BaseConnector {
       });
     } catch (err) {
       return this.createAcquisitionErrorResult(
-        `Clearbit enrichment failed: ${err instanceof Error ? err.message : String(err)}`
+        buildConnectorErrorDetail(err, 'Clearbit connector acquire')
       );
     }
   }

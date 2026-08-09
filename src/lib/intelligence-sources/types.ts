@@ -8,7 +8,7 @@
 // ─── Source Types ──────────────────────────────────────────────
 
 /** The kind of source intelligence was acquired from */
-export type SourceType = 'csv' | 'excel' | 'website' | 'rss' | 'document' | 'human' | 'clearbit' | 'apollo';
+export type SourceType = 'csv' | 'excel' | 'website' | 'rss' | 'document' | 'human' | 'clearbit' | 'apollo' | 'crunchbase' | 'sec_edgar';
 
 /** How intelligence was originally acquired (more granular than SourceType) */
 export type IntelligenceOrigin =
@@ -18,7 +18,9 @@ export type IntelligenceOrigin =
   | 'rss_feed'
   | 'human_submission'
   | 'clearbit_enrichment'
-  | 'apollo_enrichment';
+  | 'apollo_enrichment'
+  | 'crunchbase_enrichment'
+  | 'sec_edgar_filing';
 
 // ─── Connector Lifecycle ───────────────────────────────────────
 
@@ -82,10 +84,12 @@ export const SOURCE_RELIABILITY: Record<SourceType, number> = {
   excel: 0.95,
   clearbit: 0.90,
   apollo: 0.88,
+  crunchbase: 0.92,
   website: 0.85,
   rss: 0.75,
   document: 0.9,
   human: 0.85,
+  sec_edgar: 0.95,
 };
 
 /**

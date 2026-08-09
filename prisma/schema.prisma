@@ -436,22 +436,24 @@ model Company {
   createdAt            DateTime              @default(now())
   updatedAt            DateTime              @updatedAt
 
-  contacts                   Contact[]
-  researchCard               CompanyResearchCard?
-  notes                      CompanyNote[]
-  signals                    CompanySignal[]
-  evidence                   Evidence[]
-  timeline                   CompanyTimelineEvent[]
-  opportunityRecommendations OpportunityRecommendation[]
-  pursuits                   Pursuit[]
-  signalCapabilityMatches    SignalCapabilityMatch[]
-  intelligenceValidations    IntelligenceValidation[]
-  priorityScoreHistory       PriorityScoreHistory[]
-  signalValidations          SignalValidation[]
-  intelligenceHealth         CompanyIntelligenceHealth?
-  intelligenceConflicts      IntelligenceConflict[]
-  recommendationFeedbacks    RecommendationFeedback[]
-  intelligenceFeedbacks      IntelligenceFeedback[]
+  contacts                        Contact[]
+  researchCard                    CompanyResearchCard?
+  notes                           CompanyNote[]
+  signals                         CompanySignal[]
+  evidence                        Evidence[]
+  timeline                        CompanyTimelineEvent[]
+  opportunityRecommendations      OpportunityRecommendation[]
+  pursuits                        Pursuit[]
+  signalCapabilityMatches         SignalCapabilityMatch[]
+  intelligenceValidations         IntelligenceValidation[]
+  priorityScoreHistory            PriorityScoreHistory[]
+  signalValidations               SignalValidation[]
+  intelligenceHealth              CompanyIntelligenceHealth?
+  intelligenceConflicts           IntelligenceConflict[]
+  scoringContradictionResolutions ScoringContradictionResolution[]
+  intelligenceActivationEvents    IntelligenceActivationEvent[]
+  recommendationFeedbacks         RecommendationFeedback[]
+  intelligenceFeedbacks           IntelligenceFeedback[]
 
   // Phase 7.5: Intelligence Acquisition & Fabric
   aliases                  CompanyAlias[]
@@ -1734,6 +1736,57 @@ model IntelligenceConflict {
   @@index([companyId, status])
 }
 
+// ── Phase 2: Scoring Contradiction Resolution (item 4.2) ──
+
+model ScoringContradictionResolution {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  scoringSystemA     String // e.g. 'unified_confidence', 'blended_confidence', 'trust_score', 'source_reliability', 'account_score', 'opportunity_score'
+  scoringSystemB     String
+  scoreA             Float // Score from system A (0-100)
+  scoreB             Float // Score from system B (0-100)
+  deviation          Float // |scoreA - scoreB|
+  severity           String  @default("low") // low | medium | high | critical
+  resolutionStrategy String  @default("weighted_average") // weighted_average | trust_highest | trust_lowest | manual
+  resolvedScore      Float?
+  resolutionReason   String?
+
+  detectedAt DateTime  @default(now())
+  resolvedAt DateTime?
+
+  @@index([companyId])
+  @@index([severity])
+  @@index([scoringSystemA, scoringSystemB])
+  @@index([detectedAt])
+}
+
+// ── Phase 2: Intelligence Activation Event (item 6.3) ──
+
+model IntelligenceActivationEvent {
+  id        String  @id @default(cuid())
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  trigger       String // import_legacy | import_batch | import_pipeline | etc.
+  step          String // entity_resolution | knowledge_graph_update | retrieval_indexing | memory_creation | signal_extraction | confidence_scoring
+  status        String // completed | skipped | failed
+  durationMs    Int
+  detail        String?
+  error         String?
+  correlationId String?
+
+  createdAt DateTime @default(now())
+
+  @@index([companyId])
+  @@index([trigger])
+  @@index([step])
+  @@index([status])
+  @@index([createdAt])
+  @@index([companyId, createdAt])
+}
+
 // ── System Settings (lightweight key-value, Phase 5 ICP persistence) ──
 
 model SystemSetting {
@@ -2566,6 +2619,17 @@ model ReasoningStep {
   // Dependencies — this step reads output from previous steps
   dependsOnSteps Json @default("[]") // JSON: stepNumber[] — which steps this builds on
 
+  // Phase 1: Adaptive Reasoning Fields
+  /// Execution depth: "skip" | "quick" | "standard" | "deep"
+  depth         String  @default("standard")
+  /// If skipped, the reason why. NULL = step was executed normally.
+  skippedReason String?
+  /// Which reasoning path this step belongs to: "primary" | "contrarian" | null
+  pathId        String?
+  /// Cumulative reasoning gaps detected up to this step.
+  /// JSON: string[] — descriptions of gaps from low-confidence prior steps.
+  reasoningGaps Json    @default("[]")
+
   createdAt DateTime @default(now())
 
   @@unique([reasoningContextId, stepNumber])
@@ -2573,6 +2637,8 @@ model ReasoningStep {
   @@index([stepName])
   @@index([stepGroup])
   @@index([confidence])
+  @@index([depth])
+  @@index([pathId])
 }
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -3287,6 +3353,8 @@ model RetrievalIndexEntry {
   content         String // Full text content
   snippet         String // Display snippet
   vector          Bytes? // Float64Array serialized as bytes
+  // Phase 2: pgvector native embedding — managed via raw SQL, not Prisma ORM
+  // See prisma/migrations/20260809000000_pgvector_embedding_migration/migration.sql
   termFrequencies String // JSON: Map<string, number> — BM25 term freqs
   source          String?
   sourceDate      String?
@@ -3759,4 +3827,110 @@ model ImportTemplate {
 
   @@index([source])
   @@index([entityType])
+}
+
+// ═══════════════════════════════════════════════════════════════════════
+//  PHASE 1 ENTERPRISE READINESS: Adaptive Intelligence Architecture
+// ═══════════════════════════════════════════════════════════════════════
+//
+// New models for company-size-aware reasoning, confidence calibration,
+// multi-tenant scoring configuration, and adaptive strategy management.
+// All additive — zero breaking changes to existing models.
+// ═══════════════════════════════════════════════════════════════════════
+
+/// Reasoning strategy configuration per company-size segment.
+/// Defines which steps to run, depth, and ordering overrides.
+model ReasoningStrategy {
+  id          String @id @default(cuid())
+  segment     String // "enterprise" | "mid_market" | "smb" | "startup"
+  description String // Human-readable strategy description
+
+  /// Which of the 30 reasoning steps to run, and at what depth.
+  /// JSON: { stepNumber: "skip"|"quick"|"standard"|"deep" }
+  stepDepths Json @default("{}")
+
+  /// Steps to skip entirely (when prerequisite data is typically absent).
+  /// JSON: number[] — step numbers to skip for this segment.
+  skipSteps Json @default("[]")
+
+  /// LLM tier to use: "deep", "smart", "fast"
+  defaultTier String @default("standard")
+
+  /// Maximum tokens per step for this segment
+  maxTokensPerStep Int @default(2000)
+
+  /// Priority signal types most relevant for this segment.
+  /// JSON: string[] — e.g. ["funding", "tech_change"] for startups
+  prioritySignals Json @default("[]")
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([segment])
+  @@index([isActive])
+}
+
+/// Calibration curve data for confidence score accuracy tracking.
+/// Records predicted confidence vs actual outcomes over time.
+model CalibrationCurve {
+  id        String @id @default(cuid())
+  dimension String // Which confidence dimension: "overall"|"data_quality"|"source_reliability"|"freshness"|"cross_validation"|"evidence_coverage"|"ai_certainty"
+
+  /// Number of data points used for calibration
+  sampleCount Int @default(0)
+
+  /// Calibration buckets: predicted range → actual accuracy rate.
+  /// JSON: { "90-100": { correct: 45, total: 50 }, "80-90": { ... }, ... }
+  buckets Json @default("{}")
+
+  /// Overall calibration accuracy (0-1). 1.0 = perfectly calibrated.
+  accuracy Float @default(0)
+
+  /// Correction factor to apply to new predictions.
+  /// If model says 85 but actual mean is 72, factor = 72/85 ≈ 0.847
+  correctionFactor Float @default(1.0)
+
+  /// Status: how much data backs this calibration
+  status String @default("uncalibrated") // "uncalibrated" | "partially_calibrated" | "calibrated"
+
+  lastCalibratedAt DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@unique([dimension])
+  @@index([status])
+}
+
+/// Per-tenant scoring configuration for multi-tenant deployments.
+/// Each tenant can customize scoring weights, signal priorities, and ICP params.
+model TenantScoringConfig {
+  id       String @id @default(cuid())
+  tenantId String // Unique tenant identifier (matches COMPANY_ID or org ID)
+
+  /// Custom confidence weights (override defaults from ai-unified-confidence.ts).
+  /// JSON: { dataQuality: 0.20, sourceReliability: 0.20, ... }
+  confidenceWeights Json @default("{}")
+
+  /// Custom recommendation weights (override defaults from recommendation-engine.ts).
+  /// JSON: { accountScore: 0.30, opportunityScore: 0.30, ... }
+  recommendationWeights Json @default("{}")
+
+  /// Priority signal types for this tenant's industry.
+  /// JSON: string[] — e.g. ["funding", "tech_change", "hiring"]
+  prioritySignals Json @default("[]")
+
+  /// Target industries for ICP matching.
+  /// JSON: string[] — e.g. ["SaaS", "FinTech", "Healthcare"]
+  targetIndustries Json @default("[]")
+
+  /// Target company size range (employee count).
+  targetSizeRange Json @default("{}") // { min: 50, max: 5000 }
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([tenantId])
+  @@index([isActive])
 }

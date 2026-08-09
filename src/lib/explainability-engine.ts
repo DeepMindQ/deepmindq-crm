@@ -57,6 +57,7 @@ export interface ExplainabilityReport {
     confidenceGrade: string;
     confidenceScore: number;
     enterpriseReady: boolean;
+    dataDepthIndicator: AccountRecommendation['dataDepthIndicator'];
   };
 
   // ── 1. Reasoning ──
@@ -82,6 +83,18 @@ export interface ExplainabilityReport {
   // ── 6. Recommended Action ──
   /** What should the user do? */
   action: ActionSection;
+
+  // ── Explanation Quality (Phase 3.3) ──
+  /** Quality scoring of the explanation itself */
+  explanationQuality: {
+    score: number;
+    grade: 'excellent' | 'good' | 'adequate' | 'poor';
+    issues: string[];
+  };
+
+  // ── Natural Language Summary (Phase 3.5) ──
+  /** Plain English summary of the full report */
+  naturalLanguageSummary: string;
 
   // ── Metadata ──
   /** When this report was generated */
@@ -273,6 +286,8 @@ export interface ActionSection {
   timeline: string;
   /** Who to engage */
   targetRole?: string;
+  /** Phase 1: Dynamic target roles */
+  targetRoles?: string[];
   /** Conversation angle / approach */
   conversationAngle?: string;
   /** Why this action is recommended */
@@ -326,7 +341,8 @@ export async function generateExplainabilityReport(
   const risks = buildRiskSection(recommendation, rawData, confidence);
   const action = buildActionSection(recommendation, rawData, risks);
 
-  return {
+  // ── Phase 3.3: Score explanation quality ──
+  const partialReport = {
     companyId,
     companyName: recommendation.companyName,
     recommendation: {
@@ -335,6 +351,7 @@ export async function generateExplainabilityReport(
       confidenceGrade: recommendation.confidenceGrade,
       confidenceScore: recommendation.confidenceScore,
       enterpriseReady: recommendation.enterpriseReady,
+      dataDepthIndicator: recommendation.dataDepthIndicator,
     },
     reasoning,
     evidence,
@@ -344,7 +361,16 @@ export async function generateExplainabilityReport(
     action,
     generatedAt: new Date().toISOString(),
     latencyMs: Date.now() - startTime,
-  };
+  } as ExplainabilityReport;
+
+  // ── Phase 3.3: Explanation Quality Scoring ──
+  const explanationQuality = scoreExplanationQuality(partialReport);
+  partialReport.explanationQuality = explanationQuality;
+
+  // ── Phase 3.5: Natural Language Summary ──
+  partialReport.naturalLanguageSummary = generateNaturalLanguageSummary(partialReport);
+
+  return partialReport;
 }
 
 // ── Raw Data Fetcher ──
@@ -1186,6 +1212,7 @@ function buildActionSection(
     text: rec.recommendedAction.text,
     timeline: rec.recommendedAction.timeline,
     targetRole: rec.recommendedAction.targetRole,
+    targetRoles: rec.recommendedAction.targetRoles,
     conversationAngle: rec.recommendedAction.conversationAngle,
     rationale,
     alternatives,
@@ -1359,6 +1386,231 @@ function formatDimensionName(dimension: string): string {
   return names[dimension] || dimension;
 }
 
+// ── Phase 3.3: Explanation Quality Scoring ────────────────────────────────────
+
+export interface ExplanationQualityResult {
+  score: number;
+  grade: 'excellent' | 'good' | 'adequate' | 'poor';
+  issues: string[];
+}
+
+/**
+ * Score the quality of an explainability report.
+ * Evaluates five dimensions:
+ *   - Evidence count and distribution (30%)
+ *   - Source diversity (20%)
+ *   - Confidence dimension coverage (20%)
+ *   - Risk transparency (15%)
+ *   - Action specificity (15%)
+ */
+export function scoreExplanationQuality(
+  report: ExplainabilityReport
+): ExplanationQualityResult {
+  const issues: string[] = [];
+  let totalScore = 0;
+
+  // ── Dimension 1: Evidence count and distribution (30%) ──
+  const evidenceTotal = report.evidence.totalCount;
+  const categoryCount = report.evidence.categories.length;
+  const strongCategories = report.evidence.categories.filter(c => c.strength === 'strong').length;
+  const qualityVerified = report.evidence.qualityAssessment.verifiedCount;
+
+  let evidenceScore = 0;
+  // Ideal: 10+ evidence items, 3+ categories, at least 1 strong, verified items
+  evidenceScore += Math.min(25, evidenceTotal * 2.5); // 10 items = 25pts
+  evidenceScore += Math.min(20, categoryCount * 5); // 4 categories = 20pts
+  evidenceScore += strongCategories > 0 ? 20 : 0;
+  evidenceScore += Math.min(15, qualityVerified * 5); // 3 verified = 15pts
+  evidenceScore += report.evidence.qualityAssessment.overallQuality === 'verified' ? 10
+    : report.evidence.qualityAssessment.overallQuality === 'corroborated' ? 7
+    : report.evidence.qualityAssessment.overallQuality === 'inferred' ? 4
+    : 1;
+  evidenceScore = Math.min(100, Math.round(evidenceScore));
+  totalScore += evidenceScore * 0.30;
+
+  if (evidenceTotal < 3) issues.push('Very few evidence items — recommendation may lack grounding');
+  if (categoryCount < 2) issues.push('Evidence concentrated in few categories — limited perspective');
+  if (strongCategories === 0) issues.push('No strong evidence categories — all evidence is weak or moderate');
+
+  // ── Dimension 2: Source diversity (20%) ──
+  const sourceDiversity = report.sources.diversityScore;
+  const sourceReliability = report.sources.overallReliability;
+  const sourceCount = report.sources.items.length;
+
+  let diversityScore = 0;
+  diversityScore += Math.min(50, sourceCount * 10); // 5 sources = 50pts
+  diversityScore += Math.round(sourceDiversity * 30); // 0-1 → 0-30pts
+  diversityScore += Math.round(sourceReliability * 20); // 0-1 → 0-20pts
+  diversityScore = Math.min(100, Math.round(diversityScore));
+  totalScore += diversityScore * 0.20;
+
+  if (sourceCount < 2) issues.push('Single data source — recommendation relies on one perspective');
+  if (sourceDiversity < 0.3) issues.push('Low source type diversity — may introduce bias');
+  if (sourceReliability < 0.6) issues.push('Low overall source reliability — data may not be trustworthy');
+
+  // ── Dimension 3: Confidence dimension coverage (20%) ──
+  const dimCount = report.confidence.dimensions.length;
+  const avgDimScore = dimCount > 0
+    ? report.confidence.dimensions.reduce((s, d) => s + d.score, 0) / dimCount
+    : 0;
+  const hasImprovements = report.confidence.improvementOpportunities.length > 0;
+
+  let confidenceScore = 0;
+  confidenceScore += Math.min(40, dimCount * 8); // 5 dimensions = 40pts
+  confidenceScore += Math.round(avgDimScore * 0.4); // avg 80+ → 32pts
+  confidenceScore += hasImprovements ? 15 : 0;
+  confidenceScore += report.confidence.overall.enterpriseReady ? 15 : 0;
+  confidenceScore = Math.min(100, Math.round(confidenceScore));
+  totalScore += confidenceScore * 0.20;
+
+  if (dimCount < 4) issues.push('Incomplete confidence coverage — fewer than 4 dimensions scored');
+  if (avgDimScore < 40) issues.push('Low average confidence across dimensions — high uncertainty');
+
+  // ── Dimension 4: Risk transparency (15%) ──
+  const riskCount = report.risks.totalRisks;
+  const highRisks = report.risks.severityBreakdown.critical + report.risks.severityBreakdown.high;
+  const hasMitigations = report.risks.items.filter(r => r.mitigation).length;
+  const riskAssessment = report.risks.overallAssessment;
+
+  let riskScore = 0;
+  // Good risk transparency means risks are identified and mitigated
+  riskScore += riskCount > 0 ? 25 : 0; // Having risks identified is good
+  riskScore += Math.min(25, hasMitigations * 10); // Mitigations for each risk
+  riskScore += riskAssessment === 'low_risk' ? 25 : riskAssessment === 'moderate_risk' ? 15 : 5;
+  riskScore += highRisks > 0 ? 10 : 15; // No high risks = better, but identifying them = transparency
+  riskScore += report.risks.items.length > 0 && report.risks.items.every(r => r.impact) ? 15 : 0;
+  riskScore = Math.min(100, Math.round(riskScore));
+  totalScore += riskScore * 0.15;
+
+  if (riskCount > 0 && hasMitigations < riskCount / 2) {
+    issues.push(`${riskCount - hasMitigations} risk(s) lack mitigation guidance`);
+  }
+
+  // ── Dimension 5: Action specificity (15%) ──
+  const hasActionText = report.action.text.length > 20;
+  const hasTimeline = report.action.timeline.length > 5;
+  const hasTargetRoles = (report.action.targetRoles && report.action.targetRoles.length > 0) || !!report.action.targetRole;
+  const hasConversationAngle = !!report.action.conversationAngle;
+  const hasRationale = report.action.rationale.length > 30;
+  const hasAlternatives = report.action.alternatives.length > 0;
+  const hasPrerequisites = report.action.prerequisites.length > 0;
+
+  let actionScore = 0;
+  actionScore += hasActionText ? 15 : 0;
+  actionScore += hasTimeline ? 15 : 0;
+  actionScore += hasTargetRoles ? 15 : 0;
+  actionScore += hasConversationAngle ? 15 : 0;
+  actionScore += hasRationale ? 15 : 0;
+  actionScore += hasAlternatives ? 13 : 0;
+  actionScore += hasPrerequisites ? 12 : 0;
+  actionScore = Math.min(100, Math.round(actionScore));
+  totalScore += actionScore * 0.15;
+
+  if (!hasTargetRoles) issues.push('No target roles specified — unclear who to engage');
+  if (!hasConversationAngle) issues.push('No conversation angle — outreach may lack personalization');
+  if (!hasRationale) issues.push('Action rationale is weak or missing');
+  if (!hasAlternatives) issues.push('No alternative actions provided — limited flexibility');
+
+  // ── Composite Score ──
+  const compositeScore = Math.round(Math.min(100, Math.max(0, totalScore)));
+
+  let grade: ExplanationQualityResult['grade'];
+  if (compositeScore >= 80) grade = 'excellent';
+  else if (compositeScore >= 60) grade = 'good';
+  else if (compositeScore >= 40) grade = 'adequate';
+  else grade = 'poor';
+
+  return { score: compositeScore, grade, issues };
+}
+
+// ── Phase 3.5: Natural Language Explanation ─────────────────────────────────
+
+/**
+ * Generate a plain English summary of the full explainability report.
+ * Designed to be human-readable without requiring understanding of the scoring system.
+ */
+export function generateNaturalLanguageSummary(
+  report: ExplainabilityReport
+): string {
+  const parts: string[] = [];
+
+  // Opening: What is this company and what's the recommendation?
+  const score = report.recommendation.opportunityScore;
+  const priority = report.recommendation.priority.toUpperCase();
+  const enterpriseReady = report.recommendation.enterpriseReady;
+
+  if (score >= 80) {
+    parts.push(`${report.companyName} is a ${priority} priority account with a strong opportunity score of ${score}/100.`);
+  } else if (score >= 60) {
+    parts.push(`${report.companyName} shows meaningful potential with an opportunity score of ${score}/100.`);
+  } else if (score >= 35) {
+    parts.push(`${report.companyName} has moderate opportunity potential (score: ${score}/100).`);
+  } else {
+    parts.push(`${report.companyName} currently shows limited opportunity signals (score: ${score}/100).`);
+  }
+
+  // Evidence summary
+  const evTotal = report.evidence.totalCount;
+  const evQuality = report.evidence.qualityAssessment.overallQuality;
+  if (evTotal > 0) {
+    parts.push(`The recommendation is backed by ${evTotal} evidence items across ${report.evidence.categories.length} categories, with an overall evidence quality of ${evQuality}.`);
+  } else {
+    parts.push('This recommendation has limited evidence backing — additional research is recommended before taking action.');
+  }
+
+  // Top evidence highlights
+  if (report.evidence.categories.length > 0) {
+    const topItems = report.evidence.categories
+      .filter(c => c.strength === 'strong' || c.strength === 'moderate')
+      .slice(0, 2);
+    if (topItems.length > 0) {
+      const highlights = topItems.map(c => `${c.category} (${c.count} items, ${c.strength})`).join(' and ');
+      parts.push(`The strongest evidence comes from ${highlights}.`);
+    }
+  }
+
+  // Confidence assessment
+  const confScore = report.recommendation.confidenceScore;
+  const confGrade = report.recommendation.confidenceGrade;
+  if (enterpriseReady) {
+    parts.push(`Confidence is ${confGrade} (${confScore}/100), meeting the enterprise trust threshold — this recommendation is suitable for direct action.`);
+  } else {
+    parts.push(`Confidence is ${confGrade} (${confScore}/100), below the enterprise trust threshold — enrichment is recommended before outreach.`);
+  }
+
+  // Risk summary
+  const riskTotal = report.risks.totalRisks;
+  if (riskTotal === 0) {
+    parts.push('No significant risks identified.');
+  } else {
+    const highRisks = report.risks.severityBreakdown.critical + report.risks.severityBreakdown.high;
+    if (highRisks > 0) {
+      parts.push(`${highRisks} high-severity risk(s) identified: ${report.risks.items.slice(0, 2).map(r => r.description).join('; ')}.`);
+    } else {
+      parts.push(`${riskTotal} risk(s) identified, primarily ${report.risks.severityBreakdown.medium} medium severity.`);
+    }
+  }
+
+  // Recommended action
+  parts.push(`Recommended action: ${report.action.text}.`);
+  if (report.action.timeline) {
+    parts.push(`Suggested timeline: ${report.action.timeline}.`);
+  }
+  if (report.action.targetRoles && report.action.targetRoles.length > 0) {
+    parts.push(`Target roles: ${report.action.targetRoles.join(', ')}.`);
+  } else if (report.action.targetRole) {
+    parts.push(`Target role: ${report.action.targetRole}.`);
+  }
+
+  // Source diversity
+  const sourceCount = report.sources.items.length;
+  if (sourceCount > 1) {
+    parts.push(`Data is sourced from ${sourceCount} different source types with ${Math.round(report.sources.diversityScore * 100)}% diversity and ${Math.round(report.sources.overallReliability * 100)}% overall reliability.`);
+  }
+
+  return parts.join(' ');
+}
+
 /**
  * Get explainability engine health/stats.
  */
@@ -1380,6 +1632,8 @@ export function getExplainabilityStats(): {
       'Risk identification with mitigation guidance',
       'Action rationale with alternatives',
       'Bulk summary generation for list views',
+      'Explanation quality scoring (Phase 3.3)',
+      'Natural language summary generation (Phase 3.5)',
     ],
     integrationPoints: [
       'WI-17C Recommendation Engine (primary data source)',

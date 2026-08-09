@@ -28,6 +28,7 @@
 
 import { logger } from '@/lib/logger';
 import { adjustConfidence as adjustDecisionConfidence } from '@/lib/decision-learning';
+import { getTenantWeights } from '@/lib/tenant-scoring-config';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -72,6 +73,8 @@ export interface BlendedConfidenceInput {
   evidenceQuality?: number;
   /** Custom weights override */
   customWeights?: Partial<ConfidenceWeights>;
+  /** Tenant ID for tenant-specific weight lookup */
+  tenantId?: string;
 }
 
 export interface ConfidenceWeights {
@@ -109,7 +112,29 @@ export const DEFAULT_WEIGHTS: ConfidenceWeights = {
 export async function computeBlendedConfidence(
   input: BlendedConfidenceInput
 ): Promise<BlendedConfidenceResult> {
-  const weights: ConfidenceWeights = { ...DEFAULT_WEIGHTS, ...input.customWeights };
+  // Check for tenant-specific weights
+  let tenantWeights: Record<string, number> | null = null;
+  if (input.tenantId) {
+    try {
+      tenantWeights = await getTenantWeights(input.tenantId, 'blended');
+    } catch {
+      // Non-blocking — fall back to defaults
+    }
+  }
+
+  const weights: ConfidenceWeights = {
+    ...DEFAULT_WEIGHTS,
+    ...input.customWeights,
+    ...(tenantWeights ? {
+      // Map tenant confidence weights to blended weights where keys overlap
+      base: tenantWeights.base ?? DEFAULT_WEIGHTS.base,
+      calibration: tenantWeights.calibration ?? DEFAULT_WEIGHTS.calibration,
+      decisionLearning: tenantWeights.decisionLearning ?? DEFAULT_WEIGHTS.decisionLearning,
+      knowledgeGraph: tenantWeights.knowledgeGraph ?? DEFAULT_WEIGHTS.knowledgeGraph,
+      memory: tenantWeights.memory ?? DEFAULT_WEIGHTS.memory,
+      evidenceQuality: tenantWeights.evidenceQuality ?? DEFAULT_WEIGHTS.evidenceQuality,
+    } : {}),
+  };
   const sources: ConfidenceSource[] = [];
 
   // ── Source 1: Base Score ──

@@ -71,6 +71,14 @@ import { logger } from '@/lib/logger';
 import { governedAICall } from '@/lib/ai-governance';
 import { RetrievalEngine } from '@/lib/engines/retrieval-engine';
 import { GroundingEngine } from '@/lib/engines/grounding-engine';
+import {
+  getReasoningStrategy,
+  shouldSkipStep,
+  assessReasoningGaps,
+  type ReasoningStrategy,
+  type ReasoningPath,
+} from '@/lib/reasoning-strategy-router';
+import { classifyCompany } from '@/lib/company-size-profiles';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -89,6 +97,11 @@ export interface ReasoningResult {
   overallConfidence: number;
   winProbability: number | null;
   error: string | null;
+  /** Phase 1: Adaptive reasoning metadata */
+  segment?: string;
+  path?: ReasoningPath;
+  adaptiveEnabled?: boolean;
+  reasoningGaps?: string[];
 }
 
 interface StepDefinition {
@@ -140,6 +153,28 @@ const REASONING_STEPS: StepDefinition[] = [
   { stepNumber: 30, stepName: 'engagement_plan', stepGroup: 'strategy', dependsOn: [28, 29], requiresAI: true, description: 'Generate full engagement plan: sequence, touchpoints, milestones' },
 ];
 
+// ─── Contrarian Reasoning (Phase 2: Item 1.7) ─────────────────────────────
+
+const ENABLE_CONTRARIAN = process.env.ENABLE_CONTRARIAN_REASONING === 'true';
+
+/** Steps that get a contrarian re-analysis for enterprise companies */
+const CONTRARIAN_STEPS = [8, 13, 14, 16, 17, 18];
+
+/** System prompt for contrarian reasoning — actively challenges primary analysis */
+const CONTRARIAN_SYSTEM_PROMPT = `You are a contrarian analyst. Your job is to CHALLENGE and QUESTION the primary analysis.
+
+Given the same data, provide the BEAR CASE:
+- What evidence contradicts the primary conclusions?
+- What risks is the primary analysis ignoring or downplaying?
+- What alternative explanations exist for the observed signals?
+- Why might the buying window be CLOSED rather than open?
+- What could make this company a BAD FIT?
+
+Be specific and evidence-based. Do NOT be contrarian for its own sake — only challenge
+conclusions that have credible contradictory evidence.
+
+Output format: Same JSON structure as the primary analysis, but with contrarian perspectives.`;
+
 // ─── Cache Helpers ──────────────────────────────────────────────────────
 
 async function getOrCreateContext(companyId: string) {
@@ -178,10 +213,14 @@ async function executeStep(
   step: StepDefinition,
   contextId: string,
   previousSteps: Map<number, { output: string; confidence: number }>,
+  options?: { tier?: 'deep' | 'smart' | 'fast'; maxTokens?: number; customSystemPrompt?: string },
 ): Promise<{ output: string; summary: string; confidence: number; evidenceIds: string[]; knowledgeIds: string[]; aiCalls: number; tokensUsed: number; costUsd: number; durationMs: number }> {
 
   const started = Date.now();
   const defaults = { output: '{}', summary: '', confidence: 0.5, evidenceIds: [] as string[], knowledgeIds: [] as string[], aiCalls: 0, tokensUsed: 0, costUsd: 0, durationMs: 0 };
+  const tier = options?.tier || 'smart';
+  const maxTokens = options?.maxTokens || 2048;
+  const customSystemPrompt = options?.customSystemPrompt;
 
   try {
     // Build context from previous steps
@@ -384,15 +423,16 @@ async function executeStep(
           return { ...defaults, summary: `Step ${step.stepName} has no data-source executor`, confidence: 0.1 };
         }
 
-        // AI-powered step
+        // AI-powered step — use custom system prompt if provided (e.g., contrarian pass)
+        const systemPrompt = customSystemPrompt || `You are a senior enterprise sales intelligence analyst. Analyze the company data provided and produce a structured JSON output for the "${step.stepName}" step. Focus on actionable intelligence that helps a sales team engage this prospect. Output ONLY valid JSON.`;
         const govResult = await governedAICall({
           generationType: `reasoning_${step.stepName}`,
           companyId,
-          systemPrompt: `You are a senior enterprise sales intelligence analyst. Analyze the company data provided and produce a structured JSON output for the "${step.stepName}" step. Focus on actionable intelligence that helps a sales team engage this prospect. Output ONLY valid JSON.`,
+          systemPrompt,
           userPrompt: `Step: ${step.stepName}\nDescription: ${step.description}\n\nPrevious reasoning context:\n${JSON.stringify(priorContext, null, 2)}\n\nAnalyze this data and produce your structured assessment.`,
-          tier: 'smart',
-          maxTokens: 2048,
-          temperature: 0.4,
+          tier,
+          maxTokens,
+          temperature: customSystemPrompt ? 0.6 : 0.4,
           enforceGovernance: false,
         });
 
@@ -431,6 +471,142 @@ async function executeStep(
   }
 }
 
+// ─── Contrarian Pass (Phase 2) ────────────────────────────────────────────
+
+/**
+ * Run a contrarian reasoning pass for enterprise companies.
+ * Re-runs key AI-powered steps with a contrarian prompt that challenges
+ * the primary analysis conclusions.
+ *
+ * Returns contrarian step outputs indexed by step number.
+ * Non-throwing: returns empty map on failure.
+ */
+async function runContrarianPass(
+  companyId: string,
+  contextId: string,
+  primarySteps: Map<number, { output: string; confidence: number }>,
+  segment: string,
+): Promise<Map<number, { output: string; summary: string; confidence: number; evidenceIds: string[]; knowledgeIds: string[]; aiCalls: number; tokensUsed: number; costUsd: number; durationMs: number }>> {
+  if (!ENABLE_CONTRARIAN || segment !== 'enterprise') {
+    return new Map();
+  }
+
+  logger.info(`[enterprise-reasoning] Running contrarian pass for company ${companyId}`);
+
+  const contrarianSteps = new Map<number, { output: string; summary: string; confidence: number; evidenceIds: string[]; knowledgeIds: string[]; aiCalls: number; tokensUsed: number; costUsd: number; durationMs: number }>();
+
+  for (const stepNum of CONTRARIAN_STEPS) {
+    const stepDef = REASONING_STEPS.find(s => s.stepNumber === stepNum);
+    if (!stepDef || !stepDef.requiresAI) continue;
+
+    const primaryOutput = primarySteps.get(stepNum);
+    if (!primaryOutput) continue;
+
+    try {
+      const contrarianResult = await executeStep(
+        companyId,
+        stepDef,
+        contextId,
+        primarySteps,
+        { tier: 'fast', maxTokens: 1024, customSystemPrompt: CONTRARIAN_SYSTEM_PROMPT },
+      );
+
+      // Parse and mark as contrarian output
+      const contrarianOutput = {
+        ...JSON.parse(contrarianResult.output),
+        _contrarian: true,
+        _challenges: [
+          'Primary analysis may be overly optimistic',
+          'Consider bear case scenarios',
+          'Check for ignored risk signals',
+        ],
+      };
+
+      contrarianSteps.set(stepNum, {
+        ...contrarianResult,
+        output: JSON.stringify(contrarianOutput),
+        summary: `[CONTRARIAN] ${contrarianResult.summary}`,
+        confidence: Math.max(0.1, contrarianResult.confidence * 0.85), // Slightly lower confidence for contrarian
+      });
+
+      // Persist contrarian step to DB
+      try {
+        await db.reasoningStep.upsert({
+          where: {
+            reasoningContextId_stepNumber: {
+              reasoningContextId: contextId,
+              stepNumber: stepNum + 100, // Offset by 100 to avoid collision (108, 113, etc.)
+            },
+          },
+          create: {
+            reasoningContextId: contextId,
+            stepNumber: stepNum + 100,
+            stepName: `contrarian_${stepDef.stepName}`,
+            stepGroup: 'external_intel',
+            output: JSON.stringify(contrarianOutput),
+            summary: `[CONTRARIAN] ${contrarianResult.summary}`,
+            confidence: contrarianResult.confidence * 0.85,
+            aiCalls: contrarianResult.aiCalls,
+            tokensUsed: contrarianResult.tokensUsed,
+            costUsd: contrarianResult.costUsd,
+            durationMs: contrarianResult.durationMs,
+            depth: 'quick',
+            pathId: 'contrarian',
+            reasoningGaps: [],
+          },
+          update: {
+            output: JSON.stringify(contrarianOutput),
+            summary: `[CONTRARIAN] ${contrarianResult.summary}`,
+            confidence: contrarianResult.confidence * 0.85,
+            aiCalls: contrarianResult.aiCalls,
+            tokensUsed: contrarianResult.tokensUsed,
+            costUsd: contrarianResult.costUsd,
+            durationMs: contrarianResult.durationMs,
+            pathId: 'contrarian',
+          },
+        });
+      } catch (dbErr) {
+        logger.warn(`[enterprise-reasoning] Failed to persist contrarian step ${stepNum}: ${dbErr instanceof Error ? dbErr.message : dbErr}`);
+      }
+    } catch (err) {
+      logger.warn(`[enterprise-reasoning] Contrarian step ${stepNum} failed: ${err instanceof Error ? err.message : err}`);
+    }
+  }
+
+  logger.info(`[enterprise-reasoning] Contrarian pass complete: ${contrarianSteps.size} steps processed`);
+  return contrarianSteps;
+}
+
+/**
+ * Compare primary and contrarian path outputs to detect contradictions.
+ * Returns array of reasoning gaps describing contradictions found.
+ */
+function comparePaths(
+  primarySteps: Map<number, { output: string; confidence: number }>,
+  contrarianSteps: Map<number, { output: string; confidence: number }>,
+): string[] {
+  const gaps: string[] = [];
+
+  for (const stepNum of CONTRARIAN_STEPS) {
+    const primary = primarySteps.get(stepNum);
+    const contrarian = contrarianSteps.get(stepNum);
+
+    if (!primary || !contrarian) continue;
+
+    const confidenceDelta = Math.abs(primary.confidence - contrarian.confidence);
+    if (confidenceDelta > 0.15) {
+      const stepDef = REASONING_STEPS.find(s => s.stepNumber === stepNum);
+      gaps.push(
+        `Primary vs Contrarian disagreement on "${stepDef?.stepName || stepNum}": ` +
+        `primary confidence=${primary.confidence.toFixed(2)}, contrarian confidence=${contrarian.confidence.toFixed(2)}, ` +
+        `delta=${confidenceDelta.toFixed(2)}. Both perspectives should be reviewed.`
+      );
+    }
+  }
+
+  return gaps;
+}
+
 // ─── EnterpriseReasoningEngine ────────────────────────────────────────
 
 export const EnterpriseReasoningEngine = {
@@ -438,11 +614,70 @@ export const EnterpriseReasoningEngine = {
    * Build (or rebuild) the full reasoning context for a company.
    * Non-throwing — returns ReasoningResult.
    */
-  async build(companyId: string): Promise<ReasoningResult> {
+  async build(companyId: string, strategyInput?: { employeeCount?: number | null; revenue?: number | null; companyType?: string | null; }): Promise<ReasoningResult> {
     const overallStarted = Date.now();
     logger.info(`[reasoning-engine] building reasoning context for company=${companyId}`);
 
     try {
+      // Phase 1: Resolve adaptive reasoning strategy
+      let strategy: ReasoningStrategy | null = null;
+      let companyDataForStrategy: { employeeCount?: number | null; fundingData?: boolean; contactData?: boolean; technologyData?: boolean; signalData?: boolean; vendorData?: boolean; evidenceCount: number } = { evidenceCount: 0 };
+
+      try {
+        // Get company data for strategy resolution
+        const company = await db.company.findUnique({ where: { id: companyId }, include: { researchCard: true } });
+        const employeeCount = company?.researchCard?.employeeCount != null ? Number(company.researchCard.employeeCount) : (strategyInput?.employeeCount ?? null);
+        const revenue = company?.researchCard?.revenue != null ? Number(company.researchCard.revenue) : (strategyInput?.revenue ?? null);
+
+        // Check data availability for dynamic step skipping
+        const [signalCount, contactCount, evidenceCount] = await Promise.all([
+          db.companySignal.count({ where: { companyId, status: { not: 'archived' } } }),
+          db.contact.count({ where: { companyId } }),
+          db.evidence.count({ where: { companyId } }),
+        ]);
+
+        companyDataForStrategy = {
+          employeeCount,
+          fundingData: !!company?.researchCard?.fundingStage,
+          contactData: contactCount > 0,
+          technologyData: !!company?.researchCard?.techStack,
+          signalData: signalCount > 0,
+          vendorData: evidenceCount > 0,
+          evidenceCount,
+        };
+
+        // Detect early signals for path selection (steps 1-3 equivalent)
+        const highSeveritySignals = await db.companySignal.count({
+          where: { companyId, severity: { in: ['high', 'critical'] }, status: { not: 'archived' } },
+        });
+        const growthSignals = await db.companySignal.count({
+          where: { companyId, signalType: { in: ['funding', 'hiring', 'expansion'] }, status: { not: 'archived' } },
+        });
+        const distressSignals = await db.companySignal.count({
+          where: { companyId, meaningCategory: 'unknown', status: { not: 'archived' } },
+        });
+
+        strategy = getReasoningStrategy({
+          companyId,
+          employeeCount,
+          revenue,
+          companyType: company?.sizeRange || strategyInput?.companyType || null,
+          earlySignals: {
+            detectedGrowthSignals: growthSignals >= 2,
+            detectedDistressSignals: distressSignals >= 2 || highSeveritySignals >= 3,
+            detectedExpansionSignals: signalCount >= 5,
+            signalCount,
+          },
+        });
+
+        logger.info(
+          `[reasoning-engine] Adaptive strategy: segment=${strategy.segment}, path=${strategy.path}, ` +
+          `active=${strategy.activeSteps.length}, skipped=${strategy.skippedSteps.length}`
+        );
+      } catch (err) {
+        logger.warn(`[reasoning-engine] Strategy resolution failed (non-fatal): ${err instanceof Error ? err.message : err}`);
+      }
+
       // Get or create context
       const context = await getOrCreateContext(companyId);
 
@@ -473,7 +708,7 @@ export const EnterpriseReasoningEngine = {
       // Clear existing steps
       await db.reasoningStep.deleteMany({ where: { reasoningContextId: context.id } });
 
-      // Execute steps in dependency order
+      // Execute steps in dependency order (with adaptive strategy)
       const completedSteps: Map<number, { output: string; confidence: number }> = new Map();
       let totalAIcalls = 0;
       let totalTokensUsed = 0;
@@ -481,8 +716,50 @@ export const EnterpriseReasoningEngine = {
       let completedCount = 0;
       let skippedCount = 0;
       let failedCount = 0;
+      const allReasoningGaps: string[] = [];
 
       for (const step of REASONING_STEPS) {
+        // Phase 1: Check if strategy says to skip this step
+        if (strategy) {
+          const dynamicSkip = shouldSkipStep(step.stepNumber, strategy, {
+            hasCompanyData: true, // We already have company data if we got here
+            hasFundingData: companyDataForStrategy.fundingData || false,
+            hasContactData: companyDataForStrategy.contactData || false,
+            hasTechnologyData: companyDataForStrategy.technologyData || false,
+            hasSignalData: companyDataForStrategy.signalData || false,
+            hasVendorData: companyDataForStrategy.vendorData || false,
+            evidenceCount: companyDataForStrategy.evidenceCount || 0,
+          });
+
+          if (dynamicSkip.skip) {
+            logger.info(
+              `[reasoning-engine] step ${step.stepNumber} (${step.stepName}) skipped — ${dynamicSkip.reason || 'strategy'}`
+            );
+
+            // Persist the skipped step
+            await db.reasoningStep.create({
+              data: {
+                reasoningContextId: context.id,
+                stepNumber: step.stepNumber,
+                stepName: step.stepName,
+                stepGroup: step.stepGroup,
+                output: '{}',
+                summary: `Skipped: ${dynamicSkip.reason || 'segment strategy'}`,
+                evidenceIds: '[]',
+                knowledgeIds: '[]',
+                confidence: 0,
+                dependsOnSteps: JSON.stringify(step.dependsOn),
+                depth: 'skip',
+                skippedReason: dynamicSkip.reason || 'Segment strategy skip',
+                reasoningGaps: JSON.stringify(allReasoningGaps),
+              },
+            });
+
+            skippedCount++;
+            continue;
+          }
+        }
+
         // Check dependencies
         const depsMet = step.dependsOn.every(dep => completedSteps.has(dep));
         if (!depsMet) {
@@ -491,10 +768,42 @@ export const EnterpriseReasoningEngine = {
           continue;
         }
 
-        // Execute step
-        const result = await executeStep(companyId, step, context.id, completedSteps);
+        // Phase 1: Assess reasoning gaps from low-confidence prior steps
+        const prevConfidences = Array.from(completedSteps.entries()).map(([num, data]) => {
+          const stepDef = REASONING_STEPS.find(s => s.stepNumber === num);
+          return { step: num, confidence: data.confidence, name: stepDef?.stepName || `step_${num}` };
+        });
+        const stepGaps = assessReasoningGaps(step.stepNumber, prevConfidences);
+        if (stepGaps.length > 0) {
+          allReasoningGaps.push(...stepGaps);
+        }
 
-        // Persist step
+        // Determine depth and tier from strategy
+        const stepConfig = strategy?.stepConfigs.find(c => c.stepNumber === step.stepNumber);
+        const depth = stepConfig?.depth || 'standard';
+        const tier = (stepConfig?.tier as 'deep' | 'smart' | 'fast') || (step.requiresAI ? 'smart' : 'fast');
+        const maxTokens = stepConfig?.maxTokens || (step.requiresAI ? 2048 : 500);
+
+        // Execute step
+        const result = await executeStep(companyId, step, context.id, completedSteps, { tier, maxTokens });
+
+        // G5 FIX: Apply confidence dampening when reasoning gaps exist
+        // If this step depends on prior steps with low confidence, reduce this step's
+        // confidence proportionally to prevent low-confidence data from poisoning downstream.
+        let adjustedConfidence = result.confidence;
+        if (stepGaps.length > 0 && result.confidence > 0) {
+          const gapCount = stepGaps.length;
+          const totalDeps = step.dependsOn.length || 1;
+          const gapRatio = Math.min(gapCount / totalDeps, 1);
+          // Dampen by up to 30% based on how many dependencies have low confidence
+          const dampeningFactor = 1 - (gapRatio * 0.3);
+          adjustedConfidence = Math.round(result.confidence * dampeningFactor * 1000) / 1000;
+          if (adjustedConfidence !== result.confidence) {
+            logger.debug(`[reasoning-engine] Step ${step.stepNumber} confidence dampened: ${result.confidence} → ${adjustedConfidence} due to ${gapCount} reasoning gaps`);
+          }
+        }
+
+        // Persist step (with Phase 1 adaptive fields + G5 confidence dampening)
         await db.reasoningStep.create({
           data: {
             reasoningContextId: context.id,
@@ -505,17 +814,20 @@ export const EnterpriseReasoningEngine = {
             summary: result.summary,
             evidenceIds: JSON.stringify(result.evidenceIds),
             knowledgeIds: JSON.stringify(result.knowledgeIds),
-            confidence: result.confidence,
+            confidence: adjustedConfidence,
             aiCalls: result.aiCalls,
             tokensUsed: result.tokensUsed,
             costUsd: result.costUsd,
             durationMs: result.durationMs,
             dependsOnSteps: JSON.stringify(step.dependsOn),
+            depth,
+            pathId: strategy?.path || null,
+            reasoningGaps: JSON.stringify(stepGaps),
           },
         });
 
-        if (result.confidence > 0.15) {
-          completedSteps.set(step.stepNumber, { output: result.output, confidence: result.confidence });
+        if (adjustedConfidence > 0.15) {
+          completedSteps.set(step.stepNumber, { output: result.output, confidence: adjustedConfidence });
           completedCount++;
         } else {
           failedCount++;
@@ -530,7 +842,41 @@ export const EnterpriseReasoningEngine = {
 
       // Compute overall confidence (weighted average of completed steps)
       const confidences = Array.from(completedSteps.values()).map(s => s.confidence);
-      const overallConfidence = confidences.length > 0 ? confidences.reduce((a, b) => a + b, 0) / confidences.length : 0;
+      let overallConfidence = confidences.length > 0 ? confidences.reduce((a, b) => a + b, 0) / confidences.length : 0;
+
+      // ── G5 FIX: Reduce overall confidence based on accumulated reasoning gaps ──
+      // reasoningGaps represent steps where dependency confidence was too low,
+      // skipped steps, or failed steps — all of which degrade result reliability.
+      // Penalty: up to 15% reduction proportional to gap-to-step ratio.
+      if (allReasoningGaps.length > 0 && overallConfidence > 0) {
+        const gapRatio = Math.min(allReasoningGaps.length / REASONING_STEPS.length, 1);
+        const gapPenalty = gapRatio * 0.15; // max 15% penalty
+        overallConfidence = Math.max(0.05, overallConfidence * (1 - gapPenalty));
+        logger.info(`[enterprise-reasoning] Overall confidence reduced by ${(gapPenalty * 100).toFixed(1)}% due to ${allReasoningGaps.length} reasoning gaps: ${overallConfidence.toFixed(3)}`);
+      }
+
+      // ── Phase 2: Contrarian Pass for Enterprise Companies ──
+      let contrarianGaps: string[] = [];
+      if (ENABLE_CONTRARIAN && strategy?.segment === 'enterprise') {
+        try {
+          const contrarianSteps = await runContrarianPass(companyId, context.id, completedSteps, strategy.segment);
+          const gaps = comparePaths(completedSteps, contrarianSteps);
+          contrarianGaps = gaps;
+          
+          if (gaps.length > 0) {
+            logger.info(`[enterprise-reasoning] Contrarian analysis found ${gaps.length} contradictions for ${companyId}`);
+            // Adjust overall confidence downward based on contradiction severity
+            const avgConfidenceDelta = gaps.length * 0.03; // 3% penalty per contradiction
+            overallConfidence = Math.max(0.1, overallConfidence - avgConfidenceDelta);
+          }
+          
+          totalAIcalls += Array.from(contrarianSteps.values()).reduce((sum, s) => sum + s.aiCalls, 0);
+          totalTokensUsed += Array.from(contrarianSteps.values()).reduce((sum, s) => sum + s.tokensUsed, 0);
+          totalCostUsd += Array.from(contrarianSteps.values()).reduce((sum, s) => sum + s.costUsd, 0);
+        } catch (err) {
+          logger.warn(`[enterprise-reasoning] Contrarian pass failed (non-blocking): ${err instanceof Error ? err.message : err}`);
+        }
+      }
 
       // Extract win probability from step 25 if available
       const winStep = completedSteps.get(25);
@@ -593,6 +939,10 @@ export const EnterpriseReasoningEngine = {
         overallConfidence,
         winProbability,
         error: null,
+        segment: strategy?.segment,
+        path: strategy?.path,
+        adaptiveEnabled: strategy?.adaptiveEnabled,
+        reasoningGaps: [...allReasoningGaps, ...contrarianGaps].length > 0 ? [...allReasoningGaps, ...contrarianGaps] : undefined,
       };
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);

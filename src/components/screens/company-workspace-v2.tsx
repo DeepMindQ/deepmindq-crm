@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Building2, Users, Target, Clock, Radar, Brain, ArrowLeft, ExternalLink, TrendingUp, FileText, Zap } from 'lucide-react'
+import { Building2, Users, Target, Clock, Radar, Brain, ArrowLeft, ExternalLink, TrendingUp, FileText, Zap, Activity, AlertTriangle, TrendingDown } from 'lucide-react'
+import { TemporalIntelligenceTimeline } from '@/components/intelligence-os/molecules/temporal-intelligence-timeline'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/components/intelligence-os/design-tokens'
 import { useCompanyDetail, useCompanySignals, useCompanyScore } from '@/lib/realtime-hooks'
@@ -166,13 +167,122 @@ export function CompanyWorkspaceV2({ companyId, onBack, onNavigate, className }:
             </div>
           )}
           {activeTab === 'timeline' && (
-            <div className="py-8 text-center">
-              <Clock className="w-8 h-8 mx-auto mb-2" style={{ color: tokens.text.muted }} />
-              <p className="text-xs" style={{ color: tokens.text.secondary }}>Timeline events load from API</p>
-            </div>
+            <TemporalTimelineTab companyId={companyId} />
           )}
         </motion.div>
       </AnimatePresence>
+    </div>
+  )
+}
+
+/** G10 FIX: Temporal timeline tab with actual data from /api/companies/[id]/temporal */
+function TemporalTimelineTab({ companyId }: { companyId: string }) {
+  const [temporal, setTemporal] = useState<any>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    let mounted = true
+    fetch(`/api/companies/${companyId}/temporal`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (mounted) { setTemporal(data); setLoading(false) } })
+      .catch(() => { if (mounted) setLoading(false) })
+    return () => { mounted = false }
+  }, [companyId])
+
+  if (loading) {
+    return (
+      <div className="py-8 text-center">
+        <div className="h-6 w-48 rounded animate-pulse mx-auto mb-2" style={{ background: tokens.surface.secondary }} />
+        <div className="h-4 w-32 rounded animate-pulse mx-auto" style={{ background: tokens.surface.secondary }} />
+      </div>
+    )
+  }
+
+  if (!temporal) {
+    return (
+      <div className="py-8 text-center">
+        <Clock className="w-8 h-8 mx-auto mb-2" style={{ color: tokens.text.muted }} />
+        <p className="text-xs" style={{ color: tokens.text.secondary }}>Temporal data unavailable</p>
+      </div>
+    )
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Velocity metrics */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <MetricCard
+          label="Signals (7d)"
+          value={String(temporal.signalsLast7Days)}
+          icon={Zap}
+          color={tokens.domain.signal}
+          trend={temporal.velocityTrend === 'accelerating' ? 'up' : temporal.velocityTrend === 'decelerating' ? 'down' : 'flat'}
+        />
+        <MetricCard
+          label="Signals (30d)"
+          value={String(temporal.signalsLast30Days)}
+          icon={Activity}
+          color={tokens.domain.reasoning}
+        />
+        <MetricCard
+          label="Velocity"
+          value={temporal.velocityTrend}
+          icon={temporal.velocityTrend === 'accelerating' ? TrendingUp : temporal.velocityTrend === 'decelerating' ? TrendingDown : Activity}
+          color={temporal.velocityTrend === 'accelerating' ? tokens.confidence.high.value : temporal.velocityTrend === 'decelerating' ? tokens.confidence.low.value : tokens.text.secondary}
+        />
+        <MetricCard
+          label="Growth"
+          value={temporal.growthTrend}
+          icon={temporal.growthTrend === 'growing' ? TrendingUp : temporal.growthTrend === 'declining' ? AlertTriangle : Activity}
+          color={temporal.growthTrend === 'growing' ? tokens.confidence.high.value : temporal.growthTrend === 'declining' ? tokens.confidence.low.value : tokens.text.secondary}
+        />
+      </div>
+
+      {/* Latency info */}
+      {temporal.signalToDecisionLatencyHours !== null && (
+        <div className="rounded-xl border p-3" style={{ background: tokens.surface.card, borderColor: tokens.border.default }}>
+          <p className="text-[10px] mb-1" style={{ color: tokens.text.secondary }}>Signal-to-Decision Latency</p>
+          <p className="text-sm font-bold" style={{ color: tokens.text.primary }}>
+            {temporal.signalToDecisionLatencyHours.toFixed(1)}h avg · {temporal.medianSignalToDecisionLatencyHours?.toFixed(1) ?? '—'}h median
+          </p>
+        </div>
+      )}
+
+      {/* Last update */}
+      {temporal.daysSinceLastUpdate !== null && (
+        <div className="rounded-xl border p-3" style={{ background: tokens.surface.card, borderColor: tokens.border.default }}>
+          <p className="text-[10px] mb-1" style={{ color: tokens.text.secondary }}>Last Intelligence Update</p>
+          <p className="text-sm font-bold" style={{ color: temporal.daysSinceLastUpdate > 30 ? tokens.confidence.low.value : tokens.text.primary }}>
+            {temporal.daysSinceLastUpdate === 0 ? 'Today' : `${temporal.daysSinceLastUpdate}d ago`}
+          </p>
+        </div>
+      )}
+
+      {/* Growth rate */}
+      {temporal.growthRatePercent !== null && (
+        <div className="rounded-xl border p-3" style={{ background: tokens.surface.card, borderColor: tokens.border.default }}>
+          <p className="text-[10px] mb-1" style={{ color: tokens.text.secondary }}>Signal Growth Rate (30d vs 60d)</p>
+          <p className="text-sm font-bold" style={{ color: (temporal.growthRatePercent ?? 0) > 0 ? tokens.confidence.high.value : tokens.confidence.low.value }}>
+            {(temporal.growthRatePercent ?? 0) > 0 ? '+' : ''}{temporal.growthRatePercent?.toFixed(1)}%
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function MetricCard({ label, value, icon: Icon, color, trend }: {
+  label: string; value: string; icon: typeof Zap; color: string; trend?: 'up' | 'down' | 'flat'
+}) {
+  return (
+    <div className="rounded-xl border p-3" style={{ background: tokens.surface.card, borderColor: tokens.border.default }}>
+      <div className="flex items-center justify-between mb-1">
+        <Icon className="w-3.5 h-3.5" style={{ color }} />
+        {trend === 'up' && <TrendingUp className="w-3 h-3" style={{ color: tokens.confidence.high.value }} />}
+        {trend === 'down' && <TrendingDown className="w-3 h-3" style={{ color: tokens.confidence.low.value }} />}
+      </div>
+      <p className="text-sm font-bold" style={{ color: tokens.text.primary }}>{value}</p>
+      <p className="text-[10px]" style={{ color: tokens.text.secondary }}>{label}</p>
     </div>
   )
 }

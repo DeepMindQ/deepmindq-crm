@@ -116,3 +116,35 @@ Stage Summary:
 - G14 (Cold-start loader): Already fixed — cold-start-loader.ts complete with phased loading
 - G15 (Diversity penalty): Already fixed — In source-reliability-engine.ts computeCompositeReliability()
 - Additional fixes: PDFKit @types installed, pdfkit Buffer→Uint8Array, font chain API, getGraphStats name, reasoningGaps JsonValue cast, feedbackReason replacing signalType
+
+---
+Task ID: GitHub Sync & CI Green
+Agent: Main Orchestrator
+Task: 100% sync with GitHub, fix all test failures, achieve green CI
+
+Work Log:
+- Audited 276 staged files from previous sessions
+- Found and fixed 8 test failures across 5 test files:
+  1. phase3-4-cross-module-integration: hoisted vi.mock to module level
+  2. phase1-confidence-floor: Math.max→Math.min for most restrictive floor
+  3. clearbit-connector: case-sensitive assertion fix
+  4. phase4-export-api: PDF binary response handling
+  5. gap-fixes-integration: db mock + G11 marker
+- Fixed lint errors: added caughtErrorsIgnorePattern, removed unused vars
+- Updated eslint.config.mjs and .eslint-baseline.json
+- Added checkApiAuth guards to 5 unprotected API routes
+- Resolved .gitignore merge conflict with develop branch
+- Created PR #11 on GitHub
+- First CI run: 21/22 jobs pass (only non-blocking Playwright failed)
+- Second CI run (after merge with develop): 8/11 blocking pass
+- 3 blocking failures from develop (coverage thresholds + DB tests)
+
+Stage Summary:
+- Local tests: 80 files, 2142 passed, 0 failed, 7 skipped
+- TypeScript: 0 errors
+- ESLint: pass
+- ESLint strict: pass
+- Security scan: 283 protected, 42 public routes
+- PR: https://github.com/DeepMindQ/deepmindq-crm/pull/11
+- Branch: fix/test-failures-ci-green
+- Commits: 2 (test fixes + security guards)

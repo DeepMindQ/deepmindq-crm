@@ -142,6 +142,7 @@ export const SOURCE_RELIABILITY_SCORES: Record<TrustSource, number> = {
 const SOURCE_TYPE_TO_TRUST_SOURCE: Record<string, TrustSource> = {
   clearbit: 'verified_api',
   apollo: 'verified_api',
+  crunchbase: 'verified_api',
   csv: 'customer_data',
   excel: 'customer_data',
   document: 'internal_document',

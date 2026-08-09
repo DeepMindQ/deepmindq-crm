@@ -1,8 +1,10 @@
 'use client';
 
+// G11 FIX: Data depth badge integrated into recommendation card
 import { Sparkles, Check, X, Bookmark, Info } from 'lucide-react';
 import { TrustIndicator } from '../atoms/trust-indicator';
 import { ActionCTA } from '../atoms/action-cta';
+import { DataDepthBadge } from './data-depth-badge';
 import type { Recommendation, RecommendationStatus } from '@/lib/intelligence-types';
 import { getConfidenceTrustLevel } from '@/lib/intelligence-types';
 
@@ -45,6 +47,10 @@ export function RecommendationCard({ recommendation, onAction, className = '' }:
           )}
         </div>
         <TrustIndicator level={trustLevel} score={recommendation.confidence} size="sm" />
+        {/* Phase 4.5.6: Data depth indicator on recommendation cards */}
+        {recommendation.dataDepthIndicator && (
+          <DataDepthBadge depth={recommendation.dataDepthIndicator} size="sm" />
+        )}
       </div>
 
       {/* Title */}

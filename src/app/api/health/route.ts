@@ -32,6 +32,36 @@ export async function GET() {
     }
   }
 
+  // Phase 4.6.6: Collect connection pool health metrics
+  let poolMetrics: {
+    totalConnections: number;
+    activeConnections: number;
+    idleConnections: number;
+    waitingRequests: number;
+    poolUtilizationPercent: number;
+  } | null = null;
+
+  if (dbHealthy && process.env.USE_DB_PERSISTENCE === 'true') {
+    try {
+      const { getPersistenceAdapter } = await import('@/lib/persistence/intelligence-persistence-adapter');
+      poolMetrics = getPersistenceAdapter().getPoolMetrics();
+    } catch {
+      // Pool metrics are optional enrichment — don't fail health check
+    }
+  }
+
+  // Phase 1.6 — KG readiness check
+  let kgReady = false;
+  if (dbHealthy && process.env.USE_DB_PERSISTENCE === 'true') {
+    try {
+      const { getGraphStats } = await import('@/lib/ai-knowledge-graph');
+      const stats = getGraphStats();
+      kgReady = (stats.totalNodes > 0 || stats.totalEdges > 0);
+    } catch {
+      // KG not available
+    }
+  }
+
   return NextResponse.json(
     {
       status: 'ok',
@@ -50,6 +80,12 @@ export async function GET() {
         tavily: Boolean(process.env.TAVILY_API_KEY),
       },
       db: dbHealthy,
+      // Phase 4.6.6: Connection pool utilization metrics
+      ...(poolMetrics ? { pool: poolMetrics } : {}),
+      // Phase 1.6 — KG readiness
+      kgReady,
+      // G6 FIX: Persistence mode
+      persistenceMode: process.env.PERSISTENCE_MODE || 'memory',
     },
     {
       status: 200,

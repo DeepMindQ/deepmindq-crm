@@ -189,6 +189,10 @@ const startedAt = Date.now();
           tokensUsed: true,
           costUsd: true,
           durationMs: true,
+          depth: true,
+          pathId: true,
+          skippedReason: true,
+          reasoningGaps: true,
         },
       });
 
@@ -209,6 +213,10 @@ const startedAt = Date.now();
           aiCalls: step.aiCalls,
           tokensUsed: step.tokensUsed,
           costUsd: step.costUsd,
+          depth: step.depth,
+          pathId: step.pathId,
+          skippedReason: step.skippedReason,
+          reasoningGaps: step.reasoningGaps as unknown[] | undefined,
         }));
     } catch (err) {
       logger.warn('[intelligence/reasoning] Failed to fetch reasoning steps', {

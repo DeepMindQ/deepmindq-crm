@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 import { tokens, getConfidenceTier, getPriorityTier } from '@/components/intelligence-os/design-tokens';
 import { ConfidenceIndicator } from '@/components/trust/confidence-indicator';
 import { FreshnessIndicator } from '@/components/intelligence-os/atoms/freshness-indicator';
+import { DataDepthBadge } from '@/components/intelligence-os/molecules/data-depth-badge';
 import type { SignalPillVariant } from '@/types/ms9-advisor';
 
 /* ═══════════════════════════════════════════════════════════════
@@ -41,6 +42,9 @@ interface RecommendationItem {
   snoozedUntil?: string;
   acceptedAt?: string;
   createdAt: string;
+  dataDepthIndicator?: 'comprehensive' | 'moderate' | 'limited' | 'minimal';
+  decisionAuditHash?: string;
+  naturalLanguageSummary?: string;
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -234,6 +238,7 @@ function RecommendationQueueCard({
           )}
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
+          {item.dataDepthIndicator && <DataDepthBadge depth={item.dataDepthIndicator} size="sm" />}
           <span className="text-[12px] font-bold tabular-nums" style={{ color: tokens.confidence[confidenceTier].value }}>
             {item.confidence}%
           </span>
@@ -283,6 +288,17 @@ function RecommendationQueueCard({
               </div>
               <p className="text-[11px] leading-relaxed" style={{ color: tokens.text.secondary }}>{item.suggestedAction}</p>
             </div>
+            {item.naturalLanguageSummary && (
+              <div className="mt-3 p-3 rounded-lg mb-3" style={{ backgroundColor: `${tokens.domain.reasoning}05`, border: `1px solid ${tokens.domain.reasoning}15` }}>
+                <span className="text-[10px] font-semibold uppercase tracking-wider" style={{ color: tokens.domain.reasoning }}>Summary in Plain English</span>
+                <p className="text-[11px] leading-relaxed mt-1" style={{ color: tokens.text.secondary }}>{item.naturalLanguageSummary}</p>
+              </div>
+            )}
+            {item.decisionAuditHash && (
+              <div className="text-[10px] mt-1 mb-3" style={{ color: tokens.text.muted }}>
+                <span className="font-medium">Audit Hash:</span> {item.decisionAuditHash.slice(0, 16)}...
+              </div>
+            )}
           </motion.div>
         )}
       </AnimatePresence>

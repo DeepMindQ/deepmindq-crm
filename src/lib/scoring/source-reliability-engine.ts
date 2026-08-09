@@ -45,6 +45,8 @@ export interface CompositeReliabilityParams {
   domainReliability?: number;
   /** Number of feedback samples for the domain; affects weighting */
   domainFeedbackCount?: number;
+  /** Optional list of evidence source domains/types for diversity scoring (Phase 2) */
+  evidenceSources?: string[];
 }
 
 /** Result of computing a composite reliability score */
@@ -67,6 +69,10 @@ export interface CompositeReliabilityResult {
   deviation: number | null;
   /** Validation status of the deviation (null if no feedback) */
   deviationStatus: ValidationStatus | null;
+  /** Source diversity analysis (if evidence sources were provided) */
+  diversity?: SourceDiversityScore;
+  /** Diversity penalty applied to composite score (0 if no penalty) */
+  diversityPenalty?: number;
 }
 
 /** Parameters for running a source score validation pass */
@@ -144,6 +150,28 @@ export interface TrustScoreResult {
     freshness: number;
     evidence: number;
   };
+}
+
+/** Result of computing source diversity for a set of evidence sources */
+export interface SourceDiversityScore {
+  /** Diversity score 0-1 where 1 = highly diverse sources */
+  diversityScore: number;
+  /** Number of distinct source types/domains */
+  uniqueSourceCount: number;
+  /** Total evidence count */
+  totalEvidenceCount: number;
+  /** Concentration ratio (0-1) where 1 = single source, 0 = perfectly distributed */
+  concentrationRatio: number;
+  /** List of source types and their contribution percentages */
+  sourceBreakdown: Array<{
+    source: string;
+    count: number;
+    percentage: number;
+  }>;
+  /** Diversity tier */
+  tier: 'diverse' | 'moderate' | 'concentrated' | 'single_source';
+  /** Recommendation for improving diversity */
+  recommendation: string;
 }
 
 /** Information about a known source type */
@@ -255,6 +283,7 @@ export class SourceReliabilityEngine {
       staticScore: overrideStaticScore,
       domainReliability: overrideDomainReliability,
       domainFeedbackCount: overrideFeedbackCount,
+      evidenceSources,
     } = params;
 
     // Resolve static score (0-100)
@@ -319,6 +348,32 @@ export class SourceReliabilityEngine {
     // Clamp to 0-100
     compositeScore = Math.max(0, Math.min(100, compositeScore));
 
+    // Compute diversity penalty (Phase 2 — Item 2.6)
+    let diversityPenalty = 0;
+    let diversity: SourceDiversityScore | undefined;
+
+    if (evidenceSources && evidenceSources.length > 0) {
+      diversity = this.computeSourceDiversity(evidenceSources);
+
+      switch (diversity.tier) {
+        case 'diverse':
+          diversityPenalty = 0;
+          break;
+        case 'moderate':
+          diversityPenalty = -2;
+          break;
+        case 'concentrated':
+          diversityPenalty = -5;
+          break;
+        case 'single_source':
+          diversityPenalty = -10;
+          break;
+      }
+
+      // Apply diversity penalty to composite score
+      compositeScore = Math.max(0, Math.min(100, compositeScore + diversityPenalty));
+    }
+
     return {
       compositeScore,
       staticScore,
@@ -329,6 +384,8 @@ export class SourceReliabilityEngine {
       hasFeedbackData,
       deviation,
       deviationStatus,
+      diversity,
+      diversityPenalty: diversityPenalty !== 0 ? diversityPenalty : undefined,
     };
   }
 
@@ -477,6 +534,105 @@ export class SourceReliabilityEngine {
         freshness: freshnessScore,
         evidence: evidenceScore,
       },
+    };
+  }
+
+  // ── Source Diversity (Phase 2 — Item 2.6) ─────────────────────────
+
+  /**
+   * Compute source diversity score from a list of evidence source domains/types.
+   *
+   * Uses normalized Shannon entropy to measure how evenly distributed
+   * evidence is across different sources.
+   *
+   * Diversity tiers:
+   * - 'diverse' (≥0.7): Evidence from many different sources — high trust
+   * - 'moderate' (0.4-0.7): Some source concentration — acceptable
+   * - 'concentrated' (0.15-0.4): Heavy reliance on few sources — caution
+   * - 'single_source' (<0.15): Almost all evidence from one source — penalize
+   *
+   * @param sources - Array of source identifiers (domains, source types, etc.)
+   * @returns Source diversity analysis
+   */
+  static computeSourceDiversity(sources: string[]): SourceDiversityScore {
+    const totalEvidenceCount = sources.length;
+
+    // Edge case: no sources at all
+    if (totalEvidenceCount === 0) {
+      return {
+        diversityScore: 0,
+        uniqueSourceCount: 0,
+        totalEvidenceCount: 0,
+        concentrationRatio: 1,
+        sourceBreakdown: [],
+        tier: 'single_source',
+        recommendation: 'No evidence sources provided. Gather evidence from multiple sources to improve reliability.',
+      };
+    }
+
+    // Count occurrences per source
+    const sourceCounts = new Map<string, number>();
+    for (const source of sources) {
+      sourceCounts.set(source, (sourceCounts.get(source) ?? 0) + 1);
+    }
+
+    const uniqueSourceCount = sourceCounts.size;
+
+    // Build breakdown with percentages
+    const sourceBreakdown: SourceDiversityScore['sourceBreakdown'] = [];
+    for (const [source, count] of sourceCounts.entries()) {
+      sourceBreakdown.push({
+        source,
+        count,
+        percentage: count / totalEvidenceCount,
+      });
+    }
+    // Sort by count descending
+    sourceBreakdown.sort((a, b) => b.count - a.count);
+
+    // Compute Shannon entropy: H = -sum(p_i * ln(p_i))
+    let entropy = 0;
+    for (const [, count] of sourceCounts.entries()) {
+      const p = count / totalEvidenceCount;
+      entropy -= p * Math.log(p);
+    }
+
+    // Normalize: H_norm = H / ln(n) where n = number of unique sources
+    // This gives 0-1 where 1 = perfectly uniform distribution
+    // Edge case: if only 1 unique source, entropy is 0 and ln(1) = 0, so score is 0
+    const maxEntropy = Math.log(uniqueSourceCount);
+    const diversityScore = maxEntropy === 0 ? 0 : entropy / maxEntropy;
+
+    // Concentration ratio: 1 - diversityScore
+    const concentrationRatio = 1 - diversityScore;
+
+    // Determine tier and recommendation
+    let tier: SourceDiversityScore['tier'];
+    let recommendation: string;
+
+    if (diversityScore >= 0.7) {
+      tier = 'diverse';
+      recommendation = 'Evidence is well-distributed across multiple sources. No diversity penalty applied.';
+    } else if (diversityScore >= 0.4) {
+      tier = 'moderate';
+      recommendation = 'Some source concentration detected. Consider gathering evidence from additional source types to strengthen reliability.';
+    } else if (diversityScore >= 0.15) {
+      tier = 'concentrated';
+      recommendation = 'Heavy reliance on few sources. Seek corroborating evidence from different source types to reduce concentration risk.';
+    } else {
+      tier = 'single_source';
+      const dominantSource = sourceBreakdown[0]?.source ?? 'unknown';
+      recommendation = `Almost all evidence comes from a single source (${dominantSource}). Cross-validate with independent sources before relying on this data.`;
+    }
+
+    return {
+      diversityScore,
+      uniqueSourceCount,
+      totalEvidenceCount,
+      concentrationRatio,
+      sourceBreakdown,
+      tier,
+      recommendation,
     };
   }
 

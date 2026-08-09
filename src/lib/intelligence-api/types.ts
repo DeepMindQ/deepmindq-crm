@@ -356,6 +356,14 @@ export interface ReasoningStep {
   aiCalls: number;
   tokensUsed: number;
   costUsd: number;
+  /** Adaptive reasoning depth (Phase 1.4) */
+  depth?: string | null;
+  /** Reasoning path identifier for multi-path reasoning */
+  pathId?: string | null;
+  /** Reason the step was skipped (if status === 'skipped') */
+  skippedReason?: string | null;
+  /** Identified reasoning gaps for this step */
+  reasoningGaps?: unknown[];
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

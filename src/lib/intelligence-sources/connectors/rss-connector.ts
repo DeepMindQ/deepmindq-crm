@@ -21,6 +21,7 @@
  */
 
 import { BaseConnector } from '../base-connector';
+import { logger } from '@/lib/logger';
 import type {
   ConnectorAcquisitionResult,
   ConnectorConfig,
@@ -28,6 +29,7 @@ import type {
   ConnectorResult,
   RawIntelligenceObject,
 } from '../types';
+import { withRetry, buildConnectorErrorDetail, DEFAULT_RETRY_CONFIG } from '../retry-utilities';
 
 // ─── Constants ─────────────────────────────────────────────────
 
@@ -255,20 +257,30 @@ export class RssConnector extends BaseConnector {
     const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
     try {
-      const res = await fetch(url, {
-        signal: controller.signal,
-        redirect: 'follow',
-        headers: {
-          'User-Agent':
-            'DeepMindQ-Bot/1.0 (Intelligence Acquisition; +https://deepmindq.example.com/bot)',
-          Accept:
-            'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
-        },
-      });
+      const res = await withRetry(
+        async () => {
+          const r = await fetch(url, {
+            signal: controller.signal,
+            redirect: 'follow',
+            headers: {
+              'User-Agent':
+                'DeepMindQ-Bot/1.0 (Intelligence Acquisition; +https://deepmindq.example.com/bot)',
+              Accept:
+                'application/rss+xml, application/atom+xml, application/xml, text/xml, */*',
+            },
+          });
 
-      if (res.status >= 400) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+          if (r.status >= 400) {
+            const err = new Error(`HTTP ${r.status}`);
+            (err as any).status = r.status;
+            throw err;
+          }
+
+          return r;
+        },
+        `RSS feed fetch (${url})`,
+        DEFAULT_RETRY_CONFIG,
+      );
 
       return await res.text();
     } finally {
@@ -280,21 +292,37 @@ export class RssConnector extends BaseConnector {
 
   private async discoverFeedUrl(pageUrl: string): Promise<string | null> {
     try {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+      const res = await withRetry(
+        async () => {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+          try {
+            const r = await fetch(pageUrl, {
+              signal: controller.signal,
+              redirect: 'follow',
+              headers: {
+                'User-Agent':
+                  'DeepMindQ-Bot/1.0 (Intelligence Acquisition; +https://deepmindq.example.com/bot)',
+                Accept: 'text/html',
+              },
+            });
 
-      const res = await fetch(pageUrl, {
-        signal: controller.signal,
-        redirect: 'follow',
-        headers: {
-          'User-Agent':
-            'DeepMindQ-Bot/1.0 (Intelligence Acquisition; +https://deepmindq.example.com/bot)',
-          Accept: 'text/html',
+            if (!r.ok) {
+              const err = new Error(`HTTP ${r.status}`);
+              (err as any).status = r.status;
+              throw err;
+            }
+
+            return r;
+          } finally {
+            clearTimeout(timer);
+          }
         },
-      });
-      clearTimeout(timer);
+        `RSS feed discovery (${pageUrl})`,
+        DEFAULT_RETRY_CONFIG,
+      ).catch(() => null);
 
-      if (!res.ok) return null;
+      if (!res) return null;
 
       const html = await res.text();
 

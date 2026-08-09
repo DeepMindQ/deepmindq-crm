@@ -20,6 +20,7 @@ export { CsvConnector } from './connectors/csv-connector';
 export { ExcelConnector } from './connectors/excel-connector';
 export { WebsiteConnector } from './connectors/website-connector';
 export { RssConnector } from './connectors/rss-connector';
+export { CrunchbaseConnector, crunchbaseConnector } from './connectors/crunchbase-connector';
 export { resolveCompany, confirmResolution, createUnverifiedCompany } from './company-resolution';
 export { adaptToEvidence } from './evidence-adapter';
 export * from './job-queue';

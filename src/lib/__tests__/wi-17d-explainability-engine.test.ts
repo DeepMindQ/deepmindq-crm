@@ -360,6 +360,8 @@ describe('WI-17D: Full Intelligence Trail', () => {
     expect(report!.recommendation.opportunityScore).toBeLessThanOrEqual(100);
     expect(report!.recommendation.confidenceGrade).toBeDefined();
     expect(report!.recommendation.enterpriseReady).toBeDefined();
+    expect(report!.recommendation.dataDepthIndicator).toBeDefined();
+    expect(['comprehensive', 'moderate', 'limited', 'minimal']).toContain(report!.recommendation.dataDepthIndicator);
   });
 });
 

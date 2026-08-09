@@ -109,6 +109,18 @@ export interface IIntelligencePersistenceAdapter {
 
   /** Check if shadow mode is active (PERSISTENCE_SHADOW_MODE flag). */
   isShadowMode(): boolean;
+
+  /** Phase 4.6.6: Get PostgreSQL connection pool metrics. */
+  getPoolMetrics(): {
+    totalConnections: number;
+    activeConnections: number;
+    idleConnections: number;
+    waitingRequests: number;
+    poolUtilizationPercent: number;
+  } | null;
+
+  /** Phase 4.6.7: Flush any pending batch operations. */
+  flushBatchQueue(): Promise<void>;
 }
 
 // ── Loading Options ──────────────────────────────────────────────────
@@ -235,4 +247,9 @@ export const PERSISTENCE_FEATURE_FLAGS = {
   PERSISTENCE_MAX_LOAD_TIME_MS: parseInt(process.env.PERSISTENCE_MAX_LOAD_TIME_MS || '60000', 10),
   /** Degraded mode threshold (0.0–1.0). */
   PERSISTENCE_DEGRADED_THRESHOLD: parseFloat(process.env.PERSISTENCE_DEGRADED_THRESHOLD || '0.8'),
+  /** Phase 1: Persistence mode — 'memory' (default) | 'pg' | 'hybrid'.
+   *  memory: In-memory Maps only (existing behavior).
+   *  pg: Read directly from PostgreSQL.
+   *  hybrid: Read from memory first, fall back to PG on miss. */
+  PERSISTENCE_MODE: (process.env.PERSISTENCE_MODE || 'memory') as 'memory' | 'pg' | 'hybrid',
 } as const;

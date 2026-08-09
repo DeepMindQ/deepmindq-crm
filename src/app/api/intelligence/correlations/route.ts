@@ -9,6 +9,7 @@
 import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { detectCorrelations } from '@/lib/intelligence-sources/cross-signal-correlation';
+import { resolveAllContradictions } from '@/lib/scoring-contradiction-resolver';
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
 import { companyIdSchema } from '@/lib/intelligence-api/validators';
@@ -46,7 +47,20 @@ let ctx: Awaited<ReturnType<typeof utilityGuard>>;
     });
 
     const correlations = detectCorrelations(signals);
-    return utilitySuccess(ctx, { companyId, correlations, signalCount: signals.length }, 'correlations', Date.now() - startedAt);
+
+    // Phase 3 Item 4.5: Run contradiction resolver when correlations detected
+    // Correlations indicate multiple interacting signals — check for contradictions
+    let contradictionResolution: Awaited<ReturnType<typeof resolveAllContradictions>> | null = null;
+    if (correlations.length > 0 && signals.length >= 2) {
+      try {
+        contradictionResolution = await resolveAllContradictions(companyId);
+        logger.info(`[correlations] Resolved contradictions for ${companyId}: ${contradictionResolution.resolutionRate * 100}% resolution rate`);
+      } catch (err) {
+        console.warn(`[correlations] Contradiction resolution failed for ${companyId}: ${err instanceof Error ? err.message : err}`);
+      }
+    }
+
+    return utilitySuccess(ctx, { companyId, correlations, signalCount: signals.length, contradictionResolution }, 'correlations', Date.now() - startedAt);
   } catch (err) {
     return utilityCatchError(ctx, err, 502, 'INTELLIGENCE_UNAVAILABLE', 'Correlation analysis failed', Date.now() - startedAt);
   }

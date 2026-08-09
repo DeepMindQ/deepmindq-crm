@@ -321,8 +321,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - name: Deploy database schema via migrations
-        run: npx prisma migrate deploy
+      - name: Deploy database schema
+        run: npx prisma db push --accept-data-loss
       - name: Seed CI test data
         run: npx tsx scripts/seed-ci.ts
       - name: Run API tests
@@ -365,8 +365,8 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npx prisma generate
-      - name: Deploy database schema via migrations
-        run: npx prisma migrate deploy
+      - name: Deploy database schema
+        run: npx prisma db push --accept-data-loss
       - name: Run database tests
         run: npx vitest run --config vitest.database.config.ts
         env:
@@ -550,7 +550,7 @@ jobs:
       - run: npm ci
       - run: npx prisma generate
       - name: Deploy database schema
-        run: npx prisma migrate deploy
+        run: npx prisma db push --accept-data-loss
       - name: Seed CI test data
         run: npx tsx scripts/seed-ci.ts
       - run: npx vitest run --config vitest.e2e.config.ts

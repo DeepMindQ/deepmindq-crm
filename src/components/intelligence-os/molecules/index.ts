@@ -27,3 +27,8 @@ export { NarrativeBlock, type NarrativeBlockProps } from './narrative-block';
 export { DataSummaryBlock, type DataSummaryBlockProps } from './data-summary-block';
 export { HumanAssistanceBanner, type HumanAssistanceBannerProps } from './human-assistance-banner';
 export { HumanAssistanceDialog, type HumanAssistanceDialogProps } from './human-assistance-dialog';
+
+// ── Phase 4 Molecules ──
+export { DataDepthBadge } from './data-depth-badge';
+export { MaturityIndexCard } from './maturity-index-card';
+export { TemporalIntelligenceTimeline } from './temporal-intelligence-timeline';

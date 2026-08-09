@@ -27,6 +27,8 @@ export interface IntelligenceSignal {
   tags: string[];
 }
 
+export type DataDepthIndicator = 'comprehensive' | 'moderate' | 'limited' | 'minimal';
+
 export interface Recommendation {
   id: string;
   title: string;
@@ -39,6 +41,12 @@ export interface Recommendation {
   accountId?: string;
   accountName?: string;
   createdAt: string;
+  /** Phase 4.5.6: Data depth indicator — how much intelligence backs this recommendation */
+  dataDepthIndicator?: DataDepthIndicator;
+  /** Phase 3.3.4: Decision audit hash for reproducibility */
+  decisionAuditHash?: string;
+  /** Phase 5.1: Multiple target roles (company-size-aware) */
+  targetRoles?: string[];
 }
 
 export interface ActivityEvent {

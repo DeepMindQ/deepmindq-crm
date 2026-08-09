@@ -42,6 +42,8 @@ import { AccountTierBadge, getTierFromScore } from '@/components/tier/account-ti
 import { CalibrationReason } from '@/components/calibration/calibration-reason';
 import { InlineFeedback } from '@/components/feedback/inline-feedback';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { MaturityIndexCard } from '@/components/intelligence-os/molecules/maturity-index-card';
+import { TemporalIntelligenceTimeline } from '@/components/intelligence-os/molecules/temporal-intelligence-timeline';
 import {
   Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
@@ -148,12 +150,12 @@ function PulseDot({ color = INTEL, size = 8 }: { color?: string; size?: number }
    =================================================== */
 function IntelligenceHero({
   company, aiScore, aiActions, signalCount, contactCount, oppCount,
-  loadingScore, onRefreshScore, onRefreshActions, onNavigateActions,
+  loadingScore, onRefreshScore, onRefreshActions, onNavigateActions, onExport,
 }: {
   company: any; aiScore: any; aiActions: any;
   signalCount: number; contactCount: number; oppCount: number;
   loadingScore: boolean; onRefreshScore: () => void; onRefreshActions: () => void;
-  onNavigateActions: () => void;
+  onNavigateActions: () => void; onExport?: (format: 'json' | 'pdf') => void;
 }) {
   const score = aiScore?.score ?? company?.intelligenceScore ?? 0;
   const grade = aiScore?.grade ?? '-';
@@ -182,6 +184,16 @@ function IntelligenceHero({
                   showScore={false}
                   size="sm"
                 />
+                {/* G2 FIX: Intelligence Export button */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="ml-auto h-7 text-[11px] gap-1 shrink-0"
+                  onClick={() => onExport?.('json')}
+                >
+                  <FileText className="w-3 h-3" />
+                  Export
+                </Button>
               </div>
               {company?.domain && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
@@ -581,6 +593,34 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
   });
   const companyNarrative: IntelligenceNarrativeData | null = companyNarratives[0] || null;
 
+  /* ── G2 FIX: Intelligence Export Handler ── */
+  const handleIntelligenceExport = useCallback(async (format: 'json' | 'pdf') => {
+    try {
+      const res = await fetch(`/api/intelligence/export?companyId=${companyId}&format=${format}`);
+      if (!res.ok) throw new Error('Export failed');
+      if (format === 'json') {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `deepmindq-${company?.rawName || 'export'}-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `deepmindq-${company?.rawName || 'export'}-${Date.now()}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+      toast.success(`Exported as ${format.toUpperCase()}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Export failed');
+    }
+  }, [companyId, company?.rawName]);
+
   /* ── Fetch Company ── */
   const fetchCompany = useCallback(async () => {
     try {
@@ -872,6 +912,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
             onRefreshScore={fetchAIScore}
             onRefreshActions={fetchAIActions}
             onNavigateActions={() => setActiveView('intelligence')}
+            onExport={handleIntelligenceExport}
           />
 
           {/* ── View Switcher ── */}
@@ -1076,6 +1117,32 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                     calibratedAt={new Date()}
                     className="mt-4"
                   />
+                </ErrorBoundary>
+
+                {/* Intelligence Maturity Index */}
+                <ErrorBoundary>
+                <SectionPanel title="Intelligence Maturity" icon={Gauge} accent="#059669">
+                  <MaturityIndexCard maturity={{
+                    score: 0,
+                    level: 'emerging',
+                    dimensions: { coverage: { score: 0, weight: 0.3, details: 'No data loaded' }, freshness: { score: 0, weight: 0.25, details: 'N/A' }, quality: { score: 0, weight: 0.25, details: 'N/A' }, diversity: { score: 0, weight: 0.2, details: 'N/A' } },
+                    improvementSuggestions: ['Enable connectors to build intelligence'],
+                    computedAt: new Date().toISOString(),
+                  }} />
+                </SectionPanel>
+                </ErrorBoundary>
+
+                {/* Temporal Intelligence Timeline */}
+                <ErrorBoundary>
+                <SectionPanel title="Intelligence Timeline" icon={Activity} accent="#3b82f6">
+                  <TemporalIntelligenceTimeline temporal={{
+                    companyId: company?.id ?? '',
+                    signalsLast7Days: 0, signalsLast30Days: 0, signalsPerWeek: 0,
+                    velocityTrend: 'stable', signalToDecisionLatencyHours: null, medianSignalToDecisionLatencyHours: null,
+                    lastIntelligenceUpdate: null, daysSinceLastUpdate: null, growthTrend: 'stable', growthRatePercent: null,
+                    computedAt: new Date().toISOString(),
+                  }} />
+                </SectionPanel>
                 </ErrorBoundary>
 
                 {/* Evidence Sources */}

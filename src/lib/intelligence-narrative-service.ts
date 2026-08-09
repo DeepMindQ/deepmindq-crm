@@ -388,6 +388,7 @@ async function buildNarrativeFromSignal(
       confidence: signal.confidence,
       entityId: signal.id,
       entityType: 'company',
+      stale: false,
     }];
   }
 

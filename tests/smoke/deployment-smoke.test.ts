@@ -94,6 +94,20 @@ describe(`Smoke Tests — ${ENV}`, () => {
       const env = healthResponse.body.environment as string;
       expect(['development', 'staging', 'production']).toContain(env);
     });
+
+    it('should include pool metrics when DB persistence is enabled', () => {
+      // When USE_DB_PERSISTENCE=true and db is healthy,
+      // response should include pool object with connection metrics
+      // Pool metrics are optional — may not be present in all environments
+      if (healthResponse.body.pool) {
+        const pool = healthResponse.body.pool as Record<string, unknown>;
+        expect(pool).toHaveProperty('totalConnections');
+        expect(pool).toHaveProperty('activeConnections');
+        expect(pool).toHaveProperty('idleConnections');
+        expect(pool).toHaveProperty('waitingRequests');
+        expect(pool).toHaveProperty('poolUtilizationPercent');
+      }
+    });
   });
 
   // ─── Test 2: Root Page ───

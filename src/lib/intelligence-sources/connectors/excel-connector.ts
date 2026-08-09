@@ -25,6 +25,7 @@ import type {
   ConnectorResult,
   RawIntelligenceObject,
 } from '../types';
+import { buildConnectorErrorDetail } from '../retry-utilities';
 
 // ─── Constants ─────────────────────────────────────────────────
 
@@ -476,7 +477,7 @@ export class ExcelConnector extends BaseConnector {
       });
     } catch (err) {
       return this.createAcquisitionErrorResult(
-        `Excel processing failed: ${err instanceof Error ? err.message : String(err)}`
+        buildConnectorErrorDetail(err, 'Excel connector acquire')
       );
     }
   }

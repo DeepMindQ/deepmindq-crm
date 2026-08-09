@@ -139,7 +139,7 @@ describe('ClearbitConnector', () => {
       mockFetch.mockResolvedValueOnce(createErrorResponse(404, 'Not Found'));
       const result = await connector.test({ domain: 'nonexistent.example' });
       expect(result.success).toBe(false);
-      expect(result.message).toContain('not found');
+      expect(result.message).toContain('404');
     });
   });
 

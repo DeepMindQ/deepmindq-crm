@@ -47,74 +47,6 @@ interface RecommendationItem {
   naturalLanguageSummary?: string;
 }
 
-/* ═══════════════════════════════════════════════════════════════
-   Fallback mock data
-   ═══════════════════════════════════════════════════════════════ */
-const fallbackRecommendations: RecommendationItem[] = [
-  {
-    id: 'rec-1', title: 'Prioritize Meridian Systems outreach',
-    description: 'The CTO transition creates a 90-day window for technology vendor engagement. Their current contract expires in Q4.',
-    companyName: 'Meridian Systems', companyId: 'acc-meridian', confidence: 88,
-    impact: 'high', priority: 'critical', source: 'ai',
-    reasoning: 'Leadership transitions create a unique 90-day window where new executives evaluate existing vendor relationships. Meridian\'s new CTO\'s cloud-native background aligns perfectly with your platform capabilities.',
-    suggestedAction: 'Schedule executive intro call within 5 business days',
-    status: 'pending', createdAt: new Date(Date.now() - 15 * 60000).toISOString(),
-  },
-  {
-    id: 'rec-2', title: 'Prepare competitive brief for Apex Analytics',
-    description: 'Update battle cards and positioning documents to address their new enterprise tier pricing.',
-    companyName: 'Apex Analytics', companyId: 'acc-apex', confidence: 76,
-    impact: 'medium', priority: 'high', source: 'signal',
-    reasoning: 'Apex Analytics entering your competitive space with lower pricing requires updated positioning. Focus on intelligence depth where DeepMindQ has clear advantage.',
-    suggestedAction: 'Review and update competitive battle cards',
-    status: 'pending', createdAt: new Date(Date.now() - 45 * 60000).toISOString(),
-  },
-  {
-    id: 'rec-3', title: 'Accelerate NovaTech qualification',
-    description: 'Three RFP signals indicate active buying process. Schedule discovery call this week.',
-    companyName: 'NovaTech Solutions', companyId: 'acc-novatech', confidence: 72,
-    impact: 'high', priority: 'high', source: 'ai',
-    reasoning: 'The combination of website research patterns and RFP activity strongly suggests NovaTech is in the evaluation phase. Speed of engagement correlates with 3x higher conversion.',
-    suggestedAction: 'Schedule discovery call within 48 hours',
-    status: 'pending', createdAt: new Date(Date.now() - 60 * 60000).toISOString(),
-  },
-  {
-    id: 'rec-4', title: 'Re-engage Pinnacle Corp after leadership change',
-    description: 'New VP of Sales hired from a competitor. Previous deal stalled due to champion departure.',
-    companyName: 'Pinnacle Corp', companyId: 'acc-pinnacle', confidence: 65,
-    impact: 'medium', priority: 'medium', source: 'signal',
-    reasoning: 'New VP of Sales with competitor experience presents fresh engagement opportunity. Historical deal data shows willingness to invest in intelligence tools.',
-    suggestedAction: 'Send personalized re-engagement email referencing their growth mandate',
-    status: 'pending', createdAt: new Date(Date.now() - 120 * 60000).toISOString(),
-  },
-  {
-    id: 'rec-5', title: 'Monitor Vertex AI expansion signals',
-    description: 'Series C funding suggests team expansion. Watch for technology platform RFPs.',
-    companyName: 'Vertex AI', companyId: 'acc-vertex', confidence: 92,
-    impact: 'high', priority: 'medium', source: 'ai',
-    reasoning: 'Series C at $45M correlates with 3-6 month expansion timeline. Historical pattern analysis indicates 82% probability of platform purchase.',
-    suggestedAction: 'Set up monitoring alerts and prepare outreach for when buying signals intensify',
-    status: 'accepted', acceptedAt: new Date(Date.now() - 30 * 60000).toISOString(), createdAt: new Date(Date.now() - 90 * 60000).toISOString(),
-  },
-  {
-    id: 'rec-6', title: 'Dismiss: Low-priority lead from StartupCo',
-    description: 'Company size below ICP threshold. Limited budget signals.',
-    companyName: 'StartupCo', companyId: 'acc-startup', confidence: 35,
-    impact: 'low', priority: 'low', source: 'ai',
-    reasoning: 'Employee count and revenue signals fall below ideal customer profile thresholds. Budget constraints detected.',
-    suggestedAction: 'Move to nurture list for future re-evaluation',
-    status: 'dismissed', createdAt: new Date(Date.now() - 24 * 3600000).toISOString(),
-  },
-  {
-    id: 'rec-7', title: 'Snoozed: Follow up with DataBridge Inc',
-    description: 'Initial contact made. Awaiting internal review completion before next steps.',
-    companyName: 'DataBridge Inc', companyId: 'acc-databridge', confidence: 68,
-    impact: 'medium', priority: 'medium', source: 'manual',
-    reasoning: 'Initial discovery call completed positively. Their internal evaluation timeline is 2-3 weeks. Re-engage when their review concludes.',
-    suggestedAction: 'Re-engage after their internal review period',
-    status: 'snoozed', snoozedUntil: new Date(Date.now() + 7 * 24 * 3600000).toISOString(), createdAt: new Date(Date.now() - 5 * 24 * 3600000).toISOString(),
-  },
-];
 
 /* ═══════════════════════════════════════════════════════════════
    Priority / Impact / Source Configs
@@ -399,7 +331,7 @@ export default function RecommendationQueueScreen() {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [priorityFilter, setPriorityFilter] = useState<string>('all');
   const [sourceFilter, setSourceFilter] = useState<string>('all');
-  const [localItems, setLocalItems] = useState<RecommendationItem[]>(fallbackRecommendations);
+  const [localItems, setLocalItems] = useState<RecommendationItem[]>([]);
   const queryClient = useQueryClient();
 
   // Fetch from API (falls back to local if unavailable)

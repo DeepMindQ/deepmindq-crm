@@ -47,6 +47,14 @@ export async function register() {
       console.error('[startup] Persistence cold-start failed (non-fatal, Maps start empty):', err);
     }
 
+    // Start shadow-mode comparator if enabled (runs reconciliation every 5 min)
+    try {
+      const { startShadowModeComparator } = await import('@/lib/persistence/shadow-mode-comparator');
+      startShadowModeComparator();
+    } catch (err) {
+      console.error('[startup] Failed to start shadow-mode comparator (non-fatal):', err);
+    }
+
     // Pre-load scoring config from DB so the cache is warm
     try {
       const { getScoringConfig } = await import('@/lib/scoring-config');

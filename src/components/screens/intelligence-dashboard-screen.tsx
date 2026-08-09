@@ -24,84 +24,20 @@ import type { IntelligenceSignal, Recommendation, ActivityEvent, ExecutiveStats 
 import { formatFreshness, getPriorityColor, getPriorityLabel } from '@/lib/intelligence-types';
 
 /* ═══════════════════════════════════════════════════════════════
-   Fallback mock data (used when API returns null)
+   Empty defaults (no mock data — screens show empty states when API returns null)
    ═══════════════════════════════════════════════════════════════ */
-const fallbackStats: ExecutiveStats = {
-  prioritySignals: 8,
-  activeOpportunities: 12,
-  confidenceAverage: 78,
-  accountsMonitored: 147,
-  prioritySignalsDelta: 3,
-  activeOpportunitiesDelta: 2,
-  confidenceAverageDelta: -2,
-  accountsMonitoredDelta: 5,
+const emptyStats: ExecutiveStats = {
+  prioritySignals: 0,
+  activeOpportunities: 0,
+  confidenceAverage: 0,
+  accountsMonitored: 0,
 };
 
-const fallbackSignals: IntelligenceSignal[] = [
-  {
-    id: 'sig-1', type: 'leadership_change',
-    headline: 'New CTO appointed at Meridian Systems',
-    summary: 'Meridian Systems appointed a new CTO from a cloud-native background, signaling potential technology stack migration.',
-    confidenceScore: 92, freshnessTimestamp: new Date(Date.now() - 12 * 60000).toISOString(),
-    source: 'LinkedIn + SEC Filing', priority: 'high', status: 'active',
-    accountId: 'acc-meridian', accountName: 'Meridian Systems',
-    evidenceAvailable: true, evidenceCount: 4, tags: ['Leadership', 'Cloud Migration'],
-    reasoning: 'Leadership changes at the CTO level typically precede technology strategy shifts within 6-12 months.',
-  },
-  {
-    id: 'sig-2', type: 'funding_event',
-    headline: 'Vertex AI closed $45M Series C round',
-    summary: 'Vertex AI secured $45M in Series C funding led by Sequoia Capital. Expansion signals are strong.',
-    confidenceScore: 96, freshnessTimestamp: new Date(Date.now() - 3 * 60000).toISOString(),
-    source: 'PitchBook + Press Release', priority: 'critical', status: 'active',
-    accountId: 'acc-vertex', accountName: 'Vertex AI',
-    evidenceAvailable: true, evidenceCount: 6, tags: ['Funding', 'Expansion'],
-    reasoning: 'Series C funding at this level typically correlates with aggressive sales team expansion within 3-6 months.',
-  },
-  {
-    id: 'sig-3', type: 'competitive_move',
-    headline: 'Apex Analytics launched enterprise tier',
-    summary: 'Direct competitor Apex Analytics announced an enterprise-focused tier with AI-driven analytics.',
-    confidenceScore: 71, freshnessTimestamp: new Date(Date.now() - 2 * 3600000).toISOString(),
-    source: 'Product Hunt + Blog', priority: 'medium', status: 'active',
-    evidenceAvailable: true, evidenceCount: 2, tags: ['Competitive', 'Enterprise'],
-    reasoning: 'Apex Analytics entering the enterprise segment creates competitive overlap with 15 shared accounts.',
-  },
-];
+const emptySignals: IntelligenceSignal[] = [];
 
-const fallbackRecommendations: Recommendation[] = [
-  {
-    id: 'rec-1', title: 'Prioritize Meridian Systems outreach',
-    description: 'The CTO transition creates a 90-day window for technology vendor engagement.',
-    confidence: 88, reasoning: 'Leadership transitions create a unique 90-day window where new executives evaluate existing vendor relationships.',
-    actionType: 'schedule', status: 'pending', signalId: 'sig-1',
-    accountId: 'acc-meridian', accountName: 'Meridian Systems',
-    createdAt: new Date(Date.now() - 15 * 60000).toISOString(),
-  },
-  {
-    id: 'rec-2', title: 'Prepare competitive brief for Apex Analytics',
-    description: 'Update battle cards and positioning documents to address their new enterprise tier pricing.',
-    confidence: 76, reasoning: 'With Apex Analytics entering your competitive space, updating positioning documents ensures effective differentiation.',
-    actionType: 'review', status: 'pending', signalId: 'sig-3',
-    createdAt: new Date(Date.now() - 45 * 60000).toISOString(),
-  },
-  {
-    id: 'rec-3', title: 'Accelerate NovaTech qualification',
-    description: 'Three RFP signals indicate active buying process. Schedule discovery call this week.',
-    confidence: 72, reasoning: 'The combination of website research patterns and RFP activity strongly suggests NovaTech is in the evaluation phase.',
-    actionType: 'schedule', status: 'pending', signalId: 'sig-4',
-    accountId: 'acc-novatech', accountName: 'NovaTech Solutions',
-    createdAt: new Date(Date.now() - 60 * 60000).toISOString(),
-  },
-];
+const emptyRecommendations: Recommendation[] = [];
 
-const fallbackActivity: ActivityEvent[] = [
-  { id: 'evt-1', type: 'signal_detected', headline: 'New signal: Vertex AI $45M Series C', description: 'Funding event detected', timestamp: new Date(Date.now() - 3 * 60000).toISOString(), source: 'PitchBook', confidence: 96, trustLevel: 'verified' },
-  { id: 'evt-2', type: 'confidence_updated', headline: 'Meridian Systems confidence increased to 92%', description: 'New evidence strengthened signal', timestamp: new Date(Date.now() - 18 * 60000).toISOString(), source: 'Multi-source', confidence: 92, trustLevel: 'high' },
-  { id: 'evt-3', type: 'recommendation_generated', headline: 'New recommendation: Prioritize Meridian outreach', description: 'AI identified 90-day engagement window', timestamp: new Date(Date.now() - 15 * 60000).toISOString(), source: 'AI Reasoning Engine' },
-  { id: 'evt-4', type: 'data_refreshed', headline: 'Company data refreshed for 147 accounts', description: 'Scheduled enrichment cycle complete', timestamp: new Date(Date.now() - 120 * 60000).toISOString(), source: 'Data Pipeline' },
-  { id: 'evt-5', type: 'account_changed', headline: 'NovaTech added 3 new engineering roles', description: 'Job posting analysis detected', timestamp: new Date(Date.now() - 4 * 3600000).toISOString(), source: 'Job Intelligence', confidence: 65, trustLevel: 'medium' },
-];
+const emptyActivity: ActivityEvent[] = [];
 
 /* ═══════════════════════════════════════════════════════════════
    Signal Type Config
@@ -327,11 +263,11 @@ export default function IntelligenceDashboardScreen() {
     refetchInterval: 30_000,
   });
 
-  // Merge API data with fallbacks
-  const stats = statsData?.data ?? fallbackStats;
-  const signals = briefData?.data?.signals ?? fallbackSignals;
-  const recommendations = briefData?.data?.recommendations ?? fallbackRecommendations;
-  const activity = briefData?.data?.activity ?? fallbackActivity;
+  // Merge API data with empty defaults
+  const stats = statsData?.data ?? emptyStats;
+  const signals = briefData?.data?.signals ?? emptySignals;
+  const recommendations = briefData?.data?.recommendations ?? emptyRecommendations;
+  const activity = briefData?.data?.activity ?? emptyActivity;
   const isLoading = loadingStats || loadingBrief;
 
   const pendingRecs = recommendations.filter(r => r.status === 'pending');

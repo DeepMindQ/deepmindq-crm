@@ -42,56 +42,6 @@ const TAB_ICONS: Record<TabKey, React.ElementType> = {
   timeline: Clock,
 };
 
-/* ── Fallback mock data ── */
-const fallbackCompany = {
-  id: 'company-1',
-  name: 'Acme Corporation',
-  domain: 'acme.com',
-  industry: 'Enterprise SaaS',
-  sizeRange: '200-500',
-  status: 'active',
-  intelligenceScore: 84,
-  tier: 'hot',
-  description: 'Leading enterprise SaaS company in the data analytics space.',
-  website: 'https://acme.com',
-  location: 'San Francisco, CA',
-  foundedYear: 2015,
-  employeeCount: 342,
-  revenue: '$45M ARR',
-  lastRefreshed: new Date(Date.now() - 45 * 60000).toISOString(),
-  contacts: [
-    { id: 'c1', name: 'Sarah Chen', title: 'VP of Engineering', email: 'sarah@acme.com' },
-    { id: 'c2', name: 'Marcus Johnson', title: 'CTO', email: 'marcus@acme.com' },
-    { id: 'c3', name: 'Emily Rodriguez', title: 'Head of Data', email: 'emily@acme.com' },
-  ],
-  scoreDimensions: [
-    { name: 'Signal Strength', key: 'signal', score: 88, weight: 0.3, maxScore: 100, description: 'Quality and recency of detected buying signals' },
-    { name: 'Fit Score', key: 'fit', score: 82, weight: 0.25, maxScore: 100, description: 'Alignment with ideal customer profile' },
-    { name: 'Engagement', key: 'engagement', score: 91, weight: 0.2, maxScore: 100, description: 'Level of active engagement with our brand' },
-    { name: 'Intent', key: 'intent', score: 76, weight: 0.15, maxScore: 100, description: 'Detected buying intent signals' },
-    { name: 'Readiness', key: 'readiness', score: 79, weight: 0.1, maxScore: 100, description: 'Organizational readiness for purchase' },
-  ],
-  calibrationFactors: [
-    { name: 'Recent Leadership Change', weight: 0.15, rawScore: 70, calibratedScore: 85, reason: 'New CTO with cloud-native background increases technology alignment by 15 points', source: 'LinkedIn + SEC Filing' },
-    { name: 'Funding Signal', weight: 0.12, rawScore: 80, calibratedScore: 88, reason: 'Series C funding at $45M strongly correlates with platform expansion budget', source: 'PitchBook' },
-    { name: 'Tech Stack Overlap', weight: 0.1, rawScore: 65, calibratedScore: 78, reason: 'Detected Kubernetes and microservices adoption increases platform compatibility', source: 'Job Postings Analysis' },
-  ],
-  narrative: 'Acme Corporation represents a high-priority opportunity driven by three converging signals: a recent CTO transition creating a 90-day vendor evaluation window, $45M Series C funding enabling technology investment, and active research into AI-powered analytics platforms. Their current data infrastructure shows clear gaps that DeepMindQ addresses. The engineering-led evaluation suggests a technical buyer who values intelligence depth over marketing claims. Recommended approach: Lead with technical capability demos, leverage the leadership transition timing, and address their specific data pipeline challenges.',
-  signals: [
-    { id: 's1', type: 'leadership_change', headline: 'New CTO appointed', summary: 'Cloud-native background suggests technology stack migration', confidenceScore: 92, freshnessTimestamp: new Date(Date.now() - 12 * 60000).toISOString(), source: 'LinkedIn', priority: 'high', status: 'active', evidenceAvailable: true, evidenceCount: 4, tags: ['Leadership'], reasoning: 'CTO transitions create 90-day vendor evaluation windows.' },
-    { id: 's2', type: 'funding_event', headline: '$45M Series C closed', summary: 'Funding led by Sequoia Capital', confidenceScore: 96, freshnessTimestamp: new Date(Date.now() - 3 * 60000).toISOString(), source: 'PitchBook', priority: 'critical', status: 'active', evidenceAvailable: true, evidenceCount: 6, tags: ['Funding'], reasoning: 'Series C at this level correlates with aggressive expansion.' },
-    { id: 's3', type: 'technology_investment', headline: 'Evaluating AI analytics platforms', summary: 'Detected visits to competitor pricing pages', confidenceScore: 71, freshnessTimestamp: new Date(Date.now() - 48 * 3600000).toISOString(), source: 'Intent Data', priority: 'high', status: 'active', evidenceAvailable: true, evidenceCount: 3, tags: ['Buying Intent'], reasoning: 'Active research phase detected across multiple sources.' },
-  ],
-  opportunities: [
-    { id: 'o1', title: 'Data Intelligence Platform', value: '$120K ARR', stage: 'Discovery', probability: 65, closeDate: 'Q4 2025', owner: 'Sales Team A' },
-    { id: 'o2', title: 'Real-time Analytics Suite', value: '$85K ARR', stage: 'Qualification', probability: 40, closeDate: 'Q1 2026', owner: 'Sales Team B' },
-  ],
-  recentActivity: [
-    { id: 'a1', text: 'Intelligence score updated to 84', time: new Date(Date.now() - 2 * 60000).toISOString() },
-    { id: 'a2', text: 'New signal detected: CTO appointment', time: new Date(Date.now() - 15 * 60000).toISOString() },
-    { id: 'a3', text: 'Contact Emily Rodriguez added', time: new Date(Date.now() - 3600000).toISOString() },
-  ],
-};
 
 /* ── Score Ring Gauge ── */
 function ScoreGauge({ score, size = 88, strokeWidth = 5 }: { score: number; size?: number; strokeWidth?: number }) {
@@ -220,7 +170,7 @@ export default function CompanyWorkspaceEnhanced() {
     enabled: !!companyId,
   });
 
-  const company = companyData?.data ?? fallbackCompany;
+  const company = companyData?.data ?? null;
   const score = company.intelligenceScore ?? company.score ?? 0;
   const tier = company.tier || getTierFromScore(score);
 
@@ -444,7 +394,7 @@ export default function CompanyWorkspaceEnhanced() {
                         </div>
                         <ScoreBreakdown
                           totalScore={score}
-                          dimensions={company.scoreDimensions ?? fallbackCompany.scoreDimensions}
+                          dimensions={company.scoreDimensions ?? []}
                         />
                       </div>
 
@@ -452,9 +402,9 @@ export default function CompanyWorkspaceEnhanced() {
                       <CalibrationReason
                         originalScore={score - 8}
                         calibratedScore={score}
-                        factors={company.calibrationFactors ?? fallbackCompany.calibrationFactors}
-                        overallReason="Score adjusted upward due to converging intelligence signals: leadership change, funding event, and active buying intent."
-                        confidence={85}
+                        factors={company.calibrationFactors ?? []}
+                        overallReason={company?.narrative ?? "Score computed from multiple intelligence dimensions."}
+                        confidence={company?.intelligenceScore ?? 0}
                       />
 
                       {/* AI Narrative */}

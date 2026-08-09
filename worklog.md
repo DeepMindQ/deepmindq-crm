@@ -267,3 +267,78 @@ Stage Summary:
 - KEY CHANGE: search() now routes to pgvector first (was only using in-memory)
 - SECURITY FIX: SQL injection in searchPgVector type filter patched
 - All 2142 tests still pass
+---
+Task ID: 1A
+Agent: Super Z (main)
+Task: Wire Intelligence Screens (Tasks 1.1-1.5)
+
+Work Log:
+- Audited all 18+ intelligence screens for fetch→render gaps
+- Task 1.1 (ai-command-center-screen): ALREADY WIRED — 5 useQuery hooks, all 7 API endpoints exist, proper loading/error/empty states
+- Task 1.2 (intelligence-hub-screen): ALREADY WIRED — 4 useRealtimeData hooks, complex transforms, loading/error/empty states
+- Task 1.3 (signal-intelligence-screen): ALREADY WIRED — useQuery + evidence panel, filtering, grouping, pagination
+- Task 1.4 (opportunity-radar-screen): ALREADY WIRED — useQuery → /api/ai/opportunities
+- Task 1.5 (company-workspace-v2): CRITICAL FIX — was fetching 3 data streams but rendering hardcoded '—' KPIs and 3 placeholder tabs
+  - Wired Overview KPIs to contacts.length, opportunities.length, signals.length, scoreBreakdown
+  - Wired Contacts tab to /api/companies/{id}/contacts with contact cards
+  - Wired Opportunities tab to /api/opportunities?companyId={id} with opportunity cards
+  - Wired Signals tab to signalsData from useCompanySignals with severity badges
+- Fixed 3 PARTIAL screens:
+  - intelligence-dashboard-screen.tsx: Replaced 4 elaborate fake fallback objects (Meridian Systems, Vertex AI, Apex Analytics) with empty defaults
+  - recommendation-queue-screen.tsx: Removed 8 fake recommendations (Meridian, Apex, NovaTech, Pinnacle, Vertex, StartupCo, DataBridge), init state with []
+  - company-workspace-enhanced.tsx: Removed Acme Corporation demo data ($45M ARR, Sequoia Capital, fake contacts), replaced with null fallbacks
+
+Stage Summary:
+- 4 screens already wired (no changes needed)
+- 1 CRITICAL screen fixed (company-workspace-v2 — 5 tabs now render real data)
+- 3 PARTIAL screens fixed (all mock/fake data removed)
+- TypeScript: 0 errors
+- Tests: 2142 passed, 0 failures
+
+---
+Task ID: 1B
+Agent: Super Z (main)
+Task: Wire Revenue & Sales Screens (Tasks 1.6-1.9)
+
+Work Log:
+- pipeline-forecast-screen.tsx: ALREADY WIRED — useQuery → /api/pipeline-forecast, renders stageForecast, fastestDeals, healthFactors
+- deal-coaching-screen.tsx: ALREADY WIRED — useQuery → /api/deals, renders deal cards
+- ai-usage-dashboard-screen.tsx: ALREADY WIRED — fetch → /api/ai/usage, renders stats.totalCalls, byFeature, dailyTrend
+- scoring-config-screen.tsx: Form-only screen (write-only, no data gap)
+- analytics-screen.tsx: ALREADY WIRED — 3 useQuery hooks, all data consumed
+
+Stage Summary:
+- All 4 revenue screens were already properly wired — no changes needed
+
+---
+Task ID: 1C
+Agent: Super Z (main)
+Task: Activate Dead Libraries (Tasks 1.10-1.14)
+
+Work Log:
+- Task 1.10 (hallucination-prevention): ALREADY WIRED
+  - hallucination-prevention.ts → imported by m5-wow4-knowledge-intelligence.ts (line 72) and enterprise-agents.ts (line 80)
+  - ai-hallucination-prevention.ts → imported by ai-governance.ts (line 1126)
+  - Both called in their respective pipelines (post-generation hallucination detection)
+- Task 1.11 (financial-intelligence-framework): ALREADY WIRED
+  - computeFinancialProfile already called in enterprise-agents.ts (line 288) with proper structured params
+  - buildFieldConfidence designed for use with CompanyFinancialProfile objects, not raw values
+- Task 1.12 (workflow-engine): WIRED connector job processor
+  - Workflow engine already imported by cron/job-processor/route.ts (line 37) — processNextJobs(5) runs daily
+  - intelligence-sources/job-queue.ts had registerJobProcessor() that was NEVER called — jobs enqueued but never processed
+  - Fixed: Added registerJobProcessor call in connector-scheduler.ts with dispatching to crunchbase-connector
+- Task 1.13 (data-export/formatters): ALREADY WIRED
+  - streaming-export.ts imports all 3 formatters (csv, json, xlsx) and uses them at lines 514-518
+  - API routes (data-export, leads/export, intelligence/export, etc.) all import from streaming-export
+- Task 1.14 (persistence/ modules): PARTIALLY WIRED → NOW FULLY WIRED
+  - map-state-provider + cold-start-loader: Already wired in instrumentation.ts startup
+  - persistence-health-monitor + persistence-failure-queue: Already used in cron routes
+  - intelligence-persistence-adapter: Already wired for pgvector dual-write (Phase 0.4)
+  - shadow-mode-comparator: Was exported but NEVER called — fixed by adding startShadowModeComparator() to instrumentation.ts startup
+
+Stage Summary:
+- 3 of 5 libraries were already wired (hallucination, financial, data-export)
+- 1 library had a critical gap fixed (workflow-engine: processor registered)
+- 1 library had a partial gap fixed (persistence: shadow-mode comparator activated)
+- TypeScript: 0 errors
+- Tests: 2142 passed, 0 failures

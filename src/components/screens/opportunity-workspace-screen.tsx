@@ -19,6 +19,9 @@ import {
 import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
 import { EvidenceBadge } from '@/components/enterprise/EvidenceBadge';
 import { useAppStore } from '@/lib/store';
+import {
+  Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 
 import {
   Sparkles, CheckCircle2, Eye, XCircle, Clock,
@@ -706,6 +709,23 @@ export default function OpportunityWorkspaceScreen() {
   return (
     <PageTransition>
       <div role="main" aria-label="Opportunity Intelligence" className="space-y-6 p-4 md:p-6 max-w-[1200px] mx-auto">
+        {/* ── Breadcrumbs ── */}
+        <Breadcrumb>
+          <BreadcrumbList>
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild><span className="cursor-pointer hover:text-foreground text-muted-foreground" onClick={() => useAppStore.getState().setActiveView('revenue-intelligence')}>Revenue</span></BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbLink asChild><span className="cursor-pointer hover:text-foreground text-muted-foreground" onClick={() => useAppStore.getState().setActiveView('pipeline')}>Pipeline</span></BreadcrumbLink>
+            </BreadcrumbItem>
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage className="font-medium">Deal Intelligence Room</BreadcrumbPage>
+            </BreadcrumbItem>
+          </BreadcrumbList>
+        </Breadcrumb>
+
         {/* ─── Header ─── */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>

@@ -32,7 +32,7 @@ const dismissedIds = new Set<string>();
    ═══════════════════════════════════════════════════════════════ */
 export async function GET(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 const startedAt = Date.now();
@@ -326,7 +326,7 @@ const startedAt = Date.now();
    ═══════════════════════════════════════════════════════════════ */
 export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

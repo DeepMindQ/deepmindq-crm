@@ -40,7 +40,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ): Promise<Response> {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 const startedAt = Date.now();
@@ -97,7 +97,7 @@ const startedAt = Date.now();
 
   // ── Step 2: Determine selective loading flags ─────────────────────────
   // F4/F5: Pagination params for nodes and edges
-  const nodePage = Math.max(1, parseInt(request.nextUrl.searchParams.get('nodePage') || '1', 10) || 1);
+  const _nodePage = Math.max(1, parseInt(request.nextUrl.searchParams.get('nodePage') || '1', 10) || 1);
   const nodeLimit = Math.min(100, Math.max(1, parseInt(request.nextUrl.searchParams.get('nodeLimit') || '50', 10) || 50));
   const edgePage = Math.max(1, parseInt(request.nextUrl.searchParams.get('edgePage') || '1', 10) || 1);
   const edgeLimit = Math.min(100, Math.max(1, parseInt(request.nextUrl.searchParams.get('edgeLimit') || '50', 10) || 50));
@@ -111,7 +111,7 @@ const startedAt = Date.now();
   const centerNodeId = 'company-center';
 
   let nodes: MindmapNode[] = [];
-  let companyCapabilityIds: Set<string> = new Set();
+  const companyCapabilityIds: Set<string> = new Set();
 
   if (loadNodes) {
     const [contacts, fusionResults, signals] = await Promise.all([

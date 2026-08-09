@@ -3,6 +3,7 @@ import { db } from '@/lib/db'
 import { z } from 'zod'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { checkApiAuth } from '@/lib/api-auth'
+import { approvalService } from '@/lib/approval-service'
 
 // ---------------------------------------------------------------------------
 // Types — Wave 8A: Evidence-Linked Decomposed Scoring
@@ -97,7 +98,7 @@ function formatDecomposedBreakdown(factors: ScoreFactor[]): string {
 
 async function scoreCompany(
   companyId: string,
-  contactScoreMap: Map<string, number>,
+  _contactScoreMap: Map<string, number>,
 ): Promise<ScoreResult> {
   const company = await db.company.findUnique({
     where: { id: companyId },
@@ -541,7 +542,7 @@ async function scoreContact(
 
 export async function POST(request: NextRequest) {
   // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth()
+  const { errorResponse } = await checkApiAuth(request)
   if (errorResponse) return errorResponse
 
   try {
@@ -616,6 +617,24 @@ export async function POST(request: NextRequest) {
     }
 
     const scores = [...companyResults, ...contactResults].sort((a, b) => b.score - a.score)
+
+    // Request approval for AI-generated scores (if any AI-enhanced scoring was used)
+    if (useAI && scores.length > 0) {
+      const batchId = `score_batch_${Date.now()}`
+      const avgConfidence = scores.reduce((sum, s) => sum + (s.scoreConfidence / 100), 0) / scores.length
+      await approvalService.autoApproveIfNeeded(
+        batchId,
+        'ai_score',
+        avgConfidence,
+        {
+          totalScored: scores.length,
+          companiesScored: companyResults.length,
+          contactsScored: contactResults.length,
+          scoringMode: 'ai-enhanced',
+        },
+      )
+    }
+
     return apiSuccess({
       scores,
       meta: {

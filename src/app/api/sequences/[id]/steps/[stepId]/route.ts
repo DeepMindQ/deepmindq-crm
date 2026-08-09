@@ -34,16 +34,16 @@ try {
     })
     const nextStepNumber = (maxStep._max.stepNumber ?? 0) + 1
 
-    const d = data as Record<string, unknown>;
+    const d = data as { delayDays?: number; delayMinutes?: number };
     const step = await db.sequenceStep.create({
       data: {
         sequenceId,
         stepNumber: nextStepNumber,
         subject: data.subject,
         body: data.body,
-        delayMinutes: (d.delayDays ?? d.delayMinutes ?? 0) as number,
+        delayDays: d.delayDays ?? Math.ceil((d.delayMinutes ?? 0) / 1440),
         cta: data.cta ?? null,
-      } as any,
+      },
     })
 
     return apiSuccess(step, 201)

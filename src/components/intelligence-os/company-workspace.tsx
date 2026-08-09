@@ -18,6 +18,7 @@ import { logger } from '@/lib/logger';
 import { AIProgressTracker } from '@/components/enterprise/AIProgressTracker';
 import { ActivationStatus } from '@/components/intelligence-os/activation-status';
 import { RecommendationCard } from '@/components/intelligence-os/recommendation-card';
+import { TemporalIntelligenceTimeline, type TemporalMetrics } from '@/components/intelligence-os/molecules/temporal-intelligence-timeline';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Company Intelligence Workspace — Dark Intelligence OS
@@ -479,7 +480,7 @@ function IntelligenceSurface({
                           <ExternalLink className="w-2 h-2" /> Source
                         </a>
                       )}
-                      <EvidenceStateBadge state={ev.state} />
+                      <EvidenceStateBadge state={ev.state as EvidenceState} />
                     </div>
                   </div>
                 </div>
@@ -603,11 +604,11 @@ function collectAllEvidence(intel: CompanyIntelligence): FlattenedEvidence[] {
   for (const { obj, label } of sources) {
     for (const ev of obj.evidence) {
       all.push({
-        snippet: ev.snippet,
+        snippet: ev.snippet ?? '',
         source: ev.source,
         url: ev.url,
         date: ev.date,
-        state: ev.state,
+        state: ev.state as EvidenceState,
         parentTitle: obj.title,
         parentType: label,
         parentConfidence: obj.confidence,
@@ -1057,7 +1058,7 @@ function ExecutiveBriefModal({
                     className="flex items-start gap-2 px-3 py-2.5 rounded-lg"
                     style={{ background: IOS.bgSecondary, border: `1px solid ${IOS.border}` }}
                   >
-                    <EvidenceStateBadge state={ev.state} />
+                    <EvidenceStateBadge state={ev.state as EvidenceState} />
                     <div>
                       <p className="text-xs font-medium" style={{ color: IOS.textPrimary }}>{ev.title}</p>
                       <p className="text-[10px]" style={{ color: IOS.textMuted }}>
@@ -1458,6 +1459,7 @@ export function CompanyWorkspace() {
 
   /* ── Pipeline Execution State ── */
   const [pipelineState, setPipelineState] = useState<PipelineExecutionState>('idle');
+  const [temporalData, setTemporalData] = useState<TemporalMetrics | null>(null);
   const [pipelineStages, setPipelineStages] = useState<PipelineStageResult[]>([]);
   const [pipelineResult, setPipelineResult] = useState<PipelineRunResult | null>(null);
   const [pipelineDuration, setPipelineDuration] = useState<number | null>(null);
@@ -1548,6 +1550,15 @@ export function CompanyWorkspace() {
   }, [selectedCompanyId]);
 
   useEffect(() => { fetchIntelligence(); }, [fetchIntelligence]);
+
+  // G10 FIX: Fetch temporal intelligence metrics for the timeline
+  useEffect(() => {
+    if (!selectedCompanyId) return;
+    fetch(`/api/companies/${selectedCompanyId}/temporal`)
+      .then(res => res.ok ? res.json() : null)
+      .then(data => { if (data) setTemporalData(data); })
+      .catch(() => {});
+  }, [selectedCompanyId]);
 
   const skipReveal = useCallback(() => {
     setRevealComplete(true);
@@ -1723,6 +1734,41 @@ export function CompanyWorkspace() {
                 <FileText className="w-3.5 h-3.5" />
               )}
               Generate Brief
+            </button>
+
+            {/* ── G2 FIX: Export Intelligence (PDF/JSON) ── */}
+            <button
+              onClick={() => {
+                const url = `/api/intelligence/export?companyId=${selectedCompanyId}&format=pdf`;
+                window.open(url, '_blank');
+              }}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold tracking-wide transition-all"
+              style={{
+                background: IOS.bgCard,
+                color: IOS.textPrimary,
+                border: `1px solid ${IOS.border}`,
+              }}
+              title="Export intelligence report as PDF"
+            >
+              <FileText className="w-3.5 h-3.5" />
+              Export PDF
+            </button>
+
+            <button
+              onClick={() => {
+                const url = `/api/intelligence/export?companyId=${selectedCompanyId}&format=json`;
+                window.open(url, '_blank');
+              }}
+              className="flex items-center gap-2 px-3 py-2.5 rounded-lg text-xs font-semibold tracking-wide transition-all"
+              style={{
+                background: IOS.bgCard,
+                color: IOS.textSecondary,
+                border: `1px solid ${IOS.border}`,
+              }}
+              title="Export intelligence data as JSON"
+            >
+              <Copy className="w-3 h-3" />
+              JSON
             </button>
 
             <button
@@ -1952,6 +1998,26 @@ export function CompanyWorkspace() {
           <div className="mb-6">
             <RecommendationCard companyId={selectedCompanyId} />
           </div>
+        )}
+
+        {/* ═══ G10 FIX: Temporal Intelligence Timeline ═══ */}
+        {temporalData && (
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2, duration: 0.3 }}
+            className="mb-6"
+          >
+            <div className="ios-card p-5" style={{ borderLeft: `2px solid ${IOS.signal}` }}>
+              <div className="flex items-center gap-2 mb-3">
+                <Clock className="w-4 h-4" style={{ color: IOS.signal }} />
+                <span className="text-[9px] font-bold tracking-[0.2em] uppercase" style={{ color: IOS.signal }}>
+                  Intelligence Timeline
+                </span>
+              </div>
+              <TemporalIntelligenceTimeline temporal={temporalData} compact />
+            </div>
+          </motion.div>
         )}
 
         {/* ═══ SECTION 2: Evidence & Signals — Categorized ═══ */}
@@ -2404,7 +2470,7 @@ export function CompanyWorkspace() {
                                     <ExternalLink className="w-2 h-2" /> View
                                   </a>
                                 )}
-                                <EvidenceStateBadge state={ev.state} />
+                                <EvidenceStateBadge state={ev.state as EvidenceState} />
                               </div>
                             </div>
                           </div>

@@ -87,6 +87,108 @@ export interface CompletionResult {
   error: string | null;
 }
 
+// ─── S6-3.2: Provider Performance Tracking ──────────────────────────────
+
+interface ProviderPerformanceRecord {
+  /** Total calls attempted */
+  totalCalls: number;
+  /** Successful calls */
+  successCalls: number;
+  /** Failed calls */
+  failedCalls: number;
+  /** Cumulative latency (ms) for successful calls */
+  totalLatencyMs: number;
+  /** Last N latency samples for P50/P95 calculation */
+  recentLatencies: number[];
+  /** Timestamp of last failure */
+  lastFailureAt: number | null;
+  /** Whether circuit breaker is open (provider skipped) */
+  circuitOpen: boolean;
+  /** Timestamp when circuit breaker was opened */
+  circuitOpenedAt: number | null;
+}
+
+const MAX_RECENT_LATENCIES = 100;
+const CIRCUIT_BREAKER_THRESHOLD = 5; // Open after 5 consecutive failures
+const CIRCUIT_BREAKER_RESET_MS = 60_000; // Reset after 60 seconds
+const CIRCUIT_BREAKER_HALF_OPEN_MS = 30_000; // Half-open after 30s (try one request)
+
+const providerPerformance = new Map<string, ProviderPerformanceRecord>();
+
+function getOrCreateProviderRecord(model: string): ProviderPerformanceRecord {
+  let record = providerPerformance.get(model);
+  if (!record) {
+    record = {
+      totalCalls: 0,
+      successCalls: 0,
+      failedCalls: 0,
+      totalLatencyMs: 0,
+      recentLatencies: [],
+      lastFailureAt: null,
+      circuitOpen: false,
+      circuitOpenedAt: null,
+    };
+    providerPerformance.set(model, record);
+  }
+  return record;
+}
+
+function recordProviderSuccess(model: string, latencyMs: number): void {
+  const record = getOrCreateProviderRecord(model);
+  record.totalCalls++;
+  record.successCalls++;
+  record.totalLatencyMs += latencyMs;
+  record.recentLatencies.push(latencyMs);
+  if (record.recentLatencies.length > MAX_RECENT_LATENCIES) {
+    record.recentLatencies.shift();
+  }
+  // Close circuit on success (if it was open)
+  if (record.circuitOpen) {
+    record.circuitOpen = false;
+    record.circuitOpenedAt = null;
+    logger.info(`[model-router] Circuit CLOSED for ${model} after successful call`);
+  }
+}
+
+function recordProviderFailure(model: string): void {
+  const record = getOrCreateProviderRecord(model);
+  record.totalCalls++;
+  record.failedCalls++;
+  record.lastFailureAt = Date.now();
+
+  // Check if we should open circuit breaker
+  // Count consecutive recent failures
+  const recentFailureRate = record.totalCalls > 0
+    ? record.failedCalls / record.totalCalls
+    : 0;
+
+  if (recentFailureRate >= 0.8 && record.failedCalls >= CIRCUIT_BREAKER_THRESHOLD && !record.circuitOpen) {
+    record.circuitOpen = true;
+    record.circuitOpenedAt = Date.now();
+    logger.warn(`[model-router] Circuit OPENED for ${model} (${record.failedCalls} failures)`);
+  }
+}
+
+function isProviderCircuitOpen(model: string): boolean {
+  const record = providerPerformance.get(model);
+  if (!record || !record.circuitOpen) return false;
+
+  const now = Date.now();
+  const elapsed = now - (record.circuitOpenedAt ?? now);
+
+  // After reset time, allow one attempt (half-open)
+  if (elapsed >= CIRCUIT_BREAKER_RESET_MS) {
+    return false;
+  }
+
+  // Half-open: allow one request after half-open time
+  if (elapsed >= CIRCUIT_BREAKER_HALF_OPEN_MS) {
+    return false;
+  }
+
+  return true;
+}
+
 // ─── Tier Configurations ────────────────────────────────────────────────
 
 interface TierConfig {
@@ -228,6 +330,14 @@ export const ModelRouter = {
       const provider = orderedChain[i];
       if (i > 0) fellBack = true;
 
+      // S6-3.2: Circuit breaker check — skip providers with open circuits
+      if (isProviderCircuitOpen(provider.model)) {
+        const msg = `Circuit breaker OPEN for ${provider.model}`;
+        errors.push(msg);
+        logger.warn(`[model-router] skipping ${provider.model}: circuit breaker open`);
+        continue;
+      }
+
       try {
         logger.info(`[model-router] trying provider: ${provider.label}`);
         // Use callLLM with this provider's config — it handles Gemini variants
@@ -243,6 +353,9 @@ export const ModelRouter = {
         const completionTokens = estimateTokens(text);
         const cost = estimateCost(provider.model, promptTokens, completionTokens);
         const durationMs = Date.now() - startedAt;
+
+        // S6-3.2: Record success for performance tracking
+        recordProviderSuccess(provider.model, durationMs);
 
         await this._audit({
           params,
@@ -276,6 +389,8 @@ export const ModelRouter = {
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
         errors.push(`${provider.label}: ${msg}`);
+        // S6-3.2: Record failure for circuit breaker
+        recordProviderFailure(provider.model);
         logger.info(`[model-router] provider ${provider.label} failed: ${msg}`);
       }
     }
@@ -424,5 +539,56 @@ export const ModelRouter = {
         { tier: 'fast', available: fast, providers: providerLabels },
       ],
     };
+  },
+
+  /**
+   * S6-3.2: Get provider performance statistics.
+   * Returns latency percentiles, success rates, and circuit breaker state
+   * for all providers that have been called since startup.
+   */
+  getPerformanceStats(): Array<{
+    model: string;
+    totalCalls: number;
+    successCalls: number;
+    failedCalls: number;
+    successRate: number;
+    avgLatencyMs: number;
+    p50LatencyMs: number;
+    p95LatencyMs: number;
+    circuitOpen: boolean;
+    lastFailureAt: string | null;
+  }> {
+    const stats: ReturnType<typeof ModelRouter.getPerformanceStats> = [];
+
+    for (const [model, record] of providerPerformance.entries()) {
+      const sortedLatencies = [...record.recentLatencies].sort((a, b) => a - b);
+      const p50 = sortedLatencies.length > 0
+        ? sortedLatencies[Math.floor(sortedLatencies.length * 0.5)]
+        : 0;
+      const p95 = sortedLatencies.length > 0
+        ? sortedLatencies[Math.floor(sortedLatencies.length * 0.95)]
+        : 0;
+
+      stats.push({
+        model,
+        totalCalls: record.totalCalls,
+        successCalls: record.successCalls,
+        failedCalls: record.failedCalls,
+        successRate: record.totalCalls > 0
+          ? Math.round((record.successCalls / record.totalCalls) * 10000) / 100
+          : 0,
+        avgLatencyMs: record.successCalls > 0
+          ? Math.round(record.totalLatencyMs / record.successCalls)
+          : 0,
+        p50LatencyMs: p50,
+        p95LatencyMs: p95,
+        circuitOpen: record.circuitOpen,
+        lastFailureAt: record.lastFailureAt
+          ? new Date(record.lastFailureAt).toISOString()
+          : null,
+      });
+    }
+
+    return stats.sort((a, b) => b.totalCalls - a.totalCalls);
   },
 };

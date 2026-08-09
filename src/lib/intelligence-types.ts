@@ -1,106 +1,236 @@
-/* ═══════════════════════════════════════════════════════════════════════════
-   Intelligence Object Types — The DeepMindQ Intelligence Contract
-   
-   This is the frozen UI/API contract.
-   The UI consumes these types. The source of intelligence can evolve
-   (Phase B: Evidence Engine → Knowledge Graph → Reasoning Engine)
-   but the experience should not change.
-   
-   Every intelligence item must have:
-   - Evidence state: confirmed | inferred | unknown
-   - Confidence: 0-100
-   - Freshness: when was this last verified
-   - Reasoning: why the system believes this
-   ═══════════════════════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════
+   MS7 Intelligence Data Models
+   Single source of truth for intelligence rendering
+   ═══════════════════════════════════════════════════════════════ */
+
+export type TrustLevel = 'verified' | 'high' | 'medium' | 'low' | 'unverified';
+export type PriorityLevel = 'critical' | 'high' | 'medium' | 'low';
+export type SignalType = 'leadership_change' | 'technology_investment' | 'funding_event' | 'market_expansion' | 'partnership' | 'product_launch' | 'hiring_surge' | 'financial_signal' | 'competitive_move' | 'risk_indicator';
+export type RecommendationStatus = 'pending' | 'accepted' | 'dismissed' | 'saved';
+export type IntelligenceStatus = 'active' | 'reviewed' | 'archived';
+
+export interface IntelligenceSignal {
+  id: string;
+  type: SignalType;
+  headline: string;
+  summary: string;
+  confidenceScore: number; // 0-100
+  freshnessTimestamp: string; // ISO 8601
+  source: string;
+  priority: PriorityLevel;
+  reasoning: string;
+  status: IntelligenceStatus;
+  accountId?: string;
+  accountName?: string;
+  evidenceAvailable: boolean;
+  evidenceCount?: number;
+  tags: string[];
+}
+
+export type DataDepthIndicator = 'comprehensive' | 'moderate' | 'limited' | 'minimal';
+
+export interface Recommendation {
+  id: string;
+  title: string;
+  description: string;
+  confidence: number; // 0-100
+  reasoning: string;
+  actionType: 'review' | 'save' | 'monitor' | 'schedule' | 'export';
+  status: RecommendationStatus;
+  signalId?: string;
+  accountId?: string;
+  accountName?: string;
+  createdAt: string;
+  /** Phase 4.5.6: Data depth indicator — how much intelligence backs this recommendation */
+  dataDepthIndicator?: DataDepthIndicator;
+  /** Phase 3.3.4: Decision audit hash for reproducibility */
+  decisionAuditHash?: string;
+  /** Phase 5.1: Multiple target roles (company-size-aware) */
+  targetRoles?: string[];
+}
+
+export interface ActivityEvent {
+  id: string;
+  type: 'signal_detected' | 'confidence_updated' | 'account_changed' | 'data_refreshed' | 'recommendation_generated';
+  headline: string;
+  description: string;
+  timestamp: string;
+  source: string;
+  confidence?: number;
+  trustLevel?: TrustLevel;
+}
+
+export interface ExecutiveStats {
+  prioritySignals: number;
+  activeOpportunities: number;
+  confidenceAverage: number;
+  accountsMonitored: number;
+  prioritySignalsDelta?: number; // +/-
+  activeOpportunitiesDelta?: number;
+  confidenceAverageDelta?: number;
+  accountsMonitoredDelta?: number;
+}
+
+export interface IntelligenceBriefingCard {
+  signal: IntelligenceSignal;
+  expanded: boolean; // L1 vs L2 state
+}
+
+// Trust color mapping helper
+export function getTrustColor(level: TrustLevel): string {
+  const map: Record<TrustLevel, string> = {
+    verified: 'var(--trust-verified)',
+    high: 'var(--trust-high)',
+    medium: 'var(--trust-medium)',
+    low: 'var(--trust-low)',
+    unverified: 'var(--trust-unverified)',
+  };
+  return map[level];
+}
+
+export function getTrustBg(level: TrustLevel): string {
+  const map: Record<TrustLevel, string> = {
+    verified: 'var(--trust-verified-bg)',
+    high: 'var(--trust-high-bg)',
+    medium: 'var(--trust-medium-bg)',
+    low: 'var(--trust-low-bg)',
+    unverified: 'var(--trust-unverified-bg)',
+  };
+  return map[level];
+}
+
+export function getTrustBorder(level: TrustLevel): string {
+  const map: Record<TrustLevel, string> = {
+    verified: 'var(--trust-verified-border)',
+    high: 'var(--trust-high-border)',
+    medium: 'var(--trust-medium-border)',
+    low: 'var(--trust-low-border)',
+    unverified: 'var(--trust-unverified-border)',
+  };
+  return map[level];
+}
+
+export function getTrustLabel(level: TrustLevel): string {
+  const map: Record<TrustLevel, string> = {
+    verified: 'Verified',
+    high: 'High Confidence',
+    medium: 'Medium Confidence',
+    low: 'Low Confidence',
+    unverified: 'Unverified',
+  };
+  return map[level];
+}
+
+export function getConfidenceTrustLevel(score: number): TrustLevel {
+  if (score >= 90) return 'verified';
+  if (score >= 70) return 'high';
+  if (score >= 45) return 'medium';
+  if (score >= 25) return 'low';
+  return 'unverified';
+}
+
+export function getPriorityColor(priority: PriorityLevel): string {
+  const map: Record<PriorityLevel, string> = {
+    critical: 'var(--risk-red)',
+    high: 'var(--warning-amber)',
+    medium: 'var(--signal-blue)',
+    low: 'var(--trust-unverified)',
+  };
+  return map[priority];
+}
+
+export function getPriorityLabel(priority: PriorityLevel): string {
+  const map: Record<PriorityLevel, string> = {
+    critical: 'Critical',
+    high: 'High',
+    medium: 'Medium',
+    low: 'Low',
+  };
+  return map[priority];
+}
+
+export function formatFreshness(timestamp: string): string {
+  const now = Date.now();
+  const then = new Date(timestamp).getTime();
+  const diffMs = now - then;
+  const diffMin = Math.floor(diffMs / 60000);
+  const diffHr = Math.floor(diffMin / 60);
+  const diffDay = Math.floor(diffHr / 24);
+
+  if (diffMin < 1) return 'Just now';
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHr < 24) return `${diffHr}h ago`;
+  if (diffDay < 7) return `${diffDay}d ago`;
+  return new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   Backward-Compatible Legacy Types (pre-MS7 consumers)
+   ═══════════════════════════════════════════════════════════════ */
 
 export type EvidenceState = 'confirmed' | 'inferred' | 'unknown';
 
 export interface EvidenceSource {
   source: string;
-  snippet: string;
+  snippet?: string;
   url?: string;
   date?: string;
   state: EvidenceState;
 }
 
 export interface TemporalConfidence {
-  current: number;        // 0-100
-  previous: number;       // 0-100, or null if first measurement
-  lastUpdated: string;    // ISO date
-  changeReason?: string;  // "New hiring signals detected"
-  trend: 'rising' | 'stable' | 'declining' | 'new';
+  current: number;
+  previous: number;
+  lastUpdated: string;
+  trend: 'rising' | 'declining' | 'stable' | 'new';
+  changeReason?: string;
 }
 
 export interface IntelligenceObject {
   id: string;
-  type: 'signal' | 'need' | 'capability_match' | 'action' | 'stakeholder' | 'positioning';
+  type: 'signal' | 'need' | 'capability_match' | 'action' | 'stakeholder';
   title: string;
   subtitle?: string;
-  
-  // The four questions
   whatChanged?: string;
   whyItMatters?: string;
   whyWeRelevant?: string;
   whatToDo?: string;
-  
-  // Evidence framework
   evidenceState: EvidenceState;
-  confidence: number; // 0-100
-  reasoning: string;
+  confidence: number;
+  reasoning?: string;
   evidence: EvidenceSource[];
-  
-  // Freshness
   freshness: {
-    lastEnriched: string;       // ISO date
+    lastEnriched: string;
     staleness: 'fresh' | 'aging' | 'stale' | 'unknown';
-    nextRefresh?: string;       // ISO date
   };
-  
-  // Temporal intelligence (lightweight)
   temporal?: TemporalConfidence;
-  
-  // Related entities
-  relatedSignals?: string[];
-  relatedCapabilities?: string[];
-  relatedContacts?: string[];
-  
-  // Human feedback
+  category?: string;
+  priority?: 'high' | 'medium' | 'low';
+  timing?: string;
   feedback?: {
-    status: 'accurate' | 'outdated' | 'incorrect' | null;
-    updatedAt?: string;
+    status: 'accurate' | 'outdated' | 'incorrect';
+    updatedAt: string;
     reason?: string;
   };
-  
-  // Metadata
-  priority?: 'high' | 'medium' | 'low';
-  category?: string;
-  timing?: string; // "immediate" | "within_7_days" | "within_30_days" | "within_90_days" | "ongoing"
-
-  // Phase 2A: Intelligence Origin — trust & transparency
-  // Every intelligence item should clearly know where it came from.
-  // This becomes a major enterprise differentiator: "DeepMindQ knew this because..."
+  relatedContacts?: string[];
   origin?: {
-    type: 'customer_uploaded' | 'enrichment' | 'external_discovery' | 'human_validation' | 'ai_reasoning';
-    source?: string;    // Specific source name (e.g., "Reuters", "company website")
-    collectedAt?: string; // ISO date when this intelligence was acquired
+    type: string;
+    source?: string;
+    collectedAt: string;
   };
-
-  // Phase 2A: Intelligence Ranking Score
-  // Composite ranking based on confidence, freshness, source quality,
-  // business relevance, and capability relevance.
-  rankingScore?: number; // 0-100
+  rankingScore?: number;
+  relatedSignals?: string[];
+  relatedCapabilities?: string[];
 }
 
 export interface CompanyIntelligence {
   company: {
     id: string;
     name: string;
-    industry: string | null;
-    domain: string | null;
+    industry?: string;
+    domain?: string;
     intelligenceScore: number;
   };
-  
-  // Executive Understanding — answers: What changed? Why it matters?
   executiveUnderstanding: {
     headline: string;
     narrative: string;
@@ -108,15 +238,11 @@ export interface CompanyIntelligence {
     overallConfidence: number;
     temporal: TemporalConfidence;
   };
-  
-  // Intelligence Objects — the core
   signals: IntelligenceObject[];
   needs: IntelligenceObject[];
   capabilityMatches: IntelligenceObject[];
   actions: IntelligenceObject[];
   stakeholders: IntelligenceObject[];
-  
-  // Strategic positioning
   positioning: {
     message: string;
     angle: string;
@@ -124,45 +250,30 @@ export interface CompanyIntelligence {
     targetStakeholders: Array<{ role: string; reason: string }>;
     topCapabilities: string[];
   };
-  
-  // Technology profile
   technology: {
     knownTech: string[];
     digitalMaturity: string;
     techDescription: string | null;
     techSignals: IntelligenceObject[];
   };
-  
-  // Metadata
   generatedAt: string;
   signalCount: number;
   capabilityCount: number;
   contactCount: number;
-  
-  // Phase B compatibility
-  _meta: {
-    source: string;
-    version: string;
-    futureReady: boolean;
-  };
-
-  // Phase 2A: What changed recently? — answers the executive question
-  // "What changed recently that should affect my sales strategy?"
-  recentChanges?: string;
+  _meta: { source: string; version: string; futureReady: boolean };
+  recentChanges: string;
 }
 
 export interface ExecutiveBriefData {
   companyName: string;
-  industry: string | null;
+  industry?: string;
   generatedAt: string;
   intelligenceScore: number;
-  
-  // Brief sections
   currentSituation: string;
   whyNow: string;
   opportunityAreas: string[];
   recommendedApproach: string;
-  evidence: Array<{ title: string; source: string; date?: string; state: EvidenceState }>;
+  evidence: Array<{ title: string; source: string; date?: string; state: string }>;
   nextActions: Array<{ action: string; priority: string; confidence: number }>;
   keyStakeholders: Array<{ role: string; reason: string }>;
   topCapabilities: string[];

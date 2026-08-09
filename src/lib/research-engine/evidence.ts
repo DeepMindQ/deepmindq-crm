@@ -611,3 +611,59 @@ function getFieldKeywords(field: string): string[] {
   };
   return map[field] || [field];
 }
+
+/**
+ * Age evidence lifecycle: transition old evidence to 'aging' or 'expired'.
+ *
+ * Rules:
+ *   - active → aging: sourceDate > 180 days ago (or createdAt > 180 days if no sourceDate)
+ *   - aging → expired: sourceDate > 365 days ago (or createdAt > 365 days)
+ *   - expired evidence is soft-deleted (kept for audit, excluded from quality scoring)
+ *
+ * This should be called periodically (e.g., daily cron) or on-demand during enrichment.
+ */
+export async function ageEvidenceLifecycle(companyId?: string): Promise<{ aged: number; expired: number }> {
+  try {
+    const now = new Date();
+    const agingThreshold = new Date(now.getTime() - 180 * 24 * 60 * 60 * 1000); // 180 days
+    const expiredThreshold = new Date(now.getTime() - 365 * 24 * 60 * 60 * 1000); // 365 days
+
+    const where = companyId ? { companyId, status: 'active' as const } : { status: 'active' as const };
+
+    // Transition active → aging
+    const aged = await db.evidence.updateMany({
+      where: {
+        ...where,
+        OR: [
+          { sourceDate: { not: null, lt: agingThreshold } },
+          { sourceDate: null, createdAt: { lt: agingThreshold } },
+        ],
+      },
+      data: { status: 'aging' },
+    });
+
+    // Transition aging → expired
+    const agingWhere = companyId
+      ? { companyId, status: 'aging' as const }
+      : { status: 'aging' as const };
+    const expired = await db.evidence.updateMany({
+      where: {
+        ...agingWhere,
+        OR: [
+          { sourceDate: { not: null, lt: expiredThreshold } },
+          { sourceDate: null, createdAt: { lt: expiredThreshold } },
+        ],
+      },
+      data: { status: 'expired' },
+    });
+
+    if (aged.count > 0 || expired.count > 0) {
+      logger.info(`[evidence-lifecycle] aged=${aged.count} expired=${expired.count}${companyId ? ` for ${companyId}` : ''}`);
+    }
+
+    return { aged: aged.count, expired: expired.count };
+  } catch (err) {
+    logger.error(`[evidence-lifecycle] failed: ${err instanceof Error ? err.message : err}`);
+    return { aged: 0, expired: 0 };
+  }
+}

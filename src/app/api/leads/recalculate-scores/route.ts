@@ -1,12 +1,14 @@
 import { NextResponse } from 'next/server';
 import { recalculateAllScores, getScoreBreakdown } from '@/lib/lead-scoring';
 import { logger } from '@/lib/logger';
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 
 export async function POST(request: Request) {
-    // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+    // ── Authentication + Admin Guard ──
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
+  const adminCheck = requireAdminRole(session!);
+  if (adminCheck) return adminCheck;
 
 try {
     const body = await request.json();

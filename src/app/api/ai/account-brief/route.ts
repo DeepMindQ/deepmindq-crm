@@ -349,7 +349,7 @@ Be SPECIFIC. Reference REAL information from search results. Every claim needs e
 
 export async function GET(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 const companyId = request.nextUrl.searchParams.get('companyId')

@@ -35,7 +35,7 @@ import {
   Treemap, ResponsiveContainer, PieChart, Pie, Cell, BarChart, Bar,
   XAxis, YAxis, Tooltip, Legend,
 } from 'recharts';
-import { cardSolid, colors, gold, goldLight, borderSubtle } from '@/components/shared/enterprise-theme';
+import { cardSolid, colors, gold, goldLight, borderSubtle } from '@/components/design-system';
 
 // ── Theme color opacity helpers ─────────────────────
 const goldAlpha = (a: number) => `rgba(212,175,55,${a})`;

@@ -1,5 +1,5 @@
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { checkApiAuth } from '@/lib/api-auth';
 import * as XLSX from 'xlsx-js-style';
 import { createHash } from 'crypto';
@@ -9,6 +9,8 @@ import { calculateLeadScore } from '@/lib/lead-scoring';
 import { Company } from '@prisma/client';
 import { logger } from '@/lib/logger';
 import { unsafeFindMany } from '@/lib/query-helpers';
+import { withCsrf } from '@/lib/with-csrf';
+import { encryptContactFields } from '@/lib/encryption';
 
 function sha256(str: string): string {
   return 'sha256:' + createHash('sha256').update(str).digest('hex');
@@ -19,7 +21,7 @@ function normalize(s: string | undefined | null): string {
   return s.trim().toLowerCase();
 }
 
-function normalizeTitle(s: string | undefined | null): string {
+function _normalizeTitle(s: string | undefined | null): string {
   if (!s) return '';
   return s.trim();
 }
@@ -208,15 +210,23 @@ async function processChunk(
     });
     const leadScore = leadScoreResult.total;
 
+    const encryptedContactData = await encryptContactFields({
+      rawName: rawName || 'Unknown',
+      normalizedName: normalize(rawName) || 'unknown',
+      email: rawEmail || `no-email-${Date.now()}-${Math.random().toString(36).slice(2)}@import.local`,
+      phone: rawPhone || undefined,
+      linkedinUrl: rawLinkedin || undefined,
+    });
+
     const contact = await db.contact.create({
       data: {
-        rawName: rawName || 'Unknown',
-        normalizedName: normalize(rawName) || 'unknown',
-        email: rawEmail || `no-email-${Date.now()}-${Math.random().toString(36).slice(2)}@import.local`,
+        rawName: encryptedContactData.rawName as string,
+        normalizedName: encryptedContactData.normalizedName as string,
+        email: encryptedContactData.email as string,
+        phone: encryptedContactData.phone as string | null | undefined,
+        linkedinUrl: encryptedContactData.linkedinUrl as string | null | undefined,
         title: rawTitle || undefined,
         role: roleBucket,
-        phone: rawPhone || undefined,
-        linkedinUrl: rawLinkedin || undefined,
         location: rawLocation || undefined,
         companyId,
         batchId: batchId,
@@ -241,9 +251,9 @@ async function processChunk(
 /* ═══════════════════════════════════════════════════
    POST /api/batches — Upload & import
    ═══════════════════════════════════════════════════ */
-export async function POST(request: Request) {
+export const POST = withCsrf(async function POST(request: NextRequest) {
   // Auth gate: authenticated users only for file import
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {
@@ -516,7 +526,7 @@ export async function POST(request: Request) {
       { status: 500 }
     );
   }
-}
+});
 
 /* ═══════════════════════════════════════════════════
    Cancel a batch (used by progress UI)

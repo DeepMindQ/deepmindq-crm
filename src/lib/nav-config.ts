@@ -16,8 +16,9 @@ import {
   Brain, BookOpen, Layers, Radar, Target,
   Settings, Shield, Database, Plug, Activity,
   BarChart3, Inbox, Upload, Radio,
-  TrendingUp, Telescope, ScrollText,
-  Users, GitBranch, Mail, FileDown,
+  TrendingUp, Telescope, ScrollText, Sparkles,
+  Users, GitBranch, Mail, FileDown, Sliders, Lightbulb,
+  Zap, Wand2,
 } from 'lucide-react';
 
 export interface NavItem {
@@ -39,11 +40,15 @@ export const NAV_SECTIONS: NavSection[] = [
     heading: 'INTELLIGENCE',
     defaultOpen: true,
     items: [
+      { key: 'main-dashboard', label: 'Main Dashboard', icon: Telescope },
       { key: 'intelligence-operations', label: 'Executive Dashboard', icon: LayoutDashboard },
+      { key: 'ai-advisor', label: 'AI Advisor', icon: Sparkles },
       { key: 'accounts', label: 'Company Intelligence', icon: Building2 },
+      { key: 'company-workspace-v2', label: 'Company V2', icon: Building2 },
       { key: 'contacts', label: 'Contact Intelligence', icon: Users },
       { key: 'signal-intelligence', label: 'AI Insights', icon: Radar },
       { key: 'opportunity-radar', label: 'Opportunities', icon: Target },
+      { key: 'account-ranking', label: 'Account Ranking', icon: TrendingUp },
       { key: 'intelligence-search', label: 'Intelligence Search', icon: Search },
     ],
   },
@@ -54,6 +59,8 @@ export const NAV_SECTIONS: NavSection[] = [
     defaultOpen: true,
     items: [
       { key: 'pipeline', label: 'Pipeline', icon: GitBranch },
+      { key: 'recommendation-queue', label: 'Recommendations', icon: Lightbulb },
+      { key: 'recommendation-queue-v2', label: 'Smart Queue', icon: Zap },
       { key: 'email-studio', label: 'Email Studio', icon: Mail },
     ],
   },
@@ -74,6 +81,7 @@ export const NAV_SECTIONS: NavSection[] = [
     items: [
       { key: 'data-import', label: 'Import Data', icon: FileDown },
       { key: 'data-health', label: 'Data Health', icon: Activity },
+      { key: 'trust-dashboard', label: 'AI Trust', icon: Shield },
     ],
   },
 
@@ -85,7 +93,12 @@ export const NAV_SECTIONS: NavSection[] = [
       { key: 'analytics', label: 'Analytics', icon: BarChart3 },
       { key: 'ai-health', label: 'System Health', icon: Cpu },
       { key: 'settings', label: 'Settings', icon: Settings },
+      { key: 'scoring-config', label: 'Scoring Config', icon: Sliders },
+      { key: 'scoring-wizard', label: 'Scoring Wizard', icon: Wand2 },
+      { key: 'batch-operations', label: 'Batch Operations', icon: Layers },
+      { key: 'users', label: 'Users', icon: Users },
       { key: 'audit', label: 'Audit & Governance', icon: Shield },
+      { key: 'admin-settings', label: 'Admin Panel', icon: Shield },
     ],
   },
 ];

@@ -42,6 +42,15 @@ export { transitionSignalLifecycles } from './signal-lifecycle';
 export { computeEvidenceQuality, type EvidenceQualityScore } from './evidence-quality';
 export { generateSignalDrivenSequence } from './signal-sequence-engine';
 export {
+  inferSignalMeaning,
+  batchInferMeaning,
+  type SignalMeaning,
+  type MeaningCategory,
+  type BatchMeaningResult,
+} from './signal-meaning';
+export { validateCompanySignals, getSignalValidationSummary, type ValidationStatus } from '@/lib/signal-validation';
+export { detectContradictions, resolveConflict, type ConflictType, type DetectedConflict } from '@/lib/contradiction-detection';
+export {
   generateOpportunityRecommendation,
   generateCompanyOpportunities,
   computeOpportunityScore,

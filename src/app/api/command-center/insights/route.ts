@@ -287,7 +287,7 @@ Return ONLY valid JSON.`;
 
 export async function GET(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 const startedAt = Date.now();

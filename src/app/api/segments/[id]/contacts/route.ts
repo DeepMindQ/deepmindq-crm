@@ -13,7 +13,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -27,7 +27,12 @@ try {
       return NextResponse.json({ error: 'Segment not found' }, { status: 404 });
     }
 
-    let contacts: any[];
+    type ContactWithCompany = {
+      id: string; rawName: string; email: string; title: string | null;
+      role: string | null; leadScore: number; status: string;
+      company: { rawName: string; industry: string | null; domain: string | null } | null;
+    };
+    let contacts: ContactWithCompany[];
     let total: number;
 
     if (segment.isStatic) {
@@ -47,11 +52,11 @@ try {
         orderBy: { addedAt: 'desc' },
       });
 
-      contacts = links.map((l: any) => l.contact);
+      contacts = links.map((l) => l.contact as unknown as ContactWithCompany);
     } else {
       // Dynamic: evaluate filters
       const filters = JSON.parse(segment.filters);
-      const where: any = {};
+      const where: Record<string, unknown> = {};
 
       if (filters.industry?.length > 0) {
         where.company = { industry: { in: filters.industry } };
@@ -69,19 +74,19 @@ try {
         where.role = { in: filters.role };
       }
 
-      total = await db.contact.count({ where });
+      total = await db.contact.count({ where: where as Record<string, never> });
       contacts = await db.contact.findMany({
-        where,
+        where: where as Record<string, never>,
         include: {
           company: { select: { rawName: true, industry: true, domain: true } },
         },
         skip: (page - 1) * limit,
         take: limit,
         orderBy: { leadScore: 'desc' },
-      });
+      }) as unknown as ContactWithCompany[];
     }
 
-    const mapped = (contacts as any[]).map((c: any) => ({
+    const mapped = contacts.map((c) => ({
       id: c.id,
       rawName: c.rawName,
       email: c.email,

@@ -26,6 +26,7 @@ import { tokens, getConfidenceTier, getPriorityTier, motion as motionTokens } fr
 import type { IntelligenceNarrativeData } from '@/lib/intelligence-narrative-service';
 import { logger } from '@/lib/logger';
 import { FirstExperienceGuide } from '@/components/shared/first-experience-guide';
+import { MainIntelligenceDashboard } from '@/components/screens/main-intelligence-dashboard';
 
 /* ═══════════════════════════════════════════════════════════════
    Intelligence Operations Center — Daily Proactive Intelligence Cockpit
@@ -195,6 +196,13 @@ const MIN_PREDICTION_CONFIDENCE = 20;
 
 export function IntelligenceOperationsCenter() {
   const { intelligenceActivated, setActiveView, setSelectedCompanyId } = useAppStore();
+
+  // ── S11 Dashboard navigation handler ──
+  const [dashboardExpanded, setDashboardExpanded] = useState(false);
+  const handleNavigate = useCallback((href: string) => {
+    const key = href.replace('#', '') as ViewId;
+    setActiveView(key);
+  }, [setActiveView]);
 
   // ── Section states (independent) ──
   const [alertsState, setAlertsState] = useState<SectionState>({ loading: false, error: null, lastRefresh: null });
@@ -748,6 +756,36 @@ export function IntelligenceOperationsCenter() {
           />
         </div>
       </motion.div>
+
+      {/* ═══ S11: Intelligence Overview Dashboard (collapsible) ═══ */}
+      <div className="rounded-xl border overflow-hidden" style={{ background: tokens.surface.card, borderColor: tokens.border.subtle }}>
+        <button
+          onClick={() => setDashboardExpanded(v => !v)}
+          className="w-full flex items-center justify-between px-5 py-3 text-left"
+        >
+          <div className="flex items-center gap-2">
+            <Activity className="w-4 h-4" style={{ color: tokens.accent.bright }} />
+            <span className="text-sm font-semibold" style={{ color: tokens.text.primary }}>Intelligence Overview</span>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0" style={{ background: tokens.accent.ghost, color: tokens.accent.bright, border: 0 }}>S11</Badge>
+          </div>
+          <ChevronRight className="w-4 h-4 transition-transform" style={{ color: tokens.text.muted, transform: dashboardExpanded ? 'rotate(90deg)' : 'none' }} />
+        </button>
+        <AnimatePresence>
+          {dashboardExpanded && (
+            <motion.div
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="overflow-hidden"
+            >
+              <div className="px-5 pb-5">
+                <MainIntelligenceDashboard onNavigate={handleNavigate} />
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       {/* ═══ ERROR BANNERS (per-section, non-blocking) ═══ */}
       {alertsState.error && <SectionErrorBanner message={alertsState.error} onRetry={() => fetchAlerts(companyIds)} />}

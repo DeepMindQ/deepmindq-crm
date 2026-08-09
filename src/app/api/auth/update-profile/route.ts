@@ -5,6 +5,7 @@ import { requireAuth, AuthError } from '@/lib/session';
 import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/sanitize';
 import { logger } from '@/lib/logger';
+import { encryptUserFields } from '@/lib/encryption';
 
 const schema = z.object({
   email: z.string().email(),
@@ -68,9 +69,12 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Email already in use' }, { status: 409 });
       }
 
+      const newEmail = updates.newEmail.toLowerCase().trim();
+      const encryptedEmailData = await encryptUserFields({ email: newEmail });
+
       await db.user.update({
         where: { id: user.id },
-        data: { email: updates.newEmail.toLowerCase().trim() },
+        data: { email: encryptedEmailData.email as string },
       });
 
       return NextResponse.json({ success: true, message: 'Email updated' });

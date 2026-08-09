@@ -110,6 +110,10 @@ vi.mock('next/server', () => ({
   NextResponse: { json: (body: unknown, init?: { status?: number }) => ({ status: init?.status || 200, json: async () => body }) },
 }))
 
+vi.mock('@/lib/with-csrf', () => ({
+  withCsrf: (handler: any) => handler,
+}))
+
 import { logAction } from '@/lib/audit'
 
 // ── Test Suite ──────────────────────────────────────────────────────

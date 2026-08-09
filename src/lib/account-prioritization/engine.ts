@@ -564,9 +564,9 @@ export async function getPrioritizedCompanies(options: {
   }
   if (search) {
     where.OR = [
-      { rawName: { contains: search, mode: 'insensitive' } },
-      { domain: { contains: search, mode: 'insensitive' } },
-      { industry: { contains: search, mode: 'insensitive' } },
+      { rawName: { contains: search } },
+      { domain: { contains: search } },
+      { industry: { contains: search } },
     ];
   }
 

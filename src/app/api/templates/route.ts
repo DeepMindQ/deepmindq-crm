@@ -10,7 +10,7 @@ import { checkApiAuth } from '@/lib/api-auth';
    ═══════════════════════════════════════════════════ */
 export async function GET(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -43,7 +43,7 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -92,7 +92,7 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function PUT(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -123,7 +123,7 @@ try {
 
     const template = await db.emailTemplate.update({
       where: { id },
-      data: updateData,
+      data: updateData as any,
     });
 
     return NextResponse.json({ success: true, template });
@@ -142,7 +142,7 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function DELETE(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

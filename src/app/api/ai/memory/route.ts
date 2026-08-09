@@ -52,7 +52,7 @@ const VALID_VIEWS = new Set(['stats', 'search', 'context', 'entity', 'recall']);
 const VALID_ACTIONS = new Set(['store', 'update', 'forget', 'consolidate', 'decay', 'seed', 'clear']);
 
 export async function GET(request: NextRequest): Promise<Response> {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {
@@ -130,7 +130,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 }
 
 export async function POST(request: NextRequest): Promise<Response> {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

@@ -8,7 +8,7 @@ import { checkApiAuth } from '@/lib/api-auth';
    Returns chronological activity timeline for a contact
    ═══════════════════════════════════════════════════ */
 
-const EVENT_ICONS: Record<string, string> = {
+const _EVENT_ICONS: Record<string, string> = {
   import: 'Database',
   verify: 'MailCheck',
   draft_created: 'FileEdit',
@@ -27,7 +27,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

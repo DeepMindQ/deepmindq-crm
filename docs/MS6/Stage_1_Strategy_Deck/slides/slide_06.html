@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280, initial-scale=1.0">
+  <title>Section Divider — Chapter 2</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="global.css">
+  <style>
+    @keyframes slideInLeft {
+      from { opacity: 0; transform: translateX(-30px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    .chapter-num {
+      animation: slideInLeft 0.6s ease-out forwards;
+      opacity: 0;
+    }
+    .chapter-title {
+      animation: slideInLeft 0.6s ease-out 0.15s forwards;
+      opacity: 0;
+    }
+    .chapter-line {
+      animation: fadeIn 0.5s ease-out 0.35s forwards;
+      opacity: 0;
+    }
+    .chapter-tag {
+      animation: slideInLeft 0.6s ease-out 0.45s forwards;
+      opacity: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="slide slide--section">
+    <!-- Decorative horizontal line extending from chapter number -->
+    <div aria-hidden="true" style="position: absolute; top: 50%; left: 180px; width: calc(100% - 180px - 80px); height: 1px; background: linear-gradient(to right, rgba(59,130,246,0.12), transparent); transform: translateY(-50%); pointer-events: none;"></div>
+
+    <!-- Decorative corner accent -->
+    <div aria-hidden="true" style="position: absolute; top: 80px; right: 80px; width: 80px; height: 80px; border-right: 2px solid rgba(59,130,246,0.08); border-bottom: 2px solid rgba(59,130,246,0.08); border-radius: 0 0 var(--radius-md) 0;"></div>
+
+    <!-- Content block -->
+    <div style="display: flex; flex-direction: column; justify-content: center; height: 100%;">
+
+      <!-- Chapter number -->
+      <div class="chapter-num" style="font-family: var(--font-mono); font-size: clamp(3.5rem, 6vw, 4.5rem); font-weight: 800; color: var(--accent); opacity: 0.25; line-height: 1; margin-bottom: 16px;">
+        02
+      </div>
+
+      <!-- Chapter title -->
+      <h1 class="chapter-title" style="font-family: var(--font-heading); font-size: clamp(2rem, 3.5vw, 2.75rem); font-weight: 700; color: var(--primary); line-height: 1.15; margin-bottom: 20px;">
+        VP Sales Mental Model
+      </h1>
+
+      <!-- Blue accent line -->
+      <div class="chapter-line accent-line" style="width: 48px;"></div>
+
+      <!-- Tagline -->
+      <p class="chapter-tag" style="font-family: var(--font-body); font-size: var(--fs-h3); font-weight: 400; color: var(--primary-dim); margin-top: 16px;">
+        The Design North Star
+      </p>
+
+    </div>
+
+    <!-- Speaker notes -->
+    <aside data-notes class="hidden">
+      Every UX decision in DeepMindQ passes through one filter: Would a VP Sales trust this? Would they use this every morning? The VP Sales is not a demographic — it is a decision-making mindset that represents our primary user archetype.
+    </aside>
+  </div>
+</body>
+</html>

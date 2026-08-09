@@ -209,7 +209,7 @@ Generate a highly specific, actionable conversation plan. Use the web research t
 
 export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

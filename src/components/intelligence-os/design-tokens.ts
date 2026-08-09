@@ -46,19 +46,28 @@ export const tokens = {
     ghost:      'rgba(59, 130, 246, 0.06)',
   } as const,
 
-  // Domain colors — semantic, NOT decorative
+  // Domain colors — from MS6 semantic state system
   domain: {
     signal:       '#3b82f6',   // Intelligence signals
-    opportunity:  '#8b5cf6',   // Revenue opportunities
+    opportunity:  '#a855f7',   // AI-identified opportunities
     risk:         '#ef4444',   // Risk alerts
     enrichment:   '#06b6d4',   // Data enrichment
     reasoning:    '#f59e0b',   // AI reasoning
-    action:       '#10b981',   // Recommended actions
+    action:       '#22c55e',   // Recommended actions (updated from #10b981)
   } as const,
 
-  // Confidence scale — 3 tiers only (high/medium/low)
+  // Trust scale — 5 tiers from MS6 Phase 2
+  trust: {
+    verified:  { value: '#22c55e', bg: 'rgba(34, 197, 94, 0.12)',   border: 'rgba(34, 197, 94, 0.3)',   label: 'Verified' },
+    high:      { value: '#14b8a6', bg: 'rgba(20, 184, 166, 0.12)',   border: 'rgba(20, 184, 166, 0.3)',   label: 'High Confidence' },
+    medium:    { value: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)',  border: 'rgba(245, 158, 11, 0.3)',  label: 'Medium Confidence' },
+    low:       { value: '#f97316', bg: 'rgba(249, 115, 22, 0.12)',  border: 'rgba(249, 115, 22, 0.3)',  label: 'Low Confidence' },
+    unverified:{ value: '#6b7280', bg: 'rgba(107, 114, 128, 0.12)', border: 'rgba(107, 114, 128, 0.3)', label: 'Unverified' },
+  } as const,
+
+  // Confidence scale — 3-tier backward compatibility (maps to trust tiers)
   confidence: {
-    high:   { value: '#10b981', bg: 'rgba(16, 185, 129, 0.1)',  border: 'rgba(16, 185, 129, 0.2)',  label: 'High' },
+    high:   { value: '#14b8a6', bg: 'rgba(20, 184, 166, 0.1)',  border: 'rgba(20, 184, 166, 0.2)',  label: 'High' },
     medium: { value: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)',  border: 'rgba(245, 158, 11, 0.2)',  label: 'Medium' },
     low:    { value: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)',   border: 'rgba(239, 68, 68, 0.2)',   label: 'Low' },
   } as const,
@@ -72,11 +81,20 @@ export const tokens = {
   } as const,
 } as const;
 
-// ── Get confidence tier from numeric value ──
+// ── Get confidence tier from numeric value (3-tier legacy) ──
 export function getConfidenceTier(value: number): keyof typeof tokens.confidence {
   if (value >= 70) return 'high';
   if (value >= 45) return 'medium';
   return 'low';
+}
+
+// ── Get trust tier from numeric value (5-tier from MS6) ──
+export function getTrustTier(value: number): keyof typeof tokens.trust {
+  if (value >= 90) return 'verified';
+  if (value >= 70) return 'high';
+  if (value >= 45) return 'medium';
+  if (value >= 25) return 'low';
+  return 'unverified';
 }
 
 // ── Get priority tier from label ──

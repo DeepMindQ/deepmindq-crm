@@ -66,6 +66,14 @@ export interface ConfidenceResult {
   timestamp: string;
   /** Version of the confidence model. */
   modelVersion: string;
+  /** Phase 1: Whether the confidence floor was applied. */
+  confidenceFloorApplied?: boolean;
+  /** Phase 1: Calibration status of the confidence model. */
+  calibrationStatus?: 'uncalibrated' | 'partially_calibrated' | 'calibrated';
+  /** Phase 1: How much to trust the confidence score itself (0-100). */
+  confidenceInConfidence?: number;
+  /** Phase 1: Reason why confidence was floored (if applicable). */
+  floorReason?: string;
 }
 
 export interface ConfidenceInput {
@@ -125,6 +133,12 @@ export interface ConfidenceInput {
   hallucinationRiskScore?: number;
   /** Quality gate results. */
   qualityGateScore?: number;
+
+  // ── Multi-Tenant Overrides ──
+  /** Tenant ID for looking up tenant-specific confidence weights. */
+  tenantId?: string;
+  /** Pre-loaded custom confidence weights (keys map to ConfidenceDimension, values are 0-1 weights). */
+  customWeights?: Record<string, number>;
 }
 
 // ── Source Reliability Registry ──────────────────────────────────────────────
@@ -606,14 +620,108 @@ export function computeUnifiedConfidence(input: ConfidenceInput): ConfidenceResu
     scoreAICertainty(input),
   ];
 
+  // Apply tenant-specific weights if provided
+  if (input.customWeights && Object.keys(input.customWeights).length > 0) {
+    const weightMap: Record<string, string> = {
+      dataQuality: 'data_quality',
+      sourceReliability: 'source_reliability',
+      freshness: 'freshness',
+      crossValidation: 'cross_validation',
+      evidenceCoverage: 'evidence_coverage',
+      aiCertainty: 'ai_certainty',
+    };
+    for (const factor of factors) {
+      // Check both camelCase and snake_case keys
+      const weight = input.customWeights[factor.dimension]
+        ?? input.customWeights[Object.entries(weightMap).find(([, v]) => v === factor.dimension)?.[0] ?? ''];
+      if (weight !== undefined && weight >= 0 && weight <= 1) {
+        (factor as any).weight = weight;
+      }
+    }
+  }
+
   // Compute weighted composite score
-  const score = Math.round(
+  let score = Math.round(
     factors.reduce((sum, f) => sum + f.score * f.weight, 0)
   );
+
+  // Phase 1: Confidence Floor Enforcement
+  // Feature-flagged: ENABLE_CONFIDENCE_FLOOR defaults to true
+  const ENABLE_CONFIDENCE_FLOOR = process.env.ENABLE_CONFIDENCE_FLOOR !== 'false';
+  let confidenceFloorApplied = false;
+  let floorReason: string | undefined;
+
+  if (ENABLE_CONFIDENCE_FLOOR) {
+    const evidenceCount = input.evidenceCount ?? 0;
+    const daysSinceResearch = input.daysSinceResearch;
+    const freshnessScore = input.freshnessScore;
+
+    // Floor 1: Too few evidence items
+    if (evidenceCount < 3) {
+      const FLOOR = 30;
+      if (score > FLOOR) {
+        score = FLOOR;
+        confidenceFloorApplied = true;
+        floorReason = `Only ${evidenceCount} evidence items (< 3 minimum). Confidence capped at ${FLOOR}.`;
+      }
+    }
+
+    // Floor 2: Stale data (all evidence older than 180 days)
+    if (!confidenceFloorApplied && daysSinceResearch !== undefined && daysSinceResearch > 180) {
+      const FLOOR = 35;
+      if (score > FLOOR) {
+        score = FLOOR;
+        confidenceFloorApplied = true;
+        floorReason = `Data is ${daysSinceResearch} days old (> 180 day threshold). Confidence capped at ${FLOOR}.`;
+      }
+    }
+
+    // Floor 3: Low freshness score
+    if (!confidenceFloorApplied && freshnessScore !== undefined && freshnessScore < 20) {
+      const FLOOR = 40;
+      if (score > FLOOR) {
+        score = FLOOR;
+        confidenceFloorApplied = true;
+        floorReason = `Freshness score is ${freshnessScore} (< 20 threshold). Confidence capped at ${FLOOR}.`;
+      }
+    }
+  }
 
   const grade = scoreToGrade(score);
   const trustClass = scoreToTrustClass(score);
   const enterpriseReady = score >= 70;
+
+  // Phase 1: Calibration status (placeholder — real calibration requires feedback data)
+  // When CalibrationCurve records exist, this will be 'calibrated' or 'partially_calibrated'
+  const calibrationStatus: 'uncalibrated' | 'partially_calibrated' | 'calibrated' = 'uncalibrated';
+
+  // Phase 1: Confidence-in-Confidence
+  // How much should a user trust this confidence score?
+  // Based on: evidence count, data freshness, calibration status
+  const evidenceCount = input.evidenceCount ?? 0;
+  const daysSince = input.daysSinceResearch;
+  let cicScore = 50; // Base: moderate trust
+
+  // Boost for more evidence
+  if (evidenceCount >= 10) cicScore += 20;
+  else if (evidenceCount >= 5) cicScore += 10;
+  else if (evidenceCount < 2) cicScore -= 20;
+
+  // Boost for fresh data
+  if (daysSince !== undefined) {
+    if (daysSince <= 7) cicScore += 15;
+    else if (daysSince <= 30) cicScore += 5;
+    else if (daysSince > 90) cicScore -= 10;
+    else if (daysSince > 180) cicScore -= 20;
+  }
+
+  // Penalty for uncalibrated model
+  if (calibrationStatus === 'uncalibrated') cicScore -= 10;
+
+  // Penalty for floor applied (indicates data scarcity)
+  if (confidenceFloorApplied) cicScore -= 15;
+
+  const confidenceInConfidence = Math.max(0, Math.min(100, cicScore));
 
   // Generate summary
   const summary = generateConfidenceSummary(score, grade, trustClass, factors);
@@ -631,6 +739,10 @@ export function computeUnifiedConfidence(input: ConfidenceInput): ConfidenceResu
     recommendations,
     timestamp,
     modelVersion: CONFIDENCE_MODEL_VERSION,
+    confidenceFloorApplied: confidenceFloorApplied || undefined,
+    calibrationStatus,
+    confidenceInConfidence,
+    floorReason,
   };
 }
 

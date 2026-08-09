@@ -8,7 +8,7 @@ import { checkApiAuth } from '@/lib/api-auth';
 // POST /api/learning — Record a learning event
 export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -38,7 +38,7 @@ try {
 // GET /api/learning?companyId=xxx — Find reusable learnings
 export async function GET(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 const companyId = new URL(request.url).searchParams.get('companyId');

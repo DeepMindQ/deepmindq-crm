@@ -25,7 +25,6 @@ import type { RevenueScore } from '@/lib/engines/scoring-engine';
 import { ActionEngine } from '@/lib/engines/action-engine';
 import type { ActionResult } from '@/lib/engines/action-engine';
 import { ConversationEngine } from '@/lib/engines/conversation-engine';
-import type { ConversationResult } from '@/lib/engines/conversation-engine';
 import {
   shouldInclude,
   createResponse,
@@ -62,7 +61,7 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 const startedAt = Date.now();

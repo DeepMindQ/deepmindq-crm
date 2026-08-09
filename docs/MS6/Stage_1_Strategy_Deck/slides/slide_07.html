@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280, initial-scale=1.0">
+  <title>VP Sales Mental Model</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="global.css">
+  <style>
+    .quote-block {
+      background: linear-gradient(135deg, rgba(59,130,246,0.08) 0%, transparent 80%);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 var(--radius-md) var(--radius-md) 0;
+      padding: 20px 24px;
+      margin: 16px 0 20px 0;
+    }
+    .quote-text {
+      font-family: var(--font-heading);
+      font-size: clamp(0.9375rem, 1.3vw, 1.0625rem);
+      font-weight: 500;
+      font-style: italic;
+      color: var(--accent);
+      line-height: 1.5;
+    }
+    .principle-card {
+      background: rgba(22,28,42,0.6);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 16px 20px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      transition: border-color 0.3s ease;
+    }
+    .principle-card:hover {
+      border-color: rgba(59,130,246,0.2);
+    }
+    .principle-icon {
+      width: 36px;
+      height: 36px;
+      min-width: 36px;
+      border-radius: var(--radius-full);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+    }
+    .principle-title {
+      font-family: var(--font-heading);
+      font-size: var(--fs-body);
+      font-weight: 600;
+      color: var(--primary);
+      margin-bottom: 4px;
+    }
+    .principle-body {
+      font-size: var(--fs-small);
+      color: var(--primary-dim);
+      line-height: var(--lh-snug);
+    }
+    .question-item {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+      padding: 14px 20px;
+      background: rgba(22,28,42,0.5);
+      border-left: 3px solid var(--accent);
+      border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+      margin-bottom: 10px;
+      transition: background 0.2s ease;
+    }
+    .question-item:hover {
+      background: rgba(59,130,246,0.06);
+    }
+    .question-num {
+      font-family: var(--font-mono);
+      font-size: clamp(1.125rem, 1.6vw, 1.25rem);
+      font-weight: 600;
+      color: var(--accent);
+      line-height: 1;
+      min-width: 28px;
+    }
+    .question-text {
+      font-family: var(--font-heading);
+      font-size: var(--fs-body);
+      font-weight: 500;
+      color: var(--primary);
+    }
+    .section-label {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary-dim);
+      letter-spacing: 0.2em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <!-- Header -->
+    <div style="margin-bottom: 24px;">
+      <h2 style="font-family: var(--font-heading); font-size: var(--fs-h2); font-weight: 700; color: var(--primary); margin-bottom: 12px;">
+        The Design North Star
+      </h2>
+      <div class="accent-line"></div>
+    </div>
+
+    <!-- Two-Column Layout -->
+    <div style="display: grid; grid-template-columns: 3fr 2fr; gap: 40px; flex: 1;">
+
+      <!-- LEFT COLUMN (60%) -->
+      <div style="display: flex; flex-direction: column;">
+        <!-- Subtitle -->
+        <p style="font-size: var(--fs-small); font-weight: 500; color: var(--primary-dim); text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 16px;">
+          Primary Design Persona — VP Sales / Sales Leader
+        </p>
+
+        <!-- Mental model description -->
+        <p style="font-size: var(--fs-body); color: var(--primary); line-height: var(--lh-relaxed); margin-bottom: 8px;">
+          A VP Sales arrives each morning with five implicit questions. They do not browse dashboards. They do not read feeds. They need answers — fast, trusted, and actionable. Every element of the DeepMindQ experience must be filtered through this lens:
+        </p>
+
+        <!-- Quote block -->
+        <div class="quote-block">
+          <p class="quote-text">
+            "Would a VP Sales trust this, rely on this daily, and recommend this to their team?"
+          </p>
+        </div>
+
+        <!-- Three behavioral principles -->
+        <p style="font-size: var(--fs-micro); font-weight: 600; color: var(--primary-dim); text-transform: uppercase; letter-spacing: 0.15em; margin-bottom: 12px;">
+          Behavioral Principles
+        </p>
+
+        <div style="display: flex; flex-direction: column; gap: 10px;">
+          <!-- Principle 1 -->
+          <div class="principle-card">
+            <div class="principle-icon icon-circle--blue">
+              <span class="material-icons" style="font-size: 18px;">schedule</span>
+            </div>
+            <div>
+              <div class="principle-title">Time-Scarce Decision Maker</div>
+              <div class="principle-body">Has 15 minutes max for intelligence review. Needs signal, not noise.</div>
+            </div>
+          </div>
+
+          <!-- Principle 2 -->
+          <div class="principle-card">
+            <div class="principle-icon icon-circle--purple">
+              <span class="material-icons" style="font-size: 18px;">verified_user</span>
+            </div>
+            <div>
+              <div class="principle-title">Trust-Sensitive Executive</div>
+              <div class="principle-body">Will not act on AI recommendations without understanding why. Evidence is not optional.</div>
+            </div>
+          </div>
+
+          <!-- Principle 3 -->
+          <div class="principle-card">
+            <div class="principle-icon icon-circle--green">
+              <span class="material-icons" style="font-size: 18px;">trending_up</span>
+            </div>
+            <div>
+              <div class="principle-title">Action-Oriented Leader</div>
+              <div class="principle-body">Intelligence without a recommended next step is wasted cognitive load.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- RIGHT COLUMN (40%) -->
+      <div style="display: flex; flex-direction: column;">
+        <div class="section-label">The 5 Morning Questions</div>
+
+        <!-- Question 1 -->
+        <div class="question-item">
+          <span class="question-num">1</span>
+          <span class="question-text">What changed?</span>
+        </div>
+
+        <!-- Question 2 -->
+        <div class="question-item">
+          <span class="question-num">2</span>
+          <span class="question-text">Why does it matter?</span>
+        </div>
+
+        <!-- Question 3 -->
+        <div class="question-item">
+          <span class="question-num">3</span>
+          <span class="question-text">Who should we engage?</span>
+        </div>
+
+        <!-- Question 4 -->
+        <div class="question-item">
+          <span class="question-num">4</span>
+          <span class="question-text">What should we say?</span>
+        </div>
+
+        <!-- Question 5 -->
+        <div class="question-item">
+          <span class="question-num">5</span>
+          <span class="question-text">What should we do?</span>
+        </div>
+
+        <!-- Decorative accent at bottom -->
+        <div aria-hidden="true" style="margin-top: auto; padding-top: 24px; opacity: 0.5;">
+          <div style="width: 48px; height: 2px; background: var(--accent); border-radius: 9999px;"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Speaker notes -->
+    <aside data-notes class="hidden">
+      The VP Sales mental model is not about demographics or job titles. It is about cognitive patterns. This persona represents anyone who is time-scarce, trust-sensitive, and action-oriented. If we serve this mindset, we serve all power users. The 5 morning questions become the structural backbone of the entire Intelligence Hub.
+    </aside>
+  </div>
+</body>
+</html>

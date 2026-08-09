@@ -3,7 +3,11 @@ import { checkApiAuth } from '@/lib/api-auth'
 import { NextRequest, NextResponse } from 'next/server'
 
 // ── Event types we forward over SSE ──────────────────────────────────
-const FORWARDED_EVENTS = ['notification', 'email_opened', 'email_clicked'] as const
+const FORWARDED_EVENTS = [
+  'notification', 'email_opened', 'email_clicked',
+  'dashboard_update', 'signals_update', 'recommendations_update',
+  'company_update', 'opportunity_update',
+] as const
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -16,7 +20,7 @@ const MAX_SSE_CONNECTIONS_PER_USER = 3;
 
 export async function GET(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   // Check per-user connection limit
@@ -48,14 +52,26 @@ const encoder = new TextEncoder()
 
       // Subscribe to all forwarded events
       const unsubscribers = FORWARDED_EVENTS.map((eventName) =>
-        eventBus.on(eventName, (data) => {
+        eventBus.on(eventName, (evt) => {
           try {
-            send(data, eventName)
+            send(evt.data, evt.type)
           } catch {
             // If enqueue fails the stream is likely closed — cleanup happens in cancel
           }
         }),
       )
+
+      // Also subscribe via onAny so any future event types are automatically forwarded
+      const unsubAny = eventBus.onAny((evt) => {
+        // Only forward if not already handled by a specific listener
+        if (!(FORWARDED_EVENTS as readonly string[]).includes(evt.type)) {
+          try {
+            send(evt.data, evt.type)
+          } catch {
+            // Stream likely closed
+          }
+        }
+      })
 
       // Heartbeat every 30 seconds to keep the connection alive
       const heartbeat = setInterval(() => {
@@ -67,9 +83,10 @@ const encoder = new TextEncoder()
       }, 30_000)
 
       // Store cleanup references for the cancel handler
-      ;(stream as unknown as { _cleanup: () => void })._cleanup = () => {
+           ;(stream as unknown as { _cleanup: () => void })._cleanup = () => {
         clearInterval(heartbeat)
         unsubscribers.forEach((unsub) => unsub())
+        unsubAny()
         sseConnections.set(sessionToken, Math.max(0, (sseConnections.get(sessionToken) || 0) - 1));
       }
     },

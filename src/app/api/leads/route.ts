@@ -329,7 +329,7 @@ async function fetchDBMeta() {
 /* ── GET /api/leads ── */
 export async function GET(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

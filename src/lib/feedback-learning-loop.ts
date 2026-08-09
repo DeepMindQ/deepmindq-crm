@@ -41,6 +41,7 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { storeMemory, searchMemories, type MemoryItem, type MemorySource } from '@/lib/ai-memory';
 import { generateCompanyRecommendation, type AccountRecommendation } from '@/lib/recommendation-engine';
+import { recordOutcome, outcomeToScore } from '@/lib/confidence-calibration-engine';
 
 // ── Types ──────────────────────────────────────────────────────────────────
 
@@ -124,6 +125,10 @@ export interface FeedbackResult {
     newConfidence: number;
     reason: string;
   };
+
+  // Phase 4.7: Human Validation → Calibration integration
+  calibrationRecorded: boolean;
+  calibrationDataPointId?: string;
 
   // Learning event
   learningEventCreated: boolean;
@@ -243,12 +248,61 @@ export async function processFeedback(
     logger.warn('[FeedbackLoop] Failed to update feedback record:', { error: err });
   }
 
+  // ── Step 5 (Phase 4.7): Record outcome in Confidence Calibration Engine ──
+  let calibrationRecorded = false;
+  let calibrationDataPointId: string | undefined;
+
+  if (submission.actualOutcome) {
+    try {
+      // Map the actual outcome to a calibration score
+      const actualScore = outcomeToScore(submission.actualOutcome);
+
+      // Get the predicted score from the recommendation snapshot if available
+      const predictedScore = snapshot.opportunityScore as number || 50;
+
+      // Determine dimension based on feedback reason
+      const dimension = submission.feedbackReason === 'data_was_stale' ? 'freshness'
+        : submission.feedbackReason === 'incorrect_technology' ? 'ai_certainty'
+        : submission.feedbackReason === 'wrong_decision_maker' ? 'evidence_coverage'
+        : 'overall';
+
+      // Determine predicted grade from snapshot confidence
+      const predictedGrade = (snapshot.confidenceGrade as string) || 'C';
+
+      const calResult = await recordOutcome({
+        id: `cal-${submission.companyId}-${Date.now()}`,
+        companyId: submission.companyId,
+        dimension,
+        predictedScore,
+        predictedGrade,
+        actualOutcome: submission.actualOutcome,
+        actualScore,
+        recordedAt: new Date().toISOString(),
+      });
+
+      calibrationRecorded = calResult.success;
+      calibrationDataPointId = calResult.success ? calResult.calibrationId : undefined;
+
+      logger.info('[FeedbackLoop] Calibration data point recorded (Phase 4.7)', {
+        companyId: submission.companyId,
+        dimension,
+        predictedScore,
+        actualOutcome: submission.actualOutcome,
+        actualScore,
+        calibrationRecorded,
+      });
+    } catch (err) {
+      logger.warn('[FeedbackLoop] Failed to record calibration data point (Phase 4.7):', { error: err });
+    }
+  }
+
   logger.info('[FeedbackLoop] Feedback processed', {
     feedbackId,
     companyId: submission.companyId,
     verdict: submission.verdict,
     memoryCreated: memoryResult.created,
     calibrationApplied: calibrationResult.applied,
+    calibrationRecorded,
     learningEventCreated,
     durationMs: Date.now() - startTime,
   });
@@ -263,6 +317,8 @@ export async function processFeedback(
     learningSummary: memoryResult.summary,
     calibrationApplied: calibrationResult.applied,
     calibrationDetails: calibrationResult.details,
+    calibrationRecorded,
+    calibrationDataPointId,
     learningEventCreated,
     learningEventId,
   };
@@ -575,57 +631,89 @@ async function calibrateFromFeedback(
   submission: FeedbackSubmission
 ): Promise<{ applied: boolean; details?: FeedbackResult['calibrationDetails'] }> {
   try {
-    // For immediate calibration, we need at least 3 feedback items
-    // with the same reason on the same company or similar pattern
-    // For now, return calibration as "not yet applied" for single feedback
-    // The calibration runs in batch via getCalibrationAdjustments()
+    // G9 FIX: Immediate calibration from even a single feedback event.
+    // Previous behavior required 3+ feedback items before any calibration applied.
+    // Now: single feedback triggers a micro-calibration, batched feedback triggers stronger.
 
-    // Check if this company has enough feedback for calibration
-    const feedbackCount = await db.intelligenceFeedback.count({
-      where: {
-        companyId: submission.companyId,
-        verdict: { in: ['useful', 'not_useful', 'incorrect_action', 'wrong_account'] },
-      },
-    });
+    const microCalibration = submission.verdict === 'useful' ? 2
+      : submission.verdict === 'not_useful' ? -3
+      : submission.verdict === 'incorrect_action' ? -5
+      : submission.verdict === 'wrong_account' ? -4
+      : 0; // partially_useful, converted, etc. — no micro adjustment
 
-    if (feedbackCount < 3) {
-      return { applied: false };
-    }
-
-    // Check for pattern-level calibration
-    const recentFeedback = await db.intelligenceFeedback.findMany({
-      where: { companyId: submission.companyId },
-      orderBy: { createdAt: 'desc' },
-      take: 10,
-    });
-
-    const usefulCount = recentFeedback.filter(f => f.verdict === 'useful').length;
-    const notUsefulCount = recentFeedback.filter(f =>
-      f.verdict === 'not_useful' || f.verdict === 'incorrect_action'
-    ).length;
-
-    if (usefulCount >= 3 && notUsefulCount === 0) {
-      return {
-        applied: true,
-        details: {
-          signalType: submission.companyId,
-          direction: 'increased',
-          previousConfidence: 70,
-          newConfidence: Math.min(95, 70 + (usefulCount * 3)),
-          reason: `${usefulCount} positive feedback items — confidence increased`,
+    // If we have an actualOutcome, that's the strongest calibration signal
+    if (submission.actualOutcome) {
+      // recordOutcome is already called in the main processFeedback flow
+      // Here we also check if we should trigger immediate recalculation
+      const feedbackCount = await db.intelligenceFeedback.count({
+        where: {
+          companyId: submission.companyId,
+          verdict: { in: ['useful', 'not_useful', 'incorrect_action', 'wrong_account'] },
         },
-      };
+      });
+
+      if (feedbackCount >= 1) {
+        const recentFeedback = await db.intelligenceFeedback.findMany({
+          where: { companyId: submission.companyId },
+          orderBy: { createdAt: 'desc' },
+          take: 10,
+        });
+
+        const usefulCount = recentFeedback.filter(f => f.verdict === 'useful' || f.verdict === 'converted').length;
+        const notUsefulCount = recentFeedback.filter(f =>
+          f.verdict === 'not_useful' || f.verdict === 'incorrect_action' || f.verdict === 'wrong_account'
+        ).length;
+
+        // Read the actual account score for real confidence (not hardcoded 70)
+        let previousConfidence = 70;
+        try {
+          const accountScore = await db.accountScore.findFirst({
+            where: { companyId: submission.companyId },
+            select: { score: true },
+          });
+          if (accountScore) previousConfidence = accountScore.score;
+        } catch { /* use default */ }
+
+        if (usefulCount > notUsefulCount && usefulCount >= 1) {
+          const boost = Math.min(15, usefulCount * 3);
+          return {
+            applied: true,
+            details: {
+              signalType: submission.companyId,
+              direction: 'increased',
+              previousConfidence,
+              newConfidence: Math.min(95, previousConfidence + boost),
+              reason: `${usefulCount} positive feedback items — confidence increased by ${boost} points`,
+            },
+          };
+        }
+
+        if (notUsefulCount > usefulCount && notUsefulCount >= 1) {
+          const penalty = Math.min(20, notUsefulCount * 5);
+          return {
+            applied: true,
+            details: {
+              signalType: submission.companyId,
+              direction: 'decreased',
+              previousConfidence,
+              newConfidence: Math.max(30, previousConfidence - penalty),
+              reason: `${notUsefulCount} negative feedback items — confidence decreased by ${penalty} points`,
+            },
+          };
+        }
+      }
     }
 
-    if (notUsefulCount >= 3 && usefulCount === 0) {
+    // Apply micro-calibration for signal-level feedback
+    if (microCalibration !== 0 && submission.feedbackReason) {
       return {
         applied: true,
         details: {
-          signalType: submission.companyId,
-          direction: 'decreased',
-          previousConfidence: 70,
-          newConfidence: Math.max(30, 70 - (notUsefulCount * 5)),
-          reason: `${notUsefulCount} negative feedback items — confidence decreased`,
+          signalType: submission.feedbackReason,
+          direction: microCalibration > 0 ? 'increased' : 'decreased',
+          previousConfidence: 50,
+          newConfidence: Math.max(20, Math.min(95, 50 + microCalibration)),
+          reason: `Micro-calibration from ${submission.verdict} feedback on ${submission.feedbackReason}`,
         },
       };
     }

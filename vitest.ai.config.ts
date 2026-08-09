@@ -1,6 +1,6 @@
 /**
  * Vitest Configuration — AI Core
- * M3 Stabilization — threads pool, single thread
+ * M5 Governance Hardening -- forks pool
  */
 import { defineConfig } from 'vitest/config'
 import path from 'path'
@@ -27,18 +27,21 @@ export default defineConfig({
       'tests/ai/brief-generator.test.ts',
       'tests/ai/evidence-adapter.test.ts',
       'tests/ai/learning-loop.test.ts',
+      'tests/ai/learning-loop-closed-circuit.test.ts',
       'tests/ai/association-engine.test.ts',
       'tests/ai/data-import-navigation.test.ts',
       'tests/ai/index.test.ts',
       'tests/ai/recommendation-generator.test.ts',
       'tests/ai/opportunity-radar.test.ts',
       'tests/ai/research-engine.test.ts',
+      'tests/phase-s5-prompt-ab-cost.test.ts',
+      'tests/phase-s6-governance-router-cache.test.ts',
     ],
     exclude: ['tests/legacy/**'],
     globals: true,
-    pool: 'threads',
-    maxThreads: 1,
-    minThreads: 1,
+    pool: 'forks',
+    maxWorkers: 1,
+    teardownTimeout: 10000,
     testTimeout: 20000,
     hookTimeout: 10000,
   },

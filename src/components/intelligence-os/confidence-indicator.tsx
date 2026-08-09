@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import { cn } from '@/lib/utils';
-import { tokens, getConfidenceTier } from './design-tokens';
+import { tokens, getConfidenceTier, getTrustTier } from './design-tokens';
+import type { TrustTier, ConfidenceBreakdown as ConfidenceBreakdownType } from '@/types/ms8-evidence';
+import { getTrustColor, getTrustBg, getTrustBorder, getTrustLabel } from '@/lib/intelligence-types';
 
 /* ═══════════════════════════════════════════════════
    ConfidenceIndicator — Universal Confidence Display
@@ -31,6 +33,10 @@ export interface ConfidenceIndicatorProps {
   showPercentage?: boolean;
   size?: 'xs' | 'sm' | 'md' | 'lg';
   animated?: boolean;
+  /** MS8 TrustTier — when provided, uses 5-tier trust colors instead of 3-tier confidence */
+  trustTier?: TrustTier;
+  /** MS8 ConfidenceBreakdown — when provided, enables tooltip on hover */
+  breakdown?: ConfidenceBreakdownType;
   className?: string;
 }
 
@@ -48,13 +54,20 @@ export function ConfidenceIndicator({
   showPercentage = true,
   size = 'md',
   animated = true,
+  trustTier: explicitTier,
+  breakdown,
   className,
 }: ConfidenceIndicatorProps) {
   const [animatedValue, setAnimatedValue] = useState(animated ? 0 : value);
   const clamped = Math.max(0, Math.min(100, value));
-  const tier = getConfidenceTier(clamped);
-  const color = tokens.confidence[tier].value;
-  const bg = tokens.confidence[tier].bg;
+
+  // MS8: Use explicit TrustTier if provided, otherwise fall back to 3-tier
+  const ms8Tier = explicitTier || getTrustTier(clamped) as TrustTier;
+  const useMS8Colors = Boolean(explicitTier);
+
+  const legacyTier = getConfidenceTier(clamped);
+  const color = useMS8Colors ? getTrustColor(ms8Tier) : tokens.confidence[legacyTier].value;
+  const bg = useMS8Colors ? getTrustBg(ms8Tier) : tokens.confidence[legacyTier].bg;
   const s = sizeMap[size];
 
   useEffect(() => {

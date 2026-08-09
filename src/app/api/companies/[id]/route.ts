@@ -3,17 +3,17 @@ import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { validateBody } from '@/lib/apiHelpers';
 import { updateCompanySchema } from '@/lib/validations';
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, filterResponseByRole } from '@/lib/api-auth';
 
 /* ═══════════════════════════════════════════════════
    GET — Single company with counts and research card
    ═══════════════════════════════════════════════════ */
 export async function GET(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse, session: detailSession } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -37,12 +37,18 @@ try {
       return NextResponse.json({ error: 'Company not found' }, { status: 404 });
     }
 
-    return NextResponse.json({
+    // ── Field-Level Permission Filtering (5.3) ──
+    const companyData: Record<string, unknown> = {
       ...company,
       contactCount: company._count.contacts,
       noteCount: company._count.notes,
       signalCount: company._count.signals,
-    });
+    };
+    const filteredCompany = detailSession
+      ? filterResponseByRole(companyData, detailSession, 'Company')
+      : companyData;
+
+    return NextResponse.json(filteredCompany);
   } catch (error) {
     logger.error('Company get error:', { error: error });
     return NextResponse.json({ error: 'Failed to fetch company' }, { status: 500 });
@@ -57,7 +63,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -73,14 +79,14 @@ try {
     }
 
     // Build update data from Zod-validated fields (WI-18.1-04)
-    const data: Record<string, any> = {};
+    const data: Record<string, unknown> = {};
 
     // Use only the validated/parsed fields from Zod, not raw body
     // validateBody returns z.infer<T> directly (not wrapped in {data: ...})
     const validatedFields = Object.keys(parsed || {});
     for (const field of validatedFields) {
-      if ((parsed as Record<string, any>)[field] !== undefined) {
-        data[field] = (parsed as Record<string, any>)[field];
+      if ((parsed as Record<string, unknown>)[field] !== undefined) {
+        data[field] = (parsed as Record<string, unknown>)[field];
       }
     }
 
@@ -95,7 +101,7 @@ try {
 
     // Auto-update normalizedName if rawName changes
     if (data.rawName) {
-      data.normalizedName = data.rawName.trim().toLowerCase();
+      data.normalizedName = String(data.rawName).trim().toLowerCase();
     }
 
     // Auto-update lastActivityAt on status change
@@ -130,11 +136,11 @@ try {
    DELETE — Remove company (cascade deletes relations)
    ═══════════════════════════════════════════════════ */
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
     // Admin-only: only admins can delete companies

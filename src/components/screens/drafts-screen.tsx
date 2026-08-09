@@ -23,6 +23,8 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import KnowledgeSearch from '@/components/knowledge-search';
+import { ScreenBreadcrumb } from '@/components/shared/screen-breadcrumb';
+import { useTranslation } from '@/lib/use-translation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { logger } from '@/lib/logger';
@@ -112,6 +114,7 @@ interface DraftsScreenProps {
 }
 
 export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
+  const { t } = useTranslation();
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState('all');
@@ -431,9 +434,15 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
   };
 
   const hasSentDrafts = drafts.some(d => d.status === 'approved' || d.status === 'sent');
+  const tabLabels: Record<string, string> = {
+    all: t('drafts.all'),
+    pending_review: t('drafts.pendingReview'),
+    approved: t('drafts.approved'),
+    rejected: t('drafts.rejected'),
+  };
   const tabData = TAB_OPTIONS.map(t => ({
     key: t.value,
-    label: t.label,
+    label: tabLabels[t.value] || t.label,
     count: t.value === 'all' ? stats.total : t.value === 'pending_review' ? stats.pending : t.value === 'approved' ? stats.approved : stats.rejected,
   }));
 
@@ -441,12 +450,14 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
     <PageTransition>
     <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-6 pr-1 pb-8">
 
+      <ScreenBreadcrumb items={[{ label: 'Drafts' }]} />
+
       {/* -- Page Header -- */}
       <div className="flex items-end justify-between">
         <div>
           <SectionHeader
-            title="Email Drafts"
-            subtitle="Review, edit, and approve AI-generated outreach drafts"
+            title={t('drafts.emailDrafts')}
+            subtitle={t('drafts.subtitle')}
             className="!mb-0"
           />
         </div>
@@ -462,7 +473,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
               onClick={() => setViewMode('flat')}
             >
               <FileText className="w-3.5 h-3.5" />
-              All Drafts
+              {t('drafts.allDrafts')}
             </button>
             <button
               className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
@@ -473,7 +484,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
               onClick={() => setViewMode('thread')}
             >
               <MessagesSquare className="w-3.5 h-3.5" />
-              Thread View
+              {t('drafts.threadView')}
             </button>
           </div>
           <Button
@@ -521,7 +532,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
         </StaggerItem>
         <StaggerItem>
           <StatCard
-            label="Pending Review"
+            label={t('drafts.pendingReview')}
             value={stats.pending}
             icon={AlertTriangle}
             color="#F59E0B"
@@ -530,7 +541,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
         </StaggerItem>
         <StaggerItem>
           <StatCard
-            label="Approved"
+            label={t('drafts.approved')}
             value={stats.approved}
             icon={CheckCircle2}
             color="#10B981"
@@ -539,7 +550,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
         </StaggerItem>
         <StaggerItem>
           <StatCard
-            label="Rejected"
+            label={t('drafts.rejected')}
             value={stats.rejected}
             icon={X}
             color="#EF4444"

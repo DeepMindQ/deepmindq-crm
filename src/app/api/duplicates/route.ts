@@ -2,13 +2,15 @@ import { db } from '@/lib/db';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { scanForDuplicates } from '@/lib/data-intelligence/dedup-engine';
+import type { ScanResult } from '@/lib/data-intelligence/dedup-engine';
 
 /* ═══════════════════════════════════════════════════════════════
-   Duplicates API — Real fuzzy matching against DB contacts
+   Duplicates API — Contact fuzzy matching + Company cluster scan
 
    GET /api/duplicates
-   Returns duplicate candidates found via Levenshtein-based
-   matching rules, plus an empty merge history array.
+   Returns contact duplicate candidates (existing logic) plus
+   company dedup clusters from the dedup engine.
    ═══════════════════════════════════════════════════════════════ */
 
 // ── Levenshtein Distance ────────────────────────────────────────────
@@ -29,11 +31,6 @@ function splitName(name: string): { first: string; last: string } {
   if (parts.length === 0) return { first: '', last: '' };
   if (parts.length === 1) return { first: parts[0], last: '' };
   return { first: parts[0], last: parts[parts.length - 1] };
-}
-
-// ── Extract email local part ────────────────────────────────────────
-function emailLocal(email: string): string {
-  return email.split('@')[0]?.toLowerCase() || '';
 }
 
 // ── Extract email domain ────────────────────────────────────────────
@@ -78,16 +75,13 @@ function calculateScore(rule: 'email' | 'name+company' | 'linkedin', existing: F
   let score = 0;
 
   if (rule === 'linkedin') {
-    // LinkedIn match is very high confidence
     score = 95;
-    // Small penalty if names differ a lot
     const nameDist = levenshtein(existing.name.toLowerCase(), source.name.toLowerCase());
     const maxLen = Math.max(existing.name.length, source.name.length, 1);
     score -= Math.round((nameDist / maxLen) * 10);
     return Math.min(100, Math.max(0, score));
   }
 
-  // For email and name+company rules, compute a composite score
   const nameDist = levenshtein(existing.name.toLowerCase(), source.name.toLowerCase());
   const maxNameLen = Math.max(existing.name.length, source.name.length, 1);
   const nameSimilarity = 1 - (nameDist / maxNameLen);
@@ -109,7 +103,6 @@ function calculateScore(rule: 'email' | 'name+company' | 'linkedin', existing: F
   );
   const titleSimilarity = 1 - (titleDist / maxTitleLen);
 
-  // Weighted scoring
   score = Math.round(
     nameSimilarity * 40 +
     domainMatch * 25 +
@@ -117,197 +110,202 @@ function calculateScore(rule: 'email' | 'name+company' | 'linkedin', existing: F
     titleSimilarity * 15,
   );
 
-  // Boost for email rule
   if (rule === 'email' && domainMatch) score = Math.min(100, score + 10);
-
-  // Boost for name+company rule
   if (rule === 'name+company' && companyMatch) score = Math.min(100, score + 5);
 
   return Math.min(100, Math.max(0, score));
 }
 
-/* ── GET Handler ──────────────────────────────────────────────────── */
-export async function GET() {
-    // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+// ── Contact dedup scan (preserved from original) ───────────────────
+async function scanContactDuplicates() {
+  const contacts = await db.contact.findMany({
+    where: {
+      status: { not: 'duplicate' },
+    },
+    include: {
+      company: {
+        select: { id: true, rawName: true, normalizedName: true, domain: true },
+      },
+      batch: {
+        select: { id: true, fileName: true },
+      },
+    },
+    orderBy: { createdAt: 'asc' },
+    take: 500,
+  });
+
+  const flat: FlatContact[] = contacts.map(c => ({
+    id: c.id,
+    name: c.editedName || c.rawName,
+    email: c.email,
+    company: c.company?.rawName || 'Unknown',
+    jobTitle: c.title || c.role || '',
+    phone: c.phone || '',
+    location: c.location || '',
+    sourceBatch: c.batch?.fileName || c.batchId,
+    companyId: c.companyId,
+    linkedinUrl: c.linkedinUrl,
+  }));
+
+  const totalScanned = flat.length;
+  const candidates: {
+    id: string;
+    entityType: 'contact';
+    existingRecord: Omit<FlatContact, 'id' | 'companyId' | 'linkedinUrl'>;
+    newRecord: Omit<FlatContact, 'id' | 'companyId' | 'linkedinUrl'>;
+    fields: ReturnType<typeof buildFields>;
+    matchScore: number;
+    matchRule: 'email' | 'name+company' | 'linkedin';
+    status: 'pending';
+  }[] = [];
+
+  const seenPairs = new Set<string>();
+
+  const addPair = (
+    existing: FlatContact,
+    source: FlatContact,
+    rule: 'email' | 'name+company' | 'linkedin',
+  ) => {
+    const [aId, bId] = existing.id < source.id ? [existing.id, source.id] : [source.id, existing.id];
+    const pairKey = `${aId}-${bId}`;
+    if (seenPairs.has(pairKey)) return;
+    seenPairs.add(pairKey);
+
+    if (candidates.length >= 50) return;
+
+    const score = calculateScore(rule, existing, source);
+    if (score < 40) return;
+
+    const { id: _eId, companyId: _eCid, linkedinUrl: _eLi, ...existingRec } = existing;
+    const { id: _sId, companyId: _sCid, linkedinUrl: _sLi, ...sourceRec } = source;
+
+    candidates.push({
+      id: `dup-${aId}-${bId}`,
+      entityType: 'contact',
+      existingRecord: existingRec,
+      newRecord: sourceRec,
+      fields: buildFields(existing, source),
+      matchScore: score,
+      matchRule: rule,
+      status: 'pending',
+    });
+  }
+
+  // ── Strategy 1: Group by company, pairwise name comparison ─────
+  const byCompany = new Map<string, FlatContact[]>();
+  for (const c of flat) {
+    const key = c.companyId || 'unknown';
+    if (!byCompany.has(key)) byCompany.set(key, []);
+    byCompany.get(key)!.push(c);
+  }
+
+  for (const [_key, group] of Array.from(byCompany)) {
+    if (group.length < 2) continue;
+    for (let i = 0; i < group.length && candidates.length < 50; i++) {
+      for (let j = i + 1; j < group.length && candidates.length < 50; j++) {
+        const a = group[i];
+        const b = group[j];
+        const aName = splitName(a.name);
+        const bName = splitName(b.name);
+        const firstDist = levenshtein(aName.first.toLowerCase(), bName.first.toLowerCase());
+        const lastDist = levenshtein(aName.last.toLowerCase(), bName.last.toLowerCase());
+        if (firstDist <= 2 || lastDist <= 2) {
+          addPair(a, b, 'name+company');
+        }
+      }
+    }
+  }
+
+  // ── Strategy 2: Same email domain + similar name ───────────────
+  const byDomain = new Map<string, FlatContact[]>();
+  for (const c of flat) {
+    const domain = emailDomain(c.email);
+    if (!domain) continue;
+    if (!byDomain.has(domain)) byDomain.set(domain, []);
+    byDomain.get(domain)!.push(c);
+  }
+
+  for (const [_key, group] of Array.from(byDomain)) {
+    if (group.length < 2) continue;
+    for (let i = 0; i < group.length && candidates.length < 50; i++) {
+      for (let j = i + 1; j < group.length && candidates.length < 50; j++) {
+        const a = group[i];
+        const b = group[j];
+        if (a.companyId === b.companyId) continue;
+        const aName = splitName(a.name);
+        const bName = splitName(b.name);
+        const firstDist = levenshtein(aName.first.toLowerCase(), bName.first.toLowerCase());
+        const lastDist = levenshtein(aName.last.toLowerCase(), bName.last.toLowerCase());
+        if (firstDist <= 2 || lastDist <= 2) {
+          addPair(a, b, 'email');
+        }
+      }
+    }
+  }
+
+  // ── Strategy 3: LinkedIn URL match ─────────────────────────────
+  const byLinkedin = new Map<string, FlatContact[]>();
+  for (const c of flat) {
+    if (!c.linkedinUrl) continue;
+    let slug = c.linkedinUrl
+      .replace(/\/$/, '')
+      .split('/')
+      .pop()
+      ?.toLowerCase() || '';
+    if (!slug) continue;
+    if (!byLinkedin.has(slug)) byLinkedin.set(slug, []);
+    byLinkedin.get(slug)!.push(c);
+  }
+
+  for (const [_key, group] of Array.from(byLinkedin)) {
+    if (group.length < 2) continue;
+    for (let i = 0; i < group.length && candidates.length < 50; i++) {
+      for (let j = i + 1; j < group.length && candidates.length < 50; j++) {
+        addPair(group[i], group[j], 'linkedin');
+      }
+    }
+  }
+
+  candidates.sort((a, b) => b.matchScore - a.matchScore);
+
+  return { candidates, totalScanned };
+}
+
+/* ── GET /api/duplicates ──────────────────────────────────────────── */
+export async function GET(request: Request) {
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
-try {
-    // Fetch all contacts with company and batch info
-    const contacts = await db.contact.findMany({
-      where: {
-        status: { not: 'duplicate' },
-      },
-      include: {
-        company: {
-          select: { id: true, rawName: true, normalizedName: true, domain: true },
-        },
-        batch: {
-          select: { id: true, fileName: true },
-        },
-      },
-      orderBy: { createdAt: 'asc' },
-      take: 500,
-    });
+  try {
+    // Run contact dedup scan (existing logic preserved)
+    const { candidates, totalScanned } = await scanContactDuplicates();
 
-    // Flatten contacts into a usable shape
-    const flat: FlatContact[] = contacts.map(c => ({
-      id: c.id,
-      name: c.editedName || c.rawName,
-      email: c.email,
-      company: c.company?.rawName || 'Unknown',
-      jobTitle: c.title || c.role || '',
-      phone: c.phone || '',
-      location: c.location || '',
-      sourceBatch: c.batch?.fileName || c.batchId,
-      companyId: c.companyId,
-      linkedinUrl: c.linkedinUrl,
-    }));
-
-    const totalScanned = flat.length;
-    const candidates: {
-      id: string;
-      entityType: 'contact';
-      existingRecord: Omit<FlatContact, 'id' | 'companyId' | 'linkedinUrl'>;
-      newRecord: Omit<FlatContact, 'id' | 'companyId' | 'linkedinUrl'>;
-      fields: ReturnType<typeof buildFields>;
-      matchScore: number;
-      matchRule: 'email' | 'name+company' | 'linkedin';
-      status: 'pending';
-    }[] = [];
-
-    const seenPairs = new Set<string>();
-
-    const addPair = (
-      existing: FlatContact,
-      source: FlatContact,
-      rule: 'email' | 'name+company' | 'linkedin',
-    ) => {
-      // Sort IDs to avoid duplicates
-      const [aId, bId] = existing.id < source.id ? [existing.id, source.id] : [source.id, existing.id];
-      const pairKey = `${aId}-${bId}`;
-      if (seenPairs.has(pairKey)) return;
-      seenPairs.add(pairKey);
-
-      // Don't add if we already have 50
-      if (candidates.length >= 50) return;
-
-      const score = calculateScore(rule, existing, source);
-      // Skip very low scores
-      if (score < 40) return;
-
-      const { id: _eId, companyId: _eCid, linkedinUrl: _eLi, ...existingRec } = existing;
-      const { id: _sId, companyId: _sCid, linkedinUrl: _sLi, ...sourceRec } = source;
-
-      candidates.push({
-        id: `dup-${aId}-${bId}`,
-        entityType: 'contact',
-        existingRecord: existingRec,
-        newRecord: sourceRec,
-        fields: buildFields(existing, source),
-        matchScore: score,
-        matchRule: rule,
-        status: 'pending',
-      });
+    // Run company dedup scan in parallel
+    let companyScanResult: ScanResult | null = null;
+    try {
+      companyScanResult = await scanForDuplicates();
+    } catch (err) {
+      logger.warn('Company dedup scan failed, returning contact-only results', { error: err });
     }
-
-    // ── Strategy 1: Group by company, pairwise name comparison ─────
-    const byCompany = new Map<string, FlatContact[]>();
-    for (const c of flat) {
-      const key = c.companyId || 'unknown';
-      if (!byCompany.has(key)) byCompany.set(key, []);
-      byCompany.get(key)!.push(c);
-    }
-
-    for (const [_key, group] of Array.from(byCompany)) {
-      if (group.length < 2) continue;
-      for (let i = 0; i < group.length && candidates.length < 50; i++) {
-        for (let j = i + 1; j < group.length && candidates.length < 50; j++) {
-          const a = group[i];
-          const b = group[j];
-
-          // Name + Company match: same company + Levenshtein ≤ 2 on first or last name
-          const aName = splitName(a.name);
-          const bName = splitName(b.name);
-          const firstDist = levenshtein(aName.first.toLowerCase(), bName.first.toLowerCase());
-          const lastDist = levenshtein(aName.last.toLowerCase(), bName.last.toLowerCase());
-
-          if (firstDist <= 2 || lastDist <= 2) {
-            addPair(a, b, 'name+company');
-          }
-        }
-      }
-    }
-
-    // ── Strategy 2: Same email domain + similar name ───────────────
-    const byDomain = new Map<string, FlatContact[]>();
-    for (const c of flat) {
-      const domain = emailDomain(c.email);
-      if (!domain) continue;
-      if (!byDomain.has(domain)) byDomain.set(domain, []);
-      byDomain.get(domain)!.push(c);
-    }
-
-    for (const [_key, group] of Array.from(byDomain)) {
-      if (group.length < 2) continue;
-      for (let i = 0; i < group.length && candidates.length < 50; i++) {
-        for (let j = i + 1; j < group.length && candidates.length < 50; j++) {
-          const a = group[i];
-          const b = group[j];
-
-          // Skip if same company (already handled above)
-          if (a.companyId === b.companyId) continue;
-
-          // Email match: same domain + Levenshtein ≤ 2 on first or last name
-          const aName = splitName(a.name);
-          const bName = splitName(b.name);
-          const firstDist = levenshtein(aName.first.toLowerCase(), bName.first.toLowerCase());
-          const lastDist = levenshtein(aName.last.toLowerCase(), bName.last.toLowerCase());
-
-          if (firstDist <= 2 || lastDist <= 2) {
-            addPair(a, b, 'email');
-          }
-        }
-      }
-    }
-
-    // ── Strategy 3: LinkedIn URL match ─────────────────────────────
-    const byLinkedin = new Map<string, FlatContact[]>();
-    for (const c of flat) {
-      if (!c.linkedinUrl) continue;
-      // Normalize LinkedIn URL — strip trailing slashes, extract slug
-      let slug = c.linkedinUrl
-        .replace(/\/$/, '')
-        .split('/')
-        .pop()
-        ?.toLowerCase() || '';
-      if (!slug) continue;
-      if (!byLinkedin.has(slug)) byLinkedin.set(slug, []);
-      byLinkedin.get(slug)!.push(c);
-    }
-
-    for (const [_key, group] of Array.from(byLinkedin)) {
-      if (group.length < 2) continue;
-      for (let i = 0; i < group.length && candidates.length < 50; i++) {
-        for (let j = i + 1; j < group.length && candidates.length < 50; j++) {
-          addPair(group[i], group[j], 'linkedin');
-        }
-      }
-    }
-
-    // Sort by match score descending
-    candidates.sort((a, b) => b.matchScore - a.matchScore);
 
     return NextResponse.json({
       candidates,
+      companyClusters: companyScanResult?.clusters ?? [],
+      companyScanMeta: companyScanResult ? {
+        scanId: companyScanResult.scanId,
+        totalCompaniesScanned: companyScanResult.totalCompaniesScanned,
+        clustersFound: companyScanResult.clustersFound,
+        durationMs: companyScanResult.durationMs,
+        scannedAt: companyScanResult.scannedAt,
+      } : null,
       mergeHistory: [],
       totalScanned,
       totalFound: candidates.length,
     });
   } catch (error) {
-    logger.error('Duplicates scan error:', { error: error });
+    logger.error('Duplicates scan error:', { error });
     return NextResponse.json(
-      { error: 'Failed to scan for duplicates', candidates: [], mergeHistory: [], totalScanned: 0, totalFound: 0 },
+      { error: 'Failed to scan for duplicates', candidates: [], companyClusters: [], mergeHistory: [], totalScanned: 0, totalFound: 0 },
       { status: 500 },
     );
   }

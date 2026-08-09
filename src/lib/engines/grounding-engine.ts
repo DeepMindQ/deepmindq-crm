@@ -65,6 +65,8 @@ export interface Evidence {
   entityId: string | null;
   /** Entity type this evidence is attached to. */
   entityType: 'company' | 'contact' | 'opportunity' | null;
+  /** Whether this evidence is considered stale (past freshness threshold). */
+  stale: boolean;
 }
 
 export interface EvidenceGap {
@@ -154,6 +156,28 @@ function freshnessScore(isoDate: string | null): number {
   return Math.max(0.05, Math.exp(k * daysOld));
 }
 
+// ─── Phase 2: Evidence Freshness Enforcement (Item 4.4) ──────────────────
+
+/**
+ * Maximum contribution cap for stale evidence.
+ * Evidence older than 80% of FRESHNESS_LIFECYCLE_DAYS is capped at this fraction
+ * of its normal contribution to aggregate confidence.
+ */
+const STALE_EVIDENCE_CAP = 0.20;
+const STALE_THRESHOLD_RATIO = 0.80; // 80% of lifecycle = stale
+
+/**
+ * Check if a date is considered stale (past freshness threshold).
+ */
+function isStale(isoDate: string | null): boolean {
+  if (!isoDate) return true;
+  const date = new Date(isoDate);
+  if (isNaN(date.getTime())) return true;
+  const daysOld = (Date.now() - date.getTime()) / (1000 * 60 * 60 * 24);
+  const lifecycle = FRESHNESS_LIFECYCLE_DAYS?.signals ?? 90;
+  return daysOld > lifecycle * STALE_THRESHOLD_RATIO;
+}
+
 // ─── Evidence Collectors ────────────────────────────────────────────────
 
 /** Collect evidence from CompanySignal records. */
@@ -192,6 +216,7 @@ async function collectCompanySignals(
         reliability,
         confidence,
         entityId: sig.id,
+        stale: isStale(sig.signalDate?.toISOString() ?? sig.createdAt.toISOString()),
         entityType: 'company',
       });
     }
@@ -260,6 +285,7 @@ async function collectCapabilityMatches(
         reliability,
         confidence,
         entityId: match.id,
+        stale: false, // Internal data is never stale
         entityType: 'company',
       });
     }
@@ -324,6 +350,7 @@ async function collectAIInsights(
         reliability: reliability * freshness, // stale insights decay
         confidence,
         entityId: ins.id,
+        stale: isStale(ins.createdAt.toISOString()),
         entityType: ins.companyId ? 'company' : 'contact',
       });
     }
@@ -366,6 +393,7 @@ async function collectEvidenceRecords(
         reliability: reliability * freshness,
         confidence,
         entityId: ev.id,
+        stale: isStale(ev.createdAt?.toISOString() ?? null),
         entityType: 'company',
       });
     }
@@ -398,12 +426,28 @@ function computeAggregateConfidence(
   let freshnessWeight = 0;
 
   for (const ev of evidences) {
-    const weight = ev.reliability;
+    let weight = ev.reliability;
     const score = ev.confidence;
+
+    // Phase 2: Cap contribution of stale evidence
+    // G7 FIX: Graduated freshness decay instead of binary cap
+    const evFreshness = ev.date ? freshnessScore(ev.date) : 0.3;
+    const lifecycle = FRESHNESS_LIFECYCLE_DAYS?.signals ?? 90;
+    const daysOld = ev.date ? (Date.now() - new Date(ev.date).getTime()) / (1000 * 60 * 60 * 24) : lifecycle;
+
+    if (daysOld > lifecycle * STALE_THRESHOLD_RATIO) {
+      // Stale evidence — cap at 20% as hard maximum
+      weight = weight * STALE_EVIDENCE_CAP;
+    } else if (daysOld > lifecycle * 0.5) {
+      // Aging evidence (50-80% of lifecycle) — graduated decay from 100% to 20%
+      const ageRatio = (daysOld - lifecycle * 0.5) / (lifecycle * 0.3);
+      const decayFactor = 1 - (ageRatio * 0.8); // linearly from 1.0 to 0.2
+      weight = weight * Math.max(STALE_EVIDENCE_CAP, decayFactor);
+    }
+
     weightedSum += weight * score;
     totalWeight += weight;
 
-    const evFreshness = ev.date ? freshnessScore(ev.date) : 0.3;
     freshnessSum += evFreshness * weight;
     freshnessWeight += weight;
   }
@@ -465,6 +509,43 @@ export const GroundingEngine = {
 
     allEvidences.push(...signals.evidences, ...capMatches.evidences, ...insights.evidences, ...evidenceRecs.evidences);
     allGaps.push(...signals.gaps, ...capMatches.gaps, ...insights.gaps, ...evidenceRecs.gaps);
+
+    // Phase 2.4: Multi-provider search resilience — web search fallback
+    // Supplements DB evidence with live web results when available.
+    try {
+      const { searchWithFallback } = await import('@/lib/search-provider-fallback');
+      // Build a query from the company context if available
+      const query = context.companyId
+        ? `company intelligence ${context.companyId}`
+        : 'market intelligence';
+      const webResults = await searchWithFallback(query, { maxResults: 5 });
+      if (webResults.results.length > 0) {
+        for (const result of webResults.results) {
+          const webReliability = reliabilityFor(result.url);
+          allEvidences.push({
+            id: `web:${result.url}`,
+            type: 'intelligence_source' as const,
+            source: result.source || 'Web Search',
+            url: result.url,
+            date: result.fetchedAt || null,
+            snippet: result.snippet,
+            content: `${result.title}\n${result.snippet}`,
+            reliability: webReliability,
+            confidence: result.relevanceScore * webReliability,
+            entityId: context.companyId ?? null,
+            entityType: context.companyId ? 'company' as const : null,
+            stale: false,
+          });
+        }
+        logger.info(
+          `[grounding-engine] search fallback added ${webResults.results.length} web evidences ` +
+          `(provider: ${webResults.providerUsed}, degraded: ${webResults.isDegraded})`,
+        );
+      }
+    } catch {
+      // Web search unavailable — continue with DB evidence only
+      logger.debug('[grounding-engine] search fallback unavailable, continuing with DB evidence only');
+    }
 
     // If no context provided, add gap
     if (!context.companyId && !context.contactId && !context.opportunityId) {

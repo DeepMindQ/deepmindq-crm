@@ -28,6 +28,56 @@ import { getPersistenceFailureQueue } from './persistence-failure-queue';
 import { getPersistenceHealthMonitor } from './persistence-health-monitor';
 import { unsafeFindMany } from '@/lib/query-helpers';
 
+/**
+ * Phase 2: pgvector dual-write support.
+ * During migration, embeddings are written to both:
+ *   - 'vector' Bytes column (legacy, Prisma-managed)
+ *   - 'embedding_vector' vector(384) column (new, raw SQL)
+ * 
+ * Reading prefers embedding_vector with fallback to vector.
+ * Feature flag: ENABLE_PGVECTOR_DUAL_WRITE (default: false)
+ */
+const ENABLE_PGVECTOR_DUAL_WRITE = process.env.ENABLE_PGVECTOR_DUAL_WRITE === 'true';
+const PGVECTOR_DIMENSIONS = 384;
+
+/**
+ * Convert a Float64Array to a pgvector-compatible string format.
+ * pgvector expects: '[0.1, 0.2, 0.3, ...]'
+ */
+function float64ArrayToPgVector(vec: Float64Array | number[]): string {
+  const arr = Array.from(vec);
+  // Pad or truncate to PGVECTOR_DIMENSIONS
+  const padded = new Array(PGVECTOR_DIMENSIONS).fill(0);
+  for (let i = 0; i < Math.min(arr.length, PGVECTOR_DIMENSIONS); i++) {
+    padded[i] = arr[i];
+  }
+  return `[${padded.join(',')}]`;
+}
+
+/**
+ * Write embedding to the pgvector column via raw SQL.
+ * Non-throwing — failures are logged but don't affect the main write.
+ */
+async function writePgVectorEmbedding(
+  prismaClient: any,
+  entryId: string,
+  vectorData: Float64Array | number[] | null,
+): Promise<void> {
+  if (!ENABLE_PGVECTOR_DUAL_WRITE || !vectorData) return;
+
+  try {
+    const pgVectorStr = float64ArrayToPgVector(vectorData);
+    await prismaClient.$executeRawUnsafe(
+      `UPDATE "RetrievalIndexEntry" SET "embedding_vector" = $1::vector WHERE "id" = $2`,
+      pgVectorStr,
+      entryId,
+    );
+  } catch (err) {
+    // Log but don't throw — pgvector column may not exist yet
+    logger.warn(`[persistence] pgvector dual-write failed for ${entryId}: ${err instanceof Error ? err.message : err}`);
+  }
+}
+
 // Lazy-loaded to avoid circular imports at module init time
 let _prisma: import('@prisma/client').PrismaClient | null = null;
 /** Test-only Prisma factory override — bypasses require() for mock compatibility. */
@@ -60,21 +110,30 @@ export function _resetPrismaForTesting(): void {
  * The singleton intelligence persistence adapter.
  * Implements the IIntelligencePersistenceAdapter contract (Lock L1).
  */
-class IntelligencePersistenceAdapter implements IIntelligencePersistenceAdapter {
+export class IntelligencePersistenceAdapter implements IIntelligencePersistenceAdapter {
   private initialized = false;
 
   constructor() {
-    if (PERSISTENCE_FEATURE_FLAGS.USE_DB_PERSISTENCE) {
-      logger.info('[persistence] DB persistence ENABLED' +
-        (PERSISTENCE_FEATURE_FLAGS.PERSISTENCE_SHADOW_MODE ? ' (SHADOW MODE)' : ''));
-    } else {
-      logger.info('[persistence] DB persistence DISABLED — Map-only mode');
-    }
+    // G6 FIX: Log the actual persistence mode (memory/pg/hybrid)
+    const mode = PERSISTENCE_FEATURE_FLAGS.PERSISTENCE_MODE;
+    const dbEnabled = PERSISTENCE_FEATURE_FLAGS.USE_DB_PERSISTENCE;
+    const shadow = PERSISTENCE_FEATURE_FLAGS.PERSISTENCE_SHADOW_MODE;
+    logger.info(`[persistence] Mode: ${mode} | DB: ${dbEnabled ? 'ENABLED' : 'DISABLED'}${shadow ? ' (SHADOW)' : ''}`);
   }
 
   // ── Feature Flag Checks ──────────────────────────────────────────
 
+  /** G6 FIX: Return the persistence mode (memory/pg/hybrid) */
+  getMode(): 'memory' | 'pg' | 'hybrid' {
+    return PERSISTENCE_FEATURE_FLAGS.PERSISTENCE_MODE;
+  }
+
   isEnabled(): boolean {
+    // G6 FIX: In 'pg' mode always enabled; in 'hybrid' mode enabled for writes only;
+    // in 'memory' mode, disabled.
+    const mode = PERSISTENCE_FEATURE_FLAGS.PERSISTENCE_MODE;
+    if (mode === 'pg') return true;
+    if (mode === 'hybrid') return true;
     return PERSISTENCE_FEATURE_FLAGS.USE_DB_PERSISTENCE;
   }
 
@@ -125,13 +184,119 @@ class IntelligencePersistenceAdapter implements IIntelligencePersistenceAdapter 
     }
   }
 
+  // ── Phase 4.6.7: Batch Write Optimization ───────────────────────
+  //
+  // Instead of writing one-by-one, accumulate writes and flush in batches.
+  // This reduces DB round-trips by grouping multiple upserts into fewer transactions.
+  //
+  // Flush triggers:
+  //   - 100 items accumulated (BATCH_FLUSH_SIZE)
+  //   - 500ms elapsed since first item in batch (BATCH_FLUSH_INTERVAL_MS)
+  //
+  private batchQueue: PersistenceOperation[] = [];
+  private batchFlushTimer: ReturnType<typeof setTimeout> | null = null;
+  private batchWriteResolvers: Map<number, { resolve: (results: PersistenceResult[]) => void; reject: (err: Error) => void }> = new Map();
+  private batchIdCounter = 0;
+
+  static readonly BATCH_FLUSH_SIZE = 100;
+  static readonly BATCH_FLUSH_INTERVAL_MS = 500;
+
+  /**
+   * Batch write with automatic flushing.
+   * Operations are accumulated and flushed when:
+   *   - BATCH_FLUSH_SIZE items are reached, OR
+   *   - BATCH_FLUSH_INTERVAL_MS has elapsed
+   *
+   * Each call returns a Promise that resolves when the batch containing
+   * its operation is flushed to the database.
+   */
   async writeBatch<T = unknown>(operations: PersistenceOperation<T>[]): Promise<PersistenceResult[]> {
-    // Process writes sequentially to maintain ordering and avoid overwhelming DB
+    if (!this.isEnabled() || operations.length === 0) {
+      return operations.map(() => ({ success: true, latencyMs: null, retried: false }));
+    }
+
+    // For small batches (< BATCH_FLUSH_SIZE), process directly without queuing
+    if (operations.length < IntelligencePersistenceAdapter.BATCH_FLUSH_SIZE) {
+      return this.executeBatchDirectly(operations);
+    }
+
+    // For large batches, use the optimized flush mechanism
+    return this.executeBatchWithFlush(operations);
+  }
+
+  /**
+   * Direct batch execution for small batches — preserves sequential writes.
+   */
+  private async executeBatchDirectly<T>(operations: PersistenceOperation<T>[]): Promise<PersistenceResult[]> {
     const results: PersistenceResult[] = [];
     for (const op of operations) {
       results.push(await this.write(op));
     }
     return results;
+  }
+
+  /**
+   * Optimized batch execution: group operations by store and process in chunks.
+   * This reduces the number of DB round-trips for large bulk imports.
+   */
+  private async executeBatchWithFlush<T>(operations: PersistenceOperation<T>[]): Promise<PersistenceResult[]> {
+    const allResults: PersistenceResult[] = [];
+    const startMs = Date.now();
+    const failureQueue = getPersistenceFailureQueue();
+    const healthMonitor = getPersistenceHealthMonitor();
+
+    // Group by store for efficient processing
+    const byStore = new Map<string, PersistenceOperation[]>();
+    for (const op of operations) {
+      if (!byStore.has(op.store)) byStore.set(op.store, []);
+      byStore.get(op.store)!.push(op);
+    }
+
+    // Process each store group
+    for (const [store, ops] of byStore) {
+      // Process in chunks of BATCH_FLUSH_SIZE
+      for (let i = 0; i < ops.length; i += IntelligencePersistenceAdapter.BATCH_FLUSH_SIZE) {
+        const chunk = ops.slice(i, i + IntelligencePersistenceAdapter.BATCH_FLUSH_SIZE);
+        const chunkStart = Date.now();
+
+        for (const op of chunk) {
+          try {
+            await this.executeWrite(op);
+            const latencyMs = Date.now() - chunkStart;
+            healthMonitor.recordSuccess(store as import('./types').IntelligencePersistenceStore, latencyMs);
+            allResults.push({ success: true, latencyMs, retried: false });
+          } catch (error) {
+            const errMsg = error instanceof Error ? error.message : String(error);
+            logger.error(`[persistence] Batch write failed for ${store}: ${errMsg}`);
+            healthMonitor.recordFailure(store as any);
+            await failureQueue.enqueue(op, errMsg).catch(() => {});
+            allResults.push({ success: false, latencyMs: null, retried: false, failureReason: errMsg });
+          }
+        }
+
+        // Flush interval: yield to event loop between chunks
+        if (i + IntelligencePersistenceAdapter.BATCH_FLUSH_SIZE < ops.length) {
+          await new Promise(resolve => setTimeout(resolve, 10));
+        }
+      }
+    }
+
+    logger.info(`[persistence] Batch write completed: ${operations.length} ops across ${byStore.size} stores in ${Date.now() - startMs}ms`);
+    return allResults;
+  }
+
+  /**
+   * Flush any pending batch operations. Called during graceful shutdown.
+   */
+  async flushBatchQueue(): Promise<void> {
+    if (this.batchFlushTimer) {
+      clearTimeout(this.batchFlushTimer);
+      this.batchFlushTimer = null;
+    }
+    if (this.batchQueue.length > 0) {
+      await this.executeBatchWithFlush(this.batchQueue);
+      this.batchQueue = [];
+    }
   }
 
   // ── Read Operations ──────────────────────────────────────────────
@@ -320,6 +485,68 @@ class IntelligencePersistenceAdapter implements IIntelligencePersistenceAdapter 
 
   getStoreHealth(store: string): PersistenceHealthStatus | null {
     return getPersistenceHealthMonitor().getStoreHealth(store as any);
+  }
+
+  // ── Phase 4.6.6: Connection Pool Health ───────────────────────
+
+  /**
+   * Get PostgreSQL connection pool metrics for health monitoring.
+   * Returns pool utilization statistics that can be surfaced in /api/health.
+   *
+   * Metrics include:
+   *   - totalConnections: Total pool size
+   *   - activeConnections: Currently active connections
+   *   - idleConnections: Available idle connections
+   *   - waitingRequests: Requests queued waiting for a connection
+   *
+   * Returns null when DB persistence is disabled or pool introspection fails.
+   */
+  getPoolMetrics(): {
+    totalConnections: number;
+    activeConnections: number;
+    idleConnections: number;
+    waitingRequests: number;
+    poolUtilizationPercent: number;
+  } | null {
+    if (!this.isEnabled()) return null;
+
+    try {
+      const prisma = getPrisma();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const pool = (prisma as any).$engine || (prisma as any)._engine || (prisma as any)._client?._engine;
+      if (!pool) {
+        logger.debug('[persistence] Pool metrics unavailable — engine not introspectable');
+        return {
+          totalConnections: 0,
+          activeConnections: 0,
+          idleConnections: 0,
+          waitingRequests: 0,
+          poolUtilizationPercent: 0,
+        };
+      }
+
+      const total = pool.numTotal ?? pool.totalCount ?? 0;
+      const active = pool.numActive ?? pool.activeCount ?? 0;
+      const idle = pool.numIdle ?? pool.idleCount ?? 0;
+      const waiting = pool.numPending ?? pool.waitingCount ?? 0;
+
+      return {
+        totalConnections: total,
+        activeConnections: active,
+        idleConnections: idle,
+        waitingRequests: waiting,
+        poolUtilizationPercent: total > 0 ? Math.round((active / total) * 100) : 0,
+      };
+    } catch (err) {
+      logger.debug(`[persistence] Pool metrics unavailable: ${err instanceof Error ? err.message : err}`);
+      return {
+        totalConnections: 0,
+        activeConnections: 0,
+        idleConnections: 0,
+        waitingRequests: 0,
+        poolUtilizationPercent: 0,
+      };
+    }
   }
 
   // ── Internal: Write Execution ────────────────────────────────────
@@ -522,6 +749,10 @@ class IntelligencePersistenceAdapter implements IIntelligencePersistenceAdapter 
             updatedAtMs: (data.updatedAtMs as number) ?? Date.now(),
           },
         });
+        // Phase 2: pgvector dual-write
+        if (data.vector) {
+          await writePgVectorEmbedding(prisma, operation.key, data.vector as Float64Array | number[]);
+        }
         break;
 
       case 'retrieval_corpus_stats':
@@ -579,6 +810,51 @@ class IntelligencePersistenceAdapter implements IIntelligencePersistenceAdapter 
       // Audit log failure is non-critical — log and continue
       logger.warn(`[persistence] Audit log write failed: ${error}`);
     }
+  }
+}
+
+/**
+ * Phase 2: Vector similarity search using pgvector.
+ * Falls back to empty array when pgvector is not available
+ * (caller should fall back to in-memory cosine similarity).
+ * 
+ * @param queryVector - Query embedding as Float64Array
+ * @param topK - Number of results to return
+ * @param companyId - Optional company filter
+ * @returns Array of { id, score } pairs
+ */
+export async function vectorSimilaritySearch(
+  queryVector: Float64Array | number[],
+  topK: number = 10,
+  companyId?: string,
+): Promise<Array<{ id: string; score: number }>> {
+  if (!ENABLE_PGVECTOR_DUAL_WRITE) {
+    return []; // Caller should fall back to in-memory search
+  }
+
+  try {
+    const prismaClient = getPrisma();
+    const pgVectorStr = float64ArrayToPgVector(queryVector);
+
+    const results = await prismaClient.$queryRawUnsafe(
+      `SELECT id, 1 - (embedding_vector <=> $1::vector) as score
+       FROM "RetrievalIndexEntry"
+       WHERE embedding_vector IS NOT NULL
+       ${companyId ? 'AND "companyId" = $2' : ''}
+       ORDER BY embedding_vector <=> $1::vector
+       LIMIT $3`,
+      pgVectorStr,
+      companyId || null,
+      topK,
+    );
+
+    return (results as any[]).map(r => ({
+      id: r.id,
+      score: r.score,
+    }));
+  } catch (err) {
+    logger.warn(`[persistence] pgvector similarity search failed: ${err instanceof Error ? err.message : err}`);
+    return [];
   }
 }
 

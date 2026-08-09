@@ -29,7 +29,7 @@ import { checkApiAuth } from '@/lib/api-auth';
 export async function GET(request: NextRequest) {
   const startedAt = Date.now();
 
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   const startedAt = Date.now();
 
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

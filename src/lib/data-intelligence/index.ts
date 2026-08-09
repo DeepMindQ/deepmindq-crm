@@ -20,6 +20,14 @@ export type { NormalizationResult } from './normalizer';
 export { checkAgainstExisting, checkWithinBatch, invalidateDedupCache } from './deduplicator';
 export type { DuplicateMatch, DedupResult } from './deduplicator';
 
+export {
+  scanForDuplicates, mergeDuplicate, bulkMerge, skipDuplicate, getMergeHistory,
+} from './dedup-engine';
+export type {
+  MergeStrategy, DuplicateEdge, DuplicateCluster, ClusteredCompany,
+  MergeRequest, MergeResult, BulkMergeResult, ScanResult, MergeHistoryEntry,
+} from './dedup-engine';
+
 export { scoreRowQuality, calculateAggregateScore } from './quality-scorer';
 export type { QualityScore } from './quality-scorer';
 

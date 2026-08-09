@@ -9,9 +9,10 @@
  * GET  /api/data-import                  — List uploads
  */
 
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { apiSuccess, apiError, safeInt } from '@/lib/apiHelpers';
 import { checkApiAuth } from '@/lib/api-auth';
+import { checkRateLimit } from '@/lib/rate-limit';
 import {
   createDataUpload,
   autoMapColumns,
@@ -62,7 +63,18 @@ export async function POST(req: NextRequest) {
   const { errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
 
+  const clientIp = req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip') || 'unknown';
+  if (!checkRateLimit(clientIp, 10)) {
+    return NextResponse.json({ error: 'Rate limit exceeded. Maximum 10 import operations per minute.' }, { status: 429 });
+  }
+
   try {
+    // Check if this is a multipart file upload
+    const contentType = req.headers.get('content-type') || '';
+    if (contentType.includes('multipart/form-data')) {
+      return handleFileUpload(req);
+    }
+
     const body = await req.json();
     const action = body.action;
 
@@ -92,6 +104,120 @@ export async function POST(req: NextRequest) {
     const status = message.includes('not found') ? 404 : 500;
     return apiError(message, status);
   }
+}
+
+// ─── Multipart File Upload Handler ──────────────────────────────
+
+async function handleFileUpload(request: Request) {
+  try {
+    const formData = await request.formData();
+    const file = formData.get('file') as File | null;
+    
+    if (!file) {
+      return NextResponse.json({ error: 'No file provided. Use form field "file".' }, { status: 400 });
+    }
+    
+    // Validate file type
+    const allowedTypes = [
+      'text/csv',
+      'application/vnd.ms-excel',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'text/plain',
+      'application/json',
+    ];
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const allowedExtensions = ['csv', 'tsv', 'json', 'xlsx', 'xls'];
+    
+    if (!allowedExtensions.includes(ext || '')) {
+      return NextResponse.json({ error: `Unsupported file extension: .${ext}. Allowed: ${allowedExtensions.join(', ')}` }, { status: 400 });
+    }
+    
+    // Validate file size (max 50MB)
+    if (file.size > 50 * 1024 * 1024) {
+      return NextResponse.json({ error: 'File too large. Maximum size is 50MB.' }, { status: 400 });
+    }
+    
+    const buffer = Buffer.from(await file.arrayBuffer());
+    
+    let rows: Record<string, unknown>[];
+    let headers: string[];
+    
+    if (ext === 'json') {
+      const content = buffer.toString('utf-8');
+      const parsed = JSON.parse(content);
+      rows = Array.isArray(parsed) ? parsed : [parsed];
+      headers = rows.length > 0 ? Object.keys(rows[0]) : [];
+    } else {
+      // CSV/TSV parsing
+      const content = buffer.toString('utf-8');
+      const lines = content.split(/\r?\n/).filter(line => line.trim());
+      
+      if (lines.length === 0) {
+        return NextResponse.json({ error: 'File is empty' }, { status: 400 });
+      }
+      
+      // Detect delimiter
+      const firstLine = lines[0];
+      const delimiter = firstLine.includes('\t') ? '\t' : ',';
+      
+      headers = parseCsvLine(firstLine, delimiter);
+      rows = [];
+      
+      for (let i = 1; i < lines.length; i++) {
+        const values = parseCsvLine(lines[i], delimiter);
+        if (values.length === 0) continue;
+        const row: Record<string, unknown> = {};
+        headers.forEach((h, idx) => {
+          row[h] = values[idx] || '';
+        });
+        rows.push(row);
+      }
+    }
+    
+    return NextResponse.json({
+      success: true,
+      fileName: file.name,
+      fileSize: file.size,
+      totalRows: rows.length,
+      headers,
+      rows: rows.slice(0, 50), // Preview first 50 rows
+      message: `File parsed successfully. ${rows.length} rows found with ${headers.length} columns. Use 'preview' or 'commit' action to continue.`,
+    });
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error);
+    return NextResponse.json({ error: `File upload failed: ${msg}` }, { status: 500 });
+  }
+}
+
+function parseCsvLine(line: string, delimiter: string): string[] {
+  const result: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  
+  for (let i = 0; i < line.length; i++) {
+    const char = line[i];
+    if (inQuotes) {
+      if (char === '"' && line[i + 1] === '"') {
+        current += '"';
+        i++;
+      } else if (char === '"') {
+        inQuotes = false;
+      } else {
+        current += char;
+      }
+    } else {
+      if (char === '"') {
+        inQuotes = true;
+      } else if (char === delimiter) {
+        result.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+  }
+  result.push(current.trim());
+  return result;
 }
 
 // ─── Action Handlers ──────────────────────────────────────────

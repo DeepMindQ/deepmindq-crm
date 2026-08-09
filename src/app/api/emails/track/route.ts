@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { recordTrackingEvent } from '@/lib/email-tracking'
+import { recordTrackingEvent, verifyTrackingEventId } from '@/lib/email-tracking'
 import { eventBus } from '@/lib/event-bus'
 
 // ── 1×1 transparent GIF (base64) ────────────────────────────────────
@@ -12,11 +12,25 @@ const TRANSPARENT_GIF_BUFFER = Buffer.from(
 
 export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url)
-  const eid = searchParams.get('eid')
+  const eidToken = searchParams.get('eid')
   const type = searchParams.get('type') // 'open' | 'click'
 
-  if (!eid || !type) {
+  if (!eidToken || !type) {
     return new NextResponse('Bad request', { status: 400 })
+  }
+
+  // ── Verify HMAC signature before processing ──
+  const eid = verifyTrackingEventId(eidToken);
+  if (!eid) {
+    // Invalid or forged token — return pixel silently to avoid info leak
+    return new NextResponse(TRANSPARENT_GIF_BUFFER, {
+      status: 200,
+      headers: {
+        'Content-Type': 'image/gif',
+        'Cache-Control': 'no-store, no-cache, must-revalidate',
+        'Content-Length': String(TRANSPARENT_GIF_BUFFER.length),
+      },
+    });
   }
 
   const ip = request.headers.get('x-forwarded-for') || 'unknown'

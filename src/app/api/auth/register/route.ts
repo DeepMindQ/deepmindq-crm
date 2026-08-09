@@ -5,6 +5,7 @@ import { hashPassword } from '@/lib/password';
 import { requestOtp } from '@/lib/otp';
 import { logger } from '@/lib/logger';
 import { generalApiRateLimit } from '@/lib/auth-helpers';
+import { encryptUserFields } from '@/lib/encryption';
 
 const schema = z.object({
   name: z.string().min(1, 'Name is required').max(100),
@@ -71,10 +72,13 @@ export async function POST(request: NextRequest) {
     // Hash the password
     const passwordHash = await hashPassword(password);
 
+    // Encrypt PII before storing
+    const encryptedData = await encryptUserFields({ email: normalizedEmail });
+
     // Create the user
     const user = await db.user.create({
       data: {
-        email: normalizedEmail,
+        email: encryptedData.email as string,
         name: name.trim(),
         passwordHash,
         hasPassword: true,

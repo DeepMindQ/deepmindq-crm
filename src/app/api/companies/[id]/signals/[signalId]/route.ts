@@ -10,7 +10,7 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string; signalId: string }> }
 ) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {
@@ -26,7 +26,7 @@ export async function PATCH(
       return NextResponse.json({ error: 'Signal not found' }, { status: 404 });
     }
 
-    const data: Record<string, any> = {};
+    const data: Record<string, unknown> = {};
 
     if (body.title !== undefined) {
       data.title = typeof body.title === 'string' ? body.title.trim() : body.title;
@@ -66,10 +66,10 @@ export async function PATCH(
    DELETE — Delete a signal
    ═══════════════════════════════════════ */
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string; signalId: string }> }
 ) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

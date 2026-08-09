@@ -16,7 +16,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ companyId: string }> },
 ) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   const { companyId } = await params;

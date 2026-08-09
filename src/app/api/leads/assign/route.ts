@@ -1,8 +1,9 @@
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { logAction } from '@/lib/audit';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { withCsrf } from '@/lib/with-csrf';
 
 /* ═══════════════════════════════════════════════════
    POST /api/leads/assign — Smart lead assignment
@@ -106,9 +107,9 @@ async function assignIndustry(contactIds: string[]) {
 }
 
 /* POST — Assign leads */
-export async function POST(request: Request) {
+export const POST = withCsrf(async function POST(request: NextRequest) {
     // ── Authentication Guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -162,12 +163,12 @@ try {
     logger.error('Assignment error:', { error: error });
     return NextResponse.json({ error: 'Failed to assign leads' }, { status: 500 });
   }
-}
+});
 
 /* GET — Assignment summary */
-export async function GET() {
-    // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+export async function GET(request: Request) {
+    // ── Authentication + RBAC Guard ──
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

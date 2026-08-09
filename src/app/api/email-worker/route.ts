@@ -20,6 +20,8 @@ import { NextResponse } from 'next/server';
 import { sendEmail, getProviderInfo } from '@/lib/email-provider';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { approvalService as _approvalService } from '@/lib/approval-service';
+import { getBrandNameSync } from '@/lib/brand-helper';
 
 const MAX_RETRIES = 3;
 
@@ -92,6 +94,13 @@ const summary = { processed: 0, sent: 0, failed: 0, skipped: 0 };
           summary.skipped++;
           continue;
         }
+      }
+
+      // Check approval status — skip sending if pending_review
+      if (item.draft.status === 'pending_review') {
+        logger.info('[email-worker] Skipping draft pending approval', { draftId: item.draftId, sendQueueId: item.id });
+        summary.skipped++;
+        continue;
       }
 
       // Build HTML email from draft
@@ -193,7 +202,7 @@ function buildEmailHtml(params: {
   <p style="font-size: 14px; color: #1f2937;">${greeting}</p>
   <div style="font-size: 14px; color: #1f2937; white-space: pre-line; margin-top: 16px;">${escapeHtml(body)}</div>${ctaBlock}${sigBlock}
   <div style="margin-top: 40px; text-align: center; font-size: 11px; color: #9ca3af;">
-    <span style="color: #D4AF37;">DeepMindQ</span> &middot; AI-Powered Outreach
+    <span style="color: #D4AF37;">${getBrandNameSync()}</span> &middot; AI-Powered Outreach
   </div>
 </body>
 </html>`;

@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Skeleton } from '@/components/ui/skeleton';
+import { SkeletonDashboard } from '@/components/loading';
 import {
   Building2, Users, FileText, Send, Mail, TrendingUp, TrendingDown,
   ChevronRight, Zap, UserPlus, Eye, MessageSquare, AlertTriangle,
@@ -12,9 +12,9 @@ import {
   Target, ShieldAlert,
 } from 'lucide-react';
 import { useAppStore, type ViewId } from '@/lib/store';
-import { EnterpriseLoading } from '@/components/enterprise';
 import { EnterpriseErrorState } from '@/components/enterprise';
-import { badgeColors, colors, gold, goldLight, card, border, borderSubtle } from '@/components/shared/enterprise-theme';
+import { ErrorBoundary } from '@/components/error-boundary';
+import { badgeColors, colors, gold, goldLight, card, border, borderSubtle } from '@/components/design-system';
 
 // ── Theme color opacity helpers ─────────────────────
 const goldAlpha = (a: number) => `rgba(212,175,55,${a})`;
@@ -30,7 +30,7 @@ const indigoAlpha = (a: number) => `rgba(99,102,241,${a})`;
 
 
 /* ═══════════════════════════════════════════════════
-   Design Tokens — now imported from enterprise-theme
+   Design Tokens — now imported from design-system (unified)
    ═══════════════════════════════════════════════════ */
 
 /* ═══════════════════════════════════════════════════
@@ -335,7 +335,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   // Loading guard — must come BEFORE the !dd check to avoid showing error during
   // transient loading states where dashData is undefined but isLoading is true.
   if (isLoading) {
-    return <EnterpriseLoading message="Loading dashboard..." size="lg" />;
+    return <SkeletonDashboard />;
   }
 
   if (dashError) return (
@@ -396,38 +396,6 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
     }
   };
 
-  /* ── Loading skeleton — matches actual layout section by section ── */
-  if (isLoading) return (
-    <div className="space-y-5">
-      {/* AI Briefing skeleton */}
-      <Skeleton className="h-40 rounded-xl" />
-      {/* KPI Cards — 6 columns, 6 items */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
-        {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
-      </div>
-      {/* Secondary KPIs — 4 columns */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-28 rounded-xl" />)}
-      </div>
-      {/* Quick Actions — 6 columns */}
-      <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
-        {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-24 rounded-xl" />)}
-      </div>
-      {/* Pipeline Funnel */}
-      <Skeleton className="h-48 rounded-xl" />
-      {/* Engagement + Top Companies */}
-      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
-        <Skeleton className="h-72 rounded-xl lg:col-span-3" />
-        <Skeleton className="h-72 rounded-xl lg:col-span-2" />
-      </div>
-      {/* Activity + Segments */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-        <Skeleton className="h-72 rounded-xl" />
-        <Skeleton className="h-72 rounded-xl" />
-      </div>
-    </div>
-  );
-
   /* ── Stats error inline banner (T6.5) ── */
   // Checked below the KPI render so cards still show with fallback zeros.
 
@@ -473,6 +441,7 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
   const statsFailed = statsError && !dashStats;
 
   return (
+    <ErrorBoundary>
     <div role="main" aria-label="Executive Dashboard" className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-5 pr-1">
 
       {/* ═══════ T6.5: Stats error banner — inline warning when intelligence stats unavailable ═══════ */}
@@ -886,5 +855,6 @@ export default function DashboardScreen({ navigateTo }: { navigateTo?: (screen: 
         </motion.div>
       </div>
     </div>
+    </ErrorBoundary>
   );
 }

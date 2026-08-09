@@ -9,7 +9,7 @@ import { checkApiAuth } from '@/lib/api-auth';
 // = Opportunity Intelligence (what to sell, who to target, what to say)
 export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -32,7 +32,7 @@ try {
 // GET /api/fusion?companyId=xxx — Get fusion results for a company
 export async function GET(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 const companyId = new URL(request.url).searchParams.get('companyId');

@@ -8,7 +8,7 @@
 // ─── Source Types ──────────────────────────────────────────────
 
 /** The kind of source intelligence was acquired from */
-export type SourceType = 'csv' | 'excel' | 'website' | 'rss' | 'document' | 'human';
+export type SourceType = 'csv' | 'excel' | 'website' | 'rss' | 'document' | 'human' | 'clearbit' | 'apollo' | 'crunchbase' | 'sec_edgar';
 
 /** How intelligence was originally acquired (more granular than SourceType) */
 export type IntelligenceOrigin =
@@ -16,7 +16,11 @@ export type IntelligenceOrigin =
   | 'excel_upload'
   | 'website_scrape'
   | 'rss_feed'
-  | 'human_submission';
+  | 'human_submission'
+  | 'clearbit_enrichment'
+  | 'apollo_enrichment'
+  | 'crunchbase_enrichment'
+  | 'sec_edgar_filing';
 
 // ─── Connector Lifecycle ───────────────────────────────────────
 
@@ -71,13 +75,21 @@ export const ALL_CATEGORIES: KnowledgeCategory[] = [
 
 // ─── Source Reliability (static, no ML) ────────────────────────
 
+/**
+ * @deprecated Use `getReliabilityScore()` from `@/lib/intelligence-sources/trust-metadata` instead.
+ * This uses a different scale (0-1) than the canonical TRUST framework (0-100).
+ */
 export const SOURCE_RELIABILITY: Record<SourceType, number> = {
   csv: 0.95,
   excel: 0.95,
+  clearbit: 0.90,
+  apollo: 0.88,
+  crunchbase: 0.92,
   website: 0.85,
   rss: 0.75,
   document: 0.9,
   human: 0.85,
+  sec_edgar: 0.95,
 };
 
 /**

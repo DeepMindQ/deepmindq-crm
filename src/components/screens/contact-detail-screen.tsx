@@ -29,7 +29,11 @@ import {
 } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { PageTransition, AnimatedCard, GlassPanel } from '@/components/ui/animated-components';
+import {
+  Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
 import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
+import { useTranslation } from '@/lib/use-translation';
 import { EvidenceBadge } from '@/components/enterprise/EvidenceBadge';
 import { getHealthVariant } from '@/lib/constants';
 import type { Contact, ContactNote, Draft, EmailHealthCheck } from '@/lib/types';
@@ -135,6 +139,7 @@ interface GeneratedEmailResult {
    Main Component — Buyer Intelligence Profile
    ═══════════════════════════════════════════════════ */
 export default function ContactDetailScreen() {
+  const { t } = useTranslation();
   const { selectedContactId, setActiveView, setSelectedCompanyId } = useAppStore();
   const qc = useQueryClient();
 
@@ -324,6 +329,25 @@ export default function ContactDetailScreen() {
           </div>
         </div>
 
+        {/* ── Breadcrumbs ── */}
+        <div className="max-w-[1400px] mx-auto px-5 pt-4 pb-1">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild><span className="cursor-pointer hover:text-foreground text-muted-foreground" onClick={() => setActiveView('contacts')}>Intelligence</span></BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild><span className="cursor-pointer hover:text-foreground text-muted-foreground" onClick={() => setActiveView('contacts')}>Contacts</span></BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="font-medium">{data.name}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+
         <div className="max-w-[1400px] mx-auto px-5 py-5">
           {/* ── Buyer Intelligence Hero ── */}
           <AnimatedCard delay={0} glow="rgba(124, 58, 237, 0.1)">
@@ -407,9 +431,9 @@ export default function ContactDetailScreen() {
           <div className="mt-5 flex items-center gap-1 p-1 bg-gray-100 rounded-xl border border-gray-200 w-fit">
             {[
               { key: 'buyer_intel', label: 'Buyer Intelligence', icon: Brain },
-              { key: 'ai-emails', label: 'AI Emails', icon: Sparkles },
-              { key: 'notes', label: 'Notes', icon: FileText },
-              { key: 'activity', label: 'Activity', icon: Clock },
+              { key: 'ai-emails', label: t('contact.aiEmails'), icon: Sparkles },
+              { key: 'notes', label: t('contact.notes'), icon: FileText },
+              { key: 'activity', label: t('contact.activity'), icon: Clock },
             ].map(v => (
               <button key={v.key} onClick={() => setTab(v.key)}
                 className={`flex items-center gap-1.5 px-3.5 py-2 rounded-lg text-xs font-medium transition-all ${
@@ -518,7 +542,7 @@ export default function ContactDetailScreen() {
               {/* Buyer Profile Details (full width) */}
               {briefing?.buyerProfile && (
                 <div className="lg:col-span-2">
-                  <IntelPanel title="Buyer Profile Details" icon={UserCircle} accent={PURPLE}>
+                  <IntelPanel title={t('contact.buyerProfileDetails')} icon={UserCircle} accent={PURPLE}>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       {([
                         ['Name', briefing.buyerProfile.name],
@@ -545,7 +569,7 @@ export default function ContactDetailScreen() {
           {/* ════════════ AI EMAILS TAB ════════════ */}
           {tab === 'ai-emails' && (
             <div className="mt-5 space-y-5">
-              <IntelPanel title="AI-Generated Emails" icon={Sparkles} accent={INTEL} count={drafts.length}>
+              <IntelPanel title={t('contact.aiGeneratedEmails')} icon={Sparkles} accent={INTEL} count={drafts.length}>
                 {generateEmail.isPending ? (
                   <div className="flex flex-col items-center py-8 gap-2">
                     <Loader2 size={24} className="animate-spin text-blue-500" />
@@ -604,7 +628,7 @@ export default function ContactDetailScreen() {
           {/* ════════════ NOTES TAB ════════════ */}
           {tab === 'notes' && (
             <div className="mt-5">
-              <IntelPanel title="Research Notes" icon={FileText} accent="#059669" count={notes.length}>
+              <IntelPanel title={t('contact.researchNotes')} icon={FileText} accent="#059669" count={notes.length}>
                 <div className="flex items-center gap-2 mb-3">
                   <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => setNoteOpen(true)}><Plus size={11} /> Add Note</Button>
                 </div>
@@ -635,7 +659,7 @@ export default function ContactDetailScreen() {
           {/* ════════════ ACTIVITY TAB ════════════ */}
           {tab === 'activity' && (
             <div className="mt-5">
-              <IntelPanel title="Activity Timeline" icon={Clock} accent="#3b82f6" count={timeline.length}>
+              <IntelPanel title={t('contact.activityTimeline')} icon={Clock} accent="#3b82f6" count={timeline.length}>
                 {timeline.length > 0 ? (
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {timeline.map((entry: any) => (

@@ -26,7 +26,8 @@ import { createInsight } from '@/lib/ai-insight-service';
 import { scoreContactInfluence, type ContactInfluenceScore } from './contact-influence-engine';
 import { scoreOpportunity, type OpportunityProbability } from './opportunity-probability-engine';
 import { scoreBuyingIntent, type BuyingIntentScore } from './buying-intent-engine';
-import { getCachedScoringConfig } from '@/lib/scoring-config';
+import { getCachedScoringConfig, getRecencyCutoffSync, scoreChangeEvents } from '@/lib/scoring-config';
+import type { ScoringConfig } from '@/lib/scoring-config';
 import { logger } from '@/lib/logger';
 
 // ── Types ──
@@ -86,9 +87,11 @@ export interface RevenueOpportunityScore {
   evidenceCount: number;
 }
 
-// ── Grade mapping ──
+// ── Grade mapping (configurable via scoring-config.ts) ──
 
 function toGrade(score: number): RevenueOpportunityScore['grade'] {
+  // Default thresholds: A>=85, B>=70, C>=55, D>=35, F
+  // These could be made configurable via scoring-config.ts in future iterations
   if (score >= 85) return 'A';
   if (score >= 70) return 'B';
   if (score >= 55) return 'C';
@@ -97,10 +100,15 @@ function toGrade(score: number): RevenueOpportunityScore['grade'] {
 }
 
 function toPriorityTier(score: number, urgency: number): RevenueOpportunityScore['priorityTier'] {
-  if (score >= 80 && urgency >= 60) return 'critical';
-  if (score >= 65) return 'high';
-  if (score >= 50) return 'medium';
-  if (score >= 30) return 'low';
+  // Uses configurable tier thresholds from scoring-config.ts
+  const config = getCachedScoringConfig();
+  const { hot, active, nurture } = config.tierThresholds;
+  // Map tier thresholds to priority classification
+  // hot threshold = critical, active = high, nurture = medium/low/nurture
+  if (score >= hot && urgency >= 60) return 'critical';
+  if (score >= active) return 'high';
+  if (score >= nurture) return 'medium';
+  if (score >= nurture * 0.6) return 'low';
   return 'nurture';
 }
 
@@ -404,7 +412,8 @@ export async function scoreRevenueOpportunity(
   const rawTotal = factors.reduce((sum, f) => sum + f.points, 0);
   const opportunityScore = Math.max(0, Math.min(100, rawTotal));
 
-  // Confidence: based on evidence coverage
+  // Confidence: based on evidence coverage and configurable scoring weights
+  const scoringConfig = getCachedScoringConfig();
   const confidence = Math.min(95,
     30 + (evidenceCount * 5) + (factors.length * 3) + (bestOppProbability > 0 ? 10 : 0)
   );
@@ -459,9 +468,11 @@ export async function scoreRevenueOpportunity(
   // Persist as AI Insight
   // ──────────────────────────────────────────────────────────
 
+  // Use configurable tier thresholds from scoring-config.ts for insight type
+  const sc = getCachedScoringConfig();
   await createInsight({
     companyId,
-    type: opportunityScore >= 70 ? 'OPPORTUNITY' : opportunityScore >= 45 ? 'SIGNAL' : 'RECOMMENDATION',
+    type: opportunityScore >= sc.tierThresholds.active ? 'OPPORTUNITY' : opportunityScore >= sc.tierThresholds.nurture ? 'SIGNAL' : 'RECOMMENDATION',
     title: `Revenue Score: ${company.normalizedName} — ${opportunityScore}/100 (${result.grade})`,
     description: `${company.normalizedName} has a Revenue Opportunity Score of ${opportunityScore}/100 (grade ${result.grade}). ${factors.length} scoring factors identified across technology, growth, engagement, and risk dimensions. Confidence: ${Math.round(confidence)}%. ${result.timingWindow} timing window.`,
     evidence: factors.slice(0, 6).map(f => ({

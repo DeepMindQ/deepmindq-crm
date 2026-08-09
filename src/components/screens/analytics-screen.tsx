@@ -2,7 +2,6 @@
 
 import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -13,9 +12,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import {
-  BarChart3, TrendingUp, TrendingDown, Mail, Send, Users,
-  Target, ArrowUpRight, ArrowDownRight, Activity, FileSpreadsheet,
-  ShieldCheck, Eye, MousePointerClick, MessageSquare,
+  BarChart3, TrendingUp, Send, Activity, FileSpreadsheet,
+  Eye, MousePointerClick, MessageSquare,
 } from 'lucide-react';
 import {
   BarChart, Bar, AreaChart, Area, PieChart, Pie, Cell,
@@ -23,12 +21,13 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import {
-  KPICard, GlassPanel, SectionHeader, ScreenSkeleton,
+  KPICard, GlassPanel, SectionHeader,
   EmptyScreenState,
 } from '@/components/shared/enterprise-components';
+import { ScreenBreadcrumb } from '@/components/shared/screen-breadcrumb';
 import {
-  gold, goldLight, card, border, colors, spacing, cls,
-} from '@/components/shared/enterprise-theme';
+  gold, card, border, colors, enterpriseSpacing as spacing, cls,
+} from '@/components/design-system';
 
 /* ═══════════════════════════════════════════════════
    Types
@@ -67,13 +66,13 @@ interface QueueItem {
 /* ═══════════════════════════════════════════════════
    Chart Tooltip
    ═══════════════════════════════════════════════════ */
-function ChartTip({ active, payload, label }: any) {
+function ChartTip({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) {
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border px-3 py-2.5 shadow-2xl"
       style={{ background: '#FFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }}>
       {label && <p className="text-[11px] font-medium text-muted-foreground mb-1.5">{label}</p>}
-      {payload.map((p: any, i: number) => (
+      {payload.map((p, i: number) => (
         <div key={i} className="flex items-center gap-2 text-xs">
           <span className="w-2 h-2 rounded-full shrink-0" style={{ background: p.color }} />
           <span className="text-muted-foreground capitalize">{p.name}:</span>
@@ -107,16 +106,18 @@ function pct(value: number, total: number) {
 /* ═══════════════════════════════════════════════════
    Analytics Screen
    ═══════════════════════════════════════════════════ */
-export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: string) => void }) {
+export default function AnalyticsScreen({ navigateTo: _navigateTo }: { navigateTo?: (_screen: string) => void }) {
   const [timeRange, setTimeRange] = useState('7d');
 
   /* ── Data ── */
   const { data: _dash, isLoading: dashLoading, isError: dashError, refetch: refetchDash } = useQuery<DashboardData>({
     queryKey: ['analytics-dashboard'], queryFn: () => fetch('/api/dashboard').then(r => r.json()).catch(() => null), staleTime: 60000,
   });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: _queue, isLoading: queueLoading } = useQuery<any[]>({
     queryKey: ['analytics-queue'], queryFn: () => fetch('/api/queue').then(r => r.json()).catch(() => []), staleTime: 60000,
   });
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { data: _replies, isLoading: repliesLoading } = useQuery<any[]>({
     queryKey: ['analytics-replies'], queryFn: () => fetch('/api/replies').then(r => r.json()).catch(() => []), staleTime: 60000,
   });
@@ -199,7 +200,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
       clicks: q.clickCount || 0,
       replied: q.replied,
     }))
-    .sort((a: any, b: any) => b.opens - a.opens)
+    .sort((a, b) => (b.opens as number) - (a.opens as number))
     .slice(0, 10);
 
   /* ═══════════════════════════════════════════════════
@@ -251,6 +252,8 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
 
   return (
     <div role="main" aria-label="Analytics" className={cls.scrollContainer} style={{ ...spacing.sectionGap as React.CSSProperties, gap: '2rem' }}>
+
+      <ScreenBreadcrumb items={[{ label: 'Analytics' }]} />
 
       {/* ═══════ HEADER ═══════ */}
       <div className="flex items-center justify-between">
@@ -433,7 +436,7 @@ export default function AnalyticsScreen({ navigateTo }: { navigateTo?: (screen: 
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {topContent.map((item: any, i: number) => (
+                {topContent.map((item, i: number) => (
                   <TableRow key={i} className="transition-colors hover:bg-black/[0.01]" style={{ borderBottom: `1px solid ${border}` }}>
                     <TableCell className="text-xs font-medium text-foreground max-w-[220px] truncate py-2.5">{item.subject}</TableCell>
                     <TableCell className="text-xs text-muted-foreground max-w-[160px] truncate py-2.5">{item.contact}</TableCell>

@@ -28,7 +28,7 @@ const monitorBodySchema = z.object({
 
 export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 let ctx: { correlationId: string; responseHeaders: Record<string, string> };
@@ -98,7 +98,7 @@ let ctx: { correlationId: string; responseHeaders: Record<string, string> };
  * Lightweight DB read — does NOT run detection engines.
  */
 export async function GET(request: NextRequest) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {
@@ -158,7 +158,7 @@ const patchBodySchema = z.object({
  *   dismiss     → sets status to 'dismissed', records resolvedBy + resolvedAt
  */
 export async function PATCH(request: NextRequest) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

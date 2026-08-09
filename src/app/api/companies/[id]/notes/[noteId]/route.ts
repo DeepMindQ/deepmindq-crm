@@ -11,7 +11,7 @@ export async function PATCH(
   { params }: { params: Promise<{ id: string; noteId: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -27,7 +27,7 @@ try {
       return NextResponse.json({ error: 'Note not found' }, { status: 404 });
     }
 
-    const data: Record<string, any> = {};
+    const data: Record<string, unknown> = {};
 
     if (body.title !== undefined) {
       data.title = typeof body.title === 'string' ? body.title.trim() : body.title;
@@ -62,11 +62,11 @@ try {
    DELETE — Delete a specific note
    ═══════════════════════════════════════════════════ */
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ id: string; noteId: string }> }
 ) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

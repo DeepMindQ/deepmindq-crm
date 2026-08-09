@@ -22,8 +22,8 @@ const websiteMonitorBodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-    // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+    // ── Authentication + RBAC Guard ──
+  const { errorResponse } = await checkApiAuth(req);
   if (errorResponse) return errorResponse;
 
 let ctx: { correlationId: string; responseHeaders: Record<string, string> };

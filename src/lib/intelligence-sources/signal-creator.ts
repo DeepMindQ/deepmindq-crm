@@ -10,6 +10,7 @@
 
 import { db } from '@/lib/db';
 import type { SignalType as PrismaSignalType } from '@prisma/client';
+import { TECH_MENTION_REGEX, detectTechInText } from '@/lib/shared/tech-keywords';
 
 type TimingWindow =
   | 'immediate' | 'within_7_days' | 'within_30_days' | 'within_90_days' | 'ongoing' | 'expired'
@@ -56,6 +57,14 @@ export const ALL_SIGNAL_TYPES = [
 
 export type SignalType = typeof ALL_SIGNAL_TYPES[number]
 
+/** Tech enrichment data from centralized detectTechInText() */
+export interface TechEnrichment {
+  categories: string[]    // e.g. ['CLOUD', 'AI_ML']
+  keywords: string[]      // matched keywords
+  confidence: number      // 0-1
+  actionVerb: string | null // e.g. 'migrating' or null
+}
+
 export function classifySignalType(text: string): string {
   const lower = text.toLowerCase()
 
@@ -68,11 +77,26 @@ export function classifySignalType(text: string): string {
   if (/\bhiring\b|\brecruiting\b|\bjob(s| posting)?\b/i.test(lower)) return 'hiring'
   if (/\bceo\b|\bcto\b|\bcio\b|\bcfo\b|\bvp\b|\bleadership\b|\bstepped down\b|\bdeparted\b/i.test(lower)) return 'leadership'
   if (/\bpartner\w*\b|\balliance\b|\bjoint venture\b/i.test(lower)) return 'partnership'
-  if (/\bcloud\b|\bmigrat\w*\b|\baws\b|\bgcp\b|\bazure\b|\bkubernetes\b|\bdocker\b/i.test(lower)) return 'tech_change'
+  // Use centralized tech keyword registry (100+ keywords across 8 categories)
+  if (TECH_MENTION_REGEX.test(lower)) return 'tech_change'
   if (/\bexpanding\b|\bexpansion\b|\bgrowth\b/i.test(lower)) return 'expansion'
   // product: new product, launched, released (before news catch-all)
   if (/\bnew product\b|\bproduct launch\b|\blaunched\b|\bnew feature\b/i.test(lower)) return 'product'
   return 'news'
+}
+
+/** When text is tech-related, run centralized detectTechInText() for rich enrichment */
+export function detectTechEnrichment(text: string): TechEnrichment | null {
+  const lower = text.toLowerCase()
+  if (!TECH_MENTION_REGEX.test(lower)) return null
+  const result = detectTechInText(text)
+  if (result.keywords.length === 0) return null
+  return {
+    categories: result.categories,
+    keywords: result.keywords,
+    confidence: result.confidence,
+    actionVerb: result.matchedActionVerb,
+  }
 }
 
 export function inferSeverity(
@@ -132,6 +156,18 @@ export async function createSignalFromIntelligenceObject(
     const signalType = input.signalType || classifySignalType(input.signal)
     const severity = input.severity || inferSeverity(input.confidence, input.businessImpact, input.timing)
 
+    // ── Tech enrichment: populate techRequirement when tech signal ──
+    const techEnrichment = (signalType === 'tech_change' || signalType === 'technology')
+      ? detectTechEnrichment(input.signal)
+      : null
+    const techRequirement = techEnrichment
+      ? techEnrichment.keywords.join(', ')
+      : undefined
+    // Boost confidence with centralized detection confidence
+    const enrichedConfidence = techEnrichment
+      ? Math.min(1, input.confidence / 100 + techEnrichment.confidence * 0.1)
+      : input.confidence / 100
+
     const signal = await db.companySignal.create({
       data: {
         companyId: input.companyId,
@@ -142,7 +178,7 @@ export async function createSignalFromIntelligenceObject(
         sourceUrl: input.sourceUrl || null,
         severity,
         impact: severity === 'critical' || severity === 'high' ? 'high' : severity === 'medium' ? 'medium' : 'low',
-        confidence: input.confidence / 100,
+        confidence: enrichedConfidence,
         signalDate: input.signalDate || null,
         businessImpact: input.businessImpact,
         recommendedAction: input.recommendedAction,
@@ -150,6 +186,7 @@ export async function createSignalFromIntelligenceObject(
         expiresAt: input.expiresAt ? new Date(input.expiresAt) : null,
         status: 'detected',
         extractedAt: new Date(),
+        ...(techRequirement ? { techRequirement } : {}),
       },
     })
 

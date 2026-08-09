@@ -15,9 +15,9 @@ const STAGE_STATUS_MAP: Record<string, string> = {
   suppressed: 'suppressed',
 };
 
-export async function GET() {
+export async function GET(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

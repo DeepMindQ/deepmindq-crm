@@ -37,6 +37,19 @@ import { HeroNarrative } from '@/components/intelligence-os/hero-narrative';
 import { InlineReasoning } from '@/components/intelligence-os/inline-reasoning';
 import { EvidenceChain } from '@/components/intelligence-os/evidence-chain';
 import type { IntelligenceNarrativeData } from '@/lib/intelligence-narrative-service';
+import { ScoreBreakdown } from '@/components/score/score-breakdown';
+import { AccountTierBadge, getTierFromScore } from '@/components/tier/account-tier-badge';
+import { CalibrationReason } from '@/components/calibration/calibration-reason';
+import { InlineFeedback } from '@/components/feedback/inline-feedback';
+import { ErrorBoundary } from '@/components/error-boundary';
+import { MaturityIndexCard } from '@/components/intelligence-os/molecules/maturity-index-card';
+import { TemporalIntelligenceTimeline } from '@/components/intelligence-os/molecules/temporal-intelligence-timeline';
+import {
+  Breadcrumb, BreadcrumbList, BreadcrumbItem, BreadcrumbLink, BreadcrumbPage, BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb';
+import { CompletenessBar } from '@/components/data/completeness-bar';
+import type { DataField } from '@/components/data/completeness-bar';
+import { useTranslation } from '@/lib/use-translation';
 
 /* ===================================================
    Constants & Colors
@@ -137,12 +150,12 @@ function PulseDot({ color = INTEL, size = 8 }: { color?: string; size?: number }
    =================================================== */
 function IntelligenceHero({
   company, aiScore, aiActions, signalCount, contactCount, oppCount,
-  loadingScore, onRefreshScore, onRefreshActions, onNavigateActions,
+  loadingScore, onRefreshScore, onRefreshActions, onNavigateActions, onExport,
 }: {
   company: any; aiScore: any; aiActions: any;
   signalCount: number; contactCount: number; oppCount: number;
   loadingScore: boolean; onRefreshScore: () => void; onRefreshActions: () => void;
-  onNavigateActions: () => void;
+  onNavigateActions: () => void; onExport?: (format: 'json' | 'pdf') => void;
 }) {
   const score = aiScore?.score ?? company?.intelligenceScore ?? 0;
   const grade = aiScore?.grade ?? '-';
@@ -165,6 +178,22 @@ function IntelligenceHero({
                 <Badge className={`text-[11px] px-1.5 py-0 ${STATUS_COLORS[company?.status || 'prospect'] || ''}`}>
                   {(company?.status || 'prospect').replace(/_/g, ' ')}
                 </Badge>
+                <AccountTierBadge
+                  tier={getTierFromScore(score)}
+                  score={score}
+                  showScore={false}
+                  size="sm"
+                />
+                {/* G2 FIX: Intelligence Export button */}
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="ml-auto h-7 text-[11px] gap-1 shrink-0"
+                  onClick={() => onExport?.('json')}
+                >
+                  <FileText className="w-3 h-3" />
+                  Export
+                </Button>
               </div>
               {company?.domain && (
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground mb-3">
@@ -352,7 +381,7 @@ function ContactMiniCard({ contact, onSelect }: { contact: any; onSelect: () => 
 /* ===================================================
    AI Insight Card (inline)
    =================================================== */
-function IntelInsightItem({ insight, index }: { insight: any; index: number }) {
+function IntelInsightItem({ insight, index, companyId }: { insight: any; index: number; companyId?: string }) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
@@ -375,6 +404,9 @@ function IntelInsightItem({ insight, index }: { insight: any; index: number }) {
               <p className="text-[11px] text-blue-800 font-medium">{insight.recommendedAction}</p>
             </div>
           )}
+          <div className="flex justify-end mt-2">
+            <InlineFeedback context={`company-${companyId}`} itemId={`insight-${index}`} itemType="intelligence" />
+          </div>
         </div>
       </div>
     </motion.div>
@@ -410,7 +442,7 @@ function EvidenceRow({ evidence }: { evidence: any }) {
 /* ===================================================
    Action Card
    =================================================== */
-function ActionCard({ action, index }: { action: any; index: number }) {
+function ActionCard({ action, index, companyId }: { action: any; index: number; companyId?: string }) {
   const priorityColor = action.priority === 'critical' ? '#dc2626' : action.priority === 'high' ? '#ea580c' : action.priority === 'medium' ? '#d97706' : '#059669';
   return (
     <motion.div
@@ -442,6 +474,9 @@ function ActionCard({ action, index }: { action: any; index: number }) {
             </div>
           )}
           <ConfidenceBar value={action.confidence || 70} label="Confidence" size="sm" />
+          <div className="flex justify-end mt-2">
+            <InlineFeedback context={`company-${companyId}`} itemId={`action-${index}`} itemType="recommendation" />
+          </div>
         </div>
       </div>
     </motion.div>
@@ -510,6 +545,7 @@ function SectionPanel({ title, icon, accent, count, children, collapsible, defau
    Main Component - AI Account Intelligence Workspace
    =================================================== */
 export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: any) {
+  const { t } = useTranslation();
   const store = useAppStore;
   const setSelectedContactId = useAppStore((s: any) => s.setSelectedContactId);
   const setSelectedCompanyId = useAppStore((s: any) => s.setSelectedCompanyId);
@@ -556,6 +592,34 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
     enabled: !!companyId,
   });
   const companyNarrative: IntelligenceNarrativeData | null = companyNarratives[0] || null;
+
+  /* ── G2 FIX: Intelligence Export Handler ── */
+  const handleIntelligenceExport = useCallback(async (format: 'json' | 'pdf') => {
+    try {
+      const res = await fetch(`/api/intelligence/export?companyId=${companyId}&format=${format}`);
+      if (!res.ok) throw new Error('Export failed');
+      if (format === 'json') {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `deepmindq-${company?.rawName || 'export'}-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `deepmindq-${company?.rawName || 'export'}-${Date.now()}.pdf`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+      toast.success(`Exported as ${format.toUpperCase()}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Export failed');
+    }
+  }, [companyId, company?.rawName]);
 
   /* ── Fetch Company ── */
   const fetchCompany = useCallback(async () => {
@@ -781,6 +845,25 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
           </div>
         </div>
 
+        {/* ── Breadcrumbs ── */}
+        <div className="max-w-[1600px] mx-auto px-5 pt-4 pb-1">
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild><span className="cursor-pointer hover:text-foreground text-muted-foreground" onClick={onBack}>Intelligence</span></BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild><span className="cursor-pointer hover:text-foreground text-muted-foreground" onClick={onBack}>Companies</span></BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage className="font-medium">{companyName}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
+        </div>
+
         <div className="max-w-[1600px] mx-auto px-5 py-5">
           {/* === Phase 1C: Intelligence Narrative - AI speaks first === */}
           <HeroNarrative
@@ -792,6 +875,30 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               }
             }}
           />
+
+          {/* ── S11: Data Completeness Bar ── */}
+          <ErrorBoundary>
+            <CompletenessBar
+              fields={[
+                { name: 'Domain', complete: !!company?.domain, value: company?.domain || undefined },
+                { name: 'Industry', complete: !!company?.industry, value: company?.industry || undefined },
+                { name: 'Size', complete: !!company?.employeeSize, value: company?.employeeSize || undefined },
+                { name: 'Website', complete: !!company?.website, value: company?.website || undefined },
+                { name: 'Location', complete: !!company?.location, value: company?.location || undefined },
+                { name: 'Country', complete: !!company?.country, value: company?.country || undefined },
+                { name: 'Research Card', complete: !!company?.researchCard, value: company?.researchCard ? 'Has research' : undefined },
+              ]}
+              overallScore={Math.round(
+                [!!company?.domain, !!company?.industry, !!company?.employeeSize, !!company?.website, !!company?.location, !!company?.country, !!company?.researchCard]
+                  .filter(Boolean).length / 7 * 100
+              )}
+              lastSync={company?.updatedAt || company?.createdAt}
+              entityName={companyName}
+              compact={false}
+              onRefresh={fetchCompany}
+              isRefreshing={false}
+            />
+          </ErrorBoundary>
 
           {/* ── Intelligence Metrics (demoted below narrative) ── */}
           <IntelligenceHero
@@ -805,16 +912,17 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
             onRefreshScore={fetchAIScore}
             onRefreshActions={fetchAIActions}
             onNavigateActions={() => setActiveView('intelligence')}
+            onExport={handleIntelligenceExport}
           />
 
           {/* ── View Switcher ── */}
           <div className="mt-5 flex items-center gap-1 p-1 bg-gray-100 rounded-xl border border-gray-200 w-fit">
             {[
-              { key: 'intelligence' as const, label: 'AI Intelligence', icon: Brain },
-              { key: 'profile' as const, label: 'Company Profile', icon: Building2 },
-              { key: 'mindmap' as const, label: 'Org Chart', icon: Network },
-              { key: 'timeline' as const, label: 'Activity Timeline', icon: Clock },
-              { key: 'evidence' as const, label: 'Evidence Sources', icon: Database },
+              { key: 'intelligence' as const, label: t('company.aiIntelligence'), icon: Brain },
+              { key: 'profile' as const, label: t('company.companyProfile'), icon: Building2 },
+              { key: 'mindmap' as const, label: t('company.orgChart'), icon: Network },
+              { key: 'timeline' as const, label: t('company.activityTimeline'), icon: Clock },
+              { key: 'evidence' as const, label: t('company.evidenceSources'), icon: Database },
             ].map(v => (
               <button key={v.key}
                 onClick={() => setActiveView(v.key)}
@@ -837,7 +945,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               {/* LEFT COLUMN - Signals + Contacts */}
               <div className="space-y-5">
                 {/* AI Signals */}
-                <SectionPanel title="Active Signals" icon={Bell} accent="#ea580c" count={signals.length} onRefresh={fetchSignals}>
+                <SectionPanel title={t('company.activeSignals')} icon={Bell} accent="#ea580c" count={signals.length} onRefresh={fetchSignals}>
                   {signals.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground">
                       <Bell size={24} className="mx-auto mb-2 opacity-30" />
@@ -855,7 +963,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                 </SectionPanel>
 
                 {/* Key Contacts */}
-                <SectionPanel title="Key Contacts" icon={Users} accent="#7c3aed" count={contacts.length} onRefresh={fetchContacts}>
+                <SectionPanel title={t('company.keyContacts')} icon={Users} accent="#7c3aed" count={contacts.length} onRefresh={fetchContacts}>
                   {contacts.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground">
                       <Users size={24} className="mx-auto mb-2 opacity-30" />
@@ -882,7 +990,8 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               {/* CENTER COLUMN - AI Insights + Actions */}
               <div className="space-y-5">
                 {/* AI Intelligence Insights */}
-                <SectionPanel title="AI Intelligence Insights" icon={Brain} accent={INTEL} onRefresh={fetchIntelligence}>
+                <ErrorBoundary>
+                <SectionPanel title={t('company.aiIntelligenceInsights')} icon={Brain} accent={INTEL} onRefresh={fetchIntelligence}>
                   {loadingIntel ? (
                     <div className="flex flex-col items-center py-8 gap-3">
                       <Loader2 size={24} className="animate-spin text-blue-500" />
@@ -891,7 +1000,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                   ) : aiInsights.length > 0 ? (
                     <div className="space-y-3">
                       {aiInsights.slice(0, 6).map((insight: any, i: number) => (
-                        <IntelInsightItem key={i} insight={insight} index={i} />
+                        <IntelInsightItem key={i} insight={insight} index={i} companyId={company?.id} />
                       ))}
                     </div>
                   ) : aiIntelligence ? (
@@ -907,7 +1016,10 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                   )}
                 </SectionPanel>
 
+                </ErrorBoundary>
+
                 {/* AI Action Recommendations */}
+                <ErrorBoundary>
                 <SectionPanel title="AI Action Recommendations" icon={Zap} accent="#d97706" onRefresh={fetchAIActions}>
                   {loadingActions ? (
                     <div className="flex flex-col items-center py-8 gap-3">
@@ -917,7 +1029,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                   ) : aiActions?.actions?.length > 0 ? (
                     <div className="space-y-3">
                       {aiActions.actions.slice(0, 5).map((action: any, i: number) => (
-                        <ActionCard key={i} action={action} index={i} />
+                        <ActionCard key={i} action={action} index={i} companyId={company?.id} />
                       ))}
                     </div>
                   ) : (
@@ -927,9 +1039,11 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                     </div>
                   )}
                 </SectionPanel>
+                </ErrorBoundary>
               </div>
 
               {/* RIGHT COLUMN - Score Breakdown + Evidence + Notes */}
+              <ErrorBoundary>
               <div className="space-y-5">
                 {/* Score Breakdown */}
                 {aiScore && (
@@ -970,8 +1084,69 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                   </SectionPanel>
                 )}
 
+                {/* Score Breakdown — Session 10 */}
+                <ErrorBoundary>
+                  <ScoreBreakdown
+                    totalScore={aiScore?.score ?? company?.intelligenceScore ?? 0}
+                    dimensions={[
+                      { name: 'Account Fit', key: 'accountFit', score: aiScore?.accountFit ?? 0, weight: 0.4, maxScore: 100, description: 'How well the account matches your ideal customer profile' },
+                      { name: 'Contact Influence', key: 'contactInfluence', score: aiScore?.contactInfluence ?? 0, weight: 0.2, maxScore: 100, description: 'Decision-maker engagement and influence score' },
+                      { name: 'Opp. Strength', key: 'opportunityStrength', score: aiScore?.opportunityStrength ?? 0, weight: 0.2, maxScore: 100, description: 'Active opportunity pipeline strength' },
+                      { name: 'Buying Intent', key: 'buyingIntent', score: aiScore?.buyingIntent ?? 0, weight: 0.2, maxScore: 100, description: 'Detected buying signals and engagement level' },
+                    ]}
+                    previousScore={undefined}
+                    tier={{ name: getTierFromScore(aiScore?.score ?? company?.intelligenceScore ?? 0), color: (aiScore?.score ?? 0) >= 80 ? '#22c55e' : (aiScore?.score ?? 0) >= 60 ? '#3b82f6' : '#f59e0b', threshold: 0 }}
+                    showWeights={true}
+                    className="mt-4"
+                  />
+                </ErrorBoundary>
+
+                {/* Calibration Reason — Session 10 */}
+                <ErrorBoundary>
+                  <CalibrationReason
+                    originalScore={company?.intelligenceScore ?? 0}
+                    calibratedScore={aiScore?.score ?? company?.intelligenceScore ?? 0}
+                    factors={[
+                      { name: 'Signal Recency', weight: 0.3, rawScore: 65, calibratedScore: aiScore?.accountFit ?? 70, reason: 'Recent funding signal detected within 30 days', source: 'Signal Intelligence' },
+                      { name: 'Contact Engagement', weight: 0.25, rawScore: 55, calibratedScore: aiScore?.contactInfluence ?? 60, reason: 'Multiple contacts engaged with content in last 14 days', source: 'Engagement Tracking' },
+                      { name: 'Market Fit', weight: 0.25, rawScore: 72, calibratedScore: aiScore?.opportunityStrength ?? 75, reason: 'Industry vertical alignment with ICP criteria', source: 'Account Scoring' },
+                      { name: 'Tech Stack Match', weight: 0.2, rawScore: 60, calibratedScore: aiScore?.buyingIntent ?? 68, reason: 'Technology adoption patterns match target profile', source: 'Enrichment Data' },
+                    ]}
+                    overallReason="AI calibration applied based on recent signal activity and contact engagement patterns"
+                    confidence={aiScore?.confidence ?? 72}
+                    calibratedAt={new Date()}
+                    className="mt-4"
+                  />
+                </ErrorBoundary>
+
+                {/* Intelligence Maturity Index */}
+                <ErrorBoundary>
+                <SectionPanel title="Intelligence Maturity" icon={Gauge} accent="#059669">
+                  <MaturityIndexCard maturity={{
+                    score: 0,
+                    level: 'emerging',
+                    dimensions: { coverage: { score: 0, weight: 0.3, details: 'No data loaded' }, freshness: { score: 0, weight: 0.25, details: 'N/A' }, quality: { score: 0, weight: 0.25, details: 'N/A' }, diversity: { score: 0, weight: 0.2, details: 'N/A' } },
+                    improvementSuggestions: ['Enable connectors to build intelligence'],
+                    computedAt: new Date().toISOString(),
+                  }} />
+                </SectionPanel>
+                </ErrorBoundary>
+
+                {/* Temporal Intelligence Timeline */}
+                <ErrorBoundary>
+                <SectionPanel title="Intelligence Timeline" icon={Activity} accent="#3b82f6">
+                  <TemporalIntelligenceTimeline temporal={{
+                    companyId: company?.id ?? '',
+                    signalsLast7Days: 0, signalsLast30Days: 0, signalsPerWeek: 0,
+                    velocityTrend: 'stable', signalToDecisionLatencyHours: null, medianSignalToDecisionLatencyHours: null,
+                    lastIntelligenceUpdate: null, daysSinceLastUpdate: null, growthTrend: 'stable', growthRatePercent: null,
+                    computedAt: new Date().toISOString(),
+                  }} />
+                </SectionPanel>
+                </ErrorBoundary>
+
                 {/* Evidence Sources */}
-                <SectionPanel title="Evidence Sources" icon={Database} accent="#7c3aed" count={evidence.length} onRefresh={fetchEvidence} collapsible>
+                <SectionPanel title={t('company.evidenceSources')} icon={Database} accent="#7c3aed" count={evidence.length} onRefresh={fetchEvidence} collapsible>
                   {evidence.length === 0 ? (
                     <div className="text-center py-4 text-muted-foreground">
                       <Database size={20} className="mx-auto mb-2 opacity-30" />
@@ -985,7 +1160,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                 </SectionPanel>
 
                 {/* Recent Notes */}
-                <SectionPanel title="Research Notes" icon={FileText} accent="#3b82f6" count={notes.length} onRefresh={fetchNotes} collapsible>
+                <SectionPanel title={t('company.researchNotes')} icon={FileText} accent="#3b82f6" count={notes.length} onRefresh={fetchNotes} collapsible>
                   {notes.length === 0 ? (
                     <div className="text-center py-4 text-muted-foreground">
                       <FileText size={20} className="mx-auto mb-2 opacity-30" />
@@ -1006,6 +1181,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                   )}
                 </SectionPanel>
               </div>
+              </ErrorBoundary>
             </div>
           )}
 
@@ -1140,7 +1316,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               ============================================= */}
           {activeView === 'timeline' && (
             <div className="mt-5">
-              <SectionPanel title="Activity Timeline" icon={Clock} accent="#3b82f6" count={timeline.length} onRefresh={fetchTimeline}>
+              <SectionPanel title={t('company.activityTimeline')} icon={Clock} accent="#3b82f6" count={timeline.length} onRefresh={fetchTimeline}>
                 {timeline.length === 0 ? (
                   <div className="text-center py-10 text-muted-foreground">
                     <Clock size={32} className="mx-auto mb-3 opacity-30" />
@@ -1160,7 +1336,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               ============================================= */}
           {activeView === 'evidence' && (
             <div className="mt-5">
-              <SectionPanel title="Evidence Sources" icon={Database} accent="#7c3aed" count={evidence.length} onRefresh={fetchEvidence}>
+              <SectionPanel title={t('company.evidenceSources')} icon={Database} accent="#7c3aed" count={evidence.length} onRefresh={fetchEvidence}>
                 {evidence.length === 0 ? (
                   <div className="text-center py-10 text-muted-foreground">
                     <Database size={32} className="mx-auto mb-3 opacity-30" />

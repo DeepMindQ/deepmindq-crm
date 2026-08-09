@@ -4,7 +4,7 @@ import { Prisma, CompanyStatus, CompanyPriorityTier } from '@prisma/client';
 import { logger } from '@/lib/logger';
 import { validateBody } from '@/lib/apiHelpers';
 import { createCompanySchema } from '@/lib/validations';
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, filterResponseArrayByRole } from '@/lib/api-auth';
 import { activateIntelligenceAsync } from '@/lib/intelligence-activation';
 
 /* ═══════════════════════════════════════════════════
@@ -20,7 +20,7 @@ import { activateIntelligenceAsync } from '@/lib/intelligence-activation';
    ═══════════════════════════════════════════════════ */
 export async function GET(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse, session } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -171,8 +171,13 @@ try {
       updatedAt: c.updatedAt?.toISOString() ?? null,
     }));
 
+    // ── Field-Level Permission Filtering (5.3) ──
+    const filteredResult = session
+      ? filterResponseArrayByRole(result, session, 'Company')
+      : result;
+
     return NextResponse.json({
-      companies: result,
+      companies: filteredResult,
       pagination: {
         page,
         limit,
@@ -203,7 +208,7 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

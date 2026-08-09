@@ -208,6 +208,8 @@ function setupBaseMocks(dbOverrides: Record<string, any> = {}) {
   vi.doMock('@/lib/api-auth', () => ({
     checkApiAuth: vi.fn().mockResolvedValue({ session: MOCK_SESSION }),
     requireAdminRole: vi.fn().mockReturnValue(null),
+    filterResponseByRole: vi.fn((data: any) => data),
+    filterResponseArrayByRole: vi.fn((data: any[]) => data),
   }));
 
   vi.doMock('@/lib/session', () => ({

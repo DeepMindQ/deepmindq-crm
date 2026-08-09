@@ -113,6 +113,7 @@ vi.mock('@/lib/email-provider', () => ({
 
 vi.mock('@/lib/email-tracking', () => ({
   registerTrackingEvent: vi.fn(),
+  signTrackingEventId: vi.fn().mockReturnValue('signed-eid-test'),
 }))
 
 vi.mock('@/lib/event-bus', () => ({

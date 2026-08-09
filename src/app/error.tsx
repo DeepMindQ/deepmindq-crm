@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
-import { AlertTriangle, RotateCcw, ArrowLeft } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { AlertTriangle, RotateCcw, ArrowLeft, Copy, Check } from 'lucide-react';
 
 export default function Error({
   error,
@@ -10,12 +10,27 @@ export default function Error({
   error: Error & { digest?: string };
   reset: () => void;
 }) {
+  const [copied, setCopied] = useState(false);
+  const errorId = error.digest || `route-${Date.now()}`;
+
   useEffect(() => {
     console.error('[DeepMindQ] Unhandled error:', error);
     import('@sentry/nextjs').then((mod) => {
       mod.default.captureException(error);
     }).catch(() => { /* Sentry not configured */ });
   }, [error]);
+
+  const handleCopyId = async () => {
+    try {
+      await navigator.clipboard.writeText(
+        `DeepMindQ Error Report\nError ID: ${errorId}\nDigest: ${error.digest ?? 'N/A'}\nMessage: ${error.message}\nStack: ${error.stack ?? 'N/A'}\nTimestamp: ${new Date().toISOString()}`
+      );
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // clipboard not available
+    }
+  };
 
   return (
     <main className="min-h-screen flex items-center justify-center" style={{ background: '#0a0c10' }}>
@@ -32,10 +47,34 @@ export default function Error({
         <h1 className="text-[clamp(1.4rem,3vw,2rem)] font-bold tracking-[-0.025em] mb-4" style={{ color: '#e8ecf4' }}>
           Something went wrong
         </h1>
-        <p className="text-[15px] font-light mb-8" style={{ color: '#8892a8' }}>
+        <p className="text-[15px] font-light mb-4" style={{ color: '#8892a8' }}>
           An unexpected error occurred. This has been logged for investigation.
           You can try again or return to the dashboard.
         </p>
+
+        {/* Error ID & digest display */}
+        <div
+          className="inline-flex items-center gap-3 rounded-lg px-4 py-2.5 mb-8"
+          style={{ background: 'rgba(30,37,53,0.8)', border: '1px solid rgba(42,51,72,0.5)' }}
+          aria-live="polite"
+        >
+          <span className="text-[11px] font-mono" style={{ color: '#5a6478' }}>
+            ID: {errorId}
+          </span>
+          <button
+            onClick={handleCopyId}
+            className="inline-flex items-center gap-1.5 text-[11px] font-medium transition-colors"
+            style={{ color: '#3b82f6' }}
+            aria-label="Copy error ID"
+          >
+            {copied ? (
+              <><Check className="w-3 h-3" /> Copied</>
+            ) : (
+              <><Copy className="w-3 h-3" /> Copy</>
+            )}
+          </button>
+        </div>
+
         <div className="flex items-center justify-center gap-3">
           <button
             onClick={reset}

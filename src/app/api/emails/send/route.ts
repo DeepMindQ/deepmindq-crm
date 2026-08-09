@@ -4,7 +4,7 @@ import { db } from '@/lib/db'
 import { checkApiAuth } from '@/lib/api-auth'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { sendEmail, type SendEmailResult } from '@/lib/email-provider'
-import { registerTrackingEvent } from '@/lib/email-tracking'
+import { registerTrackingEvent, signTrackingEventId } from '@/lib/email-tracking'
 import { eventBus } from '@/lib/event-bus'
 import { logAction } from '@/lib/audit'
 import { emailSendRateLimit } from '@/lib/rate-limit'
@@ -60,7 +60,7 @@ function injectClickTracking(html: string, eventId: string, origin: string): str
 
 export async function POST(request: NextRequest) {
   // Auth gate: authenticated users only for email sending
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   // Rate limit: 50 emails per hour per user
@@ -109,12 +109,13 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Inject tracking ────────────────────────────────────────
-    const eventId = generateEventId()
-    const trackedHtml = injectClickTracking(htmlBody, eventId, origin) + buildTrackingPixel(eventId, origin)
+    const rawEventId = generateEventId()
+    const signedEid = signTrackingEventId(rawEventId)
+    const trackedHtml = injectClickTracking(htmlBody, signedEid, origin) + buildTrackingPixel(signedEid, origin)
 
     // Register the tracking event so the track endpoint can look it up
     if (contactId && draftId) {
-      registerTrackingEvent(eventId, contactId, draftId)
+      registerTrackingEvent(rawEventId, contactId, draftId)
     }
 
     // ── Send email ─────────────────────────────────────────────
@@ -198,7 +199,7 @@ export async function POST(request: NextRequest) {
     return apiSuccess({
       success: true,
       messageId: result.providerId,
-      eventId,
+      eventId: signedEid,
       to,
       subject,
     })

@@ -5,6 +5,14 @@ let _shutdownRegistered = false;
 export async function register() {
   if (process.env.NEXT_RUNTIME === 'nodejs') {
     await import('../sentry.server.config');
+    // Start periodic metrics persistence (every 5 minutes)
+    try {
+      const { startMetricsPersistence } = await import('@/lib/monitoring');
+      startMetricsPersistence(5 * 60 * 1000);
+      console.info('[startup] Metrics persistence started (5-minute interval)');
+    } catch (err) {
+      console.error('[startup] Failed to start metrics persistence (non-fatal):', err);
+    }
     // Validate environment variables at startup
     const { validateEnv } = await import('@/lib/validate-env');
     try {
@@ -16,11 +24,51 @@ export async function register() {
         process.exit(1);
       }
     }
+
+    // ── WI-18.2 Phase 3: Persistence Cold-Start Initialization ──
+    // Wire the map state provider (enables shadow-mode reconciliation)
+    // and execute cold-start load (populates in-memory Maps from DB).
+    try {
+      const { wireMapStateProvider } = await import('@/lib/persistence/map-state-provider');
+      wireMapStateProvider();
+    } catch (err) {
+      console.error('[startup] Failed to wire map state provider:', err);
+    }
+
+    try {
+      const { executeColdStartLoad } = await import('@/lib/persistence/cold-start-loader');
+      const report = await executeColdStartLoad();
+      console.info(
+        `[startup] Persistence cold-start complete: status=${report.status}, ` +
+        `completeness=${(report.overallCompleteness * 100).toFixed(1)}%, ` +
+        `duration=${report.startupDurationMs}ms`
+      );
+    } catch (err) {
+      console.error('[startup] Persistence cold-start failed (non-fatal, Maps start empty):', err);
+    }
+
+    // Pre-load scoring config from DB so the cache is warm
+    try {
+      const { getScoringConfig } = await import('@/lib/scoring-config');
+      const config = await getScoringConfig();
+      console.info(`[startup] Scoring config loaded: tiers=${JSON.stringify(config.tierThresholds)}, recencyDays=${config.signalRecencyDays}`);
+    } catch (err) {
+      console.error('[startup] Failed to pre-load scoring config (non-fatal, using defaults):', err);
+    }
+
+    // ── S5-3.4: Prompt Registry Persistence & Tracing Sync ──
+    try {
+      const { initializePromptPersistence } = await import('@/lib/prompt-registry-persistence');
+      initializePromptPersistence();
+    } catch (err) {
+      console.error('[startup] Failed to initialize prompt persistence (non-fatal):', err);
+    }
+
     // Register graceful shutdown
     if (!_shutdownRegistered) {
       _shutdownRegistered = true;
       const shutdown = async (signal: string) => {
-        console.log(`[shutdown] Received ${signal}, cleaning up...`);
+        console.info(`[shutdown] Received ${signal}, cleaning up...`);
         // Clear all registered interval timers
         clearAllTimers();
         // Flush Sentry
@@ -28,7 +76,7 @@ export async function register() {
           const Sentry = (await import('@sentry/nextjs')).default;
           await Sentry.close(2000);
         } catch { /* Sentry not available */ }
-        console.log('[shutdown] Cleanup complete, exiting.');
+        console.info('[shutdown] Cleanup complete, exiting.');
         process.exit(0);
       };
       process.on('SIGTERM', () => shutdown('SIGTERM'));

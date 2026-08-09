@@ -1,17 +1,18 @@
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { logAction } from '@/lib/audit';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { withCsrf } from '@/lib/with-csrf';
 
 /* ═══════════════════════════════════════════════════
    POST /api/leads/consent
    Update consent status for a contact
    ═══════════════════════════════════════════════════ */
 
-export async function POST(request: Request) {
+export const POST = withCsrf(async function POST(request: NextRequest) {
     // ── Authentication Guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -32,7 +33,7 @@ try {
       return NextResponse.json({ error: 'Contact not found' }, { status: 404 });
     }
 
-    const updateData: any = {
+    const updateData: Record<string, unknown> = {
       consentStatus,
       consentDate: consentStatus === 'opted_in' ? new Date() : undefined,
     };
@@ -62,4 +63,4 @@ try {
     logger.error('Consent error:', { error: error });
     return NextResponse.json({ error: 'Failed to update consent' }, { status: 500 });
   }
-}
+});

@@ -2,7 +2,8 @@
  * WI-18.5 Phase 5 — Role-Based Access Control (RBAC)
  *
  * Enterprise authorization layer providing:
- *   - Role definitions: admin, operator, user, viewer
+ *   - Role definitions: admin, user (Phase 0 — production)
+ *   - Future roles: operator, viewer (Phase 2 RBAC expansion)
  *   - Permission definitions mapped to API routes
  *   - Route-by-route authorization matrix
  *   - Tenant isolation verification
@@ -12,6 +13,10 @@
  *   - Single-user deployment: all routes currently share one tenant
  *   - Multi-tenant ready: architecture supports tenant isolation
  *   - Permission checks are composable and reusable across routes
+ *
+ * PHASE 0 NOTE: Only 'admin' and 'user' are active in production.
+ * The operator/viewer definitions below are retained for Phase 2
+ * expansion but are NOT currently exposed in the UI or user management API.
  */
 
 import { logger } from '@/lib/logger';
@@ -241,6 +246,7 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
 
   // Email
   { path: '/api/email-templates', methods: { GET: ['templates:read'], POST: ['templates:write'] }, description: 'Email templates' },
+  { path: '/api/emails/', methods: { GET: ['email:read'], POST: ['email:write', 'email:send'], PUT: ['email:write'], DELETE: ['email:write'] }, description: 'Email operations (send, track, etc.)' },
   { path: '/api/sequences', methods: { GET: ['sequences:read'], POST: ['sequences:write'], PUT: ['sequences:write'], DELETE: ['sequences:write'] }, description: 'Email sequences' },
   { path: '/api/replies', methods: { GET: ['email:read'], POST: ['email:write'] }, description: 'Email replies' },
   { path: '/api/bounces', methods: { GET: ['email:read'] }, description: 'Email bounces' },
@@ -261,6 +267,9 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
   { path: '/api/audit', methods: { GET: ['audit:read'] }, description: 'Audit logs' },
   { path: '/api/audit-logs', methods: { GET: ['audit:read'] }, description: 'Audit log viewer' },
   { path: '/api/compliance', methods: { GET: ['audit:read'] }, description: 'Compliance status' },
+
+  // User Management
+  { path: '/api/users', methods: { GET: ['users:read'], PATCH: ['users:write'] }, description: 'User management (admin-only enforced at route level)' },
 
   // System & Health
   { path: '/api/system-health', methods: { GET: ['health:read'] }, description: 'System health details' },
@@ -288,6 +297,15 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
   { path: '/api/realtime', methods: { GET: ['dashboard:read'] }, description: 'Real-time updates' },
   { path: '/api/verify-email', methods: { GET: [] }, public: true, description: 'Email verification' },
   { path: '/api/verify-queue', methods: { GET: [] }, public: true, description: 'Queue verification' },
+
+  // Phase 5: Security & Compliance endpoints (admin-only)
+  { path: '/api/security/roles', methods: { GET: ['users:read'], POST: ['users:manage'], PUT: ['users:manage'] }, description: 'Role management' },
+  { path: '/api/security/audit', methods: { GET: ['audit:read'], POST: ['audit:read'] }, description: 'Comprehensive audit trail' },
+  { path: '/api/security/privacy', methods: { GET: ['audit:read'], POST: ['users:manage'] }, description: 'GDPR/CCPA compliance' },
+  { path: '/api/security/encryption', methods: { GET: ['settings:read'] }, description: 'Encryption health' },
+  { path: '/api/security/rate-limits', methods: { GET: ['settings:read'], POST: ['settings:write'] }, description: 'Rate limit management' },
+  { path: '/api/security/sso', methods: { GET: ['settings:read'], POST: ['settings:write'] }, description: 'SSO configuration' },
+  { path: '/api/security/scan', methods: { GET: ['audit:read'], POST: ['audit:read'] }, description: 'Security scanner' },
 
   // Milestone 1 H-01: Wildcard allows for route groups not individually listed.
   // These routes require authentication (enforced by proxy) but allow any authenticated user.

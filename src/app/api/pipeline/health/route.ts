@@ -6,9 +6,9 @@ import { checkApiAuth } from '@/lib/api-auth';
 
 const SALES_STAGES = ['discovery', 'qualification', 'proposal', 'negotiation', 'closed_won', 'closed_lost'] as const;
 
-export async function GET() {
+export async function GET(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

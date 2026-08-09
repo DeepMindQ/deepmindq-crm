@@ -23,6 +23,7 @@
  */
 
 import { BaseConnector } from '../base-connector';
+import { logger } from '@/lib/logger';
 import type {
   ConnectorAcquisitionResult,
   ConnectorConfig,
@@ -30,6 +31,7 @@ import type {
   ConnectorResult,
   RawIntelligenceObject,
 } from '../types';
+import { withRetry, buildConnectorErrorDetail, DEFAULT_RETRY_CONFIG } from '../retry-utilities';
 
 // ─── Constants ─────────────────────────────────────────────────
 
@@ -45,6 +47,9 @@ type UrlEntry = { url: string; category?: string };
 export class WebsiteConnector extends BaseConnector {
   readonly sourceType = 'website' as const;
   readonly name = 'Website Scraper';
+
+  /** Phase 2 feature flag: enable Playwright headless scraping fallback. */
+  private readonly headlessEnabled = process.env.ENABLE_HEADLESS_SCRAPING === 'true';
 
   // ── validateConfig ───────────────────────────────────────────
 
@@ -222,36 +227,62 @@ export class WebsiteConnector extends BaseConnector {
 
   private async fetchPage(
     url: string,
-    retryCount = 0,
   ): Promise<
     | { text: string; title: string; metaDescription: string }
     | { error: string }
   > {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
     try {
-      const res = await fetch(url, {
-        signal: controller.signal,
-        redirect: 'follow',
-        headers: {
-          'User-Agent':
-            'DeepMindQ-Bot/1.0 (Intelligence Acquisition; +https://deepmindq.example.com/bot)',
-          Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+      // ── Fetch with retry (5xx, network, timeout) ────────────────
+      const res = await withRetry(
+        async () => {
+          const controller = new AbortController();
+          const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+          try {
+            const r = await fetch(url, {
+              signal: controller.signal,
+              redirect: 'follow',
+              headers: {
+                'User-Agent':
+                  'DeepMindQ-Bot/1.0 (Intelligence Acquisition; +https://deepmindq.example.com/bot)',
+                Accept: 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+              },
+            });
+
+            // ── Handle 4xx — skip (non-retryable) ─────────────────
+            if (r.status >= 400 && r.status < 500) {
+              const err = new Error(`HTTP ${r.status} — skipping`);
+              (err as any).status = r.status;
+              throw err;
+            }
+
+            // ── Handle 5xx — retryable ────────────────────────────
+            if (!r.ok) {
+              const err = new Error(`HTTP ${r.status}: ${r.statusText}`);
+              (err as any).status = r.status;
+              throw err;
+            }
+
+            return r;
+          } finally {
+            clearTimeout(timer);
+          }
         },
+        `Website fetch (${url})`,
+        DEFAULT_RETRY_CONFIG,
+      ).catch((err: unknown) => {
+        // 4xx errors should not be retried — convert to skip result
+        if (err instanceof Error) {
+          const status = (err as any).status;
+          if (status >= 400 && status < 500) {
+            return null as unknown as Response;
+          }
+        }
+        throw err;
       });
 
-      // ── Handle 4xx — skip ──────────────────────────────────────────
-      if (res.status >= 400 && res.status < 500) {
-        return { error: `HTTP ${res.status} — skipping` };
-      }
-
-      // ── Handle 5xx — retry once ────────────────────────────────────
-      if (res.status >= 500) {
-        if (retryCount < 1) {
-          return this.fetchPage(url, retryCount + 1);
-        }
-        return { error: `HTTP ${res.status} after retry — skipping` };
+      // If we got null back from a 4xx, skip this URL
+      if (!res) {
+        return { error: `HTTP 4xx — skipping` };
       }
 
       // ── Non-HTML content — skip ────────────────────────────────────
@@ -265,19 +296,29 @@ export class WebsiteConnector extends BaseConnector {
 
       const html = await res.text();
 
-      const title = this.extractTitle(html);
+      // Phase 2: Headless scraping fallback for JS-rendered pages
+      let finalText: string | undefined;
+      let finalTitle: string | undefined;
+      if (this.headlessEnabled && this.needsJsRendering(html, url)) {
+        logger.info(`[website-connector] Fetch returned short/JS content for ${url}, trying Playwright`);
+        const headlessResult = await this.scrapeWithPlaywright(url, FETCH_TIMEOUT_MS);
+        if (headlessResult.success && headlessResult.content.length > html.length) {
+          finalText = headlessResult.content;
+          finalTitle = headlessResult.title;
+          logger.info(`[website-connector] Playwright returned ${headlessResult.content.length} chars vs fetch ${html.length} chars`);
+        }
+      }
+
+      const title = finalTitle ?? this.extractTitle(html);
       const metaDescription = this.extractMetaDescription(html);
-      const text = this.stripHtml(html);
+      const text = finalText ?? this.stripHtml(html);
 
       return { text, title, metaDescription };
     } catch (err: unknown) {
       if (err instanceof DOMException && err.name === 'AbortError') {
         return { error: `Timeout after ${FETCH_TIMEOUT_MS / 1000}s` };
       }
-      const message = err instanceof Error ? err.message : String(err);
-      return { error: `Fetch failed: ${message}` };
-    } finally {
-      clearTimeout(timer);
+      return { error: buildConnectorErrorDetail(err, 'Website connector fetch', DEFAULT_RETRY_CONFIG.maxRetries + 1) };
     }
   }
 
@@ -362,5 +403,107 @@ export class WebsiteConnector extends BaseConnector {
     }
 
     return str;
+  }
+
+  /**
+   * Phase 2: Headless web scraping using Playwright for JS-rendered pages.
+   * Falls back to Playwright when fetch() returns insufficient content.
+   *
+   * This is called internally when:
+   * - ENABLE_HEADLESS_SCRAPING is true
+   * - fetch() returns < 500 characters of content
+   * - URL is likely JS-rendered (check for common SPA patterns)
+   */
+  private async scrapeWithPlaywright(
+    url: string,
+    timeoutMs: number = 10000,
+  ): Promise<{ content: string; title: string; success: boolean }> {
+    try {
+      // Dynamic import — Playwright is optional
+      let chromium: any;
+      try {
+        chromium = (await import('playwright')).chromium;
+      } catch {
+        logger.warn('[website-connector] Playwright not installed — skipping headless fallback');
+        return { content: '', title: '', success: false };
+      }
+
+      const browser = await chromium.launch({
+        headless: true,
+        args: ['--no-sandbox', '--disable-setuid-sandbox', '--disable-dev-shm-usage'],
+      });
+
+      try {
+        const page = await browser.newPage({
+          userAgent: 'DeepMindQ/2.0 (Intelligence Bot; contact@example.com)',
+          viewport: { width: 1280, height: 720 },
+        });
+
+        // Set timeout
+        page.setDefaultTimeout(timeoutMs);
+        page.setDefaultNavigationTimeout(timeoutMs);
+
+        await page.goto(url, {
+          waitUntil: 'domcontentloaded',
+          timeout: timeoutMs,
+        });
+
+        // Wait a bit for JS rendering
+        await page.waitForTimeout(2000);
+
+        // Extract text content
+        const content = await page.evaluate(() => {
+          // Remove script/style tags content
+          const scripts = document.querySelectorAll('script, style, noscript');
+          scripts.forEach((s) => s.remove());
+
+          return {
+            title: document.title || '',
+            text: document.body?.innerText || '',
+            description:
+              document.querySelector('meta[name="description"]')?.getAttribute('content') || '',
+            ogDescription:
+              document.querySelector('meta[property="og:description"]')?.getAttribute('content') || '',
+          };
+        });
+
+        await browser.close();
+
+        return {
+          content: [content.text, content.description, content.ogDescription]
+            .filter(Boolean)
+            .join('\n\n'),
+          title: content.title,
+          success: true,
+        };
+      } catch (pageErr) {
+        await browser.close().catch(() => {});
+        throw pageErr;
+      }
+    } catch (err) {
+      logger.warn(
+        `[website-connector] Playwright scraping failed for ${url}: ${err instanceof Error ? err.message : err}`,
+      );
+      return { content: '', title: '', success: false };
+    }
+  }
+
+  /**
+   * Check if a URL likely needs JavaScript rendering.
+   */
+  private needsJsRendering(content: string, _url: string): boolean {
+    // Short content indicates possible JS-only page
+    if (content.length < 500) return true;
+
+    // Check for common SPA patterns that indicate JS rendering
+    const jsPatterns = [
+      '<div id="root">',
+      '<div id="app">',
+      '<div id="__next">',
+      'window.__NUXT__',
+      'ng-app',
+    ];
+    const lowerContent = content.toLowerCase();
+    return jsPatterns.some((p) => lowerContent.includes(p));
   }
 }

@@ -139,11 +139,7 @@ echo ""
 _JOB1_FAIL=0
 print_job "1" "Security Gate"
 if should_run_job "1"; then
-  npx vitest run --config vitest.security.config.ts
-  VEXIT=$?
-  if [ $VEXIT -ne 0 ]; then _JOB1_FAIL=1; fi
-
-  # Static security checks (mirrors CI steps — exact match with ci.yml)
+  # Static security checks ONLY (mirrors CI — vitest runs in job 7)
   FAIL=0
 
   # Verify edge proxy exists (CI step: Verify edge proxy exists)

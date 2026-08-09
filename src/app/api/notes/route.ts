@@ -16,7 +16,7 @@ type NoteListItem = NoteWithCompany & { _type: "company" } | (NoteWithContact & 
 // If BOTH companyId AND contactId are provided, uses OR condition (fixes MEDIUM-04).
 export async function GET(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -108,7 +108,7 @@ try {
 // Creates a TimelineEntry after note creation.
 export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -189,7 +189,7 @@ try {
 // Creates a TimelineEntry for the deletion.
 export async function DELETE(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

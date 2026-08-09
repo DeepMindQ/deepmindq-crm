@@ -31,3 +31,68 @@ export { CapabilityWorkspace } from './capability-workspace';
 export { IntelligenceBriefing } from './intelligence-briefing';
 export { IntelligenceSearch } from './intelligence-search';
 export { ProgressiveDisclosure } from './progressive-disclosure';
+
+// ── MS8 Depth & Trust Components ──
+// Types (imported for re-export convenience)
+export type {
+  TrustTier,
+  EvidenceQuality,
+  SourceCategory,
+  SourceColorDomain,
+  EvidenceChainItem as MS8EvidenceChainItem,
+  EvidenceFootprint,
+  ConfidenceFactorCategory,
+  ConfidenceFactor,
+  ConfidenceBreakdown as MS8ConfidenceBreakdown,
+  VerificationStatus,
+  EvidenceLayerData,
+  ExplorationCard,
+  AIContextBox,
+  InvestigationPath,
+  ExplorationLayerData,
+  IntelligenceGrade,
+  AccountTrustData,
+  AccountIntelligenceTab,
+  AccountSignalEntry,
+} from '@/types/ms8-evidence';
+
+export {
+  TRUST_TIER_THRESHOLDS,
+  SOURCE_CATEGORY_CONFIG,
+  evidenceQualityToTrustTier,
+  scoreToGrade,
+  formatTrustScore,
+  computeFreshnessLevel,
+  buildSourceBreakdown,
+  buildEvidenceFootprint,
+} from '@/types/ms8-evidence';
+
+// MS8 Layers
+export { EvidenceLayer, type EvidenceLayerProps } from './layers/evidence-layer';
+export { ExplorationLayer, type ExplorationLayerProps } from './layers/exploration-layer';
+
+// MS8 Organisms
+export { ConfidenceBreakdown, type ConfidenceBreakdownProps } from './confidence-breakdown';
+
+// MS8 Screens
+export { AccountIntelligenceScreen, type AccountIntelligenceScreenProps } from './account-intelligence-screen';
+export { CompanyIntelligenceHeader, type CompanyIntelligenceHeaderProps } from './company-intelligence-header';
+export { AccountTrustPanel, type AccountTrustPanelProps } from './screens/account-trust-panel';
+export { SignalTimeline, type SignalTimelineProps } from './screens/signal-timeline';
+
+// ── MS9 Intelligence Advisor Components ──
+// MS9 Organisms
+export { AIAdvisorExperience, type AIAdvisorExperienceProps } from './ai-advisor-experience';
+export { AdvisorConversationPanel, type AdvisorConversationPanelProps } from './advisor-conversation-panel';
+export { AdvisorContextSidebar, type AdvisorContextSidebarProps } from './advisor-context-sidebar';
+export { AdvisorWorkspacePanel, type AdvisorWorkspacePanelProps } from './advisor-workspace-panel';
+export { StructuredBriefingRenderer, type StructuredBriefingRendererProps } from './structured-briefing-renderer';
+
+// MS9 Molecules
+export { HumanAssistanceBanner, type HumanAssistanceBannerProps } from './molecules/human-assistance-banner';
+export { HumanAssistanceDialog, type HumanAssistanceDialogProps } from './molecules/human-assistance-dialog';
+
+// MS9 Hooks — State Management & Conversation Lifecycle
+export { useAdvisorConversation, type UseAdvisorConversationOptions, type UseAdvisorConversationReturn } from './use-advisor-conversation';
+export { useHumanAssistance, type UseHumanAssistanceOptions, type UseHumanAssistanceReturn } from './use-human-assistance';
+export { useAdvisorWorkspace, type UseAdvisorWorkspaceOptions, type UseAdvisorWorkspaceReturn } from './use-advisor-workspace';

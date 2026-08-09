@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=1280, initial-scale=1.0">
+  <title>The Experience Promise</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
+  <link rel="stylesheet" href="global.css">
+  <style>
+    .promise-block {
+      background: linear-gradient(135deg, rgba(59,130,246,0.06) 0%, rgba(139,92,246,0.04) 100%);
+      border: 1px solid rgba(59,130,246,0.15);
+      border-radius: var(--radius-lg);
+      padding: 36px 40px;
+      margin-bottom: 32px;
+      position: relative;
+    }
+    .promise-block::before {
+      content: '';
+      position: absolute;
+      left: 0;
+      top: 24px;
+      bottom: 24px;
+      width: 3px;
+      background: var(--accent);
+      border-radius: 0 2px 2px 0;
+    }
+    .pillar-card {
+      background: rgba(22,28,42,0.7);
+      backdrop-filter: blur(12px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 28px 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      transition: border-color 0.3s ease, box-shadow 0.3s ease;
+    }
+    .pillar-card:hover {
+      border-color: rgba(59,130,246,0.25);
+    }
+    .pillar-card--blue { border-color: rgba(59,130,246,0.2); }
+    .pillar-card--blue:hover { box-shadow: 0 0 24px rgba(59,130,246,0.1); }
+    .pillar-card--purple { border-color: rgba(139,92,246,0.2); }
+    .pillar-card--purple:hover { box-shadow: 0 0 24px rgba(139,92,246,0.1); }
+    .pillar-card--green { border-color: rgba(34,197,94,0.2); }
+    .pillar-card--green:hover { box-shadow: 0 0 24px rgba(34,197,94,0.1); }
+    .pillar-title {
+      font-family: var(--font-heading);
+      font-size: var(--fs-h3);
+      font-weight: 600;
+      color: var(--primary);
+      line-height: 1.3;
+    }
+    .pillar-body {
+      font-size: var(--fs-body);
+      color: var(--primary-dim);
+      line-height: var(--lh-relaxed);
+    }
+  </style>
+</head>
+<body>
+  <div class="slide">
+    <!-- Header -->
+    <div style="margin-bottom: 28px;">
+      <h2 style="font-family: var(--font-heading); font-size: var(--fs-h2); font-weight: 700; color: var(--primary); margin-bottom: 12px;">
+        The DeepMindQ Experience Promise
+      </h2>
+      <div class="accent-line"></div>
+    </div>
+
+    <!-- Promise Statement -->
+    <div class="promise-block">
+      <p style="font-family: var(--font-heading); font-size: clamp(1.125rem, 1.6vw, 1.375rem); font-weight: 600; color: var(--primary); line-height: 1.55; text-align: center; max-width: 1050px; margin: 0 auto;">
+        Every morning, a VP Sales opens DeepMindQ and within 3 minutes knows exactly what changed, why it matters, who to engage, what to say, and what to do — with full confidence in the evidence behind every recommendation.
+      </p>
+    </div>
+
+    <!-- Three Pillars -->
+    <div class="grid-3">
+      <!-- Card 1: Intelligence, Not Data -->
+      <div class="pillar-card pillar-card--blue">
+        <div class="icon-circle icon-circle--blue">
+          <span class="material-icons">psychology</span>
+        </div>
+        <div class="pillar-title">Intelligence, Not Data</div>
+        <div class="pillar-body">
+          We do not show information. We deliver intelligence. Every element answers: what, why, who, how, and why trust this?
+        </div>
+      </div>
+
+      <!-- Card 2: Confidence at Every Layer -->
+      <div class="pillar-card pillar-card--purple">
+        <div class="icon-circle icon-circle--purple">
+          <span class="material-icons">visibility</span>
+        </div>
+        <div class="pillar-title">Confidence at Every Layer</div>
+        <div class="pillar-body">
+          Every recommendation carries an evidence footprint. Users never have to guess why the system suggests something.
+        </div>
+      </div>
+
+      <!-- Card 3: 3-Minute Protocol -->
+      <div class="pillar-card pillar-card--green">
+        <div class="icon-circle icon-circle--green">
+          <span class="material-icons">speed</span>
+        </div>
+        <div class="pillar-title">3-Morning-Minute Protocol</div>
+        <div class="pillar-body">
+          The entire Intelligence Hub experience is designed to deliver complete situational awareness in under 3 minutes.
+        </div>
+      </div>
+    </div>
+
+    <!-- Speaker notes -->
+    <aside data-notes class="hidden">
+      The Experience Promise is our contract with the user. It is not a feature list. It is the outcome we guarantee. Every design decision in MS6 is measured against this promise. If a component, interaction, or flow does not serve this promise, it does not belong in the product.
+    </aside>
+  </div>
+</body>
+</html>

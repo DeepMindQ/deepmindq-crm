@@ -20,6 +20,8 @@ import type { SignalType, SignalSeverity, SignalImpact, SignalStatus } from '@pr
 import { extractJSON, type NewsSignal } from '@/lib/llm-client';
 import { governedAICallAggregate } from '@/lib/ai-governance';
 import { CANONICAL_SIGNAL_TYPE_LIST, normalizeSignalType } from '@/lib/signal-types';
+import { inferSignalMeaning } from './signal-meaning';
+import { TECH_SIGNAL_REGEX } from '@/lib/shared/tech-keywords';
 import { logger } from '@/lib/logger';
 
 // ── Types ──
@@ -254,8 +256,9 @@ export async function storeSignals(
     });
   }
 
-  // ── Phase 3: Signal Lifecycle Classification ──
-  // Classify signal status based on age and properties
+  // ── Phase 3: Signal Lifecycle Classification + Meaning Inference ──
+  // Classify signal status based on age and properties.
+  // Infer buying-stage meaning for signals that lack a meaningCategory.
   const storedSignals = await db.companySignal.findMany({
     where: {
       companyId,
@@ -287,11 +290,34 @@ export async function storeSignals(
     } else {
       newStatus = 'detected';
     }
+
+    // ── Phase 3b: Meaning Inference ──
+    // Infer buying-stage meaningCategory if signal lacks one.
+    // This wires signal-meaning.ts into the signal creation pipeline.
+    const updateData: Record<string, unknown> = { status: newStatus };
+    if (!signal.meaningCategory || signal.meaningCategory === 'unknown') {
+      try {
+        const meaning = inferSignalMeaning({
+          signalType: signal.signalType,
+          severity: signal.severity,
+          impact: signal.impact,
+          opportunityType: (signal as any).opportunityType || null,
+          title: signal.title,
+          description: signal.description,
+        });
+        if (meaning.meaningCategory !== 'unknown') {
+          updateData.meaningCategory = meaning.meaningCategory;
+        }
+      } catch (err) {
+        logger.warn('[research-signals] Meaning inference failed (non-blocking):', 
+          { error: err instanceof Error ? err.message : String(err) });
+      }
+    }
     
-    if (newStatus !== signal.status) {
+    if (newStatus !== signal.status || Object.keys(updateData).length > 1) {
       await db.companySignal.update({
         where: { id: signal.id },
-        data: { status: newStatus as SignalStatus },
+        data: updateData as any,
       }).catch((err) => { logger.error('[research-signals] non-blocking operation failed:', { error: err }) });
     }
   }
@@ -318,7 +344,7 @@ function ruleBasedSignalDetection(
     { type: 'hiring', regex: /hiring|(looking for|seeking)\s+\d+\s+(engineers|developers|sales|people)/i, impact: 'medium', description: 'Significant hiring activity' },
     { type: 'leadership_change', regex: /(new|appointed|named)\s+(CEO|CTO|CFO|COO|CMO|VP|president|head)/i, impact: 'high', description: 'Leadership change detected' },
     { type: 'expansion', regex: /(expand|opening|launch|new office|new market|new location)/i, impact: 'medium', description: 'Business expansion detected' },
-    { type: 'technology', regex: /(migrat|adopt|implement|deploy|launch)\s+(cloud|AI|ML|data|platform|kubernetes|aws|azure)/i, impact: 'medium', description: 'Technology adoption signal' },
+    { type: 'technology', regex: TECH_SIGNAL_REGEX, impact: 'medium', description: 'Technology adoption signal' },
     { type: 'product', regex: /(launch|release|announce)\s+(new\s+)?(product|feature|version|update|beta)/i, impact: 'medium', description: 'Product launch or update signal' },
     { type: 'partnership', regex: /(partner|integrat|collaborat)\s+(with|and)/i, impact: 'medium', description: 'Partnership signal detected' },
     { type: 'acquisition', regex: /(acquir|merg|purchas|buyout|takeover)\s+(by|with|of)/i, impact: 'high', description: 'Acquisition or merger activity detected' },

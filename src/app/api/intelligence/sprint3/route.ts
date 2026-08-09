@@ -26,7 +26,7 @@ import { detectPeopleChanges } from '@/lib/intelligence-sources/people-change-de
 import { queryUnifiedMemory } from '@/lib/intelligence-sources/unified-memory-query'
 import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 
 const sprint3BodySchema = z.object({
   mode: z.string().min(1),
@@ -303,7 +303,7 @@ async function seedValidationData() {
 
 export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 let ctx: { correlationId: string; responseHeaders: Record<string, string> };
@@ -326,8 +326,10 @@ let ctx: { correlationId: string; responseHeaders: Record<string, string> };
     }
     const { mode, companyId, actionTypes } = parsed.data
 
-    // ── Mode: seed_validation ──
+    // ── Mode: seed_validation (admin-only: seeds validation data) ──
     if (mode === 'seed_validation') {
+      const adminCheck = requireAdminRole(session!);
+      if (adminCheck) return adminCheck;
       const result = await seedValidationData()
       return new Response(JSON.stringify({ ...result, mode: 'seed_validation' }), { status: 200, headers: ctx.responseHeaders })
     }

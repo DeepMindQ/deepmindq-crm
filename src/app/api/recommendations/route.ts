@@ -29,7 +29,7 @@ const VALID_TIERS = ['HOT_ACCOUNT', 'WARM_ACCOUNT', 'NURTURE', 'AT_RISK'];
 const VALID_SORT_FIELDS = ['opportunityScore', 'confidenceScore', 'signalCount', 'recentActivity'];
 
 export async function GET(request: Request) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   const { searchParams } = new URL(request.url);

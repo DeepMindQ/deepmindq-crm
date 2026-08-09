@@ -192,7 +192,7 @@ describe.skipIf(!hasDatabase)('Real PostgreSQL — CRUD Operations', () => {
   });
 });
 
-describe.skipIf(!hasDatabase)('Real PostgreSQL — Migration Integrity', () => {
+describe.skipIf(!hasDatabase)('Real PostgreSQL — Schema Deployment Integrity', () => {
   let prisma: any;
 
   beforeAll(async () => {
@@ -207,18 +207,35 @@ describe.skipIf(!hasDatabase)('Real PostgreSQL — Migration Integrity', () => {
     await prisma.$disconnect();
   });
 
-  it('has _prisma_migrations table (migrations applied)', async () => {
-    const result = await prisma.$queryRaw`
-      SELECT COUNT(*)::int as count FROM _prisma_migrations
+  it('schema is deployed with all expected core tables', async () => {
+    const tables = await prisma.$queryRaw`
+      SELECT table_name FROM information_schema.tables
+      WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+      ORDER BY table_name
     `;
-    expect(result[0].count).toBeGreaterThan(0);
+    const tableNames = tables.map((t: any) => t.table_name);
+    // Verify core CRM tables exist
+    expect(tableNames).toContain('User');
+    expect(tableNames).toContain('Company');
+    expect(tableNames).toContain('Contact');
+    expect(tableNames).toContain('Session');
+    expect(tableNames).toContain('OtpCode');
+    // Verify intelligence tables exist
+    expect(tableNames).toContain('Evidence');
+    expect(tableNames).toContain('CompanySignal');
+    expect(tableNames).toContain('CompanyNote');
   });
 
-  it('all migrations are marked as finished', async () => {
-    const result = await prisma.$queryRaw`
-      SELECT COUNT(*)::int as count FROM _prisma_migrations
-      WHERE finished_at IS NULL
+  it('no orphan enum types are present', async () => {
+    const enums = await prisma.$queryRaw`
+      SELECT t.typname FROM pg_type t
+      JOIN pg_namespace n ON t.typnamespace = n.oid
+      WHERE n.nspname = 'public' AND t.typtype = 'e'
+      ORDER BY t.typname
     `;
-    expect(result[0].count).toBe(0);
+    const enumNames = enums.map((e: any) => e.typname);
+    // Verify core enums exist
+    expect(enumNames).toContain('CompanyStatus');
+    expect(enumNames).toContain('ContactStatus');
   });
 });

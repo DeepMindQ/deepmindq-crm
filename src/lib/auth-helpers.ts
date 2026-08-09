@@ -31,6 +31,12 @@ export const PUBLIC_PATH_PREFIXES: string[] = [
   '/api/version',
   '/api/verify-email',
   '/api/verify-queue',
+  '/api/brand',                  // Public brand config endpoint
+  '/api/docs',                   // Public API documentation
+  '/api/integrations/slack',     // Webhook endpoint (Slack events, verified via webhook secret)
+  '/api/integrations/zapier',    // Webhook endpoint (Zapier events, verified via webhook secret)
+  '/api/monitoring',             // Public monitoring/metrics endpoint
+  '/api/v1',                     // Public API v1 proxy and index
   '/login',
   '/demo',
   '/marketing',

@@ -10,7 +10,7 @@
  *   - cross-account-propagation, evidence-lifecycle, knowledge-versioning
  *   - reasoning-engine (deleted in prior cleanup)
  *
- * Retained: three-date-model, signal-type-mapping (have internal consumers)
+// Retained: three-date-model, signal-type-mapping (have internal consumers)
  */
 
 export * from './types';
@@ -20,6 +20,7 @@ export { CsvConnector } from './connectors/csv-connector';
 export { ExcelConnector } from './connectors/excel-connector';
 export { WebsiteConnector } from './connectors/website-connector';
 export { RssConnector } from './connectors/rss-connector';
+export { CrunchbaseConnector, crunchbaseConnector } from './connectors/crunchbase-connector';
 export { resolveCompany, confirmResolution, createUnverifiedCompany } from './company-resolution';
 export { adaptToEvidence } from './evidence-adapter';
 export * from './job-queue';

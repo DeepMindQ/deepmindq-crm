@@ -1,0 +1,2113 @@
+openapi: 3.0.3
+info:
+  title: DeepMindQ Intelligence OS API
+  version: 1.0.0
+  description: >
+    Enterprise AI-powered sales intelligence platform API.
+    Provides company intelligence, contact management, opportunity tracking,
+    AI signal detection, recommendation engine, and pipeline analytics.
+  contact:
+    name: DeepMindQ API Support
+    email: api@deepmindq.com
+  license:
+    name: Proprietary
+servers:
+  - url: https://api.deepmindq.com/v1
+    description: Production
+  - url: http://localhost:3000/api/v1
+    description: Local Development
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Companies
+    description: Company intelligence and scoring
+  - name: Contacts
+    description: Contact management and email validation
+  - name: Opportunities
+    description: Sales opportunity pipeline
+  - name: Signals
+    description: AI-detected intelligence signals
+  - name: Recommendations
+    description: AI-generated recommendations
+  - name: Pipeline
+    description: Pipeline analytics and forecasting
+  - name: Dashboard
+    description: Dashboard statistics and KPIs
+  - name: Scoring
+    description: Company scoring configuration
+  - name: Data Health
+    description: Data quality and completeness metrics
+  - name: Notifications
+    description: User notification management
+  - name: Webhooks
+    description: Outbound webhook configuration
+  - name: Batch Operations
+    description: Bulk operations on entities
+
+security:
+  - BearerAuth: []
+  - ApiKeyAuth: []
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: >-
+        JWT token obtained from /auth/login or /auth/verify-otp.
+        Include as: Authorization: Bearer <token>
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+      description: API key for programmatic access
+
+  schemas:
+    # ── Auth ──
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: user@deepmindq.com
+        password:
+          type: string
+          format: password
+          minLength: 1
+
+    LoginResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: Password verified. OTP sent to your email.
+        devCode:
+          type: string
+          description: OTP code returned only in development mode
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          example: Jane Smith
+        email:
+          type: string
+          format: email
+        emailVerified:
+          type: string
+          format: date-time
+          nullable: true
+        image:
+          type: string
+          format: uri
+          nullable: true
+        role:
+          type: string
+          enum: [admin, user, viewer]
+        lastLoginAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ── Companies ──
+    Company:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        rawName:
+          type: string
+          example: Acme Corp
+        domain:
+          type: string
+          nullable: true
+          example: acme.com
+        industry:
+          type: string
+          nullable: true
+          example: Technology
+        sizeRange:
+          type: string
+          nullable: true
+          enum: [1-10, 11-50, 51-200, 201-500, 501-1000, 1001-5000, 5001+]
+        country:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [prospect, active, inactive, archived]
+        priorityTier:
+          type: string
+          enum: [HOT, ACTIVE, NURTURE, LOW]
+          nullable: true
+        accountPriorityScore:
+          type: number
+          nullable: true
+          minimum: 0
+          maximum: 100
+        intelligenceScore:
+          type: number
+          nullable: true
+          minimum: 0
+          maximum: 100
+        contactCount:
+          type: integer
+        signalCount:
+          type: integer
+        opportunityScore:
+          type: number
+          nullable: true
+        isEnriched:
+          type: boolean
+        topSignal:
+          $ref: '#/components/schemas/SignalSummary'
+          nullable: true
+        lastActivityAt:
+          type: string
+          format: date-time
+          nullable: true
+        updatedAt:
+          type: string
+          format: date-time
+          nullable: true
+
+    SignalSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        title:
+          type: string
+        signalType:
+          type: string
+        impact:
+          type: string
+
+    CompanyListResponse:
+      type: object
+      properties:
+        companies:
+          type: array
+          items:
+            $ref: '#/components/schemas/Company'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 50
+            total:
+              type: integer
+              example: 247
+            totalPages:
+              type: integer
+              example: 5
+            nextCursor:
+              type: string
+              nullable: true
+        filters:
+          type: object
+          properties:
+            tiers:
+              type: array
+              items:
+                type: object
+                properties:
+                  tier:
+                    type: string
+                  count:
+                    type: integer
+            statuses:
+              type: array
+              items:
+                type: object
+                properties:
+                  status:
+                    type: string
+                  count:
+                    type: integer
+
+    CreateCompanyRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: Acme Corp
+        domain:
+          type: string
+          example: acme.com
+        industry:
+          type: string
+          example: Technology
+        employeeSize:
+          type: string
+          example: 51-200
+        location:
+          type: string
+          example: San Francisco, CA
+        country:
+          type: string
+          example: US
+        website:
+          type: string
+          format: uri
+
+    CompanyScore:
+      type: object
+      properties:
+        score:
+          type: number
+          example: 82
+        category:
+          type: string
+          enum: [A, B, C, D]
+        dimensions:
+          type: object
+          properties:
+            intelligence:
+              type: number
+            opportunity:
+              type: number
+            engagement:
+              type: number
+
+    # ── Contacts ──
+    Contact:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        rawName:
+          type: string
+          example: John Doe
+        email:
+          type: string
+          nullable: true
+          example: john@acme.com
+        title:
+          type: string
+          nullable: true
+          example: VP Engineering
+        roleBucket:
+          type: string
+          nullable: true
+          enum: [Executive, Manager, Technical, Operations, Sales, Other]
+        linkedinUrl:
+          type: string
+          format: uri
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        location:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [new, active, inactive, archived]
+        emailHealth:
+          type: string
+          enum: [valid, risky, invalid, unknown]
+        emailHealthScore:
+          type: number
+          nullable: true
+          minimum: 0
+          maximum: 100
+        leadScore:
+          type: number
+          nullable: true
+        company:
+          $ref: '#/components/schemas/Company'
+
+    ContactListResponse:
+      type: object
+      properties:
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/Contact'
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            pageSize:
+              type: integer
+            total:
+              type: integer
+            totalPages:
+              type: integer
+
+    # ── Opportunities ──
+    Opportunity:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Enterprise expansion deal
+        description:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [researching, qualified, proposal, negotiation, won, lost, archived]
+        opportunityScore:
+          type: number
+          nullable: true
+        confidenceScore:
+          type: number
+          nullable: true
+        company:
+          $ref: '#/components/schemas/Company'
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    # ── Signals ──
+    Signal:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          example: Series C funding round announced
+        signalType:
+          type: string
+          enum: [funding, hiring, leadership_change, tech_change, news, mention, partnership, expansion, people_change, internal_memory]
+        severity:
+          type: string
+          enum: [low, medium, high, critical]
+        status:
+          type: string
+          enum: [detected, validated, active, aging, expired, archived]
+        impact:
+          type: string
+          nullable: true
+        meaningCategory:
+          type: string
+          nullable: true
+        evidenceCount:
+          type: integer
+        company:
+          $ref: '#/components/schemas/Company'
+        createdAt:
+          type: string
+          format: date-time
+
+    SignalListResponse:
+      type: object
+      properties:
+        signals:
+          type: array
+          items:
+            $ref: '#/components/schemas/Signal'
+        evidenceCounts:
+          type: object
+          additionalProperties:
+            type: integer
+        categories:
+          type: array
+          items:
+            type: string
+        pagination:
+          type: object
+          properties:
+            page:
+              type: integer
+            totalPages:
+              type: integer
+
+    # ── Recommendations ──
+    Recommendation:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        companyId:
+          type: string
+          format: uuid
+        company:
+          $ref: '#/components/schemas/Company'
+        opportunityScore:
+          type: number
+        confidenceScore:
+          type: number
+        recommendationType:
+          type: string
+        reasoning:
+          type: string
+        status:
+          type: string
+          enum: [pending_review, accepted, rejected, monitored, expired]
+        priorityTier:
+          type: string
+          enum: [HOT_ACCOUNT, WARM_ACCOUNT, NURTURE, AT_RISK]
+        explanation:
+          type: string
+          nullable: true
+          description: AI-generated explainability summary
+
+    RecommendationListResponse:
+      type: object
+      properties:
+        recommendations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Recommendation'
+        meta:
+          type: object
+          properties:
+            total:
+              type: integer
+            returned:
+              type: integer
+
+    # ── Pipeline ──
+    PipelineStage:
+      type: object
+      properties:
+        key:
+          type: string
+          example: sent
+        label:
+          type: string
+          example: Sent
+        count:
+          type: integer
+        color:
+          type: string
+          example: '#34d399'
+
+    PipelineResponse:
+      type: object
+      properties:
+        stages:
+          type: array
+          items:
+            $ref: '#/components/schemas/PipelineStage'
+        totalLeads:
+          type: integer
+        conversionRate:
+          type: number
+          format: float
+        deliveryRate:
+          type: number
+          format: float
+        replyRate:
+          type: number
+          format: float
+        bounceRate:
+          type: number
+          format: float
+
+    ForecastResponse:
+      type: object
+      properties:
+        currentMonth:
+          type: object
+          properties:
+            revenue:
+              type: number
+            deals:
+              type: integer
+        forecast:
+          type: array
+          items:
+            type: object
+            properties:
+              month:
+                type: string
+                example: 2025-02
+              projected:
+                type: number
+              conservative:
+                type: number
+              optimistic:
+                type: number
+        pipelineByStage:
+          type: array
+          items:
+            type: object
+            properties:
+              stage:
+                type: string
+              value:
+                type: number
+
+    # ── Dashboard ──
+    DashboardResponse:
+      type: object
+      properties:
+        totalCompanies:
+          type: integer
+        totalContacts:
+          type: integer
+        contactsByStatus:
+          type: array
+          items:
+            type: object
+            properties:
+              status:
+                type: string
+              _count:
+                type: object
+                properties:
+                  status:
+                    type: integer
+        emailHealthDistribution:
+          type: array
+          items:
+            type: object
+            properties:
+              emailHealth:
+                type: string
+              _count:
+                type: object
+                properties:
+                  emailHealth:
+                    type: integer
+        recentBatches:
+          type: array
+          items:
+            type: object
+        draftsPendingReview:
+          type: integer
+        queuePending:
+          type: integer
+        repliesThisWeek:
+          type: integer
+
+    # ── Scoring Config ──
+    ScoringConfig:
+      type: object
+      properties:
+        weights:
+          type: object
+          properties:
+            intelligence:
+              type: number
+              example: 0.3
+            opportunity:
+              type: number
+              example: 0.35
+            engagement:
+              type: number
+              example: 0.2
+            dataCompleteness:
+              type: number
+              example: 0.15
+        tierThresholds:
+          type: object
+          properties:
+            HOT:
+              type: number
+              example: 80
+            ACTIVE:
+              type: number
+              example: 60
+            NURTURE:
+              type: number
+              example: 40
+        signalRecencyDays:
+          type: integer
+          example: 90
+
+    # ── Data Health ──
+    DataHealthResponse:
+      type: object
+      properties:
+        overallScore:
+          type: integer
+          minimum: 0
+          maximum: 100
+        totalRecords:
+          type: integer
+        healthyRecords:
+          type: integer
+        needsAttention:
+          type: integer
+        criticalRecords:
+          type: integer
+        healthBreakdown:
+          type: object
+          properties:
+            dataCompleteness:
+              type: integer
+            contactEnrichment:
+              type: integer
+            signalCoverage:
+              type: integer
+            relationshipMapping:
+              type: integer
+        qualityCategories:
+          type: object
+          properties:
+            missingEmails:
+              type: object
+              properties:
+                count:
+                  type: integer
+                entity:
+                  type: string
+            missingCompanyData:
+              type: object
+              properties:
+                count:
+                  type: integer
+                entity:
+                  type: string
+            missingIndustry:
+              type: object
+              properties:
+                count:
+                  type: integer
+                entity:
+                  type: string
+            potentialDuplicates:
+              type: object
+              properties:
+                count:
+                  type: integer
+                entity:
+                  type: string
+        enrichmentQueue:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              name:
+                type: string
+              type:
+                type: string
+                enum: [company, contact]
+              missing:
+                type: string
+              priority:
+                type: string
+                enum: [high, medium, low]
+        aiDiagnosis:
+          type: string
+          nullable: true
+          description: AI-generated health diagnosis
+        aiEnrichmentStrategy:
+          type: array
+          nullable: true
+          items:
+            type: object
+            properties:
+              priority:
+                type: string
+              action:
+                type: string
+              reasoning:
+                type: string
+              estimatedImpact:
+                type: string
+
+    # ── Notifications ──
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        title:
+          type: string
+        message:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [signal, recommendation, system, alert]
+        read:
+          type: boolean
+        link:
+          type: string
+          format: uri
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    # ── Webhooks ──
+    Webhook:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+        active:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    RegisterWebhookRequest:
+      type: object
+      required: [url, events]
+      properties:
+        url:
+          type: string
+          format: uri
+        events:
+          type: array
+          items:
+            type: string
+            enum: [signal.created, signal.updated, recommendation.created, company.score_changed, contact.email_bounced, opportunity.status_changed]
+
+    TestWebhookRequest:
+      type: object
+      required: [url, event]
+      properties:
+        url:
+          type: string
+          format: uri
+        event:
+          type: string
+          enum: [signal.created, signal.updated, recommendation.created, company.score_changed, contact.email_bounced, opportunity.status_changed]
+
+    # ── Batch Operations ──
+    BatchExecuteRequest:
+      type: object
+      required: [action, entityType, ids]
+      properties:
+        action:
+          type: string
+          enum: [archive, restore, delete, enrich, reassign, export, tag, update_status]
+        entityType:
+          type: string
+          enum: [company, contact, opportunity, signal]
+        ids:
+          type: array
+          items:
+            type: string
+            format: uuid
+          minItems: 1
+          maxItems: 500
+        params:
+          type: object
+          additionalProperties: true
+          description: Additional parameters for the action
+
+    BatchExecuteResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        action:
+          type: string
+        entityType:
+          type: string
+        totalRequested:
+          type: integer
+        processed:
+          type: integer
+        failed:
+          type: integer
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+              error:
+                type: string
+
+    # ── Common ──
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+          additionalProperties: true
+
+    PaginatedMeta:
+      type: object
+      properties:
+        apiVersion:
+          type: string
+          example: "1.0.0"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+paths:
+  # ══════════════════════════════════════════════════
+  # Authentication
+  # ══════════════════════════════════════════════════
+  /auth/login:
+    post:
+      tags: [Authentication]
+      summary: Authenticate user with email and password
+      description: >-
+        Validates credentials and sends an OTP to the user's email.
+        Complete authentication by calling /auth/verify-otp with the code.
+      operationId: authLogin
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              email: user@deepmindq.com
+              password: s3cureP@ss
+      responses:
+        '200':
+          description: Credentials validated, OTP sent
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/LoginResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Invalid email address
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Invalid email or password
+        '429':
+          description: Rate limited
+          headers:
+            Retry-After:
+              schema:
+                type: integer
+              description: Seconds until retry is allowed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Too many login attempts. Please try again later.
+
+  /auth/logout:
+    post:
+      tags: [Authentication]
+      summary: End the current session
+      description: Invalidates the current session token
+      operationId: authLogout
+      responses:
+        '200':
+          description: Successfully logged out
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/me:
+    get:
+      tags: [Authentication]
+      summary: Get current authenticated user
+      description: Returns the profile of the currently authenticated user
+      operationId: authMe
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ══════════════════════════════════════════════════
+  # Companies
+  # ══════════════════════════════════════════════════
+  /companies:
+    get:
+      tags: [Companies]
+      summary: List companies with search, filter, sort, and pagination
+      description: >-
+        Returns a paginated list of companies with optional filtering by
+        status, tier, industry, and search terms. Supports cursor-based pagination.
+      operationId: listCompanies
+      parameters:
+        - name: search
+          in: query
+          description: Free-text search across name, domain, and industry
+          schema:
+            type: string
+        - name: industry
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [prospect, active, inactive, archived]
+        - name: tier
+          in: query
+          description: Priority tier filter
+          schema:
+            type: string
+            enum: [HOT, ACTIVE, NURTURE, LOW]
+        - name: sizeRange
+          in: query
+          schema:
+            type: string
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [accountPriorityScore, intelligenceScore, opportunityScore, contacts, signals, lastActivityAt, updatedAt]
+            default: accountPriorityScore
+        - name: sortOrder
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: desc
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: cursor
+          in: query
+          description: Base64-encoded cursor for cursor-based pagination
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Paginated company list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [Companies]
+      summary: Create a new company
+      description: Creates a company and triggers the intelligence activation pipeline
+      operationId: createCompany
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCompanyRequest'
+      responses:
+        '201':
+          description: Company created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  company:
+                    $ref: '#/components/schemas/Company'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '409':
+          description: Company already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+              example:
+                error: Company with this name or domain already exists
+                companyId: cm_abc123
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /companies/{id}:
+    get:
+      tags: [Companies]
+      summary: Get a company by ID
+      operationId: getCompany
+      parameters:
+        - $ref: '#/components/parameters/CompanyId'
+      responses:
+        '200':
+          description: Company details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Company'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /companies/{id}/signals:
+    get:
+      tags: [Companies]
+      summary: Get signals for a specific company
+      operationId: getCompanySignals
+      parameters:
+        - $ref: '#/components/parameters/CompanyId'
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+      responses:
+        '200':
+          description: Company signals
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  signals:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Signal'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /companies/{id}/score:
+    get:
+      tags: [Companies]
+      summary: Get the account score for a company
+      operationId: getCompanyScore
+      parameters:
+        - $ref: '#/components/parameters/CompanyId'
+      responses:
+        '200':
+          description: Company score details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompanyScore'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ══════════════════════════════════════════════════
+  # Contacts
+  # ══════════════════════════════════════════════════
+  /contacts:
+    get:
+      tags: [Contacts]
+      summary: List contacts with filtering and pagination
+      description: >-
+        Returns a paginated list of contacts with search, status,
+        email health, and role-based filtering.
+      operationId: listContacts
+      parameters:
+        - name: search
+          in: query
+          description: Search across name, email, and title
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [new, active, inactive, archived]
+        - name: emailHealth
+          in: query
+          schema:
+            type: string
+            enum: [valid, risky, invalid, unknown]
+        - name: roleBucket
+          in: query
+          schema:
+            type: string
+        - name: companyId
+          in: query
+          description: Filter by company ID
+          schema:
+            type: string
+            format: uuid
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [name, score, emailHealth, status, createdAt]
+            default: name
+        - name: sortDir
+          in: query
+          schema:
+            type: string
+            enum: [asc, desc]
+            default: asc
+        - name: page
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+      responses:
+        '200':
+          description: Paginated contact list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ContactListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+    post:
+      tags: [Contacts]
+      summary: Create a new contact
+      operationId: createContact
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, companyId]
+              properties:
+                name:
+                  type: string
+                companyId:
+                  type: string
+                  format: uuid
+                email:
+                  type: string
+                  format: email
+                title:
+                  type: string
+                phone:
+                  type: string
+                linkedinUrl:
+                  type: string
+                  format: uri
+      responses:
+        '201':
+          description: Contact created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  contact:
+                    $ref: '#/components/schemas/Contact'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /contacts/{id}:
+    get:
+      tags: [Contacts]
+      summary: Get a contact by ID
+      operationId: getContact
+      parameters:
+        - $ref: '#/components/parameters/ContactId'
+      responses:
+        '200':
+          description: Contact details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Contact'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ══════════════════════════════════════════════════
+  # Opportunities
+  # ══════════════════════════════════════════════════
+  /opportunities:
+    get:
+      tags: [Opportunities]
+      summary: List sales opportunities
+      operationId: listOpportunities
+      parameters:
+        - name: companyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [researching, qualified, proposal, negotiation, won, lost, archived]
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: pageSize
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: Opportunity list with pagination
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Opportunity'
+                  pagination:
+                    type: object
+                    properties:
+                      page:
+                        type: integer
+                      pageSize:
+                        type: integer
+                      total:
+                        type: integer
+                      totalPages:
+                        type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Opportunities]
+      summary: Create a new opportunity
+      operationId: createOpportunity
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [companyId, title]
+              properties:
+                companyId:
+                  type: string
+                  format: uuid
+                title:
+                  type: string
+                description:
+                  type: string
+                status:
+                  type: string
+                  enum: [researching, qualified, proposal, negotiation]
+                  default: researching
+                value:
+                  type: number
+      responses:
+        '201':
+          description: Opportunity created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Opportunity'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /opportunities/{id}:
+    get:
+      tags: [Opportunities]
+      summary: Get an opportunity by ID
+      operationId: getOpportunity
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Opportunity details
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Opportunity'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ══════════════════════════════════════════════════
+  # Signals
+  # ══════════════════════════════════════════════════
+  /signals:
+    get:
+      tags: [Signals]
+      summary: List AI-detected intelligence signals
+      description: >-
+        Returns signals with optional filtering by company, type, severity, and status.
+        Includes evidence counts and meaning categories.
+      operationId: listSignals
+      parameters:
+        - name: companyId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [funding, hiring, leadership_change, tech_change, news, mention, partnership, expansion]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [detected, validated, active, aging, expired, archived]
+        - name: meaningCategory
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+      responses:
+        '200':
+          description: Signal list
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SignalListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /signals/{id}:
+    get:
+      tags: [Signals]
+      summary: Get signal details with evidence
+      operationId: getSignal
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Signal with evidence
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Signal'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ══════════════════════════════════════════════════
+  # Recommendations
+  # ══════════════════════════════════════════════════
+  /recommendations:
+    get:
+      tags: [Recommendations]
+      summary: List AI-generated account recommendations
+      description: >-
+        Returns prioritized recommendations with optional filtering by tier,
+        minimum score, and sort order. Supports explainability summaries.
+      operationId: listRecommendations
+      parameters:
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 50
+        - name: tier
+          in: query
+          schema:
+            type: string
+            enum: [HOT_ACCOUNT, WARM_ACCOUNT, NURTURE, AT_RISK]
+        - name: minScore
+          in: query
+          description: Minimum opportunity score threshold
+          schema:
+            type: number
+            minimum: 0
+            maximum: 100
+        - name: activeSignalsOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: sortBy
+          in: query
+          schema:
+            type: string
+            enum: [opportunityScore, confidenceScore, signalCount, recentActivity]
+        - name: includeExplanation
+          in: query
+          description: Include AI explainability summary per recommendation
+          schema:
+            type: boolean
+            default: false
+        - name: view
+          in: query
+          description: Set to 'stats' to return engine statistics instead
+          schema:
+            type: string
+            enum: [list, stats]
+            default: list
+      responses:
+        '200':
+          description: Recommendation list or stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RecommendationListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /recommendations/{id}:
+    get:
+      tags: [Recommendations]
+      summary: Get recommendation details
+      operationId: getRecommendation
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Recommendation details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Recommendation'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ══════════════════════════════════════════════════
+  # Pipeline
+  # ══════════════════════════════════════════════════
+  /pipeline:
+    get:
+      tags: [Pipeline]
+      summary: Get pipeline stage distribution and metrics
+      description: >-
+        Returns pipeline stages with lead counts, conversion rate,
+        delivery rate, reply rate, and bounce rate.
+      operationId: getPipeline
+      responses:
+        '200':
+          description: Pipeline data
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PipelineResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  /pipeline/forecast:
+    get:
+      tags: [Pipeline]
+      summary: Get revenue forecast
+      description: Returns projected revenue with conservative and optimistic scenarios
+      operationId: getPipelineForecast
+      responses:
+        '200':
+          description: Revenue forecast
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ForecastResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ══════════════════════════════════════════════════
+  # Dashboard
+  # ══════════════════════════════════════════════════
+  /dashboard:
+    get:
+      tags: [Dashboard]
+      summary: Get dashboard statistics and KPIs
+      description: >-
+        Returns an aggregate view of the platform including company counts,
+        contact status distribution, email health, recent activity, and more.
+      operationId: getDashboard
+      responses:
+        '200':
+          description: Dashboard statistics
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DashboardResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '429':
+          description: Rate limited (utility guard)
+
+  # ══════════════════════════════════════════════════
+  # Scoring
+  # ══════════════════════════════════════════════════
+  /scoring/config:
+    get:
+      tags: [Scoring]
+      summary: Get scoring configuration
+      description: Returns the current scoring weights, tier thresholds, and recency settings
+      operationId: getScoringConfig
+      responses:
+        '200':
+          description: Scoring configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/ScoringConfig'
+                  source:
+                    type: string
+                    enum: [db, cache_fallback]
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    put:
+      tags: [Scoring]
+      summary: Update scoring configuration
+      description: >-
+        Updates scoring weights, tier thresholds, and recency days.
+        Validates that all weight sums equal 1.0 and thresholds are ordered correctly.
+      operationId: updateScoringConfig
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                weights:
+                  type: object
+                  properties:
+                    intelligence:
+                      type: number
+                    opportunity:
+                      type: number
+                    engagement:
+                      type: number
+                    dataCompleteness:
+                      type: number
+                tierThresholds:
+                  type: object
+                  properties:
+                    HOT:
+                      type: number
+                    ACTIVE:
+                      type: number
+                    NURTURE:
+                      type: number
+                signalRecencyDays:
+                  type: integer
+      responses:
+        '200':
+          description: Updated scoring configuration
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/ScoringConfig'
+                  message:
+                    type: string
+        '400':
+          description: Invalid configuration values
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ══════════════════════════════════════════════════
+  # Data Health
+  # ══════════════════════════════════════════════════
+  /data-health:
+    get:
+      tags: [Data Health]
+      summary: Get data quality and completeness metrics
+      description: >-
+        Returns an overall health score, quality category breakdowns,
+        enrichment queue, and AI-powered diagnosis and strategy.
+        Response is cached for 5 minutes.
+      operationId: getDataHealth
+      responses:
+        '200':
+          description: Data health report
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  data:
+                    $ref: '#/components/schemas/DataHealthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ══════════════════════════════════════════════════
+  # Notifications
+  # ══════════════════════════════════════════════════
+  /notifications:
+    get:
+      tags: [Notifications]
+      summary: List user notifications
+      operationId: listNotifications
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [signal, recommendation, system, alert]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        '200':
+          description: Notification list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  notifications:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Notification'
+                  unreadCount:
+                    type: integer
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Notifications]
+      summary: Mark a notification as read
+      operationId: markNotificationRead
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id]
+              properties:
+                id:
+                  type: string
+                  format: uuid
+      responses:
+        '200':
+          description: Notification marked as read
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ══════════════════════════════════════════════════
+  # Webhooks
+  # ══════════════════════════════════════════════════
+  /webhooks/manage:
+    get:
+      tags: [Webhooks]
+      summary: List registered webhooks
+      operationId: listWebhooks
+      responses:
+        '200':
+          description: Webhook list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhooks:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Webhook'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+    post:
+      tags: [Webhooks]
+      summary: Register a new webhook
+      operationId: registerWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterWebhookRequest'
+      responses:
+        '201':
+          description: Webhook registered
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  webhook:
+                    $ref: '#/components/schemas/Webhook'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /webhooks/events:
+    get:
+      tags: [Webhooks]
+      summary: List available webhook event types
+      operationId: listWebhookEvents
+      security: []
+      responses:
+        '200':
+          description: Available events
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                        description:
+                          type: string
+
+  /webhooks/manage/{id}:
+    delete:
+      tags: [Webhooks]
+      summary: Delete a registered webhook
+      operationId: deleteWebhook
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Webhook deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /webhooks/test:
+    post:
+      tags: [Webhooks]
+      summary: Send a test webhook payload
+      operationId: testWebhook
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TestWebhookRequest'
+      responses:
+        '200':
+          description: Test webhook sent
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  statusCode:
+                    type: integer
+                  responseTime:
+                    type: number
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ══════════════════════════════════════════════════
+  # Batch Operations
+  # ══════════════════════════════════════════════════
+  /batch/execute:
+    post:
+      tags: [Batch Operations]
+      summary: Execute a bulk operation on entities
+      description: >-
+        Perform actions like archive, restore, delete, enrich, or reassign
+        on multiple entities of the same type. Maximum 500 IDs per request.
+      operationId: executeBatch
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BatchExecuteRequest'
+            example:
+              action: archive
+              entityType: company
+              ids: ["cm_abc123", "cm_def456"]
+      responses:
+        '200':
+          description: Batch operation result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BatchExecuteResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
+          $ref: '#/components/responses/InternalServerError'
+
+  # ══════════════════════════════════════════════════
+  # Health & System
+  # ══════════════════════════════════════════════════
+  /health:
+    get:
+      tags: [Dashboard]
+      summary: System health check
+      description: Returns system health status including database and AI service availability
+      operationId: healthCheck
+      security: []
+      responses:
+        '200':
+          description: System health
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    enum: [healthy, degraded, unhealthy]
+                  version:
+                    type: string
+                  uptime:
+                    type: number
+                  services:
+                    type: object
+                    properties:
+                      database:
+                        type: string
+                        enum: [connected, disconnected]
+                      ai:
+                        type: string
+                        enum: [available, degraded, unavailable]
+
+  /docs:
+    get:
+      tags: [Dashboard]
+      summary: OpenAPI specification
+      description: Returns the OpenAPI 3.0 specification for this API
+      operationId: getOpenApiSpec
+      security: []
+      responses:
+        '200':
+          description: OpenAPI YAML specification
+          content:
+            application/yaml:
+              schema:
+                type: string
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+responses:
+  Unauthorized:
+    description: Authentication required
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/Error'
+        example:
+          error: Authentication required
+
+  BadRequest:
+    description: Invalid request parameters
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/Error'
+        example:
+          error: Validation failed
+
+  NotFound:
+    description: Resource not found
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/Error'
+        example:
+          error: Resource not found
+
+  InternalServerError:
+    description: Internal server error
+    content:
+      application/json:
+        schema:
+          $ref: '#/components/schemas/Error'
+        example:
+          error: An unexpected error occurred
+
+parameters:
+  CompanyId:
+    name: id
+    in: path
+    required: true
+    description: Company unique identifier
+    schema:
+      type: string
+      format: uuid
+
+  ContactId:
+    name: id
+    in: path
+    required: true
+    description: Contact unique identifier
+    schema:
+      type: string
+      format: uuid

@@ -147,7 +147,7 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   // Auth gate: authenticated users only for imports
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   try {

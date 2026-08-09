@@ -24,6 +24,7 @@ import type {
   ColumnMapping,
   RawIntelligenceObject,
 } from '../types';
+import { buildConnectorErrorDetail } from '../retry-utilities';
 
 // ─── Constants ─────────────────────────────────────────────────
 
@@ -430,7 +431,7 @@ export class CsvConnector extends BaseConnector {
       });
     } catch (err) {
       return this.createAcquisitionErrorResult(
-        `CSV processing failed: ${err instanceof Error ? err.message : String(err)}`
+        buildConnectorErrorDetail(err, 'CSV connector acquire')
       );
     }
   }

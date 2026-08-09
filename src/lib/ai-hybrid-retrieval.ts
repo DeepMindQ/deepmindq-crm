@@ -210,6 +210,12 @@ export interface HybridSearchInput {
     technology?: string[];
     signals?: Array<{ type: string; description: string }>;
   };
+  /** Calibration adjustments from feedback learning loop. Circuit closure for signal ranking. */
+  calibrationAdjustments?: Array<{
+    pattern: string;
+    direction: 'up' | 'down';
+    magnitude: number;
+  }>;
 }
 
 /** Signal weight configuration for fusion. */
@@ -1103,6 +1109,52 @@ export function clearHybridIndex(): void {
   hybridIndexLoaded = false;
 }
 
+/**
+ * WI-18.2 Phase 3: Get raw Map references for cold-start hydration and
+ * shadow-mode reconciliation.
+ */
+export function getRetrievalMaps(): {
+  hybridIndex: ReadonlyMap<string, HybridIndexEntry>;
+  indexTimestamps: ReadonlyMap<string, number>;
+  documentFrequency: ReadonlyMap<string, number>;
+  getTotalDocuments(): number;
+} {
+  return {
+    hybridIndex,
+    indexTimestamps,
+    documentFrequency,
+    getTotalDocuments: () => totalDocuments,
+  };
+}
+
+/**
+ * WI-18.2 Phase 3: Bulk-insert retrieval index entries during cold-start hydration.
+ * Skips persistence writes (data is already loaded from DB).
+ */
+export function hydrateRetrievalEntries(
+  entries: HybridIndexEntry[],
+  docFreqMap?: Map<string, number>,
+  totalDocs?: number
+): void {
+  for (const entry of entries) {
+    hybridIndex.set(entry.id, entry);
+    indexTimestamps.set(entry.id, entry.indexedAt || Date.now());
+  }
+  // Restore document frequency if provided
+  if (docFreqMap) {
+    for (const [term, freq] of docFreqMap) {
+      documentFrequency.set(term, freq);
+    }
+  }
+  if (totalDocs !== undefined) {
+    totalDocuments = totalDocs;
+  }
+  if (entries.length > 0) {
+    hybridIndexLoaded = true;
+  }
+  logger.info(`[cold-start] Hydrated ${entries.length} retrieval entries, ${docFreqMap?.size || 0} IDF terms, totalDocs=${totalDocs ?? totalDocuments}`);
+}
+
 // ── Main Hybrid Search ───────────────────────────────────────────────────
 
 /**
@@ -1165,6 +1217,27 @@ export function hybridSearch(input: HybridSearchInput): EvidencePackage {
 
   // Step 5: Re-ranking
   const reranked = rerank(fusedResults, allResults);
+
+  // Step 5.5: Apply calibration adjustments from feedback learning loop
+  // THIS IS THE CIRCUIT CLOSURE for signal ranking: feedback → calibration → rank adjustment
+  if (input.calibrationAdjustments && input.calibrationAdjustments.length > 0) {
+    for (const adj of input.calibrationAdjustments) {
+      if (adj.pattern === 'signal_detection_accuracy' && adj.direction === 'up') {
+        // Boost all signal-driven results slightly
+        for (const r of reranked) {
+          r.finalScore = Math.min(1, r.finalScore * (1 + adj.magnitude * 0.5));
+        }
+      }
+      if (adj.pattern === 'technology_detection' && adj.direction === 'down') {
+        // Dampen entity-signal results for technology
+        for (const r of reranked) {
+          if (r.activeSignals.includes('entity') && r.entityType === 'technology') {
+            r.finalScore = Math.max(0, r.finalScore * (1 - adj.magnitude * 0.5));
+          }
+        }
+      }
+    }
+  }
 
   // Step 6: Apply minimum relevance filter
   const minRelevance = input.minRelevance ?? 0.1;

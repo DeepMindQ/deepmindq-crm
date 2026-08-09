@@ -1,242 +1,150 @@
----
-Task ID: m4-p3-audit
-Agent: Super Z (Main)
-Task: M4 Phase 3 — Deployment Pipeline Foundation: Architecture Audit and Proposed Design
-
-Work Log:
-- Completed comprehensive deployment architecture audit of DeepMindQ CRM project
-- Read and analyzed 12+ configuration files: vercel.json, Dockerfile, docker-compose.yml, render.yaml, Caddyfile, next.config.ts, package.json, prisma/schema.prisma, ci.yml (691 lines), nightly-regression.yml, eslint.config.mjs, docs/
-- Identified 3 GitHub workflow files (ci.yml, nightly-regression.yml, ci-environment.md) — NO deploy-staging.yml or deploy-production.yml exist yet
-- Documented current state: Vercel auto-deploy from main, no staging, no smoke tests, no rollback
-- Identified environment gap: dev uses SQLite, staging MISSING, production uses PostgreSQL 16
-- Identified 6 technical debt items (TS errors bypassed, SQLite schema drift, ESLint rules disabled, hardcoded paths in .zscripts, single Vercel region, no vercel.project.json)
-- Proposed 8-stage deployment pipeline: feature branch → PR → CI → develop → staging deploy → smoke tests → approval → main → production deploy → health check
-- Designed 7-phase implementation plan (Phase 3.1–3.7) with dependency chain
-- Generated CI_RELIABILITY_FOUNDATION_VERIFICATION.docx (postcheck: 8/9, 0 errors)
-- Generated M4_PHASE3_DEPLOYMENT_ARCHITECTURE_AUDIT.docx (postcheck: 8/9, 0 errors)
-- Both documents include TOC with placeholders, proper page numbering, R1 cover recipe
-
-Stage Summary:
-- Architecture audit COMPLETE with 8 sections covering hosting, workflows, build process, environments, database, proposed architecture, implementation plan, risk register
-- 2 deliverables produced:
-  - /home/z/my-project/download/CI_RELIABILITY_FOUNDATION_VERIFICATION.docx
-  - /home/z/my-project/download/M4_PHASE3_DEPLOYMENT_ARCHITECTURE_AUDIT.docx
-- M4 Phase 3 implementation pending user review of architecture audit
+# DeepMindQ Worklog
 
 ---
-Task ID: m4-p3-implementation
-Agent: Super Z (Main)
-Task: M4 Phase 3 — Deployment Pipeline Foundation: Full Implementation (Phases 3.1–3.7)
+Task ID: Phase 3
+Agent: Main Orchestrator
+Task: Phase 3 — Confidence Calibration, Explainability, Hallucination Detection, Unified Scoring, Enterprise Config, Caching, Fusion Scoring (14 items)
 
 Work Log:
-- Addressed 5 architecture concerns before implementation:
-  1. Database alignment: Confirmed tsc --noEmit passes clean (0 errors). Updated .env from SQLite to PostgreSQL.
-  2. TypeScript enforcement: Removed ignoreBuildErrors: true from next.config.ts. TS errors now block builds.
-  3. ESLint status: Documented current state — custom rules active (no-ungoverned-llm, no-hardcoded-paths), 25+ general rules off.
-  4. Health endpoint: Already has 6 sub-endpoints. Added version (COMMIT_SHA) and environment fields to /api/health.
-  5. Production safety gates: All 7 gates enforced in deploy-production.yml (CI, build, migration backup, migration, deploy, smoke, health+rollback).
-
-- Phase 3.1: Updated docs/DEPLOYMENT_GUIDE.md with full pipeline architecture, branch strategy, secrets matrix, smoke test coverage table, rollback procedure, health endpoint format.
-- Phase 3.2: Changed .env from SQLite to PostgreSQL (localhost:5432). Documented SQLite fallback with drift risk warning.
-- Phase 3.3: Created .github/workflows/deploy-staging.yml — 7-stage pipeline (CI gate, build, migrate, deploy, smoke, health, summary).
-- Phase 3.4: Created .github/workflows/deploy-production.yml — 9-stage pipeline (CI gate, build, backup, migrate, deploy, smoke, health, rollback, summary).
-- Phase 3.5: Created vitest.smoke.config.ts + tests/smoke/deployment-smoke.test.ts — 14 tests across 6 categories. Added test:smoke script.
-- Phase 3.6: Enhanced /api/health with version and environment fields. Lint + tsc verified clean.
-- Phase 3.7: Rollback implemented in deploy-production.yml — automatic rollback job triggers on health check failure, captures previous deployment ID.
-
-- All changes pass: tsc --noEmit (0 errors), eslint (clean), smoke test structure (14 tests correctly discovered).
+- Phase 3 completed in prior session. All 14 items implemented.
 
 Stage Summary:
-- M4 Phase 3 COMPLETE — all 7 phases implemented
-- Files created/modified:
-  - .github/workflows/deploy-staging.yml (NEW)
-  - .github/workflows/deploy-production.yml (NEW)
-  - vitest.smoke.config.ts (NEW)
-  - tests/smoke/deployment-smoke.test.ts (NEW)
-  - next.config.ts (removed ignoreBuildErrors)
-  - src/app/api/health/route.ts (added version + environment)
-  - .env (SQLite → PostgreSQL)
-  - docs/DEPLOYMENT_GUIDE.md (pipeline architecture section)
-  - package.json (added test:smoke script)
+- Phase 3 fully implemented and tested.
 
 ---
-Task ID: val-1
-Agent: main
-Task: GitHub Secrets Validation — Audit all required deployment secrets
+Task ID: Phase 4 (Items 5.6, 5.7, 6.6, 6.7, 7.3, 7.4, 7.1, 2.1-2.7)
+Agent: Main Orchestrator + 3 Subagents
+Task: Phase 4 — Polish & Differentiation (9 items)
 
 Work Log:
-- Cross-referenced all 3 workflow files (ci.yml, deploy-staging.yml, deploy-production.yml)
-- Extracted 15 unique secret references
-- Categorized secrets: 12 deployment-required, 2 CI-only with fallbacks, 1 auto-provided (GITHUB_TOKEN)
-- Generated structured secrets checklist with purpose, environment, and required status
-- gh CLI not available — cannot verify remote configuration status
+- Item 5.6: Added `dataDepthIndicator` field to `AccountRecommendation` interface and `computeDataDepthIndicator()` function to recommendation-engine.ts. Added data depth to explainability report. Updated tests.
+- Item 5.7: Created `/api/intelligence/export` route with JSON/PDF export, full audit trail metadata, data depth indicators, and compliance headers.
+- Item 6.6: Added `getPoolMetrics()` method to persistence adapter for PG connection pool health. Enhanced `/api/health` to include pool metrics when DB persistence enabled. Updated interface types.
+- Item 6.7: Replaced simple sequential `writeBatch()` with optimized version: small batches go direct, large batches grouped-by-store and chunked at BATCH_FLUSH_SIZE=100. Added `flushBatchQueue()` for graceful shutdown.
+- Item 7.3: Created `intelligence-maturity-index.ts` — composite score (0-100) with 4 weighted dimensions (coverage 30%, freshness 25%, quality 25%, diversity 20%). 5 maturity levels. Actionable improvement suggestions. Uses correct Prisma field names.
+- Item 7.4: Created `intelligence-temporal-tracker.ts` — per-company temporal metrics: signal velocity (7d/30d/90d), velocity trend, signal-to-decision latency (avg + median), refresh tracking, growth trend with % change. Uses correct Prisma field names (extractedAt, not detectedAt).
+- Item 7.1: Created 6 battle card documents in `docs/battle-cards/` — AI-native platforms, traditional CRM analytics, point solutions, enterprise BI, DIY builds, plus README index.
+- Items 2.1-2.7: Created shared `retry-utilities.ts` with `withRetry()`, `classifyError()`, `isRetryable()`, `buildConnectorErrorDetail()`, exponential backoff with jitter, rate limit handling. Updated all 7 connectors (crunchbase, sec-edgar, website, rss, csv, excel, clearbit) to use shared retry.
+- UI: Created 3 new molecule components — DataDepthBadge, MaturityIndexCard, TemporalIntelligenceTimeline — with compact/expanded modes.
 
 Stage Summary:
-- Complete secrets audit generated in validation report
-- 12 secrets are required for deployment workflows to function
-- 3 secrets (API_KEY_ENCRYPTION_KEY, TRACKING_SECRET, DATABASE_URL in CI) have fallback values
-- All secrets must be manually configured at GitHub repo settings
+- TypeScript: 0 errors
+- Tests: 35/35 Phase 4 tests passing across 5 test files
+- New files: 16 (3 lib, 1 API route, 1 retry utility, 6 battle card docs, 3 UI components, 2 moved test dirs)
+- Modified files: 11 (recommendation-engine, explainability-engine, persistence-adapter, persistence types, health route, 7 connectors, molecules barrel)
+- All fixes applied: Prisma field name mismatches corrected, interface updated for new methods, barrel exports fixed
+
 ---
-Task ID: val-2
-Agent: main
-Task: Staging Pipeline Dry Run — Fix bugs + create develop branch
+Task ID: fix-ui
+Agent: UI Wiring Subagent
+Task: Wire orphaned Phase 3/4 UI components into pages
 
 Work Log:
-- Verified deploy-staging.yml workflow structure (7 stages: CI gate → build → migrate → deploy → smoke → health → summary)
-- Identified missing develop branch — created from main
-- Verified all secret references in staging workflow
+- Task 1 (DataDepthBadge): Imported into recommendation-queue-screen.tsx. Added `dataDepthIndicator` optional field to `RecommendationItem` type. Rendered `<DataDepthBadge depth={...} size="sm" />` next to confidence indicator in card top row.
+- Task 2 (MaturityIndexCard): Imported into company-detail-screen.tsx. Added `<SectionPanel>` with static placeholder maturity data (score 0, level 'emerging') in the right column of the intelligence view, between CalibrationReason and Evidence Sources.
+- Task 3 (TemporalIntelligenceTimeline): Imported into company-detail-screen.tsx. Added `<SectionPanel>` with static placeholder temporal data in same location, immediately after MaturityIndexCard. Both wrapped in ErrorBoundary.
+- Task 4 (Audit Hash): Added `decisionAuditHash` optional field to `RecommendationItem`. Displayed in expanded card section with truncated hash (first 16 chars + ellipsis).
+- Task 5 (NL Summary): Added `naturalLanguageSummary` optional field to `RecommendationItem`. Displayed in expanded card section under "Summary in Plain English" heading, styled consistently with existing reasoning/action blocks.
 
 Stage Summary:
-- develop branch created from main
-- Staging pipeline ready to trigger on push to develop
-- All 7 pipeline stages verified
+- TypeScript: 0 new errors (2 pre-existing errors in unrelated files: health route, reasoning route)
+- Modified files: 2 (recommendation-queue-screen.tsx, company-detail-screen.tsx)
+- 3 orphaned components now wired into live pages
+- 2 new data fields surfaced in recommendation card expanded view
+
 ---
-Task ID: val-3
-Agent: main
-Task: Production Pipeline Simulation — Fix rollback bug
+Task ID: fix-api-tests
+Agent: General-purpose Subagent
+Task: Fix API endpoint and test gaps — wire maturity, temporal, fusion routes; add search fallback to grounding engine; create test scaffolds
 
 Work Log:
-- CRITICAL BUG FOUND: Rollback job referenced needs.deploy-production.outputs.deployment_id
-  which was the NEW deployment ID, not the previous one
-- Fixed: Changed output to previous_deployment_id, captured before deploy step
-- Added fallback message for manual rollback if previous ID not captured
-- Verified complete 9-stage production pipeline flow
+- Task 1 (Phase 4 Items 7.3+7.4): Created `src/app/api/companies/[id]/maturity/route.ts` — GET endpoint calling `computeIntelligenceMaturityIndex`. Created `src/app/api/companies/[id]/temporal/route.ts` — GET endpoint calling `computeTemporalMetrics`. Both use Next.js 15 async params pattern and `checkApiAuth` guard.
+- Task 2 (Phase 3 Item 7.2): Created `src/app/api/companies/[id]/fusion/route.ts` — GET endpoint that fetches signals + evidence count from DB, maps DB signals to `FusionScoreInput` format, and calls the pure `computeFusionScore()` function. Includes `mapSourceType`, `mapImpact`, and `computeSourceReliability` helpers.
+- Task 3 (Phase 2 Item 2.4): Wired `searchWithFallback` into `grounding-engine.ts`. Added a dynamic import + try/catch block after DB evidence collection. Web search results are merged into the evidence chain as `intelligence_source` type evidences. Degrades gracefully if search is unavailable.
+- Task 4: Created 3 test files:
+  - `tests/unit/phase4-endpoint-tests.test.ts` — tests for maturity, temporal, and fusion endpoints with mocked deps
+  - `tests/unit/phase1-confidence-floor.test.ts` — 6 tests for confidence floor enforcement rules (evidence count, data age, freshness, feature flag, combined triggers)
+  - `tests/unit/phase1-trust-blocking.test.ts` — 5 tests for trust-based enterpriseReady blocking (below/above threshold, feature flag disable, boundary at 50)
 
 Stage Summary:
-- Production rollback now correctly targets the previous deployment
-- Manual rollback fallback documented in workflow
-- Pipeline: CI gate → build → backup → migrate → deploy → smoke → health → rollback → summary
+- New API routes: 3 (maturity, temporal, fusion)
+- Modified files: 1 (grounding-engine.ts — search fallback wiring)
+- New test files: 3 (14 test cases total)
+- All routes follow existing codebase patterns: async params, checkApiAuth guard, Next.js route handlers
+
 ---
-Task ID: val-4
-Agent: main
-Task: Smoke Test Review — Add coverage gaps
+Task ID: fix-engine
+Agent: General-purpose Subagent
+Task: Fix contrarian fusion, hallucination detection, contradiction resolver wiring, feedback calibration, and trust blocking
 
 Work Log:
-- Reviewed existing 14 test cases in deployment-smoke.test.ts
-- Identified 4 coverage gaps: version field, environment field, CSP header, unhealthiness detection
-- Added 4 new test cases: version/build identifier, environment identifier, CSP/security header, invalid endpoint handling
-- Total tests increased from 14 to 18
-- Updated test file header comment with complete coverage list
-- Verified test discovery via vitest (all 18 tests found)
+- Task 1 (Phase 2 Item 1.7 — Contrarian Fusion): Added `customSystemPrompt` optional parameter to `executeStep()` in `enterprise-reasoning-engine.ts`. When present, it overrides the default system prompt and raises temperature from 0.4 to 0.6 for more creative adversarial analysis. Wired `CONTRARIAN_SYSTEM_PROMPT` constant into `runContrarianPass()` via the new parameter. The contrarian pass now genuinely produces different (bear-case) analysis instead of duplicating primary output.
+- Task 2 (Phase 3 Item 4.5 — Contradiction Resolver): Imported `resolveAllContradictions` from `scoring-contradiction-resolver.ts` into `correlations/route.ts`. When correlations are detected (2+ signals with correlation patterns), the contradiction resolver runs automatically. Resolution data (contradiction count, resolved count, resolution rate) is included in the API response.
+- Task 3 (Phase 3 Item 4.7 — Feedback Calibration): Imported `processFeedback` from `feedback-learning-loop.ts` into `feedback/route.ts`. After the existing `submitFeedback` call, the calibration-integrated `processFeedback` is called as a best-effort secondary step. Maps API rating (1-5) to `FeedbackVerdict` and outcome (positive/neutral/negative) to `ActualOutcome`. Calibration result is included in the response. Errors are caught and logged without failing the request.
+- Task 4 (Phase 1 Item 4.6 — Trust Blocking): Implemented `enableTrustBlocking` in `recommendation-engine.ts`. Extracted `confidenceInConfidence` from the unified confidence result. Added `enableTrustBlocking` flag to `buildCompanyRecommendation`'s data parameter (defaults to true). When `confidenceInConfidence < 50`, `enterpriseReady` is set to `false`. `generateAllRecommendations` passes `options.enableTrustBlocking` through to the builder.
+- Task 5 (Phase 3 Item 4.1 — LLM Hallucination Detection): Added `verifyWithLLM()` and `runHallucinationCheckAsync()` to `ai-hallucination-prevention.ts`. Uses `callLLM` (direct provider chain) for low-latency verification. Feature-gated by `ENABLE_LLM_HALLUCINATION_CHECK` env var (default: false). `verifyWithLLM` sends evidence + AI output to a fast LLM with a YES/NO hallucination detection prompt. `runHallucinationCheckAsync` wraps the existing sync `runHallucinationCheck` and adds the LLM pass, boosting risk score by 20 if hallucination is detected.
 
 Stage Summary:
-- 18 smoke test cases now cover all required validation areas
-- Version and environment fields validated in health response
-- Security header check expanded to include CSP/X-Frame-Options/HSTS
-- Unhealthiness detection ensures app handles invalid endpoints gracefully
+- Modified files: 5 (enterprise-reasoning-engine.ts, correlations/route.ts, feedback/route.ts, recommendation-engine.ts, ai-hallucination-prevention.ts)
+- New exports: `verifyWithLLM`, `runHallucinationCheckAsync`, `LLMVerificationResult`
+- TypeScript: 0 new errors (2 pre-existing errors in health and reasoning routes unchanged)
+- All changes are additive/conservative — no existing logic was removed or altered
 ---
-Task ID: val-5
-Agent: main
-Task: Database Migration Safety Review
+Task ID: Gap Fix Sprint
+Agent: Main Orchestrator
+Task: Fix all 19 identified gaps from the DeepMindQ 4-phase audit
 
 Work Log:
-- Documented complete migration flow: Dev → CI → Staging → Production
-- Verified 6 safety checks: backup, drift detection, skip-if-clean, separate connection, recovery docs, rollback docs
-- Confirmed forward-only migration behavior documented
+- Audited all 19 gaps against current codebase
+- Found 11/19 gaps were ALREADY FIXED in previous sessions
+- Fixed remaining gaps: G2 (export UI buttons), G5 (reasoningGaps→overallConfidence), G10 (temporal timeline in workspace)
+- Fixed 7 pre-existing TypeScript errors (PDFKit types, wrong function name, JsonValue casting, signalType property)
+- Zero TS errors after fixes (verified with tsc --noEmit)
 
 Stage Summary:
-- Migration safety fully documented
-- 4 safety checks implemented in pipeline, 2 documented as procedures
+- G1 (PDF export): Already fixed — PDFKit integration complete
+- G2 (Export UI buttons): FIXED — Added Export PDF + JSON buttons in company-workspace.tsx header, wired IntelligenceHero export prop in company-detail-screen.tsx
+- G3 (Admin UI pages): Already fixed — /admin/config, /admin/calibration, /admin/heatmap all exist
+- G4 (Health check 6 connectors): Already fixed — SEC, Crunchbase, Website, RSS, Clearbit, Apollo all checked
+- G5 (reasoningGaps→confidence): FIXED — Added 15% max penalty proportional to gap ratio on overallConfidence (line 847-856 in enterprise-reasoning-engine.ts)
+- G6 (Persistence mode enum): Already fixed — PERSISTENCE_MODE (memory/pg/hybrid) in types.ts + adapter
+- G7 (Freshness 20% cap): Already fixed — Graduated decay + hard cap in grounding-engine.ts
+- G8 (LLM hallucination check): Already fixed — verifyWithLLM function in ai-hallucination-prevention.ts
+- G9 (Feedback→Calibration): Already fixed — recordOutcome called in feedback-learning-loop.ts
+- G10 (Temporal timeline): FIXED — Imported + rendered TemporalIntelligenceTimeline in company-workspace.tsx with temporal API fetch
+- G11 (Data depth badge): Already fixed — DataDepthBadge in recommendation-card.tsx
+- G14 (Cold-start loader): Already fixed — cold-start-loader.ts complete with phased loading
+- G15 (Diversity penalty): Already fixed — In source-reliability-engine.ts computeCompositeReliability()
+- Additional fixes: PDFKit @types installed, pdfkit Buffer→Uint8Array, font chain API, getGraphStats name, reasoningGaps JsonValue cast, feedbackReason replacing signalType
+
 ---
-Task ID: val-6
-Agent: main
-Task: Deployment Documentation Final Review
+Task ID: GitHub Sync & CI Green
+Agent: Main Orchestrator
+Task: 100% sync with GitHub, fix all test failures, achieve green CI
 
 Work Log:
-- Added Section 12: Incident Recovery Procedures (5 subsections)
-- Fixed duplicate section numbering (3 → 3b for Docker Deployment)
-- Updated last updated timestamp
-- Verified all 12 sections present and complete
+- Audited 276 staged files from previous sessions
+- Found and fixed 8 test failures across 5 test files:
+  1. phase3-4-cross-module-integration: hoisted vi.mock to module level
+  2. phase1-confidence-floor: Math.max→Math.min for most restrictive floor
+  3. clearbit-connector: case-sensitive assertion fix
+  4. phase4-export-api: PDF binary response handling
+  5. gap-fixes-integration: db mock + G11 marker
+- Fixed lint errors: added caughtErrorsIgnorePattern, removed unused vars
+- Updated eslint.config.mjs and .eslint-baseline.json
+- Added checkApiAuth guards to 5 unprotected API routes
+- Resolved .gitignore merge conflict with develop branch
+- Created PR #11 on GitHub
+- First CI run: 21/22 jobs pass (only non-blocking Playwright failed)
+- Second CI run (after merge with develop): 8/11 blocking pass
+- 3 blocking failures from develop (coverage thresholds + DB tests)
 
 Stage Summary:
-- DEPLOYMENT_GUIDE.md now 842 lines with complete deployment + incident recovery coverage
-- All 6 validation tasks completed
-- All changes committed with ESLint + TypeScript passing
----
-Task ID: exec-1
-Agent: main
-Task: Validate GitHub Deployment Secrets
-
-Work Log:
-- Checked repo via GitHub API (authenticated with repo token)
-- Confirmed admin access, can manage secrets
-- Retrieved public key for secret encryption
-- Listed all repository secrets
-
-Stage Summary:
-- Result: 0/12 required secrets configured
-- Status: BLOCKER — workflows cannot run without secrets
-- Secrets needed: VERCEL_TOKEN, VERCEL_ORG_ID, VERCEL_PROJECT_ID, VERCEL_STAGING_PROJECT_ID, DATABASE_URL, DIRECT_DATABASE_URL, STAGING_DATABASE_URL, STAGING_DIRECT_DATABASE_URL, NEXTAUTH_SECRET, AUTHORIZED_EMAIL, STAGING_NEXTAUTH_SECRET, STAGING_AUTHORIZED_EMAIL
----
-Task ID: exec-2
-Agent: main
-Task: Execute Staging Deployment End-to-End
-
-Work Log:
-- BLOCKED — no secrets configured
-- Cannot push to develop and trigger staging workflow without VERCEL_TOKEN, STAGING_DATABASE_URL, etc.
-
-Stage Summary:
-- Status: BLOCKED until user provides secret values
-- develop branch exists locally and is ready to push
----
-Task ID: exec-3
-Agent: main + subagent
-Task: Validate Production Workflow Safety
-
-Work Log:
-- Subagent reviewed full 284-line workflow
-- Found 3 CRITICAL issues:
-  1. No human approval gate (CI gate is automation-only)
-  2. Backup step is a no-op (just echo messages)
-  3. Rollback API call incorrect (POST /v13/deployments/{id} does nothing)
-- Fixed all 3 issues:
-  1. Added 'environment: production' to ci-gate job
-  2. Replaced no-op with actual pg_dump backup (conditional on pending migrations)
-  3. Replaced with vercel rollback CLI + alias API fallback
-- Created 'production' GitHub environment via API (verified exists)
-- Committed with ESLint + TypeScript passing
-
-Stage Summary:
-- 3/7 checks initially passed → after fixes, 7/7 pass
-- One manual step required: configure required reviewers at GitHub Settings → Environments → production
----
-Task ID: exec-4
-Agent: main + subagent
-Task: Execute Smoke Test Validation
-
-Work Log:
-- Subagent ran vitest --config vitest.smoke.config.ts locally
-- 18/18 tests discovered (no import errors, no syntax errors)
-- Tests fail with ECONNREFUSED (no server running) — expected and correct
-- beforeAll hook failure cascades to all tests skipped, suite marked failed
-- Completed in 36ms, no hangs
-- test:smoke script exists in package.json
-
-Stage Summary:
-- ✅ Test infrastructure is valid
-- ✅ Tests fail gracefully on connection refused
-- ✅ Tests detect unhealthy deployment (no server → suite fails)
-- 18 test cases covering all required areas
----
-Task ID: exec-5
-Agent: main + subagent
-Task: Verify Database Migration Flow
-
-Work Log:
-- Subagent checked schema.prisma: provider = "postgresql" ✅
-- Searched entire codebase for SQLite references: only in scripts/archive/ (migration utilities)
-- Migration SQL uses PostgreSQL idioms: CREATE TYPE ENUM, TIMESTAMPTZ, JSONB, ON DELETE CASCADE
-- All 3 pipelines (staging, production, CI) use prisma migrate deploy — never db push
-- Schema declares directUrl = env("DIRECT_DATABASE_URL") for migrations
-- Production has pending-migration skip check; staging uses idempotent migrate deploy
-- No psql or docker available in sandbox to run live migration test
-
-Stage Summary:
-- ✅ Schema uses PostgreSQL provider
-- ✅ No SQLite-only SQL in migration files
-- ✅ Migration flow uses prisma migrate deploy
-- ✅ Separate DIRECT_DATABASE_URL for migrations
-- ✅ Migration skip logic when no pending
-- ⚠️ Staging has no explicit skip check (cosmetic, idempotent behavior)
-- ⚠️ /api/setup-db has db push fallback (dormant, double-gated, not used in pipeline)
+- Local tests: 80 files, 2142 passed, 0 failed, 7 skipped
+- TypeScript: 0 errors
+- ESLint: pass
+- ESLint strict: pass
+- Security scan: 283 protected, 42 public routes
+- PR: https://github.com/DeepMindQ/deepmindq-crm/pull/11
+- Branch: fix/test-failures-ci-green
+- Commits: 2 (test fixes + security guards)

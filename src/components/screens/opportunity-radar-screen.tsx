@@ -17,6 +17,7 @@ import { Input } from '@/components/ui/input';
 import { ConfidenceBar } from '@/components/enterprise/ConfidenceBar';
 import { ErrorState } from '@/components/enterprise/ErrorState';
 import { cn } from '@/lib/utils';
+import { ErrorBoundary } from '@/components/error-boundary';
 
 /* ═══════════════════════════════════════════════════════════════
    Types — aligned with OpportunityRecommendation schema + T9 API contract
@@ -513,8 +514,9 @@ export default function OpportunityRadarScreen({ navigateTo }: OpportunityRadarP
   useEffect(() => { setPage(1); }, [statusFilter, priorityFilter]);
 
   return (
-    <PageTransition>
-      <div className="h-full flex flex-col gap-0 overflow-hidden">
+    <ErrorBoundary>
+      <PageTransition>
+        <div className="h-full flex flex-col gap-0 overflow-hidden">
         {/* ═══════════════════════════════════════════════════
            Section 1: Header
            ═══════════════════════════════════════════════════ */}
@@ -708,6 +710,7 @@ export default function OpportunityRadarScreen({ navigateTo }: OpportunityRadarP
           onCancel={() => setRejectTarget(null)}
         />
       )}
-    </PageTransition>
+      </PageTransition>
+    </ErrorBoundary>
   );
 }

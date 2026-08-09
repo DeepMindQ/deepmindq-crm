@@ -15,8 +15,8 @@ try {
     const { id } = await params;
     await db.playbook.delete({ where: { id } });
     return NextResponse.json({ success: true });
-  } catch (error: any) {
-    if (error?.code === 'P2025' || error?.code === 'P2021') {
+  } catch (_error: unknown) {
+    if ((_error as { code?: string })?.code === 'P2025' || (_error as { code?: string })?.code === 'P2021') {
       return NextResponse.json({ success: true });
     }
     return NextResponse.json({ error: 'Failed to delete' }, { status: 500 });
@@ -47,7 +47,7 @@ try {
       },
     });
     return NextResponse.json({ ...updated, steps: typeof updated.steps === 'string' ? JSON.parse(updated.steps) : updated.steps || [] });
-  } catch (error: any) {
+  } catch {
     return NextResponse.json({ error: 'Failed to update' }, { status: 500 });
   }
 }

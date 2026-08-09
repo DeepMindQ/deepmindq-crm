@@ -25,8 +25,8 @@ const peopleEnrichBodySchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-    // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+    // ── Authentication + RBAC Guard ──
+  const { errorResponse } = await checkApiAuth(req);
   if (errorResponse) return errorResponse;
 
 let ctx: Awaited<ReturnType<typeof utilityGuard>>;

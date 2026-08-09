@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
+import { ScreenBreadcrumb } from '@/components/shared/screen-breadcrumb';
 
 /* ══════════════════════════════ Types ══════════════════════════════ */
 
@@ -167,6 +168,8 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
   /* ══════════════════════════════ Render ══════════════════════════════ */
   return (
     <div className="max-h-[calc(100vh-200px)] overflow-y-auto space-y-5 pr-1">
+
+      <ScreenBreadcrumb items={[{ label: 'Sequences' }]} />
 
       {/* ── KPI Cards ── */}
       <div className="grid grid-cols-3 gap-4">

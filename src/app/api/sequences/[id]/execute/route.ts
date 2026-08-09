@@ -34,10 +34,10 @@ try {
       return apiError('Sequence has no steps', 400)
     }
 
-    // 3. Determine contact — from body, from sequence, or error
-    const targetContactId = contactId || (sequence as any).contactId
+    // 3. Determine contact — from body, must provide contactId
+    const targetContactId = contactId
     if (!targetContactId) {
-      return apiError('No contact specified. Provide a contactId or set one on the sequence.', 400)
+      return apiError('No contact specified. Provide a contactId.', 400)
     }
 
     // 4. Fetch contact with company
@@ -47,14 +47,14 @@ try {
     })
     if (!contact) return apiError('Contact not found', 404)
 
-    // 5. Find first pending step
-    const firstPendingStep = (sequence as any).steps?.find((s: any) => s.status === 'pending')
+    // 5. Find first pending step (all steps are executable)
+    const firstPendingStep = sequence.steps[0]
     if (!firstPendingStep) {
       return apiError('No pending steps to execute', 400)
     }
 
     // 6. Create a draft from the first step content (personalized with contact info)
-    const companyName = (contact.company as any)?.rawName || 'your company'
+    const companyName = contact.company?.rawName || 'your company'
     const firstName = contact.rawName?.split(' ')[0] || 'there'
     const jobTitle = contact.title || contact.role || 'your role'
 
@@ -80,11 +80,11 @@ try {
       },
     })
 
-    // 8. Update sequence status to active if draft
-    if ((sequence as any).status === 'draft') {
+    // 8. Mark sequence as active if not already
+    if (!sequence.isActive) {
       await db.emailSequence.update({
         where: { id: sequenceId },
-        data: { isActive: true } as any,
+        data: { isActive: true },
       })
     }
 

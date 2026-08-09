@@ -30,6 +30,9 @@ import { EmptyState, SortableHeader } from '@/components/shared/design-system'
 import { cn } from '@/lib/utils'
 import { getOppStatusVariant, getStatusBorder } from '@/lib/constants'
 import { formatDistanceToNow, differenceInDays } from 'date-fns'
+import { OpportunityCard } from '@/components/tier/opportunity-card'
+import { AccountTierBadge, getTierFromScore } from '@/components/tier/account-tier-badge'
+import { ErrorBoundary } from '@/components/error-boundary'
 import type { OpportunityStatus } from '@/lib/types'
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -101,7 +104,7 @@ export default function OpportunitiesScreen() {
   const qc = useQueryClient()
 
   // ── View mode ──
-  const [viewMode, setViewMode] = useState<'kanban' | 'list'>('kanban')
+  const [viewMode, setViewMode] = useState<'kanban' | 'list' | 'cards'>('kanban')
 
   // ── Dialog ──
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -287,6 +290,7 @@ export default function OpportunitiesScreen() {
 
   // ── Render ──
   return (
+    <ErrorBoundary>
     <div className="space-y-5">
       {/* ── Header ── */}
       <div className="flex items-center justify-between gap-3">
@@ -328,6 +332,15 @@ export default function OpportunitiesScreen() {
               )}
             >
               <List className="size-3.5" /> List
+            </button>
+            <button
+              onClick={() => setViewMode('cards')}
+              className={cn(
+                'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
+                viewMode === 'cards' ? 'bg-amber-600 text-white shadow-xs' : 'text-gray-500 hover:text-gray-800',
+              )}
+            >
+              <LayoutGrid className="size-3.5" /> Cards
             </button>
           </div>
           <Button
@@ -517,6 +530,36 @@ export default function OpportunitiesScreen() {
             })}
           </div>
         )
+      )}
+
+      {/* ── Cards View ── */}
+      {viewMode === 'cards' && (
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+          {isLoading ? (
+            Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="rounded-xl bg-gray-50/80 p-4 space-y-3 animate-pulse">
+                <Skeleton className="h-4 w-24 rounded" />
+                <Skeleton className="h-20 w-full rounded-lg" />
+              </div>
+            ))
+          ) : (
+            allOpps.map(opp => (
+              <OpportunityCard
+                key={opp.id}
+                id={opp.id}
+                title={opp.title}
+                description={opp.description || ''}
+                companyName={opp.companyName || 'Unknown'}
+                tier={getTierFromScore(50)}
+                score={50}
+                probability={60}
+                nextAction={opp.nextAction || undefined}
+                source="manual"
+                onClick={() => { setSelectedCompanyId(opp.companyId); setActiveView('company-profile') }}
+              />
+            ))
+          )}
+        </div>
       )}
 
       {/* ── List View ── */}
@@ -757,5 +800,6 @@ export default function OpportunitiesScreen() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+    </ErrorBoundary>
   )
 }

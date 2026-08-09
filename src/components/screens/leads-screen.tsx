@@ -45,6 +45,7 @@ import {
   PageTransition, AnimatedCard, StatCard, StaggerGrid, StaggerItem,
   GlassPanel, EmptyState, ShimmerText, TabBar, AnimatedCounter, PulseDot,
 } from '@/components/ui/animated-components';
+import { ScreenBreadcrumb } from '@/components/shared/screen-breadcrumb';
 import { FilterBar } from '@/components/enterprise/FilterBar';
 import { LoadingState } from '@/components/enterprise/LoadingState';
 import { ErrorState } from '@/components/enterprise/ErrorState';
@@ -453,6 +454,8 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
   return (
     <PageTransition>
     <div className="space-y-6">
+
+      <ScreenBreadcrumb items={[{ label: 'Leads' }]} />
 
       {/* ═══════════════════ Top Bar ═══════════════════ */}
       <div className="flex flex-col gap-3">

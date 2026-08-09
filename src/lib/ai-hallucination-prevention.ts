@@ -24,6 +24,12 @@
  */
 
 import { logger } from '@/lib/logger';
+import { callLLM } from '@/lib/llm-client';
+
+// ── Feature Flags ────────────────────────────────────────────────────────────
+
+/** Phase 3 Item 4.1: Enable LLM second-pass hallucination detection. Default: false (off for latency). */
+const ENABLE_LLM_HALLUCINATION_CHECK = process.env.ENABLE_LLM_HALLUCINATION_CHECK === 'true';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -97,6 +103,20 @@ export interface EvidenceContext {
   knownFacts?: Record<string, string>;
   /** Field confidence scores from the research context. */
   fieldConfidence?: Record<string, number>;
+}
+
+/** Result of LLM second-pass verification (Phase 3 Item 4.1). */
+export interface LLMVerificationResult {
+  /** Whether the LLM check was performed. */
+  checked: boolean;
+  /** Whether hallucination was detected. */
+  hallucinationDetected: boolean;
+  /** The LLM's reasoning. */
+  reasoning: string;
+  /** Latency of the LLM call in ms. */
+  latencyMs: number;
+  /** Error message if the check failed. */
+  error?: string;
 }
 
 // ── Claim Extraction ────────────────────────────────────────────────────────
@@ -576,6 +596,127 @@ function generateRecommendations(params: {
   return recs;
 }
 
+// ── LLM Second-Pass Verification (Phase 3 Item 4.1) ────────────────────────
+
+/**
+ * verifyWithLLM — LLM second-pass hallucination detection.
+ *
+ * Takes the original evidence/context and the AI's output, asks a fast-tier
+ * LLM whether the output is factually supported. Uses the project's callLLM
+ * (direct provider chain) for low-latency verification.
+ *
+ * Feature-gated by ENABLE_LLM_HALLUCINATION_CHECK env var (default: false).
+ * NON-THROWING: always returns a result, never throws.
+ */
+export async function verifyWithLLM(
+  evidenceContext: string,
+  aiOutput: string,
+): Promise<LLMVerificationResult> {
+  const startTime = Date.now();
+
+  if (!ENABLE_LLM_HALLUCINATION_CHECK) {
+    return { checked: false, hallucinationDetected: false, reasoning: 'LLM hallucination check disabled (set ENABLE_LLM_HALLUCINATION_CHECK=true to enable)', latencyMs: 0 };
+  }
+
+  // Truncate inputs to stay within token budgets
+  const truncatedEvidence = evidenceContext.substring(0, 2000);
+  const truncatedOutput = aiOutput.substring(0, 1500);
+
+  try {
+    const response = await callLLM(
+      `You are a factual verification assistant. Your ONLY job is to determine if an AI output is factually supported by the provided evidence.
+
+Rules:
+- Answer YES if the AI output is supported by or consistent with the evidence.
+- Answer NO if the AI output contains claims contradicted by or unsupported by the evidence.
+- If unsure, answer NO (err on the side of caution).
+- After YES/NO, provide a brief 1-2 sentence explanation.
+
+Respond in EXACTLY this format:
+ANSWER: YES or NO
+EXPLANATION: <brief reason>`,
+      `EVIDENCE:
+${truncatedEvidence}
+
+AI OUTPUT TO VERIFY:
+${truncatedOutput}`,
+    );
+
+    const latencyMs = Date.now() - startTime;
+    const upperResponse = response.toUpperCase();
+
+    // Parse the answer
+    let hallucinationDetected = false;
+    let reasoning = response.trim();
+
+    if (upperResponse.includes('ANSWER: NO') || upperResponse.startsWith('NO')) {
+      hallucinationDetected = true;
+    }
+
+    // Extract explanation if present
+    const explanationMatch = response.match(/EXPLANATION:\s*(.+)/i);
+    if (explanationMatch) {
+      reasoning = explanationMatch[1].trim();
+    }
+
+    logger.info('[HallucinationPrevention] LLM second-pass complete', {
+      hallucinationDetected,
+      latencyMs,
+      evidenceLength: truncatedEvidence.length,
+      outputLength: truncatedOutput.length,
+    });
+
+    return { checked: true, hallucinationDetected, reasoning, latencyMs };
+  } catch (err) {
+    const latencyMs = Date.now() - startTime;
+    const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+    logger.warn('[HallucinationPrevention] LLM second-pass failed', { error: errorMsg, latencyMs });
+    return { checked: true, hallucinationDetected: false, reasoning: `LLM check failed: ${errorMsg}`, latencyMs, error: errorMsg };
+  }
+}
+
+/**
+ * runHallucinationCheckAsync — async version of runHallucinationCheck that
+ * optionally adds LLM second-pass verification.
+ *
+ * When ENABLE_LLM_HALLUCINATION_CHECK is true, runs the keyword-based check
+ * first, then adds an LLM verification pass. If the LLM detects hallucination,
+ * the risk score is boosted and the result is downgraded.
+ */
+export async function runHallucinationCheckAsync(
+  aiOutput: string,
+  evidenceContext: EvidenceContext,
+): Promise<HallucinationCheckResult & { llmVerification?: LLMVerificationResult }> {
+  // Step 1: Run the existing keyword-based check (synchronous, fast)
+  const result = runHallucinationCheck(aiOutput, evidenceContext);
+
+  // Step 2: Build evidence text for LLM verification
+  const evidenceText = Object.entries(evidenceContext.evidenceMap)
+    .map(([, ev]) => `[${ev.source}] ${ev.text.substring(0, 300)}`)
+    .join('\n');
+
+  // Step 3: Run LLM second-pass if enabled
+  const llmVerification = await verifyWithLLM(evidenceText, aiOutput);
+
+  // Step 4: If LLM detected hallucination, boost risk score
+  if (llmVerification.checked && llmVerification.hallucinationDetected) {
+    const boostedScore = Math.min(100, result.hallucinationRiskScore + 20);
+    result.hallucinationRiskScore = boostedScore;
+    result.passesTrustThreshold = boostedScore <= ENTERPRISE_TRUST_THRESHOLD;
+    result.recommendations.unshift(
+      `LLM second-pass detected potential hallucination: ${llmVerification.reasoning}`,
+    );
+    // Recalculate risk level
+    if (boostedScore <= HALLUCINATION_THRESHOLDS.minimal) result.riskLevel = 'minimal';
+    else if (boostedScore <= HALLUCINATION_THRESHOLDS.low) result.riskLevel = 'low';
+    else if (boostedScore <= HALLUCINATION_THRESHOLDS.medium) result.riskLevel = 'medium';
+    else if (boostedScore <= HALLUCINATION_THRESHOLDS.high) result.riskLevel = 'high';
+    else result.riskLevel = 'critical';
+  }
+
+  return { ...result, llmVerification };
+}
+
 // ── Evidence Context Builder ──────────────────────────────────────────────────
 
 /**
@@ -662,4 +803,306 @@ export function formatHallucinationReportForLog(result: HallucinationCheckResult
   }
 
   return lines.join('\n');
+}
+
+// ── Phase 4.1: LLM-Powered Hallucination Detection ─────────────────────────
+
+export interface LLMHallucinationCheckResult {
+  checked: boolean;
+  tier: string;
+  modelUsed: string;
+  claims: Array<{
+    text: string;
+    llmAssessment: 'verified' | 'likely_correct' | 'uncertain' | 'likely_hallucinated' | 'hallucinated';
+    reasoning: string;
+    evidenceGaps: string[];
+  }>;
+  overallAssessment: 'all_verified' | 'mostly_reliable' | 'needs_review' | 'likely_contains_hallucinations';
+  latencyMs: number;
+  error?: string;
+}
+
+/**
+ * Perform a second-pass semantic hallucination check using an LLM.
+ * This augments the keyword-based `runHallucinationCheck` with semantic understanding.
+ *
+ * The LLM is asked: "Given the following claims and evidence, identify which claims
+ * are likely hallucinated."
+ *
+ * NON-THROWING: Returns structured result even on failure.
+ */
+export async function performLLMHallucinationCheck(
+  claims: ExtractedClaim[],
+  evidenceContext: EvidenceContext,
+  options?: { tier?: string },
+): Promise<LLMHallucinationCheckResult> {
+  const startTime = Date.now();
+  const tier = options?.tier || 'standard';
+
+  // Early exit if no claims to check
+  if (claims.length === 0) {
+    return {
+      checked: true,
+      tier,
+      modelUsed: 'none',
+      claims: [],
+      overallAssessment: 'all_verified',
+      latencyMs: Date.now() - startTime,
+    };
+  }
+
+  try {
+    // ── Build the LLM prompt ──
+    const evidenceText = Object.entries(evidenceContext.evidenceMap)
+      .map(([marker, ev], idx) => `[${marker}] (Source: ${ev.source}, Confidence: ${Math.round(ev.confidence * 100)}%) ${ev.text.substring(0, 300)}`)
+      .join('\n');
+
+    const claimsText = claims
+      .map((c, idx) => `Claim ${idx + 1}: "${c.text}" (Type: ${c.type}, Expressed confidence: ${c.expressedConfidence}${c.citationMarker ? `, Cited: ${c.citationMarker}` : ', No citation'})`)
+      .join('\n');
+
+    const prompt = `You are a fact-checking assistant. Your job is to determine which of the following claims are likely hallucinated (fabricated or unsupported by evidence).
+
+EVIDENCE AVAILABLE:
+${evidenceText || 'No evidence provided.'}
+
+CLAIMS TO VERIFY:
+${claimsText}
+
+INSTRUCTIONS:
+For each claim, assess whether it is supported by the evidence above. Consider:
+1. Does the evidence directly support or contradict the claim?
+2. Is the claim making assertions beyond what the evidence shows?
+3. Could the claim be a reasonable inference, or is it fabricated?
+
+Respond in the following JSON format ONLY. No markdown, no explanation outside the JSON:
+{
+  "claims": [
+    {
+      "text": "exact claim text",
+      "assessment": "verified|likely_correct|uncertain|likely_hallucinated|hallucinated",
+      "reasoning": "brief explanation",
+      "evidenceGaps": ["gap1", "gap2"]
+    }
+  ],
+  "overallAssessment": "all_verified|mostly_reliable|needs_review|likely_contains_hallucinations"
+}
+
+Assessment criteria:
+- "verified": Evidence directly confirms the claim
+- "likely_correct": Evidence supports the claim with high probability
+- "uncertain": Not enough evidence to verify or refute
+- "likely_hallucinated": Evidence contradicts or does not support the claim
+- "hallucinated": Claim is fabricated or has no evidentiary basis
+
+Overall assessment criteria:
+- "all_verified": Every claim is verified or likely_correct
+- "mostly_reliable": Most claims are correct, 1-2 uncertain
+- "needs_review": Multiple uncertain claims or 1+ likely_hallucinated
+- "likely_contains_hallucinations": 2+ likely_hallucinated or any hallucinated`;
+
+    // ── Call the LLM via z-ai-web-dev-sdk ──
+    // Dynamic import to avoid client-side bundling issues
+    let llmResponse: string;
+    try {
+      const sdk = await import('z-ai-web-dev-sdk');
+      const chatFn = (sdk as any).chat || (sdk as any).default?.chat;
+      if (!chatFn) throw new Error('No chat function in SDK');
+      const response = await chatFn({
+        model: 'gpt-4o-mini',
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.1,
+      });
+      llmResponse = typeof response === 'string' ? response : response.content || response.text || JSON.stringify(response);
+    } catch (sdkErr) {
+      logger.warn('[HallucinationPrevention] LLM SDK unavailable, falling back to keyword analysis:', { error: sdkErr });
+      return buildFallbackLLMResult(claims, evidenceContext, tier, startTime, 'LLM SDK unavailable');
+    }
+
+    // ── Parse LLM response ──
+    const parsed = parseLLMResponse(llmResponse);
+
+    if (!parsed) {
+      logger.warn('[HallucinationPrevention] Failed to parse LLM response, falling back:', { llmResponse: llmResponse.substring(0, 200) });
+      return buildFallbackLLMResult(claims, evidenceContext, tier, startTime, 'Failed to parse LLM response');
+    }
+
+    // Map parsed claims to include the original claim text
+    const mappedClaims = claims.map((claim, idx) => {
+      const parsedClaim = parsed.claims[idx];
+      if (parsedClaim) {
+        return {
+          text: claim.text,
+          llmAssessment: validateAssessment(parsedClaim.assessment),
+          reasoning: parsedClaim.reasoning || 'No reasoning provided by LLM.',
+          evidenceGaps: parsedClaim.evidenceGaps || [],
+        };
+      }
+      // If LLM didn't return assessment for this claim, default to uncertain
+      return {
+        text: claim.text,
+        llmAssessment: 'uncertain' as const,
+        reasoning: 'LLM did not provide assessment for this claim.',
+        evidenceGaps: [],
+      };
+    });
+
+    return {
+      checked: true,
+      tier,
+      modelUsed: 'gpt-4o-mini',
+      claims: mappedClaims,
+      overallAssessment: validateOverallAssessment(parsed.overallAssessment),
+      latencyMs: Date.now() - startTime,
+    };
+  } catch (err) {
+    logger.error('[HallucinationPrevention] LLM hallucination check failed:', { error: err });
+    return {
+      checked: false,
+      tier,
+      modelUsed: 'none',
+      claims: claims.map(c => ({
+        text: c.text,
+        llmAssessment: 'uncertain' as const,
+        reasoning: 'LLM check failed — unable to assess this claim.',
+        evidenceGaps: [],
+      })),
+      overallAssessment: 'needs_review',
+      latencyMs: Date.now() - startTime,
+      error: err instanceof Error ? err.message : 'Unknown error',
+    };
+  }
+}
+
+// ── LLM Response Parsing ──────────────────────────────────────────────────
+
+interface ParsedLLMResponse {
+  claims: Array<{
+    text?: string;
+    assessment: string;
+    reasoning?: string;
+    evidenceGaps?: string[];
+  }>;
+  overallAssessment: string;
+}
+
+function parseLLMResponse(response: string): ParsedLLMResponse | null {
+  try {
+    // Try to extract JSON from the response (handle markdown code blocks)
+    let jsonStr = response.trim();
+
+    // Remove markdown code fences if present
+    const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (codeBlockMatch) {
+      jsonStr = codeBlockMatch[1].trim();
+    }
+
+    // Try to find JSON object boundaries
+    const firstBrace = jsonStr.indexOf('{');
+    const lastBrace = jsonStr.lastIndexOf('}');
+    if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+      jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+    }
+
+    const parsed = JSON.parse(jsonStr);
+
+    if (parsed.claims && Array.isArray(parsed.claims) && parsed.overallAssessment) {
+      return parsed as ParsedLLMResponse;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+function validateAssessment(
+  assessment: string
+): LLMHallucinationCheckResult['claims'][0]['llmAssessment'] {
+  const valid: LLMHallucinationCheckResult['claims'][0]['llmAssessment'][] = [
+    'verified', 'likely_correct', 'uncertain', 'likely_hallucinated', 'hallucinated',
+  ];
+  return valid.includes(assessment as any) ? (assessment as any) : 'uncertain';
+}
+
+function validateOverallAssessment(
+  assessment: string
+): LLMHallucinationCheckResult['overallAssessment'] {
+  const valid: LLMHallucinationCheckResult['overallAssessment'][] = [
+    'all_verified', 'mostly_reliable', 'needs_review', 'likely_contains_hallucinations',
+  ];
+  return valid.includes(assessment as any) ? (assessment as any) : 'needs_review';
+}
+
+/**
+ * Build a fallback LLM result using keyword-based analysis when the LLM is unavailable.
+ * This ensures the function always returns a useful result.
+ */
+function buildFallbackLLMResult(
+  claims: ExtractedClaim[],
+  evidenceContext: EvidenceContext,
+  tier: string,
+  startTime: number,
+  fallbackReason: string,
+): LLMHallucinationCheckResult {
+  const evidenceEntries = Object.entries(evidenceContext.evidenceMap);
+
+  const assessedClaims = claims.map(claim => {
+    const gaps: string[] = [];
+    let assessment: 'verified' | 'likely_correct' | 'uncertain' | 'likely_hallucinated' | 'hallucinated' = 'uncertain';
+
+    // If claim has a citation, check if evidence exists
+    if (claim.citationMarker) {
+      const evidence = evidenceContext.evidenceMap[claim.citationMarker];
+      if (evidence) {
+        assessment = evidence.confidence >= 0.7 ? 'likely_correct' : 'uncertain';
+      } else {
+        assessment = 'likely_hallucinated';
+        gaps.push(`Citation ${claim.citationMarker} references non-existent evidence`);
+      }
+    } else {
+      // Uncited claim — check if any evidence supports it via keyword overlap
+      const hasRelatedEvidence = evidenceEntries.some(([, ev]) => {
+        const claimTerms = claim.text.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+        return claimTerms.some(term => ev.text.toLowerCase().includes(term));
+      });
+
+      if (hasRelatedEvidence) {
+        assessment = claim.expressedConfidence === 'high' ? 'likely_correct' : 'uncertain';
+      } else if (evidenceEntries.length === 0) {
+        gaps.push('No evidence available for verification');
+      } else {
+        gaps.push('No related evidence found to support this claim');
+        assessment = 'uncertain';
+      }
+    }
+
+    return {
+      text: claim.text,
+      llmAssessment: assessment,
+      reasoning: `[Fallback: ${fallbackReason}] ${assessment === 'likely_correct' ? 'Keyword analysis suggests evidence alignment.' : assessment === 'likely_hallucinated' ? 'Keyword analysis suggests fabrication.' : 'Unable to verify via keyword analysis.'}`,
+      evidenceGaps: gaps,
+    };
+  });
+
+  // Determine overall assessment from claim assessments
+  const hallucinated = assessedClaims.filter(c =>
+    (c.llmAssessment as string) === 'hallucinated' || c.llmAssessment === 'likely_hallucinated'
+  ).length;
+  const uncertain = assessedClaims.filter(c => c.llmAssessment === 'uncertain').length;
+
+  let overallAssessment: LLMHallucinationCheckResult['overallAssessment'];
+  if (hallucinated >= 2) overallAssessment = 'likely_contains_hallucinations';
+  else if (hallucinated >= 1 || uncertain > claims.length / 2) overallAssessment = 'needs_review';
+  else if (uncertain > 0) overallAssessment = 'mostly_reliable';
+  else overallAssessment = 'all_verified';
+
+  return {
+    checked: true,
+    tier,
+    modelUsed: 'keyword_fallback',
+    claims: assessedClaims,
+    overallAssessment,
+    latencyMs: Date.now() - startTime,
+  };
 }

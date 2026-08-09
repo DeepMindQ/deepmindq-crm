@@ -27,6 +27,7 @@ import {
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction,
 } from '@/components/ui/alert-dialog'
 import { ScoreTriple, type ScoreItem, getActivityIcon, StatusDot, EmptyState } from '@/components/shared/design-system'
+import { ScreenBreadcrumb } from '@/components/shared/screen-breadcrumb'
 import {
   getHealthVariant, getStatusBorder, getOppStatusVariant, getCompanyStatusVariant,
   DEFAULT_INDUSTRIES, EMPLOYEE_SIZES, ROLE_BUCKETS,
@@ -1745,6 +1746,13 @@ export default function CompanyProfileScreen() {
 
   return (
     <div className="space-y-6">
+      <ScreenBreadcrumb
+        items={[
+          { label: 'Companies', href: '/dashboard' },
+          { label: data?.name || 'Company' },
+        ]}
+      />
+
       {/* ══════════════════════════════════════════════════════════
           HEADER — Back button, Company card, Score Gauge
           ══════════════════════════════════════════════════════════ */}

@@ -37,7 +37,7 @@ export async function GET() {
  * Query param: ?all=true to revoke ALL sessions (forces full logout).
  */
 export async function DELETE(request: NextRequest) {
-  const { errorResponse, session: user } = await checkApiAuth();
+  const { errorResponse, session: user } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   if (!user) return apiError('Authentication required', 401);
 

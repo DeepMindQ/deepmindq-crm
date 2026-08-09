@@ -242,7 +242,7 @@ describe('SECURITY GATE: CI Configuration (CI Gate 10)', () => {
 
   it('must have security-gate job', () => {
     expect(ci).toContain('security-gate:');
-    expect(ci).toContain('name: "Blocking — Security Gate"');
+    expect(ci).toContain('name: "Blocking -- Security Gate (Static)"');
   });
 
   it('security-gate must run before other jobs', () => {

@@ -30,6 +30,12 @@ const PUBLIC_ROUTE_PREFIXES = [
   '/api/ping',          // Liveness probe (called from monitoring, must be public)
   '/api/verify-email',  // Email verification link (called from email clients)
   '/api/verify-queue',  // Queue verification (internal processing)
+  '/api/brand',            // Public brand config endpoint
+  '/api/docs',             // Public API documentation
+  '/api/integrations/slack',   // Webhook endpoint (Slack events, verified via webhook secret)
+  '/api/integrations/zapier',  // Webhook endpoint (Zapier events, verified via webhook secret)
+  '/api/monitoring',       // Public monitoring/metrics endpoint
+  '/api/v1',               // Public API v1 proxy and index
 ];
 
 function isPublicRoute(routePath) {

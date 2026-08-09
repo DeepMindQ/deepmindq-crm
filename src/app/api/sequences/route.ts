@@ -56,7 +56,7 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -104,7 +104,7 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function PUT(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -139,7 +139,7 @@ try {
 
     const sequence = await db.emailSequence.update({
       where: { id },
-      data: seqUpdate,
+      data: seqUpdate as any,
     });
 
     return NextResponse.json({ success: true, sequence });
@@ -158,7 +158,7 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function DELETE(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {

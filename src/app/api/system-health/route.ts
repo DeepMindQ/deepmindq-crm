@@ -7,12 +7,14 @@
 import { db } from '@/lib/db';
 import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { logger } from '@/lib/logger';
-import { checkApiAuth } from '@/lib/api-auth';
+import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 
 export async function GET() {
-    // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+    // ── Authentication + Admin Guard ──
+  const { session, errorResponse } = await checkApiAuth();
   if (errorResponse) return errorResponse;
+  const adminCheck = requireAdminRole(session!);
+  if (adminCheck) return adminCheck;
 
 try {
     const now = Date.now();

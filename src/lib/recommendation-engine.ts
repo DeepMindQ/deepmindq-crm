@@ -64,6 +64,17 @@ import {
   buildMemoryContext,
   type MemoryRecallResult,
 } from '@/lib/ai-memory';
+import {
+  getCalibrationAdjustments,
+  type CalibrationAdjustment,
+} from '@/lib/feedback-learning-loop';
+import { getSignalValidationSummary } from '@/lib/signal-validation';
+import { inferSignalMeaning, type MeaningCategory } from '@/lib/research-engine/signal-meaning';
+import { ContinuousLearningLoop } from '@/lib/continuous-learning-loop';
+import { adjustConfidence as adjustDecisionConfidence } from '@/lib/decision-learning';
+import { transferLearningsToCompany, type CrossCompanyLearning } from '@/lib/cross-company-learning';
+import { computeBlendedConfidence, type BlendedConfidenceResult } from '@/lib/blended-confidence';
+import { getTenantWeights } from '@/lib/tenant-scoring-config';
 
 // ── Types ─────────────────────────────────────────────────────────────
 
@@ -74,7 +85,7 @@ export interface RecommendationReason {
   /** Human-readable reason statement */
   text: string;
   /** Category of the reason */
-  category: 'signal' | 'capability' | 'pattern' | 'timing' | 'contact' | 'similarity' | 'icp_fit';
+  category: 'signal' | 'capability' | 'pattern' | 'timing' | 'contact' | 'similarity' | 'icp_fit' | 'cross_company_learning';
   /** How strong this reason is (0-1) */
   strength: number;
   /** Source signal/opportunity/insight ID if available */
@@ -142,7 +153,10 @@ export interface AccountRecommendation {
     /** Suggested timeline */
     timeline: string;
     /** Who to engage */
+    /** @deprecated Use targetRoles instead. Kept for backward compatibility. */
     targetRole?: string;
+    /** Phase 1: Dynamic target roles based on company size and signals */
+    targetRoles?: string[];
     /** Conversation angle */
     conversationAngle?: string;
   };
@@ -168,6 +182,13 @@ export interface AccountRecommendation {
     whyNow: string;
   };
 
+  // ── Decision Audit (Phase 3.4) ──
+  /** SHA-256 hash of all input data used to produce this recommendation, for audit verification */
+  decisionAuditHash: string;
+
+  /** Data depth classification based on available intelligence dimensions (Phase 4.5.6) */
+  dataDepthIndicator: 'comprehensive' | 'moderate' | 'limited' | 'minimal';
+
   // ── Metadata ──
   /** When this recommendation was generated */
   generatedAt: string;
@@ -191,6 +212,10 @@ export interface RecommendationListOptions {
   activeSignalsOnly?: boolean;
   /** Sort by field */
   sortBy?: 'opportunityScore' | 'confidenceScore' | 'signalCount' | 'recentActivity';
+  /** Phase 1: Enable low-trust blocking. Default: true */
+  enableTrustBlocking?: boolean;
+  /** Phase 1: Enable dynamic target roles. Default: true */
+  enableDynamicTargetRoles?: boolean;
 }
 
 export interface RecommendationListResult {
@@ -222,6 +247,51 @@ const SCORE_WEIGHTS = {
   capabilityMatch: 0.10,   // Best capability match score
   engagementReadiness: 0.15, // Contact coverage + enrichment level
 } as const;
+
+/**
+ * Apply calibration adjustments from the feedback learning loop to a raw score.
+ *
+ * For each matching adjustment, the score is shifted by magnitude (as a fraction of 100).
+ * Company-specific adjustments take priority over reason-specific ones.
+ * Returns the calibrated score clamped to [0, 100].
+ */
+export function applyCalibrationToScore(
+  rawScore: number,
+  companyId: string,
+  adjustments: CalibrationAdjustment[],
+): { calibratedScore: number; appliedAdjustments: CalibrationAdjustment[] } {
+  if (adjustments.length === 0) {
+    return { calibratedScore: rawScore, appliedAdjustments: [] };
+  }
+
+  const applied: CalibrationAdjustment[] = [];
+  let totalShift = 0;
+
+  for (const adj of adjustments) {
+    // Company-specific adjustments apply directly
+    if (adj.pattern === `company:${companyId}`) {
+      const shift = adj.direction === 'up' ? adj.magnitude * 100 : -adj.magnitude * 100;
+      totalShift += shift;
+      applied.push(adj);
+    }
+    // Reason/signal-type/technology-detection adjustments also apply (dampened)
+    else if (
+      adj.pattern.startsWith('reason:') ||
+      adj.pattern === 'signal_detection_accuracy' ||
+      adj.pattern === 'technology_detection'
+    ) {
+      const shift = adj.direction === 'up' ? adj.magnitude * 100 : -adj.magnitude * 100;
+      // Reason-level adjustments are dampened (they're less specific)
+      totalShift += shift * 0.5;
+      applied.push(adj);
+    }
+  }
+
+  return {
+    calibratedScore: Math.max(0, Math.min(100, Math.round(rawScore + totalShift))),
+    appliedAdjustments: applied,
+  };
+}
 
 // ── Core Engine ─────────────────────────────────────────────────────────
 
@@ -360,6 +430,27 @@ export async function generateAllRecommendations(
     kgAvailable = stats.totalNodes > 0;
   } catch (_) { /* KG not seeded or unavailable */ }
 
+  // ── Step 3.5: Fetch calibration adjustments from feedback learning loop ──
+  // This is the circuit closure: feedback → calibration → score adjustment
+  // Fetch both system-wide adjustments and per-company adjustments
+  let calibrationAdjustments: CalibrationAdjustment[] = [];
+  try {
+    // System-wide adjustments (signal type accuracy, etc.)
+    calibrationAdjustments = await getCalibrationAdjustments();
+
+    // Per-company adjustments: fetch for each company and merge
+    for (const company of companies) {
+      const companyAdjs = await getCalibrationAdjustments(company.id);
+      calibrationAdjustments.push(...companyAdjs);
+    }
+
+    if (calibrationAdjustments.length > 0) {
+      logger.info(`[RecommendationEngine] Applied ${calibrationAdjustments.length} calibration adjustments from feedback loop`);
+    }
+  } catch (err) {
+    logger.warn(`[RecommendationEngine] Calibration fetch failed, using raw scores: ${err instanceof Error ? err.message : err}`);
+  }
+
   // ── Step 4: Generate per-company recommendations ──
   const recommendations: AccountRecommendation[] = [];
 
@@ -372,6 +463,8 @@ export async function generateAllRecommendations(
         capabilityMatches: capMap.get(company.id) || [],
         insights: insightMap.get(company.id) || [],
         kgAvailable,
+        calibrationAdjustments,
+        enableTrustBlocking: options.enableTrustBlocking,
       });
 
       if (rec.opportunityScore >= minScore) {
@@ -423,11 +516,41 @@ export async function generateAllRecommendations(
 }
 
 /**
+ * Compute data depth indicator based on available intelligence dimensions.
+ *
+ * Comprehensive: 4+ signal types available with good coverage
+ * Moderate: 3 signal types with reasonable coverage
+ * Limited: 2 signal types with sparse coverage
+ * Minimal: 1 or fewer signal types
+ *
+ * (Phase 4 — Item 5.6)
+ */
+function computeDataDepthIndicator(
+  signalCount: number,
+  opportunityCount: number,
+  capabilityMatchCount: number,
+  contactCount: number,
+): 'comprehensive' | 'moderate' | 'limited' | 'minimal' {
+  const dimensionScores = [
+    signalCount >= 5 ? 2 : signalCount >= 2 ? 1 : 0,
+    opportunityCount >= 3 ? 2 : opportunityCount >= 1 ? 1 : 0,
+    capabilityMatchCount >= 3 ? 2 : capabilityMatchCount >= 1 ? 1 : 0,
+    contactCount >= 5 ? 2 : contactCount >= 1 ? 1 : 0,
+  ];
+  const total = dimensionScores.reduce((sum, s) => sum + s, 0);
+  if (total >= 7) return 'comprehensive';
+  if (total >= 4) return 'moderate';
+  if (total >= 2) return 'limited';
+  return 'minimal';
+}
+
+/**
  * Generate recommendation for a SINGLE company.
  * This is the detailed view — used in Company Workspace.
  */
 export async function generateCompanyRecommendation(
-  companyId: string
+  companyId: string,
+  tenantId?: string,
 ): Promise<AccountRecommendation | null> {
   const company = await db.company.findUnique({
     where: { id: companyId },
@@ -498,7 +621,21 @@ export async function generateCompanyRecommendation(
     capabilityMatches,
     insights,
     kgAvailable,
+    tenantId,
   });
+}
+
+// ── Internal: Count open contradictions for a company ─────────────────
+
+async function getOpenConflictCount(companyId: string): Promise<number> {
+  try {
+    const count = await db.intelligenceConflict.count({
+      where: { companyId, status: 'open' },
+    });
+    return count;
+  } catch {
+    return 0; // Graceful degradation — table may not exist in early deployments
+  }
 }
 
 // ── Internal: Build a single company recommendation ─────────────────────
@@ -555,6 +692,11 @@ async function buildCompanyRecommendation(
       confidenceScore: number;
     }>;
     kgAvailable: boolean;
+    calibrationAdjustments?: CalibrationAdjustment[];
+    /** Tenant ID for tenant-specific weight overrides. */
+    tenantId?: string;
+    /** Phase 1 Item 4.6: Disable trust blocking. Default: true (blocking enabled). */
+    enableTrustBlocking?: boolean;
   }
 ): Promise<AccountRecommendation> {
   // ── Step 1: Build recommendation reasons ──
@@ -717,6 +859,70 @@ async function buildCompanyRecommendation(
     // Memory enrichment failed — non-blocking
   }
 
+  // ── Step 3b: Enrich with Reusable Learnings ──
+  try {
+    const reusableLearnings = await ContinuousLearningLoop.findReusableLearnings({
+      industry: company.industry || undefined,
+      companySize: company.sizeRange || undefined,
+      technology: undefined, // TODO: extract from signals or research card when available
+    });
+
+    if (reusableLearnings.length > 0) {
+      // Mark learnings as reused and boost recommendation confidence
+      const topInsights = reusableLearnings.slice(0, 3);
+      for (const learning of topInsights) {
+        ContinuousLearningLoop.markReused(learning.id).catch(() => {});
+      }
+
+      if (memoryPatterns) {
+        memoryPatterns.enterpriseContext += `\n\nReusable Learnings:\n${topInsights.map(l => `- ${l.insight} (source: ${l.source}, reused ${l.reuseCount}x)`).join('\n')}`;
+      } else {
+        memoryPatterns = {
+          relevantMemories: 0,
+          enterpriseContext: `Reusable Learnings:\n${topInsights.map(l => `- ${l.insight} (source: ${l.source}, reused ${l.reuseCount}x)`).join('\n')}`,
+        };
+      }
+    }
+  } catch (_) {
+    // Learning enrichment failed — non-blocking
+  }
+
+  // ── Step 3c: Cross-Company Learning Transfer (S4-2.3) ──
+  // Find learnings from similar companies via KG and transfer them.
+  try {
+    const crossCompanyResult = await transferLearningsToCompany(company.id, {
+      industry: company.industry || undefined,
+      companySize: company.sizeRange || undefined,
+      maxLearnings: 3,
+    });
+
+    if (crossCompanyResult.transferCount > 0) {
+      const crossInsights = crossCompanyResult.learnings.slice(0, 3);
+      const crossInsightText = crossInsights.map(l =>
+        `- [${l.sourceCompanyName}] ${l.insight} (confidence: ${l.transferConfidence})`
+      ).join('\n');
+
+      if (memoryPatterns) {
+        memoryPatterns.enterpriseContext += `\n\nCross-Company Learnings (${crossCompanyResult.similarCompaniesScanned} companies scanned):\n${crossInsightText}`;
+      } else {
+        memoryPatterns = {
+          relevantMemories: 0,
+          enterpriseContext: `Cross-Company Learnings (${crossCompanyResult.similarCompaniesScanned} companies scanned):\n${crossInsightText}`,
+        };
+      }
+
+      // Add a reason for cross-company learning boost
+      reasons.push({
+        text: `${crossCompanyResult.transferCount} learnings transferred from ${crossCompanyResult.similarCompaniesScanned} similar companies`,
+        category: 'cross_company_learning',
+        strength: Math.min(0.8, crossCompanyResult.transferCount * 0.25),
+        sourceType: 'CrossCompanyLearning',
+      });
+    }
+  } catch (_) {
+    // Cross-company learning failed — non-blocking
+  }
+
   // ── Step 4: Build risks ──
   const risks: RecommendationRisk[] = [];
 
@@ -786,6 +992,26 @@ async function buildCompanyRecommendation(
   }
 
   // ── Step 5: Compute composite recommendation score ──
+  // Load tenant-specific weights if available
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let activeWeights: any = { ...SCORE_WEIGHTS };
+  if (data.tenantId) {
+    try {
+      const tenantRecWeights = await getTenantWeights(data.tenantId, 'recommendation');
+      if (tenantRecWeights) {
+        activeWeights = {
+          accountScore: tenantRecWeights.accountScore ?? SCORE_WEIGHTS.accountScore,
+          opportunityScore: tenantRecWeights.opportunityScore ?? SCORE_WEIGHTS.opportunityScore,
+          signalStrength: tenantRecWeights.signalStrength ?? SCORE_WEIGHTS.signalStrength,
+          capabilityMatch: tenantRecWeights.capabilityMatch ?? SCORE_WEIGHTS.capabilityMatch,
+          engagementReadiness: tenantRecWeights.engagementReadiness ?? SCORE_WEIGHTS.engagementReadiness,
+        };
+      }
+    } catch {
+      // Non-blocking — use default weights
+    }
+  }
+
   const accountScoreVal = data.accountScore?.score ?? company.intelligenceScore ?? 0;
   const bestOppScore = bestOpp?.opportunityScore ?? 0;
   const signalStrength = data.highSignals.length > 0
@@ -796,21 +1022,76 @@ async function buildCompanyRecommendation(
     : 0;
   const engagementReadiness = Math.min(100, company._count.contacts * 20 + (company.lastEnrichedAt ? 30 : 0) + (company._count.evidence > 0 ? 20 : 0));
 
-  const opportunityScore = Math.round(
-    accountScoreVal * SCORE_WEIGHTS.accountScore +
-    bestOppScore * SCORE_WEIGHTS.opportunityScore +
-    signalStrength * SCORE_WEIGHTS.signalStrength +
-    bestCapScore * SCORE_WEIGHTS.capabilityMatch +
-    engagementReadiness * SCORE_WEIGHTS.engagementReadiness
+  // ── Phase 3.4: Compute decision audit hash BEFORE any calibration/adjustment ──
+  const generatedAt = new Date().toISOString();
+  const sortedSignalIds = data.highSignals.map(s => s.id).sort();
+  const sortedEvidenceIds: string[] = []; // evidence IDs from opportunities/capabilities
+  for (const opp of data.opportunities) sortedEvidenceIds.push(opp.id);
+  for (const cap of data.capabilityMatches) sortedEvidenceIds.push(cap.id);
+  sortedEvidenceIds.sort();
+
+  const rawOpportunityScore = Math.round(
+    accountScoreVal * activeWeights.accountScore +
+    bestOppScore * activeWeights.opportunityScore +
+    signalStrength * activeWeights.signalStrength +
+    bestCapScore * activeWeights.capabilityMatch +
+    engagementReadiness * activeWeights.engagementReadiness
   );
+
+  // ── Step 5.5: Apply calibration adjustments from feedback learning loop ──
+  // THIS IS THE CIRCUIT CLOSURE: feedback → stored → calibrated → score adjusted
+  const { calibratedScore, appliedAdjustments } = applyCalibrationToScore(
+    rawOpportunityScore,
+    company.id,
+    data.calibrationAdjustments || [],
+  );
+
+  // Add calibration as a visible reason so users can see why scores shifted
+  for (const adj of appliedAdjustments) {
+    reasons.push({
+      text: adj.reason,
+      category: 'pattern',
+      strength: adj.magnitude,
+      sourceId: `calibration:${adj.pattern}`,
+    });
+  }
+
+  const opportunityScore = calibratedScore;
+
+  // ── Step 5b: Multi-source confidence blending (S4-2.4) ──
+  // Blends: base score, calibration delta, decision-learning effectiveness,
+  // KG evidence chain confidence, memory match quality, and evidence quality.
+  let decisionAdjustedScore = opportunityScore;
+  let blendedConfidenceBreakdown: BlendedConfidenceResult | null = null;
+  try {
+    if (data.opportunities.length > 0) {
+      const agentType = data.opportunities[0].recommendedCapability || 'recommendation';
+      const calibrationDelta = opportunityScore - rawOpportunityScore;
+
+      blendedConfidenceBreakdown = await computeBlendedConfidence({
+        baseScore: opportunityScore,
+        calibrationDelta,
+        agentType,
+        companyId: company.id,
+        kgConfidence: graphInsights && graphInsights.similarCompanies > 0
+          ? Math.min(95, 50 + graphInsights.similarCompanies * 10) : undefined,
+        memoryConfidence: memoryPatterns && memoryPatterns.relevantMemories > 0
+          ? Math.min(90, 50 + memoryPatterns.relevantMemories * 8) : undefined,
+        evidenceQuality: company._count.evidence > 0
+          ? Math.min(90, 50 + company._count.evidence * 5) : undefined,
+      });
+
+      decisionAdjustedScore = blendedConfidenceBreakdown.blendedScore;
+    }
+  } catch (_) { /* non-blocking: blended confidence unavailable, fall back to base */ }
 
   // ── Step 6: Determine priority ──
   let priority: RecommendationPriority;
-  if (opportunityScore >= 80) {
+  if (decisionAdjustedScore >= 80) {
     priority = 'critical';
-  } else if (opportunityScore >= 60) {
+  } else if (decisionAdjustedScore >= 60) {
     priority = 'high';
-  } else if (opportunityScore >= 35) {
+  } else if (decisionAdjustedScore >= 35) {
     priority = 'medium';
   } else {
     priority = 'low';
@@ -851,7 +1132,7 @@ async function buildCompanyRecommendation(
       freshnessScore: company.lastEnrichedAt ? Math.max(0, 100 - daysSinceEnrichment * 2) : 0,
       crossValidatedFacts: company._count.evidence,
       totalFacts: company._count.signals + company._count.evidence,
-      contradictions: 0,
+      contradictions: await getOpenConflictCount(company.id),
       evidenceCount: company._count.evidence,
       evidenceCoverage: company._count.signals > 0
         ? Math.min(1.0, company._count.evidence / 5)
@@ -881,7 +1162,14 @@ async function buildCompanyRecommendation(
 
   const confidenceScore = confidenceResult?.score ?? 50;
   const confidenceGrade = confidenceResult?.grade ?? 'C';
-  const enterpriseReady = confidenceResult?.enterpriseReady ?? false;
+  let enterpriseReady = confidenceResult?.enterpriseReady ?? false;
+  const confidenceInConfidence = confidenceResult?.confidenceInConfidence ?? 50;
+
+  // Phase 1 Item 4.6: Block enterprise-ready on low trust (confidence-in-confidence < 50)
+  // Applied by default; set enableTrustBlocking: false to skip.
+  if (data.enableTrustBlocking !== false && enterpriseReady && confidenceInConfidence < 50) {
+    enterpriseReady = false;
+  }
 
   // ── Step 8: Build recommended action ──
   const recommendedAction = buildRecommendedAction({
@@ -937,7 +1225,20 @@ async function buildCompanyRecommendation(
       whyNow: bestOpp.whyNow || '',
     } : undefined,
 
-    generatedAt: new Date().toISOString(),
+    generatedAt,
+    decisionAuditHash: await computeDecisionAuditHash({
+      companyId: company.id,
+      signals: sortedSignalIds,
+      evidence: sortedEvidenceIds,
+      scores: { opportunityScore, confidenceScore, signalStrength, capabilityMatch: bestCapScore },
+      timestamp: generatedAt,
+    }),
+    dataDepthIndicator: computeDataDepthIndicator(
+      company._count.signals,
+      data.opportunities.length,
+      data.capabilityMatches.length,
+      company._count.contacts,
+    ),
     confidenceFactors: confidenceResult?.factors.map(f => ({
       dimension: f.dimension,
       score: f.score,
@@ -945,6 +1246,66 @@ async function buildCompanyRecommendation(
       explanation: f.explanation,
     })),
   };
+}
+
+// ── Phase 3.4: Decision Audit Hash ───────────────────────────────────────────
+
+interface AuditHashInput {
+  companyId: string;
+  signals: string[];
+  evidence: string[];
+  scores: { opportunityScore: number; confidenceScore: number; signalStrength: number; capabilityMatch: number };
+  timestamp: string;
+}
+
+/**
+ * Compute SHA-256 hash of all input data used for a recommendation.
+ * This provides tamper-evident audit verification of decision inputs.
+ */
+async function computeDecisionAuditHash(input: AuditHashInput): Promise<string> {
+  const auditInput = JSON.stringify({
+    companyId: input.companyId,
+    signals: input.signals,
+    evidence: input.evidence,
+    scores: input.scores,
+    timestamp: input.timestamp,
+  });
+  const hashBuffer = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(auditInput)
+  );
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+}
+
+/**
+ * Recompute the decision audit hash for an existing recommendation.
+ * Used for verification: recompute and compare to stored hash.
+ */
+export async function recomputeAuditHash(rec: AccountRecommendation): Promise<string> {
+  // Reconstruct the audit input from the recommendation's stored data
+  const signalIds = rec.reasons
+    .filter(r => r.sourceId && r.sourceType === 'CompanySignal')
+    .map(r => r.sourceId!)
+    .sort();
+
+  const evidenceIds = rec.reasons
+    .filter(r => r.sourceId && r.sourceType !== 'CompanySignal' && !r.sourceId.startsWith('calibration:'))
+    .map(r => r.sourceId!)
+    .sort();
+
+  return computeDecisionAuditHash({
+    companyId: rec.companyId,
+    signals: signalIds,
+    evidence: evidenceIds,
+    scores: {
+      opportunityScore: rec.opportunityScore,
+      confidenceScore: rec.confidenceScore,
+      signalStrength: 0, // Cannot reconstruct exactly from stored rec
+      capabilityMatch: 0,
+    },
+    timestamp: rec.generatedAt,
+  });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
@@ -957,13 +1318,37 @@ function buildRecommendedAction(params: {
   contactCount: number;
   capabilityMatches: Array<{ capability: { title: string; category: string | null } | null; matchScore: number }>;
   insights: Array<{ insightType: string; summary: string }>;
+  /** Phase 1: Employee count for dynamic target roles */
+  employeeCount?: number | null;
+  /** Phase 1: Company type for dynamic target roles */
+  companyType?: string | null;
+  /** Phase 1: Known contacts for role resolution */
+  knownContacts?: Array<{ role?: string | null; level?: string | null }>;
+  /** Phase 1: Signals for role resolution */
+  signals?: Array<{ signalType: string }>;
 }): AccountRecommendation['recommendedAction'] {
+  // Phase 1: Resolve dynamic target roles based on company data
+  let dynamicTargetRoles: string[] | undefined;
+  try {
+    const { resolveTargetRoles } = require('@/lib/company-size-profiles');
+    dynamicTargetRoles = resolveTargetRoles({
+      employeeCount: params.employeeCount,
+      companyType: params.companyType,
+      knownContacts: params.knownContacts,
+      signals: params.signals,
+    });
+  } catch {
+    // Fallback to static logic below
+  }
+
   // Critical: urgent action needed
   if (params.priority === 'critical') {
+    const primaryRole = dynamicTargetRoles?.[0] || 'Decision maker';
     return {
       text: `Schedule executive discovery call with ${params.companyName} — ${params.highSignals[0]?.title || 'active opportunity detected'}`,
       timeline: 'Within 7 days',
-      targetRole: 'CTO or VP Engineering',
+      targetRole: primaryRole, // Backward compat
+      targetRoles: dynamicTargetRoles,
       conversationAngle: params.bestOpp?.businessProblem
         ? `Address their ${params.bestOpp.businessProblem.split(' ').slice(0, 6).join(' ')}...`
         : 'Focus on recent business changes and strategic priorities',
@@ -973,10 +1358,12 @@ function buildRecommendedAction(params: {
   // High: engage proactively
   if (params.priority === 'high') {
     if (params.bestOpp) {
+      const primaryRole = dynamicTargetRoles?.[0] || 'Decision maker';
       return {
         text: `Initiate technical discovery — ${params.bestOpp.opportunityTitle}`,
         timeline: 'Within 14 days',
-        targetRole: params.contactCount > 0 ? undefined : 'Decision maker',
+        targetRole: params.contactCount > 0 ? undefined : primaryRole,
+        targetRoles: dynamicTargetRoles,
         conversationAngle: params.bestOpp.whyNow
           ? params.bestOpp.whyNow.split('.').slice(0, 2).join('.') + '.'
           : 'Leverage capability alignment and recent signals',
@@ -985,6 +1372,8 @@ function buildRecommendedAction(params: {
     return {
       text: `Engage ${params.companyName} — strong signal activity and capability fit`,
       timeline: 'Within 14 days',
+      targetRole: dynamicTargetRoles?.[0] || 'Decision maker',
+      targetRoles: dynamicTargetRoles,
       conversationAngle: params.capabilityMatches[0]
         ? `Explore ${params.capabilityMatches[0].capability?.title || 'capability'} alignment`
         : 'Multi-threaded outreach based on signal intelligence',
@@ -996,6 +1385,8 @@ function buildRecommendedAction(params: {
     return {
       text: 'Add to nurture sequence — monitor for signal escalation',
       timeline: 'Within 30 days',
+      targetRole: dynamicTargetRoles?.[0],
+      targetRoles: dynamicTargetRoles,
       conversationAngle: 'Educational content about relevant capabilities and industry trends',
     };
   }
@@ -1004,6 +1395,8 @@ function buildRecommendedAction(params: {
   return {
     text: 'Monitor — insufficient signals for active outreach',
     timeline: 'Review quarterly',
+    targetRole: dynamicTargetRoles?.[0],
+    targetRoles: dynamicTargetRoles,
     conversationAngle: undefined,
   };
 }

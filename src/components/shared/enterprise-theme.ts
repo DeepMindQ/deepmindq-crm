@@ -1,9 +1,21 @@
+// DEPRECATED: Use @/components/intelligence-os/design-tokens instead.
+// This file is kept for backward compatibility and re-exports from the
+// canonical design-tokens source where possible. New code should import
+// from @/components/design-system (unified) or
+// @/components/intelligence-os/design-tokens (tokens only).
+
 /* ═══════════════════════════════════════════════════
    Enterprise Design System — DeepMindQ Enterprise Intelligence OS
    
-   Single source of truth for ALL screen styling.
-   Intelligence Blue + Enterprise Dark design language.
+   Legacy file. The canonical source of truth is now:
+   @/components/intelligence-os/design-tokens.ts
+   
+   Unique exports (gold, glassPanel, cls, badgeColors, etc.) remain
+   here until migrated. Structural tokens are re-exported from design-tokens.
    ═══════════════════════════════════════════════════ */
+
+// ── Re-export canonical tokens from design-tokens ──
+export { tokens, getConfidenceTier, getTrustTier, getPriorityTier, radius, typography, elevation } from '@/components/intelligence-os/design-tokens';
 
 /* ── Color Tokens ── */
 export const gold = 'var(--color-gold-dim, #D4AF37)';

@@ -183,7 +183,7 @@ async function findAffectedAccounts(competitorName: string, eventSummary: string
   let results = filtered.map(c => ({ id: c.id, rawName: c.rawName }))
   if (results.length === 0) {
     const signalsWithCompetitor = await db.companySignal.findMany({
-      where: { title: { contains: competitorName, mode: 'insensitive' } },
+      where: { title: { contains: competitorName } },
       distinct: ['companyId'],
       select: { companyId: true },
       take: 10,

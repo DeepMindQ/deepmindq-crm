@@ -1,8 +1,10 @@
 /**
  * Vitest Configuration — DATABASE
- * M3 Stabilization — threads pool, single thread
+ * M5 Governance Hardening — forks pool, standardized timeouts
  *
- * Already using threads. Kept at single worker for stability with real DB.
+ * Pool: forks — eliminates Vitest 4.x + Node 22.x worker teardown crash.
+ * Single worker for stability with real DB connections.
+ * Standardized: 30s test (DB ops), 15s hook, 10s teardown, 1 worker.
  */
 import { defineConfig } from 'vitest/config'
 import path from 'path'
@@ -19,11 +21,11 @@ export default defineConfig({
       'tests/legacy/**',
     ],
     globals: true,
-    pool: 'threads',
-    maxThreads: 1,
-    minThreads: 1,
+    pool: 'forks',
+    maxWorkers: 1,
     testTimeout: 30000,
     hookTimeout: 15000,
+    teardownTimeout: 10000,
   },
   resolve: {
     alias: {

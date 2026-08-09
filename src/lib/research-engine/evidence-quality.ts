@@ -13,6 +13,7 @@
  * Returns a 0-100 overall score plus per-dimension breakdown.
  */
 import { db } from '@/lib/db';
+import { getSourceReliability } from '@/lib/source-reliability';
 
 export interface EvidenceQualityScore {
   overall: number;          // 0-100
@@ -80,12 +81,28 @@ export async function computeEvidenceQuality(companyId: string): Promise<Evidenc
   // 0 days = 100, 30 days = 80, 90 days = 50, 180 days = 30, 365+ days = 10
   const freshness = avgRecencyDays === 999 ? 0 : Math.round(Math.max(0, 100 - (avgRecencyDays / 365) * 90));
 
-  // 4. Source Quality: Premium ratio
+  // 4. Source Quality: Premium ratio, adjusted by per-domain reliability
   const premiumCount = activeEvidence.filter(e => e.sourceQualityTier === 'premium').length;
   const lowCount = activeEvidence.filter(e => e.sourceQualityTier === 'low').length;
   const standardCount = activeEvidence.length - premiumCount - lowCount;
+
+  // Factor in per-domain reliability from EvidenceSourceReliability feedback
+  let reliabilityFactor = 1.0;
+  try {
+    const domains = activeEvidence
+      .map(e => { try { return new URL(e.sourceUrl).hostname.replace(/^www\./, ''); } catch { return null; } })
+      .filter((d): d is string => !!d);
+    const uniqueDomains = [...new Set(domains)];
+    if (uniqueDomains.length > 0) {
+      const reliabilities = await Promise.all(uniqueDomains.map(d => getSourceReliability(d)));
+      const avgReliability = reliabilities.reduce((a, b) => a + b, 0) / reliabilities.length;
+      // Scale: avgReliability 0.5 (no feedback) = factor 1.0; 1.0 (all correct) = factor 1.2; 0.0 = factor 0.6
+      reliabilityFactor = 0.6 + avgReliability * 0.6;
+    }
+  } catch { /* ignore reliability lookup failure */ }
+
   const sourceQuality = activeEvidence.length > 0
-    ? Math.round(((premiumCount * 1.0 + standardCount * 0.7 + lowCount * 0.4) / activeEvidence.length) * 100)
+    ? Math.round(((premiumCount * 1.0 + standardCount * 0.7 + lowCount * 0.4) / activeEvidence.length) * 100 * reliabilityFactor)
     : 0;
 
   // 5. Corroboration: How many unique domains provide evidence

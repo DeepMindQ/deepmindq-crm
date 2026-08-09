@@ -34,7 +34,7 @@ function parseTagsField(tagsStr: string | null | undefined): string[] {
    ═══════════════════════════════════════════════════ */
 export async function GET(request: Request) {
     // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
@@ -76,7 +76,7 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function POST(request: Request) {
     // ── Authentication Guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminError = requireAdminRole(session!);
   if (adminError) return adminError;
@@ -151,7 +151,7 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function PUT(request: Request) {
     // ── Authentication Guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminError = requireAdminRole(session!);
   if (adminError) return adminError;
@@ -209,7 +209,7 @@ try {
 
     const capability = await db.capabilityAsset.update({
       where: { id },
-      data: updateData,
+      data: updateData as any,
     });
 
     // Re-embed on version-worthy changes
@@ -238,7 +238,7 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function PATCH(request: Request) {
     // ── Authentication Guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminError = requireAdminRole(session!);
   if (adminError) return adminError;
@@ -293,7 +293,7 @@ try {
    ═══════════════════════════════════════════════════ */
 export async function DELETE(request: Request) {
     // ── Authentication Guard ──
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminError = requireAdminRole(session!);
   if (adminError) return adminError;

@@ -32,8 +32,8 @@ const refreshPostBodySchema = z.object({
 export async function GET(req: NextRequest) {
   let correlationId;
   let responseHeaders;
-  // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  // ── Authentication + RBAC Guard ──
+  const { errorResponse } = await checkApiAuth(req);
   if (errorResponse) return errorResponse;
 
   try {
@@ -77,8 +77,8 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   let correlationId;
   let responseHeaders;
-  // ── Authentication Guard ──
-  const { errorResponse } = await checkApiAuth();
+  // ── Authentication + RBAC Guard ──
+  const { errorResponse } = await checkApiAuth(req);
   if (errorResponse) return errorResponse;
 
   try {

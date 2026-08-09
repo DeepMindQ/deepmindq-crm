@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client";
 import { recordDbQuery } from '@/lib/database-performance-monitor';
+import { createEncryptionExtension } from '@/lib/prisma-encryption-middleware';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Prisma DB client — PostgreSQL (Neon)
@@ -10,6 +11,7 @@ import { recordDbQuery } from '@/lib/database-performance-monitor';
    - Diagnostics metrics export for monitoring
    - Database performance monitor with p50/p95/p99 tracking
    - Global singleton pattern preserved for hot-reload safety
+   - PII encryption/decryption via client extension
    ═══════════════════════════════════════════════════════════════════════════ */
 
 // ─── Connection Pool Configuration ────────────────────────────────────────
@@ -71,10 +73,10 @@ export const PrismaDiagnostics = {
 // ─── Client Factory ──────────────────────────────────────────────────────
 
 const globalForPrisma = globalThis as unknown as {
-  prisma: PrismaClient | undefined;
+  prisma: ReturnType<typeof createExtendedClient> | undefined;
 };
 
-function createPrismaClient(): PrismaClient {
+function createExtendedClient() {
   const isDev = process.env.NODE_ENV === 'development';
   const connectionLimit = parseConnectionLimit();
 
@@ -115,7 +117,8 @@ function createPrismaClient(): PrismaClient {
     }
   });
 
-  return client;
+  // Apply PII encryption/decryption extension
+  return client.$extends(createEncryptionExtension());
 }
 
 /**
@@ -138,7 +141,7 @@ function buildDatasourceUrl(connectionLimit: number): string {
   }
 }
 
-const prisma = createPrismaClient();
+const prisma = createExtendedClient();
 
 // Prevent hot-reload from creating multiple instances in dev
 if (!globalForPrisma.prisma) globalForPrisma.prisma = prisma;

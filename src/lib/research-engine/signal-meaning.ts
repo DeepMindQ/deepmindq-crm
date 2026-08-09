@@ -92,7 +92,7 @@ const RULES: InferenceRule[] = [
 
   // ── Tech Dissatisfaction ──
   {
-    signalTypes: ['technology'],
+    signalTypes: ['technology', 'tech_change'],
     severity: ['high', 'critical'],
     meaning: 'tech_dissatisfaction',
     confidence: 0.85,
@@ -100,7 +100,7 @@ const RULES: InferenceRule[] = [
     action: 'Position capabilities around migration/modernization. Reference similar transformation case studies.',
   },
   {
-    signalTypes: ['technology'],
+    signalTypes: ['technology', 'tech_change'],
     meaning: 'tech_dissatisfaction',
     confidence: 0.6,
     implication: 'Technology change signals potential dissatisfaction or evolution needs.',

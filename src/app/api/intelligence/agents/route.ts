@@ -57,7 +57,7 @@ import {
 // ─── GET: Views ──────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   const view = request.nextUrl.searchParams.get('view') ?? '';
@@ -260,7 +260,7 @@ export async function GET(request: NextRequest) {
 // ─── POST: Actions ───────────────────────────────────────────────────────
 
 export async function POST(request: NextRequest) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   const action = request.nextUrl.searchParams.get('action') ?? '';

@@ -7,7 +7,7 @@ import { apiSuccess, apiError } from '@/lib/apiHelpers';
 // GET /api/audit — returns audit entries (admin-only)
 export async function GET(request: NextRequest) {
   // Auth gate: admin-only for audit data
-  const { session, errorResponse } = await checkApiAuth();
+  const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
   const adminCheck = requireAdminRole(session!);
   if (adminCheck) return adminCheck;

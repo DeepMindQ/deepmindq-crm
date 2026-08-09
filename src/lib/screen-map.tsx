@@ -52,9 +52,11 @@ const KnowledgeWorkspaceScreen = lazy(() => import('@/components/intelligence-os
 const CapabilityWorkspaceScreen = lazy(() => import('@/components/intelligence-os/capability-workspace').then(m => ({ default: m.CapabilityWorkspace })));
 const IntelligenceBriefingScreen = lazy(() => import('@/components/intelligence-os/intelligence-briefing').then(m => ({ default: m.IntelligenceBriefing })));
 const IntelligenceSearchScreen = lazy(() => import('@/components/intelligence-os/intelligence-search').then(m => ({ default: m.IntelligenceSearch })));
+const AIAdvisorScreen = lazy(() => import('@/components/screens/ai-advisor-screen'));
 
 /* ── Primary nav screens (legacy, accessible) ── */
-const DashboardScreen = lazy(() => import('@/components/screens/dashboard-screen'));
+// MS7: Intelligence Hub replaces the legacy dashboard as the default experience
+const DashboardScreen = lazy(() => import('@/components/screens/intelligence-hub-screen'));
 const AICommandCenterScreen = lazy(() => import('@/components/screens/ai-command-center-screen'));
 const RevenueIntelligenceScreen = lazy(() => import('@/components/screens/revenue-intelligence-screen'));
 const SignalIntelligenceScreen = lazy(() => import('@/components/screens/signal-intelligence-screen'));
@@ -73,6 +75,7 @@ const AnalyticsScreen = lazy(() => import('@/components/screens/analytics-screen
 const KnowledgeLibraryScreen = lazy(() => import('@/components/screens/knowledge-library-screen'));
 const AIHealthScreen = lazy(() => import('@/components/screens/ai-health-screen'));
 const SettingsScreen = lazy(() => import('@/components/screens/settings-screen'));
+const UsersScreen = lazy(() => import('@/components/screens/users-screen'));
 const AuditScreen = lazy(() => import('@/components/screens/audit-screen'));
 const AIUsageDashboardScreen = lazy(() => import('@/components/screens/ai-usage-dashboard-screen'));
 const ResearchAgentScreen = lazy(() => import('@/components/screens/research-agent-screen'));
@@ -124,6 +127,18 @@ const AccountRankingScreen = lazy(() => import('@/components/screens/account-ran
 const OpportunityWorkspaceScreen = lazy(() => import('@/components/screens/opportunity-workspace-screen'));
 const PursuitWorkspaceScreen = lazy(() => import('@/components/screens/pursuit-workspace-screen'));
 const ICPSettingsScreen = lazy(() => import('@/components/screens/icp-settings-screen'));
+const RecommendationQueueScreen = lazy(() => import('@/components/screens/recommendation-queue-screen'));
+const TrustDashboardScreen = lazy(() => import('@/components/screens/trust-dashboard-screen'));
+const CompanyTrustDetailScreen = lazy(() => import('@/components/screens/company-trust-detail-screen'));
+const ScoringConfigScreen = lazy(() => import('@/components/screens/scoring-config-screen'));
+const MainIntelligenceDashboardScreen = lazy(() => import('@/components/screens/main-intelligence-dashboard').then(m => ({ default: m.MainIntelligenceDashboard })));
+const CompanyWorkspaceV2Screen = lazy(() => import('@/components/screens/company-workspace-v2').then(m => ({ default: m.CompanyWorkspaceV2 })));
+const RecommendationQueueV2Screen = lazy(() => import('@/components/screens/recommendation-queue-v2').then(m => ({ default: m.RecommendationQueueV2 })));
+const ScoringConfigWizardScreen = lazy(() => import('@/components/screens/scoring-config-wizard').then(m => ({ default: m.ScoringConfigWizard })));
+const BatchOperationsPanelScreen = lazy(() => import('@/components/screens/batch-operations-panel').then(m => ({ default: m.BatchOperationsPanel })));
+const UserOnboardingWizardScreen = lazy(() => import('@/components/onboarding/user-onboarding-wizard').then(m => ({ default: m.UserOnboardingWizard })));
+const AdminSettingsPanelScreen = lazy(() => import('@/components/screens/admin-settings-panel').then(m => ({ default: m.AdminSettingsPanel })));
+
 
 /* ── Bridge wrappers ── */
 
@@ -148,6 +163,7 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'capability-workspace': withScreenErrorBoundary(CapabilityWorkspaceScreen, 'capability-workspace'),
   'intelligence-briefing': withScreenErrorBoundary(IntelligenceBriefingScreen, 'intelligence-briefing'),
   'intelligence-search': withScreenErrorBoundary(IntelligenceSearchScreen, 'intelligence-search'),
+  'ai-advisor': withScreenErrorBoundary(AIAdvisorScreen, 'ai-advisor'),
 
   // ── INTELLIGENCE nav ──
   accounts: withScreenErrorBoundary(CompaniesScreen, 'accounts'),
@@ -156,12 +172,16 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'data-import': withScreenErrorBoundary(DataImportScreen, 'data-import'),
   analytics: withScreenErrorBoundary(AnalyticsScreen, 'analytics'),
   settings: withScreenErrorBoundary(SettingsScreen, 'settings'),
+  users: withScreenErrorBoundary(UsersScreen, 'users'),
   'data-health': withScreenErrorBoundary(DataHealthScreen, 'data-health'),
   'ai-health': withScreenErrorBoundary(AIHealthScreen, 'ai-health'),
   audit: withScreenErrorBoundary(AuditScreen, 'audit'),
   'ai-usage': withScreenErrorBoundary(AIUsageDashboardScreen, 'ai-usage'),
   'research-agent': withScreenErrorBoundary(ResearchAgentScreen, 'research-agent'),
   'audit-logs': withScreenErrorBoundary(AuditLogsScreen, 'audit-logs'),
+  'trust-dashboard': withScreenErrorBoundary(TrustDashboardScreen, 'trust-dashboard'),
+  'company-trust-detail': withScreenErrorBoundary(CompanyTrustDetailScreen, 'company-trust-detail'),
+  'scoring-config': withScreenErrorBoundary(ScoringConfigScreen, 'scoring-config'),
 
   // ── Detail views ──
   // DEPRECATED: company-detail now routes to Intelligence OS CompanyWorkspace
@@ -206,6 +226,7 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'revenue-intelligence-brief': withScreenErrorBoundary(RevenueIntelligenceBriefScreen, 'revenue-intelligence-brief'),
   'revenue-intelligence-opportunities': withScreenErrorBoundary(RevenueIntelligenceOpportunitiesScreen, 'revenue-intelligence-opportunities'),
   'revenue-intelligence-recommendations': withScreenErrorBoundary(RevenueIntelligenceRecommendationsScreen, 'revenue-intelligence-recommendations'),
+  'recommendation-queue': withScreenErrorBoundary(RecommendationQueueScreen, 'recommendation-queue'),
   'intelligence-reasoning': withScreenErrorBoundary(IntelligenceReasoningScreen, 'intelligence-reasoning'),
   'intelligence-report': withScreenErrorBoundary(IntelligenceReportScreen, 'intelligence-report'),
   'account-ranking': withScreenErrorBoundary(AccountRankingScreen, 'account-ranking'),
@@ -228,4 +249,13 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'ai-strategy': withScreenErrorBoundary(AIStrategyScreen, 'ai-strategy'),
   duplicates: withScreenErrorBoundary(DuplicatesScreen, 'duplicates'),
   builder: withScreenErrorBoundary(IntelligenceReportScreen, 'builder'),
+
+  // ── S11 UX Screens (new) ──
+  'main-dashboard': withScreenErrorBoundary(MainIntelligenceDashboardScreen, 'main-dashboard'),
+  'company-workspace-v2': withScreenErrorBoundary(CompanyWorkspaceV2Screen, 'company-workspace-v2'),
+  'recommendation-queue-v2': withScreenErrorBoundary(RecommendationQueueV2Screen, 'recommendation-queue-v2'),
+  'scoring-wizard': withScreenErrorBoundary(ScoringConfigWizardScreen, 'scoring-wizard'),
+  'batch-operations': withScreenErrorBoundary(BatchOperationsPanelScreen, 'batch-operations'),
+  'onboarding-wizard': withScreenErrorBoundary(UserOnboardingWizardScreen, 'onboarding-wizard'),
+  'admin-settings': withScreenErrorBoundary(AdminSettingsPanelScreen, 'admin-settings'),
 };

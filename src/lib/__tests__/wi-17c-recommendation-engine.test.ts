@@ -732,6 +732,8 @@ describe('WI-17C: AI Recommendation Engine', () => {
       expect(result!.companyName).toBe('Acme Corporation');
       expect(result!.topOpportunity).toBeDefined();
       expect(result!.topOpportunity!.title).toBe('Cloud Migration Opportunity');
+      expect(result!.dataDepthIndicator).toBeDefined();
+      expect(['comprehensive', 'moderate', 'limited', 'minimal']).toContain(result!.dataDepthIndicator);
     });
   });
 
@@ -781,6 +783,99 @@ describe('WI-17C: AI Recommendation Engine', () => {
         .toBe(result.recommendations.length);
       expect(result.generatedAt).toBeDefined();
       expect(result.latencyMs).toBeGreaterThanOrEqual(0);
+
+      // Every recommendation should have a dataDepthIndicator
+      for (const rec of result.recommendations) {
+        expect(rec.dataDepthIndicator).toBeDefined();
+        expect(['comprehensive', 'moderate', 'limited', 'minimal']).toContain(rec.dataDepthIndicator);
+      }
+    });
+  });
+
+  describe('Data Depth Indicator (Phase 4.5.6)', () => {
+    it('should classify comprehensive depth when all dimensions are rich', async () => {
+      const richCompany = makeCompany({
+        _count: { contacts: 10, signals: 8, evidence: 15, opportunityRecommendations: 5, strategicInsights: 3 },
+      });
+      mockDbCompanyFindUnique.mockResolvedValue(richCompany);
+      mockDbAccountScoreFindFirst.mockResolvedValue(makeAccountScore());
+      mockDbOpportunityFindMany.mockResolvedValue([
+        makeOpportunity({ id: 'opp-1' }),
+        makeOpportunity({ id: 'opp-2' }),
+        makeOpportunity({ id: 'opp-3' }),
+      ]);
+      mockDbSignalFindMany.mockResolvedValue([
+        makeSignal({ id: 'sig-1' }), makeSignal({ id: 'sig-2' }),
+        makeSignal({ id: 'sig-3' }), makeSignal({ id: 'sig-4' }),
+        makeSignal({ id: 'sig-5' }),
+      ]);
+      mockDbCapMatchFindMany.mockResolvedValue([
+        makeCapabilityMatch({ id: 'cap-1' }),
+        makeCapabilityMatch({ id: 'cap-2' }),
+        makeCapabilityMatch({ id: 'cap-3' }),
+      ]);
+      mockDbInsightFindMany.mockResolvedValue([]);
+
+      const result = await generateCompanyRecommendation('comp-1');
+      expect(result).toBeDefined();
+      expect(result!.dataDepthIndicator).toBe('comprehensive');
+    });
+
+    it('should classify minimal depth when data is sparse', async () => {
+      const sparseCompany = makeCompany({
+        _count: { contacts: 0, signals: 0, evidence: 0, opportunityRecommendations: 0, strategicInsights: 0 },
+        lastEnrichedAt: null,
+      });
+      mockDbCompanyFindUnique.mockResolvedValue(sparseCompany);
+      mockDbAccountScoreFindFirst.mockResolvedValue(null);
+      mockDbOpportunityFindMany.mockResolvedValue([]);
+      mockDbSignalFindMany.mockResolvedValue([]);
+      mockDbCapMatchFindMany.mockResolvedValue([]);
+      mockDbInsightFindMany.mockResolvedValue([]);
+
+      const result = await generateCompanyRecommendation('comp-1');
+      expect(result).toBeDefined();
+      expect(result!.dataDepthIndicator).toBe('minimal');
+    });
+
+    it('should handle moderate and limited depth levels', async () => {
+      // Moderate: 3 signal types with reasonable coverage
+      // signals=3 (score 1), opportunities=2 (score 1), capMatches=1 (score 1), contacts=3 (score 1) → total=4 → moderate
+      const moderateCompany = makeCompany({
+        _count: { contacts: 3, signals: 3, evidence: 2, opportunityRecommendations: 2, strategicInsights: 0 },
+      });
+      mockDbCompanyFindUnique.mockResolvedValue(moderateCompany);
+      mockDbAccountScoreFindFirst.mockResolvedValue(makeAccountScore());
+      mockDbOpportunityFindMany.mockResolvedValue([
+        makeOpportunity({ id: 'opp-1' }), makeOpportunity({ id: 'opp-2' }),
+      ]);
+      mockDbSignalFindMany.mockResolvedValue([
+        makeSignal({ id: 'sig-1' }), makeSignal({ id: 'sig-2' }), makeSignal({ id: 'sig-3' }),
+      ]);
+      mockDbCapMatchFindMany.mockResolvedValue([makeCapabilityMatch({ id: 'cap-1' })]);
+      mockDbInsightFindMany.mockResolvedValue([]);
+
+      const result = await generateCompanyRecommendation('comp-1');
+      expect(result).toBeDefined();
+      expect(result!.dataDepthIndicator).toBe('moderate');
+
+      // Limited: 2 signal types with sparse coverage
+      // signals=2 (score 1), opportunities=0 (score 0), capMatches=1 (score 1), contacts=1 (score 1) → total=3 → limited
+      const limitedCompany = makeCompany({
+        _count: { contacts: 1, signals: 2, evidence: 0, opportunityRecommendations: 0, strategicInsights: 0 },
+      });
+      mockDbCompanyFindUnique.mockResolvedValue(limitedCompany);
+      mockDbAccountScoreFindFirst.mockResolvedValue(null);
+      mockDbOpportunityFindMany.mockResolvedValue([]);
+      mockDbSignalFindMany.mockResolvedValue([
+        makeSignal({ id: 'sig-1' }), makeSignal({ id: 'sig-2' }),
+      ]);
+      mockDbCapMatchFindMany.mockResolvedValue([makeCapabilityMatch({ id: 'cap-1' })]);
+      mockDbInsightFindMany.mockResolvedValue([]);
+
+      const result2 = await generateCompanyRecommendation('comp-1');
+      expect(result2).toBeDefined();
+      expect(result2!.dataDepthIndicator).toBe('limited');
     });
   });
 });

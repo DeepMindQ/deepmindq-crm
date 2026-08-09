@@ -30,17 +30,12 @@ import {
   getGraphStats,
 } from '@/lib/ai-knowledge-graph';
 import {
-  getActivationStats,
-} from '@/lib/intelligence-activation';
-import {
   computeUnifiedConfidence,
 } from '@/lib/ai-unified-confidence';
 import {
   searchMemories,
-  getMemoryStats,
 } from '@/lib/ai-memory';
 import {
-  getHybridStats,
   quickSearch,
 } from '@/lib/ai-hybrid-retrieval';
 
@@ -48,7 +43,7 @@ export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const { errorResponse } = await checkApiAuth();
+  const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
   const { id } = await params;

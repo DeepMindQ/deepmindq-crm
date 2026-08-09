@@ -2469,9 +2469,14 @@ model Embedding {
   // SHA-256 of sourceText — used to detect stale embeddings that need refresh
   textHash   String
   // The embedding vector serialized as JSON string (e.g. "[0.1,0.2,...]")
-  // Stored as Text rather than a native vector type because we don't depend
-  // on pgvector — cosine similarity is computed in JS after parsing.
+  // BACKWARD COMPAT: Kept for environments without pgvector extension.
+  // New embeddings are ALSO written to 'embedding_vector' (native pgvector).
   vector     String
+  // Phase 0.4: Native pgvector vector(384) column.
+  // Added via migration 20260809000000_pgvector_embedding_migration.
+  // Managed via raw SQL — NOT mapped by Prisma ORM.
+  // Access via: $queryRaw`SELECT embedding_vector <=> $1::vector FROM "Embedding"`
+  // @@ignore (Prisma does not support vector type natively)
   // Which model produced this embedding (e.g. 'Xenova/all-MiniLM-L6-v2')
   model      String
   // Vector dimensionality (e.g. 384 for all-MiniLM-L6-v2)

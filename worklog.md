@@ -1099,3 +1099,20 @@ Stage Summary:
 - 3 new library modules, 6 new API routes, 2 admin UI pages
 - 6 SOC 2 docs, 3 GitHub Actions workflows, 1 backup script, 1 DR runbook
 - TypeScript: 0 non-Prisma errors (28 expected, resolve after `prisma generate`)
+
+---
+Task ID: phase9-code-quality
+Agent: Main Agent + 3 Subagents
+Task: Phase 9 — Code Quality & Test Hardening (P9.1-P9.5)
+
+Work Log:
+- P9.1: Pre-commit now BLOCKING on tsc errors. 2 new ESLint rules: no-server-ui-import, no-secrets
+- P9.2: Coverage gates raised to 70%/90% statements. CI enforcement step added
+- P9.3: 22 E2E tests across 7 scenarios (auth, AI, import, RBAC, rate limit, knowledge, GDPR)
+- P9.4: 10 orphaned models audited. 3 wired to API routes, 7 documented for removal
+- P9.5: prisma generate resolved all 28 TS errors to zero
+
+Stage Summary:
+- 2 new ESLint rules, blocking pre-commit, coverage 70/90%
+- 22 E2E tests passing, 3 new API routes, orphan model audit doc
+- TypeScript: 0 errors (tsc --noEmit clean)

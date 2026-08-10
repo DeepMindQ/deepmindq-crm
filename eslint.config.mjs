@@ -29,6 +29,8 @@ import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
 import noUngovernedLlm from "./eslint-rules/no-ungoverned-llm.js";
 import noHardcodedEnvPaths from "./eslint-rules/no-hardcoded-env-paths.js";
+import noServerUiImport from "./eslint-rules/no-server-ui-import.js";
+import noSecrets from "./eslint-rules/no-secrets.js";
 
 // ── Load baseline: files with pre-existing lint errors ──
 // These are tracked exceptions. Remove entries as files are fixed.
@@ -59,11 +61,23 @@ const eslintConfig = [
           "no-hardcoded-env-paths": noHardcodedEnvPaths,
         },
       },
+      "no-server-ui-import": {
+        rules: {
+          "no-server-ui-import": noServerUiImport,
+        },
+      },
+      "no-secrets": {
+        rules: {
+          "no-secrets": noSecrets,
+        },
+      },
     },
     rules: {
       // ── Custom project rules ──
       "no-ungoverned-llm/no-ungoverned-llm": "error",
       "no-hardcoded-env-paths/no-hardcoded-env-paths": "error",
+      "no-server-ui-import/no-server-ui-import": "error",
+      "no-secrets/no-secrets": "error",
 
       // ── TypeScript: STRICT ──
       "@typescript-eslint/no-explicit-any": "error",

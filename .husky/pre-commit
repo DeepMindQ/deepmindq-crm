@@ -4,12 +4,9 @@
 #
 # What it checks (fast, ~15 seconds):
 #   1. ESLint --fix on staged files (auto-fixes what it can)
-#   2. TypeScript (WARN only — does not block)
+#   2. TypeScript compilation (tsc --noEmit — zero errors allowed)
 #
-# Only ESLint blocks commit. TSC is non-blocking because:
-#   - next.config.ts has ignoreBuildErrors: true (Vercel builds fine)
-#   - 80 known Prisma JsonValue type-narrowing errors exist
-#   - These are type strictness issues, not logic bugs
+# Both checks are blocking. Fix errors before committing.
 
 set -uo pipefail
 
@@ -19,18 +16,26 @@ echo ""
 # ── 1. Lint staged files (BLOCKING) ──
 echo "⏳ [1/2] ESLint on staged files..."
 npx lint-staged
+LINT_EXIT=$?
+if [ $LINT_EXIT -ne 0 ]; then
+  echo "❌ ESLint failed — fix errors before committing"
+  exit 1
+fi
 echo "✅ Lint passed"
 
-# ── 2. TypeScript check (NON-BLOCKING — warns only) ──
+# ── 2. TypeScript check (BLOCKING) ──
 echo "⏳ [2/2] TypeScript compilation check..."
 TSC_OUTPUT=$(npx tsc --noEmit 2>&1)
 TSC_EXIT=$?
-TSC_ERRORS=$(echo "$TSC_OUTPUT" | grep -c "error TS" || true)
 if [ $TSC_EXIT -ne 0 ]; then
-  echo "⚠️  TypeScript: $TSC_ERRORS known type errors (non-blocking)"
-else
-  echo "✅ TypeScript passed (0 errors)"
+  TSC_ERRORS=$(echo "$TSC_OUTPUT" | grep -c "error TS" || true)
+  echo "❌ TypeScript: $TSC_ERRORS errors — fix before committing"
+  echo ""
+  echo "First 10 errors:"
+  echo "$TSC_OUTPUT" | grep "error TS" | head -10
+  exit 1
 fi
+echo "✅ TypeScript passed (0 errors)"
 
 echo ""
 echo "✅ Pre-commit checks passed — committing..."

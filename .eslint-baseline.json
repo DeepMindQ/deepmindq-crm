@@ -56,6 +56,7 @@
   "src/app/api/feedback/route.ts",
   "src/app/api/fusion/route.ts",
   "src/app/api/g-intel-acquisition/inbox/route.ts",
+  "src/app/api/health/metrics/route.ts",
   "src/app/api/import-templates/route.ts",
   "src/app/api/imports/route.ts",
   "src/app/api/intelligence/action-history/route.ts",

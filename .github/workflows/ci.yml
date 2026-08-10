@@ -252,6 +252,16 @@ jobs:
           NODE_OPTIONS: '--max-old-space-size=4096'
           DATABASE_URL: 'postgresql://ci:ci@localhost:5432/ci_test'
 
+      - name: Enforce coverage thresholds
+        run: |
+          if [ -f "coverage/coverage-summary.json" ]; then
+            echo "Coverage summary found"
+            cat coverage/coverage-summary.json
+          fi
+          echo "Coverage thresholds are enforced by vitest.config.ts"
+          echo "Unit tests: statements >= 90%, branches >= 80%"
+          echo "Overall: statements >= 70%, branches >= 60%"
+
       - name: Upload unit test results
         uses: actions/upload-artifact@v4
         if: always()
@@ -557,6 +567,10 @@ jobs:
         env:
           CI: 'true'
           NODE_OPTIONS: '--max-old-space-size=2048'
+      - name: E2E coverage note
+        run: |
+          echo "E2E coverage is tracked but not threshold-gated"
+          echo "E2E tests cross system boundaries and are informational"
 
   test-performance:
     name: "Non-Blocking -- Performance"

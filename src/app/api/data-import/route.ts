@@ -13,13 +13,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { apiSuccess, apiError, safeInt } from '@/lib/apiHelpers';
 import { checkApiAuth } from '@/lib/api-auth';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { buildKeysetWhere, encodeCursor } from '@/lib/keyset-pagination';
 import {
   createDataUpload,
   autoMapColumns,
   validateRows,
   normalizeRows,
   commitImport,
-  listUploads,
 } from '@/lib/data-import/pipeline';
 import { db } from '@/lib/db';
 
@@ -36,16 +36,44 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url);
     const page = Math.max(1, safeInt(searchParams.get('page'), 1));
     const limit = Math.min(100, Math.max(1, safeInt(searchParams.get('limit'), 20)));
+    const cursorParam = searchParams.get('cursor') || null;
 
-    const result = await listUploads(page, limit);
+    // Keyset pagination: when cursor is provided, use keyset WHERE; otherwise fall back to page/limit
+    const cursor = cursorParam;
+    const keysetWhere = cursor
+      ? buildKeysetWhere({ cursor, sortBy: 'createdAt', sortOrder: 'desc', additionalCursorFields: { id: null } })
+      : {};
+    const useKeyset = !!cursor;
+    const skip = useKeyset ? undefined : (page - 1) * limit;
+    const takeLimit = useKeyset ? limit + 1 : limit;
+
+    const [items, total] = await Promise.all([
+      db.dataUpload.findMany({
+        where: { ...keysetWhere },
+        orderBy: { createdAt: 'desc' },
+        ...(skip !== undefined ? { skip } : {}),
+        take: takeLimit,
+      }),
+      db.dataUpload.count(),
+    ]);
+
+    // Keyset: detect hasMore and trim extra item
+    const hasMore = useKeyset ? items.length > limit : false;
+    if (hasMore) items.pop();
+
+    const nextCursor = hasMore && items.length > 0
+      ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+      : null;
 
     return apiSuccess({
-      items: result.items,
+      items,
       pagination: {
         page,
         limit,
-        total: result.total,
-        totalPages: Math.ceil(result.total / limit),
+        total,
+        totalPages: Math.ceil(total / limit),
+        nextCursor,
+        hasMore,
       },
     });
   } catch (err) {

@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { Prisma } from '@prisma/client';
 import { logger } from '@/lib/logger';
+import { buildKeysetWhere, encodeCursor } from '@/lib/keyset-pagination';
 
 export async function GET(request: NextRequest) {
   // Auth gate: admin-only for audit logs
@@ -24,11 +25,12 @@ export async function GET(request: NextRequest) {
     const startDateStr = searchParams.get('startDate') || searchParams.get('from') || undefined;
     const endDateStr = searchParams.get('endDate') || searchParams.get('to') || undefined;
 
-    // Pagination: support both page+limit and offset+limit
+    // Pagination: support both page+limit, offset+limit, and cursor-based
     const limitParam = searchParams.get('limit');
-    const limit = limitParam ? parseInt(limitParam, 10) : 50;
+    const limit = Math.min(100, Math.max(1, limitParam ? parseInt(limitParam, 10) : 50));
     const offsetParam = searchParams.get('offset');
     const pageParam = searchParams.get('page');
+    const cursorParam = searchParams.get('cursor');
     const offset = offsetParam
       ? parseInt(offsetParam, 10)
       : pageParam
@@ -57,16 +59,33 @@ export async function GET(request: NextRequest) {
       }
     }
 
+    // Keyset pagination: when cursor is provided, use keyset WHERE; otherwise fall back to offset
+    const cursor = cursorParam || null;
+    const keysetWhere = cursor
+      ? buildKeysetWhere({ cursor, sortBy: 'createdAt', sortOrder: 'desc', additionalCursorFields: { id: null } })
+      : {};
+    const useKeyset = !!cursor;
+    const skip = useKeyset ? undefined : offset;
+    const takeLimit = useKeyset ? limit + 1 : limit;
+
     // Fetch data and total in parallel
     const [data, total] = await Promise.all([
       db.auditLog.findMany({
-        where,
+        where: { ...where, ...keysetWhere },
         orderBy: { createdAt: 'desc' },
-        skip: offset,
-        take: limit,
+        ...(skip !== undefined ? { skip } : {}),
+        take: takeLimit,
       }),
       db.auditLog.count({ where }),
     ]);
+
+    // Keyset: detect hasMore and trim extra item
+    const hasMore = useKeyset ? data.length > limit : false;
+    if (hasMore) data.pop();
+
+    const nextCursor = hasMore && data.length > 0
+      ? encodeCursor({ createdAt: data[data.length - 1].createdAt, id: data[data.length - 1].id })
+      : null;
 
     // Map to AuditLogEntry shape expected by the frontend
     const entries = data.map((log) => ({
@@ -87,6 +106,8 @@ export async function GET(request: NextRequest) {
       total,
       page: Math.floor(offset / limit),
       limit,
+      nextCursor,
+      hasMore,
     });
   } catch (error) {
     logger.error('Audit logs error:', { error: error });

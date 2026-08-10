@@ -18,6 +18,8 @@ import {
   type KnowledgeQueryInput,
 } from '@/lib/m5-wow4-knowledge-intelligence';
 import { utilityGuard, utilityError, utilitySuccess, utilityCatchError, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { validateRequest } from '@/lib/with-validation';
+import { genericBodySchema } from '@/lib/validation-schemas';
 
 export async function POST(request: NextRequest): Promise<Response> {
   // ── Auth guard ─────────────────────────────────────────────────────
@@ -37,12 +39,14 @@ export async function POST(request: NextRequest): Promise<Response> {
 
   try {
     // ── Parse body ───────────────────────────────────────────────────
-    const body = await request.json();
-    const { query, companyId, maxResults } = body as {
+    const validated = await validateRequest(request, genericBodySchema);
+    if (validated instanceof Response) return validated;
+    const body = validated.data as {
       query?: string;
       companyId?: string;
       maxResults?: number;
     };
+    const { query, companyId, maxResults } = body;
 
     // ── Validate ─────────────────────────────────────────────────────
     if (!query || typeof query !== 'string' || query.trim().length === 0) {

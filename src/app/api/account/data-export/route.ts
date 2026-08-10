@@ -20,6 +20,8 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { logDataAccess } from '@/lib/access-audit';
+import { validateBody } from '@/lib/apiHelpers';
+import { accountDataExportSchema } from '@/lib/validation-schemas';
 
 export const dynamic = 'force-dynamic';
 
@@ -266,9 +268,10 @@ export async function POST(request: NextRequest) {
   if (adminCheck) return adminCheck;
 
   try {
-    const { companyId: bodyCompanyId } = (await request.json().catch(() => ({}))) as {
-      companyId?: string;
-    };
+    const rawBody = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const parsed = validateBody(accountDataExportSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
+    const { companyId: bodyCompanyId } = parsed;
 
     // Determine scope: explicit body param > env var > all
     const companyId = bodyCompanyId || process.env.COMPANY_ID || undefined;

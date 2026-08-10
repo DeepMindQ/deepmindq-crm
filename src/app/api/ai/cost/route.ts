@@ -17,6 +17,8 @@ import {
   getModelCosts,
   setBudgetConfig,
 } from '@/lib/unified-ai-cost-tracking';
+import { validateRequest } from '@/lib/with-validation';
+import { genericBodySchema } from '@/lib/validation-schemas';
 
 export async function GET(req: NextRequest) {
   try {
@@ -55,20 +57,22 @@ export async function POST(req: NextRequest) {
     const auth = await checkApiAuth(req);
     if (auth.errorResponse) return auth.errorResponse;
 
-    const body = await req.json();
+    const validated = await validateRequest(req, genericBodySchema);
+    if (validated instanceof Response) return validated;
+    const body = validated.data as { dailyLimit?: unknown; routeLimits?: unknown; alertThresholdPercent?: unknown };
     const { dailyLimit, routeLimits, alertThresholdPercent } = body;
 
     setBudgetConfig({
       dailyLimit: typeof dailyLimit === 'number' ? dailyLimit : undefined,
-      routeLimits,
-      alertThresholdPercent,
+      routeLimits: typeof routeLimits === 'object' && routeLimits !== null ? routeLimits as Record<string, number> : undefined,
+      alertThresholdPercent: typeof alertThresholdPercent === 'number' ? alertThresholdPercent : undefined,
     });
 
     return apiSuccess({
       message: 'Budget configuration updated',
-      dailyLimit,
-      routeLimits: routeLimits || {},
-      alertThresholdPercent: alertThresholdPercent || 80,
+      dailyLimit: typeof dailyLimit === 'number' ? dailyLimit : undefined,
+      routeLimits: typeof routeLimits === 'object' && routeLimits !== null ? routeLimits as Record<string, number> : {},
+      alertThresholdPercent: typeof alertThresholdPercent === 'number' ? alertThresholdPercent : 80,
     });
   } catch (err) {
     if (err instanceof Error && err.message.includes('Unauthorized')) {

@@ -5,12 +5,14 @@
  */
 
 import { NextResponse } from 'next/server';
+import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
-import { apiSuccess, apiError, apiNotFound } from '@/lib/apiHelpers';
+import { apiSuccess, apiError, apiNotFound, validateBody } from '@/lib/apiHelpers';
 import { logger } from '@/lib/logger';
 import { syncFromCRM } from '@/lib/crm/crm-sync-service';
 import type { SyncConflictResolution } from '@/lib/crm/crm-sync-service';
 import { db } from '@/lib/db';
+import { crmSyncOptionsSchema } from '@/lib/validation-schemas';
 
 export async function POST(
   request: Request,
@@ -35,20 +37,23 @@ export async function POST(
     }
 
     // Parse optional body for sync options
-    let body: Record<string, unknown> = {};
+    let parsedOptions: z.infer<typeof crmSyncOptionsSchema> = {};
     try {
-      body = await request.json();
+      const rawBody = await request.json();
+      const validated = validateBody(crmSyncOptionsSchema, rawBody);
+      if (validated instanceof Response) return validated;
+      parsedOptions = validated;
     } catch {
       // Empty body is fine — use defaults
     }
 
     const result = await syncFromCRM(id, {
-      conflictResolution: (body.conflictResolution as SyncConflictResolution) || 'local_wins',
-      limit: typeof body.limit === 'number' ? body.limit : 200,
-      modifiedAfter: typeof body.modifiedAfter === 'string' ? body.modifiedAfter : undefined,
-      syncAccounts: body.syncAccounts !== false,
-      syncContacts: body.syncContacts !== false,
-      syncDeals: body.syncDeals !== false,
+      conflictResolution: (parsedOptions.conflictResolution as SyncConflictResolution) || 'local_wins',
+      limit: typeof parsedOptions.limit === 'number' ? parsedOptions.limit : 200,
+      modifiedAfter: typeof parsedOptions.modifiedAfter === 'string' ? parsedOptions.modifiedAfter : undefined,
+      syncAccounts: parsedOptions.syncAccounts !== false,
+      syncContacts: parsedOptions.syncContacts !== false,
+      syncDeals: parsedOptions.syncDeals !== false,
     });
 
     if (!result.success) {

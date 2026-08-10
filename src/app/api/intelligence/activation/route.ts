@@ -9,6 +9,7 @@
 
 import { NextResponse } from 'next/server';
 import { checkApiAuth } from '@/lib/api-auth';
+import { validateBody } from '@/lib/apiHelpers';
 import {
   activateIntelligence,
   activateIntelligenceBatch,
@@ -17,6 +18,7 @@ import {
   type ActivationTrigger,
 } from '@/lib/intelligence-activation';
 import { logger } from '@/lib/logger';
+import { intelligenceActivationSchema } from '@/lib/validation-schemas';
 
 // ═══════════════════════════════════════════════════
 // POST — Activate intelligence for a single company
@@ -26,18 +28,14 @@ export async function POST(request: Request) {
   if (errorResponse) return errorResponse;
 
   try {
-    const body = await request.json();
-    const { companyId, trigger = 'manual_trigger', contactIds, skipExpensiveSteps, priority } = body;
-
-    if (!companyId) {
-      return NextResponse.json({ error: 'companyId is required' }, { status: 400 });
-    }
+    const rawBody = await request.json();
+    const parsed = validateBody(intelligenceActivationSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
+    const { companyId, trigger = 'manual_trigger', priority } = parsed;
 
     const result = await activateIntelligence({
       companyId,
       trigger: trigger as ActivationTrigger,
-      contactIds,
-      skipExpensiveSteps,
       priority,
     });
 

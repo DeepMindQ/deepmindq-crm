@@ -22,6 +22,8 @@ import { logger } from '@/lib/logger';
 import { computeIntelligenceDeltas, captureIntelligenceSnapshot } from '@/lib/intelligence-delta-service';
 import { checkApiAuth } from '@/lib/api-auth';
 import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
+import { validateRequest } from '@/lib/with-validation';
+import { genericBodySchema } from '@/lib/validation-schemas';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // GET /api/intelligence/deltas — Compute Intelligence Deltas
@@ -115,11 +117,13 @@ export async function POST(request: NextRequest) {
   const headers = { 'Content-Type': 'application/json', ...ctx.responseHeaders };
 
   try {
-    const body = await request.json().catch(() => ({}));
-    const { companyId, reason } = body as {
+    const validated = await validateRequest(request, genericBodySchema);
+    if (validated instanceof Response) return validated;
+    const body = validated.data as {
       companyId?: string;
       reason?: 'enrichment' | 'score_refresh' | 'signal_detected' | 'scheduled';
     };
+    const { companyId, reason } = body;
 
     if (!companyId) {
       return NextResponse.json(

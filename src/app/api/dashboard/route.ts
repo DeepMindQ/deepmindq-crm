@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
-import { db } from '@/lib/db';
+import { dashboardCache } from '@/lib/dashboard-cache';
+import { getDashboardMetrics } from '@/lib/dashboard-queries';
 import { checkApiAuth } from '@/lib/api-auth';
 import {
   utilityGuard,
@@ -29,67 +30,22 @@ const startedAt = Date.now();
   }
 
   try {
-    const [
-      contactsByStatus,
-      totalCompanies,
-      recentBatches,
-      draftsPendingReview,
-      queuePending,
-      repliesThisWeek,
-      bouncesCount,
-      suppressionsCount,
-      emailHealthDistribution,
-    ] = await Promise.all([
-      db.contact.groupBy({
-        by: ['status'],
-        _count: { status: true },
-      }),
-      db.company.count(),
-      db.importBatch.findMany({
-        orderBy: { createdAt: 'desc' },
-        take: 5,
-      }),
-      db.draft.count({ where: { status: 'pending_review' } }),
-      db.sendQueue.count({
-        where: { status: { in: ['pending', 'scheduled'] } },
-      }),
-      db.reply.count({
-        where: {
-          receivedAt: {
-            gte: new Date(new Date().setDate(new Date().getDate() - 7)),
-          },
-        },
-      }),
-      db.bounce.count(),
-      db.suppression.count(),
-      db.contact.groupBy({
-        by: ['emailHealth'],
-        _count: { emailHealth: true },
-      }),
-    ]);
-
-    // Format contacts by status into a record
-    const statusCounts: Record<string, number> = {};
-    for (const group of contactsByStatus) {
-      statusCounts[group.status as string] = group._count.status;
-    }
-
-    // Format email health distribution
-    const healthCounts: Record<string, number> = {};
-    for (const group of emailHealthDistribution) {
-      healthCounts[group.emailHealth as string] = group._count.emailHealth;
-    }
+    // ── Cached consolidated queries (9 DB queries → 4) ──
+    const data = await dashboardCache.cached(
+      'dashboard:main',
+      getDashboardMetrics,
+    );
 
     return utilitySuccess(ctx, {
-      contactsByStatus: statusCounts,
-      totalCompanies,
-      recentBatches,
-      draftsPendingReview,
-      queuePending,
-      repliesThisWeek,
-      bouncesCount,
-      suppressionsCount,
-      emailHealthDistribution: healthCounts,
+      contactsByStatus: data.contactsByStatus,
+      totalCompanies: data.totalCompanies,
+      recentBatches: data.recentBatches,
+      draftsPendingReview: data.draftsPendingReview,
+      queuePending: data.queuePending,
+      repliesThisWeek: data.repliesThisWeek,
+      bouncesCount: data.bouncesCount,
+      suppressionsCount: data.suppressionsCount,
+      emailHealthDistribution: data.emailHealthDistribution,
     }, 'dashboard', Date.now() - startedAt);
   } catch (err) {
     return utilityCatchError(ctx, err, 500, 'ENGINE_ERROR', 'Dashboard fetch failed', Date.now() - startedAt);

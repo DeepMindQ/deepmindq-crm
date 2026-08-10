@@ -1,8 +1,9 @@
 import { db } from '@/lib/db'
-import { apiError, apiSuccess } from '@/lib/apiHelpers'
+import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { checkApiAuth } from '@/lib/api-auth'
 import { hasPermission, type Permission } from '@/lib/rbac'
 import { logger } from '@/lib/logger'
+import { adminSettingsSchema, adminSettingDeleteSchema } from '@/lib/validation-schemas'
 
 // ═══════════════════════════════════════════════════════════════
 // GET /api/admin/settings — List all system settings
@@ -54,15 +55,10 @@ export async function POST(request: Request) {
   }
 
   try {
-    const body = await request.json()
-    const { key, value } = body
-
-    if (!key || typeof key !== 'string') {
-      return apiError('Missing or invalid "key" field', 400)
-    }
-    if (value === undefined || value === null) {
-      return apiError('Missing "value" field', 400)
-    }
+    const rawBody = await request.json()
+    const parsed = validateBody(adminSettingsSchema, rawBody)
+    if (parsed instanceof Response) return parsed
+    const { key, value } = parsed
 
     const setting = await db.systemSetting.upsert({
       where: { key },
@@ -92,12 +88,10 @@ export async function DELETE(request: Request) {
   }
 
   try {
-    const body = await request.json()
-    const { key } = body
-
-    if (!key || typeof key !== 'string') {
-      return apiError('Missing or invalid "key" field', 400)
-    }
+    const rawBody = await request.json()
+    const parsed = validateBody(adminSettingDeleteSchema, rawBody)
+    if (parsed instanceof Response) return parsed
+    const { key } = parsed
 
     await db.systemSetting.delete({
       where: { key },

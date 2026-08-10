@@ -8,6 +8,8 @@
 import { NextRequest } from 'next/server';
 import { apiSuccess, apiError, apiPaginated, safeInt } from '@/lib/apiHelpers';
 import { checkApiAuth } from '@/lib/api-auth';
+import { validateRequest } from '@/lib/with-validation';
+import { genericBodySchema } from '@/lib/validation-schemas';
 import {
   listImportTemplates,
   createImportTemplate,
@@ -52,7 +54,9 @@ export async function POST(req: NextRequest) {
   if (errorResponse) return errorResponse;
 
   try {
-    const body = await req.json();
+    const validated = await validateRequest(req, genericBodySchema);
+    if (validated instanceof Response) return validated;
+    const body = validated.data as { name?: unknown; source?: unknown; entityType?: unknown; columnMap?: unknown };
     const { name, source, entityType, columnMap } = body;
 
     if (!name || typeof name !== 'string' || name.trim().length === 0) {
@@ -72,9 +76,9 @@ export async function POST(req: NextRequest) {
 
     const template = await createImportTemplate({
       name: name.trim(),
-      source: source || 'custom',
-      entityType,
-      columnMap,
+      source: (source as string) || 'custom',
+      entityType: entityType as string,
+      columnMap: columnMap as Record<string, string>,
     });
 
     // Audit log (fire-and-forget)

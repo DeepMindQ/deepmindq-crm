@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { encodeCursor, buildKeysetWhere } from '@/lib/keyset-pagination';
 
 /* ═══════════════════════════════════════════════════
    Leads API — DB-backed only
@@ -25,11 +26,12 @@ async function fetchLeadsFromDB(params: {
   limit: number;
   sortBy: string;
   sortDir: string;
+  cursor?: string | null;
   consentStatuses?: string[];
   assignees?: string[];
   sources?: string[];
 }) {
-  const { search, countries, industries, departments, cities, states, titles, statuses, roles, page, limit, sortBy, sortDir, consentStatuses, assignees, sources } = params;
+  const { search, countries, industries, departments, cities, states, titles, statuses, roles, page, limit, sortBy, sortDir, cursor, consentStatuses, assignees, sources } = params;
 
   const where: any = {};
 
@@ -81,11 +83,17 @@ async function fetchLeadsFromDB(params: {
   const prismaSortField = validSortFields[sortBy] || 'createdAt';
   sortField[prismaSortField] = sortDir === 'desc' ? 'desc' : 'asc';
 
-  const skip = (page - 1) * limit;
+  // Keyset pagination: when cursor is provided, use keyset WHERE; otherwise fall back to offset
+  const sortOrder = sortDir === 'desc' ? 'desc' as const : 'asc' as const;
+  const keysetWhere = cursor
+    ? buildKeysetWhere({ cursor, sortBy: prismaSortField, sortOrder, additionalCursorFields: { id: null } })
+    : {};
+  const skip = cursor ? undefined : (page - 1) * limit;
+  const takeLimit = cursor ? limit + 1 : limit;
 
   const [contacts, total] = await Promise.all([
     db.contact.findMany({
-      where,
+      where: { ...where, ...keysetWhere },
       // P5.1: Explicit select to avoid SELECT * and heavy JSON fields (metadata, enrichmentData, aiData)
       select: {
         id: true,
@@ -114,11 +122,15 @@ async function fetchLeadsFromDB(params: {
         },
       },
       orderBy: sortField,
-      skip,
-      take: limit,
+      ...(skip !== undefined ? { skip } : {}),
+      take: takeLimit,
     }),
     db.contact.count({ where }),
   ]);
+
+  // Keyset: detect hasMore and trim extra item
+  const hasMore = cursor ? contacts.length > limit : false;
+  if (hasMore) contacts.pop();
 
   // Transform DB contacts to the Lead interface format
   const leads = contacts.map((c: any) => {
@@ -167,7 +179,12 @@ async function fetchLeadsFromDB(params: {
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
 
-  return { leads, total, page, totalPages, _source: 'db' };
+  // Build nextCursor for keyset pagination
+  const nextCursor = hasMore && contacts.length > 0
+    ? encodeCursor({ [prismaSortField]: contacts[contacts.length - 1][prismaSortField as keyof typeof contacts[0]], id: contacts[contacts.length - 1].id })
+    : null;
+
+  return { leads, total, page, totalPages, _source: 'db', nextCursor, hasMore };
 }
 
 /* ── DB metadata builder (for filter dropdowns) ── */
@@ -240,9 +257,10 @@ export async function GET(request: Request) {
     const sourceParam = searchParams.get('source') || '';
 
     const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = parseInt(searchParams.get('limit') || '50', 10);
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50', 10)));
     const sortBy = searchParams.get('sortBy') || 'company';
     const sortDir = searchParams.get('sortDir') || 'asc';
+    const cursor = searchParams.get('cursor') || null;
     const metaOnly = searchParams.get('meta') === 'true';
 
     // Deprecation warning for `?source=excel`
@@ -269,7 +287,7 @@ export async function GET(request: Request) {
     const assignees = searchParams.get('assignee')?.split(',').filter(Boolean) || [];
     const sources = searchParams.get('source')?.split(',').filter(Boolean) || [];
     const result = await fetchLeadsFromDB({
-      search, countries, industries, departments, cities, states, titles, statuses, roles, page, limit, sortBy, sortDir, consentStatuses, assignees, sources,
+      search, countries, industries, departments, cities, states, titles, statuses, roles, page, limit, sortBy, sortDir, cursor, consentStatuses, assignees, sources,
     });
     return NextResponse.json(result);
   } catch (error) {

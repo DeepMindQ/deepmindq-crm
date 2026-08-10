@@ -2,6 +2,8 @@ import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
 import { checkApiAuth } from '@/lib/api-auth';
+import { validateRequest } from '@/lib/with-validation';
+import { genericBodySchema } from '@/lib/validation-schemas';
 
 /* ═══════════════════════════════════════════════════════════════
    Ticket 9 — Reject Opportunity
@@ -38,16 +40,13 @@ try {
     }
 
     // Parse required body
-    let body: {
+    const validated = await validateRequest(request, genericBodySchema);
+    if (validated instanceof Response) return validated;
+    const body = validated.data as {
       reason?: string;
       feedback?: string;
       feedbackDecision?: string;
-    } = {};
-    try {
-      body = await request.json();
-    } catch {
-      return apiError('Request body must include at least a rejection reason', 400);
-    }
+    };
 
     if (!body.reason || !VALID_REJECTION_REASONS.includes(body.reason)) {
       return apiError(

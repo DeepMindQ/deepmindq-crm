@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { generateEmailDraft } from '@/lib/email-generation';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { validateBody } from '@/lib/apiHelpers';
+import { aiGenerateEmailSchema } from '@/lib/validation-schemas';
 
 /* ═══════════════════════════════════════════════════
    POST /api/ai/generate
@@ -32,7 +34,9 @@ export async function POST(request: Request) {
   if (errorResponse) return errorResponse;
 
 try {
-    const body = await request.json();
+    const rawBody = await request.json();
+    const parsed = validateBody(aiGenerateEmailSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
     const {
       name,
       email,
@@ -46,11 +50,7 @@ try {
       problems,
       knowledgeSearchMode,
       knowledgeMinScore,
-    } = body;
-
-    if (!name) {
-      return NextResponse.json({ error: 'name is required' }, { status: 400 });
-    }
+    } = parsed;
 
     const draft = await generateEmailDraft({
       name,

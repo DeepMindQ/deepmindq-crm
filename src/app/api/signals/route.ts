@@ -3,6 +3,7 @@ import { db } from '@/lib/db';
 import { apiSuccess, apiError } from '@/lib/apiHelpers';
 import type { SignalType, SignalSeverity, SignalStatus, SignalMeaningCategory } from '@prisma/client';
 import { checkApiAuth } from '@/lib/api-auth';
+import { buildKeysetWhere, encodeCursor } from '@/lib/keyset-pagination';
 
 /* ═══════════════════════════════════════════════════════════════
    Ticket 8 — Signal Intelligence Screen API
@@ -41,6 +42,7 @@ try {
     const status = searchParams.get('status');
     const meaningCategory = searchParams.get('meaningCategory');
     const page = Math.max(1, parseInt(searchParams.get('page') || '1', 10) || 1);
+    const cursorParam = searchParams.get('cursor') || null;
 
     /* ── Build Prisma where clause ── */
     const where: Record<string, unknown> = {};
@@ -52,10 +54,18 @@ try {
     if (meaningCategory) where.meaningCategory = meaningCategory as SignalMeaningCategory;
 
     /* ── Fetch signals with company + capability matches ── */
+    // Keyset pagination: use createdAt as keyset column (compound sort preserved within pages)
+    const cursor = cursorParam;
+    const keysetWhere = cursor
+      ? buildKeysetWhere({ cursor, sortBy: 'createdAt', sortOrder: 'desc', additionalCursorFields: { id: null } })
+      : {};
+    const skip = cursor ? undefined : (page - 1) * PAGE_SIZE;
+    const takeLimit = cursor ? PAGE_SIZE + 1 : PAGE_SIZE;
+
     const [signals, total, categoriesRaw, evidenceCountsRaw] = await Promise.all([
       // Signals paginated — P5.1: explicit select to avoid SELECT *
       db.companySignal.findMany({
-        where,
+        where: { ...where, ...keysetWhere },
         select: {
           id: true,
           companyId: true,
@@ -102,8 +112,8 @@ try {
           { confidence: 'desc' },
           { createdAt: 'desc' },
         ],
-        skip: (page - 1) * PAGE_SIZE,
-        take: PAGE_SIZE,
+        ...(skip !== undefined ? { skip } : {}),
+        take: takeLimit,
       }),
 
       // Total count
@@ -166,6 +176,14 @@ try {
       .map(c => c.meaningCategory)
       .filter((c): c is NonNullable<typeof c> => c !== null && c !== undefined) as SignalMeaningCategory[];
 
+    // Keyset: detect hasMore and trim extra item
+    const hasMore = cursor ? signals.length > PAGE_SIZE : false;
+    if (hasMore) signals.pop();
+
+    const nextCursor = hasMore && signals.length > 0
+      ? encodeCursor({ createdAt: signals[signals.length - 1].createdAt, id: signals[signals.length - 1].id })
+      : null;
+
     return apiSuccess({
       signals,
       evidenceCounts,
@@ -175,6 +193,8 @@ try {
         pageSize: PAGE_SIZE,
         total,
         totalPages: Math.ceil(total / PAGE_SIZE),
+        nextCursor,
+        hasMore,
       },
     });
   } catch (err) {

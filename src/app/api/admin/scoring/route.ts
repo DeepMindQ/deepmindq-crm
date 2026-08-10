@@ -12,9 +12,11 @@ import { NextResponse } from 'next/server';
 import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { validateBody } from '@/lib/apiHelpers';
 import { getScoringConfig, updateScoringConfig, DEFAULT_SCORING_CONFIG } from '@/lib/scoring-config';
 import type { ScoringConfig } from '@/lib/scoring-config';
 import { logDataAccess } from '@/lib/access-audit';
+import { adminScoringSchema, adminScoringResetSchema } from '@/lib/validation-schemas';
 
 export const dynamic = 'force-dynamic';
 
@@ -73,8 +75,10 @@ export async function PUT(request: Request) {
   if (adminCheck) return adminCheck;
 
   try {
-    const body = await request.json();
-    const { changeReason, ...partialConfig } = body;
+    const rawBody = await request.json();
+    const parsed = validateBody(adminScoringSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
+    const { changeReason, ...partialConfig } = parsed;
 
     // Get current config for history recording
     const previousConfig = await getScoringConfig();
@@ -143,15 +147,9 @@ export async function POST(request: Request) {
   if (adminCheck) return adminCheck;
 
   try {
-    const body = await request.json();
-    const { action } = body;
-
-    if (action !== 'reset') {
-      return NextResponse.json(
-        { success: false, error: 'Invalid action. Use "reset" to restore defaults.', timestamp: new Date().toISOString() },
-        { status: 400 }
-      );
-    }
+    const rawBody = await request.json();
+    const parsed = validateBody(adminScoringResetSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
 
     // Get current config for history recording
     const previousConfig = await getScoringConfig();

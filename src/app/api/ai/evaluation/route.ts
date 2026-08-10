@@ -43,6 +43,8 @@ import {
 } from '@/lib/ai-evaluation-benchmarks';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { validateBody } from '@/lib/apiHelpers';
+import { aiEvaluationPostSchema } from '@/lib/validation-schemas';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -269,20 +271,17 @@ export async function POST(request: NextRequest) {
   if (errorResponse) return errorResponse as NextResponse;
 
   try {
-    const body = await request.json();
-    const action = body.action;
+    const rawBody = await request.json();
+    const parsed = validateBody(aiEvaluationPostSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
 
-    if (!action) {
-      return err('Missing "action" field. Use: "evaluate", "compare".');
-    }
-
-    switch (action) {
+    switch (parsed.action) {
       case 'evaluate':
-        return handleEvaluate(body);
+        return handleEvaluate(parsed as unknown as Parameters<typeof handleEvaluate>[0]);
       case 'compare':
-        return handleCompare(body);
+        return handleCompare(parsed as unknown as Parameters<typeof handleCompare>[0]);
       default:
-        return err(`Unknown action: "${action}". Use: "evaluate" or "compare".`);
+        return err(`Unknown action. Use: "evaluate" or "compare".`);
     }
   } catch (error) {
     logger.error('AI Evaluation Dashboard POST error', { error: String(error) });

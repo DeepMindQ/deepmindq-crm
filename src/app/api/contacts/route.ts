@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { Prisma, ContactStatus, ContactEmailHealth } from "@prisma/client";
 import { apiError, apiSuccess, validateBody, sanitizeFields, safeInt } from "@/lib/apiHelpers";
+import { parsePaginationParams, buildKeysetWhere, buildPaginationResponse, encodeCursor } from '@/lib/keyset-pagination';
 import { createContactSchema } from "@/lib/validations";
 import { logger } from '@/lib/logger';
 import { checkApiAuth, filterResponseArrayByRole } from '@/lib/api-auth';
@@ -20,10 +21,11 @@ try {
     const emailHealth = searchParams.get("emailHealth") || "";
     const roleBucket = searchParams.get("roleBucket") || "";
     const companyId = searchParams.get("companyId") || "";
-    const sortBy = searchParams.get("sortBy") || "name";
+    const sortByParam = searchParams.get("sortBy") || "name";
     const sortDir = (searchParams.get("sortDir") || "asc") === "desc" ? "desc" : "asc";
     const page = Math.max(1, safeInt(searchParams.get("page"), 1));
     const pageSize = Math.min(100, Math.max(1, safeInt(searchParams.get("pageSize"), 20)));
+    const cursorParam = searchParams.get("cursor") || null;
 
     const where: Prisma.ContactWhereInput = {};
 
@@ -49,23 +51,36 @@ try {
     }
 
     let orderBy: Prisma.ContactOrderByWithRelationInput;
-    switch (sortBy) {
+    let prismaSortField = 'rawName';
+    switch (sortByParam) {
       case "score":
         orderBy = { leadScore: sortDir };
+        prismaSortField = 'leadScore';
         break;
       case "emailHealth":
         orderBy = { emailHealthScore: sortDir };
+        prismaSortField = 'emailHealthScore';
         break;
       case "status":
         orderBy = { status: sortDir };
+        prismaSortField = 'status';
         break;
       default:
         orderBy = { rawName: sortDir };
+        prismaSortField = 'rawName';
     }
+
+    const cursor = cursorParam;
+    const keysetWhere = cursor
+      ? buildKeysetWhere({ cursor, sortBy: prismaSortField, sortOrder: sortDir as 'asc' | 'desc', additionalCursorFields: { id: null } })
+      : {};
+
+    const skip = cursor ? undefined : (page - 1) * pageSize;
+    const takeLimit = cursor ? pageSize + 1 : pageSize;
 
     const [contacts, total, globalStats] = await Promise.all([
       db.contact.findMany({
-        where,
+        where: { ...where, ...keysetWhere },
         // P5.1: Explicit select to avoid SELECT * and heavy JSON fields
         select: {
           id: true,
@@ -83,8 +98,8 @@ try {
           company: { select: { id: true, rawName: true, industry: true } },
           _count: { select: { drafts: true } },
         },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        ...(skip !== undefined ? { skip } : {}),
+        take: takeLimit,
         orderBy,
       }),
       db.contact.count({ where }),
@@ -93,6 +108,10 @@ try {
         _count: { id: true },
       }),
     ]);
+
+    // Keyset: detect hasMore and trim extra item
+    const hasMore = cursor ? contacts.length > pageSize : false;
+    if (hasMore) contacts.pop();
 
     const engaged = await db.contact.count({
       where: { ...where, status: { in: ["replied", "queued", "sent"] } },
@@ -122,11 +141,18 @@ try {
       ? filterResponseArrayByRole(contactRows, session, 'Contact')
       : contactRows;
 
+    // Build nextCursor for keyset pagination
+    const nextCursor = hasMore && contacts.length > 0
+      ? encodeCursor({ [prismaSortField]: (contacts[contacts.length - 1] as any)[prismaSortField], id: contacts[contacts.length - 1].id })
+      : null;
+
     return apiSuccess({
       contacts: filteredContacts,
       total,
       page,
       pageSize,
+      nextCursor,
+      hasMore,
       stats: {
         total: globalStats._count.id,
         avgScore: Math.round(globalStats._avg.leadScore ?? 0),

@@ -17,6 +17,9 @@ import {
   addPromptVersion,
   getRegistryStats,
 } from '@/lib/ai-prompt-registry';
+import { validateRequest } from '@/lib/with-validation';
+import { genericBodySchema } from '@/lib/validation-schemas';
+import type { PromptMetrics } from '@/lib/ai-prompt-registry';
 
 export async function GET(req: NextRequest) {
   try {
@@ -66,24 +69,26 @@ export async function POST(req: NextRequest) {
     const auth = await checkApiAuth(req);
     if (auth.errorResponse) return auth.errorResponse;
 
-    const body = await req.json();
+    const validated = await validateRequest(req, genericBodySchema);
+    if (validated instanceof Response) return validated;
+    const body = validated.data as { promptId?: unknown; version?: Record<string, unknown>; changelog?: unknown };
     const { promptId, version, changelog } = body;
 
     if (!promptId || !version?.systemPrompt) {
       return apiError('promptId and version.systemPrompt are required', 400);
     }
 
-    const existing = getPrompt(promptId);
+    const existing = getPrompt(promptId as string);
     if (!existing) {
       return apiError(`Prompt "${promptId}" not found in registry`, 404);
     }
 
-    const success = addPromptVersion(promptId, {
-      version: version.version ?? existing.currentVersion + 1,
-      systemPrompt: version.systemPrompt,
-      userPromptTemplate: version.userPromptTemplate,
-      changelog: changelog ?? 'Updated prompt via API',
-      metrics: version.metrics,
+    const success = addPromptVersion(promptId as string, {
+      version: String((version!.version as number) ?? existing.currentVersion + 1),
+      systemPrompt: version!.systemPrompt as string,
+      userPromptTemplate: version!.userPromptTemplate as string | undefined,
+      changelog: (changelog as string) ?? 'Updated prompt via API',
+      metrics: version!.metrics as PromptMetrics | undefined,
     });
 
     if (!success) {

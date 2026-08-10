@@ -1,9 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { db } from '@/lib/db'
-import { apiError, apiSuccess } from '@/lib/apiHelpers'
+import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { aiChatSchema } from '@/lib/validation-schemas';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -178,12 +179,10 @@ export async function POST(request: NextRequest) {
   if (errorResponse) return errorResponse;
 
 try {
-    const body = await request.json()
-    const { message, context, conversationHistory } = body
-
-    if (!message || typeof message !== 'string') {
-      return apiError('Message is required', 400)
-    }
+    const rawBody = await request.json()
+    const parsed = validateBody(aiChatSchema, rawBody)
+    if (parsed instanceof Response) return parsed
+    const { message, context, conversationHistory } = parsed
 
     // 1. Build context string if context IDs provided
     let contextStr = ''
@@ -210,7 +209,8 @@ ${
 }`
 
     // 3. Build messages array
-    const messages: ChatMessage[] = [...(conversationHistory || []), { role: 'user', content: message }]
+    const history = (conversationHistory || []) as unknown as ChatMessage[]
+    const messages: ChatMessage[] = [...history, { role: 'user' as const, content: message }]
 
     // 4. Try LLM call
     try {

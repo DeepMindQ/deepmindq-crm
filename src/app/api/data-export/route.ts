@@ -8,15 +8,17 @@
  * DELETE /api/data-export/[id]         — Cancel/delete export
  */
 
-import { NextRequest } from 'next/server';
-import { apiSuccess, apiError, apiPaginated, safeInt } from '@/lib/apiHelpers';
+import { NextRequest, NextResponse } from 'next/server';
+import { apiSuccess, apiError, safeInt, validateBody } from '@/lib/apiHelpers';
 import { checkApiAuth } from '@/lib/api-auth';
 import {
   createExportJob,
-  listExports,
 } from '@/lib/data-export/streaming-export';
 import { logAction } from '@/lib/audit';
 import { checkRateLimit } from '@/lib/rate-limit';
+import { db } from '@/lib/db';
+import { buildKeysetWhere, encodeCursor } from '@/lib/keyset-pagination';
+import { dataExportPostSchema } from '@/lib/validation-schemas';
 
 // ═══════════════════════════════════════════════════════════════
 // POST /api/data-export — Create export job
@@ -32,30 +34,10 @@ export async function POST(req: NextRequest) {
   }
 
   try {
-    const body = await req.json();
-    const { format, entityType, filters, fields } = body;
-
-    // Validate required fields
-    if (!format || typeof format !== 'string') {
-      return apiError('format is required and must be a string (csv, json, xlsx)', 400);
-    }
-    if (!entityType || typeof entityType !== 'string') {
-      return apiError('entityType is required and must be a string (companies, contacts, opportunities, signals)', 400);
-    }
-
-    const validFormats = ['csv', 'json', 'xlsx'];
-    if (!validFormats.includes(format)) {
-      return apiError(`Invalid format: ${format}. Must be one of: ${validFormats.join(', ')}`, 400);
-    }
-
-    const validEntities = ['companies', 'contacts', 'opportunities', 'signals'];
-    if (!validEntities.includes(entityType)) {
-      return apiError(`Invalid entityType: ${entityType}. Must be one of: ${validEntities.join(', ')}`, 400);
-    }
-
-    if (fields && !Array.isArray(fields)) {
-      return apiError('fields must be an array of strings', 400);
-    }
+    const rawBody = await req.json();
+    const parsed = validateBody(dataExportPostSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
+    const { format, entityType, filters, fields } = parsed;
 
     const exportJob = await createExportJob(
       { format: format as 'csv' | 'json' | 'xlsx', entityType: entityType as 'companies' | 'contacts' | 'opportunities' | 'signals', filters: filters ?? undefined, fields: fields ?? undefined },
@@ -82,10 +64,51 @@ export async function GET(req: NextRequest) {
     const page = Math.max(1, safeInt(searchParams.get('page'), 1));
     const limit = Math.min(100, Math.max(1, safeInt(searchParams.get('limit'), 20)));
     const status = searchParams.get('status') ?? undefined;
+    const cursorParam = searchParams.get('cursor') || null;
 
-    const result = await listExports(page, limit, status);
+    const where: Record<string, unknown> = {};
+    if (status) where.status = status;
 
-    return apiPaginated(result.items, result.total, page, limit);
+    // Keyset pagination: when cursor is provided, use keyset WHERE; otherwise fall back to page/limit
+    const cursor = cursorParam;
+    const keysetWhere = cursor
+      ? buildKeysetWhere({ cursor, sortBy: 'createdAt', sortOrder: 'desc', additionalCursorFields: { id: null } })
+      : {};
+    const useKeyset = !!cursor;
+    const skip = useKeyset ? undefined : (page - 1) * limit;
+    const takeLimit = useKeyset ? limit + 1 : limit;
+
+    const [items, total] = await Promise.all([
+      db.dataExport.findMany({
+        where: { ...where, ...keysetWhere },
+        orderBy: { createdAt: 'desc' },
+        ...(skip !== undefined ? { skip } : {}),
+        take: takeLimit,
+      }),
+      db.dataExport.count({ where }),
+    ]);
+
+    // Keyset: detect hasMore and trim extra item
+    const hasMore = useKeyset ? items.length > limit : false;
+    if (hasMore) items.pop();
+
+    const nextCursor = hasMore && items.length > 0
+      ? encodeCursor({ createdAt: items[items.length - 1].createdAt, id: items[items.length - 1].id })
+      : null;
+
+    return NextResponse.json({
+      success: true,
+      data: items,
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        nextCursor,
+        hasMore,
+      },
+      timestamp: new Date().toISOString(),
+    });
   } catch (err) {
     const message = err instanceof Error ? err.message : 'Failed to list exports';
     return apiError(message);

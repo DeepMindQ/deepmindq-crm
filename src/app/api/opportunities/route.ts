@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { db } from "@/lib/db";
 import { apiError, apiSuccess, safeInt, validateBody, sanitize } from "@/lib/apiHelpers";
+import { buildKeysetWhere, encodeCursor } from '@/lib/keyset-pagination';
 import { createOpportunitySchema } from "@/lib/validations";
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
@@ -15,13 +16,22 @@ try {
     const companyId = searchParams.get("companyId");
     const page = Math.max(1, safeInt(searchParams.get("page"), 1, 10));
     const pageSize = Math.min(100, Math.max(1, safeInt(searchParams.get("pageSize"), 20, 10)));
+    const cursorParam = searchParams.get("cursor") || null;
 
     const where = companyId ? { companyId } : {};
+
+    // Keyset pagination: when cursor is provided, use keyset WHERE; otherwise fall back to offset
+    const cursor = cursorParam;
+    const keysetWhere = cursor
+      ? buildKeysetWhere({ cursor, sortBy: 'createdAt', sortOrder: 'desc', additionalCursorFields: { id: null } })
+      : {};
+    const skip = cursor ? undefined : (page - 1) * pageSize;
+    const takeLimit = cursor ? pageSize + 1 : pageSize;
 
     const [opportunities, total] = await Promise.all([
       // P5.1: Explicit select to avoid SELECT * and heavy JSON fields
       db.opportunityRecommendation.findMany({
-        where,
+        where: { ...where, ...keysetWhere },
         select: {
           id: true,
           companyId: true,
@@ -46,11 +56,19 @@ try {
           company: { select: { id: true, rawName: true, domain: true, industry: true } },
         },
         orderBy: { createdAt: "desc" },
-        skip: (page - 1) * pageSize,
-        take: pageSize,
+        ...(skip !== undefined ? { skip } : {}),
+        take: takeLimit,
       }),
       db.opportunityRecommendation.count({ where }),
     ]);
+
+    // Keyset: detect hasMore and trim extra item
+    const hasMore = cursor ? opportunities.length > pageSize : false;
+    if (hasMore) opportunities.pop();
+
+    const nextCursor = hasMore && opportunities.length > 0
+      ? encodeCursor({ createdAt: opportunities[opportunities.length - 1].createdAt, id: opportunities[opportunities.length - 1].id })
+      : null;
 
     return apiSuccess({
       data: opportunities,
@@ -59,6 +77,8 @@ try {
         pageSize,
         total,
         totalPages: Math.ceil(total / pageSize),
+        nextCursor,
+        hasMore,
       },
     });
   } catch (error) {

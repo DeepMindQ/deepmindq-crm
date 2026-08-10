@@ -254,9 +254,9 @@ describe('Phase 3.5: Enabled Mode Behavior', () => {
     expect(results.length).toBe(0);
   });
 
-  it('registry has all 15 entries', async () => {
+  it('registry has all 16 entries', async () => {
     const { PERSISTENCE_REGISTRY } = await import('@/lib/persistence/persistence-registry');
-    expect(PERSISTENCE_REGISTRY.length).toBe(15);
+    expect(PERSISTENCE_REGISTRY.length).toBe(16);
 
     const primaryStores = new Set(PERSISTENCE_REGISTRY.filter(r => r.isPrimary).map(r => r.store));
     expect(primaryStores.has('knowledge_graph_nodes')).toBe(true);

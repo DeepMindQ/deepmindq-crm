@@ -55,7 +55,7 @@ const AI_PROVIDER_HOSTS = [
   "openrouter.ai",
 ];
 
-module.exports = {
+export default {
   meta: {
     type: "problem",
     docs: {

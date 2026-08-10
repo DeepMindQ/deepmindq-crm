@@ -49,8 +49,8 @@ import { getPersistenceHealthMonitor } from '@/lib/persistence/persistence-healt
 // ── Persistence Registry Tests (L1) ──────────────────────────────────
 
 describe('WI-18.2 Persistence Registry (Lock L1)', () => {
-  it('should have 15 registered Maps across 3 files', () => {
-    expect(PERSISTENCE_REGISTRY).toHaveLength(15);
+  it('should have 16 registered Maps across 4 files', () => {
+    expect(PERSISTENCE_REGISTRY).toHaveLength(16);
   });
 
   it('should register all 7 knowledge graph Maps', () => {

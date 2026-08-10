@@ -66,7 +66,9 @@ describe('SECURITY GATE: CSRF Flow Integrity (CI Gate 3)', () => {
   it('auth-helpers must validate CSRF', () => {
     const auth = readSrcFile('src/lib/auth-helpers.ts');
     expect(auth).toContain('validateCsrf');
-    expect(auth).toContain('timingSafeEqual');
+    // timingSafeEqual lives in csrf.ts (canonical location), auth-helpers delegates
+    const csrf = readSrcFile('src/lib/csrf.ts');
+    expect(csrf).toContain('timingSafeEqual');
   });
 
   it('csrf.ts must generate random tokens', () => {

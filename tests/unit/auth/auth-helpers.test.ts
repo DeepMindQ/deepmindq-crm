@@ -65,8 +65,11 @@ describe('Auth Helpers (auth-helpers.ts)', () => {
     it('returns true for /api/version', () => {
       expect(isPublicPath('/api/version')).toBe(true);
     });
-    it('returns true for /api/webhooks/ prefix', () => {
-      expect(isPublicPath('/api/webhooks/stripe')).toBe(true);
+    it('returns true for /api/webhooks/crm/ prefix', () => {
+      expect(isPublicPath('/api/webhooks/crm/hubspot')).toBe(true);
+    });
+    it('returns true for /api/webhooks/bounce', () => {
+      expect(isPublicPath('/api/webhooks/bounce')).toBe(true);
     });
     it('returns true for /api/tracking/ prefix', () => {
       expect(isPublicPath('/api/tracking/pixel')).toBe(true);

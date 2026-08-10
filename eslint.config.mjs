@@ -27,10 +27,10 @@
 import { readFileSync, existsSync } from "fs";
 import nextCoreWebVitals from "eslint-config-next/core-web-vitals";
 import nextTypescript from "eslint-config-next/typescript";
-import noUngovernedLlm from "./eslint-rules/no-ungoverned-llm.js";
-import noHardcodedEnvPaths from "./eslint-rules/no-hardcoded-env-paths.js";
-import noServerUiImport from "./eslint-rules/no-server-ui-import.js";
-import noSecrets from "./eslint-rules/no-secrets.js";
+import noUngovernedLlm from "./eslint-rules/no-ungoverned-llm.mjs";
+import noHardcodedEnvPaths from "./eslint-rules/no-hardcoded-env-paths.mjs";
+import noServerUiImport from "./eslint-rules/no-server-ui-import.mjs";
+import noSecrets from "./eslint-rules/no-secrets.mjs";
 
 // ── Load baseline: files with pre-existing lint errors ──
 // These are tracked exceptions. Remove entries as files are fixed.

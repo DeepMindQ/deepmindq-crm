@@ -248,7 +248,7 @@ async function testLLMHallucinationDetection() {
   // The ai-hallucination-prevention module is too large to import in a test env without DB.
   // Instead, verify the function exists via filesystem and the type is correct.
   const fs = await import('fs');
-  const path = '/home/z/my-project/src/lib/ai-hallucination-prevention.ts';
+  const path = require('path').resolve(__dirname, '../../lib/ai-hallucination-prevention.ts');
   const exists = fs.existsSync(path);
   assert(exists, 'ai-hallucination-prevention.ts exists');
   const content = fs.readFileSync(path, 'utf-8');
@@ -446,7 +446,7 @@ async function testFeedbackCalibration() {
 async function testHallucinationPrevention() {
   console.log('\n=== Hallucination Prevention ===');
   const fs = await import('fs');
-  const content = fs.readFileSync('/home/z/my-project/src/lib/hallucination-prevention.ts', 'utf-8');
+  const content = fs.readFileSync(require('path').resolve(__dirname, '../../lib/hallucination-prevention.ts'), 'utf-8');
   assert(content.includes('extractClaims'), 'extractClaims exists');
   assert(content.includes('guardAgainstHallucination'), 'guardAgainstHallucination exists');
   assert(content.includes('ClaimVerification'), 'ClaimVerification type');

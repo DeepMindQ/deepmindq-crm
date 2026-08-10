@@ -6,7 +6,7 @@
  * from src/components/** which are React client components.
  * 
  * Pattern: Import from 'src/components/' or '@/components/' is blocked
- * in files matching src/app/api/**/route.ts
+ * in files matching src/app/api/.../route.ts
  * 
  * Rationale:
  *   - API routes run in Node.js runtime, not browser

@@ -115,7 +115,6 @@ export const FIELD_PERMISSIONS: FieldPermissionRule[] = [
   { field: 'intelligenceScore', model: 'Company', roles: ['admin', 'operator'], sensitive: false },
   { field: 'accountPriorityScore', model: 'Company', roles: ['admin', 'operator'], sensitive: false },
   { field: 'priorityTier', model: 'Company', roles: ['admin', 'operator', 'user'], sensitive: false },
-  { field: 'aiAnalysis', model: 'Company', roles: ['admin', 'operator'], sensitive: true },
 ];
 
 /**

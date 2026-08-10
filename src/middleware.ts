@@ -44,7 +44,7 @@ import { generateCsrfToken } from '@/lib/csrf'
 import { extractTraceContext, injectTraceContext } from '@/lib/tracing'
 import type { TraceContext } from '@/lib/tracing'
 import { recordRouteLatency } from '@/lib/sla-monitor'
-import { metrics } from '@/lib/monitoring'
+import { metrics } from '@/lib/edge-metrics'
 
 /**
  * Inject distributed tracing headers onto a response.

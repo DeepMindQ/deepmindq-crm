@@ -1,4 +1,27 @@
 ---
+Task ID: phase-a-security-blockers
+Agent: Main Agent + Re-Audit Subagent
+Task: Phase A — Critical Security Blockers (PRODUCTION 90+ Master Plan)
+
+Work Log:
+- A.1: Created src/lib/ssrf-protection.ts (152 lines) with 6-step URL validation
+- A.1: Modified src/lib/slack-integration.ts — validate URL before fetch in both sendSlackNotification and sendTeamsNotification
+- A.1: Modified src/app/api/integrations/slack/route.ts — system URL precedence, admin-only custom URLs, SSRF validation
+- A.2: Modified src/lib/auth-helpers.ts — removed /api/webhooks/ from PUBLIC_PATH_PREFIXES
+- A.2: Rewrote src/app/api/webhooks/manage/route.ts — Zod validation, RBAC, secret masking
+- A.3: Modified hubspot/route.ts — verifyHubSpotSignature returns false when secret is null (was true)
+- A.3: Modified salesforce/route.ts — fail-closed auth + timing attack fix
+- A.4: Modified ai-config.ts — ENCRYPTION_KEY -> API_KEY_ENCRYPTION_KEY, production throws
+- A.5: Added 3 critical alert rules to monitoring.ts + auth failure metrics in middleware.ts
+- Re-audit: Fixed token block-scoping bug in middleware.ts
+- Re-audit: Fixed Salesforce timing leak (production fail-closed without env var)
+
+Stage Summary:
+- 11 files changed, 486 insertions, 64 deletions, commit 67b877b1
+- Re-audit: All 11 checks PASS
+- All 5 critical security blockers resolved
+
+---
 Task ID: phase1-data-integrity-persistence
 Agent: Main Agent + 5 Subagents
 Task: Phase 1 — DATA INTEGRITY & PERSISTENCE (P1.1–P1.5)

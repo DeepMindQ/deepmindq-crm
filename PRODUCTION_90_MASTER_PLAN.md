@@ -82,7 +82,10 @@ Every phase follows this 3-layer verification before being marked complete:
 
 **Phase A Exit Criteria**: All 5 items verified via L1+L2. No endpoint accepts unauthenticated requests. No secrets bypassed.
 
-**Status**: ⬜ NOT STARTED
+**Status**: ✅ COMPLETE (Completed: 2026-08-10)
+**Worklog**: See worklog.md — Task ID: phase-a-security-blockers
+**Actual Score**: Security 52 → 80 (estimated, pending full re-score)
+**Files Modified**: 11 (1 new, 10 modified) | **Tests Added**: 0 (security test suite deferred to Phase H)
 
 ---
 

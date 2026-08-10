@@ -433,8 +433,7 @@ export async function researchAgent(
 
   // ── Engine 1: Knowledge Intelligence Query ──
   const knowledgeResult = await safeEngineCall('knowledge_intelligence', async () => {
-    // queryKnowledgeIntelligence is synchronous but we wrap in async for safeEngineCall
-    return queryKnowledgeIntelligence({
+    return await queryKnowledgeIntelligence({
       query: input.query,
       maxResults: input.maxResults || 10,
     });
@@ -953,7 +952,7 @@ export async function executiveDecisionAgent(
 
   // ── Engine 1: Knowledge Intelligence Query (factual foundation) ──
   const knowledgeResult = await safeEngineCall('knowledge_intelligence', async () => {
-    return queryKnowledgeIntelligence({
+    return await queryKnowledgeIntelligence({
       query: input.question,
       companyId: input.context?.companyId,
       maxResults: 15,

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { QueryProvider } from '@/providers/query-provider';
 import { AppShell } from '@/components/app-shell';
@@ -55,7 +56,7 @@ export default function HomePage() {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a0c10' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: tokens.text.inverse }}>
         <div className="text-center">
           <div className="w-10 h-10 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-4" />
           <p className="text-gray-500 text-sm">Loading...</p>

@@ -44,6 +44,7 @@ import type {
 import { scrubError } from '@/lib/intelligence-api/handler';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { getPersistenceAdapter } from '@/lib/persistence';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────────
 
@@ -415,6 +416,15 @@ const startedAt = Date.now();
     : { researchCard: null, keyPeople: [] };
 
   const { researchCard, keyPeople } = loadedResearchCard;
+
+  // Try loading cached financial profile from persistence
+  let _financialProfile: Record<string, unknown> | null = null;
+  try {
+    const adapter = getPersistenceAdapter();
+    if (adapter.isEnabled()) {
+      _financialProfile = await adapter.read('financial_profiles', companyId);
+    }
+  } catch { /* non-blocking */ }
 
   // ── Step 3: Run engines in parallel (scores, actions, brief) ──────────
   const enginePromises: Record<string, Promise<unknown>> = {};

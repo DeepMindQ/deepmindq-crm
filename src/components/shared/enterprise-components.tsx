@@ -8,6 +8,7 @@
 'use client';
 
 import { useState, useEffect, useRef, type ReactNode } from 'react';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { motion } from 'framer-motion';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
@@ -118,7 +119,7 @@ export function SectionHeader({ title, subtitle, action, badge, gold: goldBorder
         {badge && (
           <span
             className="text-[11px] font-medium px-2 py-1 rounded-md"
-            style={{ background: 'rgba(212,175,55,0.1)', color: gold }}>
+            style={{ background: tokens.gold.bg, color: gold }}>
             {badge}
           </span>
         )}
@@ -141,7 +142,7 @@ interface GlassPanelProps {
 
 export function GlassPanel({ children, className, gold: goldBorder, animate = true, delay = 0 }: GlassPanelProps) {
   const style = goldBorder
-    ? { ...glassPanel, border: `1px solid rgba(212,175,55,0.3)`, borderLeft: '3px solid #D4AF37' }
+    ? { ...glassPanel, border: `1px solid rgba(212,175,55,0.3)`, borderLeft: '3px solid {tokens.gold.DEFAULT}' }
     : glassPanel;
 
   if (!animate) {
@@ -339,7 +340,7 @@ export function ProgressBar({
     <div className="flex items-center gap-2">
       <div
         className="flex-1 rounded-full overflow-hidden"
-        style={{ background: 'rgba(0,0,0,0.04)', height }}>
+        style={{ background: tokens.opacity.trace, height }}>
         <motion.div
           className="h-full rounded-full"
           style={{ background: `linear-gradient(90deg, ${color}CC, ${color})` }}
@@ -377,10 +378,10 @@ export function EmptyScreenState({ icon: Icon, title, description, action, gold:
       <div
         className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3"
         style={goldIcon
-          ? { background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }
-          : { background: 'rgba(0,0,0,0.04)' }
+          ? { background: tokens.gold.bg, border: '1px solid rgba(212,175,55,0.2)' }
+          : { background: tokens.opacity.trace }
         }>
-        <Icon className="w-6 h-6" style={goldIcon ? { color: gold } : { color: '#9CA3AF' }} />
+        <Icon className="w-6 h-6" style={goldIcon ? { color: gold } : { color: tokens.neutral['400'] }} />
       </div>
       <p className="text-sm font-medium text-foreground">{title}</p>
       <p className="text-xs text-muted-foreground mt-1 max-w-xs">{description}</p>
@@ -463,8 +464,8 @@ export function FilterTabs({ tabs, active, onChange }: FilterTabsProps) {
             active === tab.key ? 'text-black' : 'text-muted-foreground hover:text-foreground',
           )}
           style={active === tab.key
-            ? { background: 'linear-gradient(135deg, #D4AF37, #E8C860)' }
-            : { background: 'rgba(0,0,0,0.03)', border: `1px solid ${border}` }
+            ? { background: 'linear-gradient(135deg, {tokens.gold.DEFAULT}, {tokens.gold.light})' }
+            : { background: tokens.opacity.trace, border: `1px solid ${border}` }
           }
           onClick={() => onChange(tab.key)}>
           {tab.label}

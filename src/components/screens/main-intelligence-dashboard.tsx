@@ -6,6 +6,7 @@ import { motion } from 'framer-motion'
 import { Radar, Brain, Target, TrendingUp, AlertTriangle, Activity, Building2, Zap, ArrowRight, RefreshCw, Sparkles, Shield } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { tokens } from '@/components/intelligence-os/design-tokens'
+import { EnterpriseLoading, EnterpriseEmptyState } from '@/components/enterprise'
 
 interface DashboardStat {
   label: string
@@ -52,6 +53,8 @@ function StatCard({ stat, index, onNavigate }: { stat: DashboardStat; index: num
 export function MainIntelligenceDashboard({ className, onNavigate }: IntelligenceDashboardProps) {
   const { data: dashboardData, loading, refetch } = useDashboardStats(30000)
 
+  if (loading) return <EnterpriseLoading message="Loading intelligence overview..." />
+
   const stats = useMemo<DashboardStat[]>(() => [
     { label: 'Companies Tracked', value: dashboardData?.totalLeads ?? dashboardData?.importedCount ?? dashboardData?.totalCompanies ?? '—', icon: Building2, color: tokens.domain.signal, href: '#accounts' },
     { label: 'Active Signals', value: dashboardData?.aiSignalsToday ?? '—', icon: Zap, color: tokens.domain.reasoning, href: '#signal-intelligence' },
@@ -78,6 +81,13 @@ export function MainIntelligenceDashboard({ className, onNavigate }: Intelligenc
       </div>
 
       {/* Stats grid */}
+      {stats.length === 0 ? (
+        <EnterpriseEmptyState
+          icon={Radar}
+          title="No intelligence data yet"
+          description="Intelligence data will appear once companies are tracked and signals are detected."
+        />
+      ) : null}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         {stats.map((stat, i) => (
           <StatCard key={stat.label} stat={stat} index={i} onNavigate={onNavigate} />

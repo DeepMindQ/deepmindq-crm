@@ -22,6 +22,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { EnterpriseLoading, EnterpriseEmptyState } from '@/components/enterprise';
 
 // ── Types ──
 
@@ -170,7 +171,7 @@ export function IntelligenceHeatmapScreen() {
               placeholder="Industry filter..."
               value={industry}
               onChange={e => { setIndustry(e.target.value); setPage(0); }}
-              className="w-48 h-8 text-xs"
+              className="w-48 h-10 text-xs"
             />
             <Input
               placeholder="Min score"
@@ -179,7 +180,7 @@ export function IntelligenceHeatmapScreen() {
               max="100"
               value={minScore}
               onChange={e => { setMinScore(e.target.value); setPage(0); }}
-              className="w-28 h-8 text-xs"
+              className="w-28 h-10 text-xs"
             />
             <Badge variant="outline" className="text-xs">
               {companies.length} companies
@@ -224,16 +225,18 @@ export function IntelligenceHeatmapScreen() {
               <tbody>
                 {loading ? (
                   <tr>
-                    <td colSpan={DIMENSIONS.length + 2} className="text-center p-8 text-[var(--primary-dim)]">
-                      <RefreshCw className="w-5 h-5 animate-spin inline mr-2" />
-                      Loading heatmap data...
+                    <td colSpan={DIMENSIONS.length + 2} className="text-center p-8">
+                      <EnterpriseLoading message="Loading heatmap data..." size="sm" />
                     </td>
                   </tr>
                 ) : pagedCompanies.length === 0 ? (
                   <tr>
-                    <td colSpan={DIMENSIONS.length + 2} className="text-center p-8 text-[var(--primary-dim)]">
-                      <Search className="w-5 h-5 inline mr-2" />
-                      No companies match the current filters
+                    <td colSpan={DIMENSIONS.length + 2} className="text-center p-8">
+                      <EnterpriseEmptyState
+                        icon={Search}
+                        title="No companies match the current filters"
+                        description="Try adjusting your industry or score filters to see results."
+                      />
                     </td>
                   </tr>
                 ) : (
@@ -280,7 +283,7 @@ export function IntelligenceHeatmapScreen() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 text-xs"
+                  className="h-10 text-xs min-h-[44px]"
                   disabled={page === 0}
                   onClick={() => setPage(p => p - 1)}
                 >
@@ -289,7 +292,7 @@ export function IntelligenceHeatmapScreen() {
                 <Button
                   variant="outline"
                   size="sm"
-                  className="h-7 text-xs"
+                  className="h-10 text-xs min-h-[44px]"
                   disabled={page >= totalPages - 1}
                   onClick={() => setPage(p => p + 1)}
                 >

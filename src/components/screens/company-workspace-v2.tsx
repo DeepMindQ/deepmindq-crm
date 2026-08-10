@@ -7,6 +7,7 @@ import { TemporalIntelligenceTimeline } from '@/components/intelligence-os/molec
 import { cn } from '@/lib/utils'
 import { tokens } from '@/components/intelligence-os/design-tokens'
 import { useCompanyDetail, useCompanySignals, useCompanyScore } from '@/lib/realtime-hooks'
+import { EnterpriseLoading, EnterpriseEmptyState } from '@/components/enterprise'
 
 type TabId = 'overview' | 'contacts' | 'opportunities' | 'signals' | 'timeline'
 
@@ -42,6 +43,58 @@ export function CompanyWorkspaceV2({ companyId, onBack, onNavigate, className }:
   const { data: companyData, loading, refetch } = useCompanyDetail(companyId, 60000)
   const { data: signalsData } = useCompanySignals(companyId, 45000)
   const { data: scoreData } = useCompanyScore(companyId)
+
+  // ── Initial loading state ──
+  if (loading) {
+    return (
+      <div className={cn('space-y-4', className)}>
+        <EnterpriseLoading message="Loading company details..." />
+      </div>
+    )
+  }
+
+  // Derived counts from fetched data
+  const signals = useMemo(() => {
+    const raw = signalsData as any;
+    if (!raw) return [];
+    // API returns { signals: [...] } or { data: { signals: [...] } }
+    const arr = raw?.signals ?? raw?.data?.signals ?? (Array.isArray(raw) ? raw : []);
+    return arr;
+  }, [signalsData]);
+
+  const scoreBreakdown = useMemo(() => {
+    const raw = scoreData as any;
+    if (!raw) return null;
+    return raw?.data ?? raw;
+  }, [scoreData]);
+
+  // Fetch contacts and opportunities for the tabs
+  const [contacts, setContacts] = useState<any[]>([])
+  const [contactsLoading, setContactsLoading] = useState(false)
+  const [opportunities, setOpportunities] = useState<any[]>([])
+  const [opportunitiesLoading, setOpportunitiesLoading] = useState(false)
+
+  useEffect(() => {
+    if (!companyId) return
+    let mounted = true
+    setContactsLoading(true)
+    fetch(`/api/companies/${companyId}/contacts`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (mounted) { setContacts(data?.contacts ?? []); setContactsLoading(false) } })
+      .catch(() => { if (mounted) setContactsLoading(false) })
+    return () => { mounted = false }
+  }, [companyId])
+
+  useEffect(() => {
+    if (!companyId) return
+    let mounted = true
+    setOpportunitiesLoading(true)
+    fetch(`/api/opportunities?companyId=${companyId}&pageSize=50`)
+      .then(r => r.ok ? r.json() : null)
+      .then(data => { if (mounted) { setOpportunities(data?.data ?? data?.opportunities ?? []); setOpportunitiesLoading(false) } })
+      .catch(() => { if (mounted) setOpportunitiesLoading(false) })
+    return () => { mounted = false }
+  }, [companyId])
 
   const company = useMemo<CompanyData | null>(() => {
     if (!companyData) return null
@@ -135,10 +188,10 @@ export function CompanyWorkspaceV2({ companyId, onBack, onNavigate, className }:
           {activeTab === 'overview' && (
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
               {[
-                { label: 'Contacts', value: '—', icon: Users, color: tokens.domain.signal },
-                { label: 'Opportunities', value: '—', icon: Target, color: tokens.domain.opportunity },
-                { label: 'Signals', value: '—', icon: Zap, color: tokens.domain.reasoning },
-                { label: 'AI Actions', value: '—', icon: Brain, color: tokens.domain.action },
+                { label: 'Contacts', value: contacts.length, icon: Users, color: tokens.domain.signal },
+                { label: 'Opportunities', value: opportunities.length, icon: Target, color: tokens.domain.opportunity },
+                { label: 'Signals', value: signals.length, icon: Zap, color: tokens.domain.reasoning },
+                { label: 'Intel Score', value: scoreBreakdown?.intelligence?.score ?? company?.intelligenceScore ?? '—', icon: Brain, color: tokens.domain.action },
               ].map((stat, i) => (
                 <div key={stat.label} className="rounded-xl border p-3" style={{ background: tokens.surface.card, borderColor: tokens.border.default }}>
                   <stat.icon className="w-4 h-4 mb-2" style={{ color: stat.color }} />
@@ -149,22 +202,94 @@ export function CompanyWorkspaceV2({ companyId, onBack, onNavigate, className }:
             </div>
           )}
           {activeTab === 'contacts' && (
-            <div className="py-8 text-center">
-              <Users className="w-8 h-8 mx-auto mb-2" style={{ color: tokens.text.muted }} />
-              <p className="text-xs" style={{ color: tokens.text.secondary }}>Contact data loads from API</p>
-            </div>
+            contactsLoading ? (
+              <EnterpriseLoading message="Loading contacts..." size="sm" />
+            ) : contacts.length === 0 ? (
+              <EnterpriseEmptyState
+                icon={Users}
+                title="No contacts found for this company"
+                description="Contacts will appear once they are discovered or imported."
+              />
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {contacts.map((c: any) => (
+                  <div key={c.id} className="rounded-xl border p-3 flex items-center justify-between" style={{ background: tokens.surface.card, borderColor: tokens.border.default }}>
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-semibold shrink-0" style={{ background: `${tokens.domain.signal}20`, color: tokens.domain.signal }}>
+                        {(c.firstName?.[0] ?? '?').toUpperCase()}{(c.lastName?.[0] ?? '').toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate" style={{ color: tokens.text.primary }}>{c.firstName} {c.lastName}</p>
+                        <p className="text-[11px] truncate" style={{ color: tokens.text.secondary }}>{c.title ?? ''}{c.title && c.email ? ' · ' : ''}{c.email ?? ''}</p>
+                      </div>
+                    </div>
+                    {c.status && (
+                      <span className="text-[9px] font-medium px-2 py-0.5 rounded-full shrink-0" style={{ background: `${tokens.confidence.high.value}15`, color: tokens.confidence.high.value }}>
+                        {c.status}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
           )}
           {activeTab === 'opportunities' && (
-            <div className="py-8 text-center">
-              <Target className="w-8 h-8 mx-auto mb-2" style={{ color: tokens.text.muted }} />
-              <p className="text-xs" style={{ color: tokens.text.secondary }}>Opportunities load from API</p>
-            </div>
+            opportunitiesLoading ? (
+              <EnterpriseLoading message="Loading opportunities..." size="sm" />
+            ) : opportunities.length === 0 ? (
+              <EnterpriseEmptyState
+                icon={Target}
+                title="No opportunities found for this company"
+                description="Opportunities will surface once intelligence signals are detected."
+              />
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {opportunities.map((o: any) => (
+                  <div key={o.id} className="rounded-xl border p-3" style={{ background: tokens.surface.card, borderColor: tokens.border.default }}>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>{o.title ?? o.type ?? 'Opportunity'}</p>
+                      {o.value && (
+                        <span className="text-xs font-semibold" style={{ color: tokens.domain.opportunity }}>${Number(o.value).toLocaleString()}</span>
+                      )}
+                    </div>
+                    {o.description && <p className="text-[11px] line-clamp-2" style={{ color: tokens.text.secondary }}>{o.description}</p>}
+                    {o.stage && (
+                      <span className="text-[9px] font-medium px-2 py-0.5 rounded-full mt-1 inline-block" style={{ background: `${tokens.domain.opportunity}15`, color: tokens.domain.opportunity }}>
+                        {o.stage}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )
           )}
           {activeTab === 'signals' && (
-            <div className="py-8 text-center">
-              <Radar className="w-8 h-8 mx-auto mb-2" style={{ color: tokens.text.muted }} />
-              <p className="text-xs" style={{ color: tokens.text.secondary }}>Signal intelligence loads from API</p>
-            </div>
+            signals.length === 0 ? (
+              <EnterpriseEmptyState
+                icon={Radar}
+                title="No signals detected for this company"
+                description="Intelligence signals will be collected as data sources are connected."
+              />
+            ) : (
+              <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                {signals.map((s: any) => (
+                  <div key={s.id} className="rounded-xl border p-3" style={{ background: tokens.surface.card, borderColor: tokens.border.default }}>
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>{s.title ?? s.signalType ?? 'Signal'}</p>
+                      <span className={"text-[9px] font-medium px-2 py-0.5 rounded-full" + (s.severity === 'critical' || s.severity === 'high' ? ' bg-red-100 text-red-700' : s.severity === 'medium' ? ' bg-amber-100 text-amber-700' : ' bg-zinc-100 text-zinc-600')}>
+                        {s.severity ?? 'info'}
+                      </span>
+                    </div>
+                    {s.description && <p className="text-[11px] line-clamp-2" style={{ color: tokens.text.secondary }}>{s.description}</p>}
+                    <div className="flex items-center gap-2 mt-1.5 text-[10px]" style={{ color: tokens.text.muted }}>
+                      <span>{s.signalType ?? ''}</span>
+                      {s.source && <span>· {s.source}</span>}
+                      {s.createdAt && <span>· {new Date(s.createdAt).toLocaleDateString()}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )
           )}
           {activeTab === 'timeline' && (
             <TemporalTimelineTab companyId={companyId} />

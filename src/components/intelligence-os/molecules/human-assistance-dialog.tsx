@@ -237,7 +237,7 @@ export function HumanAssistanceDialog({
                     }}
                   >
                     {reason === r.value && (
-                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: '#fff' }} />
+                      <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: tokens.flat.white }} />
                     )}
                   </div>
                   <div>
@@ -345,7 +345,7 @@ export function HumanAssistanceDialog({
             className="px-4 py-2 rounded-lg text-[13px] font-semibold transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
             style={{
               backgroundColor: tokens.accent.DEFAULT,
-              color: '#fff',
+              color: tokens.flat.white,
             }}
           >
             Submit Escalation

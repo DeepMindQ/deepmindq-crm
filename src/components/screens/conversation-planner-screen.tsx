@@ -101,7 +101,7 @@ export default function ConversationPlannerScreen() {
   });
 
   // Fetch contacts for selected company
-  const { data: contacts } = useQuery({
+  const { data: contacts, isLoading: contactsLoading } = useQuery({
     queryKey: ['conversation-planner-contacts', selectedCompanyId],
     queryFn: async () => {
       if (!selectedCompanyId) return [];
@@ -275,7 +275,7 @@ export default function ConversationPlannerScreen() {
               <span className="text-sm font-medium text-muted-foreground">Briefing for:</span>
               <button
                 onClick={() => setSelectedContactId(undefined)}
-                className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                className={`px-3 py-2.5 rounded-full text-xs font-medium transition-colors ${
                   !selectedContactId
                     ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                     : 'bg-muted text-muted-foreground hover:bg-accent'
@@ -287,7 +287,7 @@ export default function ConversationPlannerScreen() {
                 <button
                   key={contact.id}
                   onClick={() => setSelectedContactId(contact.id)}
-                  className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+                  className={`px-3 py-2.5 rounded-full text-xs font-medium transition-colors ${
                     selectedContactId === contact.id
                       ? 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200'
                       : 'bg-muted text-muted-foreground hover:bg-accent'

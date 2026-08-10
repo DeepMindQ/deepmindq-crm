@@ -134,7 +134,7 @@ export default function DataRulesSection() {
       <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-lg font-semibold text-foreground flex items-center gap-2">
-            <Database className="size-4 text-[#D4AF37]" />
+            <Database className="size-4 text-[var(--dmq-gold)]" />
             Data Intelligence Configuration
           </h3>
           <p className="text-sm text-muted-foreground mt-0.5">
@@ -156,25 +156,25 @@ export default function DataRulesSection() {
       {/* ── Sub-tabs ── */}
       <Tabs value={activeSubTab} onValueChange={setActiveSubTab}>
         <TabsList className="bg-muted/50 p-1 h-auto">
-          <TabsTrigger value="column-rules" className="text-xs data-[state=active]:bg-[#D4AF37]/15 data-[state=active]:text-[#D4AF37]">
+          <TabsTrigger value="column-rules" className="text-xs data-[state=active]:bg-[var(--dmq-gold)]] data-[state=active]:text-[var(--dmq-gold)]">
             <ArrowUpDown className="size-3 mr-1" /> Column Rules
             {ruleCounts['column-rules'] > 0 && (
               <Badge variant="secondary" className="ml-1.5 text-[11px] px-1.5 py-0">{ruleCounts['column-rules']}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="validation-rules" className="text-xs data-[state=active]:bg-[#D4AF37]/15 data-[state=active]:text-[#D4AF37]">
+          <TabsTrigger value="validation-rules" className="text-xs data-[state=active]:bg-[var(--dmq-gold)]] data-[state=active]:text-[var(--dmq-gold)]">
             <Shield className="size-3 mr-1" /> Validation Rules
             {ruleCounts['validation-rules'] > 0 && (
               <Badge variant="secondary" className="ml-1.5 text-[11px] px-1.5 py-0">{ruleCounts['validation-rules']}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="normalization" className="text-xs data-[state=active]:bg-[#D4AF37]/15 data-[state=active]:text-[#D4AF37]">
+          <TabsTrigger value="normalization" className="text-xs data-[state=active]:bg-[var(--dmq-gold)]] data-[state=active]:text-[var(--dmq-gold)]">
             <RefreshCw className="size-3 mr-1" /> Normalization
             {ruleCounts['normalization'] > 0 && (
               <Badge variant="secondary" className="ml-1.5 text-[11px] px-1.5 py-0">{ruleCounts['normalization']}</Badge>
             )}
           </TabsTrigger>
-          <TabsTrigger value="scoring" className="text-xs data-[state=active]:bg-[#D4AF37]/15 data-[state=active]:text-[#D4AF37]">
+          <TabsTrigger value="scoring" className="text-xs data-[state=active]:bg-[var(--dmq-gold)]] data-[state=active]:text-[var(--dmq-gold)]">
             <BarChart3 className="size-3 mr-1" /> Scoring Weights
             {ruleCounts['scoring'] > 0 && (
               <Badge variant="secondary" className="ml-1.5 text-[11px] px-1.5 py-0">{ruleCounts['scoring']}</Badge>
@@ -225,7 +225,7 @@ export default function DataRulesSection() {
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteColumnRule(rule.id)}>
+                        <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-destructive hover:text-destructive min-h-[44px]" onClick={() => deleteColumnRule(rule.id)}>
                           <Trash2 className="size-3" />
                         </Button>
                       </TableCell>
@@ -287,7 +287,7 @@ export default function DataRulesSection() {
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground max-w-[200px] truncate">{rule.message}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteValidationRule(rule.id)}>
+                        <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-destructive hover:text-destructive min-h-[44px]" onClick={() => deleteValidationRule(rule.id)}>
                           <Trash2 className="size-3" />
                         </Button>
                       </TableCell>
@@ -340,14 +340,14 @@ export default function DataRulesSection() {
                     <TableRow key={m.id}>
                       <TableCell><Badge variant="outline" className="text-xs">{m.category}</Badge></TableCell>
                       <TableCell className="text-sm">{m.sourceValue}</TableCell>
-                      <TableCell className="text-sm font-medium text-[#D4AF37]">{m.normalizedValue}</TableCell>
+                      <TableCell className="text-sm font-medium text-[var(--dmq-gold)]">{m.normalizedValue}</TableCell>
                       <TableCell className="text-center">
                         <Badge variant={m.isActive ? 'default' : 'secondary'} className="text-[11px]">
                           {m.isActive ? 'Active' : 'Inactive'}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteNormMapping(m.id)}>
+                        <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-destructive hover:text-destructive min-h-[44px]" onClick={() => deleteNormMapping(m.id)}>
                           <Trash2 className="size-3" />
                         </Button>
                       </TableCell>
@@ -401,11 +401,11 @@ export default function DataRulesSection() {
                     <TableRow key={w.id}>
                       <TableCell><Badge variant="outline" className="text-xs">{w.dimension}</Badge></TableCell>
                       <TableCell className="text-xs font-medium">{w.key || w.field || '-'}</TableCell>
-                      <TableCell className="text-center text-sm font-semibold text-[#D4AF37]">{w.weight}</TableCell>
+                      <TableCell className="text-center text-sm font-semibold text-[var(--dmq-gold)]">{w.weight}</TableCell>
                       <TableCell className="text-center text-xs text-muted-foreground">{w.maxScore}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">{w.description || '-'}</TableCell>
                       <TableCell className="text-right">
-                        <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-destructive hover:text-destructive" onClick={() => deleteScoringWeight(w.id)}>
+                        <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-destructive hover:text-destructive min-h-[44px]" onClick={() => deleteScoringWeight(w.id)}>
                           <Trash2 className="size-3" />
                         </Button>
                       </TableCell>

@@ -137,7 +137,8 @@ export async function getScoringConfig(): Promise<ScoringConfig> {
 }
 
 export async function updateScoringConfig(
-  partial: Partial<ScoringConfig>
+  partial: Partial<ScoringConfig>,
+  options?: { changedBy?: string; changeReason?: string },
 ): Promise<ScoringConfig> {
   const current = await getScoringConfig();
   const updated: ScoringConfig = {
@@ -216,6 +217,21 @@ export async function updateScoringConfig(
     update: { value: JSON.stringify(updated) },
     create: { key: CONFIG_KEY, value: JSON.stringify(updated) },
   });
+
+  // P7.3: Record scoring config change in audit history
+  try {
+    await db.scoringConfigHistory.create({
+      data: {
+        previousConfig: current as unknown as Record<string, unknown>,
+        newConfig: updated as unknown as Record<string, unknown>,
+        changedBy: options?.changedBy ?? 'system',
+        changeReason: options?.changeReason ?? null,
+      },
+    });
+  } catch (err) {
+    // Non-blocking: audit history write failure should not block config update
+    logger.warn('[scoring-config] Failed to write config history:', { error: err instanceof Error ? err.message : String(err) });
+  }
 
   // Update in-process cache
   _cachedConfig = updated;

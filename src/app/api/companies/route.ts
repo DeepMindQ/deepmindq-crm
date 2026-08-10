@@ -103,7 +103,20 @@ try {
     const [companies, total, tierDist, statusDist] = await Promise.all([
       db.company.findMany({
         where,
-        include: {
+        // P5.1: Explicit select to avoid SELECT * (was bare include)
+        select: {
+          id: true,
+          rawName: true,
+          domain: true,
+          industry: true,
+          sizeRange: true,
+          country: true,
+          status: true,
+          priorityTier: true,
+          accountPriorityScore: true,
+          intelligenceScore: true,
+          lastActivityAt: true,
+          updatedAt: true,
           _count: {
             select: {
               contacts: true,

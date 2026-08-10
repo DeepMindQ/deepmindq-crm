@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Building2, UserCheck, Rocket, ChevronRight, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -77,7 +78,7 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
               background:
                 i <= current
                   ? 'linear-gradient(90deg, var(--color-gold), var(--color-gold-bright))'
-                  : 'rgba(255,255,255,0.12)',
+                  : tokens.opacity.white.micro,
               boxShadow:
                 i === current
                   ? '0 0 12px color-mix(in oklch, var(--color-gold) 40%, transparent)'
@@ -89,7 +90,7 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
           {i < total - 1 && (
             <ChevronRight
               className="w-3 h-3"
-              style={{ color: i < current ? 'var(--color-gold)' : 'rgba(255,255,255,0.2)' }}
+              style={{ color: i < current ? 'var(--color-gold)' : tokens.opacity.white.faint }}
             />
           )}
         </div>
@@ -115,7 +116,7 @@ function GoldButton({
       className="w-full h-11 rounded-xl text-sm font-semibold transition-all duration-200"
       style={{
         background: 'linear-gradient(135deg, var(--color-gold), var(--color-gold-bright))',
-        color: '#fff',
+        color: tokens.flat.white,
         boxShadow: '0 4px 20px color-mix(in oklch, var(--color-gold) 30%, transparent)',
       }}
     >
@@ -184,7 +185,7 @@ function StepCompany({
         </motion.div>
         <div className="text-center">
           <h2 className="text-xl font-bold text-white">Tell us about your company</h2>
-          <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          <p className="text-sm mt-1" style={{ color: tokens.opacity.white.subtle }}>
             Help us personalize DeepMindQ for your business
           </p>
         </div>
@@ -264,7 +265,7 @@ function StepRole({
         </motion.div>
         <div className="text-center">
           <h2 className="text-xl font-bold text-white">Set your role</h2>
-          <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          <p className="text-sm mt-1" style={{ color: tokens.opacity.white.subtle }}>
             We&apos;ll tailor the experience to your responsibilities
           </p>
         </div>
@@ -351,7 +352,7 @@ function StepComplete({
         </motion.div>
         <div className="text-center">
           <h2 className="text-xl font-bold text-white">You&apos;re all set!</h2>
-          <p className="text-sm mt-1" style={{ color: 'rgba(255,255,255,0.5)' }}>
+          <p className="text-sm mt-1" style={{ color: tokens.opacity.white.subtle }}>
             Here&apos;s what we have for you
           </p>
         </div>
@@ -361,7 +362,7 @@ function StepComplete({
       <div
         className="rounded-xl p-5 space-y-4"
         style={{
-          background: 'rgba(255,255,255,0.04)',
+          background: tokens.opacity.white.ghost,
           border: '1px solid rgba(255,255,255,0.08)',
         }}
       >
@@ -402,7 +403,7 @@ function SummaryRow({
     <div className="flex items-center gap-3">
       <div className="shrink-0" style={{ color: 'var(--color-gold)' }}>{icon}</div>
       <div className="min-w-0 flex-1">
-        <p className="text-[11px] uppercase tracking-widest" style={{ color: 'rgba(255,255,255,0.4)' }}>
+        <p className="text-[11px] uppercase tracking-widest" style={{ color: tokens.opacity.white.subtle }}>
           {label}
         </p>
         <p className="text-sm font-medium text-white truncate">{value}</p>
@@ -461,7 +462,7 @@ export function OnboardingFlow() {
           animate="visible"
           exit="exit"
           transition={{ duration: 0.3 }}
-          style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(12px) saturate(1.5)' }}
+          style={{ background: tokens.opacity.strong, backdropFilter: 'blur(12px) saturate(1.5)' }}
         >
           {/* Close backdrop click area — stops propagation so dropdown clicks work */}
           <div className="absolute inset-0" onClick={(e) => e.stopPropagation()} aria-hidden="true" />
@@ -501,7 +502,7 @@ export function OnboardingFlow() {
             {submitting && (
               <motion.div
                 className="absolute inset-0 rounded-2xl flex items-center justify-center"
-                style={{ background: 'rgba(15,15,26,0.85)', backdropFilter: 'blur(4px)' }}
+                style={{ background: tokens.surfaceExtended.overlayDeep, backdropFilter: 'blur(4px)' }}
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
               >

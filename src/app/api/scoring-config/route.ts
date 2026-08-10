@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 import { getScoringConfig, updateScoringConfig, getCachedScoringConfig } from '@/lib/scoring-config';
 import { checkApiAuth } from '@/lib/api-auth';
 
@@ -69,7 +70,7 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: err.message }, { status: 400 });
     }
 
-    console.error('[scoring-config] PUT error:', err);
+    logger.error('[scoring-config] PUT error', { error: err });
     return NextResponse.json({ error: 'Failed to update scoring config' }, { status: 500 });
   }
 }

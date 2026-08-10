@@ -2,6 +2,13 @@
  * S4-2.4 — Decision Learning Confidence Blending
  * ================================================
  *
+ * ⚠️ DEPRECATED (Phase 2.7): This module is superseded by
+ * @/lib/ai-unified-confidence.ts which provides a 6-dimension unified model
+ * with calibration awareness (Phase 2.2).
+ *
+ * This file is kept for backward compatibility. New code should use:
+ *   import { computeCalibratedConfidence } from '@/lib/ai-unified-confidence';
+ *
  * Blends confidence scores from multiple intelligence sources into a
  * single unified confidence score for recommendations.
  *

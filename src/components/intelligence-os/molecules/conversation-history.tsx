@@ -1,5 +1,6 @@
 'use client';
 
+import { tokens } from '@/components/intelligence-os/design-tokens';
 /* ═══════════════════════════════════════════════════════════════
    MS9 §3 — Conversation History (Molecule)
    
@@ -141,8 +142,8 @@ export function ConversationHistory({
               <div
                 className="px-4 py-2 rounded-lg text-[12px] text-[var(--risk-red)]"
                 style={{
-                  backgroundColor: 'rgba(239, 68, 68, 0.08)',
-                  border: '1px solid rgba(239, 68, 68, 0.2)',
+                  backgroundColor: tokens.priority.critical.bg,
+                  border: '1px solid tokens.priority.critical.border',
                 }}
               >
                 {message.content.error}

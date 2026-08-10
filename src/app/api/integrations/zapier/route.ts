@@ -1,14 +1,16 @@
 /**
  * DeepMindQ Intelligence OS — Zapier Integration API Route
  *
- * GET  /api/integrations/zapier  → list available trigger events & actions
- * POST /api/integrations/zapier  → execute an action
+ * GET  /api/integrations/zapier  → list available trigger events, actions, and registered handlers
+ * POST /api/integrations/zapier  → execute an action via the integration dispatcher
  *
  * Designed to be Zapier-compatible: triggers return unique `id` fields and
  * sample data so Zapier can auto-map fields.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
+import { checkApiAuth } from '@/lib/api-auth';
+import { dispatchAction, listHandlers } from '@/lib/integration-dispatcher';
 
 // ---------------------------------------------------------------------------
 // Trigger events (things that Zapier can subscribe to)
@@ -57,7 +59,7 @@ const TRIGGER_EVENTS = [
 ] as const;
 
 // ---------------------------------------------------------------------------
-// Actions (things Zapier can invoke in our system)
+// Action definitions (schema / input validation for Zapier consumers)
 // ---------------------------------------------------------------------------
 
 const AVAILABLE_ACTIONS = [
@@ -115,21 +117,29 @@ const AVAILABLE_ACTIONS = [
 ] as const;
 
 // ---------------------------------------------------------------------------
-// GET — list triggers & actions
+// GET — list triggers, actions, and registered handlers
 // ---------------------------------------------------------------------------
 
-export async function GET(): Promise<NextResponse> {
+export async function GET(request: NextRequest): Promise<Response> {
+  const { errorResponse } = await checkApiAuth(request);
+  if (errorResponse) return errorResponse;
+
   return NextResponse.json({
     triggers: TRIGGER_EVENTS,
     actions: AVAILABLE_ACTIONS,
+    registeredHandlers: listHandlers(),
   });
 }
 
 // ---------------------------------------------------------------------------
-// POST — execute an action
+// POST — execute an action via the integration dispatcher
 // ---------------------------------------------------------------------------
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
+export async function POST(request: NextRequest): Promise<Response> {
+  // ── Auth check (was missing — P1.5 fix) ──
+  const { session, errorResponse } = await checkApiAuth(request);
+  if (errorResponse) return errorResponse;
+
   try {
     const body = (await request.json()) as {
       action: string;
@@ -140,36 +150,31 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       return NextResponse.json({ error: 'Missing "action" field.' }, { status: 400 });
     }
 
+    // Validate against known action schema for input field checking
     const actionDef = AVAILABLE_ACTIONS.find((a) => a.id === body.action);
-    if (!actionDef) {
-      return NextResponse.json(
-        { error: `Unknown action: "${body.action}". Available: ${AVAILABLE_ACTIONS.map((a) => a.id).join(', ')}` },
-        { status: 400 },
-      );
-    }
-
-    // Validate required fields
-    const params = body.params ?? {};
-    for (const field of actionDef.inputFields) {
-      if (field.required && !params[field.key]) {
-        return NextResponse.json(
-          { error: `Missing required field: "${field.label}" (${field.key})` },
-          { status: 400 },
-        );
+    if (actionDef) {
+      const params = body.params ?? {};
+      for (const field of actionDef.inputFields) {
+        if (field.required && !params[field.key]) {
+          return NextResponse.json(
+            { error: `Missing required field: "${field.label}" (${field.key})` },
+            { status: 400 },
+          );
+        }
       }
     }
 
-    // In a real implementation these would hit the database / ORM layer.
-    // For now we return a mock success payload.
-    const mockId = `${body.action.slice(0, 4)}_${Date.now().toString(36)}`;
+    // Dispatch through the integration dispatcher
+    const result = await dispatchAction(
+      body.action,
+      (body.params ?? {}) as Record<string, unknown>,
+      {
+        userId: session?.id,
+        requestId: crypto.randomUUID(),
+      },
+    );
 
-    return NextResponse.json({
-      success: true,
-      action: body.action,
-      id: mockId,
-      message: `Action "${actionDef.name}" executed successfully (mock).`,
-      input: params,
-    });
+    return NextResponse.json(result, { status: result.success ? 200 : 400 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });

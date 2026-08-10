@@ -1,6 +1,7 @@
 'use client';
 
 import { motion, useInView, useMotionValue, useTransform, animate } from 'framer-motion';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { useRef, useState, useEffect, type ReactNode } from 'react';
 
 /* ═══════════════════════════════════════════════════
@@ -193,7 +194,7 @@ export function SectionHeader({ title, subtitle, className = '' }: {
       <div className="flex items-center gap-3 mb-1">
         <div
           className="h-6 w-1.5 rounded-full shadow-lg"
-          style={{ background: 'linear-gradient(180deg, #E8C860, #D4AF37, #9A8340)', boxShadow: '0 0 12px rgba(212, 175, 55, 0.3)' }}
+          style={{ background: 'linear-gradient(180deg, {tokens.gold.light}, {tokens.gold.DEFAULT}, {tokens.gold.deep})', boxShadow: '0 0 12px rgba(212, 175, 55, 0.3)' }}
         />
         <h2 className="text-lg font-bold text-foreground tracking-tight">{title}</h2>
       </div>
@@ -309,10 +310,10 @@ export function GradientCard({ children, className = '', gradient = 'gold' }: {
   children: ReactNode; className?: string; gradient?: 'gold' | 'blue' | 'green' | 'red' | 'purple';
 }) {
   const colors: Record<string, { from: string; to: string }> = {
-    gold:   { from: 'rgba(212, 175, 55, 0.25)', to: 'rgba(212, 175, 55, 0.05)' },
-    blue:   { from: 'rgba(59, 130, 246, 0.25)', to: 'rgba(59, 130, 246, 0.05)' },
+    gold:   { from: tokens.gold.bgBright, to: 'rgba(212, 175, 55, 0.05)' },
+    blue:   { from: tokens.accent.strong, to: 'rgba(59, 130, 246, 0.05)' },
     green:  { from: 'rgba(16, 185, 129, 0.25)', to: 'rgba(16, 185, 129, 0.05)' },
-    red:    { from: 'rgba(239, 68, 68, 0.25)', to: 'rgba(239, 68, 68, 0.05)' },
+    red:    { from: 'rgba(239, 68, 68, 0.25)', to: tokens.opacity.shadow },
     purple: { from: 'rgba(139, 92, 246, 0.25)', to: 'rgba(139, 92, 246, 0.05)' },
   };
 

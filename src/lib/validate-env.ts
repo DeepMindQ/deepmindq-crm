@@ -26,6 +26,8 @@ const envSchema = z.object({
   S3_REGION: z.string().optional(),
   S3_ACCESS_KEY: z.string().optional(),
   S3_SECRET_KEY: z.string().optional(),
+  // P4.5: Redis for distributed rate limiting
+  REDIS_URL: z.string().url().optional().describe('Redis URL for distributed rate limiting'),
   // Required for core features
   AUTHORIZED_EMAIL: z.string().min(1, 'AUTHORIZED_EMAIL is required for login').optional(),
   TRACKING_SECRET: z.string().min(16, 'TRACKING_SECRET must be at least 16 characters').optional(),
@@ -37,6 +39,11 @@ const envSchema = z.object({
   DIRECT_DATABASE_URL: z.string().optional(),
   // WI-18.1 LOCK: Encryption key for API keys at rest
   API_KEY_ENCRYPTION_KEY: z.string().min(32, 'API_KEY_ENCRYPTION_KEY must be at least 32 characters').optional(),
+  // P2.1 / P4.4: Alert & notification channel configuration
+  SLACK_WEBHOOK_URL: z.string().url().optional(),
+  TEAMS_WEBHOOK_URL: z.string().url().optional(),
+  ONCALL_EMAIL: z.string().email().optional(),
+  PAGERDUTY_KEY: z.string().optional(),
 })
 
 export type EnvConfig = z.infer<typeof envSchema>

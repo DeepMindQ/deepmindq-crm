@@ -562,7 +562,7 @@ function AccountRow({
         variant="outline"
         onClick={() => onScore(company)}
         disabled={scoring}
-        className="h-7 shrink-0 gap-1 px-2 text-xs"
+        className="h-10 shrink-0 gap-1 px-2 text-xs"
       >
         {scoring ? <Loader2 className="h-3 w-3 animate-spin" /> : <Gauge className="h-3 w-3" />}
         Score
@@ -1038,8 +1038,8 @@ export default function AICommandCenterScreen() {
                       <AreaChart data={signalSeries} margin={{ top: 4, right: 0, bottom: 0, left: 0 }}>
                         <defs>
                           <linearGradient id="signalVol" x1="0" y1="0" x2="0" y2="1">
-                            <stop offset="0%" stopColor="#3b82f6" stopOpacity={0.35} />
-                            <stop offset="100%" stopColor="#3b82f6" stopOpacity={0} />
+                            <stop offset="0%" stopColor="var(--dmq-accent-blue)" stopOpacity={0.35} />
+                            <stop offset="100%" stopColor="var(--dmq-accent-blue)" stopOpacity={0} />
                           </linearGradient>
                         </defs>
                         <XAxis dataKey="day" hide />
@@ -1047,16 +1047,16 @@ export default function AICommandCenterScreen() {
                         <Tooltip
                           contentStyle={{
                             borderRadius: 8,
-                            border: '1px solid #e4e4e7',
+                            border: '1px solid var(--dmq-cool-gray)',
                             fontSize: 11,
                             padding: '4px 8px',
                           }}
-                          labelStyle={{ fontSize: 11, color: '#71717a' }}
+                          labelStyle={{ fontSize: 11, color: 'var(--dmq-zinc)' }}
                         />
                         <Area
                           type="monotone"
                           dataKey="count"
-                          stroke="#3b82f6"
+                          stroke="var(--dmq-accent-blue)"
                           strokeWidth={2}
                           fill="url(#signalVol)"
                         />
@@ -1113,7 +1113,7 @@ export default function AICommandCenterScreen() {
                   variant="ghost"
                   size="sm"
                   onClick={() => setActiveView('companies')}
-                  className="h-7 gap-1 px-2 text-xs text-zinc-500"
+                  className="h-10 gap-1 px-2 text-xs text-zinc-500"
                 >
                   View all <ArrowRight className="h-3 w-3" />
                 </Button>

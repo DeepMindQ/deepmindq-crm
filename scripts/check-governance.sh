@@ -86,6 +86,7 @@ if [ -n "$MODELR_FILES" ]; then
       */engines/*) ;; # Engine files importing ModelRouter internally is ok
       */__tests__/*) ;; # Test files are ok
       */governance/check/*) ;; # Governance check endpoint explicitly allowed (health-only)
+      */health/metrics/*) ;; # Health/metrics endpoint needs ModelRouter.getPerformanceStats() for observability
       *)
         echo "FAIL: ModelRouter imported outside governance/engines layer: $f"
         exit 1

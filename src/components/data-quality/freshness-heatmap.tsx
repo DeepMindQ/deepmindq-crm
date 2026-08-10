@@ -1,6 +1,7 @@
 'use client'
 
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { cn } from '@/lib/utils'
 
 export interface FreshnessEntry {
@@ -17,12 +18,12 @@ interface FreshnessHeatmapProps {
 }
 
 function getFreshnessColor(hoursAgo: number): { bg: string; text: string; label: string } {
-  if (hoursAgo < 1) return { bg: 'rgba(34,197,94,0.2)', text: '#22c55e', label: 'Fresh' }
-  if (hoursAgo < 6) return { bg: 'rgba(34,197,94,0.1)', text: '#22c55e', label: '< 6h' }
-  if (hoursAgo < 24) return { bg: 'rgba(59,130,246,0.15)', text: '#3b82f6', label: '< 24h' }
-  if (hoursAgo < 72) return { bg: 'rgba(245,158,11,0.15)', text: '#f59e0b', label: '< 3d' }
-  if (hoursAgo < 168) return { bg: 'rgba(249,115,22,0.15)', text: '#f97316', label: '< 7d' }
-  return { bg: 'rgba(239,68,68,0.15)', text: '#ef4444', label: '> 7d' }
+  if (hoursAgo < 1) return { bg: tokens.trust.verified.border, text: tokens.domain.action, label: 'Fresh' }
+  if (hoursAgo < 6) return { bg: tokens.trust.verified.bg, text: tokens.domain.action, label: '< 6h' }
+  if (hoursAgo < 24) return { bg: tokens.accent.subtle, text: tokens.accent.DEFAULT, label: '< 24h' }
+  if (hoursAgo < 72) return { bg: tokens.confidence.medium.bg, text: tokens.domain.reasoning, label: '< 3d' }
+  if (hoursAgo < 168) return { bg: tokens.trust.low.bg, text: tokens.trust.low.value, label: '< 7d' }
+  return { bg: tokens.confidence.low.bg, text: tokens.domain.risk, label: '> 7d' }
 }
 
 export function FreshnessHeatmap({ entries, className }: FreshnessHeatmapProps) {

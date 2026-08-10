@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { tokens } from '@/lib/design-tokens';
 import { verifyUnsubscribeToken } from '@/lib/unsubscribe';
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
@@ -14,7 +15,7 @@ import { getBrandName, getBrandNameSync } from '@/lib/brand-helper';
    and returns a branded HTML confirmation page.
    ═══════════════════════════════════════════════════ */
 
-const BRAND_COLOR = '#D4AF37';
+const BRAND_COLOR = tokens.gold.DEFAULT;
 
 function escapeHtml(str: string): string {
   return str
@@ -38,7 +39,7 @@ function renderConfirmationHtml(email: string, success: boolean, error?: string)
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       background: #0f0f11;
-      color: #e5e7eb;
+      color: {tokens.neutral['200']};
       display: flex;
       align-items: center;
       justify-content: center;
@@ -65,8 +66,8 @@ function renderConfirmationHtml(email: string, success: boolean, error?: string)
       margin: 0 auto 24px;
       font-size: 32px;
       ${success
-        ? `background: rgba(34, 197, 94, 0.12); color: #22c55e;`
-        : `background: rgba(239, 68, 68, 0.12); color: #ef4444;`
+        ? `background: rgba(34, 197, 94, 0.12); color: {tokens.domain.action};`
+        : `background: rgba(239, 68, 68, 0.12); color: {tokens.domain.risk};`
       }
     }
     h1 {
@@ -78,7 +79,7 @@ function renderConfirmationHtml(email: string, success: boolean, error?: string)
     p {
       font-size: 15px;
       line-height: 1.6;
-      color: #9ca3af;
+      color: {tokens.neutral['400']};
       margin-bottom: 8px;
     }
     .email {
@@ -93,7 +94,7 @@ function renderConfirmationHtml(email: string, success: boolean, error?: string)
     }
     .footer {
       font-size: 12px;
-      color: #6b7280;
+      color: {tokens.trust.unverified.value};
     }
   </style>
 </head>
@@ -128,7 +129,7 @@ function renderMissingParamsHtml(): string {
     body {
       font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
       background: #0f0f11;
-      color: #e5e7eb;
+      color: {tokens.neutral['200']};
       display: flex;
       align-items: center;
       justify-content: center;
@@ -145,7 +146,7 @@ function renderMissingParamsHtml(): string {
       text-align: center;
     }
     h1 { font-size: 24px; font-weight: 600; color: #f9fafb; margin-bottom: 12px; }
-    p { font-size: 15px; color: #9ca3af; line-height: 1.6; }
+    p { font-size: 15px; color: {tokens.neutral['400']}; line-height: 1.6; }
   </style>
 </head>
 <body>

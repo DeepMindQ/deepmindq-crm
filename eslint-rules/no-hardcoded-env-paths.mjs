@@ -22,7 +22,7 @@
  * Rule ID: no-hardcoded-env-paths
  */
 
-module.exports = {
+export default {
   meta: {
     type: "problem",
     docs: {

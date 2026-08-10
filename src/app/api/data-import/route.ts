@@ -246,32 +246,39 @@ async function handleUpload(body: Record<string, unknown>) {
     columnMapping = await autoMapColumns(upload.id, headers as string[]);
   }
 
-  // Create UploadRow records (if rows provided)
-  let createdRows = 0;
-  if (Array.isArray(rows)) {
-    // Safety cap on rows
-    const rowsData = rows as Record<string, string>[];
-    if (rowsData.length > 50_000) {
-      return apiError('Maximum 50,000 rows per upload', 400);
-    }
-    const createData = rowsData.map(
-      (row: Record<string, string>, index: number) => ({
-        uploadId: upload.id,
-        rowIndex: index,
-        rawData: JSON.stringify(row),
-        mappedData: columnMapping
-          ? JSON.stringify(remapRow(row, columnMapping))
-          : null,
-        status: 'pending' as const,
-      }),
-    );
+    // Create UploadRow records (if rows provided) — wrapped in a transaction for atomicity
+    let createdRows = 0;
+    if (Array.isArray(rows)) {
+      // Safety cap on rows
+      const rowsData = rows as Record<string, string>[];
+      if (rowsData.length > 50_000) {
+        return apiError('Maximum 50,000 rows per upload', 400);
+      }
+      const createData = rowsData.map(
+        (row: Record<string, string>, index: number) => ({
+          uploadId: upload.id,
+          rowIndex: index,
+          rawData: JSON.stringify(row),
+          mappedData: columnMapping
+            ? JSON.stringify(remapRow(row, columnMapping))
+            : null,
+          status: 'pending' as const,
+        }),
+      );
 
-    // Create in batches of 100 to avoid query limits
-    for (let i = 0; i < createData.length; i += 100) {
-      await db.uploadRow.createMany({ data: createData.slice(i, i + 100) });
-      createdRows += Math.min(100, createData.length - i);
+      try {
+        // Create in batches of 100 to avoid query limits, all within one transaction
+        await db.$transaction(async (tx) => {
+          for (let i = 0; i < createData.length; i += 100) {
+            await tx.uploadRow.createMany({ data: createData.slice(i, i + 100) });
+            createdRows += Math.min(100, createData.length - i);
+          }
+        }, { timeout: 60000 });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Unknown error';
+        return apiError(`Failed to create upload rows: ${msg}`, 500);
+      }
     }
-  }
 
   return apiSuccess({
     upload,

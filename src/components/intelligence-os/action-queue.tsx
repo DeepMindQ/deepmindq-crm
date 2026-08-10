@@ -72,9 +72,9 @@ export interface ActionQueueProps {
 
 // ── Priority visual config ──
 const ACTION_PRIORITY_STYLES: Record<string, { color: string; bg: string }> = {
-  high:   { color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
-  medium: { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-  low:    { color: '#8892a8', bg: 'rgba(136,146,168,0.1)' },
+  high:   { color: tokens.domain.risk, bg: tokens.confidence.low.bg },
+  medium: { color: tokens.domain.reasoning, bg: tokens.confidence.medium.bg },
+  low:    { color: tokens.text.secondary, bg: tokens.priority.low.bg },
 };
 
 export function ActionQueue({
@@ -99,7 +99,7 @@ export function ActionQueue({
         <Badge
           variant="secondary"
           className="text-[10px] px-1.5 py-0"
-          style={{ background: 'rgba(16,185,129,0.1)', color: tokens.domain.action, border: 0 }}
+          style={{ background: tokens.extended.emerald.bg, color: tokens.domain.action, border: 0 }}
         >
           {actions.length}
         </Badge>

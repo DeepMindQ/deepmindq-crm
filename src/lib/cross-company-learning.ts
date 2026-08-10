@@ -239,7 +239,7 @@ async function findSimilarCompanyIds(
 
   // Strategy 1: KG traversal from company node
   const companyNodeId = `company:${targetCompanyId}`;
-  const companyNode = getNode(companyNodeId);
+  const companyNode = await getNode(companyNodeId);
 
   if (companyNode) {
     try {
@@ -294,7 +294,7 @@ async function findSimilarCompanyIds(
     try {
       for (const tech of explicitTechnologies) {
         const techNodeId = `technology:${tech.toLowerCase().replace(/[\s\/]+/g, '-')}`;
-        const techNode = getNode(techNodeId);
+        const techNode = await getNode(techNodeId);
 
         if (techNode) {
           // Find companies connected to this technology
@@ -304,7 +304,7 @@ async function findSimilarCompanyIds(
           for (const edge of edges) {
             // The source is the company node in the reverse direction,
             // but USES_TECHNOLOGY goes company→tech, so check target
-            const targetNode = getNode(edge.sourceId);
+            const targetNode = await getNode(edge.sourceId);
             if (targetNode?.type === 'company') {
               const dbId = (targetNode.properties as Record<string, unknown>)?.dbCompanyId as string | undefined;
               if (dbId && dbId !== targetCompanyId && !seen.has(dbId)) {

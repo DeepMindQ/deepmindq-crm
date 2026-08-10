@@ -124,7 +124,7 @@ vi.mock('@/lib/logger', () => ({
 }));
 
 vi.mock('@/lib/ai-knowledge-graph', () => ({
-  getNode: vi.fn().mockReturnValue(null),
+  getNode: vi.fn().mockResolvedValue(undefined),
   getGraphStats: vi.fn().mockReturnValue({ totalNodes: 5, totalEdges: 3 }),
   getAllNodes: vi.fn().mockReturnValue([
     { id: `company-company-test-1`, label: 'Test Corp Inc', type: 'company', properties: { companyId: 'company-test-1' } },

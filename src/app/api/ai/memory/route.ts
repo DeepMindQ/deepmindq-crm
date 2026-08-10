@@ -66,7 +66,7 @@ export async function GET(request: NextRequest): Promise<Response> {
 
     switch (view) {
       case 'stats': {
-        const stats = getMemoryStats();
+        const stats = await getMemoryStats();
         return Response.json({ view: 'stats', data: stats, latencyMs: Date.now() - startTime });
       }
 
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest): Promise<Response> {
           limit: parseInt(request.nextUrl.searchParams.get('limit') || '20', 10),
         };
 
-        const results = searchMemories(searchQuery);
+        const results = await searchMemories(searchQuery);
         return Response.json({ view: 'search', data: { results, count: results.length }, latencyMs: Date.now() - startTime });
       }
 
@@ -92,7 +92,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         const entityId = request.nextUrl.searchParams.get('entityId');
         const query = request.nextUrl.searchParams.get('query') || undefined;
 
-        const context = buildMemoryContext({
+        const context = await buildMemoryContext({
           query,
           scopeEntityType: entityType || undefined,
           scopeEntityId: entityId || undefined,
@@ -114,7 +114,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         const id = request.nextUrl.searchParams.get('id');
         if (!id) return Response.json({ error: 'Missing required parameter: id' }, { status: 400 });
 
-        const memory = recallMemory(id);
+        const memory = await recallMemory(id);
         if (!memory) return Response.json({ error: `Memory not found: ${id}` }, { status: 404 });
 
         return Response.json({ view: 'recall', data: memory, latencyMs: Date.now() - startTime });
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       case 'store': {
         if (!body.content) return Response.json({ error: 'Missing required field: content' }, { status: 400 });
 
-        const memory = storeMemory({
+        const memory = await storeMemory({
           id: body.id || `mem-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
           layer: body.layer || 'enterprise',
           category: body.category || 'company_intelligence',
@@ -175,7 +175,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       case 'update': {
         if (!body.id) return Response.json({ error: 'Missing required field: id' }, { status: 400 });
 
-        const updated = updateMemory(body.id, {
+        const updated = await updateMemory(body.id, {
           content: body.content,
           summary: body.summary,
           tags: body.tags,
@@ -193,14 +193,14 @@ export async function POST(request: NextRequest): Promise<Response> {
       case 'forget': {
         if (!body.id) return Response.json({ error: 'Missing required field: id' }, { status: 400 });
 
-        const forgotten = forgetMemory(body.id);
+        const forgotten = await forgetMemory(body.id);
         if (!forgotten) return Response.json({ error: `Memory not found: ${body.id}` }, { status: 404 });
 
         return Response.json({ action: 'forget', message: `Memory ${body.id} forgotten`, latencyMs: Date.now() - startTime });
       }
 
       case 'consolidate': {
-        const result = consolidateMemories({
+        const result = await consolidateMemories({
           scopeEntityType: body.scopeEntityType,
           scopeEntityId: body.scopeEntityId,
           maxAge: body.maxAge,
@@ -211,8 +211,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       }
 
       case 'decay': {
-        const result = applyMemoryDecay();
-        const stats = getMemoryStats();
+        const result = await applyMemoryDecay();
+        const stats = await getMemoryStats();
 
         return Response.json({
           action: 'decay',
@@ -223,8 +223,8 @@ export async function POST(request: NextRequest): Promise<Response> {
       }
 
       case 'seed': {
-        seedMemorySystem();
-        const stats = getMemoryStats();
+        await seedMemorySystem();
+        const stats = await getMemoryStats();
 
         return Response.json({
           action: 'seed',

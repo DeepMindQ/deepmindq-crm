@@ -29,15 +29,15 @@ export interface ContextAccountCardProps {
 /** Verification status → badge styling */
 const verificationStyles: Record<string, { bg: string; text: string }> = {
   verified: {
-    bg: 'rgba(34, 197, 94, 0.1)',
+    bg: tokens.trust.verified.bg,
     text: 'var(--trust-verified)',
   },
   estimated: {
-    bg: 'rgba(139, 149, 173, 0.1)',
+    bg: tokens.neutral.bg,
     text: 'var(--text-secondary)',
   },
   unknown: {
-    bg: 'rgba(107, 114, 128, 0.1)',
+    bg: tokens.trust.unverified.bg,
     text: 'var(--text-muted)',
   },
 };
@@ -70,8 +70,8 @@ export function ContextAccountCard({ data, onClick, className }: ContextAccountC
         <div
           className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0"
           style={{
-            backgroundColor: 'rgba(59, 130, 246, 0.1)',
-            border: '1px solid rgba(59, 130, 246, 0.2)',
+            backgroundColor: tokens.accent.subtle,
+            border: `1px solid ${tokens.accent.subtle}`,
           }}
         >
           <svg viewBox="0 0 18 18" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" width="18" height="18" style={{ color: 'var(--accent)' }}>

@@ -512,7 +512,7 @@ export default function RevenueIntelligenceScreen({
           </p>
           <button
             onClick={() => navigateTo?.('import')}
-            className="mt-4 inline-flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors"
+            className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 bg-primary text-primary-foreground rounded-lg text-sm font-medium hover:bg-primary/90 transition-colors min-h-[44px]"
           >
             Import Companies
           </button>
@@ -558,14 +558,14 @@ export default function RevenueIntelligenceScreen({
               title="Revenue Intelligence Feedback"
               description="How are these revenue insights?"
               trigger={
-                <button className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-black/[0.04] transition-colors">
+                <button className="inline-flex items-center gap-1.5 px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-black/[0.04] transition-colors">
                   💬 Feedback
                 </button>
               }
             />
             <button
               onClick={() => window.location.reload()}
-              className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-black/[0.04] transition-colors"
+              className="inline-flex items-center gap-1.5 px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-black/[0.04] transition-colors"
             >
               <RefreshCw className="w-3.5 h-3.5" />
               Refresh
@@ -585,7 +585,7 @@ export default function RevenueIntelligenceScreen({
             key={item.view}
             onClick={() => !item.active && navigateTo?.(item.view)}
             disabled={item.active}
-            className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${
+            className={`px-3.5 py-2.5 rounded-full text-sm font-medium transition-colors ${
               item.active
                 ? 'bg-primary text-primary-foreground'
                 : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'

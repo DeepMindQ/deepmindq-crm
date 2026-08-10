@@ -22,53 +22,59 @@ try {
       return NextResponse.json({ error: 'sequenceId and contactIds are required' }, { status: 400 });
     }
 
-    // Verify sequence exists and is active
-    const sequence = await db.emailSequence.findUnique({
-      where: { id: sequenceId, isActive: true },
-      include: { steps: { orderBy: { stepNumber: 'asc' } } },
-    });
+    // Wrap the existence check + enrollment in a transaction to prevent
+    // TOCTOU race conditions between the duplicate check and the createMany.
+    const result = await db.$transaction(async (tx) => {
+      // Verify sequence exists and is active
+      const sequence = await tx.emailSequence.findUnique({
+        where: { id: sequenceId, isActive: true },
+        include: { steps: { orderBy: { stepNumber: 'asc' } } },
+      });
 
-    if (!sequence) {
-      return NextResponse.json({ error: 'Active sequence not found' }, { status: 404 });
+      if (!sequence) {
+        return { error: 'Active sequence not found', status: 404 };
+      }
+
+      if (sequence.steps.length === 0) {
+        return { error: 'Sequence has no steps', status: 400 };
+      }
+
+      // Check for already-enrolled contacts
+      const existing = await tx.sequenceEnrollment.findMany({
+        where: {
+          sequenceId,
+          contactId: { in: contactIds },
+          status: 'active',
+        },
+        select: { contactId: true },
+      });
+
+      const alreadyEnrolled = new Set(existing.map(e => e.contactId));
+      const toEnroll = contactIds.filter((id: string) => !alreadyEnrolled.has(id));
+
+      if (toEnroll.length === 0) {
+        return { success: true, enrolled: 0, skipped: contactIds.length };
+      }
+
+      // Create enrollment records, set nextStepAt = now for step 1
+      const enrollments = await tx.sequenceEnrollment.createMany({
+        data: toEnroll.map((contactId: string) => ({
+          sequenceId,
+          contactId,
+          currentStep: 1,
+          status: 'active',
+          nextStepAt: new Date(),
+        })),
+      });
+
+      return { success: true, enrolled: enrollments.count, skipped: alreadyEnrolled.size };
+    }, { timeout: 30000 });
+
+    if ('error' in result) {
+      return NextResponse.json({ error: result.error }, { status: (result as { status: number }).status });
     }
 
-    if (sequence.steps.length === 0) {
-      return NextResponse.json({ error: 'Sequence has no steps' }, { status: 400 });
-    }
-
-    // Check for already-enrolled contacts
-    const existing = await db.sequenceEnrollment.findMany({
-      where: {
-        sequenceId,
-        contactId: { in: contactIds },
-        status: 'active',
-      },
-      select: { contactId: true },
-    });
-
-    const alreadyEnrolled = new Set(existing.map(e => e.contactId));
-    const toEnroll = contactIds.filter((id: string) => !alreadyEnrolled.has(id));
-
-    if (toEnroll.length === 0) {
-      return NextResponse.json({ success: true, enrolled: 0, skipped: contactIds.length });
-    }
-
-    // Create enrollment records, set nextStepAt = now for step 1
-    const enrollments = await db.sequenceEnrollment.createMany({
-      data: toEnroll.map((contactId: string) => ({
-        sequenceId,
-        contactId,
-        currentStep: 1,
-        status: 'active',
-        nextStepAt: new Date(),
-      })),
-    });
-
-    return NextResponse.json({
-      success: true,
-      enrolled: enrollments.count,
-      skipped: alreadyEnrolled.size,
-    });
+    return NextResponse.json(result);
   } catch (error) {
     logger.error('Sequence enroll error:', { error: error });
     return NextResponse.json(

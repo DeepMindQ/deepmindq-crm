@@ -44,12 +44,12 @@ interface PipelineHealth {
 }
 
 const STAGE_COLORS: Record<string, string> = {
-  discovery: '#60a5fa',
-  qualification: '#818cf8',
-  proposal: '#a78bfa',
-  negotiation: '#c084fc',
-  closed_won: '#22c55e',
-  closed_lost: '#f87171',
+  discovery: 'var(--dmq-blue-400)',
+  qualification: 'var(--dmq-sky-blue)',
+  proposal: 'var(--dmq-violet-400)',
+  negotiation: 'var(--dmq-purple-light)',
+  closed_won: 'var(--dmq-domain-action)',
+  closed_lost: 'var(--dmq-rose)',
 };
 
 const STAGE_LABELS: Record<string, string> = {
@@ -146,7 +146,7 @@ export default function PipelineHealthScreen() {
                           animate={{ width: `${pct}%` }}
                           transition={{ duration: 0.6, ease: 'easeOut' }}
                           className="flex h-full items-center rounded-md"
-                          style={{ backgroundColor: STAGE_COLORS[stage] || '#71717a', width: `${pct}%` }}
+                          style={{ backgroundColor: STAGE_COLORS[stage] || 'var(--dmq-zinc)', width: `${pct}%` }}
                         >
                           <span className="pl-3 text-xs font-medium text-white">{pct > 15 ? `${count}` : ''}</span>
                         </motion.div>

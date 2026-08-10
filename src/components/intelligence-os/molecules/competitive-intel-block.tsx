@@ -63,7 +63,7 @@ export function CompetitiveIntelBlock({ content, trust, defaultCollapsed, classN
                 <span
                   className="text-[9px] font-bold uppercase tracking-wider px-1.5 py-0.5 rounded"
                   style={{
-                    backgroundColor: 'rgba(136, 146, 168, 0.1)',
+                    backgroundColor: tokens.priority.low.bg,
                     color: threatColors[comp.threatLevel] ?? 'var(--text-muted)',
                   }}
                 >

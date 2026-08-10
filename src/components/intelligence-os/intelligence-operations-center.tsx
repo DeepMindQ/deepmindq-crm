@@ -162,10 +162,10 @@ interface SectionState {
 const SEVERITY_ORDER: Record<AlertSeverity, number> = { critical: 0, urgent: 1, warning: 2, info: 3 };
 
 const SEVERITY_STYLES: Record<AlertSeverity, { color: string; bg: string; border: string; icon: React.ElementType }> = {
-  critical: { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.2)', icon: AlertTriangle },
-  urgent:   { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.2)', icon: AlertTriangle },
-  warning:  { color: '#3b82f6', bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.2)', icon: Radio },
-  info:     { color: '#8892a8', bg: 'rgba(136,146,168,0.08)', border: 'rgba(136,146,168,0.2)', icon: Eye },
+  critical: { color: tokens.domain.risk, bg: tokens.priority.critical.bg, border: tokens.confidence.low.border, icon: AlertTriangle },
+  urgent:   { color: tokens.domain.reasoning, bg: tokens.confidence.medium.bg, border: tokens.confidence.medium.border, icon: AlertTriangle },
+  warning:  { color: tokens.accent.DEFAULT, bg: tokens.accent.ghost, border: tokens.accent.strong, icon: Radio },
+  info:     { color: tokens.text.secondary, bg: tokens.opacity.trace, border: tokens.priority.low.border, icon: Eye },
 };
 
 const PATTERN_LABELS: Record<CrossAccountPattern, string> = {
@@ -674,9 +674,9 @@ export function IntelligenceOperationsCenter() {
                 <Badge
                   className="text-[10px] px-2 py-0.5 font-semibold"
                   style={{
-                    color: criticalAlertCount > 0 ? '#ef4444' : tokens.accent.bright,
-                    background: criticalAlertCount > 0 ? 'rgba(239,68,68,0.08)' : tokens.accent.ghost,
-                    border: `1px solid ${criticalAlertCount > 0 ? 'rgba(239,68,68,0.2)' : tokens.border.subtle}`,
+                    color: criticalAlertCount > 0 ? tokens.domain.risk : tokens.accent.bright,
+                    background: criticalAlertCount > 0 ? tokens.priority.critical.bg : tokens.accent.ghost,
+                    border: `1px solid ${criticalAlertCount > 0 ? 'tokens.priority.critical.border' : tokens.border.subtle}`,
                   }}
                 >
                   {criticalAlertCount > 0 ? `${criticalAlertCount} CRITICAL ALERT${criticalAlertCount > 1 ? 'S' : ''}` : 'ALL CLEAR'}
@@ -710,7 +710,7 @@ export function IntelligenceOperationsCenter() {
               icon={<AlertTriangle className="w-3.5 h-3.5" />}
               label="Alerts"
               value={totalAlertCount}
-              color={criticalAlertCount > 0 ? '#ef4444' : tokens.domain.signal}
+              color={criticalAlertCount > 0 ? tokens.domain.risk : tokens.domain.signal}
             />
             <OpStatItem
               icon={<TrendingUp className="w-3.5 h-3.5" />}
@@ -797,7 +797,7 @@ export function IntelligenceOperationsCenter() {
         {alerts.length > 0 && (
           <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
             <div className="flex items-center gap-2 mb-2">
-              <AlertTriangle className="w-4 h-4" style={{ color: criticalAlertCount > 0 ? '#ef4444' : tokens.domain.signal }} />
+              <AlertTriangle className="w-4 h-4" style={{ color: criticalAlertCount > 0 ? tokens.domain.risk : tokens.domain.signal }} />
               <h2 className="text-sm font-semibold" style={{ color: tokens.text.primary }}>Active Alerts</h2>
               <Badge variant="secondary" className="text-[10px] px-1.5 py-0" style={{ background: tokens.accent.ghost, color: tokens.accent.bright, border: 0 }}>
                 {alerts.length}
@@ -896,8 +896,8 @@ export function IntelligenceOperationsCenter() {
                 >
                   <div className="flex items-center gap-3">
                     <span className="text-[11px] font-medium px-2 py-0.5 rounded-full" style={{
-                      color: li.accuracyScore >= 0.7 ? '#22c55e' : li.accuracyScore >= 0.4 ? '#f59e0b' : '#ef4444',
-                      background: li.accuracyScore >= 0.7 ? 'rgba(34,197,94,0.1)' : li.accuracyScore >= 0.4 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)',
+                      color: li.accuracyScore >= 0.7 ? tokens.domain.action : li.accuracyScore >= 0.4 ? tokens.domain.reasoning : tokens.domain.risk,
+                      background: li.accuracyScore >= 0.7 ? tokens.trust.verified.bg : li.accuracyScore >= 0.4 ? tokens.confidence.medium.bg : tokens.confidence.low.bg,
                     }}>
                       {Math.round(li.accuracyScore * 100)}%
                     </span>
@@ -911,8 +911,8 @@ export function IntelligenceOperationsCenter() {
                     </div>
                   </div>
                   <span className="text-[10px] px-2 py-0.5 rounded" style={{
-                    color: li.trend === 'improving' ? '#22c55e' : li.trend === 'declining' ? '#ef4444' : tokens.text.muted,
-                    background: li.trend === 'improving' ? 'rgba(34,197,94,0.08)' : li.trend === 'declining' ? 'rgba(239,68,68,0.08)' : tokens.surface.secondary,
+                    color: li.trend === 'improving' ? tokens.domain.action : li.trend === 'declining' ? tokens.domain.risk : tokens.text.muted,
+                    background: li.trend === 'improving' ? tokens.trust.verified.bg : li.trend === 'declining' ? tokens.priority.critical.bg : tokens.surface.secondary,
                   }}>
                     {li.trend === 'improving' ? '↑ improving' : li.trend === 'declining' ? '↓ declining' : '→ stable'}
                   </span>
@@ -988,8 +988,8 @@ function OpStatItem({ icon, label, value, color }: {
 
 function SectionErrorBanner({ message, onRetry }: { message: string; onRetry: () => void }) {
   return (
-    <div className="flex items-center gap-3 rounded-xl border p-4" style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.15)' }}>
-      <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: '#ef4444' }} />
+    <div className="flex items-center gap-3 rounded-xl border p-4" style={{ background: tokens.opacity.shadow, borderColor: tokens.confidence.low.bg }}>
+      <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: tokens.domain.risk }} />
       <p className="text-sm flex-1" style={{ color: tokens.text.secondary }}>{message}</p>
       <Button variant="outline" size="sm" onClick={onRetry} className="text-xs">Retry</Button>
     </div>
@@ -1111,7 +1111,7 @@ function AlertCard({ alert, onNavigateToCompany, onAlertAction, onSignalFeedback
               <button
                 onClick={(e) => { e.stopPropagation(); setActionLoading('resolve'); onAlertAction(alert.id, 'resolve'); setTimeout(() => setActionLoading(null), 500); }}
                 className="text-[10px] px-2 py-1 rounded-md border transition-colors"
-                style={{ color: '#22c55e', background: tokens.surface.secondary, borderColor: tokens.border.subtle }}
+                style={{ color: tokens.domain.action, background: tokens.surface.secondary, borderColor: tokens.border.subtle }}
                 disabled={actionLoading !== null}
               >
                 {actionLoading === 'resolve' ? <Loader2 className="w-3 h-3 animate-spin" /> : 'Resolve'}
@@ -1131,19 +1131,19 @@ function AlertCard({ alert, onNavigateToCompany, onAlertAction, onSignalFeedback
             <div className="mt-2 pt-2 flex items-center gap-2" style={{ borderTop: `1px solid ${tokens.border.subtle}` }}>
               <span className="text-[10px]" style={{ color: tokens.text.muted }}>Was this signal useful?</span>
               {feedbackGiven ? (
-                <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ color: '#22c55e', background: 'rgba(34,197,94,0.1)' }}>Thanks for feedback</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full" style={{ color: tokens.domain.action, background: tokens.trust.verified.bg }}>Thanks for feedback</span>
               ) : (
                 <>
                   <button
                     onClick={(e) => { e.stopPropagation(); setFeedbackGiven('accurate'); onSignalFeedback(alert.signalId!, alert.companyId, 'accurate'); }}
                     className="text-[10px] px-2 py-0.5 rounded-full border transition-colors"
-                    style={{ color: '#22c55e', background: 'rgba(34,197,94,0.05)', borderColor: 'rgba(34,197,94,0.2)' }}
+                    style={{ color: tokens.domain.action, background: tokens.opacity.shadow, borderColor: tokens.trust.verified.border }}
                     title="Accurate"
                   >&#x1F44D;&#xFE0F; Accurate</button>
                   <button
                     onClick={(e) => { e.stopPropagation(); setFeedbackGiven('inaccurate'); onSignalFeedback(alert.signalId!, alert.companyId, 'inaccurate'); }}
                     className="text-[10px] px-2 py-0.5 rounded-full border transition-colors"
-                    style={{ color: '#ef4444', background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.2)' }}
+                    style={{ color: tokens.domain.risk, background: tokens.opacity.shadow, borderColor: tokens.confidence.low.border }}
                     title="Inaccurate"
                   >&#x1F44E;&#xFE0F; Inaccurate</button>
                 </>

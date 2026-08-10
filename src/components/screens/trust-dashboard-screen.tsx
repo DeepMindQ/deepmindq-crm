@@ -109,7 +109,7 @@ export default function TrustDashboardScreen() {
         </div>
         <button
           onClick={() => refetch()}
-          className="self-start flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg hover:bg-accent/50 transition"
+          className="self-start flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-muted-foreground border border-border rounded-lg hover:bg-accent/50 transition"
           disabled={isFetching}
         >
           <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
@@ -278,7 +278,7 @@ function LineageCard({ coverage }: { coverage: TrustDashboardResponse['lineageCo
         <AnimatedBar
           value={coverage.fieldsWithLineage}
           max={coverage.totalFields || 1}
-          color={coverage.coveragePercent >= 80 ? '#10b981' : coverage.coveragePercent >= 50 ? '#f59e0b' : '#ef4444'}
+          color={coverage.coveragePercent >= 80 ? 'var(--dmq-emerald)' : coverage.coveragePercent >= 50 ? 'var(--dmq-domain-reasoning)' : 'var(--dmq-domain-risk)'}
         />
         <p className="text-xs text-muted-foreground text-center">
           {coverage.fieldsWithLineage} of {coverage.totalFields} fields tracked

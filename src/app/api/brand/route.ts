@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { tokens } from '@/lib/design-tokens';
 import { db } from '@/lib/db';
 
 /* ═══════════════════════════════════════════════════
@@ -9,7 +10,7 @@ import { db } from '@/lib/db';
 const DEFAULT_BRAND = {
   name: 'DeepMindQ',
   logoUrl: '',
-  primaryColor: '#d6bf79',
+  primaryColor: tokens.gold.mutedLight,
   secondaryColor: '#73b4c9',
 } as const;
 

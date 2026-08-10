@@ -148,9 +148,9 @@ describe('WI-16G: Graph Data Model', () => {
 // ── 2. Graph Construction ─────────────────────────────────────────
 
 describe('WI-16G: Graph Construction', () => {
-  test('should upsert nodes (update existing)', () => {
+  test('should upsert nodes (update existing)', async () => {
     addNode({ id: 'co-1', label: 'Old Name', type: 'company', aliases: [], confidence: 0.7 });
-    const createdAt = getNode('co-1')!.createdAt;
+    const createdAt = (await getNode('co-1'))!.createdAt;
 
     const updated = addNode({
       id: 'co-1',
@@ -167,7 +167,7 @@ describe('WI-16G: Graph Construction', () => {
     expect(updated.updatedAt).toBeGreaterThanOrEqual(createdAt); // Updated (may equal if same ms)
   });
 
-  test('should remove a node and its connected edges', () => {
+  test('should remove a node and its connected edges', async () => {
     addNode({ id: 'co-a', label: 'A', type: 'company', aliases: [], confidence: 0.9 });
     addNode({ id: 'co-b', label: 'B', type: 'company', aliases: [], confidence: 0.9 });
     addNode({ id: 'co-c', label: 'C', type: 'company', aliases: [], confidence: 0.9 });
@@ -181,7 +181,7 @@ describe('WI-16G: Graph Construction', () => {
     const removed = removeNode('co-a');
     expect(removed).toBe(true);
 
-    expect(getNode('co-a')).toBeUndefined();
+    expect(await getNode('co-a')).toBeUndefined();
     expect(getAllNodes().length).toBe(2);
     expect(getAllEdges().length).toBe(1); // e-bc remains
   });
@@ -243,23 +243,23 @@ describe('WI-16G: Entity Extraction', () => {
     expect(getAllEdges().length).toBeGreaterThan(0);
   });
 
-  test('should resolve entity by label', () => {
+  test('should resolve entity by label', async () => {
     addNode({ id: 'co-acme', label: 'Acme Corp', type: 'company', aliases: ['Acme Corporation', 'Acme'], confidence: 0.9 });
 
     // Exact label
-    let matches = resolveEntity('acme corp');
+    let matches = await resolveEntity('acme corp');
     expect(matches.length).toBe(1);
 
     // Alias
-    matches = resolveEntity('acme');
+    matches = await resolveEntity('acme');
     expect(matches.length).toBe(1);
 
     // No match
-    matches = resolveEntity('nonexistent company');
+    matches = await resolveEntity('nonexistent company');
     expect(matches.length).toBe(0);
   });
 
-  test('should get node edges (outgoing and incoming)', () => {
+  test('should get node edges (outgoing and incoming)', async () => {
     addNode({ id: 'n1', label: 'N1', type: 'company', aliases: [], confidence: 0.9 });
     addNode({ id: 'n2', label: 'N2', type: 'company', aliases: [], confidence: 0.9 });
     addNode({ id: 'n3', label: 'N3', type: 'company', aliases: [], confidence: 0.9 });
@@ -267,7 +267,7 @@ describe('WI-16G: Entity Extraction', () => {
     addEdge({ id: 'e-12', sourceId: 'n1', targetId: 'n2', relationship: 'PARTNERS_WITH', weight: 0.8, confidence: 0.9, reason: '', evidenceIds: [] });
     addEdge({ id: 'e-31', sourceId: 'n3', targetId: 'n1', relationship: 'COMPETES_WITH', weight: 0.7, confidence: 0.8, reason: '', evidenceIds: [] });
 
-    const allEdges = getNodeEdges('n1');
+    const allEdges = await getNodeEdges('n1');
     expect(allEdges.length).toBe(2);
 
     const outgoing = getOutgoingEdges('n1');
@@ -711,19 +711,19 @@ describe('WI-16G: Seed Data Integrity', () => {
     }
   });
 
-  test('key relationships should exist in seeded graph', () => {
+  test('key relationships should exist in seeded graph', async () => {
     seedKnowledgeGraph();
 
     // Sarah Chen works at Acme
-    const sarahNode = getNode('p-sarah');
+    const sarahNode = await getNode('p-sarah');
     expect(sarahNode).toBeDefined();
     expect(sarahNode!.label).toBe('Sarah Chen');
 
     // Acme uses AWS
-    const acmeNode = getNode('co-acme');
+    const acmeNode = await getNode('co-acme');
     expect(acmeNode).toBeDefined();
 
-    const acmeEdges = getNodeEdges('co-acme');
+    const acmeEdges = await getNodeEdges('co-acme');
     const hasAws = acmeEdges.some(e => e.relationship === 'USES_TECHNOLOGY' && e.targetId === 't-aws');
     expect(hasAws).toBe(true);
 

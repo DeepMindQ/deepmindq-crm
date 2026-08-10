@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -615,10 +616,10 @@ export default function KnowledgeSearch({
                           style={{
                             width: `${result.relevanceScore}%`,
                             backgroundColor: result.relevanceScore >= 80
-                              ? 'rgb(52 211 153)'
+                              ? tokens.extended.emerald.value
                               : result.relevanceScore >= 50
-                                ? 'rgb(251 191 36)'
-                                : 'rgb(248 113 113)',
+                                ? tokens.extended.amber.value
+                                : tokens.extended.rose.value,
                           }}
                         />
                       </div>

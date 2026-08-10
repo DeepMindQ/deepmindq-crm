@@ -471,7 +471,7 @@ export default function RevenueIntelligenceRecommendationsScreen({
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-all ${
+              className={`inline-flex items-center gap-1.5 px-3 py-2.5 rounded-md text-xs font-medium transition-all ${
                 activeTab === tab.key
                   ? 'bg-card text-foreground shadow-sm'
                   : 'text-muted-foreground hover:text-foreground'
@@ -496,7 +496,7 @@ export default function RevenueIntelligenceRecommendationsScreen({
             <button
               key={opt.key}
               onClick={() => handleSort(opt.key)}
-              className={`inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors ${
+              className={`inline-flex items-center gap-1 px-2 py-2.5 rounded-md text-xs font-medium transition-colors ${
                 sortKey === opt.key
                   ? 'bg-primary/10 text-primary'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted'

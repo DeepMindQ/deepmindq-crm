@@ -505,15 +505,9 @@ export class SalesforceAdapter implements CRMConnector {
         Phone: account.phone || undefined,
       };
 
-      const response = await sfFetchWithRetry(url, {
-        Authorization: `Bearer ${token.accessToken}`,
-        'Content-Type': 'application/json',
-      });
-
-      // PATCH for updates, POST for creates
-      const method = 'POST';
+      // POST for creates (Salesforce returns error if duplicate, handled below)
       const res = await fetch(url, {
-        method,
+        method: 'POST',
         headers: {
           Authorization: `Bearer ${token.accessToken}`,
           'Content-Type': 'application/json',

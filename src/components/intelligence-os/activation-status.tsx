@@ -1,5 +1,6 @@
 'use client';
 
+import { tokens } from '@/components/intelligence-os/design-tokens';
 /**
  * WI-17B — Activation Status Indicator
  *
@@ -60,10 +61,10 @@ const STEP_ICONS: Record<string, React.ElementType> = {
 };
 
 const STATUS_CONFIG = {
-  activated:   { label: 'Intelligence Active', color: '#22c55e', bg: 'rgba(34,197,94,0.1)', border: 'rgba(34,197,94,0.25)' },
-  partial:     { label: 'Partially Activated', color: '#eab308', bg: 'rgba(234,179,8,0.1)', border: 'rgba(234,179,8,0.25)' },
-  processing:  { label: 'Activation In Progress', color: '#f97316', bg: 'rgba(249,115,22,0.1)', border: 'rgba(249,115,22,0.25)' },
-  pending:     { label: 'Not Activated', color: '#6b7280', bg: 'rgba(107,114,128,0.1)', border: 'rgba(107,114,128,0.25)' },
+  activated:   { label: 'Intelligence Active', color: tokens.domain.action, bg: tokens.trust.verified.bg, border: tokens.trust.verified.border },
+  partial:     { label: 'Partially Activated', color: tokens.extended.amber.value, bg: tokens.extended.amber.bg, border: tokens.extended.amber.bg },
+  processing:  { label: 'Activation In Progress', color: tokens.trust.low.value, bg: tokens.trust.low.bg, border: tokens.trust.low.border },
+  pending:     { label: 'Not Activated', color: tokens.neutral['500'], bg: tokens.trust.unverified.bg, border: tokens.trust.unverified.border },
 };
 
 // ─── Component ──────────────────────────────────────────────────────────
@@ -105,11 +106,11 @@ export function ActivationStatus({ companyId, compact = false, darkMode = true }
     return (
       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
         style={{
-          background: darkMode ? 'var(--ios-bg-card, rgba(255,255,255,0.05))' : '#f3f4f6',
-          border: `1px solid ${darkMode ? 'var(--ios-border, rgba(255,255,255,0.1))' : '#e5e7eb'}`,
+          background: darkMode ? 'var(--ios-bg-card, tokens.opacity.white.ghost)' : tokens.neutral['100'],
+          border: `1px solid ${darkMode ? tokens.border.subtle : tokens.neutral['200']}`,
         }}>
-        <Loader2 className="w-3 h-3 animate-spin" style={{ color: darkMode ? 'var(--ios-text-secondary)' : '#9ca3af' }} />
-        <span style={{ color: darkMode ? 'var(--ios-text-secondary)' : '#6b7280' }}>Loading status...</span>
+        <Loader2 className="w-3 h-3 animate-spin" style={{ color: darkMode ? 'var(--ios-text-secondary)' : tokens.neutral['400'] }} />
+        <span style={{ color: darkMode ? 'var(--ios-text-secondary)' : tokens.neutral['500'] }}>Loading status...</span>
       </div>
     );
   }
@@ -170,10 +171,10 @@ export function ActivationStatus({ companyId, compact = false, darkMode = true }
         <div
           className="absolute top-full left-0 mt-2 w-80 rounded-xl p-3 z-50 shadow-xl"
           style={{
-            background: darkMode ? 'var(--ios-bg-elevated, #1a1a2e)' : '#ffffff',
-            border: `1px solid ${darkMode ? 'var(--ios-border, rgba(255,255,255,0.1))' : '#e5e7eb'}`,
+            background: darkMode ? 'var(--ios-bg-elevated, #1a1a2e)' : tokens.flat.white,
+            border: `1px solid ${darkMode ? tokens.border.subtle : tokens.neutral['200']}`,
           }}>
-          <div className="text-xs font-bold mb-3" style={{ color: darkMode ? 'var(--ios-text-primary)' : '#111827' }}>
+          <div className="text-xs font-bold mb-3" style={{ color: darkMode ? 'var(--ios-text-primary)' : tokens.neutral['900'] }}>
             Intelligence Activation — {data.companyName}
           </div>
 
@@ -187,29 +188,29 @@ export function ActivationStatus({ companyId, compact = false, darkMode = true }
               <div key={step.step} className="flex items-start gap-2.5 py-2">
                 <div className="mt-0.5 shrink-0">
                   {isCompleted ? (
-                    <CheckCircle2 className="w-4 h-4" style={{ color: '#22c55e' }} />
+                    <CheckCircle2 className="w-4 h-4" style={{ color: tokens.domain.action }} />
                   ) : isUnknown ? (
-                    <AlertCircle className="w-4 h-4" style={{ color: '#6b7280' }} />
+                    <AlertCircle className="w-4 h-4" style={{ color: tokens.neutral['500'] }} />
                   ) : (
                     <Circle className="w-4 h-4" style={{ color: borderColor, fill: 'transparent' }} />
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium" style={{ color: darkMode ? 'var(--ios-text-primary)' : '#374151' }}>
+                    <span className="text-xs font-medium" style={{ color: darkMode ? 'var(--ios-text-primary)' : tokens.neutral['700'] }}>
                       {step.label}
                     </span>
                     <span
                       className="text-[10px] px-1.5 py-0.5 rounded-full font-medium"
                       style={{
-                        background: isCompleted ? 'rgba(34,197,94,0.15)' : isUnknown ? 'rgba(107,114,128,0.15)' : bgColor,
-                        color: isCompleted ? '#22c55e' : isUnknown ? '#6b7280' : config.color,
+                        background: isCompleted ? tokens.trust.verified.bg : isUnknown ? tokens.trust.unverified.bg : bgColor,
+                        color: isCompleted ? tokens.domain.action : isUnknown ? tokens.neutral['500'] : config.color,
                       }}
                     >
                       {step.status}
                     </span>
                   </div>
-                  <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: darkMode ? 'var(--ios-text-muted)' : '#6b7280' }}>
+                  <p className="text-[11px] mt-0.5 leading-relaxed" style={{ color: darkMode ? 'var(--ios-text-muted)' : tokens.neutral['500'] }}>
                     {step.detail}
                   </p>
                 </div>
@@ -219,8 +220,8 @@ export function ActivationStatus({ companyId, compact = false, darkMode = true }
 
           {/* Summary footer */}
           <div className="mt-3 pt-2 flex items-center justify-between text-[11px]"
-            style={{ borderTop: `1px solid ${darkMode ? 'var(--ios-border, rgba(255,255,255,0.1))' : '#e5e7eb'}` }}>
-            <span style={{ color: darkMode ? 'var(--ios-text-muted)' : '#6b7280' }}>
+            style={{ borderTop: `1px solid ${darkMode ? tokens.border.subtle : tokens.neutral['200']}` }}>
+            <span style={{ color: darkMode ? 'var(--ios-text-muted)' : tokens.neutral['500'] }}>
               {data.intelligenceSummary.signals} signals · {data.intelligenceSummary.evidence} evidence · {data.intelligenceSummary.contacts} contacts
             </span>
             <button

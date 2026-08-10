@@ -2,17 +2,28 @@
    Auth Helpers — Centralized Security Utilities
 
    Provides session extraction from Edge-compatible requests,
-   CSRF middleware, admin role checks, and security header
-   injection for use in both middleware.ts and API routes.
+   admin role checks, and security header injection for use
+   in both middleware.ts and API routes.
+
+   CSRF Re-architecture (P0 Deep Audit #3):
+     validateCsrf, CSRF_COOKIE_NAME, CSRF_TOKEN_HEADER are
+     now re-exported from @/lib/csrf (single source of truth).
+     This eliminates the previous duplication where auth-helpers.ts
+     and csrf.ts had independent implementations.
    ═══════════════════════════════════════════════════ */
 
 import { NextRequest, NextResponse } from 'next/server';
 import { registerTimer } from '@/lib/timer-registry';
+import {
+  validateCsrf as csrfValidateCsrf,
+  CSRF_COOKIE_NAME,
+  CSRF_TOKEN_HEADER,
+} from '@/lib/csrf';
 
 // ── Constants ───────────────────────────────────────────
 export const SESSION_COOKIE_NAME = 'dmq_session';
-export const CSRF_COOKIE_NAME = 'csrf-token';
-export const CSRF_TOKEN_HEADER = 'x-csrf-token';
+// Re-exported from csrf.ts — single source of truth
+export { CSRF_COOKIE_NAME, CSRF_TOKEN_HEADER };
 
 // ── Public Route Patterns (exempt from auth) ────────────
 // These path prefixes are always accessible without authentication.
@@ -21,7 +32,9 @@ export const CSRF_TOKEN_HEADER = 'x-csrf-token';
 // NOTE: /api/intelligence/* requires auth — intelligence is premium data.
 export const PUBLIC_PATH_PREFIXES: string[] = [
   '/api/auth/',
-  '/api/webhooks/',
+  '/api/webhooks/crm/',    // Inbound CRM webhooks (HubSpot, Salesforce) — verified via HMAC signatures
+  '/api/webhooks/bounce',  // Inbound email bounce notifications — verified via provider signatures
+  '/api/webhooks/reply',   // Inbound email reply webhooks — verified via provider signatures
   '/api/tracking/',
   '/api/unsubscribe',
   '/api/cron/',
@@ -35,7 +48,7 @@ export const PUBLIC_PATH_PREFIXES: string[] = [
   '/api/docs',                   // Public API documentation
   '/api/integrations/slack',     // Webhook endpoint (Slack events, verified via webhook secret)
   '/api/integrations/zapier',    // Webhook endpoint (Zapier events, verified via webhook secret)
-  '/api/monitoring',             // Public monitoring/metrics endpoint
+  // '/api/monitoring' — REMOVED (P0.2): Requires auth. Exposes process internals.
   '/api/v1',                     // Public API v1 proxy and index
   '/login',
   '/demo',
@@ -95,36 +108,25 @@ export function isRateLimitedPublicApi(pathname: string): boolean {
 }
 
 // ── CSRF Validation ─────────────────────────────────────
+// P0 Deep Audit #3 FIX: Eliminated duplicate implementation.
+// Now delegates to the canonical validateCsrf in csrf.ts.
+// This ensures middleware.ts, proxy.ts, and with-csrf.ts all
+// use the SAME validation logic and constant-time comparison.
+
 /**
  * Validate CSRF token from request.
- * Safe methods (GET, HEAD, OPTIONS) always pass.
- * For state-changing methods, the x-csrf-token header must
- * match the csrf-token cookie.
+ * Re-exported from csrf.ts (single source of truth).
+ * Accepts NextRequest (middleware) or plain Request (API routes).
  */
 export function validateCsrf(request: NextRequest): boolean {
-  const method = request.method.toUpperCase();
-  if (['GET', 'HEAD', 'OPTIONS'].includes(method)) return true;
-
-  const headerToken = request.headers.get(CSRF_TOKEN_HEADER);
-  if (!headerToken) return false;
-
-  const cookieHeader = request.headers.get('cookie') || '';
-  const match = cookieHeader.match(
-    new RegExp(`(?:^|;\\s*)${CSRF_COOKIE_NAME}=([^;]*)`)
-  );
-  const cookieToken = match ? decodeURIComponent(match[1]) : null;
-
-  if (!cookieToken) return false;
-
-  // Constant-time comparison
-  return timingSafeEqual(headerToken, cookieToken);
+  return csrfValidateCsrf(request);
 }
 
 /**
  * Middleware-style CSRF check returning a result object.
  */
 export function csrfCheck(request: NextRequest): { valid: boolean; response?: NextResponse } {
-  const valid = validateCsrf(request);
+  const valid = csrfValidateCsrf(request);
   return {
     valid,
     response: valid
@@ -134,15 +136,6 @@ export function csrfCheck(request: NextRequest): { valid: boolean; response?: Ne
           { status: 403, headers: { 'Content-Type': 'application/json' } }
         ),
   };
-}
-
-function timingSafeEqual(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let result = 0;
-  for (let i = 0; i < a.length; i++) {
-    result |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  }
-  return result === 0;
 }
 
 // ── Security Headers ───────────────────────────────────
@@ -323,4 +316,31 @@ export function forbiddenResponse(message = 'Forbidden'): NextResponse {
       { status: 403 }
     )
   );
+}
+
+// ── Edge-Safe Audit Helpers ────────────────────────────
+// P0 Deep Audit #4 FIX:
+//   proxy.ts previously imported auditAuthFailure/auditCsrfFailure from
+//   @/lib/audit-logger, which imports @/lib/db → @prisma/client.
+//   Prisma uses TCP sockets + native Rust bindings → CRASHES Edge Runtime
+//   at module load time (not even at function call time).
+//
+//   These Edge-safe alternatives use console.log/console.warn only
+//   (identical to what logger.ts does). No DB writes.
+//   The persistent audit trail is handled at the API route level
+//   (Node.js runtime) where Prisma IS available.
+
+/**
+ * Edge-safe auth failure audit log (no DB write, logger only).
+ */
+export function edgeAuditAuthFailure(action: string, ip: string, extras?: Record<string, unknown>): void {
+  const meta: Record<string, unknown> = { ip, action, ...(extras || {}) };
+  console.warn(`[AUDIT:AUTH] ${action}`, meta);
+}
+
+/**
+ * Edge-safe CSRF failure audit log (no DB write, logger only).
+ */
+export function edgeAuditCsrfFailure(ip: string, path: string, method: string): void {
+  console.warn(`[AUDIT:CSRF] CSRF validation failed`, { ip, path, method });
 }

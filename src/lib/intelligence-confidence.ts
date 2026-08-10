@@ -1,5 +1,15 @@
 /**
- * Intelligence Confidence Score (Phase 6 — Module 2)
+ * Intelligence Confidence Score — Phase 6 Module 2
+ *
+ * ⚠️ DEPRECATED (Phase 2.7): This module is superseded by
+ * @/lib/ai-unified-confidence.ts which provides a 6-dimension unified model.
+ *
+ * This file is kept for backward compatibility. New code should use:
+ *   import { computeUnifiedConfidence, computeCalibratedConfidence } from '@/lib/ai-unified-confidence';
+ *
+ * The pure computation functions below are still valid and used by
+ * OpportunityRecommendation population. They will be migrated to
+ * use the unified model's calibration-aware scoring in a future sprint.
  *
  * Computes a 4-dimension confidence breakdown for opportunity recommendations:
  *   - Signal Quality (30%): Average confidence of contributing signals

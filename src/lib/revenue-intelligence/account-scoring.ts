@@ -286,13 +286,23 @@ export async function calculateAccountScore(
     ]);
 
   const w = ACCOUNT_SCORING_WEIGHTS;
-  const overallScore = Math.round(
+  const rawOverallScore = Math.round(
     intelligenceCoverage * w.intelligenceCoverage +
     signalStrength * w.opportunitySignals +
     freshness * w.freshness +
     strategicFit * w.strategicFit +
     engagementHistory * w.engagementHistory,
   );
+
+  // Phase 2.8: Apply calibration correction from unified confidence engine
+  let overallScore = rawOverallScore;
+  try {
+    const { applyCalibration } = await import('@/lib/confidence-calibration-engine');
+    const calResult = await applyCalibration(rawOverallScore, 'overall');
+    overallScore = calResult.calibrated;
+  } catch {
+    // Calibration unavailable — use raw score
+  }
 
   const breakdown: ScoreBreakdown = {
     intelligenceCoverage,

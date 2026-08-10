@@ -47,7 +47,7 @@ interface SegmentContact {
 /* ══════════════════════════════ Design Tokens ══════════════════════════════ */
 
 const gold = 'var(--color-gold-dim)', goldLight = 'var(--color-gold)';
-const card = 'rgba(255, 255, 255, 0.85)', border = 'rgba(0, 0, 0, 0.08)';
+const card = 'var(--dmq-white-card)', border = 'var(--dmq-black-faint)';
 
 /* ══════════════════════════════ Component ══════════════════════════════ */
 
@@ -161,8 +161,8 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
       <div className="grid grid-cols-3 gap-4">
         {[
           { icon: Layers, label: 'Total Segments', value: segments.length, color: gold },
-          { icon: Users, label: 'Segmented Contacts', value: totalContacts, color: '#10B981' },
-          { icon: Filter, label: 'Dynamic Lists', value: dynamicCount, color: '#6366F1' },
+          { icon: Users, label: 'Segmented Contacts', value: totalContacts, color: 'var(--dmq-emerald)' },
+          { icon: Filter, label: 'Dynamic Lists', value: dynamicCount, color: 'var(--dmq-indigo)' },
         ].map(({ icon: Icon, label, value, color }, i) => (
           <motion.div key={label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
@@ -192,11 +192,11 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search segments..."
-              className="h-8 pl-8 pr-7 w-48 text-xs rounded-lg" style={{ background: card, border: `1px solid ${border}` }} />
+              className="h-10 pl-8 pr-7 w-48 text-xs rounded-lg" style={{ background: card, border: `1px solid ${border}` }} />
             {search && <X className="w-3 h-3 absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => setSearch('')} />}
           </div>
-          <Button className="h-8 gap-1.5 text-xs font-medium px-3"
-            style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }}
+          <Button className="h-10 gap-1.5 text-xs font-medium px-3 min-h-[44px]"
+            style={{ background: 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))', color: 'var(--dmq-black)' }}
             onClick={() => setCreateOpen(true)}>
             <Plus className="w-3.5 h-3.5" /> New Segment
           </Button>
@@ -218,7 +218,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
           <p className="text-sm font-medium text-foreground">{search ? 'No matching segments' : 'No segments yet'}</p>
           <p className="text-xs text-muted-foreground mt-1">{search ? 'Try a different search term' : 'Create your first segment to organize leads by criteria'}</p>
           {!search && (
-            <Button className="mt-4 h-8 gap-1.5 text-xs" style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }} onClick={() => setCreateOpen(true)}>
+            <Button className="mt-4 h-10 gap-1.5 text-xs min-h-[44px]" style={{ background: 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))', color: 'var(--dmq-black)' }} onClick={() => setCreateOpen(true)}>
               <Plus className="w-3.5 h-3.5" /> Create Segment
             </Button>
           )}
@@ -259,7 +259,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                     </div>
                     <div className="flex items-center gap-1">
                       <motion.button
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
+                        className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors"
                         onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ id: seg.id, name: seg.name }); }}
                         whileTap={{ scale: 0.9 }}>
                         <Trash2 className="w-3 h-3" />
@@ -288,12 +288,12 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
               <div className="space-y-1.5">
                 <label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Segment Name</label>
                 <Input value={segName} onChange={e => setSegName(e.target.value)} placeholder="e.g. SaaS Decision Makers"
-                  className="h-9 text-sm" style={{ background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}` }} />
+                  className="h-10 text-sm" style={{ background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}` }} />
               </div>
               <div className="space-y-1.5">
                 <label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Description (optional)</label>
                 <Input value={segDesc} onChange={e => setSegDesc(e.target.value)} placeholder="What this segment is for..."
-                  className="h-9 text-sm" style={{ background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}` }} />
+                  className="h-10 text-sm" style={{ background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}` }} />
               </div>
               <Separator style={{ background: border }} />
               <div>
@@ -301,10 +301,10 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div className="flex flex-wrap gap-1.5">
                   {INDUSTRY_OPTIONS.map(ind => (
                     <button key={ind}
-                      className={`text-[11px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 ${segIndustries.includes(ind)
+                      className={`text-[11px] px-2.5 py-2.5 rounded-lg border transition-all duration-200 ${segIndustries.includes(ind)
                         ? 'bg-primary/15 border-primary/25 text-primary'
                         : 'hover:bg-gray-100'}`}
-                      style={!segIndustries.includes(ind) ? { background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}`, color: '#71717A' } : {}}
+                      style={!segIndustries.includes(ind) ? { background: 'var(--dmq-black-trace)', border: `1px solid ${border}`, color: 'var(--dmq-zinc)' } : {}}
                       onClick={() => toggleIndustry(ind)}>{ind}</button>
                   ))}
                 </div>
@@ -314,10 +314,10 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <div className="flex flex-wrap gap-1.5">
                   {STATUS_OPTIONS.map(st => (
                     <button key={st}
-                      className={`text-[11px] px-2.5 py-1.5 rounded-lg border transition-all duration-200 capitalize ${segStatuses.includes(st)
+                      className={`text-[11px] px-2.5 py-2.5 rounded-lg border transition-all duration-200 capitalize ${segStatuses.includes(st)
                         ? 'bg-primary/15 border-primary/25 text-primary'
                         : 'hover:bg-gray-100'}`}
-                      style={!segStatuses.includes(st) ? { background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}`, color: '#71717A' } : {}}
+                      style={!segStatuses.includes(st) ? { background: 'var(--dmq-black-trace)', border: `1px solid ${border}`, color: 'var(--dmq-zinc)' } : {}}
                       onClick={() => toggleStatus(st)}>{st}</button>
                   ))}
                 </div>
@@ -326,10 +326,10 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium block mb-2">Lead Score Range</label>
                 <div className="flex items-center gap-3">
                   <Input type="number" value={segScoreMin} onChange={e => setSegScoreMin(e.target.value)}
-                    className="h-8 w-20 text-xs" style={{ background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}` }} min={0} max={100} />
+                    className="h-10 w-20 text-xs" style={{ background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}` }} min={0} max={100} />
                   <span className="text-xs text-muted-foreground">to</span>
                   <Input type="number" value={segScoreMax} onChange={e => setSegScoreMax(e.target.value)}
-                    className="h-8 w-20 text-xs" style={{ background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}` }} min={0} max={100} />
+                    className="h-10 w-20 text-xs" style={{ background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}` }} min={0} max={100} />
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -337,7 +337,7 @@ export default function SegmentsScreen({ navigateTo }: { navigateTo?: (screen: s
                 <label className="text-xs text-foreground">Static list (snapshot of matching contacts now)</label>
               </div>
               <Button className="w-full h-10 gap-2 text-sm font-medium"
-                style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }}
+                style={{ background: 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))', color: 'var(--dmq-black)' }}
                 onClick={handleCreate} disabled={createMutation.isPending || !segName.trim()}>
                 {createMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
                 {createMutation.isPending ? 'Creating...' : 'Create Segment'}

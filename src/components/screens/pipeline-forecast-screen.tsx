@@ -224,7 +224,7 @@ export default function PipelineForecastScreen() {
                     <circle cx="60" cy="60" r="52" fill="none" stroke="currentColor" className="text-muted/30" strokeWidth="8" />
                     <circle
                       cx="60" cy="60" r="52" fill="none"
-                      stroke={data.pipelineHealthScore >= 70 ? '#22c55e' : data.pipelineHealthScore >= 40 ? '#f59e0b' : '#ef4444'}
+                      stroke={data.pipelineHealthScore >= 70 ? 'var(--dmq-domain-action)' : data.pipelineHealthScore >= 40 ? 'var(--dmq-domain-reasoning)' : 'var(--dmq-domain-risk)'}
                       strokeWidth="8"
                       strokeDasharray={`${(data.pipelineHealthScore / 100) * 327} 327`}
                       strokeLinecap="round"

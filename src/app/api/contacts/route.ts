@@ -66,13 +66,26 @@ try {
     const [contacts, total, globalStats] = await Promise.all([
       db.contact.findMany({
         where,
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        orderBy,
-        include: {
+        // P5.1: Explicit select to avoid SELECT * and heavy JSON fields
+        select: {
+          id: true,
+          rawName: true,
+          email: true,
+          title: true,
+          role: true,
+          linkedinUrl: true,
+          status: true,
+          emailHealth: true,
+          emailHealthScore: true,
+          leadScore: true,
+          companyId: true,
+          createdAt: true,
           company: { select: { id: true, rawName: true, industry: true } },
           _count: { select: { drafts: true } },
         },
+        skip: (page - 1) * pageSize,
+        take: pageSize,
+        orderBy,
       }),
       db.contact.count({ where }),
       db.contact.aggregate({

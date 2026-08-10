@@ -14,6 +14,11 @@
  *   4. Business Relevance (15%) — how much this matters to the account
  *   5. Capability Fit    (15%) — how well it maps to our capabilities
  *
+ * Phase 2.8 Note: The `confidence` input should be calibrated via
+ * computeCalibratedConfidence() before passing to this function.
+ * Calibration correction is applied at the caller level, not here,
+ * since this is a pure function with no DB access.
+ *
  * Architecture:
  *   - Pure functions — no DB access, no side effects
  *   - Used by alignment API for ranking at compose time

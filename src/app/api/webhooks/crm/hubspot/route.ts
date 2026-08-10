@@ -24,10 +24,15 @@ import { createHmac, timingSafeEqual } from 'crypto';
  * HubSpot signs the webhook body with the app's client secret.
  */
 function verifyHubSpotSignature(body: string, signature: string | null, secret: string | null): boolean {
-  if (!secret || !signature) {
-    // No secret configured — allow in development mode
-    logger.warn('[webhook:hubspot] No client secret configured, skipping signature verification');
-    return true;
+  // FAIL-CLOSED: If no secret is configured, REJECT the webhook.
+  // Previously this returned true (allowing unauthenticated access). Fixed in Phase A.
+  if (!secret) {
+    logger.error('[webhook:hubspot] HUBSPOT_CLIENT_SECRET not configured — rejecting webhook (fail-closed)');
+    return false;
+  }
+  if (!signature) {
+    logger.warn('[webhook:hubspot] Missing X-HubSpot-Signature header — rejecting webhook');
+    return false;
   }
 
   try {
@@ -91,13 +96,34 @@ export async function POST(request: NextRequest) {
           data: {
             connectionId: conn.id,
             direction: 'import',
-            entityType: eventType.includes('contact') ? 'contact' : eventType.includes('company') || eventType.includes('deal') ? 'company' : 'webhook',
+            entityType: eventType.includes('contact') ? 'contact' : eventType.includes('deal') ? 'opportunity' : 'company',
             entityId: null,
             crmExternalId: objectId || null,
-            action: 'created',
+            action: eventType.includes('creation') ? 'created' : 'updated',
             syncedAt: new Date(),
           },
         });
+
+        // P4.1: Trigger async sync for creation/update events (fire-and-forget)
+        if (eventType.includes('creation') || eventType.includes('update')) {
+          const connectionId = conn.id;
+          const syncOpts = {
+            syncAccounts: eventType.includes('company'),
+            syncContacts: eventType.includes('contact'),
+            syncDeals: eventType.includes('deal'),
+            limit: 10,
+          };
+
+          (async () => {
+            try {
+              const { syncFromCRM } = await import('@/lib/crm/crm-sync-service');
+              await syncFromCRM(connectionId, syncOpts);
+              logger.info(`[hs-webhook] Async sync completed for ${eventType}/${objectId}`);
+            } catch (syncErr) {
+              logger.error(`[hs-webhook] Async sync failed for ${eventType}/${objectId}`, { error: syncErr });
+            }
+          })();
+        }
       }
     }
 

@@ -93,7 +93,7 @@ describe('Phase 3 Gate 5: Long-Running Stability', () => {
    * Create and delete operations should not leak Map entries.
    */
   describe('Stability Test 1: No Memory Leaks', () => {
-    it('Map size stays bounded after create-delete cycles', () => {
+    it('Map size stays bounded after create-delete cycles', async () => {
       const iterations = 500;
       const uniqueNodes = 50; // Keep 50 persistent nodes
 
@@ -122,12 +122,12 @@ describe('Phase 3 Gate 5: Long-Running Stability', () => {
 
       // Only persistent nodes should remain
       for (let i = 0; i < uniqueNodes; i++) {
-        expect(getNode(`persistent-node-${i}`)).toBeDefined();
+        expect(await getNode(`persistent-node-${i}`)).toBeDefined();
       }
 
       // Ephemeral nodes should all be gone
-      expect(getNode('ephemeral-node-0')).toBeUndefined();
-      expect(getNode(`ephemeral-node-${iterations - 1}`)).toBeUndefined();
+      expect(await getNode('ephemeral-node-0')).toBeUndefined();
+      expect(await getNode(`ephemeral-node-${iterations - 1}`)).toBeUndefined();
     });
 
     it('memory store size stays bounded after store-forget cycles', () => {
@@ -270,7 +270,7 @@ describe('Phase 3 Gate 5: Long-Running Stability', () => {
    * Map data remains consistent across mixed operations.
    */
   describe('Stability Test 4: Cache Consistency', () => {
-    it('mixed KG operations maintain consistency', () => {
+    it('mixed KG operations maintain consistency', async () => {
       // Create 100 nodes
       const nodes: string[] = [];
       for (let i = 0; i < 100; i++) {
@@ -303,13 +303,13 @@ describe('Phase 3 Gate 5: Long-Running Stability', () => {
       // Verify consistency
       // Deleted nodes should be gone
       for (let i = 0; i < 100; i += 10) {
-        expect(getNode(nodes[i])).toBeUndefined();
+        expect(await getNode(nodes[i])).toBeUndefined();
       }
 
       // Updated nodes should have new labels
       for (let i = 0; i < 50; i += 2) {
         if (i % 10 !== 0) { // Not deleted
-          const node = getNode(nodes[i]);
+          const node = await getNode(nodes[i]);
           expect(node?.label).toBe(`Updated Node ${i}`);
         }
       }
@@ -317,7 +317,7 @@ describe('Phase 3 Gate 5: Long-Running Stability', () => {
       // Non-updated nodes keep original labels
       for (let i = 1; i < 100; i += 2) {
         if (i % 10 !== 0) {
-          const node = getNode(nodes[i]);
+          const node = await getNode(nodes[i]);
           expect(node?.label).toBe(`Node ${i}`);
         }
       }

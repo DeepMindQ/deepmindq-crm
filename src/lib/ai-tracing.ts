@@ -16,6 +16,7 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { withTrace } from '@/lib/tracing';
 
 // ── Types ──────────────────────────────────────────────────────
 
@@ -88,30 +89,47 @@ export function estimateCost(model: string, inputTokens: number, outputTokens: n
  * Record an AI trace event to the usage log.
  * Maps to the existing AIUsageLog Prisma model fields.
  * Non-blocking — failures are logged but never throw.
+ *
+ * Also creates an OTel child span if @opentelemetry/api is available.
  */
 export async function recordAITrace(event: AITraceEvent): Promise<void> {
-  try {
-    await db.aIUsageLog.create({
-      data: {
-        userId: event.userId,
-        feature: event.capability,
-        provider: event.provider,
-        model: event.model,
-        promptTokens: event.inputTokens,
-        completionTokens: event.outputTokens,
-        totalTokens: event.totalTokens,
-        estimatedCost: event.costUsd,
-        durationMs: event.latencyMs,
-        status: event.success ? 'success' : 'failed',
-      },
-    });
+  const spanName = `ai.${event.capability}.${event.provider}`;
+  const attributes: Record<string, string> = {
+    'ai.capability': event.capability,
+    'ai.provider': event.provider,
+    'ai.model': event.model,
+    'ai.prompt_version': event.promptVersion,
+    'ai.trace_id': event.traceId,
+    'ai.input_tokens': String(event.inputTokens),
+    'ai.output_tokens': String(event.outputTokens),
+    'ai.cost_usd': String(event.costUsd),
+    'ai.success': String(event.success),
+  };
 
-    if (!event.success && event.errorMessage) {
-      logger.warn(`[AI-TRACE] Failed: ${event.traceId} — ${event.errorMessage}`);
+  await withTrace(spanName, async (ctx) => {
+    try {
+      await db.aIUsageLog.create({
+        data: {
+          userId: event.userId,
+          feature: event.capability,
+          provider: event.provider,
+          model: event.model,
+          promptTokens: event.inputTokens,
+          completionTokens: event.outputTokens,
+          totalTokens: event.totalTokens,
+          estimatedCost: event.costUsd,
+          durationMs: event.latencyMs,
+          status: event.success ? 'success' : 'failed',
+        },
+      });
+
+      if (!event.success && event.errorMessage) {
+        logger.warn(`[AI-TRACE] Failed: ${event.traceId} — ${event.errorMessage}`);
+      }
+    } catch (err) {
+      logger.error(`[AI-TRACE] Failed to record trace ${event.traceId}:`, { error: err });
     }
-  } catch (err) {
-    logger.error(`[AI-TRACE] Failed to record trace ${event.traceId}:`, { error: err });
-  }
+  }, { attributes });
 }
 
 // ── Cost Reporting ─────────────────────────────────────────────

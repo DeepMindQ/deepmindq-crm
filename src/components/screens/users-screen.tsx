@@ -11,6 +11,7 @@ import {
   Building,
   Clock,
 } from 'lucide-react';
+import { EnterpriseLoading, EnterpriseEmptyState } from '@/components/enterprise';
 
 /* ═══════════════════════════════════════════════════════════════════════
    Types
@@ -145,9 +146,7 @@ export default function UsersScreen() {
       {/* Content */}
       <div className="flex-1 overflow-auto p-6">
         {loading && !users.length && (
-          <div className="flex items-center justify-center h-48">
-            <div className="text-sm text-muted-foreground animate-pulse">Loading users...</div>
-          </div>
+          <EnterpriseLoading message="Loading users..." size="sm" />
         )}
 
         {error && (
@@ -158,9 +157,11 @@ export default function UsersScreen() {
         )}
 
         {!loading && users.length === 0 && (
-          <div className="flex items-center justify-center h-48">
-            <div className="text-sm text-muted-foreground">No users found</div>
-          </div>
+          <EnterpriseEmptyState
+            icon={Users}
+            title="No users found"
+            description="No user accounts have been created yet. Users will appear here once they are invited."
+          />
         )}
 
         {users.length > 0 && (
@@ -216,7 +217,7 @@ export default function UsersScreen() {
                     <select
                       value={user.role}
                       onChange={(e) => handleRoleChange(user.id, e.target.value)}
-                      className="w-full text-xs px-2 py-1.5 rounded-md border border-[oklch(0.22_0.005_260)] bg-[oklch(0.11_0.01_260)] text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
+                      className="w-full text-xs px-2 py-2.5 rounded-md border border-[oklch(0.22_0.005_260)] bg-[oklch(0.11_0.01_260)] text-foreground appearance-none cursor-pointer focus:outline-none focus:ring-1 focus:ring-primary"
                     >
                       {ROLE_OPTIONS.map((role) => (
                         <option key={role} value={role}>
@@ -258,7 +259,7 @@ export default function UsersScreen() {
                   {updating === user.id ? null : (
                     <button
                       onClick={() => handleToggleActive(user.id, user.isActive)}
-                      className={`text-xs px-2 py-1 rounded-md border transition-colors ${
+                      className={`text-xs px-2 py-2.5 rounded-md border transition-colors ${
                         user.isActive
                           ? 'border-red-500/20 text-red-400 hover:bg-red-500/10'
                           : 'border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10'

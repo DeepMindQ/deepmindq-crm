@@ -42,6 +42,7 @@ export interface RenderedEmail {
 // ---------------------------------------------------------------------------
 
 import { getBrandNameSync } from '@/lib/brand-helper';
+import { tokens } from '@/lib/design-tokens';
 
 const DEFAULT_CONTEXT: Required<EmailContext> = {
   companyName: 'DeepMindQ Intelligence',
@@ -86,7 +87,7 @@ function emailWrapper(
       <td style="padding: 24px 0 8px 0; text-align: center;">
         <a href="${cta.url}"
            target="_blank"
-           style="display: inline-block; padding: 12px 28px; background-color: ${merged.primaryColor}; color: #ffffff; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 6px;">
+           style="display: inline-block; padding: 12px 28px; background-color: ${merged.primaryColor}; color: {tokens.flat.white}; font-size: 15px; font-weight: 600; text-decoration: none; border-radius: 6px;">
           ${cta.label}
         </a>
       </td>
@@ -100,11 +101,11 @@ function emailWrapper(
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>${title}</title>
 </head>
-<body style="margin: 0; padding: 0; background-color: #f3f4f6; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: #f3f4f6; padding: 32px 0;">
+<body style="margin: 0; padding: 0; background-color: {tokens.neutral['100']}; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background-color: {tokens.neutral['100']}; padding: 32px 0;">
     <tr>
       <td align="center">
-        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color: #ffffff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="background-color: {tokens.flat.white}; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08);">
 
           <!-- Header -->
           <tr>
@@ -116,13 +117,13 @@ function emailWrapper(
           <!-- Title -->
           <tr>
             <td style="padding: 28px 32px 0 32px;">
-              <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: #111827;">${title}</h1>
+              <h1 style="margin: 0; font-size: 22px; font-weight: 700; color: {tokens.neutral['900']};">${title}</h1>
             </td>
           </tr>
 
           <!-- Body -->
           <tr>
-            <td style="padding: 16px 32px 8px 32px; font-size: 15px; line-height: 1.6; color: #374151;">
+            <td style="padding: 16px 32px 8px 32px; font-size: 15px; line-height: 1.6; color: {tokens.neutral['700']};">
               ${body}
             </td>
           </tr>
@@ -135,7 +136,7 @@ function emailWrapper(
 
           <!-- Footer -->
           <tr>
-            <td style="background-color: #f9fafb; padding: 16px 32px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb;">
+            <td style="background-color: #f9fafb; padding: 16px 32px; text-align: center; font-size: 12px; color: {tokens.trust.unverified.value}; border-top: 1px solid {tokens.neutral['200']};">
               ${footer}<br/>
               <a href="${merged.productUrl}" style="color: ${merged.primaryColor}; text-decoration: none;">${merged.productUrl}</a>
             </td>
@@ -167,13 +168,13 @@ const signalDetectedTemplate: TemplateDefinition = {
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 16px 0; border-collapse: collapse; width: 100%;">
         <tr>
           <td style="padding: 10px 16px; background-color: #eff6ff; border: 1px solid #bfdbfe; border-radius: 4px 4px 0 0;">
-            <strong style="color: #1e40af;">${vars.signalName}</strong>
+            <strong style="color: {tokens.extended.blueDeep.value};">${vars.signalName}</strong>
           </td>
         </tr>
         <tr>
-          <td style="padding: 12px 16px; background-color: #ffffff; border-left: 1px solid #bfdbfe; border-right: 1px solid #bfdbfe;">
-            <p style="margin: 0 0 8px 0; color: #374151;">${vars.summary}</p>
-            <p style="margin: 0; font-size: 13px; color: #6b7280;">
+          <td style="padding: 12px 16px; background-color: {tokens.flat.white}; border-left: 1px solid #bfdbfe; border-right: 1px solid #bfdbfe;">
+            <p style="margin: 0 0 8px 0; color: {tokens.neutral['700']};">${vars.summary}</p>
+            <p style="margin: 0; font-size: 13px; color: {tokens.trust.unverified.value};">
               Type: ${vars.signalType} &nbsp;|&nbsp; Confidence: <strong>${vars.confidence}%</strong>
             </p>
           </td>
@@ -216,8 +217,8 @@ const scoreChangedTemplate: TemplateDefinition = {
   htmlTemplate(vars, ctx) {
     const isUp = vars.direction === 'up';
     const arrow = isUp ? '▲' : '▼';
-    const color = isUp ? '#059669' : '#dc2626';
-    const bg = isUp ? '#ecfdf5' : '#fef2f2';
+    const color = isUp ? tokens.extended.emeraldDeep.value : tokens.extended.red.value;
+    const bg = isUp ? tokens.flat.lightGreen : tokens.flat.lightRed;
 
     const body = `
       <p>Hi there,</p>
@@ -228,7 +229,7 @@ const scoreChangedTemplate: TemplateDefinition = {
         </span>
       </div>
       <p><strong>Key factors:</strong></p>
-      <p style="color: #4b5563; line-height: 1.7;">${vars.factors}</p>
+      <p style="color: {tokens.neutral['600']}; line-height: 1.7;">${vars.factors}</p>
     `;
     return emailWrapper(ctx, `Score Update: ${vars.companyName}`, body, {
       label: 'View Company Profile',
@@ -269,21 +270,21 @@ const weeklyBriefTemplate: TemplateDefinition = {
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin: 16px 0;">
         <tr>
           <td style="padding: 12px 16px; background-color: #eff6ff; border-radius: 6px; width: 50%;">
-            <div style="font-size: 24px; font-weight: 700; color: #1e40af;">${vars.totalSignals}</div>
-            <div style="font-size: 13px; color: #6b7280;">Signals Detected</div>
+            <div style="font-size: 24px; font-weight: 700; color: {tokens.extended.blueDeep.value};">${vars.totalSignals}</div>
+            <div style="font-size: 13px; color: {tokens.trust.unverified.value};">Signals Detected</div>
           </td>
           <td style="padding: 12px 16px; background-color: #fef3c7; border-radius: 6px; width: 50%;">
             <div style="font-size: 24px; font-weight: 700; color: #92400e;">${vars.totalScoreChanges}</div>
-            <div style="font-size: 13px; color: #6b7280;">Score Changes</div>
+            <div style="font-size: 13px; color: {tokens.trust.unverified.value};">Score Changes</div>
           </td>
         </tr>
       </table>
 
       <p><strong>Top Companies:</strong></p>
-      <p style="color: #4b5563; line-height: 1.7;">${vars.topCompanies}</p>
+      <p style="color: {tokens.neutral['600']}; line-height: 1.7;">${vars.topCompanies}</p>
 
       <p><strong>Key Highlights:</strong></p>
-      <p style="color: #4b5563; line-height: 1.7;">${vars.keyHighlights}</p>
+      <p style="color: {tokens.neutral['600']}; line-height: 1.7;">${vars.keyHighlights}</p>
     `;
     return emailWrapper(ctx, `Weekly Briefing — ${vars.weekLabel}`, body, {
       label: 'Open Dashboard',
@@ -323,20 +324,20 @@ const opportunityCreatedTemplate: TemplateDefinition = {
     const body = `
       <p>Hi there,</p>
       <p>A new sales opportunity has been identified:</p>
-      <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 16px 0; border-collapse: collapse; width: 100%; border: 1px solid #e5e7eb; border-radius: 6px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" style="margin: 16px 0; border-collapse: collapse; width: 100%; border: 1px solid {tokens.neutral['200']}; border-radius: 6px;">
         <tr>
-          <td style="padding: 14px 16px; background-color: #f9fafb; border-bottom: 1px solid #e5e7eb;">
-            <strong style="font-size: 16px; color: #111827;">${vars.opportunityName}</strong>
+          <td style="padding: 14px 16px; background-color: #f9fafb; border-bottom: 1px solid {tokens.neutral['200']};">
+            <strong style="font-size: 16px; color: {tokens.neutral['900']};">${vars.opportunityName}</strong>
           </td>
         </tr>
         <tr>
           <td style="padding: 14px 16px;">
-            <p style="margin: 0 0 10px 0; color: #374151;">${vars.description}</p>
-            <table role="presentation" cellpadding="0" cellspacing="0" style="font-size: 13px; color: #6b7280;">
-              <tr><td style="padding: 2px 8px 2px 0;">Company:</td><td style="font-weight: 600; color: #111827;">${vars.companyName}</td></tr>
-              <tr><td style="padding: 2px 8px 2px 0;">Value:</td><td style="font-weight: 600; color: #111827;">${vars.value}</td></tr>
-              <tr><td style="padding: 2px 8px 2px 0;">Stage:</td><td style="font-weight: 600; color: #111827;">${vars.stage}</td></tr>
-              <tr><td style="padding: 2px 8px 2px 0;">Likelihood:</td><td style="font-weight: 600; color: #111827;">${vars.likelihood}</td></tr>
+            <p style="margin: 0 0 10px 0; color: {tokens.neutral['700']};">${vars.description}</p>
+            <table role="presentation" cellpadding="0" cellspacing="0" style="font-size: 13px; color: {tokens.trust.unverified.value};">
+              <tr><td style="padding: 2px 8px 2px 0;">Company:</td><td style="font-weight: 600; color: {tokens.neutral['900']};">${vars.companyName}</td></tr>
+              <tr><td style="padding: 2px 8px 2px 0;">Value:</td><td style="font-weight: 600; color: {tokens.neutral['900']};">${vars.value}</td></tr>
+              <tr><td style="padding: 2px 8px 2px 0;">Stage:</td><td style="font-weight: 600; color: {tokens.neutral['900']};">${vars.stage}</td></tr>
+              <tr><td style="padding: 2px 8px 2px 0;">Likelihood:</td><td style="font-weight: 600; color: {tokens.neutral['900']};">${vars.likelihood}</td></tr>
             </table>
           </td>
         </tr>
@@ -377,20 +378,20 @@ const dataQualityAlertTemplate: TemplateDefinition = {
   variables: ['issueType', 'sourceName', 'severity', 'affectedRecords', 'description', 'resolutionUrl'],
   htmlTemplate(vars, ctx) {
     const severityColor =
-      vars.severity === 'critical' ? '#dc2626'
-        : vars.severity === 'high' ? '#f59e0b'
-          : '#3b82f6';
+      vars.severity === 'critical' ? tokens.extended.red.value
+        : vars.severity === 'high' ? tokens.domain.reasoning
+          : tokens.accent.DEFAULT;
 
     const body = `
       <p>Hi there,</p>
       <p>A data quality issue has been detected:</p>
       <div style="margin: 16px 0; padding: 14px 18px; border-left: 4px solid ${severityColor}; background-color: #fef2f2; border-radius: 0 6px 6px 0;">
         <strong style="color: ${severityColor};">${vars.severity.toUpperCase()}: ${vars.issueType}</strong>
-        <p style="margin: 8px 0 0 0; color: #374151;">${vars.description}</p>
+        <p style="margin: 8px 0 0 0; color: {tokens.neutral['700']};">${vars.description}</p>
       </div>
-      <table role="presentation" cellpadding="0" cellspacing="0" style="font-size: 13px; color: #6b7280; margin: 8px 0;">
-        <tr><td style="padding: 2px 8px 2px 0;">Source:</td><td style="font-weight: 600; color: #111827;">${vars.sourceName}</td></tr>
-        <tr><td style="padding: 2px 8px 2px 0;">Affected Records:</td><td style="font-weight: 600; color: #111827;">${vars.affectedRecords}</td></tr>
+      <table role="presentation" cellpadding="0" cellspacing="0" style="font-size: 13px; color: {tokens.trust.unverified.value}; margin: 8px 0;">
+        <tr><td style="padding: 2px 8px 2px 0;">Source:</td><td style="font-weight: 600; color: {tokens.neutral['900']};">${vars.sourceName}</td></tr>
+        <tr><td style="padding: 2px 8px 2px 0;">Affected Records:</td><td style="font-weight: 600; color: {tokens.neutral['900']};">${vars.affectedRecords}</td></tr>
       </table>
     `;
     return emailWrapper(ctx, `Data Quality Alert: ${vars.issueType}`, body, {
@@ -431,7 +432,7 @@ const userWelcomeTemplate: TemplateDefinition = {
       <p>Hi ${vars.userName},</p>
       <p>Welcome to <strong>${merged.companyName}</strong>! We're excited to have you on board.</p>
       <p>Your workspace <strong>"${vars.workspaceName}"</strong> is ready to go. Here's how to get started:</p>
-      <ol style="padding-left: 24px; color: #374151; line-height: 2;">
+      <ol style="padding-left: 24px; color: {tokens.neutral['700']}; line-height: 2;">
         <li>Complete your profile and connect your data sources</li>
         <li>Add the companies you want to track</li>
         <li>Set up your notification preferences</li>
@@ -483,16 +484,16 @@ const pipelineAtRiskTemplate: TemplateDefinition = {
         <strong style="font-size: 16px; color: #991b1b;">${vars.opportunityName}</strong>
         <table role="presentation" cellpadding="0" cellspacing="0" style="margin-top: 10px; font-size: 13px; width: 100%;">
           <tr>
-            <td style="padding: 2px 8px 2px 0; color: #6b7280;">Company:</td>
-            <td style="color: #111827; font-weight: 600;">${vars.companyName}</td>
+            <td style="padding: 2px 8px 2px 0; color: {tokens.trust.unverified.value};">Company:</td>
+            <td style="color: {tokens.neutral['900']}; font-weight: 600;">${vars.companyName}</td>
           </tr>
           <tr>
-            <td style="padding: 2px 8px 2px 0; color: #6b7280;">Value:</td>
-            <td style="color: #111827; font-weight: 600;">${vars.value}</td>
+            <td style="padding: 2px 8px 2px 0; color: {tokens.trust.unverified.value};">Value:</td>
+            <td style="color: {tokens.neutral['900']}; font-weight: 600;">${vars.value}</td>
           </tr>
           <tr>
-            <td style="padding: 2px 8px 2px 0; color: #6b7280;">Last Activity:</td>
-            <td style="color: #111827; font-weight: 600;">${vars.lastActivity}</td>
+            <td style="padding: 2px 8px 2px 0; color: {tokens.trust.unverified.value};">Last Activity:</td>
+            <td style="color: {tokens.neutral['900']}; font-weight: 600;">${vars.lastActivity}</td>
           </tr>
         </table>
         <p style="margin: 12px 0 0 0; color: #991b1b; font-size: 14px;">

@@ -19,6 +19,7 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { registerTimer } from '@/lib/timer-registry';
 
 // ─── Types ───────────────────────────────────────────────────────────
 
@@ -76,6 +77,10 @@ export interface PromptExperiment {
   description: string;
   /** Which prompt ID is being tested */
   promptId: string;
+  /** P3.6: Type of experiment — prompt, model, or scoring_weights */
+  experimentType?: 'prompt' | 'model' | 'scoring_weights';
+  /** P3.6: What's being tested (e.g., model name, scoring config) */
+  targetEntity?: string;
   /** Variants to compare */
   variants: ExperimentVariant[];
   /** Primary metric for winner determination */
@@ -88,6 +93,12 @@ export interface PromptExperiment {
   significanceThreshold: number;
   /** Collected metric records */
   metrics: ExperimentMetricRecord[];
+  /** P3.6: Computed analysis result */
+  results?: ExperimentResult;
+  /** P3.6: Winning variant ID */
+  winner?: string;
+  /** P3.6: Statistical confidence of winner */
+  confidence?: number;
   /** Creation timestamp */
   createdAt: string;
   /** Last updated timestamp */
@@ -145,6 +156,9 @@ export function createExperiment(params: {
   experiments.set(id, experiment);
   logger.info(`[ab-testing] Created experiment ${id}: "${params.name}" with ${variants.length} variants`);
 
+  // P3.6: Persist to DB (fire-and-forget)
+  persistExperiment(experiment);
+
   return experiment;
 }
 
@@ -176,6 +190,7 @@ export function startExperiment(id: string): boolean {
   exp.updatedAt = new Date().toISOString();
 
   logger.info(`[ab-testing] Started experiment ${id}: "${exp.name}"`);
+  persistExperiment(exp);
   return true;
 }
 
@@ -190,6 +205,7 @@ export function pauseExperiment(id: string): boolean {
   exp.updatedAt = new Date().toISOString();
 
   logger.info(`[ab-testing] Paused experiment ${id}`);
+  persistExperiment(exp);
   return true;
 }
 
@@ -204,6 +220,7 @@ export function resumeExperiment(id: string): boolean {
   exp.updatedAt = new Date().toISOString();
 
   logger.info(`[ab-testing] Resumed experiment ${id}`);
+  persistExperiment(exp);
   return true;
 }
 
@@ -219,6 +236,7 @@ export function completeExperiment(id: string): boolean {
   exp.updatedAt = new Date().toISOString();
 
   logger.info(`[ab-testing] Completed experiment ${id}`);
+  persistExperiment(exp);
   return true;
 }
 
@@ -289,6 +307,9 @@ export function recordMetric(
   });
 
   exp.updatedAt = new Date().toISOString();
+
+  // P3.6: Persist metrics to DB (fire-and-forget)
+  persistExperiment(exp);
 
   // Auto-check if we have enough data to determine winner
   if (metric === exp.primaryMetric) {
@@ -458,4 +479,127 @@ export function getExperimentSummary(): {
     byStatus,
     running,
   };
+}
+
+// ─── 6. P3.6: Persistent Storage Layer ──────────────────────────────────
+
+/**
+ * Persist experiment to database.
+ * Called on create, start, pause, resume, complete, and metric recording.
+ * Non-blocking: errors are logged but never thrown.
+ */
+async function persistExperiment(experiment: PromptExperiment): Promise<void> {
+  try {
+    await db.aIExperiment.upsert({
+      where: { id: experiment.id },
+      create: {
+        id: experiment.id,
+        name: experiment.name,
+        description: experiment.description,
+        status: experiment.status,
+        experimentType: experiment.experimentType || 'prompt',
+        promptId: experiment.promptId,
+        targetEntity: experiment.targetEntity || experiment.name,
+        variants: experiment.variants,
+        metrics: experiment.metrics,
+        results: experiment.results ? JSON.parse(JSON.stringify(experiment.results)) : null,
+        winner: experiment.winner,
+        confidence: experiment.confidence,
+        startedAt: experiment.startedAt ? new Date(experiment.startedAt) : null,
+        completedAt: experiment.completedAt ? new Date(experiment.completedAt) : null,
+      },
+      update: {
+        name: experiment.name,
+        status: experiment.status,
+        variants: experiment.variants,
+        metrics: experiment.metrics,
+        results: experiment.results ? JSON.parse(JSON.stringify(experiment.results)) : null,
+        winner: experiment.winner,
+        confidence: experiment.confidence,
+        completedAt: experiment.completedAt ? new Date(experiment.completedAt) : null,
+      },
+    });
+  } catch (err) {
+    logger.error('[ab-testing] Failed to persist experiment (non-fatal)', { error: err, experimentId: experiment.id });
+  }
+}
+
+/**
+ * Load all running experiments from DB into memory on startup.
+ * Reconstructs in-memory Map from persisted experiments.
+ */
+export async function loadExperimentsFromDB(): Promise<number> {
+  try {
+    const rows = await db.aIExperiment.findMany({
+      where: { status: 'running' },
+    });
+
+    let loaded = 0;
+    for (const row of rows) {
+      try {
+        const rawVariants = row.variants;
+        const variants = (Array.isArray(rawVariants) ? rawVariants : typeof rawVariants === 'string' ? JSON.parse(rawVariants) : []) as unknown as ExperimentVariant[];
+        const rawMetrics = row.metrics;
+        const metrics = (Array.isArray(rawMetrics) ? rawMetrics : typeof rawMetrics === 'string' ? JSON.parse(rawMetrics) : []) as unknown as ExperimentMetricRecord[];
+        const results = row.results
+          ? (typeof row.results === 'string' ? JSON.parse(row.results as string) : row.results)
+          : undefined;
+
+        const experiment: PromptExperiment = {
+          id: row.id,
+          name: row.name,
+          description: row.description || '',
+          promptId: row.promptId || '',
+          experimentType: (row.experimentType as 'prompt' | 'model' | 'scoring_weights') || 'prompt',
+          targetEntity: row.targetEntity || undefined,
+          variants: Array.isArray(variants) ? variants : [],
+          primaryMetric: 'accuracy', // Not stored in DB, will use default
+          status: row.status as ExperimentStatus,
+          minSamplesPerVariant: 30, // Not stored in DB, will use default
+          significanceThreshold: 0.95, // Not stored in DB, will use default
+          metrics: Array.isArray(metrics) ? metrics : [],
+          results: results as ExperimentResult | undefined,
+          winner: row.winner || undefined,
+          confidence: row.confidence ?? undefined,
+          createdAt: row.createdAt.toISOString(),
+          updatedAt: row.updatedAt.toISOString(),
+          startedAt: row.startedAt?.toISOString(),
+          completedAt: row.completedAt?.toISOString(),
+        };
+
+        experiments.set(row.id, experiment);
+        loaded++;
+      } catch {
+        // Skip malformed experiment rows
+      }
+    }
+
+    logger.info(`[ab-testing] Loaded ${loaded} running experiments from DB`);
+    return loaded;
+  } catch (err) {
+    logger.error('[ab-testing] Failed to load experiments from DB', { error: err });
+    return 0;
+  }
+}
+
+/**
+ * Start periodic flush of all running experiment metrics to DB.
+ * Uses registerTimer() for clean shutdown integration.
+ */
+export function startExperimentMetricsFlush(intervalMs: number = 5 * 60 * 1000): void {
+  const timer = setInterval(() => {
+    let flushed = 0;
+    for (const exp of experiments.values()) {
+      if (exp.status === 'running') {
+        persistExperiment(exp);
+        flushed++;
+      }
+    }
+    if (flushed > 0) {
+      logger.info(`[ab-testing] Periodic flush: ${flushed} running experiments persisted to DB`);
+    }
+  }, intervalMs);
+
+  if (timer.unref) timer.unref();
+  registerTimer(timer);
 }

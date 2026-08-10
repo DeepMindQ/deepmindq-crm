@@ -203,7 +203,9 @@ export type UtilityErrorCode =
   | 'RATE_LIMITED'
   | 'ENGINE_TIMEOUT'
   | 'ENGINE_ERROR'
-  | 'VALIDATION_FAILED';
+  | 'VALIDATION_FAILED'
+  | 'INTERNAL_ERROR'
+  | 'COMPANY_NOT_FOUND';
 
 /**
  * Build a structured error Response for utility routes.

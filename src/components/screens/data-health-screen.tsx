@@ -113,10 +113,10 @@ const CATEGORY_META: Record<
 
 /** Score color based on 0-100 threshold */
 function scoreColor(score: number): string {
-  if (score >= 80) return '#16a34a';
+  if (score >= 80) return 'var(--dmq-green-deep)';
   if (score >= 60) return 'var(--color-gold)';
-  if (score >= 40) return '#f59e0b';
-  return '#ef4444';
+  if (score >= 40) return 'var(--dmq-domain-reasoning)';
+  return 'var(--dmq-domain-risk)';
 }
 
 /** Derive a category "health" score from its issue count */
@@ -152,7 +152,7 @@ function CircularGauge({ score, size = 160, strokeWidth = 12 }: { score: number;
   return (
     <div ref={ref} className="relative flex items-center justify-center" style={{ width: size, height: size }}>
       <svg aria-hidden="true" width={size} height={size} className="-rotate-90">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="#f3f4f6" strokeWidth={strokeWidth} />
+        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="var(--dmq-neutral-100)" strokeWidth={strokeWidth} />
         <motion.circle
           cx={size / 2} cy={size / 2} r={radius} fill="none"
           stroke={color} strokeWidth={strokeWidth} strokeLinecap="round"
@@ -393,7 +393,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
             animate={{ scale: [1, 1.08, 1] }}
             transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
             className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-            style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
+            style={{ background: 'var(--dmq-gold-bg)', border: '1px solid var(--dmq-gold-border-light)' }}
           >
             <Brain className="w-7 h-7" style={{ color: 'var(--color-gold)' }} />
           </motion.div>
@@ -403,9 +403,9 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
           </p>
           <button
             onClick={() => navigateTo?.('companies')}
-            className="mt-4 px-4 py-2 rounded-lg text-xs font-semibold text-white shadow-sm transition-colors"
+            className="mt-4 px-4 py-2.5 rounded-lg text-xs font-semibold text-white shadow-sm transition-colors min-h-[44px]"
             style={{ background: 'var(--color-gold)' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#C5A030'; }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--dmq-gold-muted)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-gold)'; }}
           >
             Go to Companies
@@ -434,7 +434,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
             <Button
               variant="outline"
               size="sm"
-              className="h-7 px-2.5 text-xs border-gray-200 text-muted-foreground hover:text-foreground hover:bg-gray-100 gap-1.5"
+              className="h-10 px-2.5 text-xs border-gray-200 text-muted-foreground hover:text-foreground hover:bg-gray-100 gap-1.5 min-h-[44px]"
               onClick={() => fetchData(true)}
             >
               <RefreshCw className="w-3 h-3" />
@@ -476,9 +476,9 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
             <div className="shrink-0 grid grid-cols-2 gap-3 lg:w-48">
               {[
                 { label: 'Total Records', value: data.totalRecords, icon: Users, color: 'var(--color-gold)' },
-                { label: 'Healthy', value: data.healthyRecords, icon: CheckCircle2, color: '#16a34a' },
-                { label: 'Needs Attention', value: data.needsAttention, icon: AlertTriangle, color: '#f59e0b' },
-                { label: 'Critical', value: data.criticalRecords, icon: TrendingUp, color: '#ef4444' },
+                { label: 'Healthy', value: data.healthyRecords, icon: CheckCircle2, color: 'var(--dmq-green-deep)' },
+                { label: 'Needs Attention', value: data.needsAttention, icon: AlertTriangle, color: 'var(--dmq-domain-reasoning)' },
+                { label: 'Critical', value: data.criticalRecords, icon: TrendingUp, color: 'var(--dmq-domain-risk)' },
               ].map((stat) => (
                 <div key={stat.label} className="bg-gray-50 rounded-lg p-3 text-center border border-gray-100">
                   <stat.icon className="w-4 h-4 mx-auto mb-1.5" style={{ color: stat.color }} />
@@ -502,14 +502,14 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
             <div
               className="rounded-xl p-5 border"
               style={{
-                background: 'linear-gradient(135deg, rgba(184,134,11,0.06) 0%, rgba(212,175,55,0.03) 100%)',
-                borderColor: 'rgba(184,134,11,0.25)',
+                background: 'linear-gradient(135deg, var(--dmq-gold-dark-bg-light) 0%, var(--dmq-gold-bg-whisper) 100%)',
+                borderColor: 'var(--dmq-gold-dark-bg-medium)',
               }}
             >
               <div className="flex items-center gap-2.5 mb-3">
                 <div
                   className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider"
-                  style={{ background: 'rgba(184,134,11,0.15)', color: 'var(--color-gold-dim)' }}
+                  style={{ background: 'var(--dmq-gold-dark-bg-faint)', color: 'var(--color-gold-dim)' }}
                 >
                   <Sparkles className="w-3 h-3" />
                   Live AI
@@ -518,7 +518,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                   AI Health Diagnosis
                 </span>
               </div>
-              <p className="text-sm leading-relaxed" style={{ color: '#374151' }}>
+              <p className="text-sm leading-relaxed" style={{ color: 'var(--dmq-neutral-700)' }}>
                 {data.aiDiagnosis}
               </p>
             </div>
@@ -532,7 +532,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
             {qualityCategories.map((cat) => (
               <StaggerItem key={cat.label}>
                 <motion.div
-                  whileHover={{ y: -2, boxShadow: '0 4px 12px rgba(0,0,0,0.06)' }}
+                  whileHover={{ y: -2, boxShadow: '0 4px 12px var(--dmq-black-micro)' }}
                   className="bg-white border border-gray-200 rounded-xl shadow-sm p-5 h-full flex flex-col transition-shadow duration-200"
                 >
                   <div className="flex items-start justify-between mb-4">
@@ -565,7 +565,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                     <Button
                       size="sm"
                       variant="outline"
-                      className="h-8 px-3 text-xs font-medium border-gray-200 text-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-all duration-200 shrink-0"
+                      className="h-10 px-3 text-xs font-medium border-gray-200 text-foreground hover:border-primary/40 hover:bg-primary/5 hover:text-primary transition-all duration-200 shrink-0 min-h-[44px]"
                       onClick={() => navigateTo?.(cat.fixTarget)}
                     >
                       Fix
@@ -591,15 +591,15 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                     initial={{ opacity: 0, y: 8 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.35, delay: 0.05 * idx }}
-                    whileHover={{ y: -2, boxShadow: '0 4px 12px rgba(184,134,11,0.10)' }}
+                    whileHover={{ y: -2, boxShadow: '0 4px 12px var(--dmq-gold-dark-bg)' }}
                     className="bg-white border rounded-xl shadow-sm p-5 h-full flex flex-col"
-                    style={{ borderColor: 'rgba(184,134,11,0.20)' }}
+                    style={{ borderColor: 'var(--dmq-gold-dark-bg-border)' }}
                   >
                     <div className="flex items-start justify-between mb-3">
                       <div className="flex items-center gap-2">
                         <div
                           className="w-8 h-8 rounded-lg flex items-center justify-center"
-                          style={{ background: 'rgba(184,134,11,0.10)' }}
+                          style={{ background: 'var(--dmq-gold-dark-bg)' }}
                         >
                           <Sparkles className="w-4 h-4" style={{ color: 'var(--color-gold-dim)' }} />
                         </div>
@@ -607,15 +607,15 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                           className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
                           style={{
                             background: item.priority.toLowerCase() === 'high'
-                              ? 'rgba(239,68,68,0.08)'
+                              ? 'var(--dmq-risk-bg-ghost)'
                               : item.priority.toLowerCase() === 'medium'
-                                ? 'rgba(245,158,11,0.08)'
-                                : 'rgba(59,130,246,0.08)',
+                                ? 'var(--dmq-reasoning-bg-ghost)'
+                                : 'var(--dmq-accent-bg-hint)',
                             color: item.priority.toLowerCase() === 'high'
-                              ? '#dc2626'
+                              ? 'var(--dmq-red)'
                               : item.priority.toLowerCase() === 'medium'
-                                ? '#d97706'
-                                : '#2563eb',
+                                ? 'var(--dmq-amber-deep)'
+                                : 'var(--dmq-accent-dim)',
                           }}
                         >
                           {item.priority}
@@ -633,7 +633,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                     </p>
                     <div
                       className="text-[11px] font-medium px-2.5 py-1.5 rounded-lg"
-                      style={{ background: 'rgba(212,175,55,0.08)', color: 'var(--color-gold-dim)' }}
+                      style={{ background: 'var(--dmq-gold-bg-micro)', color: 'var(--color-gold-dim)' }}
                     >
                       Estimated impact: {item.estimatedImpact}
                     </div>
@@ -653,7 +653,7 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider shrink-0"
-                style={{ background: 'rgba(184,134,11,0.12)', color: 'var(--color-gold-dim)', border: '1px solid rgba(184,134,11,0.25)' }}
+                style={{ background: 'var(--dmq-gold-bg-dark)', color: 'var(--color-gold-dim)', border: '1px solid var(--dmq-gold-dark-bg-medium)' }}
               >
                 <Sparkles className="w-3 h-3" />
                 AI Plan Ready
@@ -709,12 +709,12 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                     {data.aiEnrichmentPlan && (
                       <span
                         className="w-2 h-2 rounded-full shrink-0"
-                        style={{ background: 'var(--color-gold)', boxShadow: '0 0 6px rgba(212,175,55,0.5)' }}
+                        style={{ background: 'var(--color-gold)', boxShadow: '0 0 6px var(--dmq-gold-bg-half)' }}
                       />
                     )}
                     <Button
                       size="sm"
-                      className="h-8 px-3 text-xs font-medium bg-gradient-to-r from-yellow-500/90 to-amber-600/90 text-black hover:from-yellow-500 hover:to-amber-600 border-0 shadow-sm shadow-amber-500/10 transition-all duration-200"
+                      className="h-10 px-3 text-xs font-medium bg-gradient-to-r from-yellow-500/90 to-amber-600/90 text-black hover:from-yellow-500 hover:to-amber-600 border-0 shadow-sm shadow-amber-500/10 transition-all duration-200 min-h-[44px]"
                       onClick={() => {
                         if (item.type === 'company') {
                           useAppStore.getState().setSelectedCompanyId(item.id);
@@ -803,14 +803,14 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
             <div
               className="rounded-xl p-5 border shadow-sm"
               style={{
-                background: 'rgba(255,255,255,0.85)',
-                borderColor: 'rgba(0,0,0,0.08)',
+                background: 'var(--dmq-white-card)',
+                borderColor: 'var(--dmq-black-faint)',
               }}
             >
               <div className="flex items-start gap-3">
                 <div
                   className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                  style={{ background: 'rgba(184,134,11,0.10)' }}
+                  style={{ background: 'var(--dmq-gold-dark-bg)' }}
                 >
                   <TrendingUp className="w-4.5 h-4.5" style={{ color: 'var(--color-gold-dim)' }} />
                 </div>
@@ -819,13 +819,13 @@ export default function DataHealthScreen({ navigateTo }: { navigateTo?: (screen:
                     <p className="text-sm font-semibold text-foreground">AI Quality Trajectory</p>
                     <span
                       className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-bold uppercase tracking-wider"
-                      style={{ background: 'rgba(184,134,11,0.10)', color: 'var(--color-gold-dim)' }}
+                      style={{ background: 'var(--dmq-gold-dark-bg)', color: 'var(--color-gold-dim)' }}
                     >
                       <Sparkles className="w-2.5 h-2.5" />
                       Prediction
                     </span>
                   </div>
-                  <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>
+                  <p className="text-sm leading-relaxed" style={{ color: 'var(--dmq-neutral-500)' }}>
                     {data.aiPrediction}
                   </p>
                 </div>

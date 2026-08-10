@@ -201,7 +201,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
         <Button
           onClick={() => setShowForm((s) => !s)}
           className="gap-2 font-semibold text-sm shadow-sm"
-          style={{ background: 'var(--color-gold)', color: '#fff', border: 'none' }}
+          style={{ background: 'var(--color-gold)', color: 'var(--dmq-white)', border: 'none' }}
         >
           {showForm ? <X className="w-4 h-4" /> : <Plus className="w-4 h-4" />}
           {showForm ? 'Cancel' : 'New Conversation Plan'}
@@ -232,22 +232,22 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label className="text-xs font-medium">Company Name *</Label>
-                      <Input placeholder="e.g. ABC Manufacturing" value={form.companyName} onChange={(e) => updateForm('companyName', e.target.value)} className="h-9 text-sm" />
+                      <Input placeholder="e.g. ABC Manufacturing" value={form.companyName} onChange={(e) => updateForm('companyName', e.target.value)} className="h-10 text-sm" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs font-medium">Executive Role *</Label>
                       <Select value={form.executiveRole} onValueChange={(v) => updateForm('executiveRole', v)}>
-                        <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select role" /></SelectTrigger>
+                        <SelectTrigger className="h-10 text-sm"><SelectValue placeholder="Select role" /></SelectTrigger>
                         <SelectContent>{ROLES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
                       </Select>
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs font-medium">Executive Name</Label>
-                      <Input placeholder="e.g. John Smith" value={form.executiveName} onChange={(e) => updateForm('executiveName', e.target.value)} className="h-9 text-sm" />
+                      <Input placeholder="e.g. John Smith" value={form.executiveName} onChange={(e) => updateForm('executiveName', e.target.value)} className="h-10 text-sm" />
                     </div>
                     <div className="space-y-2">
                       <Label className="text-xs font-medium">Industry</Label>
-                      <Input placeholder="e.g. Manufacturing" value={form.industry} onChange={(e) => updateForm('industry', e.target.value)} className="h-9 text-sm" />
+                      <Input placeholder="e.g. Manufacturing" value={form.industry} onChange={(e) => updateForm('industry', e.target.value)} className="h-10 text-sm" />
                     </div>
                     <div className="md:col-span-2 space-y-2">
                       <Label className="text-xs font-medium">Additional Context</Label>
@@ -255,7 +255,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                     </div>
                     <div className="md:col-span-2 space-y-2">
                       <Label className="text-xs font-medium">Your Capabilities</Label>
-                      <Input placeholder="e.g. AI Automation, Data Analytics" value={form.yourCapabilities} onChange={(e) => updateForm('yourCapabilities', e.target.value)} className="h-9 text-sm" />
+                      <Input placeholder="e.g. AI Automation, Data Analytics" value={form.yourCapabilities} onChange={(e) => updateForm('yourCapabilities', e.target.value)} className="h-10 text-sm" />
                     </div>
                   </div>
 
@@ -268,13 +268,13 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                         exit={{ opacity: 0, y: -10 }}
                         transition={{ duration: 0.3 }}
                         className="mt-5 p-6 rounded-xl border text-center"
-                        style={{ background: 'rgba(212,175,55,0.03)', borderColor: 'rgba(212,175,55,0.15)' }}
+                        style={{ background: 'var(--dmq-gold-bg-whisper)', borderColor: 'var(--dmq-gold-border-faint)' }}
                       >
                         <motion.div
                           animate={{ scale: [1, 1.15, 1] }}
                           transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
                           className="inline-flex items-center justify-center w-12 h-12 rounded-full mb-4"
-                          style={{ background: 'rgba(212,175,55,0.12)' }}
+                          style={{ background: 'var(--dmq-gold-bg-medium)' }}
                         >
                           <Brain className="w-6 h-6" style={{ color: 'var(--color-gold)' }} />
                         </motion.div>
@@ -292,7 +292,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                         <div className="w-full h-1.5 rounded-full bg-gray-100 overflow-hidden">
                           <motion.div
                             className="h-full rounded-full"
-                            style={{ background: 'linear-gradient(90deg, #D4AF37, #E8C84A, #D4AF37)', backgroundSize: '200% 100%' }}
+                            style={{ background: 'linear-gradient(90deg, var(--dmq-gold), var(--dmq-gold-light), var(--dmq-gold))', backgroundSize: '200% 100%' }}
                             initial={{ width: '0%' }}
                             animate={{ width: '100%', backgroundPosition: ['0% 0%', '100% 0%', '0% 0%'] }}
                             transition={{ width: { duration: 6, ease: 'linear' }, backgroundPosition: { duration: 2, repeat: Infinity, ease: 'linear' } }}
@@ -303,7 +303,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                   </AnimatePresence>
 
                   <div className="flex justify-end mt-5">
-                    <Button onClick={handleGenerate} disabled={loading} className="gap-2 font-semibold text-sm shadow-sm" style={{ background: 'var(--color-gold)', color: '#fff', border: 'none' }}>
+                    <Button onClick={handleGenerate} disabled={loading} className="gap-2 font-semibold text-sm shadow-sm" style={{ background: 'var(--color-gold)', color: 'var(--dmq-white)', border: 'none' }}>
                       {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />}
                       {loading ? 'Generating...' : 'Generate Plan'}
                     </Button>
@@ -325,7 +325,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                 animate={{ scale: [1, 1.08, 1] }}
                 transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
                 className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-                style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
+                style={{ background: 'var(--dmq-gold-bg)', border: '1px solid var(--dmq-gold-border-light)' }}
               >
                 <Brain className="w-7 h-7" style={{ color: 'var(--color-gold)' }} />
               </motion.div>
@@ -337,7 +337,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                 Plans include opening lines, key topics, approach recommendations, and conversation starters.
               </p>
               <div className="mt-4">
-                <Button onClick={() => setShowForm(true)} className="gap-2 text-sm font-semibold shadow-sm" style={{ background: 'var(--color-gold)', color: '#fff', border: 'none' }}>
+                <Button onClick={() => setShowForm(true)} className="gap-2 text-sm font-semibold shadow-sm" style={{ background: 'var(--color-gold)', color: 'var(--dmq-white)', border: 'none' }}>
                   <Plus className="w-4 h-4" /> Create Plan
                 </Button>
               </div>
@@ -363,14 +363,14 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                           whileHover={{ y: -2 }}
                           transition={{ duration: 0.2 }}
                           className={`bg-white border rounded-xl shadow-sm p-5 cursor-pointer transition-shadow duration-200 hover:shadow-md ${
-                            selectedId === p.id ? 'ring-2 ring-[#D4AF37]/40 border-[#D4AF37]/30' : 'border-gray-200'
+                            selectedId === p.id ? 'ring-2 ring-[var(--dmq-gold)]] border-[var(--dmq-gold)]]' : 'border-gray-200'
                           }`}
                           onClick={() => setSelectedId(selectedId === p.id ? null : p.id)}
                         >
                           {/* Header */}
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-3 min-w-0">
-                              <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: 'linear-gradient(135deg, #D4AF37, #9A8340)' }}>
+                              <div className="w-10 h-10 rounded-full flex items-center justify-center text-xs font-bold text-white shrink-0" style={{ background: 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-deep))' }}>
                                 {getInitials(p.executiveName, p.executiveRole)}
                               </div>
                               <div className="min-w-0">
@@ -381,7 +381,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                             </div>
                             <div className="flex items-center gap-2 shrink-0 ml-3">
                               <Badge className={`text-[11px] font-medium ${ac.bg} ${ac.text} border ${ac.border}`}>{p.plan.approachRecommendation.method}</Badge>
-                              <span className="text-[11px] font-semibold tabular-nums" style={{ color: p.plan.approachRecommendation.confidence >= 80 ? '#10b981' : 'var(--color-gold)' }}>
+                              <span className="text-[11px] font-semibold tabular-nums" style={{ color: p.plan.approachRecommendation.confidence >= 80 ? 'var(--dmq-emerald)' : 'var(--color-gold)' }}>
                                 {p.plan.approachRecommendation.confidence}%
                               </span>
                               <button
@@ -444,11 +444,11 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
 
                           {/* Actions */}
                           <div className="flex items-center gap-2 pt-2 border-t border-gray-100">
-                            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 font-medium"
+                            <Button variant="outline" size="sm" className="h-10 text-xs gap-1.5 font-medium min-h-[44px]"
                               onClick={(e) => { e.stopPropagation(); setSelectedId(p.id); }}>
                               <Brain className="w-3 h-3" /> View Reasoning
                             </Button>
-                            <Button variant="outline" size="sm" className="h-7 text-xs gap-1.5 font-medium"
+                            <Button variant="outline" size="sm" className="h-10 text-xs gap-1.5 font-medium min-h-[44px]"
                               onClick={(e) => { e.stopPropagation(); navigateTo?.('email-generation'); }}>
                               <Mail className="w-3 h-3" /> Generate Email
                             </Button>
@@ -496,14 +496,14 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                         <div>
                           <div className="flex items-center justify-between mb-2">
                             <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">Confidence</span>
-                            <span className="text-lg font-bold tabular-nums" style={{ color: selected.plan.approachRecommendation.confidence >= 80 ? '#10b981' : 'var(--color-gold)' }}>
+                            <span className="text-lg font-bold tabular-nums" style={{ color: selected.plan.approachRecommendation.confidence >= 80 ? 'var(--dmq-emerald)' : 'var(--color-gold)' }}>
                               {selected.plan.approachRecommendation.confidence}%
                             </span>
                           </div>
                           <div className="h-2 rounded-full bg-gray-100 overflow-hidden">
                             <motion.div
                               className="h-full rounded-full"
-                              style={{ background: selected.plan.approachRecommendation.confidence >= 80 ? 'linear-gradient(90deg, #10b981, #34d399)' : 'linear-gradient(90deg, #D4AF37, #E8C860)' }}
+                              style={{ background: selected.plan.approachRecommendation.confidence >= 80 ? 'linear-gradient(90deg, var(--dmq-emerald), var(--dmq-emerald-light))' : 'linear-gradient(90deg, var(--dmq-gold), var(--dmq-gold-light))' }}
                               initial={{ width: 0 }}
                               animate={{ width: `${selected.plan.approachRecommendation.confidence}%` }}
                               transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
@@ -617,7 +617,7 @@ export default function ConversationStudioScreen({ navigateTo }: { navigateTo?: 
                         {/* CTA */}
                         <Button
                           className="w-full gap-2 text-sm font-semibold shadow-sm mt-2"
-                          style={{ background: 'var(--color-gold)', color: '#fff', border: 'none' }}
+                          style={{ background: 'var(--color-gold)', color: 'var(--dmq-white)', border: 'none' }}
                           onClick={() => navigateTo?.('email-generation')}
                         >
                           <Mail className="w-4 h-4" /> Generate Outreach Email

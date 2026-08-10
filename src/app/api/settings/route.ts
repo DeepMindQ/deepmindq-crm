@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { tokens } from '@/lib/design-tokens';
 import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { logger } from '@/lib/logger';
 import { db } from '@/lib/db';
@@ -61,7 +62,7 @@ const DEFAULT_SETTINGS: SettingsObject = {
   brand: {
     name: 'DeepMindQ',
     logoUrl: '',
-    primaryColor: '#d6bf79',
+    primaryColor: tokens.gold.mutedLight,
     secondaryColor: '#73b4c9',
   },
   mailbox: {

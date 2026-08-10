@@ -170,16 +170,16 @@ describe('Phase 3 Gate 6: Production Readiness Report', () => {
       expect(avgMs).toBeLessThan(0.5); // 0.5ms per node creation
     });
 
-    it('read performance is measurable', () => {
+    it('read performance is measurable', async () => {
       addNode({ id: 'bench-read', label: 'Read Bench', type: 'company', aliases: [], properties: {} });
 
       const startMs = performance.now();
       for (let i = 0; i < 1000; i++) {
-        getNode('bench-read');
+        await getNode('bench-read');
       }
       const avgMs = (performance.now() - startMs) / 1000;
 
-      expect(avgMs).toBeLessThan(0.01); // 0.01ms per read
+      expect(avgMs).toBeLessThan(0.5); // 0.5ms per async read
     });
   });
 
@@ -358,7 +358,7 @@ describe('Phase 3 Gate 6: Production Readiness Report', () => {
       });
 
       expect(node).toBeDefined();
-      expect(getNode('rollback-map-test')).toBeDefined();
+      expect(await getNode('rollback-map-test')).toBeDefined();
     });
   });
 

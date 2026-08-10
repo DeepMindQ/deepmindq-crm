@@ -94,34 +94,48 @@ const DEFAULT_LLM_PRIORITY = ['nvidia', 'fireworks', 'groq', 'gemini'];
 const DEFAULT_SEARCH_PROVIDER = 'tavily';
 
 /* ── API Key Encryption ─────────────────────────────────── */
-const ENCRYPTION_KEY_ENV = 'ENCRYPTION_KEY';
+// Uses API_KEY_ENCRYPTION_KEY env var (documented in .env.example).
+// Previously used ENCRYPTION_KEY which was undocumented and conflicted
+// with the master encryption key (ENCRYPTION_MASTER_KEY). Fixed in Phase A.
+const ENCRYPTION_KEY_ENV = 'API_KEY_ENCRYPTION_KEY';
 
 function getEncryptionKey(): string | null {
   const key = process.env[ENCRYPTION_KEY_ENV];
-  if (!key || key.length < 32) return null;
+  if (!key) return null;
+  if (key.length < 32) {
+    logger.warn(`[ai-config] ${ENCRYPTION_KEY_ENV} is too short (${key.length} chars, minimum 32). API keys will not be encrypted.`);
+    return null;
+  }
   return key.slice(0, 32); // AES-256 needs 32 bytes
 }
 
 async function encrypt(text: string): Promise<string> {
   const key = getEncryptionKey();
-  if (!key) return text; // No encryption key = store as-is (dev mode)
+  if (!key) {
+    if (process.env.NODE_ENV === 'production') {
+      throw new Error('ENCRYPTION_REQUIRED: API_KEY_ENCRYPTION_KEY must be set in production');
+    }
+    return text; // Dev mode: store as-is when key not configured
+  }
   const encoder = new TextEncoder();
   const keyData = encoder.encode(key);
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const cryptoKey = await crypto.subtle.importKey('raw', keyData, { name: 'AES-GCM' }, false, ['encrypt']);
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, cryptoKey, encoder.encode(text));
-  // Combine iv + ciphertext as base64
+  // Combine iv + ciphertext as base64 (Edge-compatible: avoid Buffer)
   const combined = new Uint8Array(iv.length + encrypted.byteLength);
   combined.set(iv);
   combined.set(new Uint8Array(encrypted), iv.length);
-  return Buffer.from(combined).toString('base64');
+  return btoa(String.fromCharCode(...combined));
 }
 
 async function decrypt(encryptedText: string): Promise<string> {
   const key = getEncryptionKey();
-  if (!key) return encryptedText; // Not encrypted
+  if (!key) return encryptedText; // Not encrypted (dev mode or backward compat)
   try {
-    const combined = Buffer.from(encryptedText, 'base64');
+    const binary = atob(encryptedText);
+    const combined = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) combined[i] = binary.charCodeAt(i);
     const iv = combined.subarray(0, 12);
     const ciphertext = combined.subarray(12);
     const encoder = new TextEncoder();

@@ -8,6 +8,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import {
@@ -173,7 +174,7 @@ export async function GET() {
       },
     });
   } catch (error) {
-    console.error('[TRUST DASHBOARD] Error:', error);
+    logger.error('[TRUST DASHBOARD] Error', { error });
     return NextResponse.json(
       {
         success: false,

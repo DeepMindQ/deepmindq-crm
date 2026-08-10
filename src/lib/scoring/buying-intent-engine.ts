@@ -11,6 +11,8 @@
 
 import { db } from '@/lib/db';
 import { createInsight } from '@/lib/ai-insight-service';
+import { computeUnifiedConfidence } from '@/lib/ai-unified-confidence';
+import { getCalibrationAdjustments } from '@/lib/feedback-learning-loop';
 
 export type IntentSignalCategory = 'technology_trigger' | 'growth' | 'pain_point' | 'engagement' | 'market_timing';
 
@@ -189,13 +191,27 @@ export async function scoreBuyingIntent(companyId: string): Promise<BuyingIntent
   topSignals.sort((a, b) => b.score - a.score);
 
   // Overall intent (weighted average)
-  const overallIntentScore = Math.round(
+  let overallIntentScore = Math.round(
     (categoryScores.technology_trigger * 0.30) +
     (categoryScores.growth * 0.20) +
     (categoryScores.pain_point * 0.25) +
     (categoryScores.engagement * 0.15) +
     (categoryScores.market_timing * 0.10)
   );
+
+  // Apply feedback-driven calibration adjustments (Phase 2.4 learning loop)
+  try {
+    const adjustments = await getCalibrationAdjustments(companyId);
+    if (adjustments.length > 0) {
+      const totalShift = adjustments.reduce((sum, a) => {
+        const shift = a.direction === 'up' ? a.magnitude * 100 : -a.magnitude * 100;
+        return sum + shift;
+      }, 0);
+      overallIntentScore = Math.max(0, Math.min(100, Math.round(overallIntentScore + totalShift)));
+    }
+  } catch {
+    // Non-blocking: calibration failure must not break scoring
+  }
 
   // Recommended approach based on intent profile
   let recommendedApproach: string;
@@ -240,7 +256,26 @@ export async function scoreBuyingIntent(companyId: string): Promise<BuyingIntent
       snippet: s.signal,
       reliability: s.score / 100,
     })),
-    confidenceScore: Math.min(90, 50 + topSignals.length * 5),
+    confidenceScore: computeUnifiedConfidence({
+      entityId: companyId,
+      entityType: 'signal',
+      sources: topSignals.slice(0, 5).map(s => ({
+        name: s.source,
+        reliability: Math.min(1, s.score / 100),
+        type: s.category,
+      })),
+      averageSourceReliability: topSignals.length > 0
+        ? Math.min(1, topSignals.reduce((sum, s) => sum + s.score, 0) / (topSignals.length * 100))
+        : 0.3,
+      evidenceCount: topSignals.length + signals.length + knowledgeEntries.length + opportunitySignals.length,
+      crossValidatedFacts: signals.length,
+      totalFacts: signals.length + opportunitySignals.length,
+      dataCompleteness: Object.values(categoryScores).filter(v => v > 0).length / 5,
+      coveredDimensions: Object.values(categoryScores).filter(v => v > 0).length,
+      expectedDimensions: 5,
+      aiOutputConfidence: Math.min(1, overallIntentScore / 100),
+      hallucinationRiskScore: topSignals.length < 3 ? 40 : 15,
+    }).score,
     impactScore: overallIntentScore,
     urgencyScore: overallIntentScore >= 70 ? 80 : overallIntentScore >= 50 ? 55 : 20,
     recommendedAction: recommendedApproach,

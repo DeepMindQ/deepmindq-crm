@@ -37,11 +37,11 @@ const GRADE_CONFIG: Record<IntelligenceGrade, {
   border: string;
   description: string;
 }> = {
-  A: { label: 'A', color: '#22c55e', bg: 'rgba(34, 197, 94, 0.12)', border: 'rgba(34, 197, 94, 0.3)', description: 'Excellent' },
-  B: { label: 'B', color: '#14b8a6', bg: 'rgba(20, 184, 166, 0.12)', border: 'rgba(20, 184, 166, 0.3)', description: 'Strong' },
-  C: { label: 'C', color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.12)', border: 'rgba(245, 158, 11, 0.3)', description: 'Moderate' },
-  D: { label: 'D', color: '#f97316', bg: 'rgba(249, 115, 22, 0.12)', border: 'rgba(249, 115, 22, 0.3)', description: 'Below Average' },
-  F: { label: 'F', color: '#ef4444', bg: 'rgba(239, 68, 68, 0.12)', border: 'rgba(239, 68, 68, 0.3)', description: 'Poor' },
+  A: { label: 'A', color: tokens.domain.action, bg: tokens.trust.verified.bg, border: tokens.trust.verified.border, description: 'Excellent' },
+  B: { label: 'B', color: tokens.trust.high.value, bg: tokens.trust.high.bg, border: tokens.trust.high.border, description: 'Strong' },
+  C: { label: 'C', color: tokens.domain.reasoning, bg: tokens.trust.medium.bg, border: tokens.trust.medium.border, description: 'Moderate' },
+  D: { label: 'D', color: tokens.trust.low.value, bg: tokens.trust.low.bg, border: tokens.trust.low.border, description: 'Below Average' },
+  F: { label: 'F', color: tokens.domain.risk, bg: tokens.priority.critical.bg, border: tokens.extended.rose.border, description: 'Poor' },
 };
 
 // ─── Props ──────────────────────────────────────────────────

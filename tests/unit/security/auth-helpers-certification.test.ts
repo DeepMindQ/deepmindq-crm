@@ -86,7 +86,7 @@ describe('Auth Helpers — Security Utilities Certification', () => {
     it('should classify PUBLIC_PATH_PREFIXES correctly', () => {
       expect(PUBLIC_PATH_PREFIXES.length).toBeGreaterThanOrEqual(15)
       expect(PUBLIC_PATH_PREFIXES).toContain('/api/auth/')
-      expect(PUBLIC_PATH_PREFIXES).toContain('/api/webhooks/')
+      expect(PUBLIC_PATH_PREFIXES).toContain('/api/webhooks/crm/')
     })
   })
 

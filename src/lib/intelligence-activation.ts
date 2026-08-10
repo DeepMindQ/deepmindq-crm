@@ -40,8 +40,8 @@ import {
   type MemoryPriority,
 } from '@/lib/ai-memory';
 import {
-  addNode,
-  addEdge,
+  addNodeSync,
+  addEdgeSync,
   resolveEntity,
   extractGraphEntities,
   populateGraphFromIntelligence,
@@ -264,7 +264,7 @@ export async function activateIntelligence(
   try {
     const entityText = `${company.rawName} ${company.industry || ''} ${company.domain || ''} ${company.location || ''}`.trim();
     const entities = extractEntities(entityText);
-    const existingNodes = resolveEntity(company.rawName);
+    const existingNodes = await resolveEntity(company.rawName);
 
     steps.push({
       step: 'entity_resolution',
@@ -292,7 +292,7 @@ export async function activateIntelligence(
 
     // Add company node directly
     try {
-      addNode({
+      addNodeSync({
         id: `company-${company.id}`,
         label: company.rawName,
         type: 'company' as GraphEntityType,
@@ -313,7 +313,7 @@ export async function activateIntelligence(
     // Add contact nodes and employee relationships
     for (const contact of company.contacts.slice(0, 10)) {
       try {
-        addNode({
+        addNodeSync({
           id: `person-${contact.id}`,
           label: contact.rawName,
           type: 'person' as GraphEntityType,
@@ -326,7 +326,7 @@ export async function activateIntelligence(
           confidence: 0.85,
         });
         // Create relationship: person → employed_by → company
-        addEdge({
+        addEdgeSync({
           id: `edge-emp-${contact.id}-${company.id}`,
           sourceId: `person-${contact.id}`,
           targetId: `company-${company.id}`,
@@ -535,7 +535,7 @@ export async function activateIntelligence(
 
           for (const signal of newSignals) {
             const signalNodeId = `signal:${signal.id}`;
-            addNode({
+            addNodeSync({
               id: signalNodeId,
               label: signal.title.substring(0, 120),
               type: 'signal',
@@ -551,7 +551,7 @@ export async function activateIntelligence(
             });
 
             const edgeId = `edge:company:${company.id}:HAS_SIGNAL:${signal.id}`;
-            addEdge({
+            addEdgeSync({
               id: edgeId,
               sourceId: company.id,
               targetId: signalNodeId,

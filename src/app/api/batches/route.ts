@@ -128,62 +128,8 @@ async function processChunk(
     if (!rawName && !rawEmail) { invalid++; continue; }
     if (rawEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(rawEmail)) { invalid++; continue; }
 
-    if (rawEmail) {
-      const existingEmail = await db.contact.findUnique({ where: { email: rawEmail } });
-      if (existingEmail) { duplicates++; continue; }
-    }
-
-    let companyId: string;
+    // Pre-compute non-DB values outside the transaction
     const normalizedName = normalize(rawCompany);
-
-    if (normalizedName) {
-      const cached = companyIdCache.get(normalizedName);
-      if (cached) {
-        companyId = cached;
-      } else {
-        let bestMatch = '';
-        let bestScore = 0;
-        for (const ec of existingCompanies) {
-          const score = companyMatchScore(ec.rawName, rawCompany);
-          if (score > bestScore) { bestScore = score; bestMatch = ec.id; }
-        }
-        if (bestScore >= 70 && bestMatch) {
-          companyId = bestMatch;
-          companyIdCache.set(normalizedName, companyId);
-        } else {
-          const newCompany = await db.company.create({
-            data: {
-              rawName: rawCompany,
-              normalizedName,
-              domain: rawEmail ? rawEmail.split('@')[1] : undefined,
-              industry: rawIndustry || undefined,
-              location: rawLocation || undefined,
-            },
-          });
-          companyId = newCompany.id;
-          companyIdCache.set(normalizedName, companyId);
-          existingCompanies.push(newCompany);
-        }
-      }
-    } else {
-      const placeholderName = rawEmail ? rawEmail.split('@')[1] || 'Unknown' : 'Unknown';
-      const phNorm = normalize(placeholderName);
-      const cached = companyIdCache.get(phNorm);
-      if (cached) {
-        companyId = cached;
-      } else {
-        const newCompany = await db.company.create({
-          data: {
-            rawName: placeholderName,
-            normalizedName: phNorm,
-            domain: rawEmail ? rawEmail.split('@')[1] : undefined,
-          },
-        });
-        companyId = newCompany.id;
-        companyIdCache.set(phNorm, companyId);
-        existingCompanies.push(newCompany);
-      }
-    }
 
     const titleLower = rawTitle.toLowerCase();
     let roleBucket = 'other';
@@ -218,31 +164,128 @@ async function processChunk(
       linkedinUrl: rawLinkedin || undefined,
     });
 
-    const contact = await db.contact.create({
-      data: {
-        rawName: encryptedContactData.rawName as string,
-        normalizedName: encryptedContactData.normalizedName as string,
-        email: encryptedContactData.email as string,
-        phone: encryptedContactData.phone as string | null | undefined,
-        linkedinUrl: encryptedContactData.linkedinUrl as string | null | undefined,
-        title: rawTitle || undefined,
-        role: roleBucket,
-        location: rawLocation || undefined,
-        companyId,
-        batchId: batchId,
-        status: 'imported',
-        emailHealth: emailResult.health as 'unknown' | 'valid' | 'risky' | 'invalid',
-        emailHealthScore: emailResult.score,
-        leadScore,
-        consentStatus: 'unknown',
-        consentSource: progress.consentSource,
-        consentDate: new Date(),
-        consentIp: progress.consentIp,
-        source: progress.source as 'linkedin' | 'event' | 'referral' | 'cold_list' | 'inbound' | 'manual' | null,
-      },
-    });
-    newContactIds.push(contact.id);
-    accepted++;
+    // Determine company from in-memory cache (no DB)
+    let cachedCompanyId: string | null = null;
+    let needsNewCompany = false;
+
+    if (normalizedName) {
+      const cached = companyIdCache.get(normalizedName);
+      if (cached) {
+        cachedCompanyId = cached;
+      } else {
+        let bestMatch = '';
+        let bestScore = 0;
+        for (const ec of existingCompanies) {
+          const score = companyMatchScore(ec.rawName, rawCompany);
+          if (score > bestScore) { bestScore = score; bestMatch = ec.id; }
+        }
+        if (bestScore >= 70 && bestMatch) {
+          cachedCompanyId = bestMatch;
+          companyIdCache.set(normalizedName, cachedCompanyId);
+        } else {
+          needsNewCompany = true;
+        }
+      }
+    } else {
+      const placeholderName = rawEmail ? rawEmail.split('@')[1] || 'Unknown' : 'Unknown';
+      const phNorm = normalize(placeholderName);
+      const cached = companyIdCache.get(phNorm);
+      if (cached) {
+        cachedCompanyId = cached;
+      } else {
+        needsNewCompany = true;
+      }
+    }
+
+    // Wrap all DB operations for this row in a single transaction
+    // for atomicity: email dedup check + company create + contact create
+    try {
+      const txResult = await db.$transaction(async (tx) => {
+        // Check email duplicate within the transaction for consistency
+        if (rawEmail) {
+          const existingEmail = await tx.contact.findUnique({ where: { email: rawEmail } });
+          if (existingEmail) return { type: 'duplicate' as const };
+        }
+
+        // Create company if not found in cache
+        let companyId: string;
+        let newCompany: Company | null = null;
+
+        if (cachedCompanyId) {
+          companyId = cachedCompanyId;
+        } else if (needsNewCompany && normalizedName) {
+          newCompany = await tx.company.create({
+            data: {
+              rawName: rawCompany,
+              normalizedName,
+              domain: rawEmail ? rawEmail.split('@')[1] : undefined,
+              industry: rawIndustry || undefined,
+              location: rawLocation || undefined,
+            },
+          });
+          companyId = newCompany.id;
+        } else if (needsNewCompany) {
+          const placeholderName = rawEmail ? rawEmail.split('@')[1] || 'Unknown' : 'Unknown';
+          const phNorm = normalize(placeholderName);
+          newCompany = await tx.company.create({
+            data: {
+              rawName: placeholderName,
+              normalizedName: phNorm,
+              domain: rawEmail ? rawEmail.split('@')[1] : undefined,
+            },
+          });
+          companyId = newCompany.id;
+        } else {
+          // Should not reach here, but fallback
+          companyId = cachedCompanyId!;
+        }
+
+        // Create contact
+        const contact = await tx.contact.create({
+          data: {
+            rawName: encryptedContactData.rawName as string,
+            normalizedName: encryptedContactData.normalizedName as string,
+            email: encryptedContactData.email as string,
+            phone: encryptedContactData.phone as string | null | undefined,
+            linkedinUrl: encryptedContactData.linkedinUrl as string | null | undefined,
+            title: rawTitle || undefined,
+            role: roleBucket,
+            location: rawLocation || undefined,
+            companyId,
+            batchId: batchId,
+            status: 'imported',
+            emailHealth: emailResult.health as 'unknown' | 'valid' | 'risky' | 'invalid',
+            emailHealthScore: emailResult.score,
+            leadScore,
+            consentStatus: 'unknown',
+            consentSource: progress.consentSource,
+            consentDate: new Date(),
+            consentIp: progress.consentIp,
+            source: progress.source as 'linkedin' | 'event' | 'referral' | 'cold_list' | 'inbound' | 'manual' | null,
+          },
+        });
+
+        return { type: 'created' as const, companyId, newCompany, contactId: contact.id };
+      }, { timeout: 10000 });
+
+      if (txResult.type === 'duplicate') {
+        duplicates++;
+        continue;
+      }
+
+      // Update in-memory caches after successful transaction
+      if (txResult.newCompany) {
+        const cacheKey = normalizedName || normalize(txResult.newCompany.rawName);
+        companyIdCache.set(cacheKey, txResult.companyId);
+        existingCompanies.push(txResult.newCompany);
+      }
+
+      newContactIds.push(txResult.contactId);
+      accepted++;
+    } catch (err) {
+      logger.error('Batch row transaction failed', { error: err, rawEmail: rawEmail || undefined });
+      invalid++;
+    }
   }
 
   return { accepted, duplicates, invalid, newContactIds };

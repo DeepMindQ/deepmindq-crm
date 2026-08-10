@@ -12,6 +12,8 @@
  *   - Governance trend (hourly pass rate over time window)
  *   - Hallucination check results
  *   - Confidence distribution
+ *   - Hallucination rate aggregation with time-series trends (P3.4)
+ *   - Hallucination rate threshold alerting (P3.4)
  *
  * All data sourced from AIGenerationAudit table (production-real data only).
  */
@@ -122,7 +124,101 @@ export async function GET(req: NextRequest) {
     });
     confidenceBuckets.unknown = unknownCount;
 
-    // ── 6. Governance Health Score ──
+    // ── 6. P3.4: Hallucination Rate Aggregation ──
+    // Extract hallucination data from governanceChecks JSON
+    const recentForHallucination = await db.aIGenerationAudit.findMany({
+      where: {
+        createdAt: { gte: since },
+      },
+      select: {
+        id: true,
+        generationType: true,
+        modelUsed: true,
+        createdAt: true,
+        governanceChecks: true,
+      },
+      take: 5000,
+      orderBy: { createdAt: 'desc' },
+    });
+
+    const hallucinationData = {
+      totalChecked: 0,
+      passed: 0,
+      failed: 0,
+      avgRiskScore: 0,
+      highRiskCount: 0,     // risk >= 50
+      criticalRiskCount: 0, // risk >= 75
+      byGenerationType: {} as Record<string, { total: number; avgRisk: number; highRisk: number }>,
+      byDay: {} as Record<string, { total: number; avgRisk: number }>,
+      riskDistribution: { minimal: 0, low: 0, medium: 0, high: 0, critical: 0 },
+    };
+
+    for (const record of recentForHallucination) {
+      let checks: Record<string, any> = {};
+      try {
+        checks = typeof record.governanceChecks === 'string'
+          ? JSON.parse(record.governanceChecks)
+          : (record.governanceChecks as any);
+      } catch { continue; }
+
+      const hr = checks.hallucination_risk;
+      if (!hr || hr.value === undefined) continue;
+
+      hallucinationData.totalChecked++;
+      if (hr.passed) hallucinationData.passed++;
+      else hallucinationData.failed++;
+
+      const riskScore = typeof hr.value === 'number' ? hr.value : 0;
+      hallucinationData.avgRiskScore += riskScore;
+
+      if (riskScore >= 75) hallucinationData.criticalRiskCount++;
+      else if (riskScore >= 50) hallucinationData.highRiskCount++;
+
+      // Risk distribution buckets
+      if (riskScore === 0) hallucinationData.riskDistribution.minimal++;
+      else if (riskScore < 15) hallucinationData.riskDistribution.minimal++;
+      else if (riskScore < 30) hallucinationData.riskDistribution.low++;
+      else if (riskScore < 50) hallucinationData.riskDistribution.medium++;
+      else if (riskScore < 75) hallucinationData.riskDistribution.high++;
+      else hallucinationData.riskDistribution.critical++;
+
+      // By generation type
+      const genType = record.generationType;
+      if (!hallucinationData.byGenerationType[genType]) {
+        hallucinationData.byGenerationType[genType] = { total: 0, avgRisk: 0, highRisk: 0 };
+      }
+      hallucinationData.byGenerationType[genType].total++;
+      hallucinationData.byGenerationType[genType].avgRisk += riskScore;
+      if (riskScore >= 50) hallucinationData.byGenerationType[genType].highRisk++;
+
+      // By day (for trend line)
+      const dayKey = record.createdAt.toISOString().split('T')[0];
+      if (!hallucinationData.byDay[dayKey]) {
+        hallucinationData.byDay[dayKey] = { total: 0, avgRisk: 0 };
+      }
+      hallucinationData.byDay[dayKey].total++;
+      hallucinationData.byDay[dayKey].avgRisk += riskScore;
+    }
+
+    // Compute averages
+    if (hallucinationData.totalChecked > 0) {
+      hallucinationData.avgRiskScore = Math.round(hallucinationData.avgRiskScore / hallucinationData.totalChecked * 100) / 100;
+      for (const genType of Object.keys(hallucinationData.byGenerationType)) {
+        const d = hallucinationData.byGenerationType[genType];
+        d.avgRisk = Math.round(d.avgRisk / d.total * 100) / 100;
+      }
+      for (const day of Object.keys(hallucinationData.byDay)) {
+        const d = hallucinationData.byDay[day];
+        d.avgRisk = Math.round(d.avgRisk / d.total * 100) / 100;
+      }
+    }
+
+    // Convert byDay to sorted array for chart rendering
+    const hallucinationTrend = Object.entries(hallucinationData.byDay)
+      .map(([date, data]) => ({ date, ...data }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    // ── 7. Governance Health Score ──
     // Weighted: overall pass rate (70%) + confidence quality (15%) + coverage (15%)
     const confidenceQuality = recentForConfidence.length > 0
       ? recentForConfidence.reduce((s, r) => s + (r.researchConfidence ?? 0), 0) / recentForConfidence.length
@@ -152,9 +248,55 @@ export async function GET(req: NextRequest) {
       })),
       confidenceDistribution: confidenceBuckets,
       modelUsed: null, // Populated from AIGenerationAudit
+      // P3.4: Hallucination rate tracking
+      hallucinationData,
+      hallucinationTrend,
+      hallucinationAlert: await checkHallucinationThreshold(since),
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : String(err);
     return apiError(msg, 500);
+  }
+}
+
+// P3.4: Check hallucination rate threshold (alert if > 5% high/critical in 24h)
+async function checkHallucinationThreshold(since: Date): Promise<{ exceeds: boolean; rate: number; highCriticalCount: number; totalChecked: number; threshold: number }> {
+  const THRESHOLD_PERCENT = 5;
+  try {
+    const recent = await db.aIGenerationAudit.findMany({
+      where: { createdAt: { gte: since } },
+      select: { governanceChecks: true },
+      take: 1000,
+    });
+
+    let totalChecked = 0;
+    let highCriticalCount = 0;
+
+    for (const record of recent) {
+      let checks: Record<string, any> = {};
+      try {
+        checks = typeof record.governanceChecks === 'string'
+          ? JSON.parse(record.governanceChecks)
+          : (record.governanceChecks as any);
+      } catch { continue; }
+
+      const hr = checks.hallucination_risk;
+      if (!hr || hr.value === undefined) continue;
+
+      totalChecked++;
+      const riskScore = typeof hr.value === 'number' ? hr.value : 0;
+      if (riskScore >= 50) highCriticalCount++;
+    }
+
+    const rate = totalChecked > 0 ? Math.round((highCriticalCount / totalChecked) * 10000) / 100 : 0;
+    return {
+      exceeds: rate > THRESHOLD_PERCENT,
+      rate,
+      highCriticalCount,
+      totalChecked,
+      threshold: THRESHOLD_PERCENT,
+    };
+  } catch {
+    return { exceeds: false, rate: 0, highCriticalCount: 0, totalChecked: 0, threshold: THRESHOLD_PERCENT };
   }
 }

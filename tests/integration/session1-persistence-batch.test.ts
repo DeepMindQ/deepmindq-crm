@@ -43,9 +43,9 @@ describe('1.2 — registerMapStateProvider Wiring', () => {
     expect(() => wireMapStateProvider()).not.toThrow();
   });
 
-  it('registered provider returns correct Map for knowledge_graph_nodes', () => {
+  it('registered provider returns correct Map for knowledge_graph_nodes', async () => {
     clearGraph();
-    addNode({
+    await addNode({
       id: 'test-node-1',
       label: 'Test Company',
       type: 'company',
@@ -59,9 +59,9 @@ describe('1.2 — registerMapStateProvider Wiring', () => {
     expect(kgMaps.nodeStore.has('test-node-1')).toBe(true);
   });
 
-  it('registered provider returns correct Map for ai_memory', () => {
+  it('registered provider returns correct Map for ai_memory', async () => {
     clearAllMemories();
-    storeMemory({
+    await storeMemory({
       id: 'test-mem-1',
       layer: 'enterprise',
       category: 'company_intelligence',
@@ -259,7 +259,7 @@ describe('1.4 — Cold-Start Trigger Validation', () => {
     expect(() => wireMapStateProvider()).not.toThrow();
   });
 
-  it('full cold-start cycle: wire then hydrate then Maps accessible', () => {
+  it('full cold-start cycle: wire then hydrate then Maps accessible', async () => {
     wireMapStateProvider();
 
     clearGraph();
@@ -280,11 +280,11 @@ describe('1.4 — Cold-Start Trigger Validation', () => {
       },
     ] as any);
 
-    const node = getNode('cs-node-1');
+    const node = await getNode('cs-node-1');
     expect(node).toBeDefined();
     expect(node?.label).toBe('ColdStart Co');
 
-    const mem = recallMemory('cs-mem-1');
+    const mem = await recallMemory('cs-mem-1');
     expect(mem).toBeDefined();
     expect(mem?.content).toBe('Cold start memory');
   });

@@ -110,7 +110,21 @@ export const FIELD_PERMISSIONS: FieldPermissionRule[] = [
 
   // System configuration
   { field: 'value', model: 'SystemSetting', roles: ['admin'], sensitive: true },
+
+  // Scoring & Intelligence fields (P7.1)
+  { field: 'intelligenceScore', model: 'Company', roles: ['admin', 'operator'], sensitive: false },
+  { field: 'accountPriorityScore', model: 'Company', roles: ['admin', 'operator'], sensitive: false },
+  { field: 'priorityTier', model: 'Company', roles: ['admin', 'operator', 'user'], sensitive: false },
 ];
+
+/**
+ * Get all field permission rules for a given model.
+ * Used by admin UI to display/manage field-level permissions.
+ */
+export function getFieldPermissionRules(model?: string): FieldPermissionRule[] {
+  if (model) return FIELD_PERMISSIONS.filter(r => r.model === model);
+  return [...FIELD_PERMISSIONS];
+}
 
 /**
  * Check if a specific role has access to a specific field on a model.

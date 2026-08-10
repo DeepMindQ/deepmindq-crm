@@ -56,7 +56,7 @@ let ctx: Awaited<ReturnType<typeof utilityGuard>>;
         contradictionResolution = await resolveAllContradictions(companyId);
         logger.info(`[correlations] Resolved contradictions for ${companyId}: ${contradictionResolution.resolutionRate * 100}% resolution rate`);
       } catch (err) {
-        console.warn(`[correlations] Contradiction resolution failed for ${companyId}: ${err instanceof Error ? err.message : err}`);
+        logger.warn(`[correlations] Contradiction resolution failed for ${companyId}: ${err instanceof Error ? err.message : err}`);
       }
     }
 

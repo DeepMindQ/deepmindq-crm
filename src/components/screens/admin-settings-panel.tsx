@@ -179,7 +179,7 @@ function StyledSelect({ value, onValueChange, children, placeholder }: {
   return (
     <Select value={value} onValueChange={onValueChange}>
       <SelectTrigger
-        className="h-8 text-xs rounded-lg w-full"
+        className="h-10 text-xs rounded-lg w-full"
         style={{
           background: tokens.surface.secondary,
           borderColor: tokens.border.default,
@@ -238,7 +238,7 @@ function GeneralSettings({ state, setters }: {
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs gap-1.5 rounded-lg"
+            className="h-10 text-xs gap-1.5 rounded-lg min-h-[44px]"
             style={{ borderColor: tokens.border.default, color: tokens.text.secondary }}
           >
             <Upload className="w-3.5 h-3.5" />
@@ -295,7 +295,7 @@ function APIConfiguration({ state, setters }: {
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-[11px] gap-1 rounded-lg"
+              className="h-10 text-[11px] gap-1 rounded-lg min-h-[44px]"
               style={{ borderColor: tokens.border.default, color: tokens.accent.bright }}
             >
               <Plus className="w-3 h-3" /> Generate New
@@ -336,7 +336,7 @@ function APIConfiguration({ state, setters }: {
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-7 w-7 p-0 rounded-lg shrink-0"
+                className="h-10 w-10 p-0 rounded-lg shrink-0 min-h-[44px]"
                 style={{ color: tokens.domain.risk }}
                 onClick={() => toast.info('Key revocation would require confirmation in production.')}
               >
@@ -361,7 +361,7 @@ function APIConfiguration({ state, setters }: {
         <span className="text-xs" style={{ color: tokens.text.secondary }}>API Version:</span>
         <Badge
           className="text-[11px] px-2 py-0.5 rounded-full"
-          style={{ background: 'rgba(34, 197, 94, 0.12)', color: '#22c55e', border: '1px solid rgba(34, 197, 94, 0.3)' }}
+          style={{ background: 'var(--dmq-trust-verified-bg)', color: 'var(--dmq-domain-action)', border: '1px solid var(--dmq-trust-verified-border)' }}
         >
           v1 Stable
         </Badge>
@@ -522,9 +522,9 @@ function EmailSettings({ state, setters }: {
           <Badge
             className="text-[11px] px-2 py-0.5 rounded-full"
             style={{
-              background: state.smtpConnected ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-              color: state.smtpConnected ? '#22c55e' : '#ef4444',
-              border: `1px solid ${state.smtpConnected ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+              background: state.smtpConnected ? 'var(--dmq-trust-verified-bg)' : 'var(--dmq-risk-bg-medium)',
+              color: state.smtpConnected ? 'var(--dmq-domain-action)' : 'var(--dmq-domain-risk)',
+              border: `1px solid ${state.smtpConnected ? 'var(--dmq-trust-verified-border)' : 'var(--dmq-risk-bg-strong)'}`,
             }}
           >
             {state.smtpConnected ? (
@@ -538,7 +538,7 @@ function EmailSettings({ state, setters }: {
         <Button
           variant="outline"
           size="sm"
-          className="h-8 text-xs gap-1.5 rounded-lg"
+          className="h-10 text-xs gap-1.5 rounded-lg min-h-[44px]"
           style={{ borderColor: tokens.border.default, color: tokens.text.secondary }}
           onClick={handleTestEmail}
         >
@@ -783,7 +783,7 @@ function WebhookSettings({ state, setters }: {
           <Button
             variant="outline"
             size="sm"
-            className="h-7 text-[11px] gap-1 rounded-lg"
+            className="h-10 text-[11px] gap-1 rounded-lg min-h-[44px]"
             style={{ borderColor: tokens.border.default, color: tokens.accent.bright }}
             onClick={() => toast.info('Webhook creation dialog would open here.')}
           >
@@ -814,9 +814,9 @@ function WebhookSettings({ state, setters }: {
             <Badge
               className="text-[10px] px-1.5 py-0 rounded-full shrink-0"
               style={{
-                background: wh.active ? 'rgba(34, 197, 94, 0.12)' : 'rgba(239, 68, 68, 0.12)',
-                color: wh.active ? '#22c55e' : '#ef4444',
-                border: `1px solid ${wh.active ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}`,
+                background: wh.active ? 'var(--dmq-trust-verified-bg)' : 'var(--dmq-risk-bg-medium)',
+                color: wh.active ? 'var(--dmq-domain-action)' : 'var(--dmq-domain-risk)',
+                border: `1px solid ${wh.active ? 'var(--dmq-trust-verified-border)' : 'var(--dmq-risk-bg-strong)'}`,
               }}
             >
               {wh.active ? 'Active' : 'Inactive'}
@@ -832,7 +832,7 @@ function WebhookSettings({ state, setters }: {
               <Checkbox
                 checked={state.selectedEvents.includes(event)}
                 onCheckedChange={() => toggleEvent(event)}
-                className="data-[state=checked]:bg-[#3b82f6] data-[state=checked]:border-[#3b82f6]"
+                className="data-[state=checked]:bg-[var(--dmq-accent-blue)] data-[state=checked]:border-[var(--dmq-accent-blue)]"
               />
               <code className="text-[11px] font-mono" style={{ color: tokens.text.primary }}>{event}</code>
             </label>
@@ -852,7 +852,7 @@ function WebhookSettings({ state, setters }: {
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs gap-1.5 rounded-lg"
+            className="h-10 text-xs gap-1.5 rounded-lg min-h-[44px]"
             style={{ borderColor: tokens.border.default, color: tokens.domain.reasoning }}
             onClick={() => toast.success('Webhook signing secret rotated successfully.')}
           >
@@ -973,10 +973,10 @@ export function AdminSettingsPanel({ className }: { className?: string }) {
         <Button
           onClick={handleSave}
           disabled={saving}
-          className="h-8 text-xs gap-1.5 rounded-lg font-medium"
+          className="h-10 text-xs gap-1.5 rounded-lg font-medium min-h-[44px]"
           style={{
             background: tokens.accent.DEFAULT,
-            color: '#ffffff',
+            color: 'var(--dmq-white)',
           }}
         >
           {saving ? (
@@ -1004,7 +1004,7 @@ export function AdminSettingsPanel({ className }: { className?: string }) {
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
               className={cn(
-                'relative flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors',
+                'relative flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors',
               )}
               style={{
                 color: isActive ? tokens.text.primary : tokens.text.muted,

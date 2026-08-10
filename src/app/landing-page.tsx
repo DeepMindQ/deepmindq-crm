@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback } from 'react';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Lock } from 'lucide-react';
 
 interface LandingPageProps {
@@ -62,10 +63,10 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
           padding: '10px 20px',
           borderRadius: 60,
           border: '1px solid rgba(255, 255, 255, 0.08)',
-          background: 'rgba(8, 8, 22, 0.85)',
+          background: tokens.surfaceExtended.overlayAlt,
           backdropFilter: 'blur(16px)',
           WebkitBackdropFilter: 'blur(16px)',
-          color: '#f0eef5',
+          color: tokens.flat.warmWhite,
           fontFamily: "'Inter', -apple-system, sans-serif",
           fontSize: '0.82rem',
           fontWeight: 500,
@@ -74,13 +75,13 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
           boxShadow: '0 4px 30px rgba(0, 0, 0, 0.4)',
         }}
         onMouseOver={(e) => {
-          e.currentTarget.style.borderColor = 'rgba(255, 107, 53, 0.25)';
-          e.currentTarget.style.background = 'rgba(255, 107, 53, 0.08)';
+          e.currentTarget.style.borderColor = tokens.trust.low.border;
+          e.currentTarget.style.background = tokens.trust.low.bg;
           e.currentTarget.style.transform = 'translateY(-2px)';
         }}
         onMouseOut={(e) => {
           e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.08)';
-          e.currentTarget.style.background = 'rgba(8, 8, 22, 0.85)';
+          e.currentTarget.style.background = tokens.surfaceExtended.overlayAlt;
           e.currentTarget.style.transform = 'translateY(0)';
         }}
       >
@@ -89,7 +90,7 @@ export default function LandingPage({ onLogin }: LandingPageProps) {
         {showLoginHint && (
           <span style={{
             fontSize: '0.65rem',
-            color: 'rgba(255, 107, 53, 0.8)',
+            color: tokens.extended.orange.value,
             marginLeft: 4,
           }}>
             →

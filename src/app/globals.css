@@ -166,6 +166,82 @@
   --stripe-opportunity: #8B5CF6;
   --stripe-risk: #EF4444;
   --stripe-enrichment: #06B6D4;
+
+  --dmq-amber-100: #fef3c7;
+  --dmq-amber-200: #fde68a;
+  --dmq-amber-300: #fcd34d;
+  --dmq-amber-700: #b45309;
+  --dmq-amber-800: #92400e;
+  --dmq-blue-100: #dbeafe;
+  --dmq-blue-200: #bfdbfe;
+  --dmq-blue-700: #1d4ed8;
+  --dmq-blue-800: #1e40af;
+  --dmq-blue-900: #1e3a8a;
+  --dmq-emerald-100: #a7f3d0;
+  --dmq-emerald-50: #d1fae5;
+  --dmq-emerald-700: #047857;
+  --dmq-emerald-900: #064e3b;
+  --dmq-emerald-dark: #065f46;
+  --dmq-green-100: #dcfce7;
+  --dmq-green-200: #bbf7d0;
+  --dmq-green-300: #86efac;
+  --dmq-green-400: #4ade80;
+  --dmq-green-50: #f0fdf4;
+  --dmq-green-600: #16a34a;
+  --dmq-green-700: #15803d;
+  --dmq-indigo-100: #e0e7ff;
+  --dmq-indigo-200: #c7d2fe;
+  --dmq-indigo-300: #a5b4fc;
+  --dmq-indigo-400: #818cf8;
+  --dmq-indigo-600: #4f46e5;
+  --dmq-indigo-700: #4338ca;
+  --dmq-orange-100: #ffedd5;
+  --dmq-orange-200: #fed7aa;
+  --dmq-orange-300: #fdba74;
+  --dmq-orange-400: #fb923c;
+  --dmq-pink-100: #fce7f3;
+  --dmq-pink-200: #fbcfe8;
+  --dmq-pink-300: #f9a8d4;
+  --dmq-pink-400: #f472b6;
+  --dmq-pink-600: #db2777;
+  --dmq-purple-100: #ede9fe;
+  --dmq-purple-200: #ddd6fe;
+  --dmq-purple-300: #c4b5fd;
+  --dmq-purple-400: #a78bfa;
+  --dmq-purple-600: #9333ea;
+  --dmq-purple-700: #6d28d9;
+  --dmq-purple-800: #5b21b6;
+  --dmq-purple-light: #c084fc;
+  --dmq-red-100: #fecaca;
+  --dmq-red-50: #fee2e2;
+  --dmq-red-900: #7f1d1d;
+  --dmq-red-light: #f87171;
+  --dmq-sky-100: #e0f2fe;
+  --dmq-sky-200: #bae6fd;
+  --dmq-sky-300: #7dd3fc;
+  --dmq-sky-400: #38bdf8;
+  --dmq-sky-600: #0284c7;
+  --dmq-slate-100: #f1f5f9;
+  --dmq-slate-200: #e2e8f0;
+  --dmq-slate-300: #cbd5e1;
+  --dmq-slate-400: #94a3b8;
+  --dmq-slate-50: #f8fafc;
+  --dmq-slate-500: #64748b;
+  --dmq-slate-600: #475569;
+  --dmq-slate-700: #334155;
+  --dmq-slate-800: #1e293b;
+  --dmq-slate-900: #0f172a;
+  --dmq-teal-100: #ccfbf1;
+  --dmq-teal-200: #99f6e4;
+  --dmq-teal-300: #5eead4;
+  --dmq-teal-400: #2dd4bf;
+  --dmq-teal-600: #0d9488;
+  --dmq-teal-700: #0f766e;
+  --dmq-yellow-500: #eab308;
+  --dmq-zinc-100: #f4f4f5;
+  --dmq-zinc-300: #d4d4d8;
+  --dmq-zinc-400: #a1a1aa;
+  --dmq-zinc-50: #fafafa;
 }
 
 /* ── Base ── */
@@ -724,6 +800,259 @@
   --dmq-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
+/* ═══════════════════════════════════════════════════
+   Design Token Bridge — --dmq-* Color Custom Properties
+   Maps design-tokens.ts to CSS custom properties for use in screen files.
+   Screen files should use var(--dmq-xxx) instead of hardcoded hex colors.
+   ═══════════════════════════════════════════════════ */
+:root {
+  --dmq-accent-blue: #3b82f6;
+  --dmq-accent-bright: #60a5fa;
+  --dmq-accent-dim: #2563eb;
+  --dmq-accent-ghost: rgba(59, 130, 246, 0.06);
+  --dmq-accent-strong: rgba(59, 130, 246, 0.25);
+  --dmq-accent-subtle: rgba(59, 130, 246, 0.1);
+  --dmq-amber: #fbbf24;
+  --dmq-amber-bg: rgba(251, 191, 36, 0.1);
+  --dmq-amber-border: rgba(251, 191, 36, 0.2);
+  --dmq-amber-deep: #d97706;
+  --dmq-black: #000000;
+  --dmq-blue: #1d4ed8;
+  --dmq-blue-bg: rgba(29, 78, 216, 0.1);
+  --dmq-blue-border: rgba(29, 78, 216, 0.2);
+  --dmq-blue-bright: #4361ee;
+  --dmq-blue-bright-bg: rgba(67, 97, 238, 0.1);
+  --dmq-blue-bright-border: rgba(67, 97, 238, 0.2);
+  --dmq-blue-deep: #1e40af;
+  --dmq-border-default: #1e2535;
+  --dmq-border-gray: #a1a1aa;
+  --dmq-border-hover: #2a3348;
+  --dmq-border-subtle: rgba(42, 51, 72, 0.4);
+  --dmq-cool-bg: #f8fafc;
+  --dmq-cool-gray: #e4e4e7;
+  --dmq-cyan: #22d3ee;
+  --dmq-cyan-bg: rgba(34, 211, 238, 0.1);
+  --dmq-cyan-border: rgba(34, 211, 238, 0.2);
+  --dmq-cyan-dark: #0891b2;
+  --dmq-dim-gray: #666666;
+  --dmq-domain-action: #22c55e;
+  --dmq-domain-enrichment: #06b6d4;
+  --dmq-domain-opportunity: #a855f7;
+  --dmq-domain-reasoning: #f59e0b;
+  --dmq-domain-risk: #ef4444;
+  --dmq-domain-signal: #3b82f6;
+  --dmq-emerald: #10b981;
+  --dmq-emerald-bg: rgba(16, 185, 129, 0.1);
+  --dmq-emerald-bg-medium: rgba(16, 185, 129, 0.12);
+  --dmq-emerald-border: rgba(16, 185, 129, 0.2);
+  --dmq-emerald-deep: #059669;
+  --dmq-emerald-deep-bg: rgba(5, 150, 105, 0.1);
+  --dmq-emerald-light: #34d399;
+  --dmq-gold: #d4af37;
+  --dmq-gold-bg: rgba(212, 175, 55, 0.1);
+  --dmq-gold-bg-bright: rgba(212, 175, 55, 0.25);
+  --dmq-gold-bg-dark: rgba(184, 134, 11, 0.12);
+  --dmq-gold-bg-dark-light: rgba(184, 134, 11, 0.06);
+  --dmq-gold-bg-medium: rgba(212, 175, 55, 0.12);
+  --dmq-gold-bg-strong: rgba(212, 175, 55, 0.4);
+  --dmq-gold-bg-subtle: rgba(212, 175, 55, 0.06);
+  --dmq-gold-border: rgba(212, 175, 55, 0.3);
+  --dmq-gold-border-faint: rgba(212, 175, 55, 0.15);
+  --dmq-gold-border-light: rgba(212, 175, 55, 0.2);
+  --dmq-gold-dark: #b8860b;
+  --dmq-gold-deep: #9a8340;
+  --dmq-gold-light: #e8c860;
+  --dmq-gold-muted: #d6bf79;
+  --dmq-green-deep: #16a34a;
+  --dmq-indigo: #6366f1;
+  --dmq-indigo-bg: rgba(99, 102, 241, 0.1);
+  --dmq-indigo-bg-subtle: rgba(99, 102, 241, 0.06);
+  --dmq-light-amber: #fef3c7;
+  --dmq-light-blue: #bfdbfe;
+  --dmq-light-gray: #cccccc;
+  --dmq-light-green: #ecfdf5;
+  --dmq-light-red: #fef2f2;
+  --dmq-lime: #84cc16;
+  --dmq-lime-bg: rgba(132, 204, 22, 0.1);
+  --dmq-lime-bright: #a3e635;
+  --dmq-lime-dark: #65a30d;
+  --dmq-medium-gray: #999999;
+  --dmq-muted-gray: #6b6b80;
+  --dmq-neutral-100: #f3f4f6;
+  --dmq-neutral-200: #e5e7eb;
+  --dmq-neutral-300: #d1d5db;
+  --dmq-neutral-400: #9ca3af;
+  --dmq-neutral-50: #f9fafb;
+  --dmq-neutral-500: #6b7280;
+  --dmq-neutral-600: #4b5563;
+  --dmq-neutral-700: #374151;
+  --dmq-neutral-800: #1f2937;
+  --dmq-neutral-900: #111827;
+  --dmq-neutral-bg: rgba(161, 161, 170, 0.12);
+  --dmq-neutral-border: rgba(161, 161, 170, 0.2);
+  --dmq-off-white: #f8f9fa;
+  --dmq-orange: #ea580c;
+  --dmq-orange-light: #f97316;
+  --dmq-pink: #ec4899;
+  --dmq-purple: #8b5cf6;
+  --dmq-purple-bg: rgba(139, 92, 246, 0.1);
+  --dmq-purple-bg-faint: rgba(139, 92, 246, 0.15);
+  --dmq-purple-bg-medium: rgba(139, 92, 246, 0.12);
+  --dmq-purple-bg-subtle: rgba(139, 92, 246, 0.06);
+  --dmq-purple-border: rgba(139, 92, 246, 0.2);
+  --dmq-purple-deep: #7c3aed;
+  --dmq-purple-deep-bg: rgba(124, 58, 237, 0.1);
+  --dmq-purple-deep-border: rgba(124, 58, 237, 0.2);
+  --dmq-red: #dc2626;
+  --dmq-red-bg: rgba(220, 38, 38, 0.1);
+  --dmq-red-border: rgba(220, 38, 38, 0.2);
+  --dmq-red-dark: #991b1b;
+  --dmq-rose: #f87171;
+  --dmq-rose-bg: rgba(248, 113, 113, 0.1);
+  --dmq-rose-border: rgba(248, 113, 113, 0.2);
+  --dmq-sky: #0ea5e9;
+  --dmq-sky-bg: rgba(14, 165, 233, 0.1);
+  --dmq-sky-blue: #818cf8;
+  --dmq-sky-border: rgba(14, 165, 233, 0.2);
+  --dmq-slate: #a0a0b8;
+  --dmq-soft-blue: #eff6ff;
+  --dmq-surface-base: #0a0c10;
+  --dmq-surface-card: #141821;
+  --dmq-surface-card-hover: #1a1f2b;
+  --dmq-surface-dark-alt: #0f1117;
+  --dmq-surface-deep-dark: #0f0f11;
+  --dmq-surface-elevated: #1e2433;
+  --dmq-surface-extended-backdrop: rgba(30, 37, 53, 0.8);
+  --dmq-surface-extended-backdrop-alt: rgba(17, 24, 39, 0.8);
+  --dmq-surface-extended-overlay: rgba(6, 9, 15, 0.88);
+  --dmq-surface-extended-overlay-alt: rgba(8, 8, 22, 0.85);
+  --dmq-surface-extended-overlay-deep: rgba(15, 15, 26, 0.85);
+  --dmq-surface-muted-bg: #1a1a2e;
+  --dmq-surface-overlay: rgba(10, 12, 16, 0.85);
+  --dmq-surface-panel: #12121e;
+  --dmq-surface-secondary: #0f1219;
+  --dmq-text-accent: #93c5fd;
+  --dmq-text-muted: #5a6478;
+  --dmq-text-primary: #e8ecf4;
+  --dmq-text-secondary: #8892a8;
+  --dmq-trust-high: #14b8a6;
+  --dmq-trust-high-bg: rgba(20, 184, 166, 0.12);
+  --dmq-trust-high-border: rgba(20, 184, 166, 0.3);
+  --dmq-trust-low: #f97316;
+  --dmq-trust-low-bg: rgba(249, 115, 22, 0.12);
+  --dmq-trust-low-border: rgba(249, 115, 22, 0.3);
+  --dmq-trust-medium: #f59e0b;
+  --dmq-trust-medium-bg: rgba(245, 158, 11, 0.12);
+  --dmq-trust-medium-border: rgba(245, 158, 11, 0.3);
+  --dmq-trust-unverified: #6b7280;
+  --dmq-trust-unverified-bg: rgba(107, 114, 128, 0.12);
+  --dmq-trust-unverified-border: rgba(107, 114, 128, 0.3);
+  --dmq-trust-verified: #22c55e;
+  --dmq-trust-verified-bg: rgba(34, 197, 94, 0.12);
+  --dmq-trust-verified-border: rgba(34, 197, 94, 0.3);
+  --dmq-violet: #a78bfa;
+  --dmq-violet-bg: rgba(167, 139, 250, 0.1);
+  --dmq-warm-bg: #fffdf5;
+  --dmq-warm-bg-alt: #fffbeb;
+  --dmq-warm-white: #f0f0f5;
+  --dmq-white: #ffffff;
+  --dmq-yellow-deep: #ca8a04;
+  --dmq-zinc: #71717a;
+  --dmq-zinc-dark: #52525b;
+
+  /* ── Extended opacity/color tokens (auto-generated) ── */
+    --dmq-gold-bg-ghost: rgba(212, 175, 55, 0.01);
+    --dmq-gold-bg-trace: rgba(212, 175, 55, 0.02);
+    --dmq-gold-bg-whisper: rgba(212, 175, 55, 0.03);
+    --dmq-gold-bg-hint: rgba(212, 175, 55, 0.04);
+    --dmq-gold-bg-dust: rgba(212, 175, 55, 0.05);
+    --dmq-gold-bg-micro: rgba(212, 175, 55, 0.08);
+    --dmq-gold-glow: rgba(212, 175, 55, 0.35);
+    --dmq-gold-bg-half: rgba(212, 175, 55, 0.5);
+    --dmq-gold-bg-rich: rgba(212, 175, 55, 0.7);
+    --dmq-gold-dark-bg-ghost: rgba(184, 134, 11, 0.03);
+    --dmq-gold-dark-bg-subtle: rgba(184, 134, 11, 0.05);
+    --dmq-gold-dark-bg-light: rgba(184, 134, 11, 0.06);
+    --dmq-gold-dark-bg: rgba(184, 134, 11, 0.1);
+    --dmq-gold-dark-bg-faint: rgba(184, 134, 11, 0.15);
+    --dmq-gold-dark-bg-border: rgba(184, 134, 11, 0.2);
+    --dmq-gold-dark-bg-medium: rgba(184, 134, 11, 0.25);
+    --dmq-gold-dark-bg-strong: rgba(184, 134, 11, 0.3);
+    --dmq-gold-light-bg-medium: rgba(232, 200, 96, 0.6);
+    --dmq-gold-light-bg-strong: rgba(232, 200, 96, 0.7);
+    --dmq-accent-bg-dust: rgba(59, 130, 246, 0.05);
+    --dmq-accent-bg-micro: rgba(59, 130, 246, 0.06);
+    --dmq-accent-bg-hint: rgba(59, 130, 246, 0.08);
+    --dmq-accent-bg-medium: rgba(59, 130, 246, 0.12);
+    --dmq-accent-bg-faint: rgba(59, 130, 246, 0.15);
+    --dmq-accent-bg-border: rgba(59, 130, 246, 0.2);
+    --dmq-accent-border-strong: rgba(59, 130, 246, 0.3);
+    --dmq-accent-glow: rgba(59, 130, 246, 0.15);
+    --dmq-accent-glow-strong: rgba(59, 130, 246, 0.25);
+    --dmq-risk-bg-ghost: rgba(239, 68, 68, 0.08);
+    --dmq-risk-bg-medium: rgba(239, 68, 68, 0.12);
+    --dmq-risk-bg-faint: rgba(239, 68, 68, 0.15);
+    --dmq-risk-bg-border: rgba(239, 68, 68, 0.2);
+    --dmq-risk-bg-strong: rgba(239, 68, 68, 0.3);
+    --dmq-emerald-bg-ghost: rgba(16, 185, 129, 0.05);
+    --dmq-emerald-bg-hint: rgba(16, 185, 129, 0.08);
+    --dmq-emerald-bg-border: rgba(16, 185, 129, 0.2);
+    --dmq-emerald-bg-strong: rgba(16, 185, 129, 0.4);
+    --dmq-emerald-bg-half: rgba(16, 185, 129, 0.5);
+    --dmq-emerald-deep-bg-strong: rgba(5, 150, 105, 0.5);
+    --dmq-action-bg-ghost: rgba(34, 197, 94, 0.08);
+    --dmq-reasoning-bg-ghost: rgba(245, 158, 11, 0.08);
+    --dmq-reasoning-bg-medium: rgba(245, 158, 11, 0.12);
+    --dmq-reasoning-bg-faint: rgba(245, 158, 11, 0.15);
+    --dmq-reasoning-bg-border: rgba(245, 158, 11, 0.2);
+    --dmq-opportunity-bg-ghost: rgba(168, 85, 247, 0.08);
+    --dmq-opportunity-bg-medium: rgba(168, 85, 247, 0.12);
+    --dmq-opportunity-bg-faint: rgba(168, 85, 247, 0.15);
+    --dmq-opportunity-bg-border: rgba(168, 85, 247, 0.2);
+    --dmq-opportunity-bg-strong: rgba(168, 85, 247, 0.3);
+    --dmq-purple-bg-ghost: rgba(139, 92, 246, 0.08);
+    --dmq-indigo-bg-ghost: rgba(99, 102, 241, 0.08);
+    --dmq-enrichment-cyan-high: rgba(6, 182, 212, 0.4);
+    --dmq-blue-bright-bg-alt: rgba(37, 99, 235, 0.12);
+    --dmq-blue-bright-border-alt: rgba(37, 99, 235, 0.3);
+    --dmq-unverified-bg: rgba(107, 114, 128, 0.1);
+    --dmq-unverified-bg-alt: rgba(107, 114, 128, 0.12);
+    --dmq-unverified-border-strong: rgba(107, 114, 128, 0.5);
+    --dmq-zinc-bg: rgba(113, 113, 122, 0.1);
+    --dmq-zinc-bg-medium: rgba(113, 113, 122, 0.12);
+    --dmq-gray-bg: rgba(100, 100, 100, 0.12);
+    --dmq-slate-thumb: rgba(100, 116, 139, 0.3);
+    --dmq-slate-thumb-hover: rgba(100, 116, 139, 0.5);
+    --dmq-black-ghost: rgba(0, 0, 0, 0.015);
+    --dmq-black-trace: rgba(0, 0, 0, 0.02);
+    --dmq-black-shadow: rgba(0, 0, 0, 0.03);
+    --dmq-black-whisper: rgba(0, 0, 0, 0.04);
+    --dmq-black-hint: rgba(0, 0, 0, 0.05);
+    --dmq-black-micro: rgba(0, 0, 0, 0.06);
+    --dmq-black-faint: rgba(0, 0, 0, 0.08);
+    --dmq-black-subtle: rgba(0, 0, 0, 0.1);
+    --dmq-black-bg: rgba(0, 0, 0, 0.12);
+    --dmq-black-faint-plus: rgba(0, 0, 0, 0.15);
+    --dmq-black-medium: rgba(0, 0, 0, 0.3);
+    --dmq-black-half: rgba(0, 0, 0, 0.5);
+    --dmq-black-strong: rgba(0, 0, 0, 0.7);
+    --dmq-black-heavy: rgba(0, 0, 0, 0.85);
+    --dmq-black-overlay: rgba(0, 0, 0, 0.88);
+    --dmq-white-trace: rgba(255, 255, 255, 0.02);
+    --dmq-white-shadow: rgba(255, 255, 255, 0.03);
+    --dmq-white-ghost: rgba(255, 255, 255, 0.04);
+    --dmq-white-whisper: rgba(255, 255, 255, 0.05);
+    --dmq-white-micro: rgba(255, 255, 255, 0.06);
+    --dmq-white-faint: rgba(255, 255, 255, 0.08);
+    --dmq-white-subtle: rgba(255, 255, 255, 0.1);
+    --dmq-white-muted: rgba(255, 255, 255, 0.12);
+    --dmq-white-light: rgba(255, 255, 255, 0.2);
+    --dmq-white-medium: rgba(255, 255, 255, 0.5);
+    --dmq-white-card: rgba(255, 255, 255, 0.85);
+    --dmq-white-heavy: rgba(255, 255, 255, 0.92);
+    --dmq-white-strong: rgba(255, 255, 255, 0.97);
+}
+
 /* ── MS6 Glass Card Component Classes ── */
 @layer components {
   .dmq-glass-card {
@@ -870,6 +1199,43 @@
   justify-content: center;
 }
 
+/* Auto-apply minimum touch targets for interactive elements in screens */
+/* Small icon-only buttons get invisible padding to reach 44x44 */
+[role="button"]:not(.tap-target-exempt),
+button:not(.tap-target-exempt):not([class*="h-9"]):not([class*="h-10"]):not([class*="h-11"]):not([class*="h-12"]):not([class*="min-h-[4"]) {
+  min-height: 36px;
+  min-width: 36px;
+}
+
+/* Table action buttons: ensure 44px tap area via padding */
+td button,
+td [role="button"],
+th button[aria-label] {
+  min-height: 36px;
+  min-width: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Icon-only buttons inside grids and tables get minimum touch target */
+.icon-btn-sm {
+  min-width: 36px;
+  min-height: 36px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+}
+
+.icon-btn-sm:hover {
+  background: rgba(0, 0, 0, 0.04);
+}
+
+.icon-btn-sm:active {
+  background: rgba(0, 0, 0, 0.08);
+}
+
 /* High contrast mode adjustments */
 @media (forced-colors: active) {
   .icon-only {
@@ -889,4 +1255,13 @@
 /* Minimum font size enforcement */
 .min-text-xs {
   font-size: 0.75rem;
+}
+
+/* Touch target safety net: ensure minimum 44px on all interactive elements */
+button, [role="button"], a[href], [onclick], 
+[tabindex]:not([tabindex="-1"]), 
+select, input[type="submit"], input[type="button"],
+.Button, [class*="cursor-pointer"] {
+  min-height: 44px;
+  min-width: 44px;
 }

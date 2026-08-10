@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
 import { approvalService } from '@/lib/approval-service'
 import type { ApprovalStatus, ApprovalContentType } from '@/lib/approval-service'
 import { checkApiAuth } from '@/lib/api-auth'
@@ -37,7 +38,7 @@ export async function GET(request: NextRequest) {
       stats,
     })
   } catch (error) {
-    console.error('[API /approvals GET]', error)
+    logger.error('[API /approvals GET]', { error })
     return NextResponse.json(
       { error: 'Failed to fetch approvals' },
       { status: 500 }
@@ -90,7 +91,7 @@ export async function PATCH(request: NextRequest) {
 
     return NextResponse.json({ approval: result })
   } catch (error) {
-    console.error('[API /approvals PATCH]', error)
+    logger.error('[API /approvals PATCH]', { error })
     return NextResponse.json(
       { error: 'Failed to update approval' },
       { status: 500 }
@@ -142,7 +143,7 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ approval }, { status: 201 })
   } catch (error) {
-    console.error('[API /approvals POST]', error)
+    logger.error('[API /approvals POST]', { error })
     return NextResponse.json(
       { error: 'Failed to create approval request' },
       { status: 500 }

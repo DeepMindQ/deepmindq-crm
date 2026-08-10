@@ -11,18 +11,29 @@
  * Output: { success: true, answer: KnowledgeAnswer, trust: TrustMetadata, trustScore: TrustScore }
  */
 
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { checkApiAuth } from '@/lib/api-auth';
-import { logger } from '@/lib/logger';
 import {
   queryKnowledgeIntelligence,
   type KnowledgeQueryInput,
 } from '@/lib/m5-wow4-knowledge-intelligence';
+import { utilityGuard, utilityError, utilitySuccess, utilityCatchError, RateLimitedError } from '@/lib/intelligence-api/guard';
 
-export async function POST(request: Request): Promise<Response> {
+export async function POST(request: NextRequest): Promise<Response> {
   // ── Auth guard ─────────────────────────────────────────────────────
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
+
+  // ── Correlation-id + rate limiting guard ──
+  let ctx;
+  try {
+    ctx = utilityGuard(request, 'knowledge-query');
+  } catch (e) {
+    if (e instanceof RateLimitedError) {
+      return NextResponse.json({ error: 'Rate limited', code: 'RATE_LIMITED' }, { status: 429, headers: e.headers });
+    }
+    throw e;
+  }
 
   try {
     // ── Parse body ───────────────────────────────────────────────────
@@ -35,25 +46,11 @@ export async function POST(request: Request): Promise<Response> {
 
     // ── Validate ─────────────────────────────────────────────────────
     if (!query || typeof query !== 'string' || query.trim().length === 0) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Missing required field: query (non-empty string)',
-          timestamp: new Date().toISOString(),
-        },
-        { status: 400 },
-      );
+      return utilityError(ctx, 400, 'Missing required field: query (non-empty string)', 'VALIDATION_FAILED');
     }
 
     if (query.length > 2000) {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Query too long (max 2000 characters)',
-          timestamp: new Date().toISOString(),
-        },
-        { status: 400 },
-      );
+      return utilityError(ctx, 400, 'Query too long (max 2000 characters)', 'VALIDATION_FAILED');
     }
 
     const input: KnowledgeQueryInput = {
@@ -65,27 +62,14 @@ export async function POST(request: Request): Promise<Response> {
     };
 
     // ── Execute ─────────────────────────────────────────────────────
-    const result = queryKnowledgeIntelligence(input);
+    const result = await queryKnowledgeIntelligence(input);
 
-    return NextResponse.json({
-      success: true,
+    return utilitySuccess(ctx, {
       answer: result.answer,
       trust: result.trust,
       trustScore: result.trustScore,
-    });
+    }, 'knowledge-query');
   } catch (error) {
-    logger.error('[M5-WOW4] Knowledge query failed', {
-      error: error instanceof Error ? error.message : String(error),
-      stack: error instanceof Error ? error.stack : undefined,
-    });
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Internal server error processing knowledge query',
-        timestamp: new Date().toISOString(),
-      },
-      { status: 500 },
-    );
+    return utilityCatchError(ctx, error, 500, 'INTERNAL_ERROR', 'Knowledge query failed');
   }
 }

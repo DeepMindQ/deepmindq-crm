@@ -8,6 +8,7 @@
  */
 
 import { NextResponse } from 'next/server';
+import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { queryLineage } from '@/lib/data-lineage-service';
@@ -159,7 +160,7 @@ export async function GET(
       recommendations,
     });
   } catch (error) {
-    console.error(`[TRUST COMPANY] Error for ${id}:`, error);
+    logger.error(`[TRUST COMPANY] Error for ${id}`, { error });
     return NextResponse.json(
       { success: false, error: 'Failed to compute company trust details' },
       { status: 500 }

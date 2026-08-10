@@ -16,7 +16,7 @@ import { NAV_SECTIONS, type NavItem as NavConfigItem } from '@/lib/nav-config';
 import { SCREEN_MAP } from '@/lib/screen-map';
 import { useSession } from '@/providers/auth-provider';
 import { logger } from '@/lib/logger';
-import { useBrandConfig } from '@/lib/use-brand-config';
+import { useBrandConfig } from '@/hooks/use-brand-config';
 import { useTranslation } from '@/lib/use-translation';
 import {
   ChevronRight,

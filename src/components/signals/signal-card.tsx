@@ -89,7 +89,7 @@ export function SignalCard({ signal, onDismiss, onAction, onNavigate, variant = 
         exit={{ opacity: 0, x: -20 }}
         className={cn('flex items-center gap-3 px-3 py-2 rounded-lg border cursor-pointer hover:border-opacity-60 transition-all', className)}
         style={{ background: tokens.surface.card, borderColor: tokens.border.default }}
-        onClick={() => onNavigate?.(signal.actions?.[0]?.href || `#accounts`)}
+        onClick={() => onNavigate?.(signal.actions?.[0]?.href || `{tokens.flat.lightGray}ounts`)}
       >
         <div className="w-7 h-7 rounded-lg flex items-center justify-center shrink-0" style={{ background: sevConfig.bg }}>
           <SevIcon className="w-3.5 h-3.5" style={{ color: sevConfig.color }} />

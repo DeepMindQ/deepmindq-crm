@@ -48,7 +48,15 @@
  */
 
 import { logger } from '@/lib/logger';
-import { persistWrite, persistDelete } from '@/lib/persistence/persistence-integration';
+import { db } from '@/lib/db';
+import {
+  writeMemory as dbWriteMemory,
+  readMemory as dbReadMemory,
+  deleteMemory as dbDeleteMemory,
+  searchMemories as dbSearchMemories,
+  warmCacheFromDb,
+  fromDb,
+} from '@/lib/ai-memory-db';
 
 // ── Memory Types ─────────────────────────────────────────────────────
 
@@ -171,6 +179,10 @@ export interface MemoryStats {
   expiringSoon: number;
   expired: number;
   consolidationCandidates: number;
+  /** Total memories persisted in DB (source of truth). */
+  totalInDb?: number;
+  /** Ratio of in-memory cache entries to total DB entries (0-1). */
+  cacheHitRate?: number;
 }
 
 /** Memory search query. */
@@ -239,8 +251,46 @@ let seeded = false;
 /**
  * Store a memory item. If a memory with the same ID exists, it is
  * updated (version incremented).
+ *
+ * P1.1: DB is source of truth. Write to DB first (awaited),
+ * then update in-memory Maps as hot cache.
  */
-export function storeMemory(item: Omit<MemoryItem, 'createdAt' | 'updatedAt' | 'version' | 'accessCount' | 'childMemoryIds'> & { childMemoryIds?: string[] }): MemoryItem {
+export async function storeMemory(item: Omit<MemoryItem, 'createdAt' | 'updatedAt' | 'version' | 'accessCount' | 'childMemoryIds'> & { childMemoryIds?: string[] }): Promise<MemoryItem> {
+  const now = Date.now();
+  const existing = memoryStore.get(item.id);
+
+  const fullItem: MemoryItem = {
+    ...item,
+    accessCount: existing?.accessCount ?? 0,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+    version: existing ? existing.version + 1 : 1,
+    childMemoryIds: item.childMemoryIds || [],
+  };
+
+  // P1.1: Write to DB first (source of truth)
+  try {
+    await dbWriteMemory(fullItem as unknown as Record<string, unknown>);
+  } catch (err) {
+    logger.error('[P1.1] DB write failed in storeMemory', {
+      id: item.id.slice(0, 8),
+      error: err instanceof Error ? err.message : String(err),
+    });
+    // Still update in-memory cache even on DB failure
+  }
+
+  // Update in-memory Maps (hot cache)
+  memoryStore.set(item.id, fullItem);
+  updateIndices(fullItem);
+
+  return fullItem;
+}
+
+/**
+ * @deprecated Use the async storeMemory() instead. This version only
+ * updates in-memory Maps and does NOT persist to DB.
+ */
+export function storeMemorySync(item: Omit<MemoryItem, 'createdAt' | 'updatedAt' | 'version' | 'accessCount' | 'childMemoryIds'> & { childMemoryIds?: string[] }): MemoryItem {
   const now = Date.now();
   const existing = memoryStore.get(item.id);
 
@@ -256,49 +306,131 @@ export function storeMemory(item: Omit<MemoryItem, 'createdAt' | 'updatedAt' | '
   memoryStore.set(item.id, fullItem);
   updateIndices(fullItem);
 
-  // WI-18.2: Persist to DB (non-blocking, fire-and-forget)
-  // companyId from scope if company-scoped (Lock L3)
-  const memCompanyId = fullItem.scope !== 'global' ? fullItem.scope.entityId : undefined;
-  persistWrite('ai_memory', item.id, fullItem as unknown as Record<string, unknown>, memCompanyId).catch(() => {});
-
   return fullItem;
 }
 
 /**
  * Recall a specific memory by ID.
+ *
+ * P1.1: Check in-memory Map first (hot cache hit = instant).
+ * On cache miss, fall back to DB and populate Map.
  */
-export function recallMemory(id: string): MemoryItem | undefined {
+export async function recallMemory(id: string): Promise<MemoryItem | undefined> {
+  // Hot cache hit
   const memory = memoryStore.get(id);
   if (memory) {
     memory.accessCount++;
     memory.lastAccessedAt = Date.now();
     memoryStore.set(id, memory);
-    // WI-18.2: Persist access count update (non-blocking)
-    persistWrite('ai_memory', id, memory as unknown as Record<string, unknown>).catch(() => {});
+    // P1.1: Persist access count update to DB (fire-and-forget for reads)
+    dbWriteMemory(memory as unknown as Record<string, unknown>).catch(() => {});
+    return memory;
+  }
+
+  // Cache miss → fall back to DB
+  const dbRow = await dbReadMemory(id);
+  if (!dbRow) return undefined;
+
+  const item = fromDb(dbRow) as unknown as MemoryItem;
+  memoryStore.set(item.id, item);
+  updateIndices(item);
+  logger.debug('[P1.1] recallMemory cache miss, loaded from DB', { id: id.slice(0, 8) });
+  return item;
+}
+
+/**
+ * @deprecated Use the async recallMemory() instead. This version only
+ * checks in-memory Maps and will NOT query the DB on cache miss.
+ */
+export function recallMemorySync(id: string): MemoryItem | undefined {
+  const memory = memoryStore.get(id);
+  if (memory) {
+    memory.accessCount++;
+    memory.lastAccessedAt = Date.now();
+    memoryStore.set(id, memory);
   }
   return memory;
 }
 
 /**
  * Forget (delete) a memory item.
+ *
+ * P1.1: Delete from DB first (awaited), then remove from in-memory Maps.
  */
-export function forgetMemory(id: string): boolean {
+export async function forgetMemory(id: string): Promise<boolean> {
+  const memory = memoryStore.get(id);
+  if (!memory) return false;
+
+  // P1.1: Delete from DB first (source of truth)
+  try {
+    await dbDeleteMemory(id);
+  } catch (err) {
+    logger.error('[P1.1] DB delete failed in forgetMemory', {
+      id: id.slice(0, 8),
+      error: err instanceof Error ? err.message : String(err),
+    });
+    // Still remove from in-memory cache even on DB failure
+  }
+
+  // Remove from in-memory Maps (hot cache)
+  memoryStore.delete(id);
+  removeFromIndices(memory);
+
+  return true;
+}
+
+/**
+ * @deprecated Use the async forgetMemory() instead. This version only
+ * removes from in-memory Maps and does NOT delete from DB.
+ */
+export function forgetMemorySync(id: string): boolean {
   const memory = memoryStore.get(id);
   if (!memory) return false;
 
   memoryStore.delete(id);
   removeFromIndices(memory);
 
-  // WI-18.2: Persist delete to DB (non-blocking)
-  persistDelete('ai_memory', id).catch(() => {});
-
   return true;
 }
 
 /**
  * Update a memory item's content, incrementing its version.
+ *
+ * P1.1: Write to DB first (awaited), then update in-memory Map.
  */
-export function updateMemory(id: string, updates: Partial<Pick<MemoryItem, 'content' | 'summary' | 'tags' | 'confidence' | 'importance' | 'priority' | 'metadata' | 'expiresAt'>>): MemoryItem | undefined {
+export async function updateMemory(id: string, updates: Partial<Pick<MemoryItem, 'content' | 'summary' | 'tags' | 'confidence' | 'importance' | 'priority' | 'metadata' | 'expiresAt'>>): Promise<MemoryItem | undefined> {
+  const memory = memoryStore.get(id);
+  if (!memory) return undefined;
+
+  const updated: MemoryItem = {
+    ...memory,
+    ...updates,
+    updatedAt: Date.now(),
+    version: memory.version + 1,
+  };
+
+  // P1.1: Write to DB first (source of truth)
+  try {
+    await dbWriteMemory(updated as unknown as Record<string, unknown>);
+  } catch (err) {
+    logger.error('[P1.1] DB write failed in updateMemory', {
+      id: id.slice(0, 8),
+      error: err instanceof Error ? err.message : String(err),
+    });
+    // Still update in-memory cache even on DB failure
+  }
+
+  // Update in-memory Map (hot cache)
+  memoryStore.set(id, updated);
+
+  return updated;
+}
+
+/**
+ * @deprecated Use the async updateMemory() instead. This version only
+ * updates in-memory Maps and does NOT persist to DB.
+ */
+export function updateMemorySync(id: string, updates: Partial<Pick<MemoryItem, 'content' | 'summary' | 'tags' | 'confidence' | 'importance' | 'priority' | 'metadata' | 'expiresAt'>>): MemoryItem | undefined {
   const memory = memoryStore.get(id);
   if (!memory) return undefined;
 
@@ -311,9 +443,6 @@ export function updateMemory(id: string, updates: Partial<Pick<MemoryItem, 'cont
 
   memoryStore.set(id, updated);
 
-  // WI-18.2: Persist update to DB (non-blocking)
-  persistWrite('ai_memory', id, updated as unknown as Record<string, unknown>).catch(() => {});
-
   return updated;
 }
 
@@ -322,9 +451,12 @@ export function updateMemory(id: string, updates: Partial<Pick<MemoryItem, 'cont
 /**
  * Search memories by query text.
  * Uses tag matching, content keyword matching, and scope filtering.
+ * P1.1: Also queries DB for memories evicted from in-memory cache,
+ * merging and deduplicating results by ID.
  */
-export function searchMemories(query: MemorySearchQuery): MemoryRecallResult[] {
+export async function searchMemories(query: MemorySearchQuery): Promise<MemoryRecallResult[]> {
   const results: MemoryRecallResult[] = [];
+  const resultsMap = new Map<string, MemoryRecallResult>();
   const queryLower = query.query.toLowerCase();
   const queryTerms = queryLower.split(/\s+/).filter(t => t.length > 2);
   const now = Date.now();
@@ -390,7 +522,7 @@ export function searchMemories(query: MemorySearchQuery): MemoryRecallResult[] {
     }
   }
 
-  // Score and filter candidates
+  // Score and filter candidates (in-memory)
   for (const id of candidates) {
     const memory = memoryStore.get(id);
     if (!memory) continue;
@@ -446,16 +578,94 @@ export function searchMemories(query: MemorySearchQuery): MemoryRecallResult[] {
     score *= 1 + Math.min(0.2, memory.accessCount * 0.02);
 
     if (score > 0.05) {
-      results.push({
+      const result: MemoryRecallResult = {
         memory,
         relevanceScore: Math.min(1, score),
         matchReason: matchReasons.slice(0, 3).join('; '),
         layer: memory.layer,
-      });
+      };
+      resultsMap.set(memory.id, result);
     }
   }
 
-  return results
+  // P1.1: DB fallback — query DB for memories evicted from in-memory cache
+  try {
+    const dbResults = await dbSearchMemories({
+      query: query.query,
+      layer: query.layer,
+      category: query.category,
+      scopeEntityType: query.scopeEntityType,
+      scopeEntityId: query.scopeEntityId,
+      tags: query.tags,
+      limit: query.limit || 50,
+      minConfidence: query.minConfidence,
+      excludeExpired: !query.includeExpired,
+    });
+
+    for (const dbRow of dbResults) {
+      const dbItem = dbRow as unknown as MemoryItem;
+
+      // Skip if already found in-memory (in-memory is more current)
+      if (resultsMap.has(dbItem.id)) continue;
+
+      // Apply the same scoring logic for DB results
+      let score = 0;
+      const matchReasons: string[] = [];
+
+      // Tag matching
+      const memoryTags = dbItem.tags.map(t => t.toLowerCase());
+      for (const term of queryTerms) {
+        for (const tag of memoryTags) {
+          if (tag.includes(term)) {
+            score += 0.3;
+            matchReasons.push(`tag match: "${term}" in tag "${tag}"`);
+          }
+        }
+      }
+
+      // Content keyword matching
+      const contentLower = dbItem.content.toLowerCase();
+      for (const term of queryTerms) {
+        if (contentLower.includes(term)) {
+          score += 0.2;
+          matchReasons.push(`content match: "${term}"`);
+        }
+      }
+
+      // Summary matching
+      if (dbItem.summary) {
+        const summaryLower = dbItem.summary.toLowerCase();
+        for (const term of queryTerms) {
+          if (summaryLower.includes(term)) {
+            score += 0.25;
+            matchReasons.push(`summary match: "${term}"`);
+          }
+        }
+      }
+
+      // Boost by importance and confidence
+      score *= 0.5 + 0.25 * dbItem.importance + 0.25 * dbItem.confidence;
+      score *= 1 + Math.min(0.2, dbItem.accessCount * 0.02);
+
+      if (score > 0.05) {
+        const result: MemoryRecallResult = {
+          memory: dbItem,
+          relevanceScore: Math.min(1, score),
+          matchReason: matchReasons.slice(0, 3).join('; ') || 'DB fallback match',
+          layer: dbItem.layer,
+        };
+        resultsMap.set(dbItem.id, result);
+
+        // Cache DB result back into in-memory Maps
+        memoryStore.set(dbItem.id, dbItem);
+        updateIndices(dbItem);
+      }
+    }
+  } catch {
+    // DB search failed — return in-memory results only
+  }
+
+  return Array.from(resultsMap.values())
     .sort((a, b) => b.relevanceScore - a.relevanceScore)
     .slice(0, query.limit || 20);
 }
@@ -478,12 +688,12 @@ export function getEntityMemories(entityType: string, entityId: string): MemoryI
  * Build a memory context for AI generation.
  * Aggregates relevant memories from all layers for a given scope.
  */
-export function buildMemoryContext(options: {
+export async function buildMemoryContext(options: {
   query?: string;
   scopeEntityType?: string;
   scopeEntityId?: string;
   maxPerLayer?: number;
-}): MemoryContext {
+}): Promise<MemoryContext> {
   const startTime = Date.now();
   const maxPerLayer = options.maxPerLayer || 10;
   const now = Date.now();
@@ -497,7 +707,7 @@ export function buildMemoryContext(options: {
   let searchResults: MemoryRecallResult[] = [];
 
   if (options.query) {
-    searchResults = searchMemories({
+    searchResults = await searchMemories({
       query: options.query,
       limit: maxPerLayer * 4,
       scopeEntityType: options.scopeEntityType,
@@ -596,13 +806,15 @@ export function buildMemoryContext(options: {
  *
  * This is the "sleep" function of AI memory — it compresses and organizes
  * accumulated knowledge for efficient storage and recall.
+ *
+ * P1.1: Now async because it calls async storeMemory/updateMemory.
  */
-export function consolidateMemories(options?: {
+export async function consolidateMemories(options?: {
   scopeEntityType?: string;
   scopeEntityId?: string;
   maxAge?: number; // milliseconds
   minImportance?: number;
-}): MemoryConsolidation {
+}): Promise<MemoryConsolidation> {
   const now = Date.now();
   const maxAge = options?.maxAge || 30 * 24 * 60 * 60 * 1000; // 30 days
   const minImportance = options?.minImportance || 0.3;
@@ -640,7 +852,7 @@ export function consolidateMemories(options?: {
       .join(' | ');
 
     // Create consolidated memory
-    const consolidated = storeMemory({
+    const consolidated = await storeMemory({
       id: `consolidated-${base.id}-${now}`,
       layer: base.layer,
       category: base.category,
@@ -663,7 +875,7 @@ export function consolidateMemories(options?: {
 
     // Archive source memories
     for (const m of others) {
-      updateMemory(m.id, {
+      await updateMemory(m.id, {
         importance: Math.max(0, m.importance - 0.3),
         expiresAt: now + 7 * 24 * 60 * 60 * 1000, // Archive expires in 7 days
       });
@@ -677,7 +889,7 @@ export function consolidateMemories(options?: {
 
     const age = now - m.createdAt;
     if (age > maxAge && m.importance < minImportance && m.priority === 'low') {
-      updateMemory(m.id, { expiresAt: now + 24 * 60 * 60 * 1000 }); // Expire in 1 day
+      await updateMemory(m.id, { expiresAt: now + 24 * 60 * 60 * 1000 }); // Expire in 1 day
       archivedMemories.push(m);
     }
   }
@@ -763,16 +975,24 @@ function findRelatedMemoryGroups(memories: MemoryItem[]): MemoryItem[][] {
 /**
  * Apply time-based decay to memory importance scores.
  * Ephemeral memories decay fastest; institutional memories decay slowest.
+ *
+ * P1.1: Now async because it calls async forgetMemory/updateMemory.
  */
-export function applyMemoryDecay(): { decayed: number; expired: number } {
+export async function applyMemoryDecay(): Promise<{ decayed: number; expired: number }> {
   const now = Date.now();
   let decayed = 0;
   let expired = 0;
 
-  for (const [id, memory] of memoryStore) {
+  // Collect IDs to process first (avoid mutating Map during iteration)
+  const ids = Array.from(memoryStore.keys());
+
+  for (const id of ids) {
+    const memory = memoryStore.get(id);
+    if (!memory) continue;
+
     // Check expiry
     if (memory.expiresAt && memory.expiresAt < now) {
-      forgetMemory(id);
+      await forgetMemory(id);
       expired++;
       continue;
     }
@@ -807,10 +1027,10 @@ export function applyMemoryDecay(): { decayed: number; expired: number } {
     // Apply decay
     const newImportance = memory.importance * (1 - decayRate * ageDays);
     if (newImportance < 0.05) {
-      forgetMemory(id);
+      await forgetMemory(id);
       expired++;
     } else if (newImportance < memory.importance - 0.001) {
-      updateMemory(id, { importance: Math.max(0.05, newImportance) });
+      await updateMemory(id, { importance: Math.max(0.05, newImportance) });
       decayed++;
     }
   }
@@ -822,8 +1042,9 @@ export function applyMemoryDecay(): { decayed: number; expired: number } {
 
 /**
  * Get comprehensive memory statistics.
+ * P1.1: Supplements in-memory counts with authoritative DB total.
  */
-export function getMemoryStats(): MemoryStats {
+export async function getMemoryStats(): Promise<MemoryStats> {
   const now = Date.now();
   let totalConfidence = 0;
   let totalImportance = 0;
@@ -865,7 +1086,7 @@ export function getMemoryStats(): MemoryStats {
 
   const total = memoryStore.size;
 
-  return {
+  const stats: MemoryStats = {
     totalMemories: total,
     byLayer,
     byCategory,
@@ -879,6 +1100,17 @@ export function getMemoryStats(): MemoryStats {
     expired,
     consolidationCandidates,
   };
+
+  // P1.1: Supplement with authoritative DB count
+  try {
+    const dbCount = await db.aIMemoryEntry.count();
+    stats.totalInDb = dbCount;
+    stats.cacheHitRate = dbCount > 0 ? memoryStore.size / dbCount : 0;
+  } catch {
+    // DB unavailable — in-memory stats only
+  }
+
+  return stats;
 }
 
 /**
@@ -998,10 +1230,41 @@ function removeFromIndices(memory: MemoryItem): void {
 // ── Seed Data ──────────────────────────────────────────────────────
 
 /**
- * Seed the memory system with realistic enterprise AI memory data.
+ * P1.1: Load memories from DB into in-memory Maps on cold start.
+ * Idempotent — safe to call multiple times; no-ops if already seeded.
  */
-export function seedMemorySystem(): void {
+export async function ensureMemoryLoaded(): Promise<void> {
   if (seeded) return;
+
+  // Warm the DB layer's LRU cache
+  await warmCacheFromDb();
+
+  // Load memories into in-memory Maps (hot cache)
+  const dbRows = await dbSearchMemories({ limit: 1000 });
+  if (dbRows.length > 0) {
+    for (const row of dbRows) {
+      const item = row as unknown as MemoryItem;
+      memoryStore.set(item.id, item);
+      updateIndices(item);
+    }
+    logger.info('[P1.1] Loaded memories from DB', { count: dbRows.length });
+    seeded = true;
+  }
+}
+
+/**
+ * Seed the memory system with realistic enterprise AI memory data.
+ *
+ * P1.1: Now async. Tries to load from DB first via ensureMemoryLoaded().
+ * Only seeds demo data if DB returns 0 memories.
+ */
+export async function seedMemorySystem(): Promise<void> {
+  if (seeded) return;
+
+  // P1.1: Try loading from DB first
+  await ensureMemoryLoaded();
+  if (seeded) return; // DB had data, no demo seed needed
+
   seeded = true;
 
   const now = Date.now();
@@ -1252,10 +1515,10 @@ export function seedMemorySystem(): void {
   ];
 
   for (const memory of allMemories) {
-    storeMemory(memory);
+    await storeMemory(memory);
   }
 
-  logger.info('[WI-16H] Memory system seeded', {
+  logger.info('[WI-16H] Memory system seeded (demo data written to DB)', {
     totalMemories: allMemories.length,
     working: workingMemories.length,
     conversation: conversationMemories.length,

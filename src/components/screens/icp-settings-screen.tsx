@@ -96,7 +96,7 @@ function TagInput({
   );
 
   return (
-    <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-gray-200 bg-white/70 backdrop-blur-sm min-h-[48px] focus-within:border-[#D4AF37]/40 focus-within:ring-2 focus-within:ring-[#D4AF37]/10 transition-all">
+    <div className="flex flex-wrap items-center gap-2 p-3 rounded-lg border border-gray-200 bg-white/70 backdrop-blur-sm min-h-[48px] focus-within:border-[var(--dmq-gold)]] focus-within:ring-2 focus-within:ring-[var(--dmq-gold)]] transition-all">
       <AnimatePresence mode="popLayout">
         {tags.map((tag) => (
           <motion.span
@@ -129,7 +129,7 @@ function TagInput({
         onChange={(e) => setInputValue(e.target.value)}
         onKeyDown={handleKeyDown}
         placeholder={tags.length === 0 ? placeholder : ''}
-        className="flex-1 min-w-[140px] h-7 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
+        className="flex-1 min-w-[140px] h-10 text-sm bg-transparent outline-none placeholder:text-muted-foreground"
       />
     </div>
   );
@@ -172,7 +172,7 @@ function TagSectionCard({
         <div className="flex items-center gap-3 mb-3">
           <div
             className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
-            style={{ background: 'rgba(212, 175, 55, 0.1)' }}
+            style={{ background: 'var(--dmq-gold-bg)' }}
           >
             <div style={{ color: 'var(--color-gold)' }}><Icon className="w-4 h-4" /></div>
           </div>
@@ -326,8 +326,8 @@ export default function ICPSettingsScreen() {
           <div
             className="w-10 h-10 rounded-xl flex items-center justify-center"
             style={{
-              background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05))',
-              border: '1px solid rgba(212, 175, 55, 0.2)',
+              background: 'linear-gradient(135deg, var(--dmq-gold-border-faint), var(--dmq-gold-bg-dust))',
+              border: '1px solid var(--dmq-gold-border-light)',
             }}
           >
             <Target className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
@@ -353,7 +353,7 @@ export default function ICPSettingsScreen() {
           <div className="flex items-start gap-4">
             <div
               className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: 'rgba(212, 175, 55, 0.08)' }}
+              style={{ background: 'var(--dmq-gold-bg-micro)' }}
             >
               <Sparkles className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
             </div>
@@ -472,7 +472,7 @@ export default function ICPSettingsScreen() {
                 onChange={(e) =>
                   setProfile((p) => ({ ...p, minRevenue: e.target.value }))
                 }
-                className="h-9"
+                className="h-10"
               />
             </div>
             {/* Max Revenue */}
@@ -492,7 +492,7 @@ export default function ICPSettingsScreen() {
                 onChange={(e) =>
                   setProfile((p) => ({ ...p, maxRevenue: e.target.value }))
                 }
-                className="h-9"
+                className="h-10"
               />
             </div>
             {/* Min Employees */}
@@ -515,7 +515,7 @@ export default function ICPSettingsScreen() {
                     minEmployeeCount: e.target.value ? Number(e.target.value) : undefined,
                   }))
                 }
-                className="h-9"
+                className="h-10"
               />
             </div>
             {/* Max Employees */}
@@ -538,7 +538,7 @@ export default function ICPSettingsScreen() {
                     maxEmployeeCount: e.target.value ? Number(e.target.value) : undefined,
                   }))
                 }
-                className="h-9"
+                className="h-10"
               />
             </div>
           </div>
@@ -577,7 +577,7 @@ export default function ICPSettingsScreen() {
             disabled={saving}
             className="gap-2 text-sm font-medium text-white shadow-lg transition-all hover:shadow-xl hover:scale-[1.02] active:scale-[0.98]"
             style={{
-              background: 'linear-gradient(135deg, #E8C860, #D4AF37, #B8962E)',
+              background: 'linear-gradient(135deg, var(--dmq-gold-light), var(--dmq-gold), var(--dmq-gold-deep))',
             }}
           >
             {saving ? (

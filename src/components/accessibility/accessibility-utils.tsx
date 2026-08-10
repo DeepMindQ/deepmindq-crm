@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 
 // Announce messages to screen readers
 export function useAnnounce() {
@@ -89,9 +90,13 @@ export function useFocusManagement(containerRef: React.RefObject<HTMLElement | n
 // Color contrast checker (for development)
 export function meetsContrastRatio(fg: string, bg: string, minRatio: 1 | 2 | 3 | 4.5 | 7 = 4.5): boolean {
   // Simplified contrast check - returns true for known good combinations
-  const darkFg = ['#e8ecf4', '#ffffff', '#111827', '#000000'].includes(fg.toLowerCase())
-  const darkBg = ['#0a0c10', '#141821', '#0f1219', '#1e2433'].includes(bg.toLowerCase())
-  const lightFg = ['#8892a8', '#5a6478', '#9ca3af'].includes(fg.toLowerCase())
+  // Note: Arrays use `as string[]` to widen literal types for .includes() compatibility
+  const darkFgList: string[] = [tokens.text.primary, tokens.flat.white, tokens.neutral['900'], tokens.flat.black]
+  const darkBgList: string[] = [tokens.text.inverse, tokens.surface.card, tokens.surface.secondary, tokens.surface.elevated]
+  const lightFgList: string[] = [tokens.text.secondary, tokens.text.muted, tokens.neutral['400']]
+  const darkFg = darkFgList.includes(fg.toLowerCase())
+  const darkBg = darkBgList.includes(bg.toLowerCase())
+  const lightFg = lightFgList.includes(fg.toLowerCase())
 
   // Dark fg on dark bg is bad, light fg on dark bg is good
   if (darkBg && darkFg) return false

@@ -16,6 +16,8 @@ import { checkApiAuth } from '@/lib/api-auth';
 import { clearbitConnector } from '@/lib/intelligence-sources/connectors/clearbit-connector';
 import { computeTrustScore, type TrustMetadata } from '@/lib/intelligence-sources/trust-metadata';
 import { recordLineageBatch } from '@/lib/data-lineage-service';
+import { computeFinancialProfile, buildFieldConfidence } from '@/lib/financial-intelligence-framework';
+import { persistWrite } from '@/lib/persistence';
 
 /* ═══════════════════════════════════════════════════
    M5 Phase 1: Company Data Enrichment
@@ -197,6 +199,31 @@ try {
         enrichmentDate: new Date(),
       },
     });
+
+    // Compute financial profile with trust classification
+    const financialProfile = computeFinancialProfile({
+      companyId: company.id,
+      companyName: company.rawName,
+      clearbitRevenue: null,
+      aiEstimatedRevenue: enrichmentData.revenue || null,
+      aiEstimatedEmployees: enrichmentData.employeeCount || null,
+    });
+
+    const fieldConfidence = buildFieldConfidence(financialProfile);
+
+    // Persist financial profile to intelligence cache (fire-and-forget)
+    persistWrite('financial_profiles', company.id, {
+      ...financialProfile,
+      fieldConfidence,
+      enrichmentSource,
+      computedAt: new Date().toISOString(),
+    }, company.id).catch(() => { /* non-blocking */ });
+
+    // Update research card with field-level confidence
+    await db.companyResearchCard.update({
+      where: { companyId: company.id },
+      data: { fieldConfidence: JSON.stringify(fieldConfidence) },
+    }).catch(() => { /* non-blocking */ });
 
     // Update enrichmentScore for all contacts at this company
     const enrichmentScore = enrichmentSource === 'clearbit_verified' ? 25 : 10;

@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
         });
       } catch {
         // Table may not exist — that's fine, we still accept the feedback
-        console.log('[Feedback] Stored in memory (DB table not yet available)');
+        logger.info('[Feedback] Stored in memory (DB table not yet available)');
       }
 
       return NextResponse.json({ success: true });
@@ -121,9 +121,17 @@ export async function POST(request: NextRequest) {
 
     const result = await processFeedback(submission);
 
+    // Phase 2.11: Record agent effectiveness audit (fire-and-forget)
+    if (body.agentType) {
+      try {
+        const { recordAgentEffectiveness } = await import('@/lib/decision-learning');
+        recordAgentEffectiveness(body.agentType).catch(() => {});
+      } catch { /* non-blocking */ }
+    }
+
     return NextResponse.json({ success: true, data: result });
   } catch (error) {
-    console.error('[Feedback API] Error:', error);
+    logger.error('[Feedback API] Error', { error });
     return NextResponse.json(
       { success: false, error: 'Internal server error' },
       { status: 500 }

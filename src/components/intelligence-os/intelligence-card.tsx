@@ -42,12 +42,12 @@ export interface IntelligenceCardProps {
 
 function getVariantConfig(variant: CardVariant) {
   const configs: Record<CardVariant, { icon: typeof Zap; color: string; bg: string; border: string }> = {
-    signal:      { icon: Zap,         color: tokens.domain.signal,      bg: 'rgba(59, 130, 246, 0.08)',      border: 'rgba(59, 130, 246, 0.15)' },
-    opportunity: { icon: TrendingUp,  color: tokens.domain.opportunity, bg: 'rgba(139, 92, 246, 0.08)',     border: 'rgba(139, 92, 246, 0.15)' },
-    risk:        { icon: AlertTriangle, color: tokens.domain.risk,       bg: 'rgba(239, 68, 68, 0.08)',      border: 'rgba(239, 68, 68, 0.15)' },
-    enrichment:  { icon: Sparkles,     color: tokens.domain.enrichment, bg: 'rgba(6, 182, 212, 0.08)',      border: 'rgba(6, 182, 212, 0.15)' },
-    reasoning:   { icon: Brain,        color: tokens.domain.reasoning,  bg: 'rgba(245, 158, 11, 0.08)',     border: 'rgba(245, 158, 11, 0.15)' },
-    action:      { icon: Target,       color: tokens.domain.action,     bg: 'rgba(16, 185, 129, 0.08)',      border: 'rgba(16, 185, 129, 0.15)' },
+    signal:      { icon: Zap,         color: tokens.domain.signal,      bg: tokens.accent.ghost,      border: tokens.accent.subtle },
+    opportunity: { icon: TrendingUp,  color: tokens.domain.opportunity, bg: tokens.extended.purple.bgSubtle,     border: tokens.extended.purple.border },
+    risk:        { icon: AlertTriangle, color: tokens.domain.risk,       bg: tokens.priority.critical.bg,      border: tokens.priority.critical.border },
+    enrichment:  { icon: Sparkles,     color: tokens.domain.enrichment, bg: tokens.extended.sky.bg,      border: tokens.extended.sky.border },
+    reasoning:   { icon: Brain,        color: tokens.domain.reasoning,  bg: tokens.priority.high.bg,     border: tokens.priority.high.border },
+    action:      { icon: Target,       color: tokens.domain.action,     bg: tokens.extended.emerald.bg,      border: tokens.extended.emerald.border },
   };
   return configs[variant];
 }
@@ -88,10 +88,10 @@ export function IntelligenceCard({
   const Icon = config.icon;
 
   const priorityColors: Record<string, { bg: string; color: string }> = {
-    critical: { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' },
-    high:     { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' },
-    medium:   { bg: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' },
-    low:      { bg: 'rgba(136, 146, 168, 0.1)', color: '#8892a8' },
+    critical: { bg: tokens.confidence.low.bg, color: tokens.domain.risk },
+    high:     { bg: tokens.confidence.medium.bg, color: tokens.domain.reasoning },
+    medium:   { bg: tokens.accent.subtle, color: tokens.accent.DEFAULT },
+    low:      { bg: tokens.priority.low.bg, color: tokens.text.secondary },
   };
 
   return (
@@ -136,7 +136,7 @@ export function IntelligenceCard({
               <div className="flex items-center gap-1.5 mb-1 flex-wrap">
                 {isNew && (
                   <span className="inline-flex items-center gap-1 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                    style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+                    style={{ background: tokens.extended.emerald.bg, color: tokens.extended.emerald.value }}>
                     <span className="w-1 h-1 rounded-full bg-emerald-500 animate-pulse" />
                     New
                   </span>

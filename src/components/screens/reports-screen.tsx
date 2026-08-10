@@ -133,20 +133,20 @@ interface DataQualityData {
    Constants
    ═══════════════════════════════════════════════════════════════════════ */
 
-const CHART_COLORS = ['#d97706', '#2563eb', '#059669', '#7c3aed', '#dc2626', '#6b7280']
+const CHART_COLORS = ['var(--dmq-amber-deep)', 'var(--dmq-accent-dim)', 'var(--dmq-emerald-deep)', 'var(--dmq-purple-deep)', 'var(--dmq-red)', 'var(--dmq-neutral-500)']
 const PIPELINE_COLORS: Record<string, string> = {
-  Researching: '#d97706',
-  Qualified: '#7c3aed',
-  Proposal: '#2563eb',
-  Negotiation: '#059669',
-  Won: '#059669',
-  Lost: '#dc2626',
+  Researching: 'var(--dmq-amber-deep)',
+  Qualified: 'var(--dmq-purple-deep)',
+  Proposal: 'var(--dmq-accent-dim)',
+  Negotiation: 'var(--dmq-emerald-deep)',
+  Won: 'var(--dmq-emerald-deep)',
+  Lost: 'var(--dmq-red)',
 }
 const EMAIL_HEALTH_COLORS: Record<string, string> = {
-  valid: '#059669',
-  risky: '#d97706',
-  invalid: '#dc2626',
-  unknown: '#6b7280',
+  valid: 'var(--dmq-emerald-deep)',
+  risky: 'var(--dmq-amber-deep)',
+  invalid: 'var(--dmq-red)',
+  unknown: 'var(--dmq-neutral-500)',
 }
 const DAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 
@@ -400,7 +400,7 @@ export default function ReportsScreen() {
     return activeStages.map(s => ({
       stage: s.stage,
       count: s.count,
-      fill: PIPELINE_COLORS[s.stage] ?? '#6b7280',
+      fill: PIPELINE_COLORS[s.stage] ?? 'var(--dmq-neutral-500)',
     }))
   }, [pipeline])
 
@@ -495,9 +495,9 @@ export default function ReportsScreen() {
             <CardContent>
               <ResponsiveContainer width="100%" height={280}>
                 <BarChart data={funnelData} layout="vertical" margin={{ left: 10, right: 30, top: 5, bottom: 5 }}>
-                  <XAxis type="number" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                  <YAxis type="category" dataKey="stage" width={90} tick={{ fontSize: 12, fill: '#6b7280' }} axisLine={false} tickLine={false} />
-                  <Tooltip content={<PipelineTooltip />} cursor={{ fill: '#F3F4F6' }} />
+                  <XAxis type="number" tick={{ fontSize: 12, fill: 'var(--dmq-neutral-400)' }} axisLine={false} tickLine={false} />
+                  <YAxis type="category" dataKey="stage" width={90} tick={{ fontSize: 12, fill: 'var(--dmq-neutral-500)' }} axisLine={false} tickLine={false} />
+                  <Tooltip content={<PipelineTooltip />} cursor={{ fill: 'var(--dmq-neutral-100)' }} />
                   <Bar dataKey="count" radius={[0, 6, 6, 0]} barSize={28}>
                     {funnelData.map((entry, i) => (
                       <Cell key={i} fill={entry.fill} />
@@ -519,25 +519,25 @@ export default function ReportsScreen() {
                 <AreaChart data={forecastChartData} margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
                   <defs>
                     <linearGradient id="projectedGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#d97706" stopOpacity={0.2} />
-                      <stop offset="95%" stopColor="#d97706" stopOpacity={0} />
+                      <stop offset="5%" stopColor="var(--dmq-amber-deep)" stopOpacity={0.2} />
+                      <stop offset="95%" stopColor="var(--dmq-amber-deep)" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="optimisticGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#059669" stopOpacity={0.1} />
-                      <stop offset="95%" stopColor="#059669" stopOpacity={0} />
+                      <stop offset="5%" stopColor="var(--dmq-emerald-deep)" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="var(--dmq-emerald-deep)" stopOpacity={0} />
                     </linearGradient>
                     <linearGradient id="conservativeGrad" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#dc2626" stopOpacity={0.1} />
-                      <stop offset="95%" stopColor="#dc2626" stopOpacity={0} />
+                      <stop offset="5%" stopColor="var(--dmq-red)" stopOpacity={0.1} />
+                      <stop offset="95%" stopColor="var(--dmq-red)" stopOpacity={0} />
                     </linearGradient>
                   </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
-                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--dmq-neutral-100)" />
+                  <XAxis dataKey="month" tick={{ fontSize: 12, fill: 'var(--dmq-neutral-400)' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: 'var(--dmq-neutral-400)' }} axisLine={false} tickLine={false} />
                   <Tooltip content={<SimpleTooltip />} />
-                  <Area type="monotone" dataKey="Optimistic" stroke="#059669" fill="url(#optimisticGrad)" strokeWidth={1.5} strokeDasharray="4 2" />
-                  <Area type="monotone" dataKey="Projected" stroke="#d97706" fill="url(#projectedGrad)" strokeWidth={2} />
-                  <Area type="monotone" dataKey="Conservative" stroke="#dc2626" fill="url(#conservativeGrad)" strokeWidth={1.5} strokeDasharray="4 2" />
+                  <Area type="monotone" dataKey="Optimistic" stroke="var(--dmq-emerald-deep)" fill="url(#optimisticGrad)" strokeWidth={1.5} strokeDasharray="4 2" />
+                  <Area type="monotone" dataKey="Projected" stroke="var(--dmq-amber-deep)" fill="url(#projectedGrad)" strokeWidth={2} />
+                  <Area type="monotone" dataKey="Conservative" stroke="var(--dmq-red)" fill="url(#conservativeGrad)" strokeWidth={1.5} strokeDasharray="4 2" />
                 </AreaChart>
               </ResponsiveContainer>
             </CardContent>
@@ -561,15 +561,15 @@ export default function ReportsScreen() {
             <CardContent>
               <ResponsiveContainer width="100%" height={280}>
                 <LineChart data={activity?.byDay ?? []} margin={{ left: -10, right: 10, top: 5, bottom: 5 }}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--dmq-neutral-100)" />
                   <XAxis
                     dataKey="date"
-                    tick={{ fontSize: 10, fill: '#9ca3af' }}
+                    tick={{ fontSize: 10, fill: 'var(--dmq-neutral-400)' }}
                     axisLine={false}
                     tickLine={false}
                     tickFormatter={(v: string) => v.slice(5)}
                   />
-                  <YAxis tick={{ fontSize: 12, fill: '#9ca3af' }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fontSize: 12, fill: 'var(--dmq-neutral-400)' }} axisLine={false} tickLine={false} />
                   <Tooltip
                     content={({ active, payload, label }) => {
                       if (!active || !payload?.length) return null
@@ -584,10 +584,10 @@ export default function ReportsScreen() {
                   <Line
                     type="monotone"
                     dataKey="count"
-                    stroke="#d97706"
+                    stroke="var(--dmq-amber-deep)"
                     strokeWidth={2}
                     dot={false}
-                    activeDot={{ r: 4, strokeWidth: 2, fill: 'white', stroke: '#d97706' }}
+                    activeDot={{ r: 4, strokeWidth: 2, fill: 'white', stroke: 'var(--dmq-amber-deep)' }}
                   />
                 </LineChart>
               </ResponsiveContainer>

@@ -25,8 +25,8 @@
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import {
-  addNode,
-  addEdge,
+  addNodeSync,
+  addEdgeSync,
   getNode,
   getGraphStats,
   type GraphEntityType,
@@ -121,9 +121,9 @@ export async function hydrateKnowledgeGraphFromDB(): Promise<KGColdStartResult> 
 
     for (const company of companies) {
       const nodeId = `company:${company.id}`;
-      if (getNode(nodeId)) continue; // already exists
+      if (await getNode(nodeId)) continue; // already exists
 
-      addNode({
+      addNodeSync({
         id: nodeId,
         label: company.rawName || company.domain || 'Unknown Company',
         type: 'company' as GraphEntityType,
@@ -156,9 +156,9 @@ export async function hydrateKnowledgeGraphFromDB(): Promise<KGColdStartResult> 
 
     for (const signal of signals) {
       const signalNodeId = `signal:${signal.id}`;
-      if (getNode(signalNodeId)) continue;
+      if (await getNode(signalNodeId)) continue;
 
-      addNode({
+      addNodeSync({
         id: signalNodeId,
         label: signal.title || `Signal ${signal.id}`,
         type: 'signal' as GraphEntityType,
@@ -180,9 +180,9 @@ export async function hydrateKnowledgeGraphFromDB(): Promise<KGColdStartResult> 
       const techs = parseTechnologies(company.tags);
       for (const tech of techs) {
         const techNodeId = `technology:${tech.toLowerCase().replace(/[\s\/]+/g, '-')}`;
-        if (techNodeIds.has(techNodeId) || getNode(techNodeId)) continue;
+        if (techNodeIds.has(techNodeId) || await getNode(techNodeId)) continue;
 
-        addNode({
+        addNodeSync({
           id: techNodeId,
           label: tech,
           type: 'technology' as GraphEntityType,
@@ -200,9 +200,9 @@ export async function hydrateKnowledgeGraphFromDB(): Promise<KGColdStartResult> 
     for (const company of companies) {
       if (!company.industry) continue;
       const industryNodeId = `industry:${company.industry.toLowerCase().replace(/[\s\/]+/g, '-')}`;
-      if (industryNodeIds.has(industryNodeId) || getNode(industryNodeId)) continue;
+      if (industryNodeIds.has(industryNodeId) || await getNode(industryNodeId)) continue;
 
-      addNode({
+      addNodeSync({
         id: industryNodeId,
         label: company.industry,
         type: 'industry' as GraphEntityType,
@@ -217,14 +217,14 @@ export async function hydrateKnowledgeGraphFromDB(): Promise<KGColdStartResult> 
     // ── Phase 5: Edges ──
     for (const company of companies) {
       const companyNodeId = `company:${company.id}`;
-      if (!getNode(companyNodeId)) continue;
+      if (!await getNode(companyNodeId)) continue;
 
       // Company → Signal edges
       for (const signal of signals) {
         if (signal.companyId !== company.id) continue;
         const signalNodeId = `signal:${signal.id}`;
 
-        addEdge({
+        addEdgeSync({
           id: `edge:${companyNodeId}:HAS_SIGNAL:${signalNodeId}`,
           sourceId: companyNodeId,
           targetId: signalNodeId,
@@ -240,8 +240,8 @@ export async function hydrateKnowledgeGraphFromDB(): Promise<KGColdStartResult> 
       // Company → Industry edges
       if (company.industry) {
         const industryNodeId = `industry:${company.industry.toLowerCase().replace(/[\s\/]+/g, '-')}`;
-        if (getNode(industryNodeId)) {
-          addEdge({
+        if (await getNode(industryNodeId)) {
+          addEdgeSync({
             id: `edge:${companyNodeId}:RELATED_TO:${industryNodeId}`,
             sourceId: companyNodeId,
             targetId: industryNodeId,
@@ -259,8 +259,8 @@ export async function hydrateKnowledgeGraphFromDB(): Promise<KGColdStartResult> 
       const techs = parseTechnologies(company.tags);
       for (const tech of techs) {
         const techNodeId = `technology:${tech.toLowerCase().replace(/[\s\/]+/g, '-')}`;
-        if (getNode(techNodeId)) {
-          addEdge({
+        if (await getNode(techNodeId)) {
+          addEdgeSync({
             id: `edge:${companyNodeId}:USES_TECHNOLOGY:${techNodeId}`,
             sourceId: companyNodeId,
             targetId: techNodeId,
@@ -291,7 +291,7 @@ export async function hydrateKnowledgeGraphFromDB(): Promise<KGColdStartResult> 
         for (let j = i + 1; j < companyIds.length; j++) {
           const nodeA = `company:${companyIds[i]}`;
           const nodeB = `company:${companyIds[j]}`;
-          addEdge({
+          addEdgeSync({
             id: `edge:${nodeA}:SIMILAR_TO:${nodeB}`,
             sourceId: nodeA,
             targetId: nodeB,

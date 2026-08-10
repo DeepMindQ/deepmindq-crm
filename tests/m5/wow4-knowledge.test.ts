@@ -46,7 +46,7 @@ vi.mock('@/lib/ai-hybrid-retrieval', () => ({
 }));
 
 vi.mock('@/lib/ai-knowledge-graph', () => ({
-  resolveEntity: vi.fn().mockReturnValue([]),
+  resolveEntity: vi.fn().mockResolvedValue([]),
   expandFromEntity: vi.fn().mockReturnValue({
     nodes: [],
     edges: [],
@@ -144,40 +144,40 @@ describe('WOW4 Types', () => {
 // ─── queryKnowledgeIntelligence ─────────────────────────────
 
 describe('queryKnowledgeIntelligence', () => {
-  it('should return success: true', () => {
-    const result = queryKnowledgeIntelligence({ query: 'test' });
+  it('should return success: true', async () => {
+    const result = await queryKnowledgeIntelligence({ query: 'test' });
     expect(result.success).toBe(true);
   });
 
-  it('should return a KnowledgeAnswer', () => {
-    const result = queryKnowledgeIntelligence({ query: 'test' });
+  it('should return a KnowledgeAnswer', async () => {
+    const result = await queryKnowledgeIntelligence({ query: 'test' });
     expect(result.answer).toBeDefined();
     expect(result.answer.answerId).toBeTruthy();
     expect(result.answer.question).toBe('test');
     expect(result.answer.timestamp).toBeTruthy();
   });
 
-  it('should include trust metadata', () => {
-    const result = queryKnowledgeIntelligence({ query: 'test' });
+  it('should include trust metadata', async () => {
+    const result = await queryKnowledgeIntelligence({ query: 'test' });
     expect(result.trust).toBeDefined();
     expect(result.trust.source).toBe('platform_computed');
   });
 
-  it('should include trustScore', () => {
-    const result = queryKnowledgeIntelligence({ query: 'test' });
+  it('should include trustScore', async () => {
+    const result = await queryKnowledgeIntelligence({ query: 'test' });
     expect(result.trustScore).toBeDefined();
     expect(typeof result.trustScore.score).toBe('number');
     expect(typeof result.trustScore.grade).toBe('string');
   });
 
-  it('should include confidence result', () => {
-    const result = queryKnowledgeIntelligence({ query: 'test' });
+  it('should include confidence result', async () => {
+    const result = await queryKnowledgeIntelligence({ query: 'test' });
     expect(result.answer.confidence).toBeDefined();
     expect(typeof result.answer.confidence.score).toBe('number');
   });
 
-  it('should include retrieval metrics', () => {
-    const result = queryKnowledgeIntelligence({ query: 'test' });
+  it('should include retrieval metrics', async () => {
+    const result = await queryKnowledgeIntelligence({ query: 'test' });
     expect(result.answer.retrievalMetrics).toBeDefined();
     expect(typeof result.answer.retrievalMetrics.totalLatencyMs).toBe('number');
     expect(typeof result.answer.retrievalMetrics.retrievalLatencyMs).toBe('number');
@@ -185,45 +185,45 @@ describe('queryKnowledgeIntelligence', () => {
     expect(typeof result.answer.retrievalMetrics.memoryLatencyMs).toBe('number');
   });
 
-  it('should set knowledgeFound to false when no data', () => {
-    const result = queryKnowledgeIntelligence({ query: 'obscure unknown thing' });
+  it('should set knowledgeFound to false when no data', async () => {
+    const result = await queryKnowledgeIntelligence({ query: 'obscure unknown thing' });
     expect(result.answer.knowledgeFound).toBe(false);
   });
 
-  it('should generate an answer text', () => {
-    const result = queryKnowledgeIntelligence({ query: 'test' });
+  it('should generate an answer text', async () => {
+    const result = await queryKnowledgeIntelligence({ query: 'test' });
     expect(typeof result.answer.answer).toBe('string');
     expect(result.answer.answer.length).toBeGreaterThan(0);
   });
 
-  it('should generate reasoning', () => {
-    const result = queryKnowledgeIntelligence({ query: 'test' });
+  it('should generate reasoning', async () => {
+    const result = await queryKnowledgeIntelligence({ query: 'test' });
     expect(typeof result.answer.reasoning).toBe('string');
     expect(result.answer.reasoning.length).toBeGreaterThan(0);
   });
 
-  it('should include empty evidence/sources when no data', () => {
-    const result = queryKnowledgeIntelligence({ query: 'test' });
+  it('should include empty evidence/sources when no data', async () => {
+    const result = await queryKnowledgeIntelligence({ query: 'test' });
     expect(result.answer.evidence).toHaveLength(0);
     expect(result.answer.sources).toHaveLength(0);
   });
 
-  it('should include memory context summary', () => {
-    const result = queryKnowledgeIntelligence({ query: 'test' });
+  it('should include memory context summary', async () => {
+    const result = await queryKnowledgeIntelligence({ query: 'test' });
     expect(typeof result.answer.memoryContextSummary).toBe('string');
   });
 
-  it('should generate unique answer IDs', () => {
-    const r1 = queryKnowledgeIntelligence({ query: 'test' });
-    const r2 = queryKnowledgeIntelligence({ query: 'test' });
+  it('should generate unique answer IDs', async () => {
+    const r1 = await queryKnowledgeIntelligence({ query: 'test' });
+    const r2 = await queryKnowledgeIntelligence({ query: 'test' });
     // Even for same query, IDs should be unique (timestamp-based)
     expect(r1.answer.answerId).not.toBe(r2.answer.answerId);
   });
 
-  it('should handle companyId without error', () => {
+  it('should handle companyId without error', async () => {
     // The composition layer should pass companyId to sub-systems.
     // Since all deps are mocked, we verify the function completes successfully.
-    const result = queryKnowledgeIntelligence({ query: 'test', companyId: 'c-123' });
+    const result = await queryKnowledgeIntelligence({ query: 'test', companyId: 'c-123' });
     expect(result.success).toBe(true);
     expect(result.answer).toBeDefined();
   });

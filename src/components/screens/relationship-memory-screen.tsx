@@ -120,9 +120,9 @@ function getHealthColor(health: number): 'green' | 'amber' | 'red' {
 }
 
 function healthBarColor(healthColor: string) {
-  if (healthColor === 'green') return '#10B981';
-  if (healthColor === 'amber') return '#F59E0B';
-  return '#EF4444';
+  if (healthColor === 'green') return 'var(--dmq-emerald)';
+  if (healthColor === 'amber') return 'var(--dmq-domain-reasoning)';
+  return 'var(--dmq-domain-risk)';
 }
 
 function HealthBar({ pct, color }: { pct: number; color: string }) {
@@ -216,9 +216,9 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
   const stats = data
     ? [
         { label: 'Active Relationships', value: data.stats.activeRelationships, icon: Users, color: 'var(--color-gold)', trend: { value: `${data.stats.activeRelationships} accounts`, up: true } },
-        { label: 'Strong Connections', value: data.stats.strongConnections, icon: Heart, color: '#10B981', trend: { value: `${data.stats.strongConnections} connections`, up: true } },
-        { label: 'Need Attention', value: data.stats.needAttention, icon: AlertTriangle, color: '#F59E0B', trend: { value: `${data.stats.needAttention} accounts`, up: false } },
-        { label: 'Total Interactions', value: data.stats.totalInteractions, icon: Activity, color: '#6366F1', trend: { value: `${data.weeklyActivity.emailsSent + data.weeklyActivity.meetings + data.weeklyActivity.calls + data.weeklyActivity.notesAdded} this week`, up: true } },
+        { label: 'Strong Connections', value: data.stats.strongConnections, icon: Heart, color: 'var(--dmq-emerald)', trend: { value: `${data.stats.strongConnections} connections`, up: true } },
+        { label: 'Need Attention', value: data.stats.needAttention, icon: AlertTriangle, color: 'var(--dmq-domain-reasoning)', trend: { value: `${data.stats.needAttention} accounts`, up: false } },
+        { label: 'Total Interactions', value: data.stats.totalInteractions, icon: Activity, color: 'var(--dmq-indigo)', trend: { value: `${data.weeklyActivity.emailsSent + data.weeklyActivity.meetings + data.weeklyActivity.calls + data.weeklyActivity.notesAdded} this week`, up: true } },
       ]
     : [];
 
@@ -263,7 +263,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
             animate={{ scale: [1, 1.08, 1] }}
             transition={{ duration: 2.5, repeat: Infinity, ease: 'easeInOut' }}
             className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
-            style={{ background: 'rgba(212,175,55,0.1)', border: '1px solid rgba(212,175,55,0.2)' }}
+            style={{ background: 'var(--dmq-gold-bg)', border: '1px solid var(--dmq-gold-border-light)' }}
           >
             <Brain className="w-7 h-7" style={{ color: 'var(--color-gold)' }} />
           </motion.div>
@@ -292,8 +292,8 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
           <Button
             onClick={() => navigateTo?.('companies')}
             className="gap-2 mt-3 font-medium shadow-sm"
-            style={{ background: 'var(--color-gold)', color: '#fff' }}
-            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = '#C5A030'; }}
+            style={{ background: 'var(--color-gold)', color: 'var(--dmq-white)' }}
+            onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--dmq-gold-muted)'; }}
             onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'var(--color-gold)'; }}
           >
             <Plus className="w-4 h-4" /> Add Your First Interaction
@@ -325,7 +325,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
           <Button
             onClick={() => navigateTo?.('companies')}
             className="gap-2 font-medium shadow-sm"
-            style={{ background: 'var(--color-gold)', color: '#fff' }}
+            style={{ background: 'var(--color-gold)', color: 'var(--dmq-white)' }}
           >
             <Plus className="w-4 h-4" /> Explore Companies
           </Button>
@@ -351,8 +351,8 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
           <div
             className="rounded-xl border p-5 shadow-sm"
             style={{
-              background: 'linear-gradient(135deg, #FFFDF5 0%, #FFFBEB 100%)',
-              borderColor: 'rgba(184, 134, 11, 0.25)',
+              background: 'linear-gradient(135deg, var(--dmq-warm-bg) 0%, var(--dmq-warm-bg-alt) 100%)',
+              borderColor: 'var(--dmq-gold-dark-bg-medium)',
             }}
           >
             <div className="flex items-center gap-2.5 mb-3">
@@ -362,12 +362,12 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
               <h3 className="text-sm font-semibold" style={{ color: 'var(--color-gold-dim)' }}>AI Relationship Summary</h3>
               <span
                 className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                style={{ background: 'rgba(184, 134, 11, 0.12)', color: 'var(--color-gold-dim)' }}
+                style={{ background: 'var(--dmq-gold-bg-dark)', color: 'var(--color-gold-dim)' }}
               >
                 Live AI
               </span>
             </div>
-            <p className="text-sm leading-relaxed" style={{ color: '#374151' }}>{data.aiRelationshipSummary}</p>
+            <p className="text-sm leading-relaxed" style={{ color: 'var(--dmq-neutral-700)' }}>{data.aiRelationshipSummary}</p>
           </div>
         </motion.div>
       )}
@@ -400,7 +400,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                   <div className="space-y-1">
                     <HealthBar pct={company.health} color={healthBarColor(company.healthColor)} />
                     {company.aiHealthReasoning && (
-                      <p className="text-[11px] leading-relaxed" style={{ color: '#9CA3AF' }}>
+                      <p className="text-[11px] leading-relaxed" style={{ color: 'var(--dmq-neutral-400)' }}>
                         <Sparkles className="w-3 h-3 inline-block mr-1 -mt-0.5" style={{ color: 'var(--color-gold)' }} />
                         {company.aiHealthReasoning}
                       </p>
@@ -429,9 +429,9 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                       animate={{ opacity: 1 }}
                       transition={{ delay: 0.3, duration: 0.5 }}
                       className="relative rounded-lg px-4 py-3"
-                      style={{ background: 'rgba(184, 134, 11, 0.05)', borderLeft: '3px solid #D4AF37' }}
+                      style={{ background: 'var(--dmq-gold-dark-bg-subtle)', borderLeft: '3px solid var(--dmq-gold)' }}
                     >
-                      <p className="text-sm leading-relaxed italic" style={{ color: '#6B7280' }}>
+                      <p className="text-sm leading-relaxed italic" style={{ color: 'var(--dmq-neutral-500)' }}>
                         <Sparkles className="w-3 h-3 inline-block mr-1 -mt-0.5" style={{ color: 'var(--color-gold)' }} />
                         {company.aiNarrative}
                       </p>
@@ -488,7 +488,7 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
 
           <GlassPanel
             className="p-5 space-y-4"
-            style={{ borderColor: 'rgba(212, 175, 55, 0.3)' }}
+            style={{ borderColor: 'var(--dmq-gold-border)' }}
           >
             {/* Panel header accent */}
             <div className="flex items-center gap-2 pb-3 border-b border-gray-100">
@@ -513,8 +513,8 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
                 <div className="flex items-center justify-between">
                   <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
                     style={{
-                      background: rec.priority === 'high' ? 'rgba(239, 68, 68, 0.08)' : 'rgba(245, 158, 11, 0.08)',
-                      color: rec.priority === 'high' ? '#DC2626' : '#D97706',
+                      background: rec.priority === 'high' ? 'var(--dmq-risk-bg-ghost)' : 'var(--dmq-reasoning-bg-ghost)',
+                      color: rec.priority === 'high' ? 'var(--dmq-red)' : 'var(--dmq-amber-deep)',
                     }}
                   >
                     {rec.priority} priority
@@ -551,13 +551,13 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
             >
               <GlassPanel
                 className="p-4 space-y-2"
-                style={{ borderColor: 'rgba(184, 134, 11, 0.2)' }}
+                style={{ borderColor: 'var(--dmq-gold-dark-bg-border)' }}
               >
                 <div className="flex items-center gap-2">
                   <Sparkles className="w-3.5 h-3.5" style={{ color: 'var(--color-gold)' }} />
                   <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: 'var(--color-gold-dim)' }}>AI Trend Insight</p>
                 </div>
-                <p className="text-sm leading-relaxed" style={{ color: '#6B7280' }}>{data.aiTrendAnalysis}</p>
+                <p className="text-sm leading-relaxed" style={{ color: 'var(--dmq-neutral-500)' }}>{data.aiTrendAnalysis}</p>
               </GlassPanel>
             </motion.div>
           )}
@@ -568,9 +568,9 @@ export default function RelationshipMemoryScreen({ navigateTo }: { navigateTo?: 
               <p className="text-xs font-semibold text-foreground uppercase tracking-wider">This Week</p>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { label: 'Emails Sent', value: String(weeklyActivity.emailsSent), color: '#6366F1' },
-                  { label: 'Meetings', value: String(weeklyActivity.meetings), color: '#10B981' },
-                  { label: 'Calls Made', value: String(weeklyActivity.calls), color: '#0EA5E9' },
+                  { label: 'Emails Sent', value: String(weeklyActivity.emailsSent), color: 'var(--dmq-indigo)' },
+                  { label: 'Meetings', value: String(weeklyActivity.meetings), color: 'var(--dmq-emerald)' },
+                  { label: 'Calls Made', value: String(weeklyActivity.calls), color: 'var(--dmq-sky)' },
                   { label: 'Notes Added', value: String(weeklyActivity.notesAdded), color: 'var(--color-gold)' },
                 ].map((item) => (
                   <div key={item.label} className="text-center p-2 rounded-lg bg-gray-50">

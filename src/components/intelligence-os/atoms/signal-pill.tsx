@@ -1,5 +1,6 @@
 'use client';
 
+import { tokens } from '@/components/intelligence-os/design-tokens';
 /* ═══════════════════════════════════════════════════════════════
    MS9 §2 — Signal Pill (Atom)
    
@@ -31,38 +32,38 @@ export interface SignalPillProps {
 // Variant → token color mapping (from design-tokens.ts)
 const variantStyles: Record<SignalPillVariant, { bg: string; border: string; text: string; icon: string }> = {
   blue: {
-    bg: 'rgba(59, 130, 246, 0.08)',
-    border: 'rgba(59, 130, 246, 0.2)',
+    bg: tokens.accent.ghost,
+    border: tokens.accent.strong,
     text: 'var(--accent)',
     icon: 'var(--accent)',
   },
   purple: {
-    bg: 'rgba(139, 92, 246, 0.08)',
-    border: 'rgba(139, 92, 246, 0.2)',
+    bg: tokens.extended.purple.bgSubtle,
+    border: tokens.extended.purple.border,
     text: 'var(--accent-secondary)',
     icon: 'var(--accent-secondary)',
   },
   cyan: {
-    bg: 'rgba(6, 182, 212, 0.08)',
-    border: 'rgba(6, 182, 212, 0.2)',
+    bg: tokens.accent.ghost,
+    border: tokens.domain.enrichment,
     text: 'var(--enrichment-cyan)',
     icon: 'var(--enrichment-cyan)',
   },
   green: {
-    bg: 'rgba(34, 197, 94, 0.08)',
-    border: 'rgba(34, 197, 94, 0.2)',
+    bg: tokens.trust.verified.bg,
+    border: tokens.trust.verified.border,
     text: 'var(--trust-verified)',
     icon: 'var(--trust-verified)',
   },
   amber: {
-    bg: 'rgba(245, 158, 11, 0.08)',
-    border: 'rgba(245, 158, 11, 0.2)',
+    bg: tokens.confidence.medium.bg,
+    border: tokens.confidence.medium.border,
     text: 'var(--warning-amber)',
     icon: 'var(--warning-amber)',
   },
   red: {
-    bg: 'rgba(239, 68, 68, 0.08)',
-    border: 'rgba(239, 68, 68, 0.2)',
+    bg: tokens.priority.critical.bg,
+    border: tokens.confidence.low.border,
     text: 'var(--risk-red)',
     icon: 'var(--risk-red)',
   },

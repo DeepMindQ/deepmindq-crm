@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { verifyOtp } from '@/lib/otp';
 import { hashPassword } from '@/lib/password';
-import { requireAuth, AuthError } from '@/lib/session';
+import { requireAuth, AuthError, hashToken } from '@/lib/session';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { generalApiRateLimit } from '@/lib/auth-helpers';
@@ -57,14 +57,22 @@ export const POST = withCsrf(async function POST(request: NextRequest) {
     });
 
     // Destroy all OTHER sessions (force re-login on other devices)
-    const currentToken = (await import('next/headers')).cookies().then(c => c.get('dmq_session')?.value || null);
-    const token = await currentToken;
-    await db.session.deleteMany({
-      where: {
-        userId: user.id,
-        ...(token ? { token: { not: token } } : {}),
-      },
-    });
+    // P0.4 BUG FIX: DB stores SHA-256 hashes, not plaintext tokens.
+    // We must hash the current token before comparing against DB values.
+    const cookieStore = await (await import('next/headers')).cookies();
+    const currentToken = cookieStore.get('dmq_session')?.value || null;
+    if (currentToken) {
+      const currentTokenHash = await hashToken(currentToken);
+      await db.session.deleteMany({
+        where: {
+          userId: user.id,
+          token: { not: currentTokenHash },
+        },
+      });
+    } else {
+      // No current token — destroy all sessions
+      await db.session.deleteMany({ where: { userId: user.id } });
+    }
 
     return NextResponse.json({ success: true, message: 'Password changed successfully' });
   } catch (error) {

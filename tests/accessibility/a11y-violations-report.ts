@@ -18,7 +18,7 @@
  *  10. onclick without keyboard support
  *
  * Run: bun run tests/accessibility/a11y-violations-report.ts
- * Output: Writes JSON report to /home/z/my-project/reports/a11y-violations.json
+ * Output: Writes JSON report to reports/a11y-violations.json
  */
 
 import * as fs from 'fs';

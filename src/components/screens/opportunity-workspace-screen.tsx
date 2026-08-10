@@ -480,13 +480,13 @@ function DealRoomCard({
                   <h3 className="text-sm font-bold text-foreground">Deal Intelligence Room</h3>
                   {!dealIntel && !dealIntelLoading && (
                     <Button size="sm" onClick={(e) => { e.stopPropagation(); onLoadIntel(); }}
-                      className="gap-1.5 h-7 text-[11px] ml-auto" style={{ background: GOLD, color: 'var(--ios-gold-text)' }}>
+                      className="gap-1.5 h-10 text-[11px] ml-auto" style={{ background: GOLD, color: 'var(--ios-gold-text)' }}>
                       <Sparkles size={11} /> Analyze Deal
                     </Button>
                   )}
                   {dealIntel && (
                     <Button size="sm" variant="outline" onClick={(e) => { e.stopPropagation(); onLoadIntel(); }}
-                      className="gap-1.5 h-7 text-[11px] ml-auto border-gray-200">
+                      className="gap-1.5 h-10 text-[11px] ml-auto border-gray-200">
                       <RefreshCw size={11} /> Refresh
                     </Button>
                   )}
@@ -503,17 +503,17 @@ function DealRoomCard({
         {isPending ? (
           <>
             <Button size="sm" onClick={() => onAction(opportunity.id, 'accept')} disabled={isActioning}
-              className="h-8 px-3 text-xs bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5">
+              className="h-10 px-3 text-xs bg-emerald-500 hover:bg-emerald-600 text-white gap-1.5">
               {isActioning ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />} Accept
             </Button>
             <Button size="sm" variant="outline" onClick={() => onAction(opportunity.id, 'monitor')} disabled={isActioning}
-              className="h-8 px-3 text-xs border-blue-200 text-blue-600 hover:bg-blue-50 gap-1.5">
+              className="h-10 px-3 text-xs border-blue-200 text-blue-600 hover:bg-blue-50 gap-1.5">
               <Eye className="w-3 h-3" /> Monitor
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button size="sm" variant="outline" disabled={isActioning}
-                  className="h-8 px-3 text-xs border-red-200 text-red-500 hover:bg-red-50 gap-1.5">
+                  className="h-10 px-3 text-xs border-red-200 text-red-500 hover:bg-red-50 gap-1.5 min-h-[44px]">
                   <XCircle className="w-3 h-3" /> Reject <ChevronDown className="w-3 h-3 opacity-50" />
                 </Button>
               </DropdownMenuTrigger>

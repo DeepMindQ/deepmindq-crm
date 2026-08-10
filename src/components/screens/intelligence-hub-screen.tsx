@@ -327,7 +327,7 @@ function ErrorBanner({
         {onRetry && (
           <button
             onClick={onRetry}
-            className="text-[11px] font-medium text-[var(--primary-dim)] hover:text-[var(--accent)] transition-colors px-2 py-1"
+            className="text-[11px] font-medium text-[var(--primary-dim)] hover:text-[var(--accent)] transition-colors px-2 py-2.5"
           >
             Retry
           </button>

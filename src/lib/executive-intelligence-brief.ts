@@ -40,7 +40,6 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { computeUnifiedConfidence } from '@/lib/ai-unified-confidence';
 import { aggregateTrust, computeTrustScore, type TrustMetadata } from './intelligence-sources/trust-metadata';
-import { computeFinancialProfile, buildFieldConfidence } from './financial-intelligence-framework';
 import { recordLineage } from './data-lineage-service';
 
 // ─── Brief Types ─────────────────────────────────────────────────

@@ -152,7 +152,7 @@ export function AdvisorWorkspacePanel({
   return (
     <div
       className={cn('fixed inset-0 z-40', className)}
-      style={{ backgroundColor: 'rgba(0,0,0,0.3)' }}
+      style={{ backgroundColor: tokens.opacity.subtle }}
     >
       {/* Backdrop */}
       <div className="absolute inset-0" onClick={onClose} />
@@ -163,7 +163,7 @@ export function AdvisorWorkspacePanel({
         style={{
           backgroundColor: tokens.surface.card,
           borderLeft: `1px solid ${tokens.border.default}`,
-          boxShadow: '-8px 0 24px rgba(0,0,0,0.3)',
+          boxShadow: '-8px 0 24px tokens.opacity.subtle',
         }}
       >
         {/* Header */}

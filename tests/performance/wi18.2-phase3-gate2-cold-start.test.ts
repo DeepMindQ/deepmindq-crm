@@ -165,7 +165,7 @@ describe('Phase 3 Gate 2: Cold Start Verification', () => {
    * Create the baseline state that should survive a restart.
    */
   describe('Step 1: Populate Intelligence (Pre-Restart)', () => {
-    it('creates knowledge graph nodes', () => {
+    it('creates knowledge graph nodes', async () => {
       const node1 = addNode({
         id: 'node-corp-a',
         label: 'Corp Alpha',
@@ -184,8 +184,8 @@ describe('Phase 3 Gate 2: Cold Start Verification', () => {
       });
       preRestartState.nodes.set('node-tech-x', node2);
 
-      expect(getNode('node-corp-a')).toBeDefined();
-      expect(getNode('node-tech-x')).toBeDefined();
+      expect(await getNode('node-corp-a')).toBeDefined();
+      expect(await getNode('node-tech-x')).toBeDefined();
     });
 
     it('stores AI memories', () => {
@@ -256,9 +256,9 @@ describe('Phase 3 Gate 2: Cold Start Verification', () => {
    * Execute AI operations and verify results match pre-restart state.
    */
   describe('Step 3: Post-Restart Verification', () => {
-    it('KG traversal returns correct nodes after cold start', () => {
+    it('KG traversal returns correct nodes after cold start', async () => {
       // Post-restart: nodes should still be accessible from Map
-      const node = getNode('node-corp-a');
+      const node = await getNode('node-corp-a');
       expect(node).toBeDefined();
       expect(node?.label).toBe('Corp Alpha');
     });
@@ -269,8 +269,8 @@ describe('Phase 3 Gate 2: Cold Start Verification', () => {
       expect(mem?.content).toBe('Corp Alpha is expanding into APAC market');
     });
 
-    it('global nodes remain accessible after cold start', () => {
-      const techNode = getNode('node-tech-x');
+    it('global nodes remain accessible after cold start', async () => {
+      const techNode = await getNode('node-tech-x');
       expect(techNode).toBeDefined();
       expect(techNode?.type).toBe('technology');
     });

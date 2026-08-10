@@ -40,10 +40,10 @@ export interface ActionCTAProps {
 }
 
 const priorityConfig: Record<ActionPriority, { color: string; bg: string; border: string; hoverBg: string }> = {
-  critical: { color: '#ef4444', bg: 'rgba(239, 68, 68, 0.1)',   border: 'rgba(239, 68, 68, 0.2)',   hoverBg: 'rgba(239, 68, 68, 0.18)' },
-  high:     { color: '#f59e0b', bg: 'rgba(245, 158, 11, 0.1)',  border: 'rgba(245, 158, 11, 0.2)',  hoverBg: 'rgba(245, 158, 11, 0.18)' },
-  medium:   { color: '#3b82f6', bg: 'rgba(59, 130, 246, 0.1)',  border: 'rgba(59, 130, 246, 0.2)',  hoverBg: 'rgba(59, 130, 246, 0.18)' },
-  low:      { color: '#8892a8', bg: 'rgba(136, 146, 168, 0.1)', border: 'rgba(136, 146, 168, 0.2)', hoverBg: 'rgba(136, 146, 168, 0.18)' },
+  critical: { color: tokens.domain.risk, bg: tokens.confidence.low.bg,   border: tokens.confidence.low.border,   hoverBg: tokens.confidence.low.border },
+  high:     { color: tokens.domain.reasoning, bg: tokens.confidence.medium.bg,  border: tokens.confidence.medium.border,  hoverBg: tokens.confidence.medium.border },
+  medium:   { color: tokens.accent.DEFAULT, bg: tokens.accent.subtle,  border: tokens.accent.strong,  hoverBg: tokens.accent.strong },
+  low:      { color: tokens.text.secondary, bg: tokens.priority.low.bg, border: tokens.priority.low.border, hoverBg: tokens.opacity.micro },
 };
 
 export function ActionCTA({
@@ -174,9 +174,9 @@ export function ActionCTA({
         className
       )}
       style={{
-        background: 'rgba(239, 68, 68, 0.1)',
-        border: '1px solid rgba(239, 68, 68, 0.2)',
-        color: '#ef4444',
+        background: tokens.confidence.low.bg,
+        border: '1px solid tokens.priority.critical.border',
+        color: tokens.domain.risk,
       }}
       onClick={onClick}
     >

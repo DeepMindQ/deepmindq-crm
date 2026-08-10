@@ -168,7 +168,7 @@ function SourceCard({
           <Button
             variant="outline"
             size="sm"
-            className="h-8 text-xs border-slate-200 text-slate-600 hover:bg-slate-50"
+            className="h-10 text-xs border-slate-200 text-slate-600 hover:bg-slate-50 min-h-[44px]"
             onClick={() => onRun(connector.id)}
             disabled={runningId === connector.id}
           >
@@ -441,7 +441,7 @@ export default function IntelligenceSourcesScreen({ navigateTo }: IntelligenceSo
                 <div className="flex-1">
                   <label className="text-xs font-medium text-slate-600 mb-1.5 block">Knowledge Category</label>
                   <Select value={selectedCategory} onValueChange={setSelectedCategory}>
-                    <SelectTrigger className="h-9 border-slate-200 text-sm"><SelectValue /></SelectTrigger>
+                    <SelectTrigger className="h-10 border-slate-200 text-sm"><SelectValue /></SelectTrigger>
                     <SelectContent>
                       {ALL_CATEGORIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
                     </SelectContent>

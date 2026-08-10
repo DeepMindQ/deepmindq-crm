@@ -1010,6 +1010,8 @@ interface RecordGenerationParams {
   inputParams?: Record<string, unknown>;
   /** Actual model used — populated from ModelRouter.complete() result (B8 fix) */
   modelUsed?: string;
+  /** Phase 2.4: Post-generation hallucination check result */
+  hallucinationCheck?: HallucinationCheckResult | null;
 }
 
 /**
@@ -1072,7 +1074,17 @@ export async function recordGeneration(
         researchConfidence,
         freshnessScore,
         governancePassed: governanceResult.passed,
-        governanceChecks: JSON.stringify(governanceResult.checks),
+        governanceChecks: JSON.stringify({
+        ...governanceResult.checks,
+        // Phase 2.4: Include hallucination check in governance checks
+        ...(params.hallucinationCheck ? {
+          hallucination_risk: {
+            passed: params.hallucinationCheck.riskLevel !== 'high' && params.hallucinationCheck.riskLevel !== 'critical',
+            message: `Hallucination risk: ${params.hallucinationCheck.riskLevel} (${params.hallucinationCheck.hallucinationRiskScore}/100). Verified: ${params.hallucinationCheck.verifiedClaims}, Unverified: ${params.hallucinationCheck.unverifiedClaims}, Uncited: ${params.hallucinationCheck.uncitedClaims}.`,
+            value: params.hallucinationCheck.hallucinationRiskScore,
+          },
+        } : {}),
+      }),
         outputSummary: outputSummary ?? null,
         modelUsed: modelUsed ?? 'governance-tracked',
         promptVersion: GOVERNANCE_PROMPT_VERSION,
@@ -1125,6 +1137,7 @@ import { logger } from '@/lib/logger';
 import { ModelRouter } from '@/lib/engines/model-router';
 import { runHallucinationCheck, buildEvidenceContextFromChain, formatHallucinationReportForLog } from '@/lib/ai-hallucination-prevention';
 import type { HallucinationCheckResult, EvidenceContext } from '@/lib/ai-hallucination-prevention';
+import { streamAICall } from '@/lib/llm-stream';
 
 interface GovernedAICallParams {
   /** Generation type for governance config lookup (e.g. 'email_draft', 'insights') */
@@ -1163,12 +1176,18 @@ interface GovernedAICallParams {
   evidenceItems?: Array<{ id: string; source: string; url: string | null; snippet: string; content: string; reliability: number; confidence: number }>;
   /** Whether to run post-generation hallucination check (default: true for company-specific, false for aggregate). */
   enableHallucinationCheck?: boolean;
+  /** Post-generation hallucination risk score threshold for blocking (default: 75).
+   *  Responses with hallucinationRiskScore >= this value are blocked.
+   *  Set to 0 to disable hallucination blocking. */
+  enforceHallucinationThreshold?: number;
   /** Whether to use AI cache for this call (default: true for cacheable generation types). */
   useCache?: boolean;
   /** S5-3.4: Prompt registry ID — if set, resolves system prompt from registry instead of inline. */
   promptRegistryId?: string;
   /** S5-3.5: A/B testing sample key — if set, assigns variant from any running experiment for this prompt. */
   abSampleKey?: string;
+  /** Override for minimum evidence count (hallucination feedback loop may boost this further). */
+  minEvidenceCount?: number;
 }
 
 export interface GovernedAIResult {
@@ -1194,6 +1213,35 @@ export interface GovernedAIResult {
   costRecordId?: string;
 }
 
+// ── Hallucination History Feedback Loop ──────────────────────────────────
+
+/**
+ * Read recent hallucination audit history to compute a high-risk rate.
+ * Used by governedAICall() to dynamically tighten evidence requirements
+ * when the AI has been hallucinating recently for the same generation type.
+ *
+ * Returns a rate between 0 and 1 (fraction of recent calls with risk >= 60).
+ * Non-blocking: returns 0 on any DB error.
+ */
+async function getRecentHallucinationRate(generationType?: string): Promise<number> {
+  try {
+    const recent = await db.aIGenerationAudit.findMany({
+      where: { generationType: generationType || 'unknown' },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      select: { governanceChecks: true },
+    });
+    if (recent.length === 0) return 0;
+    const highRiskCount = recent.filter(r => {
+      const checks = typeof r.governanceChecks === 'string' ? JSON.parse(r.governanceChecks) : r.governanceChecks;
+      return checks?.hallucinationCheck?.hallucinationRiskScore >= 60;
+    }).length;
+    return highRiskCount / recent.length;
+  } catch {
+    return 0; // non-blocking
+  }
+}
+
 /**
  * MANDATORY centralized AI call function.
  *
@@ -1206,6 +1254,7 @@ export interface GovernedAIResult {
  *   4. Confidence thresholds are enforced per generation type
  *   5. Every call is recorded in AIGenerationAudit for full traceability
  *   6. If governance fails and enforceGovernance is true, the LLM is NOT called
+ *   7. Hallucination history feedback loop tightens evidence when needed
  *
  * Usage:
  *   const result = await governedAICall({
@@ -1236,7 +1285,11 @@ export async function governedAICall(
     inputParams,
     promptRegistryId,
     abSampleKey,
+    enforceHallucinationThreshold: rawHallucinationThreshold = 0,
   } = params;
+
+  // Default hallucination enforcement threshold: 75 blocks critical/high risk scores
+  const enforceHallucinationThreshold = rawHallucinationThreshold || 75;
 
   // ── Step 1: Run governance checks ──
   const governanceResult = await runGovernanceChecks({
@@ -1247,9 +1300,32 @@ export async function governedAICall(
     capabilityMatchCount,
   });
 
+  // ── Step 1.5: Hallucination feedback loop — adjust evidence thresholds ──
+  // Read recent hallucination history to tighten requirements when the AI
+  // has been hallucinating for this generation type.
+  let minEvidenceCount = 2; // default baseline
+  try {
+    const recentHallucinationRate = await getRecentHallucinationRate(generationType);
+    if (recentHallucinationRate > 0.5) {
+      minEvidenceCount = Math.max(minEvidenceCount, (params.minEvidenceCount || 2) + 2);
+      logger.warn(`[ai-governance] High hallucination rate (${Math.round(recentHallucinationRate * 100)}%) for ${generationType} — boosting minEvidenceCount to ${minEvidenceCount}`);
+    } else if (recentHallucinationRate > 0.25) {
+      minEvidenceCount = Math.max(minEvidenceCount, (params.minEvidenceCount || 2) + 1);
+      logger.info(`[ai-governance] Moderate hallucination rate (${Math.round(recentHallucinationRate * 100)}%) for ${generationType} — boosting minEvidenceCount to ${minEvidenceCount}`);
+    }
+  } catch {
+    // Non-blocking: proceed with default evidence requirements
+  }
+
   // ── Step 2: Build prompt addons ──
   const groundingNote = buildEvidenceGroundingNote(ctx);
-  const promptAddon = buildGovernancePromptAddon(governanceResult, generationType);
+  let promptAddon = buildGovernancePromptAddon(governanceResult, generationType);
+
+  // ── Step 2.1: Hallucination feedback — strengthen prompt if evidence is below threshold ──
+  const actualEvidenceCount = ctx?.evidenceSummary?.totalEvidence ?? 0;
+  if (actualEvidenceCount < minEvidenceCount) {
+    promptAddon += `\n\n⚠ EVIDENCE DEFICIENCY WARNING: Only ${actualEvidenceCount} evidence source(s) available, but ${minEvidenceCount} are required due to recent hallucination history for this generation type. You MUST: (1) heavily hedge all claims, (2) explicitly state what you do not know, (3) avoid specific numbers or dates unless directly quoted from evidence. Do NOT fabricate details to compensate for missing evidence.`;
+  }
 
   // ── Step 2.5: S5 — Prompt Registry + A/B Testing Resolution ──
   let resolvedSystemPrompt = systemPrompt;
@@ -1436,6 +1512,33 @@ export async function governedAICall(
         logger.warn(`[ai-governance] Post-generation hallucination check: ${hallucinationCheck.riskLevel} risk (${hallucinationCheck.hallucinationRiskScore}/100) for ${generationType}`);
       }
       logger.info(formatHallucinationReportForLog(hallucinationCheck));
+
+      // Block if hallucination risk score meets or exceeds the enforcement threshold
+      if (hallucinationCheck.hallucinationRiskScore >= enforceHallucinationThreshold) {
+        logger.warn(`[ai-governance] BLOCKED: Hallucination risk score ${hallucinationCheck.hallucinationRiskScore}/100 >= threshold ${enforceHallucinationThreshold} for ${generationType}`);
+        await recordGeneration({
+          generationType,
+          companyId,
+          contactId,
+          researchContext: ctx,
+          evidenceIds,
+          signalIds,
+          capabilityAssetIds,
+          governanceResult,
+          outputSummary: `BLOCKED_HALLUCINATION: risk ${hallucinationCheck.riskLevel} (${hallucinationCheck.hallucinationRiskScore}/100)`,
+          inputParams,
+          hallucinationCheck,
+        });
+        return {
+          success: false,
+          response: null,
+          governanceResult,
+          rejectionReason: `Hallucination risk too high: ${hallucinationCheck.riskLevel} (${hallucinationCheck.hallucinationRiskScore}/100). Threshold: ${enforceHallucinationThreshold}.`,
+          groundingNote,
+          promptAddon,
+          hallucinationCheck,
+        };
+      }
     } catch (hallCheckErr) {
       // Hallucination check failure should NOT break the flow
       logger.error('[ai-governance] Hallucination check failed (non-blocking):', { error: hallCheckErr instanceof Error ? hallCheckErr.message : hallCheckErr });
@@ -1474,7 +1577,32 @@ export async function governedAICall(
     outputSummary: response?.substring(0, 500),
     inputParams,
     modelUsed: actualModel,
+    hallucinationCheck, // Phase 2.4: Write hallucination check to audit trail
   });
+
+  // ── P3.3: Save versioned AI output snapshot (non-blocking) ──
+  if (companyId && response) {
+    (async () => {
+      try {
+        const { saveAISnapshot } = await import('@/lib/ai-output-versioning');
+        await saveAISnapshot({
+          entityType: 'company',
+          entityId: companyId,
+          generationType,
+          input: { evidenceIds, signalIds, researchContextVersion: ctx?.researchCard?.enrichedAt },
+          output: response,
+          confidence: (governanceResult.checks.research_confidence?.value as number) ?? 0,
+          model: actualModel,
+          promptTokens: llmPromptTokens,
+          completionTokens: llmCompletionTokens,
+          governanceChecks: governanceResult.checks,
+          hallucinationRisk: hallucinationCheck?.hallucinationRiskScore,
+        });
+      } catch {
+        // Non-blocking — snapshot failure never affects the user flow
+      }
+    })();
+  }
 
   // ── Step 5.5: S5-3.6 — Unified Cost Tracking ──
   let costRecordId: string | undefined;
@@ -1608,4 +1736,175 @@ export async function governedAICallAggregate(params: {
     promptAddon: '',
     hallucinationCheck: null,
   };
+}
+
+// ── Governed Stream AI Call ──────────────────────────────────────────────────
+
+/**
+ * governedStreamAICall — governed streaming for real-time AI responses.
+ *
+ * Like governedAICall() but returns a ReadableStream for SSE delivery.
+ * Governance checks run BEFORE streaming begins (pre-flight).
+ * The full response is buffered post-stream for audit trail and cost tracking.
+ * Post-stream hallucination blocking is NOT performed since content is already sent.
+ */
+export interface GovernedStreamParams {
+  /** Generation type for governance config lookup (e.g. 'chat_stream') */
+  generationType: string;
+  /** Company ID if company-specific generation */
+  companyId?: string;
+  /** Contact ID if contact-specific generation */
+  contactId?: string;
+  /** System prompt (will have hallucination prevention rules injected) */
+  systemPrompt: string;
+  /** User prompt (will have grounding notes appended) */
+  userPrompt: string;
+  /** LLM tier override ('fast' | 'smart' | 'deep'). Default: 'smart'. */
+  tier?: 'fast' | 'smart' | 'deep';
+  /** Temperature override. Default: 0.7. */
+  temperature?: number;
+  /** Max tokens override. Default: 4096. */
+  maxTokens?: number;
+  /** External AbortSignal for request cancellation */
+  signal?: AbortSignal;
+  /** Optional feature tag for logging / cost tracking */
+  feature?: string;
+}
+
+export interface GovernedStreamResult {
+  /** The SSE stream to pipe to the HTTP response */
+  stream: ReadableStream<string>;
+  /** Governance check result (always present) */
+  governanceResult: GovernanceResult;
+  /** Evidence grounding note injected into the prompt */
+  groundingNote: string;
+  /** Governance warning addon injected into the prompt */
+  promptAddon: string;
+}
+
+export async function governedStreamAICall(
+  params: GovernedStreamParams,
+): Promise<GovernedStreamResult> {
+  const {
+    generationType,
+    companyId,
+    contactId,
+    systemPrompt,
+    userPrompt,
+    tier = 'smart',
+    temperature = 0.7,
+    maxTokens = 4096,
+    signal,
+    feature = 'governed-stream',
+  } = params;
+
+  // ── Step 1: Run pre-flight governance checks ──
+  const preFlight = await preFlightCheck({
+    companyId,
+    contactId,
+    generationType,
+    researchContext: undefined, // no pre-loaded context for streaming chat
+  });
+
+  // If governance blocks — return an error stream so the caller can still respond
+  if (!preFlight.governanceResult.canProceed) {
+    const errorStream = new ReadableStream<string>({
+      start(controller) {
+        controller.enqueue(`event: error\ndata: ${JSON.stringify(preFlight.governanceResult.rejectionReason ?? 'Governance blocked')}\n\n`);
+        controller.enqueue(`event: done\ndata: {}\n\n`);
+        controller.close();
+      },
+    });
+    return {
+      stream: errorStream,
+      governanceResult: preFlight.governanceResult,
+      groundingNote: preFlight.groundingNote,
+      promptAddon: preFlight.promptAddon,
+    };
+  }
+
+  // ── Step 2: Build governed prompts ──
+  const governedSystemPrompt = `${systemPrompt}\n\n${HALLUCINATION_PREVENTION_RULES}`;
+  const governedUserPrompt = `${userPrompt}\n\n${preFlight.groundingNote}\n${preFlight.promptAddon}`;
+
+  // ── Step 3: Call streamAICall ──
+  const sseStream = await streamAICall(governedSystemPrompt, governedUserPrompt, {
+    temperature,
+    maxTokens,
+    timeoutMs: 120_000,
+    signal,
+    feature: feature || generationType,
+  });
+
+  // ── Step 4: Wrap in a TransformStream that buffers all chunks for audit ──
+  let bufferedText = '';
+  const { readable, writable } = new TransformStream<string, string>({
+    transform(chunk, controller) {
+      // Buffer the chunk (extract text content from SSE format if needed)
+      bufferedText += chunk;
+      controller.enqueue(chunk);
+    },
+    flush() {
+      // Stream complete — fire-and-forget audit + cost recording
+      // We run this async inside flush but cannot await, so we schedule it
+      recordStreamAudit(generationType, companyId, contactId, preFlight.governanceResult, bufferedText, feature).catch((err) => {
+        logger.error(`[ai-governance] Stream audit recording failed (non-blocking): ${err instanceof Error ? err.message : err}`);
+      });
+    },
+  });
+
+  // Pipe the original SSE stream through our buffering transform
+  sseStream.pipeTo(writable).catch((err) => {
+    logger.error(`[ai-governance] Stream piping failed: ${err instanceof Error ? err.message : err}`);
+  });
+
+  return {
+    stream: readable,
+    governanceResult: preFlight.governanceResult,
+    groundingNote: preFlight.groundingNote,
+    promptAddon: preFlight.promptAddon,
+  };
+}
+
+/**
+ * Fire-and-forget: record the buffered stream response in the audit trail.
+ * Also records unified cost for the streaming call.
+ */
+async function recordStreamAudit(
+  generationType: string,
+  companyId?: string,
+  contactId?: string,
+  governanceResult?: GovernanceResult,
+  bufferedText?: string,
+  feature?: string,
+): Promise<void> {
+  try {
+    if (governanceResult) {
+      await recordGeneration({
+        generationType,
+        companyId,
+        contactId,
+        governanceResult,
+        outputSummary: bufferedText?.substring(0, 500) ?? '',
+      });
+    }
+    // Estimate tokens from buffered text (~4 chars per token)
+    const estimatedTokens = Math.ceil((bufferedText?.length ?? 0) / 4);
+    if (estimatedTokens > 0) {
+      await recordUnifiedCost({
+        route: generationType || 'unknown',
+        capability: feature || generationType || 'governed_stream',
+        provider: 'unknown',
+        model: 'unknown',
+        inputTokens: 0, // not tracked for streaming
+        outputTokens: estimatedTokens,
+        latencyMs: 0, // not tracked for streaming
+        success: true,
+        companyId,
+      });
+    }
+  } catch (err) {
+    // Audit recording is best-effort — never throw
+    logger.error(`[ai-governance] Stream audit failed (non-blocking): ${err instanceof Error ? err.message : err}`);
+  }
 }

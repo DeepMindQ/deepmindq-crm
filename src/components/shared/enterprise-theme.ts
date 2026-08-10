@@ -17,31 +17,35 @@
 // ── Re-export canonical tokens from design-tokens ──
 export { tokens, getConfidenceTier, getTrustTier, getPriorityTier, radius, typography, elevation } from '@/components/intelligence-os/design-tokens';
 
+// P0.3: Import tokens as a local binding for use in this file's own value definitions.
+// `export { tokens } from '...'` only re-exports — it doesn't create a local binding.
+import { tokens } from '@/components/intelligence-os/design-tokens';
+
 /* ── Color Tokens ── */
-export const gold = 'var(--color-gold-dim, #D4AF37)';
-export const goldLight = 'var(--color-gold, #E8C860)';
-export const card = 'rgba(255, 255, 255, 0.85)';
-export const cardSolid = '#FFFFFF';
-export const border = 'rgba(0, 0, 0, 0.08)';
-export const borderSubtle = 'rgba(0, 0, 0, 0.04)';
-export const textPrimary = '#111827';
-export const textSecondary = '#6B7280';
-export const textMuted = '#9CA3AF';
+export const gold = 'var(--color-gold-dim, #d4af37)';
+export const goldLight = 'var(--color-gold, #e8c860)';
+export const card = tokens.opacity.white.medium;
+export const cardSolid = tokens.flat.white;
+export const border = tokens.opacity.micro;
+export const borderSubtle = tokens.opacity.trace;
+export const textPrimary = tokens.neutral['900'];
+export const textSecondary = tokens.trust.unverified.value;
+export const textMuted = tokens.neutral['400'];
 
 /* ── Functional Colors ── */
 export const colors = {
-  blue: '#3B82F6',
-  green: '#10B981',
-  amber: '#F59E0B',
-  purple: '#A855F7',
-  red: '#EF4444',
-  indigo: '#6366F1',
-  cyan: '#06B6D4',
-  pink: '#EC4899',
-  teal: '#14B8A6',
-  orange: '#F97316',
-  gold: '#D4AF37',
-  goldLight: '#E8C860',
+  blue: tokens.accent.DEFAULT,
+  green: tokens.extended.emerald.value,
+  amber: tokens.domain.reasoning,
+  purple: tokens.domain.opportunity,
+  red: tokens.domain.risk,
+  indigo: tokens.extended.indigo.value,
+  cyan: tokens.domain.enrichment,
+  pink: tokens.extended.pink.value,
+  teal: tokens.trust.high.value,
+  orange: tokens.trust.low.value,
+  gold: tokens.gold.DEFAULT,
+  goldLight: tokens.gold.light,
 } as const;
 
 /* ── Glass Panel Styles ── */
@@ -54,7 +58,7 @@ export const glassPanel = {
 export const glassPanelGold = {
   ...glassPanel,
   border: `1px solid rgba(212, 175, 55, 0.3)`,
-  borderLeft: '3px solid #D4AF37',
+  borderLeft: '3px solid #d4af37',
   boxShadow: '0 0 24px rgba(212, 175, 55, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04)',
 } as const;
 
@@ -76,7 +80,7 @@ export const cardStyles = {
   gold: {
     ...defaultCard,
     border: `1px solid rgba(212, 175, 55, 0.3)`,
-    borderLeft: '3px solid #D4AF37',
+    borderLeft: '3px solid #d4af37',
   },
   interactive: {
     ...defaultCard,
@@ -87,13 +91,13 @@ export const cardStyles = {
 
 /* ── Badge Colors ── */
 export const badgeColors = {
-  positive: { bg: 'rgba(16, 185, 129, 0.12)', text: '#059669', border: 'rgba(16, 185, 129, 0.2)' },
-  negative: { bg: 'rgba(239, 68, 68, 0.12)', text: '#DC2626', border: 'rgba(239, 68, 68, 0.2)' },
-  warning: { bg: 'rgba(245, 158, 11, 0.12)', text: '#D97706', border: 'rgba(245, 158, 11, 0.2)' },
-  info: { bg: 'rgba(59, 130, 246, 0.12)', text: '#2563EB', border: 'rgba(59, 130, 246, 0.2)' },
-  purple: { bg: 'rgba(168, 85, 247, 0.12)', text: '#9333EA', border: 'rgba(168, 85, 247, 0.2)' },
-  neutral: { bg: 'rgba(113, 113, 122, 0.12)', text: '#71717A', border: 'rgba(113, 113, 122, 0.2)' },
-  gold: { bg: 'rgba(212, 175, 55, 0.12)', text: '#B8960C', border: 'rgba(212, 175, 55, 0.2)' },
+  positive: { bg: tokens.extended.emerald.bgMedium, text: tokens.extended.emeraldDeep.value, border: tokens.extended.emerald.border },
+  negative: { bg: tokens.priority.critical.bg, text: tokens.extended.red.value, border: tokens.confidence.low.border },
+  warning: { bg: tokens.trust.medium.bg, text: tokens.extended.amberDeep.value, border: tokens.confidence.medium.border },
+  info: { bg: tokens.priority.medium.bg, text: tokens.accent.dim, border: tokens.accent.strong },
+  purple: { bg: 'rgba(168, 85, 247, 0.12)', text: tokens.extended.purpleDeep.value, border: tokens.domain.opportunity },
+  neutral: { bg: tokens.neutral.bg, text: tokens.flat.zinc, border: tokens.neutral.border },
+  gold: { bg: tokens.gold.bgMedium, text: tokens.gold.dark, border: tokens.gold.borderLight },
 } as const;
 
 /* ── Status Colors ── */
@@ -154,8 +158,8 @@ export const animations = {
 
 /* ── Gold Gradient Button Style ── */
 export const goldButton = {
-  background: 'linear-gradient(135deg, #D4AF37, #E8C860)',
-  color: '#000000',
+  background: 'linear-gradient(135deg, #d4af37, #e8c860)',
+  color: tokens.flat.black,
 } as const;
 
 /* ── Chart Gradient IDs ── */
@@ -164,7 +168,7 @@ export const chartGradients = {
   green: { id: 'gradGreen', from: 'rgba(16,185,129,0.35)', to: 'rgba(16,185,129,0)' },
   blue: { id: 'gradBlue', from: 'rgba(59,130,246,0.35)', to: 'rgba(59,130,246,0)' },
   purple: { id: 'gradPurple', from: 'rgba(168,85,247,0.35)', to: 'rgba(168,85,247,0)' },
-  dark: { id: 'gradDark', from: 'rgba(0,0,0,0.06)', to: 'rgba(255,255,255,0)' },
+  dark: { id: 'gradDark', from: tokens.opacity.whisper, to: 'rgba(255,255,255,0)' },
 } as const;
 
 /* ── Spacing Scale ── */

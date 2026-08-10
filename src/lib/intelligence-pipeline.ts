@@ -325,6 +325,12 @@ Analyze these search results and extract ALL actionable intelligence signals and
       }
     }
 
+    // Invalidate intelligence cache (fire-and-forget)
+    try {
+      const { invalidateIntelligenceCache } = await import('@/lib/intelligence-cache');
+      invalidateIntelligenceCache(companyId).catch(() => {});
+    } catch { /* ignore */ }
+
     // ── Step 4: Create/Update CompanyResearchCard ──
     if (parsed.research) {
       await upsertResearchCard(companyId, parsed.research);

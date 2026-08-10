@@ -24,6 +24,7 @@ import {
   getFeedbackSummary,
 } from '@/lib/decision-learning';
 import { processFeedback, type FeedbackVerdict, type ActualOutcome, type FeedbackResult } from '@/lib/feedback-learning-loop';
+import { logger } from '@/lib/logger';
 import { utilityGuard, RateLimitedError, utilityError, utilityCatchError, utilitySuccess } from '@/lib/intelligence-api/guard';
 import { checkApiAuth } from '@/lib/api-auth';
 
@@ -127,7 +128,7 @@ export async function POST(request: NextRequest) {
         });
       } catch (calErr) {
         // Calibration is best-effort — don't fail the request
-        console.warn(`[feedback] Calibration loop failed: ${calErr instanceof Error ? calErr.message : calErr}`);
+        logger.warn(`[feedback] Calibration loop failed: ${calErr instanceof Error ? calErr.message : calErr}`);
       }
 
       return utilitySuccess(ctx, { success: true, feedbackId, calibrationResult }, 'feedback', Date.now() - startedAt);

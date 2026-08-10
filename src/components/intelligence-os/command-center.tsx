@@ -439,8 +439,8 @@ export function CommandCenter() {
 
       {/* Error Banner */}
       {error && (
-        <div className="flex items-center gap-3 rounded-xl border p-4" style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.15)' }}>
-          <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: '#ef4444' }} />
+        <div className="flex items-center gap-3 rounded-xl border p-4" style={{ background: tokens.opacity.shadow, borderColor: tokens.confidence.low.bg }}>
+          <AlertTriangle className="w-4 h-4 shrink-0" style={{ color: tokens.domain.risk }} />
           <p className="text-sm flex-1" style={{ color: tokens.text.secondary }}>{error}</p>
           <Button variant="outline" size="sm" onClick={() => { setError(null); fetchIntelligence(); fetchUnifiedInsights(); }} className="text-xs">Retry</Button>
         </div>
@@ -487,8 +487,8 @@ export function CommandCenter() {
         </div>
       )}
       {narrativesError && (
-        <div className="flex items-center gap-3 rounded-xl border p-4" style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.15)' }}>
-          <AlertTriangle className="w-4 h-4" style={{ color: '#ef4444' }} />
+        <div className="flex items-center gap-3 rounded-xl border p-4" style={{ background: tokens.opacity.shadow, borderColor: tokens.confidence.low.bg }}>
+          <AlertTriangle className="w-4 h-4" style={{ color: tokens.domain.risk }} />
           <span className="text-xs" style={{ color: tokens.text.secondary }}>{narrativesError}</span>
           <button onClick={() => refetchNarratives()} className="ml-auto text-[10px] font-medium" style={{ color: tokens.accent.bright }}>Retry pipeline</button>
         </div>

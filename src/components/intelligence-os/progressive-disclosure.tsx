@@ -163,7 +163,7 @@ export function ProgressiveDisclosure({
       style={{
         background: tokens.surface.card,
         border: `1px solid ${tokens.border.default}`,
-        boxShadow: '0 1px 2px 0 rgba(0,0,0,0.08)',
+        boxShadow: '0 1px 2px 0 tokens.opacity.faint',
       }}
       onMouseEnter={(e) => {
         (e.currentTarget as HTMLElement).style.borderColor = tokens.border.hover;

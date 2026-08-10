@@ -1,5 +1,6 @@
 'use client';
 
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -108,7 +109,7 @@ export function KnowledgeWorkspace() {
   if (fetchError && capabilities.length === 0 && knowledge.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 text-center">
-        <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
+        <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: tokens.confidence.low.bg, border: '1px solid tokens.priority.critical.border' }}>
           <FolderOpen className="w-6 h-6 text-red-500" />
         </div>
         <h3 className="text-sm font-semibold text-foreground mb-1">Failed to load knowledge</h3>

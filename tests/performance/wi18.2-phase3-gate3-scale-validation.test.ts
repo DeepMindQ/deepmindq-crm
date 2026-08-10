@@ -111,7 +111,7 @@ describe('Phase 3 Gate 3: Scale Validation', () => {
    * Target: 10,000 nodes with sub-millisecond average write time.
    */
   describe('Scale Test 1: KG Node Creation', () => {
-    it(`creates ${TEST_SCALE.kgNodes.toLocaleString()} KG nodes under performance budget`, () => {
+    it(`creates ${TEST_SCALE.kgNodes.toLocaleString()} KG nodes under performance budget`, async () => {
       const startMs = performance.now();
 
       for (let i = 0; i < TEST_SCALE.kgNodes; i++) {
@@ -133,8 +133,8 @@ describe('Phase 3 Gate 3: Scale Validation', () => {
       expect(avgMs).toBeLessThan(0.1);
 
       // Verify all nodes exist
-      expect(getNode('scale-node-0')).toBeDefined();
-      expect(getNode(`scale-node-${TEST_SCALE.kgNodes - 1}`)).toBeDefined();
+      expect(await getNode('scale-node-0')).toBeDefined();
+      expect(await getNode(`scale-node-${TEST_SCALE.kgNodes - 1}`)).toBeDefined();
     });
   });
 
@@ -143,11 +143,11 @@ describe('Phase 3 Gate 3: Scale Validation', () => {
    * Target: 10,000 lookups with sub-microsecond average read time.
    */
   describe('Scale Test 2: KG Node Lookup', () => {
-    it(`reads ${TEST_SCALE.kgNodes.toLocaleString()} KG nodes under performance budget`, () => {
+    it(`reads ${TEST_SCALE.kgNodes.toLocaleString()} KG nodes under performance budget`, async () => {
       const startMs = performance.now();
 
       for (let i = 0; i < TEST_SCALE.kgNodes; i++) {
-        const node = getNode(`scale-node-${i}`);
+        const node = await getNode(`scale-node-${i}`);
         expect(node).toBeDefined();
       }
 
@@ -156,9 +156,8 @@ describe('Phase 3 Gate 3: Scale Validation', () => {
 
       console.log(`  KG Lookups: ${TEST_SCALE.kgNodes} reads in ${totalMs.toFixed(1)}ms (avg: ${avgMs.toFixed(4)}ms)`);
 
-      // Map.get should be extremely fast — under 0.1ms per lookup in test env
-      // (relaxed from 0.05 to prevent CI flakiness on loaded runners)
-      expect(avgMs).toBeLessThan(0.1);
+      // Async getNode still uses in-memory-first path; allow 0.5ms per lookup
+      expect(avgMs).toBeLessThan(0.5);
     });
   });
 

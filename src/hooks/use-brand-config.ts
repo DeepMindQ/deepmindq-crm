@@ -8,11 +8,12 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 
 const DEFAULT_BRAND = {
   name: 'DeepMindQ',
   logoUrl: '',
-  primaryColor: '#d6bf79',
+  primaryColor: tokens.gold.mutedLight,
   secondaryColor: '#73b4c9',
 } as const;
 

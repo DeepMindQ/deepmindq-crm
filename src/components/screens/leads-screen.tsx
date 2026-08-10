@@ -143,7 +143,7 @@ const RECOMMENDED_ACTIONS = [
 function ScoreBadge({ score }: { score: number | null | undefined }) {
   const value = score ?? 0;
   if (score == null) return <span className="text-[11px] text-muted-foreground/50">—</span>;
-  const color = value >= 80 ? '#10b981' : value >= 60 ? '#f59e0b' : '#ef4444';
+  const color = value >= 80 ? 'var(--dmq-emerald)' : value >= 60 ? 'var(--dmq-domain-reasoning)' : 'var(--dmq-domain-risk)';
   const label = value >= 80 ? 'High' : value >= 60 ? 'Medium' : 'Low';
   return (
     <TooltipProvider delayDuration={200}>
@@ -260,11 +260,11 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
   /* ─── Charts Data ─── */
   const scoreDistribution = useMemo(() => {
     const buckets = [
-      { range: '0-20', count: 0, color: '#ef4444' },
-      { range: '21-40', count: 0, color: '#f97316' },
-      { range: '41-60', count: 0, color: '#f59e0b' },
-      { range: '61-80', count: 0, color: '#eab308' },
-      { range: '81-100', count: 0, color: '#10b981' },
+      { range: '0-20', count: 0, color: 'var(--dmq-domain-risk)' },
+      { range: '21-40', count: 0, color: 'var(--dmq-orange-500)' },
+      { range: '41-60', count: 0, color: 'var(--dmq-domain-reasoning)' },
+      { range: '61-80', count: 0, color: 'var(--dmq-yellow-500)' },
+      { range: '81-100', count: 0, color: 'var(--dmq-emerald)' },
     ];
     leads.forEach(l => {
       const s = l._dbFields?.leadScore ?? 0;
@@ -294,7 +294,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
       const s = l._dbFields?.status || 'imported';
       map[s] = (map[s] || 0) + 1;
     });
-    const pieColors = ['#71717a', '#0ea5e9', '#8b5cf6', '#2563eb', '#10b981', '#ef4444', '#f59e0b', '#dc2626'];
+    const pieColors = ['var(--dmq-zinc)', 'var(--dmq-sky)', 'var(--dmq-purple)', 'var(--dmq-accent-dim)', 'var(--dmq-emerald)', 'var(--dmq-domain-risk)', 'var(--dmq-domain-reasoning)', 'var(--dmq-red)'];
     return Object.entries(map).map(([name, value], i) => ({
       name, value,
       fill: pieColors[i % pieColors.length],
@@ -461,7 +461,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
       <div className="flex flex-col gap-3">
         <div className="flex items-start justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="h-10 w-2 rounded-full" style={{ background: 'linear-gradient(180deg, #2563EB, #1d4ed8, #1e40af)', boxShadow: '0 0 20px rgba(37, 99, 235, 0.3)' }} />
+            <div className="h-10 w-2 rounded-full" style={{ background: 'linear-gradient(180deg, var(--dmq-accent-dim), var(--dmq-blue-700), var(--dmq-blue-800))', boxShadow: '0 0 20px rgba(37, 99, 235, 0.3)' }} />
             <div>
               <h1 className="text-2xl font-bold tracking-tight text-foreground">
                 <ShimmerText>AI-Prioritized Leads</ShimmerText>
@@ -472,7 +472,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                 </span>
                 {stats.highPriority > 0 && (
                   <Badge className="bg-emerald-500/10 border-emerald-500/25 text-emerald-700 text-[11px] h-5 px-2 gap-1">
-                    <PulseDot color="#10b981" />
+                    <PulseDot color="var(--dmq-emerald)" />
                     {stats.highPriority} high-priority detected
                   </Badge>
                 )}
@@ -480,22 +480,22 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
             </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
-            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs border-gray-200 bg-gray-50" onClick={() => setSidebarOpen(!sidebarOpen)}>
+            <Button variant="outline" size="sm" className="h-10 gap-1.5 text-xs border-gray-200 bg-gray-50 min-h-[44px]" onClick={() => setSidebarOpen(!sidebarOpen)}>
               <BarChart3 className="w-3.5 h-3.5" />Analytics
             </Button>
-            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs border-gray-200 bg-gray-50" onClick={handleExportCSV} disabled={exporting}>
+            <Button variant="outline" size="sm" className="h-10 gap-1.5 text-xs border-gray-200 bg-gray-50 min-h-[44px]" onClick={handleExportCSV} disabled={exporting}>
               {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
               Export
             </Button>
-            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs border-gray-200 bg-gray-50" onClick={handleRecalculateScores} disabled={recalculating}>
+            <Button variant="outline" size="sm" className="h-10 gap-1.5 text-xs border-gray-200 bg-gray-50 min-h-[44px]" onClick={handleRecalculateScores} disabled={recalculating}>
               {recalculating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
               Recalc
             </Button>
-            <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs border-gray-200 bg-gray-50" onClick={handleVerifyAll} disabled={verifying}>
+            <Button variant="outline" size="sm" className="h-10 gap-1.5 text-xs border-gray-200 bg-gray-50 min-h-[44px]" onClick={handleVerifyAll} disabled={verifying}>
               {verifying ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <MailCheck className="w-3.5 h-3.5" />}
               Verify
             </Button>
-            <Button size="sm" className="h-8 gap-1.5 text-xs font-medium text-white shadow-sm" style={{ background: 'linear-gradient(135deg, #2563EB, #1d4ed8)' }} onClick={handleAiScoreAll} disabled={aiScoring}>
+            <Button size="sm" className="h-10 gap-1.5 text-xs font-medium text-white shadow-sm min-h-[44px]" style={{ background: 'linear-gradient(135deg, var(--dmq-accent-dim), var(--dmq-blue-700))' }} onClick={handleAiScoreAll} disabled={aiScoring}>
               {aiScoring ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Brain className="w-3.5 h-3.5" />}
               {aiScoring ? 'Scoring...' : 'AI Score All'}
             </Button>
@@ -547,7 +547,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
           <button
             onClick={() => setViewMode('grid')}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+              'flex items-center gap-1.5 px-3 py-2.5 rounded-md text-xs font-medium transition-colors',
               viewMode === 'grid' ? 'bg-white shadow-sm text-foreground border border-gray-200' : 'text-muted-foreground hover:text-foreground'
             )}
           >
@@ -557,7 +557,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
           <button
             onClick={() => setViewMode('list')}
             className={cn(
-              'flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors',
+              'flex items-center gap-1.5 px-3 py-2.5 rounded-md text-xs font-medium transition-colors',
               viewMode === 'list' ? 'bg-white shadow-sm text-foreground border border-gray-200' : 'text-muted-foreground hover:text-foreground'
             )}
           >
@@ -662,7 +662,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                   const initials = getInitials(lead.rawName || '?');
                   const aiReason = AI_REASONS[idx % AI_REASONS.length];
                   const action = RECOMMENDED_ACTIONS[idx % RECOMMENDED_ACTIONS.length];
-                  const scoreColor = score != null ? (score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444') : '#71717a';
+                  const scoreColor = score != null ? (score >= 80 ? 'var(--dmq-emerald)' : score >= 60 ? 'var(--dmq-domain-reasoning)' : 'var(--dmq-domain-risk)') : 'var(--dmq-zinc)';
 
                   return (
                     <motion.div
@@ -773,7 +773,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                       const score = dbf?.leadScore;
                       const health = dbf?.emailHealth || 'unknown';
                       const status = dbf?.status || 'imported';
-                      const scoreColor = score != null ? (score >= 80 ? '#10b981' : score >= 60 ? '#f59e0b' : '#ef4444') : '#71717a';
+                      const scoreColor = score != null ? (score >= 80 ? 'var(--dmq-emerald)' : score >= 60 ? 'var(--dmq-domain-reasoning)' : 'var(--dmq-domain-risk)') : 'var(--dmq-zinc)';
 
                       return (
                         <motion.tr
@@ -825,19 +825,19 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                           <TableCell className="py-3 px-2" onClick={e => e.stopPropagation()}>
                             <Popover>
                               <PopoverTrigger asChild>
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 hover:bg-gray-100 text-muted-foreground">
+                                <Button variant="ghost" size="sm" className="h-10 w-10 p-0 hover:bg-gray-100 text-muted-foreground min-h-[44px]">
                                   <MoreHorizontal className="w-3.5 h-3.5" />
                                 </Button>
                               </PopoverTrigger>
                               <PopoverContent className="w-44 p-1" align="end">
-                                <button className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-gray-100 flex items-center gap-2" onClick={() => openDetail(lead)}>
+                                <button className="w-full text-left text-xs text-foreground px-3 py-2.5 rounded-md hover:bg-gray-100 flex items-center gap-2 min-h-[44px]" onClick={() => openDetail(lead)}>
                                   <Eye className="w-3.5 h-3.5 text-blue-600/70" />View Details
                                 </button>
-                                <button className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-gray-100 flex items-center gap-2" onClick={() => navigateTo?.('contact-profile')}>
+                                <button className="w-full text-left text-xs text-foreground px-3 py-2.5 rounded-md hover:bg-gray-100 flex items-center gap-2 min-h-[44px]" onClick={() => navigateTo?.('contact-profile')}>
                                   <LayoutList className="w-3.5 h-3.5 text-amber-600/70" />Contact Profile
                                 </button>
                                 {navigateTo && (
-                                  <button className="w-full text-left text-xs text-foreground px-3 py-2 rounded-md hover:bg-gray-100 flex items-center gap-2" onClick={() => navigateTo('companies')}>
+                                  <button className="w-full text-left text-xs text-foreground px-3 py-2.5 rounded-md hover:bg-gray-100 flex items-center gap-2 min-h-[44px]" onClick={() => navigateTo('companies')}>
                                     <Building2 className="w-3.5 h-3.5 text-emerald-600/70" />View Company
                                   </button>
                                 )}
@@ -861,15 +861,15 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                     <div className="flex items-center gap-1">
                       <span className="text-[11px] text-muted-foreground mr-1">Rows:</span>
                       {PAGE_SIZE_OPTIONS.map(size => (
-                        <Button key={size} variant={limit === size ? 'default' : 'ghost'} size="sm" className={cn('h-7 px-2.5 text-[11px] rounded-md', limit === size ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground')} onClick={() => setLimit(size)}>{size}</Button>
+                        <Button key={size} variant={limit === size ? 'default' : 'ghost'} size="sm" className={cn('h-10 px-2.5 text-[11px] rounded-md min-h-[44px]', limit === size ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground')} onClick={() => setLimit(size)}>{size}</Button>
                       ))}
                     </div>
                     <div className="flex items-center gap-1">
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page <= 1} onClick={() => setPage(1)}><ChevronsLeft className="w-3.5 h-3.5" /></Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="sm" className="h-10 w-10 p-0 min-h-[44px]" disabled={page <= 1} onClick={() => setPage(1)}><ChevronsLeft className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="sm" className="h-10 w-10 p-0 min-h-[44px]" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft className="w-3.5 h-3.5" /></Button>
                       <span className="text-xs text-foreground px-2 tabular-nums font-medium">{page} / {totalPages}</span>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page >= totalPages} onClick={() => setPage(page + 1)}><ChevronRight className="w-3.5 h-3.5" /></Button>
-                      <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page >= totalPages} onClick={() => setPage(totalPages)}><ChevronsRight className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="sm" className="h-10 w-10 p-0 min-h-[44px]" disabled={page >= totalPages} onClick={() => setPage(page + 1)}><ChevronRight className="w-3.5 h-3.5" /></Button>
+                      <Button variant="ghost" size="sm" className="h-10 w-10 p-0 min-h-[44px]" disabled={page >= totalPages} onClick={() => setPage(totalPages)}><ChevronsRight className="w-3.5 h-3.5" /></Button>
                     </div>
                   </div>
                 </div>
@@ -887,16 +887,16 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                 <div className="flex items-center gap-1">
                   <span className="text-[11px] text-muted-foreground mr-1">Rows:</span>
                   {PAGE_SIZE_OPTIONS.map(size => (
-                    <Button key={size} variant={limit === size ? 'default' : 'ghost'} size="sm" className={cn('h-7 px-2.5 text-[11px] rounded-md', limit === size ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground')} onClick={() => setLimit(size)}>{size}</Button>
+                    <Button key={size} variant={limit === size ? 'default' : 'ghost'} size="sm" className={cn('h-10 px-2.5 text-[11px] rounded-md min-h-[44px]', limit === size ? 'bg-blue-600 text-white shadow-sm' : 'text-muted-foreground')} onClick={() => setLimit(size)}>{size}</Button>
                   ))}
                 </div>
                 <Separator orientation="vertical" className="h-5" />
                 <div className="flex items-center gap-1">
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page <= 1} onClick={() => setPage(1)}><ChevronsLeft className="w-3.5 h-3.5" /></Button>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="sm" className="h-10 w-10 p-0 min-h-[44px]" disabled={page <= 1} onClick={() => setPage(1)}><ChevronsLeft className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="sm" className="h-10 w-10 p-0 min-h-[44px]" disabled={page <= 1} onClick={() => setPage(page - 1)}><ChevronLeft className="w-3.5 h-3.5" /></Button>
                   <span className="text-xs text-foreground px-2 tabular-nums font-medium">{page} / {totalPages}</span>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page >= totalPages} onClick={() => setPage(page + 1)}><ChevronRight className="w-3.5 h-3.5" /></Button>
-                  <Button variant="ghost" size="sm" className="h-7 w-7 p-0" disabled={page >= totalPages} onClick={() => setPage(totalPages)}><ChevronsRight className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="sm" className="h-10 w-10 p-0 min-h-[44px]" disabled={page >= totalPages} onClick={() => setPage(page + 1)}><ChevronRight className="w-3.5 h-3.5" /></Button>
+                  <Button variant="ghost" size="sm" className="h-10 w-10 p-0 min-h-[44px]" disabled={page >= totalPages} onClick={() => setPage(totalPages)}><ChevronsRight className="w-3.5 h-3.5" /></Button>
                 </div>
               </div>
             </div>
@@ -923,11 +923,11 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                   </div>
                   <ResponsiveContainer width="100%" height={160}>
                     <BarChart data={scoreDistribution} barCategoryGap="20%">
-                      <XAxis dataKey="range" tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fontSize: 10, fill: '#94a3b8' }} axisLine={false} tickLine={false} width={30} />
+                      <XAxis dataKey="range" tick={{ fontSize: 10, fill: 'var(--dmq-slate-400)' }} axisLine={false} tickLine={false} />
+                      <YAxis tick={{ fontSize: 10, fill: 'var(--dmq-slate-400)' }} axisLine={false} tickLine={false} width={30} />
                       <RTooltip
-                        contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e2e8f0', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' }}
-                        cursor={{ fill: 'rgba(37,99,235,0.04)' }}
+                        contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid var(--dmq-slate-200)', boxShadow: '0 2px 8px var(--dmq-black-micro)' }}
+                        cursor={{ fill: 'var(--dmq-blue-bright-bg)' }}
                       />
                       <Bar dataKey="count" radius={[4, 4, 0, 0]}>
                         {scoreDistribution.map((entry, i) => (
@@ -949,7 +949,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                       {industryBreakdown.map((item, i) => {
                         const maxVal = industryBreakdown[0]?.value || 1;
                         const pct = Math.round((item.value / maxVal) * 100);
-                        const colors = ['#2563eb', '#0ea5e9', '#6366f1', '#8b5cf6', '#a855f7', '#c084fc'];
+                        const colors = ['var(--dmq-accent-dim)', 'var(--dmq-sky)', 'var(--dmq-indigo)', 'var(--dmq-purple)', 'var(--dmq-domain-opportunity)', 'var(--dmq-purple-light)'];
                         return (
                           <div key={item.name}>
                             <div className="flex items-center justify-between text-xs mb-1">
@@ -995,7 +995,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                           ))}
                         </Pie>
                         <RTooltip
-                          contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid #e2e8f0' }}
+                          contentStyle={{ fontSize: 11, borderRadius: 8, border: '1px solid var(--dmq-slate-200)' }}
                           formatter={(value: number, name: string) => [value, name.charAt(0).toUpperCase() + name.slice(1)]}
                         />
                       </PieChart>
@@ -1020,10 +1020,10 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                       <span className="text-sm font-semibold text-foreground">{selectedIds.size} selected</span>
                     </div>
                     <div className="space-y-2">
-                      <Button size="sm" className="w-full h-8 text-xs gap-2 text-white" style={{ background: 'linear-gradient(135deg, #2563EB, #1d4ed8)' }} onClick={() => setAssignDialogOpen(true)}>
+                      <Button size="sm" className="w-full h-10 text-xs gap-2 text-white min-h-[44px]" style={{ background: 'linear-gradient(135deg, var(--dmq-accent-dim), var(--dmq-blue-700))' }} onClick={() => setAssignDialogOpen(true)}>
                         <UserPlus className="w-3.5 h-3.5" />Assign Leads
                       </Button>
-                      <Button variant="outline" size="sm" className="w-full h-8 text-xs gap-2 border-gray-200" onClick={handleExportCSV} disabled={exporting}>
+                      <Button variant="outline" size="sm" className="w-full h-10 text-xs gap-2 border-gray-200 min-h-[44px]" onClick={handleExportCSV} disabled={exporting}>
                         {exporting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
                         Export Selected
                       </Button>
@@ -1055,9 +1055,9 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
               transition={{ type: 'spring', damping: 30, stiffness: 300 }}
               className="fixed right-0 top-0 h-full w-full sm:w-[440px] z-50 flex flex-col overflow-hidden"
               style={{
-                background: '#FFFFFF',
-                border: '1px solid #E5E7EB',
-                boxShadow: '-20px 0 60px rgba(0,0,0,0.15)',
+                background: 'var(--dmq-white)',
+                border: '1px solid var(--dmq-neutral-200)',
+                boxShadow: '-20px 0 60px var(--dmq-black-faint-plus)',
               }}
             >
               {/* Header */}
@@ -1068,7 +1068,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                     style={{
                       background: (() => {
                         const s = selectedLead._dbFields?.leadScore;
-                        const c = s != null ? (s >= 80 ? '#10b981' : s >= 60 ? '#f59e0b' : '#ef4444') : '#71717a';
+                        const c = s != null ? (s >= 80 ? 'var(--dmq-emerald)' : s >= 60 ? 'var(--dmq-domain-reasoning)' : 'var(--dmq-domain-risk)') : 'var(--dmq-zinc)';
                         return `linear-gradient(135deg, ${c}, ${c}CC)`;
                       })(),
                     }}
@@ -1085,7 +1085,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                     </p>
                   </div>
                 </div>
-                <Button variant="ghost" size="sm" className="h-8 w-8 p-0 text-muted-foreground hover:text-foreground shrink-0" onClick={() => setSlideOverOpen(false)}>
+                <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-muted-foreground hover:text-foreground shrink-0 min-h-[44px]" onClick={() => setSlideOverOpen(false)}>
                   <X className="w-4 h-4" />
                 </Button>
               </div>
@@ -1197,7 +1197,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
                   {/* Action Button */}
                   <Button
                     className="w-full h-10 gap-2 text-sm font-medium text-white"
-                    style={{ background: 'linear-gradient(135deg, #2563EB, #1d4ed8)' }}
+                    style={{ background: 'linear-gradient(135deg, var(--dmq-accent-dim), var(--dmq-blue-700))' }}
                     onClick={() => {
                       setSlideOverOpen(false);
                       if (navigateTo) navigateTo('contact-profile');
@@ -1221,7 +1221,7 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
             <DialogDescription className="text-xs">Assign {selectedIds.size > 0 ? `${selectedIds.size} selected` : 'all'} leads to a team member.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
-            <Button className="w-full h-10 gap-2 text-sm text-white" style={{ background: 'linear-gradient(135deg, #2563EB, #1d4ed8)' }} onClick={() => { toast.success('Leads assigned successfully'); setAssignDialogOpen(false); setSelectedIds(new Set()); }}>
+            <Button className="w-full h-10 gap-2 text-sm text-white" style={{ background: 'linear-gradient(135deg, var(--dmq-accent-dim), var(--dmq-blue-700))' }} onClick={() => { toast.success('Leads assigned successfully'); setAssignDialogOpen(false); setSelectedIds(new Set()); }}>
               <UserPlus className="w-4 h-4" />Assign Lead
             </Button>
           </div>

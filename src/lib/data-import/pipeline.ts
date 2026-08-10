@@ -664,89 +664,106 @@ export async function commitImport(
       }
       seenEmails.add(email.toLowerCase());
 
-      // Create or find Company
-      let companyId: string;
+      // Determine company lookup info outside the transaction
       const domain = data.domain || (email.includes('@') ? email.split('@')[1] : '');
-
+      let useCachedDomain = false;
       if (companyName && seenDomains.has(domain.toLowerCase())) {
-        companyId = seenDomains.get(domain.toLowerCase())!;
-      } else if (companyName) {
-        const normalizedName = companyName.toLowerCase();
-        const existing = await db.company.findFirst({
-          where: { normalizedName },
-          orderBy: { createdAt: 'desc' },
-        });
-
-        if (existing) {
-          companyId = existing.id;
-        } else {
-          const company = await db.company.create({
-            data: {
-              rawName: companyName,
-              normalizedName,
-              domain: domain || null,
-              industry: data.industry || null,
-              sizeRange: data.employee_size || data.sizeRange || null,
-              location: data.location || null,
-              country: data.country || null,
-              website: data.website || null,
-              status: 'prospect',
-              source: 'import',
-            },
-          });
-          companyId = company.id;
-          companiesCreated++;
-          newCompanyIds.add(company.id); // WI-17A: track for activation
-        }
-        if (domain) seenDomains.set(domain.toLowerCase(), companyId);
-      } else {
-        // No company name — find or create a placeholder
-        const existing = await db.company.findFirst({
-          where: { domain: domain || undefined },
-          orderBy: { createdAt: 'desc' },
-        });
-        if (existing) {
-          companyId = existing.id;
-        } else {
-          const company = await db.company.create({
-            data: {
-              rawName: companyName || 'Unknown Company',
-              normalizedName: (companyName || 'unknown company').toLowerCase(),
-              domain: domain || null,
-              status: 'prospect',
-              source: 'import',
-            },
-          });
-          companyId = company.id;
-          companiesCreated++;
-          newCompanyIds.add(company.id); // WI-17A: track for activation
-        }
-        if (domain) seenDomains.set(domain.toLowerCase(), companyId);
+        useCachedDomain = true;
       }
 
-      // Create Contact
-      const normalizedName = contactName.toLowerCase();
-      await db.contact.create({
-        data: {
-          rawName: contactName,
-          normalizedName,
-          email,
-          title: data.title || data.role || null,
-          phone: data.phone || null,
-          location: data.location || null,
-          companyId,
-          batchId: batch.id,
-          source: 'cold_list',
-          consentStatus: 'unknown',
-        },
-      });
-      contactsCreated++;
+      // All DB writes for this row are wrapped in a single transaction
+      // to ensure atomicity: company + contact + uploadRow status update
+      const rowResult = await db.$transaction(async (tx) => {
+        // Create or find Company
+        let companyId: string;
 
-      // Link UploadRow to Company
-      await db.uploadRow.update({
-        where: { id: row.id },
-        data: { status: 'accepted', companyId },
-      });
+        if (companyName && useCachedDomain) {
+          companyId = seenDomains.get(domain.toLowerCase())!;
+        } else if (companyName) {
+          const normalizedName = companyName.toLowerCase();
+          const existing = await tx.company.findFirst({
+            where: { normalizedName },
+            orderBy: { createdAt: 'desc' },
+          });
+
+          if (existing) {
+            companyId = existing.id;
+          } else {
+            const company = await tx.company.create({
+              data: {
+                rawName: companyName,
+                normalizedName,
+                domain: domain || null,
+                industry: data.industry || null,
+                sizeRange: data.employee_size || data.sizeRange || null,
+                location: data.location || null,
+                country: data.country || null,
+                website: data.website || null,
+                status: 'prospect',
+                source: 'import',
+              },
+            });
+            companyId = company.id;
+            companiesCreated++;
+            newCompanyIds.add(company.id); // WI-17A: track for activation
+          }
+          if (domain) seenDomains.set(domain.toLowerCase(), companyId);
+        } else {
+          // No company name — find or create a placeholder
+          const existing = await tx.company.findFirst({
+            where: { domain: domain || undefined },
+            orderBy: { createdAt: 'desc' },
+          });
+          if (existing) {
+            companyId = existing.id;
+          } else {
+            const company = await tx.company.create({
+              data: {
+                rawName: companyName || 'Unknown Company',
+                normalizedName: (companyName || 'unknown company').toLowerCase(),
+                domain: domain || null,
+                status: 'prospect',
+                source: 'import',
+              },
+            });
+            companyId = company.id;
+            companiesCreated++;
+            newCompanyIds.add(company.id); // WI-17A: track for activation
+          }
+          if (domain) seenDomains.set(domain.toLowerCase(), companyId);
+        }
+
+        // Create Contact
+        const normalizedName = contactName.toLowerCase();
+        await tx.contact.create({
+          data: {
+            rawName: contactName,
+            normalizedName,
+            email,
+            title: data.title || data.role || null,
+            phone: data.phone || null,
+            location: data.location || null,
+            companyId,
+            batchId: batch.id,
+            source: 'cold_list',
+            consentStatus: 'unknown',
+          },
+        });
+        contactsCreated++;
+
+        // Link UploadRow to Company
+        await tx.uploadRow.update({
+          where: { id: row.id },
+          data: { status: 'accepted', companyId },
+        });
+
+        return { companyId };
+      }, { timeout: 15000 });
+
+      // Cache the company ID for subsequent rows
+      if (domain) {
+        seenDomains.set(domain.toLowerCase(), rowResult.companyId);
+      }
     } catch {
       failedRows++;
       try {
@@ -760,29 +777,29 @@ export async function commitImport(
     }
   }
 
-  // Update ImportBatch
-  await db.importBatch.update({
-    where: { id: batch.id },
-    data: {
-      acceptedRows: contactsCreated,
-      duplicateRows: duplicatesSkipped,
-      invalidRows: failedRows,
-      status: 'completed',
-    },
-  });
-
-  // Update DataUpload to completed
-  await db.dataUpload.update({
-    where: { id: uploadId },
-    data: {
-      status: 'completed',
-      completedAt: new Date(),
-      processedRows: acceptedRows.length,
-      acceptedRows: contactsCreated,
-      duplicateRows: duplicatesSkipped,
-      failedRows,
-    },
-  });
+  // Atomically mark both the import batch and upload as completed
+  await db.$transaction(async (tx) => {
+    await tx.importBatch.update({
+      where: { id: batch.id },
+      data: {
+        acceptedRows: contactsCreated,
+        duplicateRows: duplicatesSkipped,
+        invalidRows: failedRows,
+        status: 'completed',
+      },
+    });
+    await tx.dataUpload.update({
+      where: { id: uploadId },
+      data: {
+        status: 'completed',
+        completedAt: new Date(),
+        processedRows: acceptedRows.length,
+        acceptedRows: contactsCreated,
+        duplicateRows: duplicatesSkipped,
+        failedRows,
+      },
+    });
+  }, { timeout: 30000 });
 
   // WI-17A: Activate intelligence for all newly created companies (fire-and-forget)
   if (newCompanyIds.size > 0) {

@@ -1,5 +1,6 @@
 'use client';
 
+import { tokens } from '@/components/intelligence-os/design-tokens';
 /* ═══════════════════════════════════════════════════════════════
    MS9 §3 — Advisor Header (Molecule)
    
@@ -138,7 +139,7 @@ export function AdvisorHeader({
                 'border transition-colors duration-150',
               )}
               style={{
-                backgroundColor: 'rgba(59, 130, 246, 0.15)',
+                backgroundColor: tokens.accent.subtle,
                 borderColor: 'var(--accent)',
                 color: 'var(--accent)',
               }}

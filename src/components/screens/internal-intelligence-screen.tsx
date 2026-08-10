@@ -394,7 +394,7 @@ function KnowledgeGraphTab() {
                 placeholder="Search assets..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="h-8 text-xs bg-slate-800/50 border-slate-700/50 pl-8 pr-3 text-slate-300 placeholder:text-slate-500 focus:border-emerald-500/50"
+                className="h-10 text-xs bg-slate-800/50 border-slate-700/50 pl-8 pr-3 text-slate-300 placeholder:text-slate-500 focus:border-emerald-500/50"
               />
             </div>
           </div>
@@ -1416,7 +1416,7 @@ export default function InternalIntelligenceScreen() {
             >
               <Brain className="h-3.5 w-3.5 mr-1.5" />
               AI Matching Engine
-              {companyId && <span className="ml-1.5 flex"><PulseDot color="#10b981" /></span>}
+              {companyId && <span className="ml-1.5 flex"><PulseDot color="var(--dmq-emerald)" /></span>}
             </TabsTrigger>
             <TabsTrigger
               value="account-strategy"
@@ -1445,8 +1445,8 @@ export default function InternalIntelligenceScreen() {
       <style jsx global>{`
         .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.3); border-radius: 9999px; }
-        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.5); }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: var(--dmq-slate-thumb); border-radius: 9999px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb:hover { background: var(--dmq-slate-thumb-hover); }
       `}</style>
     </PageTransition>
   );

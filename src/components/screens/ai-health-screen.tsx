@@ -86,15 +86,15 @@ interface AIHealthData {
    ═══════════════════════════════════════════════════ */
 
 const TYPE_COLORS: Record<string, { bar: string; bg: string; text: string; dot: string }> = {
-  SIGNAL:        { bar: '#3B82F6', bg: 'rgba(59,130,246,0.10)',  text: 'text-blue-400',     dot: 'bg-blue-500'   },
-  RISK:          { bar: '#EF4444', bg: 'rgba(239,68,68,0.10)',   text: 'text-red-400',      dot: 'bg-red-500'    },
-  OPPORTUNITY:   { bar: '#10B981', bg: 'rgba(16,185,129,0.10)',  text: 'text-emerald-400',  dot: 'bg-emerald-500' },
-  RECOMMENDATION:{ bar: '#A855F7', bg: 'rgba(168,85,247,0.10)',  text: 'text-purple-400',   dot: 'bg-purple-500'  },
-  SCORING:       { bar: '#F59E0B', bg: 'rgba(245,158,11,0.10)',  text: 'text-amber-400',    dot: 'bg-amber-500'   },
-  FORECAST:      { bar: '#06B6D4', bg: 'rgba(6,182,212,0.10)',   text: 'text-cyan-400',     dot: 'bg-cyan-500'    },
+  SIGNAL:        { bar: 'var(--dmq-accent-blue)', bg: 'var(--dmq-accent-subtle)',  text: 'text-blue-400',     dot: 'bg-blue-500'   },
+  RISK:          { bar: 'var(--dmq-domain-risk)', bg: 'var(--dmq-risk-red-low)',   text: 'text-red-400',      dot: 'bg-red-500'    },
+  OPPORTUNITY:   { bar: 'var(--dmq-emerald)', bg: 'var(--dmq-emerald-bg)',  text: 'text-emerald-400',  dot: 'bg-emerald-500' },
+  RECOMMENDATION:{ bar: 'var(--dmq-domain-opportunity)', bg: 'var(--dmq-opportunity-purple-low)',  text: 'text-purple-400',   dot: 'bg-purple-500'  },
+  SCORING:       { bar: 'var(--dmq-domain-reasoning)', bg: 'var(--dmq-warning-amber-low)',  text: 'text-amber-400',    dot: 'bg-amber-500'   },
+  FORECAST:      { bar: 'var(--dmq-domain-enrichment)', bg: 'var(--dmq-enrichment-cyan-low)',   text: 'text-cyan-400',     dot: 'bg-cyan-500'    },
 };
 
-const DEFAULT_TYPE_COLOR = { bar: '#6B7280', bg: 'rgba(107,114,128,0.10)', text: 'text-gray-400', dot: 'bg-gray-500' };
+const DEFAULT_TYPE_COLOR = { bar: 'var(--dmq-neutral-500)', bg: 'var(--dmq-unverified-bg)', text: 'text-gray-400', dot: 'bg-gray-500' };
 
 function getTypeColor(type: string) {
   return TYPE_COLORS[type.toUpperCase()] ?? DEFAULT_TYPE_COLOR;
@@ -210,19 +210,19 @@ export default function AIHealthScreen({
       label: 'Avg Confidence',
       value: `${Math.round(quality.avgConfidence * 10)}%`,
       icon: Target,
-      color: quality.avgConfidence >= 0.7 ? '#10B981' : quality.avgConfidence >= 0.4 ? '#F59E0B' : '#EF4444',
+      color: quality.avgConfidence >= 0.7 ? 'var(--dmq-emerald)' : quality.avgConfidence >= 0.4 ? 'var(--dmq-domain-reasoning)' : 'var(--dmq-domain-risk)',
     },
     {
       label: 'Avg Impact Score',
       value: `${Math.round(quality.avgImpact * 10)}%`,
       icon: TrendingUp,
-      color: quality.avgImpact >= 0.7 ? '#06B6D4' : quality.avgImpact >= 0.4 ? '#A855F7' : '#6B7280',
+      color: quality.avgImpact >= 0.7 ? 'var(--dmq-domain-enrichment)' : quality.avgImpact >= 0.4 ? 'var(--dmq-domain-opportunity)' : 'var(--dmq-neutral-500)',
     },
     {
       label: 'Approval Rate',
       value: `${overview.approvalRate}%`,
       icon: CheckCircle2,
-      color: overview.approvalRate >= 80 ? '#10B981' : overview.approvalRate >= 50 ? '#F59E0B' : '#EF4444',
+      color: overview.approvalRate >= 80 ? 'var(--dmq-emerald)' : overview.approvalRate >= 50 ? 'var(--dmq-domain-reasoning)' : 'var(--dmq-domain-risk)',
     },
   ];
 
@@ -242,8 +242,8 @@ export default function AIHealthScreen({
               transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
               className="flex h-10 w-10 items-center justify-center rounded-xl"
               style={{
-                background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05))',
-                border: '1px solid rgba(212, 175, 55, 0.25)',
+                background: 'linear-gradient(135deg, var(--dmq-gold-border-faint), var(--dmq-gold-bg-dust))',
+                border: '1px solid var(--dmq-gold-bg-bright)',
               }}
             >
               <Brain className="h-5 w-5" style={{ color: 'var(--color-gold)' }} />
@@ -342,7 +342,7 @@ export default function AIHealthScreen({
 
                             {/* Bar */}
                             <div className="flex-1 h-6 rounded-md overflow-hidden relative"
-                              style={{ background: 'rgba(255,255,255,0.04)' }}
+                              style={{ background: 'var(--dmq-white-ghost)' }}
                             >
                               <motion.div
                                 className="h-full rounded-md relative"
@@ -410,9 +410,9 @@ export default function AIHealthScreen({
                     className="flex items-center gap-3 p-3 rounded-lg"
                     style={{
                       background: quality.highUrgencyCount > 0
-                        ? 'rgba(239, 68, 68, 0.08)'
-                        : 'rgba(16, 185, 129, 0.05)',
-                      border: `1px solid ${quality.highUrgencyCount > 0 ? 'rgba(239,68,68,0.15)' : 'rgba(16,185,129,0.1)'}`,
+                        ? 'var(--dmq-risk-bg-ghost)'
+                        : 'var(--dmq-emerald-bg-ghost)',
+                      border: `1px solid ${quality.highUrgencyCount > 0 ? 'var(--dmq-risk-bg-faint)' : 'var(--dmq-emerald-bg)'}`,
                     }}
                   >
                     <div
@@ -431,7 +431,7 @@ export default function AIHealthScreen({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-xs font-medium text-foreground">High Urgency</p>
-                        {quality.highUrgencyCount > 0 && <PulseDot color="#EF4444" />}
+                        {quality.highUrgencyCount > 0 && <PulseDot color="var(--dmq-domain-risk)" />}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {quality.highUrgencyCount > 0
@@ -460,9 +460,9 @@ export default function AIHealthScreen({
                     className="flex items-center gap-3 p-3 rounded-lg"
                     style={{
                       background: quality.expiringSoon > 0
-                        ? 'rgba(245, 158, 11, 0.08)'
-                        : 'rgba(16, 185, 129, 0.05)',
-                      border: `1px solid ${quality.expiringSoon > 0 ? 'rgba(245,158,11,0.15)' : 'rgba(16,185,129,0.1)'}`,
+                        ? 'var(--dmq-reasoning-bg-ghost)'
+                        : 'var(--dmq-emerald-bg-ghost)',
+                      border: `1px solid ${quality.expiringSoon > 0 ? 'var(--dmq-reasoning-bg-faint)' : 'var(--dmq-emerald-bg)'}`,
                     }}
                   >
                     <div
@@ -481,7 +481,7 @@ export default function AIHealthScreen({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
                         <p className="text-xs font-medium text-foreground">Expiring Soon</p>
-                        {quality.expiringSoon > 0 && <PulseDot color="#F59E0B" />}
+                        {quality.expiringSoon > 0 && <PulseDot color="var(--dmq-domain-reasoning)" />}
                       </div>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         {quality.expiringSoon > 0
@@ -509,8 +509,8 @@ export default function AIHealthScreen({
                     transition={{ duration: 0.4, delay: 0.4 }}
                     className="flex items-center gap-3 p-3 rounded-lg"
                     style={{
-                      background: 'rgba(59, 130, 246, 0.06)',
-                      border: '1px solid rgba(59, 130, 246, 0.1)',
+                      background: 'var(--dmq-accent-bg-micro)',
+                      border: '1px solid var(--dmq-accent-subtle)',
                     }}
                   >
                     <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-500/10">
@@ -622,14 +622,14 @@ export default function AIHealthScreen({
 
                           {/* Bar */}
                           <div className="flex-1 h-5 rounded-md overflow-hidden relative"
-                            style={{ background: 'rgba(255,255,255,0.04)' }}
+                            style={{ background: 'var(--dmq-white-ghost)' }}
                           >
                             <motion.div
                               className="h-full rounded-md"
                               style={{
                                 background: isTop
-                                  ? 'linear-gradient(90deg, var(--color-gold), rgba(212,175,55,0.7))'
-                                  : 'linear-gradient(90deg, rgba(107,114,128,0.5), rgba(107,114,128,0.3))',
+                                  ? 'linear-gradient(90deg, var(--color-gold), var(--dmq-gold-bg-rich))'
+                                  : 'linear-gradient(90deg, var(--dmq-unverified-border-strong), var(--dmq-unverified-border))',
                               }}
                               initial={{ width: 0 }}
                               animate={{ width: `${widthPct}%` }}
@@ -692,12 +692,12 @@ export default function AIHealthScreen({
                       className="h-full rounded-full"
                       style={{
                         background: quality.avgConfidence >= 0.7
-                          ? 'linear-gradient(90deg, #10B981, #34D399)'
+                          ? 'linear-gradient(90deg, var(--dmq-emerald), var(--dmq-emerald-light))'
                           : quality.avgConfidence >= 0.4
-                          ? 'linear-gradient(90deg, #F59E0B, #FBBF24)'
-                          : 'linear-gradient(90deg, #EF4444, #F87171)',
+                          ? 'linear-gradient(90deg, var(--dmq-domain-reasoning), var(--dmq-amber))'
+                          : 'linear-gradient(90deg, var(--dmq-domain-risk), var(--dmq-red-light))',
                         boxShadow: quality.avgConfidence >= 0.7
-                          ? '0 0 8px rgba(16,185,129,0.4)'
+                          ? '0 0 8px var(--dmq-emerald-bg-strong)'
                           : 'none',
                       }}
                       initial={{ width: 0 }}
@@ -735,12 +735,12 @@ export default function AIHealthScreen({
                       className="h-full rounded-full"
                       style={{
                         background: quality.avgImpact >= 0.7
-                          ? 'linear-gradient(90deg, #06B6D4, #22D3EE)'
+                          ? 'linear-gradient(90deg, var(--dmq-domain-enrichment), var(--dmq-cyan))'
                           : quality.avgImpact >= 0.4
-                          ? 'linear-gradient(90deg, #A855F7, #C084FC)'
-                          : 'linear-gradient(90deg, #6B7280, #9CA3AF)',
+                          ? 'linear-gradient(90deg, var(--dmq-domain-opportunity), var(--dmq-purple-light))'
+                          : 'linear-gradient(90deg, var(--dmq-neutral-500), var(--dmq-neutral-400))',
                         boxShadow: quality.avgImpact >= 0.7
-                          ? '0 0 8px rgba(6,182,212,0.4)'
+                          ? '0 0 8px var(--dmq-enrichment-cyan-high)'
                           : 'none',
                       }}
                       initial={{ width: 0 }}

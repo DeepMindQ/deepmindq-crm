@@ -15,6 +15,7 @@
  */
 
 import type { RevenueScore } from '@/lib/engines/scoring-engine';
+import { tokens } from '@/lib/design-tokens';
 import type { ActionResult } from '@/lib/engines/action-engine';
 import type { ConversationResult } from '@/lib/engines/conversation-engine';
 import type { ReasoningResult } from '@/lib/enterprise-reasoning-engine';
@@ -671,11 +672,11 @@ export function normalizeTierForDisplay(tier: string | null | undefined, scoreSy
 export function getTierColor(tier: string | null | undefined, scoreSystem: 'intelligence' | 'accountPriority' | 'revenue'): string {
   const display = normalizeTierForDisplay(tier, scoreSystem);
   switch (display) {
-    case 'High': case 'Hot': return '#059669';
-    case 'Medium': case 'Warm': return '#D97706';
-    case 'Low': case 'Cold': return '#F59E0B';
-    case 'At Risk': return '#DC2626';
-    case 'Very Stale': return '#9CA3AF';
-    default: return '#9CA3AF';
+    case 'High': case 'Hot': return tokens.extended.emeraldDeep.value;
+    case 'Medium': case 'Warm': return tokens.extended.amberDeep.value;
+    case 'Low': case 'Cold': return tokens.domain.reasoning;
+    case 'At Risk': return tokens.extended.red.value;
+    case 'Very Stale': return tokens.neutral['400'];
+    default: return tokens.neutral['400'];
   }
 }

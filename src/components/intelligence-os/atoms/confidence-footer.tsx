@@ -73,8 +73,8 @@ export function ConfidenceFooter({
         className,
       )}
       style={{
-        backgroundColor: 'rgba(139, 92, 246, 0.06)',
-        border: '1px solid rgba(139, 92, 246, 0.15)',
+        backgroundColor: tokens.extended.purple.bgSubtle,
+        border: `1px solid ${tokens.extended.purple.border}`,
       }}
       role="status"
       aria-label={`Confidence: ${score}%`}

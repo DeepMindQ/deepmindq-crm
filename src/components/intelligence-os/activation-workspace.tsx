@@ -1,5 +1,6 @@
 'use client';
 
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -127,10 +128,10 @@ export function ActivationWorkspace() {
             <span className="text-xs font-medium text-muted-foreground">DeepMindQ understands:</span>
           </div>
           {[
-            { label: 'Capabilities', value: counts.capabilities, color: '#8B5CF6' },
-            { label: 'Accounts', value: counts.accounts, color: '#2563EB' },
-            { label: 'Signals', value: counts.signals, color: '#F59E0B' },
-            { label: 'Knowledge', value: counts.knowledge, color: '#06B6D4' },
+            { label: 'Capabilities', value: counts.capabilities, color: tokens.extended.purple.value },
+            { label: 'Accounts', value: counts.accounts, color: tokens.accent.dim },
+            { label: 'Signals', value: counts.signals, color: tokens.domain.reasoning },
+            { label: 'Knowledge', value: counts.knowledge, color: tokens.domain.enrichment },
           ].map(item => (
             <div key={item.label} className="flex items-center gap-2">
               <span className={`text-sm font-semibold tabular-nums ${item.value > 0 ? 'text-foreground' : 'text-muted-foreground/40'}`}>

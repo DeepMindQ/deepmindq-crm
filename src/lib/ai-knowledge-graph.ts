@@ -34,7 +34,20 @@ import {
   type ExtractedEntity,
   type EntityType,
 } from '@/lib/ai-hybrid-retrieval';
-import { persistWrite, persistDelete } from '@/lib/persistence/persistence-integration';
+import {
+  writeNode as dbWriteNode,
+  readNode as dbReadNode,
+  deleteNode as dbDeleteNode,
+  writeEdge as dbWriteEdge,
+  readEdge as dbReadEdge,
+  deleteEdge as dbDeleteEdge,
+  getEdgesBySource as dbGetEdgesBySource,
+  getEdgesByTarget as dbGetEdgesByTarget,
+  searchNodes as dbSearchNodes,
+  warmCacheFromDb as warmGraphCacheFromDb,
+  nodeFromDb,
+  edgeFromDb,
+} from '@/lib/ai-knowledge-graph-db';
 
 // ── Graph Data Model ──────────────────────────────────────────────
 
@@ -322,10 +335,10 @@ let seeded = false;
 // ── Graph Construction ─────────────────────────────────────────────
 
 /**
- * Add a node to the graph. If a node with the same ID exists,
- * it is updated (upsert).
+ * Add a node to the graph (async — persists to DB).
+ * If a node with the same ID exists, it is updated (upsert).
  */
-export function addNode(node: Omit<GraphNode, 'createdAt' | 'updatedAt'>): GraphNode {
+export async function addNode(node: Omit<GraphNode, 'createdAt' | 'updatedAt'>): Promise<GraphNode> {
   const now = Date.now();
   const existing = nodeStore.get(node.id);
 
@@ -336,12 +349,18 @@ export function addNode(node: Omit<GraphNode, 'createdAt' | 'updatedAt'>): Graph
     confidence: node.confidence ?? (existing?.confidence ?? 0.7),
   };
 
-  nodeStore.set(node.id, fullNode);
+  // P1.2: Persist to DB first (source of truth)
+  try {
+    await dbWriteNode(fullNode);
+  } catch (err) {
+    logger.warn('[P1.2] addNode DB write failed, keeping in-memory only', {
+      id: fullNode.id.slice(0, 12),
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
-  // WI-18.2: Persist to DB (non-blocking, fire-and-forget)
-  // companyId is extracted from node properties if present (Lock L3)
-  const nodeCompanyId = (fullNode as any)._companyId as string | undefined;
-  persistWrite('knowledge_graph_nodes', node.id, fullNode as unknown as Record<string, unknown>, nodeCompanyId).catch(() => {});
+  // Update in-memory hot cache
+  nodeStore.set(node.id, fullNode);
 
   // Update indices
   // Label index
@@ -373,19 +392,72 @@ export function addNode(node: Omit<GraphNode, 'createdAt' | 'updatedAt'>): Graph
 }
 
 /**
- * Add an edge to the graph. If an edge with the same ID exists,
- * it is updated. Both source and target nodes must already exist
- * (or be added simultaneously).
+ * Sync wrapper for addNode — backward compatibility.
+ * Performs in-memory update only; DB write is fire-and-forget.
  */
-export function addEdge(edge: Omit<GraphEdge, 'createdAt'>): GraphEdge {
+export function addNodeSync(node: Omit<GraphNode, 'createdAt' | 'updatedAt'>): GraphNode {
+  const now = Date.now();
+  const existing = nodeStore.get(node.id);
+
+  const fullNode: GraphNode = {
+    ...node,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+    confidence: node.confidence ?? (existing?.confidence ?? 0.7),
+  };
+
+  // Fire-and-forget DB write
+  dbWriteNode(fullNode).catch(() => {});
+
+  // Update in-memory hot cache
+  nodeStore.set(node.id, fullNode);
+
+  // Update indices
+  const normalizedLabel = normalizeLabel(node.label);
+  const labelNodes = labelIndex.get(normalizedLabel) || [];
+  if (!labelNodes.includes(node.id)) {
+    labelNodes.push(node.id);
+    labelIndex.set(normalizedLabel, labelNodes);
+  }
+
+  const typeNodes = typeIndex.get(node.type) || [];
+  if (!typeNodes.includes(node.id)) {
+    typeNodes.push(node.id);
+    typeIndex.set(node.type, typeNodes);
+  }
+
+  for (const alias of node.aliases || []) {
+    const normAlias = normalizeLabel(alias);
+    const aliasNodes = labelIndex.get(normAlias) || [];
+    if (!aliasNodes.includes(node.id)) {
+      aliasNodes.push(node.id);
+      labelIndex.set(normAlias, aliasNodes);
+    }
+  }
+
+  return fullNode;
+}
+
+/**
+ * Add an edge to the graph (async — persists to DB).
+ * If an edge with the same ID exists, it is updated.
+ */
+export async function addEdge(edge: Omit<GraphEdge, 'createdAt'>): Promise<GraphEdge> {
   const now = Date.now();
   const fullEdge: GraphEdge = { ...edge, createdAt: now };
 
-  edgeStore.set(edge.id, fullEdge);
+  // P1.2: Persist to DB first (source of truth)
+  try {
+    await dbWriteEdge(fullEdge);
+  } catch (err) {
+    logger.warn('[P1.2] addEdge DB write failed, keeping in-memory only', {
+      id: fullEdge.id.slice(0, 12),
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
 
-  // WI-18.2: Persist to DB (non-blocking, fire-and-forget)
-  const edgeCompanyId = (fullEdge as any)._companyId as string | undefined;
-  persistWrite('knowledge_graph_edges', edge.id, fullEdge as unknown as Record<string, unknown>, edgeCompanyId).catch(() => {});
+  // Update in-memory hot cache
+  edgeStore.set(edge.id, fullEdge);
 
   // Source edge index
   const sourceEdges = sourceEdgeIndex.get(edge.sourceId) || [];
@@ -412,19 +484,57 @@ export function addEdge(edge: Omit<GraphEdge, 'createdAt'>): GraphEdge {
 }
 
 /**
- * Remove a node and all its connected edges from the graph.
+ * Sync wrapper for addEdge — backward compatibility.
+ * Performs in-memory update only; DB write is fire-and-forget.
  */
-export function removeNode(nodeId: string): boolean {
+export function addEdgeSync(edge: Omit<GraphEdge, 'createdAt'>): GraphEdge {
+  const now = Date.now();
+  const fullEdge: GraphEdge = { ...edge, createdAt: now };
+
+  // Fire-and-forget DB write
+  dbWriteEdge(fullEdge).catch(() => {});
+
+  // Update in-memory hot cache
+  edgeStore.set(edge.id, fullEdge);
+
+  // Source edge index
+  const sourceEdges = sourceEdgeIndex.get(edge.sourceId) || [];
+  if (!sourceEdges.includes(edge.id)) {
+    sourceEdges.push(edge.id);
+    sourceEdgeIndex.set(edge.sourceId, sourceEdges);
+  }
+
+  // Target edge index
+  const targetEdges = targetEdgeIndex.get(edge.targetId) || [];
+  if (!targetEdges.includes(edge.id)) {
+    targetEdges.push(edge.id);
+    targetEdgeIndex.set(edge.targetId, targetEdges);
+  }
+
+  // Relationship index
+  const relEdges = relationshipIndex.get(edge.relationship) || [];
+  if (!relEdges.includes(edge.id)) {
+    relEdges.push(edge.id);
+    relationshipIndex.set(edge.relationship, relEdges);
+  }
+
+  return fullEdge;
+}
+
+/**
+ * Remove a node and all its connected edges from the graph (async — persists to DB).
+ */
+export async function removeNode(nodeId: string): Promise<boolean> {
   const node = nodeStore.get(nodeId);
   if (!node) return false;
 
-  // Remove all connected edges
+  // Remove all connected edges (in-memory, sync)
   const edgeIds = new Set([
     ...(sourceEdgeIndex.get(nodeId) || []),
     ...(targetEdgeIndex.get(nodeId) || []),
   ]);
   for (const edgeId of edgeIds) {
-    removeEdge(edgeId);
+    removeEdgeSync(edgeId);
   }
 
   // Remove from label index
@@ -436,15 +546,57 @@ export function removeNode(nodeId: string): boolean {
   typeIndex.set(node.type, (typeIndex.get(node.type) || []).filter(id => id !== nodeId));
 
   const deleted = nodeStore.delete(nodeId);
-  // WI-18.2: Persist delete to DB (non-blocking)
-  persistDelete('knowledge_graph_nodes', nodeId).catch(() => {});
+
+  // P1.2: Delete from DB (cascades edges)
+  try {
+    await dbDeleteNode(nodeId);
+  } catch (err) {
+    logger.warn('[P1.2] removeNode DB delete failed', {
+      id: nodeId.slice(0, 12),
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
   return deleted;
 }
 
 /**
- * Remove an edge from the graph and update indices.
+ * Sync wrapper for removeNode — backward compatibility.
+ * In-memory removal only; DB delete is fire-and-forget.
  */
-export function removeEdge(edgeId: string): boolean {
+export function removeNodeSync(nodeId: string): boolean {
+  const node = nodeStore.get(nodeId);
+  if (!node) return false;
+
+  // Remove all connected edges (in-memory, sync)
+  const edgeIds = new Set([
+    ...(sourceEdgeIndex.get(nodeId) || []),
+    ...(targetEdgeIndex.get(nodeId) || []),
+  ]);
+  for (const edgeId of edgeIds) {
+    removeEdgeSync(edgeId);
+  }
+
+  // Remove from label index
+  for (const [label, ids] of labelIndex) {
+    labelIndex.set(label, ids.filter(id => id !== nodeId));
+  }
+
+  // Remove from type index
+  typeIndex.set(node.type, (typeIndex.get(node.type) || []).filter(id => id !== nodeId));
+
+  const deleted = nodeStore.delete(nodeId);
+
+  // Fire-and-forget DB delete
+  dbDeleteNode(nodeId).catch(() => {});
+
+  return deleted;
+}
+
+/**
+ * Remove an edge from the graph and update indices (async — persists to DB).
+ */
+export async function removeEdge(edgeId: string): Promise<boolean> {
   const edge = edgeStore.get(edgeId);
   if (!edge) return false;
 
@@ -461,36 +613,162 @@ export function removeEdge(edgeId: string): boolean {
   relationshipIndex.set(edge.relationship, relEdges.filter(id => id !== edgeId));
 
   const deleted = edgeStore.delete(edgeId);
-  // WI-18.2: Persist delete to DB (non-blocking)
-  persistDelete('knowledge_graph_edges', edgeId).catch(() => {});
+
+  // P1.2: Delete from DB
+  try {
+    await dbDeleteEdge(edgeId);
+  } catch (err) {
+    logger.warn('[P1.2] removeEdge DB delete failed', {
+      id: edgeId.slice(0, 12),
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  return deleted;
+}
+
+/**
+ * Sync wrapper for removeEdge — backward compatibility.
+ * In-memory removal only; DB delete is fire-and-forget.
+ */
+export function removeEdgeSync(edgeId: string): boolean {
+  const edge = edgeStore.get(edgeId);
+  if (!edge) return false;
+
+  // Remove from source index
+  const sourceEdges = sourceEdgeIndex.get(edge.sourceId) || [];
+  sourceEdgeIndex.set(edge.sourceId, sourceEdges.filter(id => id !== edgeId));
+
+  // Remove from target index
+  const targetEdges = targetEdgeIndex.get(edge.targetId) || [];
+  targetEdgeIndex.set(edge.targetId, targetEdges.filter(id => id !== edgeId));
+
+  // Remove from relationship index
+  const relEdges = relationshipIndex.get(edge.relationship) || [];
+  relationshipIndex.set(edge.relationship, relEdges.filter(id => id !== edgeId));
+
+  const deleted = edgeStore.delete(edgeId);
+
+  // Fire-and-forget DB delete
+  dbDeleteEdge(edgeId).catch(() => {});
+
   return deleted;
 }
 
 /**
  * Resolve a label or alias to a graph node.
  * Returns all matching nodes (entity resolution may yield multiple candidates).
+ * Falls back to DB when in-memory index misses.
  */
-export function resolveEntity(label: string): GraphNode[] {
+export async function resolveEntity(label: string): Promise<GraphNode[]> {
   const normalized = normalizeLabel(label);
+
+  // In-memory first
   const ids = labelIndex.get(normalized) || [];
-  return ids.map(id => nodeStore.get(id)!).filter(Boolean);
+  const memNodes = ids.map(id => nodeStore.get(id)!).filter(Boolean);
+  if (memNodes.length > 0) return memNodes;
+
+  // DB fallback — search by label
+  try {
+    const dbRows = await dbSearchNodes(normalized, 20);
+    const dbNodes = dbRows.map(r => nodeFromDb(r));
+    // Cache in memory
+    for (const node of dbNodes) {
+      nodeStore.set(node.id, node);
+      const nLabel = normalizeLabel(node.label);
+      const existing = labelIndex.get(nLabel) || [];
+      if (!existing.includes(node.id)) {
+        labelIndex.set(nLabel, [...existing, node.id]);
+      }
+      const tIdx = typeIndex.get(node.type) || [];
+      if (!tIdx.includes(node.id)) {
+        typeIndex.set(node.type, [...tIdx, node.id]);
+      }
+    }
+    return dbNodes;
+  } catch {
+    // DB search failed
+  }
+
+  return [];
 }
 
 /**
  * Find a node by its ID.
+ * Falls back to DB when the in-memory store misses.
  */
-export function getNode(id: string): GraphNode | undefined {
-  return nodeStore.get(id);
+export async function getNode(id: string): Promise<GraphNode | undefined> {
+  // In-memory first
+  const node = nodeStore.get(id);
+  if (node) return node;
+
+  // DB fallback
+  try {
+    const dbRow = await dbReadNode(id);
+    if (dbRow) {
+      const dbNode = nodeFromDb(dbRow);
+      // Cache in memory
+      nodeStore.set(dbNode.id, dbNode);
+      const nLabel = normalizeLabel(dbNode.label);
+      const existing = labelIndex.get(nLabel) || [];
+      if (!existing.includes(dbNode.id)) {
+        labelIndex.set(nLabel, [...existing, dbNode.id]);
+      }
+      const tIdx = typeIndex.get(dbNode.type) || [];
+      if (!tIdx.includes(dbNode.id)) {
+        typeIndex.set(dbNode.type, [...tIdx, dbNode.id]);
+      }
+      return dbNode;
+    }
+  } catch {
+    // DB read failed
+  }
+
+  return undefined;
 }
 
 /**
  * Get all edges connected to a node (both outgoing and incoming).
+ * Falls back to DB when in-memory indexes miss.
  */
-export function getNodeEdges(nodeId: string): GraphEdge[] {
+export async function getNodeEdges(nodeId: string): Promise<GraphEdge[]> {
+  // In-memory first
   const outgoingIds = sourceEdgeIndex.get(nodeId) || [];
   const incomingIds = targetEdgeIndex.get(nodeId) || [];
   const allIds = [...new Set([...outgoingIds, ...incomingIds])];
-  return allIds.map(id => edgeStore.get(id)!).filter(Boolean);
+  const memEdges = allIds.map(id => edgeStore.get(id)!).filter(Boolean);
+
+  if (memEdges.length > 0) return memEdges;
+
+  // DB fallback
+  try {
+    const [dbOutRows, dbInRows] = await Promise.all([
+      dbGetEdgesBySource(nodeId),
+      dbGetEdgesByTarget(nodeId),
+    ]);
+
+    const allDbRows = [...dbOutRows, ...dbInRows];
+    const dbEdges = allDbRows.map(r => edgeFromDb(r));
+
+    // Cache edges in memory
+    for (const edge of dbEdges) {
+      edgeStore.set(edge.id, edge);
+      const outIdx = sourceEdgeIndex.get(edge.sourceId) || [];
+      if (!outIdx.includes(edge.id)) {
+        sourceEdgeIndex.set(edge.sourceId, [...outIdx, edge.id]);
+      }
+      const inIdx = targetEdgeIndex.get(edge.targetId) || [];
+      if (!inIdx.includes(edge.id)) {
+        targetEdgeIndex.set(edge.targetId, [...inIdx, edge.id]);
+      }
+    }
+
+    return dbEdges;
+  } catch {
+    // DB read failed
+  }
+
+  return [];
 }
 
 /**
@@ -666,7 +944,7 @@ export function populateGraphFromIntelligence(
 
     const existing = nodeStore.get(nodeId);
     if (!existing) {
-      addNode({
+      addNodeSync({
         id: nodeId,
         label: entity.normalized,
         type: graphType,
@@ -694,7 +972,7 @@ export function populateGraphFromIntelligence(
       const existing = edgeStore.get(edgeId);
 
       if (!existing) {
-        addEdge({
+        addEdgeSync({
           id: edgeId,
           sourceId: sourceNodeId,
           targetId: targetNodeId,
@@ -1656,12 +1934,98 @@ export function getAllEdges(): GraphEdge[] {
   return Array.from(edgeStore.values());
 }
 
+// ── P1.2: Cold Start from DB ──────────────────────────────────────
+
+/**
+ * Ensure the in-memory graph is populated — either from DB or seed data.
+ * Call once on module initialization. Idempotent: no-ops if already seeded.
+ *
+ * P1.2 strategy:
+ *   1. If seeded flag is set → return immediately.
+ *   2. Try loading from DB via warmGraphCacheFromDb().
+ *   3. If DB has data → populate in-memory maps + indices → set seeded.
+ *   4. If DB is empty → caller should fall through to seedKnowledgeGraph().
+ */
+export async function ensureGraphLoaded(): Promise<boolean> {
+  if (seeded) return true;
+
+  try {
+    const { nodes, edges } = await warmGraphCacheFromDb();
+
+    if (nodes.length > 0 || edges.length > 0) {
+      // Use hydrateNodes/hydrateEdges to rebuild all indices
+      const graphNodes = nodes.map(n => nodeFromDb(n as unknown as Record<string, unknown>));
+      const graphEdges = edges.map(e => edgeFromDb(e as unknown as Record<string, unknown>));
+
+      for (const n of graphNodes) {
+        nodeStore.set(n.id, n);
+      }
+      for (const e of graphEdges) {
+        edgeStore.set(e.id, e);
+      }
+
+      // Rebuild derived indices
+      for (const n of graphNodes) {
+        const normalizedLabel = normalizeLabel(n.label);
+        const labelNodes = labelIndex.get(normalizedLabel) || [];
+        if (!labelNodes.includes(n.id)) {
+          labelNodes.push(n.id);
+          labelIndex.set(normalizedLabel, labelNodes);
+        }
+        const typeNodes = typeIndex.get(n.type) || [];
+        if (!typeNodes.includes(n.id)) {
+          typeNodes.push(n.id);
+          typeIndex.set(n.type, typeNodes);
+        }
+        for (const alias of n.aliases || []) {
+          const normAlias = normalizeLabel(alias);
+          const aliasNodes = labelIndex.get(normAlias) || [];
+          if (!aliasNodes.includes(n.id)) {
+            aliasNodes.push(n.id);
+            labelIndex.set(normAlias, aliasNodes);
+          }
+        }
+      }
+      for (const e of graphEdges) {
+        const srcEdges = sourceEdgeIndex.get(e.sourceId) || [];
+        if (!srcEdges.includes(e.id)) {
+          srcEdges.push(e.id);
+          sourceEdgeIndex.set(e.sourceId, srcEdges);
+        }
+        const tgtEdges = targetEdgeIndex.get(e.targetId) || [];
+        if (!tgtEdges.includes(e.id)) {
+          tgtEdges.push(e.id);
+          targetEdgeIndex.set(e.targetId, tgtEdges);
+        }
+        const relEdges = relationshipIndex.get(e.relationship) || [];
+        if (!relEdges.includes(e.id)) {
+          relEdges.push(e.id);
+          relationshipIndex.set(e.relationship, relEdges);
+        }
+      }
+
+      logger.info('[P1.2] Loaded graph from DB', { nodes: nodes.length, edges: edges.length });
+      seeded = true;
+      return true;
+    }
+  } catch (err) {
+    logger.warn('[P1.2] ensureGraphLoaded failed, falling back to seed data', {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+
+  return false;
+}
+
 // ── Seed Data ──────────────────────────────────────────────────────
 
 /**
  * Seed the knowledge graph with a realistic enterprise dataset.
  * This represents the kind of interconnected intelligence that
  * makes graph reasoning valuable.
+ *
+ * P1.2: In production, prefer ensureGraphLoaded() to hydrate from DB.
+ * This seed function is kept as fallback for empty databases.
  */
 export function seedKnowledgeGraph(): void {
   if (seeded) return;
@@ -1680,7 +2044,7 @@ export function seedKnowledgeGraph(): void {
   ];
 
   for (const c of companies) {
-    addNode({ id: c.id, label: c.label, type: 'company', aliases: c.aliases, properties: c.properties, confidence: 0.95 });
+    addNodeSync({ id: c.id, label: c.label, type: 'company', aliases: c.aliases, properties: c.properties, confidence: 0.95 });
   }
 
   // ── People ──
@@ -1696,7 +2060,7 @@ export function seedKnowledgeGraph(): void {
   ];
 
   for (const p of people) {
-    addNode({ id: p.id, label: p.label, type: 'person', aliases: p.aliases, properties: p.properties, confidence: 0.9 });
+    addNodeSync({ id: p.id, label: p.label, type: 'person', aliases: p.aliases, properties: p.properties, confidence: 0.9 });
   }
 
   // ── Technologies ──
@@ -1716,7 +2080,7 @@ export function seedKnowledgeGraph(): void {
   ];
 
   for (const t of technologies) {
-    addNode({ id: t.id, label: t.label, type: 'technology', aliases: t.aliases, properties: t.properties, confidence: 0.95 });
+    addNodeSync({ id: t.id, label: t.label, type: 'technology', aliases: t.aliases, properties: t.properties, confidence: 0.95 });
   }
 
   // ── Capabilities ──
@@ -1730,7 +2094,7 @@ export function seedKnowledgeGraph(): void {
   ];
 
   for (const c of capabilities) {
-    addNode({ id: c.id, label: c.label, type: 'capability', aliases: [], properties: c.properties, confidence: 0.85 });
+    addNodeSync({ id: c.id, label: c.label, type: 'capability', aliases: [], properties: c.properties, confidence: 0.85 });
   }
 
   // ── Industries ──
@@ -1742,7 +2106,7 @@ export function seedKnowledgeGraph(): void {
   ];
 
   for (const ind of industries) {
-    addNode({ id: ind.id, label: ind.label, type: 'industry', aliases: ind.aliases, properties: {}, confidence: 0.9 });
+    addNodeSync({ id: ind.id, label: ind.label, type: 'industry', aliases: ind.aliases, properties: {}, confidence: 0.9 });
   }
 
   // ── Signals ──
@@ -1757,7 +2121,7 @@ export function seedKnowledgeGraph(): void {
   ];
 
   for (const s of signals) {
-    addNode({ id: s.id, label: s.label, type: 'signal', aliases: [], properties: s.properties, confidence: 0.8 });
+    addNodeSync({ id: s.id, label: s.label, type: 'signal', aliases: [], properties: s.properties, confidence: 0.8 });
   }
 
   // ── Relationships (Edges) ──
@@ -1836,7 +2200,7 @@ export function seedKnowledgeGraph(): void {
   ];
 
   for (const edge of edges) {
-    addEdge(edge);
+    addEdgeSync(edge);
   }
 
   logger.info('[WI-16G] Knowledge graph seeded', {

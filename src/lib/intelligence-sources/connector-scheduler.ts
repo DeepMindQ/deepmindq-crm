@@ -8,7 +8,55 @@
 
 import { db } from '@/lib/db';
 import type { SourceType } from './types';
-import { enqueueJob } from './job-queue';
+import { enqueueJob, registerJobProcessor } from './job-queue';
+
+// ── Wire up the connector job processor on module load ──
+// This registers the processor so that enqueued connector jobs
+// actually execute instead of sitting in "running" state forever.
+let _processorRegistered = false;
+function ensureProcessorRegistered(): void {
+  if (_processorRegistered) return;
+  _processorRegistered = true;
+
+  registerJobProcessor(async (job) => {
+    const { connectorId, action, config } = job.payload;
+    try {
+      if (action === 'acquire' || action === 'sync') {
+        // Dynamically import the appropriate connector based on sourceType
+        const sourceType = (config?.sourceType as string) || 'crunchbase';
+        if (sourceType === 'crunchbase') {
+          const { crunchbaseConnector } = await import('./connectors/crunchbase-connector');
+          await crunchbaseConnector.run(config);
+        } else {
+          // Generic fallback: log and complete
+          const { logger } = await import('@/lib/logger');
+          logger.info(`[connector-scheduler] No handler for sourceType "${sourceType}", completing job ${job.id}`);
+        }
+      } else if (action === 'test') {
+        // Test action — just mark as completed
+        const { logger } = await import('@/lib/logger');
+        logger.info(`[connector-scheduler] Test run completed for ${connectorId}`);
+      }
+    } catch (err) {
+      const { logger } = await import('@/lib/logger');
+      logger.error(`[connector-scheduler] Job ${job.id} failed for ${connectorId}:`, { error: err });
+      // Mark as failed in DB
+      try {
+        await db.connectorRun.update({
+          where: { id: job.id },
+          data: { status: 'failed', completedAt: new Date() },
+        });
+        await db.connector.update({
+          where: { id: connectorId },
+          data: { failureCount: { increment: 1 } },
+        });
+      } catch { /* ignore DB errors */ }
+    }
+  });
+}
+
+// Auto-register on first import
+ensureProcessorRegistered();
 
 // ---------------------------------------------------------------------------
 // Exported types

@@ -10,29 +10,44 @@
  * If tenantId is provided, applies tenant-specific weights from TenantScoringConfig.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { computeUnifiedConfidence, type ConfidenceInput, type ConfidenceDimension } from '@/lib/ai-unified-confidence';
 import { getTenantConfig } from '@/lib/tenant-scoring-config';
 import { checkApiAuth } from '@/lib/api-auth';
+import { utilityGuard, utilitySuccess, utilityError, utilityCatchError, RateLimitedError } from '@/lib/intelligence-api/guard';
 
 // ── GET ─────────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+
+  const { errorResponse } = await checkApiAuth(request);
+  if (errorResponse) return errorResponse;
+
+  try {
+    const ctx = utilityGuard(request, 'unified-score');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (e) {
+    if (e instanceof RateLimitedError) {
+      return new Response(JSON.stringify(e.errorBody), { status: 429, headers: e.headers });
+    }
+    throw e;
+  }
+
+  const ctx = { correlationId, responseHeaders };
+  const startedAt = Date.now();
+
   try {
     const url = new URL(request.url);
     const companyId = url.searchParams.get('companyId');
     const tenantId = url.searchParams.get('tenantId') || undefined;
 
-    const { errorResponse } = await checkApiAuth(request);
-    if (errorResponse) return errorResponse;
-
     if (!companyId) {
-      return NextResponse.json(
-        { success: false, error: 'companyId query parameter is required' },
-        { status: 400 },
-      );
+      return utilityError(ctx, 400, 'companyId query parameter is required', 'VALIDATION_FAILED', Date.now() - startedAt);
     }
 
     // Fetch company and related data in parallel
@@ -57,10 +72,7 @@ export async function GET(request: NextRequest) {
     ]);
 
     if (!company) {
-      return NextResponse.json(
-        { success: false, error: 'Company not found' },
-        { status: 404 },
-      );
+      return utilityError(ctx, 404, 'Company not found', 'COMPANY_NOT_FOUND', Date.now() - startedAt);
     }
 
     // Compute days since last enrichment
@@ -141,13 +153,8 @@ export async function GET(request: NextRequest) {
       ...(tenantId ? { tenantId } : {}),
     });
 
-    return NextResponse.json({ success: true, data: response });
+    return utilitySuccess(ctx, response, 'unified-score', Date.now() - startedAt);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    logger.error('[unified-score] GET failed', { error: message });
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 },
-    );
+    return utilityCatchError(ctx, error, 500, 'INTERNAL_ERROR', 'unified-score', Date.now() - startedAt);
   }
 }

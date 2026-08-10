@@ -448,7 +448,7 @@ export default function ImportScreen({ navigateTo }: ImportScreenProps) {
             <button
               onClick={() => goToStep(s)}
               disabled={isPending}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium transition-all
+              className={`flex items-center gap-1.5 px-2.5 py-2.5 rounded-full text-xs font-medium transition-all
                 ${isActive ? 'bg-blue-600 text-white shadow-sm' : ''}
                 ${isComplete && !isActive ? 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 cursor-pointer' : ''}
                 ${isPending ? 'text-slate-400 cursor-not-allowed' : ''}

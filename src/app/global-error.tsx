@@ -1,15 +1,16 @@
 'use client';
 
 import { AlertTriangle, RotateCcw } from 'lucide-react';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 
 const C = {
   bg: '#0A0E1A',
-  blue: '#3B82F6',
-  blueDim: '#2563EB',
-  blueBg: 'rgba(59,130,246,0.1)',
-  blueBorder: 'rgba(59,130,246,0.2)',
-  textSub: '#8892A8',
-  white: '#E8ECF4',
+  blue: tokens.accent.DEFAULT,
+  blueDim: tokens.accent.dim,
+  blueBg: tokens.accent.subtle,
+  blueBorder: tokens.accent.strong,
+  textSub: tokens.text.secondary,
+  white: tokens.text.primary,
 };
 
 export default function GlobalError({
@@ -52,7 +53,7 @@ export default function GlobalError({
               <button
                 onClick={reset}
                 className="inline-flex items-center gap-2 px-5 py-3 rounded-lg text-[14px] font-semibold transition-colors"
-                style={{ background: C.blueDim, color: '#FFFFFF' }}
+                style={{ background: C.blueDim, color: tokens.flat.white }}
               >
                 <RotateCcw className="w-4 h-4" />
                 Try Again
@@ -60,7 +61,7 @@ export default function GlobalError({
               <a
                 href="/"
                 className="inline-flex items-center gap-2 px-5 py-3 rounded-lg text-[14px] font-semibold transition-colors"
-                style={{ border: '1px solid #1e2535', color: C.textSub }}
+                style={{ border: '1px solid {tokens.border.default}', color: C.textSub }}
               >
                 Reload
               </a>

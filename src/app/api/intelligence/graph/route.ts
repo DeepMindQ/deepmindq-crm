@@ -91,11 +91,11 @@ export async function GET(request: NextRequest): Promise<Response> {
         if (!id) {
           return Response.json({ error: 'Missing required parameter: id' }, { status: 400 });
         }
-        const node = getNode(id);
+        const node = await getNode(id);
         if (!node) {
           return Response.json({ error: `Entity not found: ${id}` }, { status: 404 });
         }
-        const edges = getNodeEdges(id);
+        const edges = await getNodeEdges(id);
         return Response.json({
           view: 'entity',
           data: { node, edges, edgeCount: edges.length },
@@ -108,7 +108,7 @@ export async function GET(request: NextRequest): Promise<Response> {
         if (!label) {
           return Response.json({ error: 'Missing required parameter: label' }, { status: 400 });
         }
-        const matches = resolveEntity(label);
+        const matches = await resolveEntity(label);
         return Response.json({
           view: 'resolve',
           data: { query: label, matches, count: matches.length },

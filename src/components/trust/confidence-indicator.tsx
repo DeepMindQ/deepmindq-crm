@@ -3,6 +3,9 @@
    
    Displays a colored dot/bar with optional label.
    High = green, Medium = amber, Low = red.
+   
+   Phase 2.9: Updated to use 5-tier trust classification from
+   the unified confidence system (ai-unified-confidence.ts).
    ═══════════════════════════════════════════════════ */
 
 'use client';
@@ -13,7 +16,19 @@ interface ConfidenceIndicatorProps {
   level: 'high' | 'medium' | 'low';
   label?: string;
   variant?: 'dot' | 'bar' | 'badge';
+  /** Phase 2.9: Direct numeric score (0-100). When provided, maps to 5-tier trust classification. */
+  score?: number;
   className?: string;
+}
+
+function scoreToLevel(score: number): 'high' | 'medium' | 'low' {
+  // Phase 2.9: Map unified 5-tier to 3-tier for backward compat
+  // A+, A, A- (80-100) → high
+  // B+, B, B-, C+ (50-79) → medium  
+  // C, C-, D, F (0-49) → low
+  if (score >= 80) return 'high';
+  if (score >= 50) return 'medium';
+  return 'low';
 }
 
 const LEVEL_CONFIG = {
@@ -46,8 +61,10 @@ const LEVEL_LABELS: Record<string, string> = {
   low: 'Low',
 };
 
-export function ConfidenceIndicator({ level, label, variant = 'dot', className }: ConfidenceIndicatorProps) {
-  const config = LEVEL_CONFIG[level];
+export function ConfidenceIndicator({ level, label, variant = 'dot', score, className }: ConfidenceIndicatorProps) {
+  // Phase 2.9: Use score-based level when score is provided
+  const resolvedLevel = score !== undefined ? scoreToLevel(score) : level;
+  const config = LEVEL_CONFIG[resolvedLevel];
   const displayLabel = label || LEVEL_LABELS[level];
 
   if (variant === 'badge') {

@@ -20,10 +20,15 @@ import { createHash, timingSafeEqual } from 'crypto';
  * Salesforce signs the webhook body with the connected app's consumer secret.
  */
 function verifySalesforceSignature(body: string, signature: string | null, secret: string | null): boolean {
-  if (!secret || !signature) {
-    // No secret configured — allow in development mode
-    logger.warn('[webhook:salesforce] No HMAC secret configured, skipping signature verification');
-    return true;
+  // FAIL-CLOSED: If no secret is configured, REJECT the webhook.
+  // Previously this returned true (allowing unauthenticated access). Fixed in Phase A.
+  if (!secret) {
+    logger.error('[webhook:salesforce] No HMAC secret configured — rejecting webhook (fail-closed)');
+    return false;
+  }
+  if (!signature) {
+    logger.warn('[webhook:salesforce] Missing signature header — rejecting webhook');
+    return false;
   }
 
   try {
@@ -54,23 +59,55 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid JSON payload' }, { status: 400 });
     }
 
-    // Find the Salesforce connection for this org
+    // ── SECURITY: Verify signature BEFORE any DB query (timing attack prevention) ──
+    // Previously the code queried CRMConnection BEFORE verifying the signature,
+    // leaking information about whether connections exist (timing side-channel).
+    // Fixed in Phase A: signature verification is now the FIRST operation.
+    const signature = request.headers.get('x-sf-signature') || request.headers.get('signature');
+
+    // Try env var first for immediate rejection if not configured
+    const envSecret = process.env.SALESFORCE_WEBHOOK_SECRET || null;
+
+    if (!envSecret) {
+      // SECURITY: No env secret configured — fail-closed in production.
+      // In development, fall back to DB-stored secret (with timing caveat).
+      if (process.env.NODE_ENV === 'production') {
+        logger.error('[webhook:salesforce] SALESFORCE_WEBHOOK_SECRET not configured in production — rejecting webhook (fail-closed)');
+        return NextResponse.json({ error: 'Webhook secret not configured. Set SALESFORCE_WEBHOOK_SECRET env var.' }, { status: 401 });
+      }
+
+      // Dev-only: Check DB for connection-level secret
+      const connections = await db.cRMConnection.findMany({
+        where: { provider: 'salesforce', isActive: true },
+      });
+
+      if (connections.length === 0) {
+        return NextResponse.json({ error: 'No active Salesforce connection found' }, { status: 404 });
+      }
+
+      const hmacSecret = (connections[0] as Record<string, unknown>).hmacSecret as string | null;
+      if (!hmacSecret) {
+        logger.error('[webhook:salesforce] CRMConnection has no hmacSecret — rejecting webhook (fail-closed)');
+        return NextResponse.json({ error: 'Signature verification required but no secret configured' }, { status: 401 });
+      }
+
+      if (!verifySalesforceSignature(bodyText, signature, hmacSecret)) {
+        logger.warn('[webhook:salesforce] Signature verification failed');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      }
+    } else {
+      // Env var secret available — verify immediately, skip DB query
+      if (!verifySalesforceSignature(bodyText, signature, envSecret)) {
+        logger.warn('[webhook:salesforce] Signature verification failed (env secret)');
+        return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
+      }
+    }
+
+    // ── Signature verified — now safe to query DB ──
+    // Find the Salesforce connection for this org (for sync context)
     const connections = await db.cRMConnection.findMany({
       where: { provider: 'salesforce', isActive: true },
     });
-
-    if (connections.length === 0) {
-      return NextResponse.json({ error: 'No active Salesforce connection found' }, { status: 404 });
-    }
-
-    // Verify signature using the first active connection's HMAC secret
-    const signature = request.headers.get('x-sf-signature') || request.headers.get('signature');
-    const hmacSecret = (connections[0] as Record<string, unknown>).hmacSecret as string | null || process.env.SALESFORCE_WEBHOOK_SECRET || null;
-
-    if (!verifySalesforceSignature(bodyText, signature, hmacSecret)) {
-      logger.warn('[webhook:salesforce] Signature verification failed');
-      return NextResponse.json({ error: 'Invalid signature' }, { status: 401 });
-    }
 
     // Salesforce webhook payload structure
     const eventType = (body?.event as Record<string, unknown>)?.type || (body?.sobject as Record<string, unknown>)?.type || 'unknown';
@@ -94,11 +131,35 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // For non-delete events, schedule a sync
+    // For non-delete events, trigger async sync for the changed entity
     if (eventType !== 'deleted' && connections.length > 0) {
-      // Mark connection as needing re-sync
-      // In production, this would trigger an async sync job
-      logger.info('[webhook:salesforce] Sync triggered by webhook', { connectionId: connections[0].id });
+      // P4.1: Map Salesforce entity to sync options
+      const entity = String(
+        (body?.sobject as Record<string, unknown>)?.type ||
+        (body?.ChangeEventHeader as Record<string, unknown>)?.entityName ||
+        'unknown'
+      );
+      const connectionId = connections[0].id;
+
+      const syncOptions: Record<string, boolean> = {
+        syncAccounts: entity === 'Account',
+        syncContacts: entity === 'Contact',
+        syncDeals: entity === 'Opportunity',
+      };
+
+      // Fire-and-forget async sync
+      (async () => {
+        try {
+          const { syncFromCRM } = await import('@/lib/crm/crm-sync-service');
+          await syncFromCRM(connectionId, {
+            ...syncOptions,
+            limit: 10,
+          });
+          logger.info(`[sf-webhook] Async sync completed for ${entity}/${entityId}`);
+        } catch (syncErr) {
+          logger.error(`[sf-webhook] Async sync failed for ${entity}/${entityId}`, { error: syncErr });
+        }
+      })();
     }
 
     return NextResponse.json({ received: true, eventType, entityId });

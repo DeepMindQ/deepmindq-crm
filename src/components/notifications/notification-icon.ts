@@ -2,6 +2,7 @@ import {
   Info, CheckCircle2, AlertTriangle, XCircle,
   Brain, Target, ShieldAlert, type LucideIcon
 } from 'lucide-react'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 
 export interface NotificationStyle {
   icon: LucideIcon
@@ -15,45 +16,45 @@ export function getNotificationStyle(type: string): NotificationStyle {
     case 'success':
       return {
         icon: CheckCircle2,
-        color: '#22c55e',
-        bgColor: 'rgba(34,197,94,0.1)',
-        borderColor: 'rgba(34,197,94,0.2)',
+        color: tokens.domain.action,
+        bgColor: tokens.trust.verified.bg,
+        borderColor: tokens.trust.verified.border,
       }
     case 'warning':
       return {
         icon: AlertTriangle,
-        color: '#f59e0b',
-        bgColor: 'rgba(245,158,11,0.1)',
-        borderColor: 'rgba(245,158,11,0.2)',
+        color: tokens.domain.reasoning,
+        bgColor: tokens.confidence.medium.bg,
+        borderColor: tokens.confidence.medium.border,
       }
     case 'error':
     case 'risk':
       return {
         icon: type === 'risk' ? ShieldAlert : XCircle,
-        color: '#ef4444',
-        bgColor: 'rgba(239,68,68,0.1)',
-        borderColor: 'rgba(239,68,68,0.2)',
+        color: tokens.domain.risk,
+        bgColor: tokens.confidence.low.bg,
+        borderColor: tokens.confidence.low.border,
       }
     case 'intelligence':
       return {
         icon: Brain,
-        color: '#3b82f6',
-        bgColor: 'rgba(59,130,246,0.1)',
-        borderColor: 'rgba(59,130,246,0.2)',
+        color: tokens.accent.DEFAULT,
+        bgColor: tokens.accent.subtle,
+        borderColor: tokens.accent.strong,
       }
     case 'opportunity':
       return {
         icon: Target,
-        color: '#a855f7',
-        bgColor: 'rgba(168,85,247,0.1)',
-        borderColor: 'rgba(168,85,247,0.2)',
+        color: tokens.domain.opportunity,
+        bgColor: tokens.domain.opportunity,
+        borderColor: tokens.domain.opportunity,
       }
     default:
       return {
         icon: Info,
-        color: '#3b82f6',
-        bgColor: 'rgba(59,130,246,0.1)',
-        borderColor: 'rgba(59,130,246,0.2)',
+        color: tokens.accent.DEFAULT,
+        bgColor: tokens.accent.subtle,
+        borderColor: tokens.accent.strong,
       }
   }
 }

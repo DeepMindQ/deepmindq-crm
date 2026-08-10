@@ -42,8 +42,8 @@ import { logger } from '@/lib/logger';
 /* ═══════════════════════════════════════════════════
    Constants
    ═══════════════════════════════════════════════════ */
-const PURPLE = '#7c3aed';
-const PURPLE_GRAD = 'linear-gradient(135deg, #6d28d9, #7c3aed, #a78bfa)';
+const PURPLE = 'var(--dmq-purple-deep)';
+const PURPLE_GRAD = 'linear-gradient(135deg, var(--dmq-purple-700), var(--dmq-purple-deep), var(--dmq-purple-400))';
 
 /* ═══════════════════════════════════════════════════
    Score Ring
@@ -54,12 +54,12 @@ function ScoreRing({ score, size = 64, strokeWidth = 5, label }: {
   const radius = (size - strokeWidth) / 2;
   const circ = 2 * Math.PI * radius;
   const offset = circ - (score / 100) * circ;
-  const c = score >= 80 ? '#059669' : score >= 60 ? '#D97706' : score >= 40 ? '#ea580c' : '#DC2626';
+  const c = score >= 80 ? 'var(--dmq-emerald-deep)' : score >= 60 ? 'var(--dmq-amber-deep)' : score >= 40 ? 'var(--dmq-orange)' : 'var(--dmq-red)';
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="relative" style={{ width: size, height: size }}>
         <svg aria-hidden="true" width={size} height={size} className="-rotate-90">
-          <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
+          <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--dmq-neutral-100)" strokeWidth={strokeWidth} />
           <motion.circle cx={size/2} cy={size/2} r={radius}
             fill="none" stroke={c} strokeWidth={strokeWidth} strokeLinecap="round"
             strokeDasharray={circ} initial={{ strokeDashoffset: circ }}
@@ -294,7 +294,7 @@ export default function ContactDetailScreen() {
           <div className="flex items-center justify-between max-w-[1400px] mx-auto px-5 py-3">
             <div className="flex items-center gap-3">
               <motion.button whileHover={{ x: -2 }} whileTap={{ scale: 0.95 }} onClick={() => setActiveView('contacts')}
-                className="w-8 h-8 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center hover:border-purple-500/30 transition-colors">
+                className="w-10 h-10 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center hover:border-purple-500/30 transition-colors">
                 <ArrowLeft size={15} className="text-muted-foreground" />
               </motion.button>
               <div className="flex items-center gap-2">
@@ -312,17 +312,17 @@ export default function ContactDetailScreen() {
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={() => validateEmail.mutate()} disabled={validateEmail.isPending}
-                className="gap-1.5 h-8 text-[11px] bg-purple-600 hover:bg-purple-700 text-white">
+                className="gap-1.5 h-10 text-[11px] bg-purple-600 hover:bg-purple-700 text-white">
                 {validateEmail.isPending ? <Loader2 size={12} className="animate-spin" /> : <ShieldCheck size={12} />}
                 Validate
               </Button>
               <Button size="sm" onClick={() => { setTab('ai-emails'); generateEmail.mutate(); }} disabled={generateEmail.isPending}
-                className="gap-1.5 h-8 text-[11px] bg-blue-600 hover:bg-blue-700 text-white">
+                className="gap-1.5 h-10 text-[11px] bg-blue-600 hover:bg-blue-700 text-white">
                 {generateEmail.isPending ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                 AI Email
               </Button>
               <Button size="sm" variant="outline" onClick={openEditDialog}
-                className="gap-1.5 h-8 text-[11px] border-gray-600 text-gray-300 hover:text-white">
+                className="gap-1.5 h-10 text-[11px] border-gray-600 text-gray-300 hover:text-white min-h-[44px]">
                 Edit
               </Button>
             </div>
@@ -350,7 +350,7 @@ export default function ContactDetailScreen() {
 
         <div className="max-w-[1400px] mx-auto px-5 py-5">
           {/* ── Buyer Intelligence Hero ── */}
-          <AnimatedCard delay={0} glow="rgba(124, 58, 237, 0.1)">
+          <AnimatedCard delay={0} glow="var(--dmq-purple-deep-bg)">
             <div className="overflow-hidden">
               <div className="h-1" style={{ background: PURPLE_GRAD }} />
               <div className="p-5">
@@ -387,9 +387,9 @@ export default function ContactDetailScreen() {
                     {/* Buyer Stats */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                       <BuyerStat icon={Target} label="Influence" value={briefing?.buyerProfile?.influenceScore ?? data.emailHealthScore ?? '-'} color={PURPLE} />
-                      <BuyerStat icon={MessageSquare} label="Drafts" value={drafts.length} color="#2563eb" />
-                      <BuyerStat icon={FileText} label="Notes" value={notes.length} color="#059669" />
-                      <BuyerStat icon={Clock} label="Last Contact" value={data.lastContactedAt ? formatDistanceToNow(new Date(data.lastContactedAt), { addSuffix: true }) : 'Never'} color="#d97706" />
+                      <BuyerStat icon={MessageSquare} label="Drafts" value={drafts.length} color="var(--dmq-accent-dim)" />
+                      <BuyerStat icon={FileText} label="Notes" value={notes.length} color="var(--dmq-emerald-deep)" />
+                      <BuyerStat icon={Clock} label="Last Contact" value={data.lastContactedAt ? formatDistanceToNow(new Date(data.lastContactedAt), { addSuffix: true }) : 'Never'} color="var(--dmq-amber-deep)" />
                     </div>
                   </div>
 
@@ -410,16 +410,16 @@ export default function ContactDetailScreen() {
                 {/* Action strip */}
                 <div className="mt-4 flex items-center gap-2">
                   <Button size="sm" onClick={fetchBriefing} disabled={briefingLoading}
-                    className="gap-1.5 h-8 text-[11px] bg-purple-600 hover:bg-purple-700 text-white">
+                    className="gap-1.5 h-10 text-[11px] bg-purple-600 hover:bg-purple-700 text-white min-h-[44px]">
                     {briefingLoading ? <Loader2 size={12} className="animate-spin" /> : <Brain size={12} />}
                     {briefingLoading ? 'Analyzing...' : 'Run Buyer Intel'}
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setNoteOpen(true)}
-                    className="gap-1.5 h-8 text-[11px] border-gray-200">
+                    className="gap-1.5 h-10 text-[11px] border-gray-200">
                     <Plus size={12} /> Add Note
                   </Button>
                   <Button size="sm" variant="outline" onClick={() => setArchiveConfirmOpen(true)}
-                    className="gap-1.5 h-8 text-[11px] border-red-200 text-red-500 hover:bg-red-50 ml-auto">
+                    className="gap-1.5 h-10 text-[11px] border-red-200 text-red-500 hover:bg-red-50 ml-auto">
                     <Archive size={12} /> Archive
                   </Button>
                 </div>
@@ -449,7 +449,7 @@ export default function ContactDetailScreen() {
             <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
               {/* Meeting Objective & Talking Points */}
               <div className="space-y-5">
-                <IntelPanel title="Meeting Objective" icon={Target} accent="#2563eb" onRefresh={fetchBriefing}>
+                <IntelPanel title="Meeting Objective" icon={Target} accent="var(--dmq-accent-dim)" onRefresh={fetchBriefing}>
                   {briefingLoading && !briefing ? (
                     <div className="flex flex-col items-center py-6 gap-2">
                       <Loader2 size={24} className="animate-spin text-blue-500" />
@@ -475,7 +475,7 @@ export default function ContactDetailScreen() {
                   )}
                 </IntelPanel>
 
-                <IntelPanel title="Talking Points" icon={MessageSquare} accent="#059669" count={briefing?.talkingPoints?.length}>
+                <IntelPanel title="Talking Points" icon={MessageSquare} accent="var(--dmq-emerald-deep)" count={briefing?.talkingPoints?.length}>
                   {briefing?.talkingPoints?.length > 0 ? (
                     <div className="space-y-2">
                       {briefing.talkingPoints.map((tp: any, i: number) => (
@@ -497,7 +497,7 @@ export default function ContactDetailScreen() {
 
               {/* Questions & Objections */}
               <div className="space-y-5">
-                <IntelPanel title="Questions to Ask" icon={Search} accent="#d97706" count={briefing?.questionsToAsk?.length}>
+                <IntelPanel title="Questions to Ask" icon={Search} accent="var(--dmq-amber-deep)" count={briefing?.questionsToAsk?.length}>
                   {briefing?.questionsToAsk?.length > 0 ? (
                     <div className="space-y-2">
                       {briefing.questionsToAsk.map((q: any, i: number) => (
@@ -516,7 +516,7 @@ export default function ContactDetailScreen() {
                   )}
                 </IntelPanel>
 
-                <IntelPanel title="Objection Handling" icon={AlertTriangle} accent="#dc2626" count={briefing?.objectionsToPrepare?.length}>
+                <IntelPanel title="Objection Handling" icon={AlertTriangle} accent="var(--dmq-red)" count={briefing?.objectionsToPrepare?.length}>
                   {briefing?.objectionsToPrepare?.length > 0 ? (
                     <div className="space-y-2">
                       {briefing.objectionsToPrepare.map((obj: any, i: number) => (
@@ -586,8 +586,8 @@ export default function ContactDetailScreen() {
                         {generatedEmail.tone && <Badge className="text-[11px] bg-purple-50 text-purple-600 border-purple-200">Tone: {generatedEmail.tone}</Badge>}
                       </div>
                       <div className="flex gap-2 mt-3">
-                        <Button size="sm" className="h-7 text-[11px] gap-1" onClick={() => copyToClipboard(generatedEmail.body)}><Copy size={11} /> Copy</Button>
-                        <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => generateEmail.mutate()}><RefreshCw size={11} /> Regenerate</Button>
+                        <Button size="sm" className="h-10 text-[11px] gap-1 min-h-[44px]" onClick={() => copyToClipboard(generatedEmail.body)}><Copy size={11} /> Copy</Button>
+                        <Button size="sm" variant="outline" className="h-10 text-[11px] gap-1 min-h-[44px]" onClick={() => generateEmail.mutate()}><RefreshCw size={11} /> Regenerate</Button>
                       </div>
                     </div>
                   </div>
@@ -604,8 +604,8 @@ export default function ContactDetailScreen() {
                         <div className="flex gap-1.5 mt-2">
                           {d.status === 'draft' && (
                             <>
-                              <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'approved' })}>Approve</Button>
-                              <Button size="sm" variant="outline" className="h-6 text-[11px]" onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'rejected' })}>Reject</Button>
+                              <Button size="sm" variant="outline" className="h-10 text-[11px]" onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'approved' })}>Approve</Button>
+                              <Button size="sm" variant="outline" className="h-10 text-[11px]" onClick={() => updateDraftStatus.mutate({ id: d.id, status: 'rejected' })}>Reject</Button>
                             </>
                           )}
                         </div>
@@ -628,9 +628,9 @@ export default function ContactDetailScreen() {
           {/* ════════════ NOTES TAB ════════════ */}
           {tab === 'notes' && (
             <div className="mt-5">
-              <IntelPanel title={t('contact.researchNotes')} icon={FileText} accent="#059669" count={notes.length}>
+              <IntelPanel title={t('contact.researchNotes')} icon={FileText} accent="var(--dmq-emerald-deep)" count={notes.length}>
                 <div className="flex items-center gap-2 mb-3">
-                  <Button size="sm" variant="outline" className="h-7 text-[11px] gap-1" onClick={() => setNoteOpen(true)}><Plus size={11} /> Add Note</Button>
+                  <Button size="sm" variant="outline" className="h-10 text-[11px] gap-1 min-h-[44px]" onClick={() => setNoteOpen(true)}><Plus size={11} /> Add Note</Button>
                 </div>
                 {notes.length > 0 ? (
                   <div className="space-y-2">
@@ -659,7 +659,7 @@ export default function ContactDetailScreen() {
           {/* ════════════ ACTIVITY TAB ════════════ */}
           {tab === 'activity' && (
             <div className="mt-5">
-              <IntelPanel title={t('contact.activityTimeline')} icon={Clock} accent="#3b82f6" count={timeline.length}>
+              <IntelPanel title={t('contact.activityTimeline')} icon={Clock} accent="var(--dmq-accent-blue)" count={timeline.length}>
                 {timeline.length > 0 ? (
                   <div className="space-y-3 max-h-96 overflow-y-auto">
                     {timeline.map((entry: any) => (
@@ -689,7 +689,7 @@ export default function ContactDetailScreen() {
           <DialogHeader><DialogTitle className="text-sm font-bold">Add Note</DialogTitle></DialogHeader>
           <div className="space-y-3">
             <Select value={noteType} onValueChange={setNoteType}>
-              <SelectTrigger className="h-9 text-xs"><SelectValue placeholder="Note type" /></SelectTrigger>
+              <SelectTrigger className="h-10 text-xs"><SelectValue placeholder="Note type" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="call">Call</SelectItem>
                 <SelectItem value="meeting">Meeting</SelectItem>
@@ -701,8 +701,8 @@ export default function ContactDetailScreen() {
             <Textarea placeholder="Note content..." value={noteBody} onChange={e => setNoteBody(e.target.value)} className="text-xs min-h-[100px]" />
             <div className="flex gap-2">
               <Button size="sm" onClick={() => addNote.mutate({ body: noteBody, noteType: noteType || 'note' })} disabled={addNote.isPending || !noteBody.trim()}
-                className="h-8 text-xs bg-purple-600 text-white">{addNote.isPending ? <Loader2 size={12} className="animate-spin mr-1" /> : null} Save</Button>
-              <Button size="sm" variant="outline" onClick={() => { setNoteOpen(false); setNoteBody(''); setNoteType(''); }} className="h-8 text-xs">Cancel</Button>
+                className="h-10 text-xs bg-purple-600 text-white">{addNote.isPending ? <Loader2 size={12} className="animate-spin mr-1" /> : null} Save</Button>
+              <Button size="sm" variant="outline" onClick={() => { setNoteOpen(false); setNoteBody(''); setNoteType(''); }} className="h-10 text-xs min-h-[44px]">Cancel</Button>
             </div>
           </div>
         </DialogContent>
@@ -716,13 +716,13 @@ export default function ContactDetailScreen() {
             {['name', 'email', 'jobTitle', 'phone', 'location', 'linkedinUrl'].map(field => (
               <div key={field}>
                 <Label className="text-[11px] text-muted-foreground uppercase tracking-wider">{field.replace(/([A-Z])/g, ' $1')}</Label>
-                <Input value={editForm[field as keyof typeof editForm] || ''} onChange={e => setEditForm(p => ({ ...p, [field]: e.target.value }))} className="mt-1 h-8 text-xs" />
+                <Input value={editForm[field as keyof typeof editForm] || ''} onChange={e => setEditForm(p => ({ ...p, [field]: e.target.value }))} className="mt-1 h-10 text-xs" />
               </div>
             ))}
             <div>
               <Label className="text-[11px] text-muted-foreground uppercase tracking-wider">Role Bucket</Label>
               <Select value={editForm.roleBucket} onValueChange={v => setEditForm(p => ({ ...p, roleBucket: v }))}>
-                <SelectTrigger className="mt-1 h-8 text-xs"><SelectValue placeholder="Select role" /></SelectTrigger>
+                <SelectTrigger className="mt-1 h-10 text-xs"><SelectValue placeholder="Select role" /></SelectTrigger>
                 <SelectContent>
                   {['Executive', 'Manager', 'Technical', 'Operations', 'Sales', 'Other'].map(r => (
                     <SelectItem key={r} value={r}>{r}</SelectItem>
@@ -732,8 +732,8 @@ export default function ContactDetailScreen() {
             </div>
             <DialogFooter>
               <Button size="sm" onClick={() => editContact.mutate(editForm)} disabled={editContact.isPending}
-                className="h-8 text-xs bg-purple-600 text-white">{editContact.isPending ? <Loader2 size={12} className="animate-spin mr-1" /> : null} Save</Button>
-              <Button size="sm" variant="outline" onClick={() => setEditOpen(false)} className="h-8 text-xs">Cancel</Button>
+                className="h-10 text-xs bg-purple-600 text-white">{editContact.isPending ? <Loader2 size={12} className="animate-spin mr-1" /> : null} Save</Button>
+              <Button size="sm" variant="outline" onClick={() => setEditOpen(false)} className="h-10 text-xs min-h-[44px]">Cancel</Button>
             </DialogFooter>
           </div>
         </DialogContent>
@@ -746,8 +746,8 @@ export default function ContactDetailScreen() {
           <p className="text-xs text-muted-foreground">This will archive {data.name}. You can restore them later.</p>
           <DialogFooter>
             <Button size="sm" variant="destructive" onClick={() => archiveContact.mutate()} disabled={archiveContact.isPending}
-              className="h-8 text-xs">{archiveContact.isPending ? <Loader2 size={12} className="animate-spin mr-1" /> : null} Archive</Button>
-            <Button size="sm" variant="outline" onClick={() => setArchiveConfirmOpen(false)} className="h-8 text-xs">Cancel</Button>
+              className="h-10 text-xs">{archiveContact.isPending ? <Loader2 size={12} className="animate-spin mr-1" /> : null} Archive</Button>
+            <Button size="sm" variant="outline" onClick={() => setArchiveConfirmOpen(false)} className="h-10 text-xs min-h-[44px]">Cancel</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -757,8 +757,8 @@ export default function ContactDetailScreen() {
         <DialogContent className="sm:max-w-sm">
           <DialogHeader><DialogTitle className="text-sm font-bold">Delete Note?</DialogTitle></DialogHeader>
           <DialogFooter>
-            <Button size="sm" variant="destructive" onClick={() => deleteNoteId && deleteNoteMutation.mutate(deleteNoteId)} className="h-8 text-xs">Delete</Button>
-            <Button size="sm" variant="outline" onClick={() => setDeleteNoteId(null)} className="h-8 text-xs">Cancel</Button>
+            <Button size="sm" variant="destructive" onClick={() => deleteNoteId && deleteNoteMutation.mutate(deleteNoteId)} className="h-10 text-xs min-h-[44px]">Delete</Button>
+            <Button size="sm" variant="outline" onClick={() => setDeleteNoteId(null)} className="h-10 text-xs min-h-[44px]">Cancel</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -766,5 +766,5 @@ export default function ContactDetailScreen() {
   );
 }
 
-const INTEL = '#2563eb';
+const INTEL = 'var(--dmq-accent-dim)';
 const Activity = ({ size, className }: { size: number; className: string }) => <span className={className} style={{ display: 'inline-block', width: size, height: size }} />;

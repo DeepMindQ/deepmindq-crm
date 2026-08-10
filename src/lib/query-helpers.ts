@@ -5,6 +5,8 @@
  * Every findMany MUST use safeFindMany() or explicitly bypass with unsafeFindMany().
  */
 
+import { logger } from '@/lib/logger';
+
 const DEFAULT_QUERY_LIMIT = 100;
 const MAX_QUERY_LIMIT = 1000;
 const ABSOLUTE_MAX = 5000;
@@ -66,7 +68,7 @@ export async function unsafeFindMany<T>(
   reason: string
 ): Promise<T[]> {
   if (process.env.NODE_ENV === 'production') {
-    console.warn(`[QUERY-SAFETY] Unbounded findMany executed: ${reason}`);
+    logger.warn(`[QUERY-SAFETY] Unbounded findMany executed: ${reason}`);
   }
   return queryFn(prismaArgs);
 }

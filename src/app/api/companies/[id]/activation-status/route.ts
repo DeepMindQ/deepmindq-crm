@@ -74,7 +74,7 @@ export async function GET(
     let entityResolutionStatus: 'completed' | 'pending' | 'unknown' = 'pending';
     let entityResolutionDetail = '';
     try {
-      const kgNode = getNode(`company-${company.id}`);
+      const kgNode = await getNode(`company-${company.id}`);
       if (kgNode) {
         entityResolutionStatus = 'completed';
         entityResolutionDetail = `KG node exists (label: ${kgNode.label}, type: ${kgNode.type})`;
@@ -142,7 +142,7 @@ export async function GET(
     let memoryDetail = '';
     let memoryCount = 0;
     try {
-      const memResults = searchMemories({
+      const memResults = await searchMemories({
         query: company.rawName,
         minConfidence: 0.3,
         scopeEntityType: 'company',

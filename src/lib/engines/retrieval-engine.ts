@@ -278,8 +278,9 @@ export async function embedEntity(
   result.entityId = entityId;
   result.entityType = entityType;
 
-  // Persist
+  // Persist (dual-write: JSON for backward compat + pgvector for native search)
   try {
+    const vectorJson = JSON.stringify(Array.from(result.vector));
     await db.embedding.upsert({
       where: { entityId },
       create: {
@@ -287,7 +288,7 @@ export async function embedEntity(
         entityId,
         sourceText,
         textHash,
-        vector: JSON.stringify(Array.from(result.vector)),
+        vector: vectorJson,
         model: result.model,
         dimensions: result.dimensions,
       },
@@ -295,11 +296,24 @@ export async function embedEntity(
         entityType,
         sourceText,
         textHash,
-        vector: JSON.stringify(Array.from(result.vector)),
+        vector: vectorJson,
         model: result.model,
         dimensions: result.dimensions,
       },
     });
+
+    // Phase 0.4: Native pgvector dual-write (non-blocking — fails gracefully)
+    // UPDATE existing row (Prisma upsert already handles the INSERT with all NOT NULL columns above)
+    try {
+      await db.$executeRawUnsafe(
+        `UPDATE "Embedding" SET "embedding_vector" = $1::vector WHERE "entityId" = $2 AND "embedding_vector" IS DISTINCT FROM $1::vector`,
+        `[${Array.from(result.vector).join(',')}]`,
+        entityId
+      );
+    } catch (pgvectorErr) {
+      // pgvector column may not exist yet — non-blocking
+      logger.warn(`[retrieval-engine] pgvector write skipped: ${pgvectorErr instanceof Error ? pgvectorErr.message : pgvectorErr}`);
+    }
   } catch (err) {
     logger.error(`[retrieval-engine] persist failed: ${err instanceof Error ? err.message : err}`);
   }
@@ -323,6 +337,9 @@ export async function embedEntity(
 /**
  * Semantic search across all indexed entities.
  * Returns top-K results sorted by cosine similarity (highest first).
+ *
+ * Phase 0.4: Tries native pgvector search first (fast, scalable).
+ * Falls back to in-memory brute-force cosine similarity if pgvector is unavailable.
  */
 export async function search(
   query: string,
@@ -330,6 +347,16 @@ export async function search(
   filter?: { type?: EmbeddableEntityType },
 ): Promise<RetrievalResult[]> {
   if (!query || !query.trim()) return [];
+
+  // Phase 0.4: Try pgvector native search first (scalable, indexed)
+  try {
+    const pgResults = await searchPgVector(query, topK, filter);
+    if (pgResults.length > 0) return pgResults;
+  } catch {
+    // pgvector unavailable — fall through to in-memory search
+  }
+
+  // Fallback: in-memory brute-force cosine similarity
   if (inMemoryIndex.size === 0) {
     await loadIndexFromDB();
   }
@@ -496,12 +523,62 @@ export async function getStats(): Promise<RetrievalStats> {
   };
 }
 
+// ─── Phase 0.4: pgvector Search (native cosine distance) ──────────────
+
+/**
+ * Search using native pgvector cosine distance operator.
+ * Falls back to in-memory search if pgvector is not available.
+ * Uses HNSW index for approximate nearest neighbor with high recall.
+ */
+export async function searchPgVector(
+  query: string,
+  topK = 5,
+  filter?: { type?: EmbeddableEntityType },
+): Promise<RetrievalResult[]> {
+  const queryEmbedding = await embed(query);
+  const vectorStr = `[${Array.from(queryEmbedding.vector).join(',')}]`;
+
+  try {
+    // Parameterized query to prevent SQL injection (filter.type is user-facing)
+    const typeFilter = filter?.type ? `AND "entityType" = $3` : '';
+    const params: unknown[] = [vectorStr, topK];
+    if (filter?.type) params.push(filter.type);
+
+    const results = await db.$queryRawUnsafe<Array<{
+      entityId: string;
+      entityType: string;
+      score: number;
+      snippet: string;
+    }>>(
+      `SELECT "entityId", "entityType",
+              1 - ("embedding_vector" <=> $1::vector) as score,
+              SUBSTR("sourceText", 1, 200) as snippet
+       FROM "Embedding"
+       WHERE "embedding_vector" IS NOT NULL ${typeFilter}
+       ORDER BY "embedding_vector" <=> $1::vector
+       LIMIT $2`,
+      ...params
+    );
+
+    return results.map((r) => ({
+      entityId: r.entityId,
+      entityType: r.entityType as EmbeddableEntityType,
+      score: Math.max(0, Math.min(1, r.score)),
+      snippet: r.snippet,
+    }));
+  } catch (err) {
+    logger.warn(`[retrieval-engine] pgvector search failed, falling back to in-memory: ${err instanceof Error ? err.message : err}`);
+    return []; // let caller (search()) fall through to in-memory brute-force
+  }
+}
+
 // ─── RetrievalEngine Object (for barrel export) ─────────────────────────
 
 export const RetrievalEngine = {
   embed,
   embedEntity,
   search,
+  searchPgVector,
   loadIndexFromDB,
   buildIndexFromRawEntities,
   rebuildIndex,

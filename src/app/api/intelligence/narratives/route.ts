@@ -25,6 +25,7 @@ import {
   getSignalConfidenceDetail,
 } from '@/lib/intelligence-narrative-service';
 import { checkApiAuth } from '@/lib/api-auth';
+import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // GET /api/intelligence/narratives — Command Center Narratives
@@ -36,6 +37,19 @@ export async function GET(request: NextRequest) {
   // ── Auth guard ──
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
+
+  // ── Correlation-id + rate limiting guard ──
+  let ctx;
+  try {
+    ctx = utilityGuard(request, 'narratives');
+  } catch (e) {
+    if (e instanceof RateLimitedError) {
+      return Response.json({ error: 'Rate limited', code: 'RATE_LIMITED' }, { status: 429, headers: e.headers });
+    }
+    throw e;
+  }
+
+  const headers = { 'Content-Type': 'application/json', ...ctx.responseHeaders };
 
   try {
     const url = request.nextUrl;
@@ -52,9 +66,10 @@ export async function GET(request: NextRequest) {
         return Response.json({
           success: false,
           error: result.error,
+          code: 'NOT_FOUND',
           data: null,
           meta: { endpoint: 'intelligence/narratives', timingMs: Date.now() - startedAt },
-        }, { status: 404, headers: { 'Content-Type': 'application/json' } });
+        }, { status: 404, headers });
       }
       return Response.json({
         success: true,
@@ -65,7 +80,7 @@ export async function GET(request: NextRequest) {
           timingMs: Date.now() - startedAt,
           computationMs: result.narrative?.computationTimeMs,
         },
-      }, { headers: { 'Content-Type': 'application/json' } });
+      }, { headers });
     }
 
     // Confidence detail mode
@@ -75,8 +90,9 @@ export async function GET(request: NextRequest) {
         return Response.json({
           success: false,
           error: 'confidenceDetail parameter requires a signal ID',
+          code: 'VALIDATION_FAILED',
           data: null,
-        }, { status: 400, headers: { 'Content-Type': 'application/json' } });
+        }, { status: 400, headers });
       }
       const detail = await getSignalConfidenceDetail(detailSignalId);
       return Response.json({
@@ -84,7 +100,7 @@ export async function GET(request: NextRequest) {
         data: detail.success ? detail : null,
         error: detail.error || null,
         meta: { endpoint: 'intelligence/narratives', timingMs: Date.now() - startedAt },
-      }, { headers: { 'Content-Type': 'application/json' } });
+      }, { headers });
     }
 
     // Default: command center narratives
@@ -110,14 +126,15 @@ export async function GET(request: NextRequest) {
         timingMs: Date.now() - startedAt,
         ...result.meta,
       },
-    }, { headers: { 'Content-Type': 'application/json' } });
+    }, { headers });
   } catch (err) {
     logger.error('[intelligence/narratives] Unhandled error', { error: err });
     return Response.json({
       success: false,
       data: [],
       error: err instanceof Error ? err.message : 'Internal server error',
+      code: 'INTERNAL_ERROR',
       meta: { endpoint: 'intelligence/narratives', timingMs: Date.now() - startedAt },
-    }, { status: 500, headers: { 'Content-Type': 'application/json' } });
+    }, { status: 500, headers });
   }
 }

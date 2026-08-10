@@ -6,6 +6,7 @@ import { db } from '@/lib/db';
 import { sanitizeString } from '@/lib/sanitize';
 import { logger } from '@/lib/logger';
 import { encryptUserFields } from '@/lib/encryption';
+import { withCsrf } from '@/lib/with-csrf';
 
 const schema = z.object({
   email: z.string().email(),
@@ -20,7 +21,9 @@ const schema = z.object({
   }).optional(),
 });
 
-export async function POST(request: NextRequest) {
+// P0.4: Wrapped with withCsrf — profile/email changes are state-changing
+// operations that require CSRF token validation.
+export const POST = withCsrf(async function POST(request: NextRequest) {
   try {
     const user = await requireAuth();
 
@@ -89,4 +92,4 @@ export async function POST(request: NextRequest) {
     logger.error('[auth/update-profile] Error:', { error: error });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

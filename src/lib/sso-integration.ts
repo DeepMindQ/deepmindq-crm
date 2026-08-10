@@ -25,6 +25,7 @@
  */
 
 import { randomBytes, createHash } from 'crypto';
+import { tokens } from '@/lib/design-tokens';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { createSession } from '@/lib/session';

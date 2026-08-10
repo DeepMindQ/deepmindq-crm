@@ -131,7 +131,7 @@ function ScanningAnimation({ totalScanned }: { totalScanned: number }) {
           animate={{ scale: [1, 1.15, 1] }}
           transition={{ duration: 1.5, repeat: Infinity, ease: 'easeInOut' }}
           className="w-10 h-10 rounded-xl flex items-center justify-center"
-          style={{ background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05))' }}
+          style={{ background: 'linear-gradient(135deg, var(--dmq-gold-border-faint), var(--dmq-gold-bg-dust))' }}
         >
           <Brain className="w-5 h-5" style={{ color: 'var(--color-gold)' }} />
         </motion.div>
@@ -147,8 +147,8 @@ function ScanningAnimation({ totalScanned }: { totalScanned: number }) {
         <motion.div
           className="h-full rounded-full relative"
           style={{
-            background: 'linear-gradient(90deg, #D4AF37, #E8C860)',
-            boxShadow: '0 0 12px rgba(212, 175, 55, 0.4)',
+            background: 'linear-gradient(90deg, var(--dmq-gold), var(--dmq-gold-light))',
+            boxShadow: '0 0 12px var(--dmq-gold-bg-strong)',
           }}
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
@@ -364,7 +364,7 @@ function DuplicateCard({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="h-7 text-xs text-foreground hover:bg-primary/10"
+                  className="h-10 text-xs text-foreground hover:bg-primary/10 min-h-[44px]"
                 >
                   <Eye className="size-3 mr-1" />
                   Preview Merge
@@ -403,7 +403,7 @@ function DuplicateCard({
 
             <Button
               size="sm"
-              className="h-7 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+              className="h-10 text-xs bg-emerald-600 hover:bg-emerald-700 text-white min-h-[44px]"
               onClick={() => onMerge(candidate.id)}
             >
               <GitMerge className="size-3 mr-1" />
@@ -412,7 +412,7 @@ function DuplicateCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs bg-secondary text-secondary-foreground hover:bg-secondary/80 border-border"
+              className="h-10 text-xs bg-secondary text-secondary-foreground hover:bg-secondary/80 border-border min-h-[44px]"
               onClick={() => onKeepBoth(candidate.id)}
             >
               <Copy className="size-3 mr-1" />
@@ -421,7 +421,7 @@ function DuplicateCard({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 text-xs text-red-600 hover:text-red-600 hover:bg-red-50 border-border"
+              className="h-10 text-xs text-red-600 hover:text-red-600 hover:bg-red-50 border-border min-h-[44px]"
               onClick={() => onReject(candidate.id)}
             >
               <X className="size-3 mr-1" />
@@ -646,7 +646,7 @@ export default function DuplicatesScreen() {
               key={tab.key}
               onClick={() => setFilter(tab.key)}
               className={cn(
-                'px-3 py-1.5 rounded-lg text-xs font-medium transition-colors',
+                'px-3 py-2.5 rounded-lg text-xs font-medium transition-colors',
                 filter === tab.key
                   ? 'bg-primary/15 text-primary border border-primary/30'
                   : 'text-muted-foreground hover:text-foreground hover:bg-secondary',

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronRight, TrendingUp, TrendingDown, Info, BarChart3 } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
@@ -36,10 +37,10 @@ interface ScoreBreakdownProps {
 }
 
 function getScoreColor(score: number): string {
-  if (score >= 80) return '#22c55e'
-  if (score >= 60) return '#3b82f6'
-  if (score >= 40) return '#f59e0b'
-  return '#ef4444'
+  if (score >= 80) return tokens.domain.action
+  if (score >= 60) return tokens.accent.DEFAULT
+  if (score >= 40) return tokens.domain.reasoning
+  return tokens.domain.risk
 }
 
 function getScoreLabel(score: number): string {

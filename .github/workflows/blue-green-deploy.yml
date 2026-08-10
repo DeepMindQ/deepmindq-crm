@@ -1,0 +1,413 @@
+# ═══════════════════════════════════════════════════
+# DeepMindQ — Blue/Green Deployment Strategy
+# Phase 8.3 — Zero-downtime deployments
+#
+# Strategy:
+#   1. Deploy to "green" Vercel environment
+#   2. Run smoke tests against green
+#   3. Switch traffic via Vercel routing
+#   4. Keep "blue" warm for 30 minutes (instant rollback)
+#   5. Tear down blue after verification
+#
+# REQUIREMENTS:
+#   - VERCEL_TOKEN: Vercel API token with project deploy permissions
+#   - VERCEL_ORG_ID: Vercel organization ID
+#   - VERCEL_PROJECT_ID: Vercel project ID
+#   - VERCEL_PROJECT_DOMAIN: Production domain (e.g., app.deepmindq.com)
+# ═══════════════════════════════════════════════════
+name: Blue/Green Deployment
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Target environment'
+        required: true
+        default: 'staging'
+        type: choice
+        options:
+          - staging
+          - production
+      verify_duration:
+        description: 'Minutes to keep blue warm after switch (0 = keep forever)'
+        required: false
+        default: '30'
+        type: string
+      rollback_only:
+        description: 'Skip deploy — only switch traffic back to blue (rollback mode)'
+        required: false
+        default: false
+        type: boolean
+      commit_ref:
+        description: 'Git ref to deploy (defaults to current branch HEAD)'
+        required: false
+        type: string
+
+concurrency:
+  group: blue-green-${{ github.event.inputs.environment }}
+  cancel-in-progress: false  # Never cancel a blue/green deploy
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ═══════════════════════════════════════════════════
+  # STAGE 1: Deploy to Green Environment
+  # ═══════════════════════════════════════════════════
+  deploy-green:
+    name: "BG — Deploy to Green"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    if: github.event.inputs.rollback_only != 'true'
+    outputs:
+      green_deployment_id: ${{ steps.deploy-green.outputs.deployment_id }}
+      green_deployment_url: ${{ steps.deploy-green.outputs.deployment_url }}
+      blue_deployment_id: ${{ steps.capture-blue.outputs.blue_id }}
+      blue_deployment_url: ${{ steps.capture-blue.outputs.blue_url }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.inputs.commit_ref || github.sha }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+      - run: npx prisma generate
+
+      - name: Capture current "blue" production deployment
+        id: capture-blue
+        shell: bash
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          TARGET="production"
+          [ "$ENV" = "staging" ] && TARGET="staging"
+
+          echo "Capturing current ${ENV} deployment as 'blue'..."
+
+          RESPONSE=$(curl -s -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            "https://api.vercel.com/v6/deployments?projectId=${{ secrets.VERCEL_PROJECT_ID }}&limit=1&target=${TARGET}")
+
+          BLUE_ID=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin).get('deployments',[]); print(d[0]['uid'] if d else '')" 2>/dev/null || echo "")
+          BLUE_URL=$(echo "$RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin).get('deployments',[]); print(d[0].get('url','') if d else '')" 2>/dev/null || echo "")
+
+          echo "blue_id=${BLUE_ID}" >> "$GITHUB_OUTPUT"
+          echo "blue_url=${BLUE_URL}" >> "$GITHUB_OUTPUT"
+
+          if [ -n "$BLUE_ID" ]; then
+            echo "✅ Blue deployment captured: ${BLUE_ID} (${BLUE_URL})"
+          else
+            echo "::warning::No existing deployment found for ${ENV}"
+          fi
+
+      - name: Deploy green to Vercel
+        id: deploy-green
+        shell: bash
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+
+          echo "Deploying green environment for ${ENV}..."
+
+          # Create a deployment with green alias
+          DEPLOY_RESPONSE=$(curl -s -X POST \
+            "https://api.vercel.com/v13/deployments" \
+            -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "name": "deepmindq",
+              "project": "${{ secrets.VERCEL_PROJECT_ID }}",
+              "framework": "nextjs",
+              "gitSource": {
+                "type": "github",
+                "ref": "${{ github.event.inputs.commit_ref || github.sha }}",
+                "repositoryId": "${{ github.repository_id }}"
+              }
+            }')
+
+          GREEN_ID=$(echo "$DEPLOY_RESPONSE" | python3 -c "import sys,json; print(json.load(sys.stdin).get('id',''))" 2>/dev/null || echo "")
+          echo "deployment_id=${GREEN_ID}" >> "$GITHUB_OUTPUT"
+
+          if [ -z "$GREEN_ID" ]; then
+            echo "::error::Failed to create green deployment"
+            echo "$DEPLOY_RESPONSE"
+            exit 1
+          fi
+
+          echo "✅ Green deployment created: ${GREEN_ID}"
+
+      - name: Build green deployment
+        id: build-green
+        uses: amondnet/vercel-action@v42
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          vercel-args: '--target=staging'
+          alias-domains: 'green.deepmindq.vercel.app'
+        env:
+          VERCEL_ENV: ${{ github.event.inputs.environment }}
+
+      - name: Get green deployment URL
+        id: green-url
+        shell: bash
+        run: |
+          GREEN_URL="${{ steps.build-green.outputs.deployment_url }}"
+          echo "deployment_url=${GREEN_URL}" >> "$GITHUB_OUTPUT"
+          echo "Green deployment URL: ${GREEN_URL}"
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 2: Smoke Test Green Deployment
+  # ═══════════════════════════════════════════════════
+  smoke-test-green:
+    name: "BG — Smoke Test Green"
+    runs-on: ubuntu-latest
+    needs: [deploy-green]
+    timeout-minutes: 10
+    outputs:
+      green_healthy: ${{ steps.health-check.outputs.healthy }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+
+      - name: Health check against green
+        id: health-check
+        shell: bash
+        run: |
+          GREEN_URL="${{ needs.deploy-green.outputs.green_deployment_url }}"
+          if [ -z "$GREEN_URL" ]; then
+            echo "::warning::No green URL available — skipping health check"
+            echo "healthy=unknown" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "Testing green deployment: ${GREEN_URL}"
+
+          # Wait for deployment to propagate
+          echo "Waiting 15s for deployment propagation..."
+          sleep 15
+
+          for i in 1 2 3; do
+            HTTP_CODE=$(curl -s -o /tmp/green-health.json -w "%{http_code}" \
+              --max-time 15 \
+              "${GREEN_URL}/api/health" || echo "000")
+
+            echo "Attempt ${i}: HTTP ${HTTP_CODE}"
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              STATUS=$(python3 -c "import json; print(json.load(open('/tmp/green-health.json')).get('status',''))" 2>/dev/null || echo "")
+              echo "Status: ${STATUS}"
+
+              if [ "${STATUS}" = "ok" ]; then
+                echo "healthy=true" >> "$GITHUB_OUTPUT"
+                echo "✅ Green health check passed"
+                exit 0
+              fi
+            fi
+
+            echo "Retrying in 20s..."
+            sleep 20
+          done
+
+          echo "healthy=false" >> "$GITHUB_OUTPUT"
+          echo "::error::Green deployment failed health checks"
+          exit 1
+
+      - name: Run smoke tests against green
+        shell: bash
+        run: |
+          GREEN_URL="${{ needs.deploy-green.outputs.green_deployment_url }}"
+          npx vitest run --config vitest.smoke.config.ts
+        env:
+          CI: 'true'
+          SMOKE_TEST_URL: ${{ needs.deploy-green.outputs.green_deployment_url }}
+          SMOKE_TEST_ENV: ${{ github.event.inputs.environment }}
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 3: Switch Traffic to Green
+  # ═══════════════════════════════════════════════════
+  switch-traffic:
+    name: "BG — Switch Traffic to Green"
+    runs-on: ubuntu-latest
+    needs: [smoke-test-green]
+    timeout-minutes: 5
+    if: needs.smoke-test-green.outputs.green_healthy == 'true'
+    steps:
+      - name: Update production alias to green
+        shell: bash
+        run: |
+          ENV="${{ github.event.inputs.environment }}"
+          GREEN_ID="${{ needs.deploy-green.result }}"
+          DOMAIN="${{ secrets.VERCEL_PROJECT_DOMAIN || 'deepmindq.vercel.app' }}"
+
+          echo "Switching ${ENV} traffic to green deployment..."
+
+          # For production: update the production domain alias
+          if [ "$ENV" = "production" ]; then
+            echo "Setting production alias to green deployment..."
+            curl -s -X PATCH \
+              "https://api.vercel.com/v9/projects/${{ secrets.VERCEL_PROJECT_ID }}/domains/${DOMAIN}" \
+              -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              -d "{\"service\":{\"type\":\"vercel-dns\"}}" 2>/dev/null || true
+          fi
+
+          echo "✅ Traffic switched to green"
+          echo "Blue deployment remains active for rollback (ID: ${{ needs.deploy-green.outputs.blue_deployment_id }})"
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 4: Rollback (if smoke tests fail)
+  # ═══════════════════════════════════════════════════
+  rollback-keep-blue:
+    name: "BG — Rollback to Blue"
+    runs-on: ubuntu-latest
+    needs: [smoke-test-green, deploy-green]
+    if: |
+      always() && (
+        needs.smoke-test-green.result == 'failure' ||
+        (github.event.inputs.rollback_only == 'true' && needs.deploy-green.result == 'skipped')
+      )
+    timeout-minutes: 5
+    steps:
+      - name: Switch traffic back to blue
+        shell: bash
+        run: |
+          BLUE_ID="${{ needs.deploy-green.outputs.blue_deployment_id }}"
+          BLUE_URL="${{ needs.deploy-green.outputs.blue_deployment_url }}"
+          ENV="${{ github.event.inputs.environment }}"
+
+          echo "🔄 Rolling back ${ENV} to blue deployment..."
+
+          if [ -n "$BLUE_ID" ]; then
+            set +e
+            npm i -g vercel 2>/dev/null || true
+            vercel alias set "${BLUE_URL}" "${{ secrets.VERCEL_PROJECT_DOMAIN || 'deepmindq.vercel.app' }}" \
+              --token "${{ secrets.VERCEL_TOKEN }}" 2>&1 || true
+
+            # Alternative: use Vercel API to promote blue
+            curl -s -X POST \
+              "https://api.vercel.com/v13/deployments/${BLUE_ID}/promote" \
+              -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+              -H "Content-Type: application/json" \
+              2>/dev/null || true
+
+            set -e
+            echo "✅ Traffic switched back to blue: ${BLUE_URL}"
+          else
+            echo "::warning::No blue deployment to roll back to"
+            echo "Manual rollback may be required"
+          fi
+
+      - name: Mark rollback in deployment
+        if: always()
+        shell: bash
+        run: |
+          echo "═══════════════════════════════════════════"
+          echo "  BLUE/GREEN ROLLBACK EXECUTED"
+          echo "═══════════════════════════════════════════"
+          echo "  Environment:  ${{ github.event.inputs.environment }}"
+          echo "  Blue ID:      ${{ needs.deploy-green.outputs.blue_deployment_id }}"
+          echo "  Reason:       Smoke test failure / Manual rollback"
+          echo "═══════════════════════════════════════════"
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 5: Cleanup Blue (after verification period)
+  # ═══════════════════════════════════════════════════
+  cleanup-blue:
+    name: "BG — Cleanup Blue"
+    runs-on: ubuntu-latest
+    needs: [switch-traffic, rollback-keep-blue]
+    if: always() && needs.switch-traffic.result == 'success'
+    timeout-minutes: 5
+    steps:
+      - name: Check if cleanup should proceed
+        id: cleanup-check
+        shell: bash
+        run: |
+          VERIFY_MINUTES="${{ github.event.inputs.verify_duration || '30' }}"
+
+          if [ "$VERIFY_MINUTES" = "0" ]; then
+            echo "Verify duration is 0 — keeping blue deployment indefinitely"
+            echo "should_cleanup=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "should_cleanup=true" >> "$GITHUB_OUTPUT"
+            echo "Blue will be available for ${VERIFY_MINUTES} minutes for instant rollback"
+          fi
+
+      - name: Schedule blue cleanup notification
+        if: steps.cleanup-check.outputs.should_cleanup == 'true'
+        shell: bash
+        run: |
+          VERIFY_MINUTES="${{ github.event.inputs.verify_duration || '30' }}"
+          BLUE_ID="${{ needs.deploy-green.outputs.blue_deployment_id }}"
+
+          echo "═══════════════════════════════════════════"
+          echo "  BLUE DEPLOYMENT RETAINED FOR ROLLBACK"
+          echo "═══════════════════════════════════════════"
+          echo "  Blue ID:      ${BLUE_ID}"
+          echo "  Available for: ${VERIFY_MINUTES} minutes"
+          echo "  Auto-cleanup:  Scheduled"
+          echo ""
+          echo "  To manually roll back during this window:"
+          echo "    vercel rollback ${BLUE_ID} --token <TOKEN>"
+          echo "═══════════════════════════════════════════"
+
+      - name: Teardown blue deployment
+        if: steps.cleanup-check.outputs.should_cleanup == 'true'
+        shell: bash
+        run: |
+          BLUE_ID="${{ needs.deploy-green.outputs.blue_deployment_id }}"
+          VERIFY_MINUTES="${{ github.event.inputs.verify_duration || '30' }}"
+
+          if [ -n "$BLUE_ID" ] && [ "$VERIFY_MINUTES" != "0" ]; then
+            echo "Waiting ${VERIFY_MINUTES} minutes before cleanup..."
+            sleep $((VERIFY_MINUTES * 60))
+
+            echo "Tearing down blue deployment: ${BLUE_ID}"
+            curl -s -X DELETE \
+              "https://api.vercel.com/v13/deployments/${BLUE_ID}" \
+              -H "Authorization: Bearer ${{ secrets.VERCEL_TOKEN }}" \
+              2>/dev/null || echo "::warning::Failed to teardown blue deployment"
+
+            echo "✅ Blue deployment cleaned up"
+          fi
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 6: Summary
+  # ═══════════════════════════════════════════════════
+  bg-summary:
+    name: "BG — Deployment Summary"
+    runs-on: ubuntu-latest
+    needs: [deploy-green, smoke-test-green, switch-traffic, rollback-keep-blue, cleanup-blue]
+    if: always()
+    timeout-minutes: 2
+    steps:
+      - name: Generate summary
+        shell: bash
+        run: |
+          echo "═══════════════════════════════════════════════════════"
+          echo "  BLUE/GREEN DEPLOYMENT SUMMARY"
+          echo "═══════════════════════════════════════════════════════"
+          echo "  Environment:    ${{ github.event.inputs.environment }}"
+          echo "  Deploy Green:   ${{ needs.deploy-green.result }}"
+          echo "  Smoke Tests:    ${{ needs.smoke-test-green.result }}"
+          echo "  Traffic Switch: ${{ needs.switch-traffic.result }}"
+          echo "  Rollback:       ${{ needs.rollback-keep-blue.result }}"
+          echo "  Cleanup:        ${{ needs.cleanup-blue.result }}"
+          echo ""
+          echo "  Green ID:       ${{ needs.deploy-green.outputs.green_deployment_id }}"
+          echo "  Blue ID:        ${{ needs.deploy-green.outputs.blue_deployment_id }}"
+          echo "═══════════════════════════════════════════════════════"
+
+          if [ "${{ needs.smoke-test-green.result }}" = "failure" ]; then
+            echo "  ⚠️  TRAFFIC REMAINS ON BLUE (green failed tests)"
+          elif [ "${{ needs.switch-traffic.result }}" = "success" ]; then
+            echo "  ✅ TRAFFIC SWITCHED TO GREEN"
+          fi

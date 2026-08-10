@@ -29,6 +29,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
+import { EnterpriseLoading, EnterpriseEmptyState } from '@/components/enterprise';
 
 // ── Types ──
 
@@ -249,10 +250,7 @@ export function CalibrationDashboardScreen() {
           </CardHeader>
           <CardContent>
             {loading ? (
-              <div className="flex items-center justify-center h-40 text-[var(--primary-dim)]">
-                <RefreshCw className="w-5 h-5 animate-spin mr-2" />
-                Loading calibration data...
-              </div>
+              <EnterpriseLoading message="Loading calibration data..." />
             ) : selected ? (
               <div className="space-y-6">
                 {/* Metrics Grid */}
@@ -319,18 +317,19 @@ export function CalibrationDashboardScreen() {
 
                 {/* Empty state */}
                 {bucketEntries.length === 0 && selected.status === 'uncalibrated' && (
-                  <div className="text-center py-8 text-[var(--primary-dim)]">
-                    <AlertTriangle className="w-8 h-8 mx-auto mb-2 text-amber-500" />
-                    <p className="text-sm font-medium">Not Yet Calibrated</p>
-                    <p className="text-xs mt-1">
-                      This dimension needs at least 10 outcome records before calibration can begin.
-                      Record outcomes via the feedback loop on recommendation cards.
-                    </p>
-                  </div>
+                  <EnterpriseEmptyState
+                    icon={AlertTriangle}
+                    title="Not Yet Calibrated"
+                    description="This dimension needs at least 10 outcome records before calibration can begin. Record outcomes via the feedback loop on recommendation cards."
+                  />
                 )}
               </div>
             ) : (
-              <div className="text-center py-8 text-[var(--primary-dim)]">No data available</div>
+              <EnterpriseEmptyState
+                icon={Target}
+                title="No data available"
+                description="Calibration data for this dimension is not yet available."
+              />
             )}
           </CardContent>
         </Card>

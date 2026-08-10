@@ -34,7 +34,7 @@ interface Sequence {
 /* ══════════════════════════════ Design Tokens ══════════════════════════════ */
 
 const gold = 'var(--color-gold-dim)', goldLight = 'var(--color-gold)';
-const card = 'rgba(255, 255, 255, 0.85)', border = 'rgba(0, 0, 0, 0.08)';
+const card = 'var(--dmq-white-card)', border = 'var(--dmq-black-faint)';
 
 /* ══════════════════════════════ Component ══════════════════════════════ */
 
@@ -175,8 +175,8 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
       <div className="grid grid-cols-3 gap-4">
         {[
           { icon: GitBranch, label: 'Total Sequences', value: sequences.length, color: gold },
-          { icon: Users, label: 'Enrolled Contacts', value: totalEnrolled, color: '#3B82F6' },
-          { icon: Play, label: 'Active', value: activeCount, color: '#10B981' },
+          { icon: Users, label: 'Enrolled Contacts', value: totalEnrolled, color: 'var(--dmq-accent-blue)' },
+          { icon: Play, label: 'Active', value: activeCount, color: 'var(--dmq-emerald)' },
         ].map(({ icon: Icon, label, value, color }, i) => (
           <motion.div key={label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
@@ -204,15 +204,15 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search sequences..."
-              className="h-8 pl-8 pr-7 w-48 text-xs rounded-lg" style={{ background: card, border: `1px solid ${border}` }} />
+              className="h-10 pl-8 pr-7 w-48 text-xs rounded-lg" style={{ background: card, border: `1px solid ${border}` }} />
             {search && <X className="w-3 h-3 absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => setSearch('')} />}
           </div>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" onClick={() => processMutation.mutate()} disabled={processMutation.isPending}>
+          <Button variant="outline" size="sm" className="h-10 gap-1.5 text-xs min-h-[44px]" onClick={() => processMutation.mutate()} disabled={processMutation.isPending}>
             {processMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RefreshCw className="w-3.5 h-3.5" />}
             Process Due
           </Button>
-          <Button className="h-8 gap-1.5 text-xs font-medium px-3"
-            style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }}
+          <Button className="h-10 gap-1.5 text-xs font-medium px-3 min-h-[44px]"
+            style={{ background: 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))', color: 'var(--dmq-black)' }}
             onClick={openCreate}>
             <Plus className="w-3.5 h-3.5" /> New Sequence
           </Button>
@@ -234,7 +234,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
           <p className="text-sm font-medium text-foreground">{search ? 'No matching sequences' : 'No sequences yet'}</p>
           <p className="text-xs text-muted-foreground mt-1">{search ? 'Try a different search' : 'Create multi-step email sequences to automate your outreach'}</p>
           {!search && (
-            <Button className="mt-4 h-8 gap-1.5 text-xs" style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }} onClick={openCreate}>
+            <Button className="mt-4 h-10 gap-1.5 text-xs min-h-[44px]" style={{ background: 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))', color: 'var(--dmq-black)' }} onClick={openCreate}>
               <Plus className="w-3.5 h-3.5" /> Create Sequence
             </Button>
           )}
@@ -259,15 +259,15 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
                   </div>
                   <div className="flex gap-1 shrink-0">
                     <motion.button whileTap={{ scale: 0.9 }} onClick={() => openEnroll(seq)}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-black/[0.03] transition-colors">
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-black/[0.03] transition-colors">
                       <Users className="w-3.5 h-3.5" />
                     </motion.button>
                     <motion.button whileTap={{ scale: 0.9 }} onClick={() => openEdit(seq)}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-black/[0.03] transition-colors">
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-black/[0.03] transition-colors">
                       <Pencil className="w-3.5 h-3.5" />
                     </motion.button>
                     <motion.button whileTap={{ scale: 0.9 }} onClick={() => deleteMutation.mutate(seq.id)}
-                      className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors">
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50 transition-colors">
                       <Trash2 className="w-3.5 h-3.5" />
                     </motion.button>
                   </div>
@@ -289,7 +289,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
                       <div key={step.id} className="flex items-start gap-3">
                         <div className="flex flex-col items-center">
                           <div className="w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold text-black shrink-0"
-                            style={{ background: `linear-gradient(135deg, #D4AF37, #E8C860)` }}>
+                            style={{ background: `linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))` }}>
                             {step.stepNumber}
                           </div>
                           {si < seq.steps.length - 1 && <div className="w-px h-6 bg-gray-100" />}
@@ -307,10 +307,10 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
 
                 {/* Actions */}
                 <div className="flex gap-2 pt-2" style={{ borderTop: `1px solid ${border}` }}>
-                  <Button size="sm" variant="outline" className="h-7 gap-1 text-[11px]" onClick={() => openEnroll(seq)}>
+                  <Button size="sm" variant="outline" className="h-10 gap-1 text-[11px] min-h-[44px]" onClick={() => openEnroll(seq)}>
                     <Users className="w-3 h-3" /> Enroll
                   </Button>
-                  <Button size="sm" variant="outline" className="h-7 gap-1 text-[11px]" onClick={() => openEdit(seq)}>
+                  <Button size="sm" variant="outline" className="h-10 gap-1 text-[11px] min-h-[44px]" onClick={() => openEdit(seq)}>
                     <Pencil className="w-3 h-3" /> Edit
                   </Button>
                 </div>
@@ -331,12 +331,12 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Sequence Name</Label>
-                <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="e.g. 3-Step Enterprise AI Outreach" className="h-9 text-sm" />
+                <Input value={formName} onChange={e => setFormName(e.target.value)} placeholder="e.g. 3-Step Enterprise AI Outreach" className="h-10 text-sm" />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Service Line</Label>
                 <Select value={formServiceLine} onValueChange={setFormServiceLine}>
-                  <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Optional" /></SelectTrigger>
+                  <SelectTrigger className="h-10 text-sm"><SelectValue placeholder="Optional" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="AI & ML">AI & ML</SelectItem>
                     <SelectItem value="Cloud Engineering">Cloud Engineering</SelectItem>
@@ -348,14 +348,14 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
             </div>
             <div className="space-y-1.5">
               <Label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Description</Label>
-              <Input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Brief description" className="h-9 text-sm" />
+              <Input value={formDesc} onChange={e => setFormDesc(e.target.value)} placeholder="Brief description" className="h-10 text-sm" />
             </div>
 
             {/* Steps Editor */}
             <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <Label className="text-[11px] text-muted-foreground uppercase tracking-wider font-medium">Steps</Label>
-                <Button variant="outline" size="sm" className="h-7 gap-1 text-[11px]" onClick={addStep}>
+                <Button variant="outline" size="sm" className="h-10 gap-1 text-[11px] min-h-[44px]" onClick={addStep}>
                   <Plus className="w-3 h-3" /> Add Step
                 </Button>
               </div>
@@ -363,17 +363,17 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
                 {formSteps.map((step, index) => (
                   <motion.div key={index} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -20 }} className="p-4 rounded-lg space-y-3"
-                    style={{ background: 'rgba(0,0,0,0.02)', border: `1px solid ${border}` }}>
+                    style={{ background: 'var(--dmq-black-trace)', border: `1px solid ${border}` }}>
                     <div className="flex items-center gap-3">
                       <div className="w-6 h-6 rounded-full flex items-center justify-center text-[11px] font-bold text-black shrink-0"
-                        style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)' }}>{index + 1}</div>
+                        style={{ background: 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))' }}>{index + 1}</div>
                       <Input placeholder="Step subject line" value={step.subject}
                         onChange={e => updateStep(index, 'subject', e.target.value)} className="text-sm flex-1" />
                       <div className="flex items-center gap-1 shrink-0">
                         <Clock className="w-3 h-3 text-muted-foreground" />
                         <Input type="number" min={0} value={step.delayDays}
                           onChange={e => updateStep(index, 'delayDays', parseInt(e.target.value) || 0)}
-                          className="w-16 text-sm text-center h-8" />
+                          className="w-16 text-sm text-center h-10" />
                         <span className="text-[11px] text-muted-foreground">d</span>
                       </div>
                       <div className="flex gap-0.5">
@@ -385,7 +385,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
                     <Textarea placeholder="Email body content..." value={step.body}
                       onChange={e => updateStep(index, 'body', e.target.value)} rows={2} className="text-xs font-mono ml-9" />
                     <Input placeholder="CTA (optional)" value={step.cta}
-                      onChange={e => updateStep(index, 'cta', e.target.value)} className="text-xs ml-9 h-8" />
+                      onChange={e => updateStep(index, 'cta', e.target.value)} className="text-xs ml-9 h-10" />
                   </motion.div>
                 ))}
               </AnimatePresence>
@@ -394,7 +394,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleSave} disabled={saveMutation.isPending}
-                style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }}>
+                style={{ background: 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))', color: 'var(--dmq-black)' }}>
                 {saveMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
                 {selectedSeq ? 'Update' : 'Create'} Sequence
               </Button>
@@ -427,7 +427,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
                   {(selectedSeq.steps || []).map(step => (
                     <div key={step.id} className="flex items-center gap-1 text-[11px] text-muted-foreground">
                       <span className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-black"
-                        style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)' }}>{step.stepNumber}</span>
+                        style={{ background: 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))' }}>{step.stepNumber}</span>
                       {step.stepNumber < selectedSeq.steps.length && <ArrowRight className="w-2.5 h-2.5" />}
                     </div>
                   ))}
@@ -437,7 +437,7 @@ export default function SequencesScreen({ navigateTo }: { navigateTo?: (screen: 
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setEnrollDialogOpen(false)}>Cancel</Button>
               <Button onClick={handleEnroll} disabled={enrollMutation.isPending}
-                style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }}>
+                style={{ background: 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))', color: 'var(--dmq-black)' }}>
                 {enrollMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Enroll Contacts'}
               </Button>
             </div>

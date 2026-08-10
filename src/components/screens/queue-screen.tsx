@@ -69,9 +69,9 @@ function retryIndicator(retryCount: number, status: string): { color: string; la
 }
 
 function failureBorderColor(retryCount: number): string {
-  if (retryCount >= MAX_RETRIES) return '#7F1D1D';     // dark red — permanently failed
-  if (retryCount >= 2) return '#DC2626';     // red
-  if (retryCount >= 1) return '#EAB308';     // yellow
+  if (retryCount >= MAX_RETRIES) return 'var(--dmq-red-900)';     // dark red — permanently failed
+  if (retryCount >= 2) return 'var(--dmq-red)';     // red
+  if (retryCount >= 1) return 'var(--dmq-yellow-500)';     // yellow
   return 'transparent';
 }
 
@@ -302,7 +302,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
             <div
               className="absolute inset-0 animate-[bannerShift_8s_ease-in-out_infinite]"
               style={{
-                background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(139, 92, 246, 0.08), rgba(212, 175, 55, 0.15))',
+                background: 'linear-gradient(135deg, var(--dmq-gold-border-faint), var(--dmq-purple-bg-ghost), var(--dmq-gold-border-faint))',
                 backgroundSize: '300% 300%',
               }}
             />
@@ -324,7 +324,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                   <PulseDot color="var(--color-gold)" />
                   <Button
                     size="sm"
-                    className="h-8 text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 gap-1.5"
+                    className="h-10 text-xs bg-primary text-primary-foreground hover:bg-primary/90 shadow-lg shadow-primary/20 gap-1.5 min-h-[44px]"
                     onClick={handleSendAll}
                     disabled={sendingAll || (pendingCount + scheduledCount === 0)}
                   >
@@ -338,7 +338,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs border-amber-500/30 text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-1.5"
+                    className="h-10 text-xs border-amber-500/30 text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-1.5 min-h-[44px]"
                     onClick={handlePauseAll}
                     disabled={pendingCount + scheduledCount === 0}
                   >
@@ -347,7 +347,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 text-xs border-emerald-500/30 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 gap-1.5"
+                    className="h-10 text-xs border-emerald-500/30 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 gap-1.5 min-h-[44px]"
                     onClick={handleResumeAll}
                     disabled={pausedCount === 0}
                   >
@@ -406,19 +406,19 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
           {/* ── Stat Cards ── */}
           <StaggerGrid className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4" stagger={0.06}>
             <StaggerItem>
-              <StatCard label="Pending" value={pendingCount} icon={Clock} color="#3B82F6" delay={0} />
+              <StatCard label="Pending" value={pendingCount} icon={Clock} color="var(--dmq-accent-blue)" delay={0} />
             </StaggerItem>
             <StaggerItem>
-              <StatCard label="Scheduled" value={scheduledCount} icon={Calendar} color="#8B5CF6" delay={0.06} />
+              <StatCard label="Scheduled" value={scheduledCount} icon={Calendar} color="var(--dmq-purple)" delay={0.06} />
             </StaggerItem>
             <StaggerItem>
-              <StatCard label="Sent" value={sentCount} icon={CheckCircle2} color="#10B981" delay={0.12} />
+              <StatCard label="Sent" value={sentCount} icon={CheckCircle2} color="var(--dmq-emerald)" delay={0.12} />
             </StaggerItem>
             <StaggerItem>
-              <StatCard label="Failed" value={failedCount} icon={XCircle} color="#EF4444" delay={0.18} />
+              <StatCard label="Failed" value={failedCount} icon={XCircle} color="var(--dmq-domain-risk)" delay={0.18} />
             </StaggerItem>
             <StaggerItem>
-              <StatCard label="Paused" value={pausedCount} icon={Pause} color="#F59E0B" delay={0.24} />
+              <StatCard label="Paused" value={pausedCount} icon={Pause} color="var(--dmq-domain-reasoning)" delay={0.24} />
             </StaggerItem>
           </StaggerGrid>
 
@@ -612,7 +612,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                             </TableCell>
                             <TableCell className="text-right">
                               <div className="flex items-center justify-end gap-0.5">
-                                <Button variant="ghost" size="sm" className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground">
+                                <Button variant="ghost" size="sm" className="h-10 w-10 p-0 text-muted-foreground hover:text-foreground min-h-[44px]">
                                   <Eye className="w-3.5 h-3.5" />
                                 </Button>
 
@@ -623,7 +623,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                        className="h-10 w-10 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50 min-h-[44px]"
                                         onClick={() => handlePauseOne(item.id)}
                                       >
                                         <Pause className="w-3.5 h-3.5" />
@@ -639,7 +639,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-7 w-7 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50"
+                                        className="h-10 w-10 p-0 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 min-h-[44px]"
                                         onClick={() => handleResumeOne(item.id)}
                                       >
                                         <Play className="w-3.5 h-3.5" />
@@ -655,7 +655,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-7 w-7 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                                        className="h-10 w-10 p-0 text-amber-600 hover:text-amber-700 hover:bg-amber-50 min-h-[44px]"
                                         onClick={() => handlePauseOne(item.id)}
                                       >
                                         <Pause className="w-3.5 h-3.5" />
@@ -671,7 +671,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-7 w-7 p-0 text-yellow-600 hover:text-yellow-300 hover:bg-yellow-500/10"
+                                        className="h-10 w-10 p-0 text-yellow-600 hover:text-yellow-300 hover:bg-yellow-500/10 min-h-[44px]"
                                         onClick={() => handleRetryOne(item.id)}
                                       >
                                         <RotateCcw className="w-3.5 h-3.5" />
@@ -704,7 +704,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                                       <Button
                                         variant="ghost"
                                         size="sm"
-                                        className="h-7 w-7 p-0 text-red-600/60 hover:text-red-600 hover:bg-red-50"
+                                        className="h-10 w-10 p-0 text-red-600/60 hover:text-red-600 hover:bg-red-50 min-h-[44px]"
                                         onClick={() => handleCancelOne(item.id)}
                                       >
                                         <Ban className="w-3.5 h-3.5" />
@@ -752,7 +752,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-[11px] border-amber-500/30 text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-1"
+                          className="h-10 text-[11px] border-amber-500/30 text-amber-600 hover:text-amber-700 hover:bg-amber-50 gap-1 min-h-[44px]"
                           onClick={() => openBulkAction('pause', 'Pause Selected', selectedPending.map(i => i.id))}
                         >
                           <Pause className="w-3 h-3" />
@@ -764,7 +764,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-[11px] border-emerald-500/30 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 gap-1"
+                          className="h-10 text-[11px] border-emerald-500/30 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 gap-1 min-h-[44px]"
                           onClick={() => openBulkAction('resume', 'Resume Selected', selectedPaused.map(i => i.id))}
                         >
                           <Play className="w-3 h-3" />
@@ -776,7 +776,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-[11px] border-yellow-500/30 text-yellow-600 hover:text-yellow-300 hover:bg-yellow-500/10 gap-1"
+                          className="h-10 text-[11px] border-yellow-500/30 text-yellow-600 hover:text-yellow-300 hover:bg-yellow-500/10 gap-1 min-h-[44px]"
                           onClick={() => openBulkAction('retry', 'Retry All Failed', [])}
                         >
                           <RotateCcw className="w-3 h-3" />
@@ -788,7 +788,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="h-7 text-[11px] border-red-500/30 text-red-600 hover:text-red-600 hover:bg-red-50 gap-1"
+                          className="h-10 text-[11px] border-red-500/30 text-red-600 hover:text-red-600 hover:bg-red-50 gap-1 min-h-[44px]"
                           onClick={() => openBulkAction('cancel', 'Cancel Selected', selectedCancelable.map(i => i.id))}
                         >
                           <Ban className="w-3 h-3" />
@@ -803,7 +803,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                     <Button
                       variant="ghost"
                       size="sm"
-                      className="h-7 w-7 p-0 text-muted-foreground hover:text-foreground"
+                      className="h-10 w-10 p-0 text-muted-foreground hover:text-foreground min-h-[44px]"
                       onClick={clearSelection}
                     >
                       <XCircle className="w-3.5 h-3.5" />
@@ -830,7 +830,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 text-xs border-yellow-500/30 text-yellow-600 hover:text-yellow-300 hover:bg-yellow-500/10 gap-1.5"
+                      className="h-10 text-xs border-yellow-500/30 text-yellow-600 hover:text-yellow-300 hover:bg-yellow-500/10 gap-1.5 min-h-[44px]"
                       onClick={handleRetryAll}
                     >
                       <RotateCcw className="w-3.5 h-3.5" />Retry All Failed
@@ -840,7 +840,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 text-xs border-emerald-500/30 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 gap-1.5"
+                      className="h-10 text-xs border-emerald-500/30 text-emerald-600 hover:text-emerald-700 hover:bg-emerald-50 gap-1.5 min-h-[44px]"
                       onClick={handleResumeAll}
                     >
                       <Play className="w-3.5 h-3.5" />Resume All Paused
@@ -850,7 +850,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-8 text-xs border-red-500/30 text-red-600 hover:text-red-600 hover:bg-red-50 gap-1.5"
+                      className="h-10 text-xs border-red-500/30 text-red-600 hover:text-red-600 hover:bg-red-50 gap-1.5 min-h-[44px]"
                       onClick={handleCancelAll}
                     >
                       <Ban className="w-3.5 h-3.5" />Cancel All Pending
@@ -878,7 +878,7 @@ export default function QueueScreen({ navigateTo }: QueueScreenProps) {
               <Button
                 variant="outline"
                 size="sm"
-                className="h-8 text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1.5"
+                className="h-10 text-xs border-primary/30 text-primary hover:bg-primary/10 gap-1.5 min-h-[44px]"
                 onClick={async () => {
                   try {
                     const res = await fetch('/api/email/test', { method: 'POST' });

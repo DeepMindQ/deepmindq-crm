@@ -155,38 +155,41 @@ try {
         }
       }
 
-      // Move drafts from secondary to primary
-      for (const draft of (secondary.drafts || []) as any[]) {
-        await db.draft.update({
-          where: { id: draft.id },
-          data: { contactId: primaryId },
-        });
-      }
+      // All writes for this secondary wrapped in a transaction for atomicity
+      await db.$transaction(async (tx) => {
+        // Move drafts from secondary to primary
+        for (const draft of (secondary.drafts || []) as any[]) {
+          await tx.draft.update({
+            where: { id: draft.id },
+            data: { contactId: primaryId },
+          });
+        }
 
-      // Move replies from secondary to primary
-      for (const reply of (secondary.replies || []) as any[]) {
-        await db.reply.update({
-          where: { id: reply.id },
-          data: { contactId: primaryId },
-        });
-      }
+        // Move replies from secondary to primary
+        for (const reply of (secondary.replies || []) as any[]) {
+          await tx.reply.update({
+            where: { id: reply.id },
+            data: { contactId: primaryId },
+          });
+        }
 
-      // Mark secondary as duplicate
-      await db.contact.update({
-        where: { id: secId },
-        data: {
-          status: 'duplicate',
-          suppressionReason: `Merged into ${primaryId}`,
-        },
-      });
-
-      // Update primary with merged fields
-      if (Object.keys(updateData).length > 0) {
-        await db.contact.update({
-          where: { id: primaryId },
-          data: updateData,
+        // Mark secondary as duplicate
+        await tx.contact.update({
+          where: { id: secId },
+          data: {
+            status: 'duplicate',
+            suppressionReason: `Merged into ${primaryId}`,
+          },
         });
-      }
+
+        // Update primary with merged fields
+        if (Object.keys(updateData).length > 0) {
+          await tx.contact.update({
+            where: { id: primaryId },
+            data: updateData,
+          });
+        }
+      }, { timeout: 30000 });
 
       mergedCount++;
     }

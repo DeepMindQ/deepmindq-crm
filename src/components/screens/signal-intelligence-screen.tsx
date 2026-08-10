@@ -779,7 +779,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                 size="sm"
                 onClick={() => fetchSignals()}
                 disabled={loading}
-                className="h-8 gap-1.5 text-xs"
+                className="h-10 gap-1.5 text-xs"
               >
                 <RefreshCw className={cn('h-3.5 w-3.5', loading && 'animate-spin')} />
                 Refresh
@@ -821,7 +821,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                     placeholder="Search signals..."
                     value={search}
                     onChange={(e) => setSearch(e.target.value)}
-                    className="pl-9 h-9 text-sm bg-slate-50 border-slate-200"
+                    className="pl-9 h-10 text-sm bg-slate-50 border-slate-200"
                   />
                 </div>
 
@@ -831,7 +831,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                   <select
                     value={typeFilter}
                     onChange={(e) => setTypeFilter(e.target.value)}
-                    className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                    className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   >
                     <option value="all">All Types</option>
                     <option value="funding">Funding</option>
@@ -852,7 +852,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                   <select
                     value={severityFilter}
                     onChange={(e) => setSeverityFilter(e.target.value)}
-                    className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                    className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   >
                     <option value="all">All Severities</option>
                     <option value="critical">Critical</option>
@@ -865,7 +865,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                   <select
                     value={statusFilter}
                     onChange={(e) => setStatusFilter(e.target.value)}
-                    className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                    className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   >
                     <option value="all">All Statuses</option>
                     <option value="detected">Detected</option>
@@ -880,7 +880,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                   <select
                     value={meaningFilter}
                     onChange={(e) => setMeaningFilter(e.target.value)}
-                    className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                    className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   >
                     <option value="all">All Meanings</option>
                     {Object.entries(meaningCategoryConfig)
@@ -894,7 +894,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                   <select
                     value={groupBy}
                     onChange={(e) => setGroupBy(e.target.value as 'none' | 'account' | 'theme')}
-                    className="h-9 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
+                    className="h-10 rounded-lg border border-slate-200 bg-white px-3 text-xs font-medium text-slate-700 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-300"
                   >
                     <option value="none">No Grouping</option>
                     <option value="account">Group by Account</option>
@@ -906,7 +906,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                     <button
                       onClick={() => setViewMode('table')}
                       className={cn(
-                        'px-3 py-1.5 text-xs font-medium transition-colors',
+                        'px-3 py-2.5 text-xs font-medium transition-colors min-h-[44px]',
                         viewMode === 'table'
                           ? 'bg-blue-600 text-white'
                           : 'bg-white text-slate-600 hover:bg-slate-50'
@@ -917,7 +917,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                     <button
                       onClick={() => setViewMode('cards')}
                       className={cn(
-                        'px-3 py-1.5 text-xs font-medium transition-colors border-l border-slate-200',
+                        'px-3 py-2.5 text-xs font-medium transition-colors border-l border-slate-200 min-h-[44px]',
                         viewMode === 'cards'
                           ? 'bg-blue-600 text-white'
                           : 'bg-white text-slate-600 hover:bg-slate-50'
@@ -931,7 +931,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                   {activeFilterCount > 0 && (
                     <button
                       onClick={clearFilters}
-                      className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-[11px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                      className="inline-flex items-center gap-1 px-2.5 py-2.5 rounded-lg text-[11px] font-medium text-slate-500 hover:text-slate-700 hover:bg-slate-100 transition-colors min-h-[44px]"
                     >
                       <X className="h-3 w-3" />
                       Clear all
@@ -1273,7 +1273,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-[11px] px-2.5"
+                        className="h-10 text-[11px] px-2.5 min-h-[44px]"
                         disabled={pagination.page <= 1}
                         onClick={() => setPage(p => p - 1)}
                       >
@@ -1282,7 +1282,7 @@ export default function SignalIntelligenceScreen({ navigateTo }: SignalIntellige
                       <Button
                         variant="outline"
                         size="sm"
-                        className="h-7 text-[11px] px-2.5"
+                        className="h-10 text-[11px] px-2.5 min-h-[44px]"
                         disabled={pagination.page >= pagination.totalPages}
                         onClick={() => setPage(p => p + 1)}
                       >

@@ -21,7 +21,6 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
-import { auditAuthFailure, auditCsrfFailure } from '@/lib/audit-logger';
 import {
   getSessionToken,
   isPublicPath,
@@ -35,9 +34,12 @@ import {
   otpRateLimit,
   generalApiRateLimit,
   edgeRateLimit,
+  edgeAuditAuthFailure,
+  edgeAuditCsrfFailure,
   SESSION_COOKIE_NAME,
 } from '@/lib/auth-helpers';
 import { getRateLimitConfig } from '@/lib/rate-limit-registry';
+import { generateCsrfToken, CSRF_COOKIE_NAME } from '@/lib/csrf';
 
 export const config = {
   // Run middleware on ALL routes except Next.js internals and static assets
@@ -69,6 +71,10 @@ export async function proxy(request: NextRequest) {
 
   // ── 1. Skip auth for public paths ──────────────────────
   if (isPublicPath(pathname)) {
+    // P0 Deep Audit #3 FIX: Inject CSRF cookie on public auth pages
+    // (login, signup, etc.) so the client has a token for POST requests.
+    injectCsrfCookie(response);
+
     // Still apply rate limiting to public auth APIs
     if (isRateLimitedPublicApi(pathname)) {
       return applyRateLimiting(request, response, pathname);
@@ -99,7 +105,7 @@ function handleApiRoute(
   if (!token) {
     const ip = getClientIp(request);
     logger.warn(`[Middleware] No session token for ${request.method} ${pathname}`);
-    auditAuthFailure('Unauthenticated API access', ip, { path: pathname, method: request.method });
+    edgeAuditAuthFailure('Unauthenticated API access', ip, { path: pathname, method: request.method });
     return unauthorizedResponse();
   }
 
@@ -108,7 +114,7 @@ function handleApiRoute(
   if (!['GET', 'HEAD', 'OPTIONS'].includes(method)) {
     if (!validateCsrf(request)) {
       const ip = getClientIp(request);
-      auditCsrfFailure(ip, pathname, request.method);
+      edgeAuditCsrfFailure(ip, pathname, request.method);
       return applySecurityHeaders(
         NextResponse.json(
           { success: false, error: 'CSRF validation failed' },
@@ -187,6 +193,9 @@ function handlePageRoute(
   // User has a session token — allow through
   // (actual validation happens in the page/API route with DB access)
   const response = NextResponse.next();
+  // P0 Deep Audit #3 FIX: Inject CSRF cookie on authenticated page loads
+  // so the client can make POST/PUT/DELETE requests with a valid token.
+  injectCsrfCookie(response);
   applySecurityHeaders(response);
   return response;
 }
@@ -242,6 +251,22 @@ function applyRateLimiting(
 /* ═══════════════════════════════════════════════════════
    Utility Helpers
    ═══════════════════════════════════════════════════════ */
+
+/**
+ * Inject CSRF cookie into response.
+ * P0 Deep Audit #3 FIX: Centralized CSRF cookie injection.
+ * Uses the canonical generateCsrfToken from csrf.ts.
+ */
+function injectCsrfCookie(response: NextResponse): void {
+  const csrfToken = generateCsrfToken();
+  response.cookies.set(CSRF_COOKIE_NAME, csrfToken, {
+    httpOnly: false,  // Must be readable by JS client
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    path: '/',
+    maxAge: 86400,
+  });
+}
 
 /**
  * Extract client IP from request headers.

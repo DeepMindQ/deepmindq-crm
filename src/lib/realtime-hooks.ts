@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useAppStore } from '@/lib/store';
 import { logger } from '@/lib/logger';
+import { fetchApi } from '@/lib/fetchApi';
 
 // ── Types ──
 
@@ -67,16 +68,16 @@ export function useRealtimeData<T = any>(
       setLoading(true);
       setError(null);
       
-      const res = await fetch(endpoint, {
+      const res = await fetchApi(endpoint, {
         signal: controller.signal,
         headers: { 'Content-Type': 'application/json' },
       });
 
-      if (!res.ok) {
-        throw new Error(`API ${endpoint} returned ${res.status}: ${res.statusText}`);
+      if (res.error) {
+        throw new Error(`API ${endpoint} error: ${res.error}`);
       }
 
-      const json = await res.json();
+      const json = res.data;
       
       if (!mountedRef.current) return;
 
@@ -319,18 +320,17 @@ export function useMutation<TData = any, TVariables = any>(
       setLoading(true);
       setError(null);
       
-      const res = await fetch(endpoint, {
+      const res = await fetchApi(endpoint, {
         method,
         headers: { 'Content-Type': 'application/json' },
         body: variables ? JSON.stringify(variables) : undefined,
       });
 
-      if (!res.ok) {
-        const errorBody = await res.text();
-        throw new Error(`Mutation ${method} ${endpoint} failed: ${res.status} - ${errorBody}`);
+      if (res.error) {
+        throw new Error(`Mutation ${method} ${endpoint} failed: ${res.error}`);
       }
 
-      const data: TData = await res.json();
+      const data: TData = res.data;
       onSuccess?.(data);
       return data;
     } catch (err) {

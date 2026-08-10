@@ -59,6 +59,11 @@ const {
 
 vi.mock('@/lib/db', () => ({
   db: {
+    $transaction: vi.fn((fn: Function) => fn({
+      uploadRow: {
+        createMany: mockDbUploadRowCreateMany,
+      },
+    })),
     uploadRow: {
       createMany: mockDbUploadRowCreateMany,
       findMany: mockDbUploadRowFindMany,

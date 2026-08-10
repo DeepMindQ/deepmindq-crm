@@ -73,7 +73,10 @@ vi.mock('@/lib/db', () => ({
         update: mockUploadRowUpdate,
       },
       importBatch: {
-        create: mockImportBatchCreate,
+        update: mockImportBatchUpdate,
+      },
+      dataUpload: {
+        update: mockDataUploadUpdate,
       },
     })),
     dataUpload: {

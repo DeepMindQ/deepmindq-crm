@@ -7,6 +7,7 @@ import { db } from '@/lib/db';
 import { AuthError, requireAuth } from '@/lib/session';
 import { logger } from '@/lib/logger';
 import { generalApiRateLimit } from '@/lib/auth-helpers';
+import { withCsrf } from '@/lib/with-csrf';
 
 const schema = z.object({
   email: z.string().email(),
@@ -14,7 +15,10 @@ const schema = z.object({
   password: z.string().min(8, 'Password must be at least 8 characters'),
 });
 
-export async function POST(request: NextRequest) {
+// P0.4: Wrapped with withCsrf — CSRF protection is required on all
+// state-changing auth endpoints, even those that don't yet have a session
+// (the CSRF cookie is set on the login page as a non-httpOnly cookie).
+export const POST = withCsrf(async function POST(request: NextRequest) {
   try {
     const ip = request.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     const rl = generalApiRateLimit(ip, 'set-password');
@@ -67,4 +71,4 @@ export async function POST(request: NextRequest) {
     logger.error('[auth/set-password] Error:', { error: error });
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
-}
+});

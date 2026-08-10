@@ -8,11 +8,12 @@
  * POST: Records a calibration outcome (predicted vs actual) to improve future accuracy.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
+import { utilityGuard, utilitySuccess, utilityError, utilityCatchError, RateLimitedError } from '@/lib/intelligence-api/guard';
 
 // ── Validation ──────────────────────────────────────────────────────────
 
@@ -45,18 +46,32 @@ interface CalibrationSummary {
 // ── GET: Retrieve calibration summary ───────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+
+  const { errorResponse } = await checkApiAuth(request);
+  if (errorResponse) return errorResponse;
+
+  try {
+    const ctx = utilityGuard(request, 'calibration');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (e) {
+    if (e instanceof RateLimitedError) {
+      return new Response(JSON.stringify(e.errorBody), { status: 429, headers: e.headers });
+    }
+    throw e;
+  }
+
+  const ctx = { correlationId, responseHeaders };
+  const startedAt = Date.now();
+
   try {
     const url = new URL(request.url);
     const dimension = url.searchParams.get('dimension') || 'overall';
 
-    const { errorResponse } = await checkApiAuth(request);
-    if (errorResponse) return errorResponse;
-
     if (!VALID_DIMENSIONS.includes(dimension as typeof VALID_DIMENSIONS[number])) {
-      return NextResponse.json(
-        { success: false, error: `Invalid dimension: ${dimension}. Must be one of: ${VALID_DIMENSIONS.join(', ')}` },
-        { status: 400 },
-      );
+      return utilityError(ctx, 400, `Invalid dimension: ${dimension}. Must be one of: ${VALID_DIMENSIONS.join(', ')}`, 'VALIDATION_FAILED', Date.now() - startedAt);
     }
 
     const curves = await db.calibrationCurve.findMany({
@@ -71,18 +86,15 @@ export async function GET(request: NextRequest) {
       : curves.find(c => c.dimension === dimension);
 
     if (!targetCurve) {
-      return NextResponse.json({
-        success: true,
-        data: {
-          dimension,
-          status: 'uncalibrated',
-          sampleCount: 0,
-          accuracy: 0,
-          correctionFactor: 1.0,
-          lastCalibratedAt: null,
-          buckets: {},
-        } as CalibrationSummary,
-      });
+      return utilitySuccess(ctx, {
+        dimension,
+        status: 'uncalibrated',
+        sampleCount: 0,
+        accuracy: 0,
+        correctionFactor: 1.0,
+        lastCalibratedAt: null,
+        buckets: {},
+      } as CalibrationSummary, 'calibration', Date.now() - startedAt);
     }
 
     const summary: CalibrationSummary = {
@@ -129,48 +141,57 @@ export async function GET(request: NextRequest) {
         .filter(c => c.lastCalibratedAt)
         .sort((a, b) => b.lastCalibratedAt!.getTime() - a.lastCalibratedAt!.getTime())[0];
 
-      return NextResponse.json({
-        success: true,
-        data: {
-          dimension: 'overall',
-          status: overallStatus,
-          sampleCount: totalSamples,
-          accuracy: Math.round(avgAccuracy * 10000) / 10000,
-          correctionFactor: Math.round(avgCorrection * 10000) / 10000,
-          lastCalibratedAt: latestCalibrated?.lastCalibratedAt?.toISOString() ?? null,
-          buckets: mergedBuckets,
-          dimensions: allCurves.map(c => ({
-            dimension: c.dimension,
-            status: c.status,
-            sampleCount: c.sampleCount,
-            accuracy: c.accuracy,
-          })),
-        } as CalibrationSummary & { dimensions: Array<{ dimension: string; status: string; sampleCount: number; accuracy: number }> },
-      });
+      return utilitySuccess(ctx, {
+        dimension: 'overall',
+        status: overallStatus,
+        sampleCount: totalSamples,
+        accuracy: Math.round(avgAccuracy * 10000) / 10000,
+        correctionFactor: Math.round(avgCorrection * 10000) / 10000,
+        lastCalibratedAt: latestCalibrated?.lastCalibratedAt?.toISOString() ?? null,
+        buckets: mergedBuckets,
+        dimensions: allCurves.map(c => ({
+          dimension: c.dimension,
+          status: c.status,
+          sampleCount: c.sampleCount,
+          accuracy: c.accuracy,
+        })),
+      } as CalibrationSummary & { dimensions: Array<{ dimension: string; status: string; sampleCount: number; accuracy: number }> }, 'calibration', Date.now() - startedAt);
     }
 
-    return NextResponse.json({ success: true, data: summary });
+    return utilitySuccess(ctx, summary, 'calibration', Date.now() - startedAt);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    logger.error('[calibration] GET failed', { error: message });
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 },
-    );
+    return utilityCatchError(ctx, error, 500, 'INTERNAL_ERROR', 'calibration', Date.now() - startedAt);
   }
 }
 
 // ── POST: Record a calibration outcome ────────────────────────────────
 
 export async function POST(request: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+
+  const { errorResponse } = await checkApiAuth(request);
+  if (errorResponse) return errorResponse;
+
+  try {
+    const ctx = utilityGuard(request, 'calibration');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (e) {
+    if (e instanceof RateLimitedError) {
+      return new Response(JSON.stringify(e.errorBody), { status: 429, headers: e.headers });
+    }
+    throw e;
+  }
+
+  const ctx = { correlationId, responseHeaders };
+  const startedAt = Date.now();
+
   try {
     const body = await request.json();
     const parsed = RecordOutcomeSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json(
-        { success: false, error: `Validation failed: ${parsed.error.issues.map(i => i.message).join(', ')}` },
-        { status: 400 },
-      );
+      return utilityError(ctx, 400, `Validation failed: ${parsed.error.issues.map(i => i.message).join(', ')}`, 'VALIDATION_FAILED', Date.now() - startedAt);
     }
 
     const { companyId, dimension, predictedScore, actualOutcome, actualScore } = parsed.data;
@@ -246,24 +267,16 @@ export async function POST(request: NextRequest) {
       newSampleCount: totalEntries,
     });
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        dimension,
-        isCorrect,
-        bucket: bucketKey,
-        newSampleCount: totalEntries,
-        accuracy: Math.round(accuracy * 10000) / 10000,
-        correctionFactor,
-        status: newStatus,
-      },
-    });
+    return utilitySuccess(ctx, {
+      dimension,
+      isCorrect,
+      bucket: bucketKey,
+      newSampleCount: totalEntries,
+      accuracy: Math.round(accuracy * 10000) / 10000,
+      correctionFactor,
+      status: newStatus,
+    }, 'calibration', Date.now() - startedAt);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    logger.error('[calibration] POST failed', { error: message });
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 },
-    );
+    return utilityCatchError(ctx, error, 500, 'INTERNAL_ERROR', 'calibration', Date.now() - startedAt);
   }
 }

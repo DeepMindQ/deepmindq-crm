@@ -133,7 +133,17 @@ export async function scoreOpportunity(
   winProbability = Math.max(0, Math.min(100, winProbability));
 
   // Confidence in our prediction
-  const confidence = Math.min(95, 50 + engagementStrength * 0.2 + (totalDays > 7 ? 10 : 0));
+  const rawConfidence = Math.min(95, 50 + engagementStrength * 0.2 + (totalDays > 7 ? 10 : 0));
+
+  // Phase 2.8: Apply calibration correction from unified confidence engine
+  let confidence = rawConfidence;
+  try {
+    const { applyCalibration } = await import('@/lib/confidence-calibration-engine');
+    const calResult = await applyCalibration(rawConfidence, 'overall');
+    confidence = calResult.calibrated;
+  } catch {
+    // Calibration unavailable — use raw confidence
+  }
 
   // Next best action
   let nextBestAction = 'Continue monitoring';

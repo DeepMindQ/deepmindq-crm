@@ -287,7 +287,7 @@ export default function IntelligenceKnowledgeScreen({ companyId }: { companyId?:
         <button
           onClick={() => setSelectedCategory(null)}
           className={cn(
-            'px-3.5 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap',
+            'px-3.5 py-2.5 rounded-full text-xs font-medium transition-all whitespace-nowrap min-h-[44px]',
             !selectedCategory
               ? 'bg-blue-600 text-white shadow-sm'
               : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -303,7 +303,7 @@ export default function IntelligenceKnowledgeScreen({ companyId }: { companyId?:
               key={cat}
               onClick={() => setSelectedCategory(isActive ? null : cat)}
               className={cn(
-                'px-3.5 py-1.5 rounded-full text-xs font-medium transition-all whitespace-nowrap',
+                'px-3.5 py-2.5 rounded-full text-xs font-medium transition-all whitespace-nowrap min-h-[44px]',
                 isActive
                   ? 'bg-blue-600 text-white shadow-sm'
                   : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
@@ -403,7 +403,7 @@ export default function IntelligenceKnowledgeScreen({ companyId }: { companyId?:
           </div>
           <div className="mt-3">
             <Input
-              className="h-9 text-sm border-slate-200 max-w-md"
+              className="h-10 text-sm border-slate-200 max-w-md"
               placeholder="Enter knowledge entry ID to view versions..."
               value={selectedEntryId ?? ''}
               onChange={e => {
@@ -461,7 +461,7 @@ export default function IntelligenceKnowledgeScreen({ companyId }: { companyId?:
                     <Button variant="outline" size="sm"
                       onClick={() => handleCompare(v.version, versions[idx + 1].version)}
                       disabled={!!actionLoading}
-                      className="h-7 text-[11px] border-slate-200 text-slate-600 hover:bg-slate-50 gap-1">
+                      className="h-10 text-[11px] border-slate-200 text-slate-600 hover:bg-slate-50 gap-1">
                       {actionLoading === 'compare' ? <RefreshCw className="h-3 w-3 animate-spin" /> : <GitCompare className="h-3 w-3" />}
                       Compare
                     </Button>
@@ -469,7 +469,7 @@ export default function IntelligenceKnowledgeScreen({ companyId }: { companyId?:
                   <Button variant="outline" size="sm"
                     onClick={() => handleRestore(v.version)}
                     disabled={!!actionLoading || idx === 0}
-                    className="h-7 text-[11px] border-slate-200 text-slate-600 hover:bg-slate-50 gap-1">
+                    className="h-10 text-[11px] border-slate-200 text-slate-600 hover:bg-slate-50 gap-1">
                     {actionLoading === `restore-${v.version}` ? <RefreshCw className="h-3 w-3 animate-spin" /> : <RotateCcw className="h-3 w-3" />}
                     Restore
                   </Button>

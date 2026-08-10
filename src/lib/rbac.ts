@@ -273,6 +273,7 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
 
   // System & Health
   { path: '/api/system-health', methods: { GET: ['health:read'] }, description: 'System health details' },
+  { path: '/api/monitoring', methods: { GET: ['health:read'] }, description: 'System monitoring metrics (P0.2 FIX: was missing — caused 403 for all users)' },
   { path: '/api/performance', methods: { GET: ['health:read'] }, description: 'Performance metrics' },
   { path: '/api/api-metrics', methods: { GET: ['health:read'] }, description: 'API metrics' },
   { path: '/api/data-health', methods: { GET: ['health:read'] }, description: 'Data health' },
@@ -335,9 +336,7 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
   { path: '/api/templates/', methods: { GET: ['templates:read'], POST: ['templates:write'], PUT: ['templates:write'], DELETE: ['templates:write'] }, description: 'Template endpoints' },
   { path: '/api/reports/', methods: { GET: ['reports:read'], POST: ['reports:export'] }, description: 'Report endpoints' },
   { path: '/api/pipeline/', methods: { GET: ['pipeline:read'], POST: ['pipeline:write'], PUT: ['pipeline:write'], DELETE: ['pipeline:write'] }, description: 'Pipeline endpoints' },
-  { path: '/api/system-health', methods: { GET: ['health:read'] }, description: 'System health details' },
-  { path: '/api/performance', methods: { GET: ['health:read'] }, description: 'Performance metrics' },
-  { path: '/api/data-health', methods: { GET: ['health:read'] }, description: 'Data health' },
+  // P0.3 FIX: Removed duplicate entries (were at both line ~275 and ~339)
   { path: '/api/tags/', methods: { GET: ['companies:read'], POST: ['companies:write'], DELETE: ['companies:write'] }, description: 'Tag endpoints' },
   { path: '/api/custom-fields/', methods: { GET: ['settings:read'], POST: ['settings:write'], PUT: ['settings:write'], DELETE: ['settings:write'] }, description: 'Custom field endpoints' },
   { path: '/api/seed/', methods: { POST: ['users:manage'] }, description: 'Seed data endpoints (admin only)' },

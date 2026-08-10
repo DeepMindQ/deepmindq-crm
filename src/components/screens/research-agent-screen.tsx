@@ -228,7 +228,7 @@ export default function ResearchAgentScreen() {
               <button
                 key={i}
                 onClick={() => { setQuery(h.query); setResearchType(h.type as 'company' | 'person'); }}
-                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-gray-100 hover:bg-gray-200 text-[11px] text-muted-foreground transition-colors"
+                className="flex items-center gap-1.5 px-2.5 py-2.5 rounded-full bg-gray-100 hover:bg-gray-200 text-[11px] text-muted-foreground transition-colors"
               >
                 {h.type === 'company' ? <Building2 className="w-2.5 h-2.5" /> : <User className="w-2.5 h-2.5" />}
                 {h.query}

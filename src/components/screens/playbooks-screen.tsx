@@ -435,12 +435,12 @@ export default function PlaybooksScreen() {
                             initial={{ opacity: 0, scale: 0.95 }}
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.95 }}
-                            className="absolute right-0 top-full mt-1 w-36 rounded-lg border border-gray-200 bg-white shadow-lg z-10 py-1"
+                            className="absolute right-0 top-full mt-1 w-36 rounded-lg border border-gray-200 bg-white shadow-lg z-10 py-2.5"
                           >
-                            <button onClick={(e) => { e.stopPropagation(); handleDuplicate(playbook); setMenuOpen(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-muted-foreground hover:bg-gray-50">
+                            <button onClick={(e) => { e.stopPropagation(); handleDuplicate(playbook); setMenuOpen(null); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-muted-foreground hover:bg-gray-50 min-h-[44px]">
                               <Copy className="w-3.5 h-3.5" /> Duplicate
                             </button>
-                            <button onClick={(e) => { e.stopPropagation(); handleDelete(playbook.id); setMenuOpen(null); }} className="w-full flex items-center gap-2 px-3 py-2 text-xs text-red-500 hover:bg-red-50">
+                            <button onClick={(e) => { e.stopPropagation(); handleDelete(playbook.id); setMenuOpen(null); }} className="w-full flex items-center gap-2 px-3 py-2.5 text-xs text-red-500 hover:bg-red-50 min-h-[44px]">
                               <Trash2 className="w-3.5 h-3.5" /> Delete
                             </button>
                           </motion.div>

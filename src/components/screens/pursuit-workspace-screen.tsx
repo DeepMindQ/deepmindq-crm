@@ -150,8 +150,8 @@ function StagePipeline({ stage, onAdvance }: { stage: string | null; onAdvance?:
                 style={
                   isCurrent && !isClosedWon && !isClosedLost
                     ? {
-                        background: 'linear-gradient(135deg, #E8C860, #D4AF37)',
-                        boxShadow: '0 0 10px rgba(212, 175, 55, 0.35)',
+                        background: 'linear-gradient(135deg, var(--dmq-gold-light), var(--dmq-gold))',
+                        boxShadow: '0 0 10px var(--dmq-gold-glow)',
                       }
                     : isReached && !isClosedWon && !isClosedLost
                     ? { background: 'var(--color-gold)' }
@@ -290,11 +290,11 @@ function PursuitCard({
         {/* Opportunity score ring */}
         <div className="relative flex-shrink-0 w-14 h-14">
           <svg aria-hidden="true" width={56} height={56} className="-rotate-90">
-            <circle cx={28} cy={28} r={22} fill="none" stroke="#F3F4F6" strokeWidth={4} />
+            <circle cx={28} cy={28} r={22} fill="none" stroke="var(--dmq-neutral-100)" strokeWidth={4} />
             <circle
               cx={28} cy={28} r={22}
               fill="none"
-              stroke={pursuit.opportunity.opportunityScore >= 70 ? '#059669' : pursuit.opportunity.opportunityScore >= 40 ? '#D97706' : '#DC2626'}
+              stroke={pursuit.opportunity.opportunityScore >= 70 ? 'var(--dmq-emerald-deep)' : pursuit.opportunity.opportunityScore >= 40 ? 'var(--dmq-amber-deep)' : 'var(--dmq-red)'}
               strokeWidth={4}
               strokeLinecap="round"
               strokeDasharray={2 * Math.PI * 22}
@@ -381,7 +381,7 @@ function PursuitCard({
             variant="outline"
             onClick={() => onAdvanceStage(pursuit)}
             disabled={isUpdating || stageIdx >= STAGES.length - 1}
-            className="h-8 px-3 text-xs border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800 gap-1.5"
+            className="h-10 px-3 text-xs border-amber-200 text-amber-700 hover:bg-amber-50 hover:text-amber-800 gap-1.5"
           >
             {isUpdating ? (
               <Loader2 className="w-3 h-3 animate-spin" />
@@ -395,7 +395,7 @@ function PursuitCard({
             variant="outline"
             onClick={() => onAddNote(pursuit)}
             disabled={isUpdating}
-            className="h-8 px-3 text-xs border-gray-200 text-muted-foreground hover:bg-gray-50 hover:text-foreground gap-1.5"
+            className="h-10 px-3 text-xs border-gray-200 text-muted-foreground hover:bg-gray-50 hover:text-foreground gap-1.5"
           >
             <MessageSquare className="w-3 h-3" />
             Add Note
@@ -437,7 +437,7 @@ function AdvanceStageDialogInner({
         <DialogTitle className="flex items-center gap-2 text-foreground">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: 'rgba(212, 175, 55, 0.12)' }}
+            style={{ background: 'var(--dmq-gold-bg-medium)' }}
           >
             <ArrowRight className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
           </div>
@@ -455,9 +455,9 @@ function AdvanceStageDialogInner({
           <Badge
             className="text-xs px-2 py-0.5 border"
             style={{
-              background: 'rgba(212, 175, 55, 0.1)',
-              borderColor: 'rgba(212, 175, 55, 0.25)',
-              color: '#B8941F',
+              background: 'var(--dmq-gold-bg)',
+              borderColor: 'var(--dmq-gold-bg-bright)',
+              color: 'var(--dmq-gold-dark)',
             }}
           >
             {STAGE_LABELS[pursuit.outcomeStage || 'discovery']}
@@ -470,7 +470,7 @@ function AdvanceStageDialogInner({
         <div className="space-y-2">
           <Label className="text-xs font-medium text-foreground">Select Next Stage</Label>
           <Select value={selectedStage} onValueChange={(v) => setSelectedStage(v as typeof selectedStage)}>
-            <SelectTrigger className="h-9">
+            <SelectTrigger className="h-10">
               <SelectValue placeholder="Select stage" />
             </SelectTrigger>
             <SelectContent>
@@ -505,7 +505,7 @@ function AdvanceStageDialogInner({
         <Button
           variant="outline"
           onClick={onClose}
-          className="h-9 px-4 text-xs"
+          className="h-10 px-4 text-xs min-h-[44px]"
         >
           Cancel
         </Button>
@@ -516,7 +516,7 @@ function AdvanceStageDialogInner({
             }
           }}
           disabled={!selectedStage || isSubmitting}
-          className="h-9 px-4 text-xs gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-sm"
+          className="h-10 px-4 text-xs gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-sm"
         >
           {isSubmitting ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -576,7 +576,7 @@ function AddNoteDialogInner({
         <DialogTitle className="flex items-center gap-2 text-foreground">
           <div
             className="w-8 h-8 rounded-lg flex items-center justify-center"
-            style={{ background: 'rgba(212, 175, 55, 0.12)' }}
+            style={{ background: 'var(--dmq-gold-bg-medium)' }}
           >
             <MessageSquare className="w-4 h-4" style={{ color: 'var(--color-gold)' }} />
           </div>
@@ -593,9 +593,9 @@ function AddNoteDialogInner({
           <Badge
             className="text-[11px] px-1.5 py-0 border"
             style={{
-              background: 'rgba(212, 175, 55, 0.1)',
-              borderColor: 'rgba(212, 175, 55, 0.25)',
-              color: '#B8941F',
+              background: 'var(--dmq-gold-bg)',
+              borderColor: 'var(--dmq-gold-bg-bright)',
+              color: 'var(--dmq-gold-dark)',
             }}
           >
             {STAGE_LABELS[pursuit.outcomeStage || 'discovery']}
@@ -617,7 +617,7 @@ function AddNoteDialogInner({
         <Button
           variant="outline"
           onClick={onClose}
-          className="h-9 px-4 text-xs"
+          className="h-10 px-4 text-xs min-h-[44px]"
         >
           Cancel
         </Button>
@@ -626,7 +626,7 @@ function AddNoteDialogInner({
             onSubmit(pursuit.id, noteText);
           }}
           disabled={isSubmitting}
-          className="h-9 px-4 text-xs gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-sm"
+          className="h-10 px-4 text-xs gap-1.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white shadow-sm"
         >
           {isSubmitting ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -921,8 +921,8 @@ export default function PursuitWorkspaceScreen() {
               <div
                 className="h-7 w-1.5 rounded-full"
                 style={{
-                  background: 'linear-gradient(180deg, #E8C860, #D4AF37, #9A8340)',
-                  boxShadow: '0 0 12px rgba(212, 175, 55, 0.3)',
+                  background: 'linear-gradient(180deg, var(--dmq-gold-light), var(--dmq-gold), var(--dmq-gold-deep))',
+                  boxShadow: '0 0 12px var(--dmq-gold-border)',
                 }}
               />
               <h1 className="text-2xl font-bold text-foreground tracking-tight">
@@ -956,21 +956,21 @@ export default function PursuitWorkspaceScreen() {
             label="Won"
             value={counts.won}
             icon={Trophy}
-            color="#059669"
+            color="var(--dmq-emerald-deep)"
             delay={0.08}
           />
           <StatCard
             label="Lost"
             value={counts.lost}
             icon={XCircle}
-            color="#DC2626"
+            color="var(--dmq-red)"
             delay={0.16}
           />
           <StatCard
             label="Paused"
             value={counts.paused}
             icon={Pause}
-            color="#6B7280"
+            color="var(--dmq-neutral-500)"
             delay={0.24}
           />
         </div>

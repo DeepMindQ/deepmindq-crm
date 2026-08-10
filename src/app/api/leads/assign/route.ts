@@ -26,83 +26,132 @@ async function assignManual(contactIds: string[], assignTo: string) {
 }
 
 async function assignRoundRobin(contactIds: string[]) {
-  // Get current assignment counts per team member
+  // P5.1: Batch-fetch assignment counts in parallel (was N+1 sequential count)
+  const counts = await Promise.all(
+    TEAM_MEMBERS.map(tm => db.contact.count({ where: { assignedTo: tm.name } }))
+  );
   const currentAssignments: Record<string, number> = {};
-  for (const tm of TEAM_MEMBERS) {
-    const count = await db.contact.count({ where: { assignedTo: tm.name } });
-    currentAssignments[tm.name] = count;
-  }
+  TEAM_MEMBERS.forEach((tm, i) => { currentAssignments[tm.name] = counts[i]; });
 
-  let totalUpdated = 0;
-  for (let i = 0; i < contactIds.length; i++) {
-    // Find the member with the fewest assignments
+  // Batch-fetch all contacts to verify they exist (single query)
+  const contacts = await db.contact.findMany({
+    where: { id: { in: contactIds } },
+    select: { id: true },
+  });
+  const validIds = new Set(contacts.map(c => c.id));
+
+  // Distribute valid contacts round-robin and group by assignee for batch update
+  const batches: Record<string, string[]> = {};
+  for (const cid of contactIds) {
+    if (!validIds.has(cid)) continue;
     const sorted = [...TEAM_MEMBERS].sort((a, b) =>
       (currentAssignments[a.name] || 0) - (currentAssignments[b.name] || 0)
     );
     const assignee = sorted[0].name;
-
-    await db.contact.update({
-      where: { id: contactIds[i] },
-      data: { assignedTo: assignee },
-    });
+    batches[assignee] = batches[assignee] || [];
+    batches[assignee].push(cid);
     currentAssignments[assignee] = (currentAssignments[assignee] || 0) + 1;
-    totalUpdated++;
   }
+
+  // Batch-update per assignee (was N individual update queries)
+  let totalUpdated = 0;
+  await Promise.all(
+    Object.entries(batches).map(async ([assignee, ids]) => {
+      const result = await db.contact.updateMany({
+        where: { id: { in: ids } },
+        data: { assignedTo: assignee },
+      });
+      totalUpdated += result.count;
+    })
+  );
   return totalUpdated;
 }
 
 async function assignTerritory(contactIds: string[]) {
-  // Simple territory: assign by country in location field
-  let totalUpdated = 0;
-  for (const cid of contactIds) {
-    const contact = await db.contact.findUnique({ where: { id: cid }, select: { location: true } });
-    if (!contact) continue;
+  // P5.1: Batch-fetch all contacts' locations (was N+1 sequential find+update)
+  const contacts = await db.contact.findMany({
+    where: { id: { in: contactIds } },
+    select: { id: true, location: true },
+  });
 
-    const loc = (contact.location || '').toLowerCase();
-    let assignee = TEAM_MEMBERS[0].name; // default
-
+  function territoryAssignee(location: string | null): string {
+    const loc = (location || '').toLowerCase();
     if (loc.includes('india') || loc.includes('bangalore') || loc.includes('mumbai') || loc.includes('delhi')) {
-      assignee = 'Priya Patel';
+      return 'Priya Patel';
     } else if (loc.includes('china') || loc.includes('beijing') || loc.includes('shanghai') || loc.includes('singapore')) {
-      assignee = 'Sarah Chen';
+      return 'Sarah Chen';
     } else if (loc.includes('uk') || loc.includes('london') || loc.includes('germany') || loc.includes('france') || loc.includes('europe')) {
-      assignee = 'Marcus Johnson';
+      return 'Marcus Johnson';
     } else if (loc.includes('usa') || loc.includes('canada') || loc.includes('america')) {
-      assignee = 'Ravi Shanker';
+      return 'Ravi Shanker';
     }
-
-    await db.contact.update({ where: { id: cid }, data: { assignedTo: assignee } });
-    totalUpdated++;
+    return TEAM_MEMBERS[0].name; // default
   }
+
+  // Group contacts by assignee for batch update
+  const batches: Record<string, string[]> = {};
+  for (const c of contacts) {
+    const assignee = territoryAssignee(c.location);
+    batches[assignee] = batches[assignee] || [];
+    batches[assignee].push(c.id);
+  }
+
+  // Batch-update per territory (was N individual update queries)
+  let totalUpdated = 0;
+  await Promise.all(
+    Object.entries(batches).map(async ([assignee, ids]) => {
+      const result = await db.contact.updateMany({
+        where: { id: { in: ids } },
+        data: { assignedTo: assignee },
+      });
+      totalUpdated += result.count;
+    })
+  );
   return totalUpdated;
 }
 
 async function assignIndustry(contactIds: string[]) {
-  // Simple industry-based assignment
-  let totalUpdated = 0;
-  for (const cid of contactIds) {
-    const contact = await db.contact.findUnique({
-      where: { id: cid },
-      include: { company: { select: { industry: true } } },
-    });
-    if (!contact) continue;
+  // P5.1: Batch-fetch all contacts with company industry (was N+1 sequential find+update)
+  const contacts = await db.contact.findMany({
+    where: { id: { in: contactIds } },
+    select: {
+      id: true,
+      company: { select: { industry: true } },
+    },
+  });
 
-    const industry = (contact.company?.industry || '').toLowerCase();
-    let assignee = TEAM_MEMBERS[0].name;
-
-    if (industry.includes('tech') || industry.includes('software') || industry.includes('it') || industry.includes('saas')) {
-      assignee = 'Sarah Chen';
-    } else if (industry.includes('finance') || industry.includes('banking') || industry.includes('insurance')) {
-      assignee = 'Marcus Johnson';
-    } else if (industry.includes('health') || industry.includes('pharma') || industry.includes('medical') || industry.includes('biotech')) {
-      assignee = 'Priya Patel';
+  function industryAssignee(industry: string | null): string {
+    const ind = (industry || '').toLowerCase();
+    if (ind.includes('tech') || ind.includes('software') || ind.includes('it') || ind.includes('saas')) {
+      return 'Sarah Chen';
+    } else if (ind.includes('finance') || ind.includes('banking') || ind.includes('insurance')) {
+      return 'Marcus Johnson';
+    } else if (ind.includes('health') || ind.includes('pharma') || ind.includes('medical') || ind.includes('biotech')) {
+      return 'Priya Patel';
     } else {
-      assignee = 'Ravi Shanker';
+      return 'Ravi Shanker';
     }
-
-    await db.contact.update({ where: { id: cid }, data: { assignedTo: assignee } });
-    totalUpdated++;
   }
+
+  // Group contacts by assignee for batch update
+  const batches: Record<string, string[]> = {};
+  for (const c of contacts) {
+    const assignee = industryAssignee(c.company?.industry ?? null);
+    batches[assignee] = batches[assignee] || [];
+    batches[assignee].push(c.id);
+  }
+
+  // Batch-update per industry (was N individual update queries)
+  let totalUpdated = 0;
+  await Promise.all(
+    Object.entries(batches).map(async ([assignee, ids]) => {
+      const result = await db.contact.updateMany({
+        where: { id: { in: ids } },
+        data: { assignedTo: assignee },
+      });
+      totalUpdated += result.count;
+    })
+  );
   return totalUpdated;
 }
 

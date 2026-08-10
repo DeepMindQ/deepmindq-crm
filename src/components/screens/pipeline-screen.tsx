@@ -73,7 +73,7 @@ interface PipelineStage {
    Stage Palette — consistent color tokens
    ═══════════════════════════════════════════════════ */
 const PALETTE: Record<string, { color: string; bg: string; fill: string }> = {
-  import:     { color: badgeColors.neutral.text, bg: `${neutralAlpha(0.08)}`,  fill: '#A1A1AA' },
+  import:     { color: badgeColors.neutral.text, bg: `${neutralAlpha(0.08)}`,  fill: 'var(--dmq-border-gray)' },
   verified:   { color: colors.blue, bg: `${blueAlpha(0.10)}`,   fill: colors.blue },
   drafted:    { color: colors.amber, bg: `${amberAlpha(0.10)}`,   fill: colors.amber },
   approved:   { color: colors.purple, bg: `${purpleAlpha(0.10)}`,   fill: colors.purple },
@@ -81,7 +81,7 @@ const PALETTE: Record<string, { color: string; bg: string; fill: string }> = {
   sent:       { color: colors.green, bg: `${greenAlpha(0.10)}`,   fill: colors.green },
   replied:    { color: gold, bg: `${goldAlpha(0.10)}`,    fill: gold },
   bounced:    { color: colors.red, bg: `${redAlpha(0.10)}`,    fill: colors.red },
-  suppressed: { color: badgeColors.neutral.text, bg: `${neutralAlpha(0.08)}`,   fill: '#A1A1AA' },
+  suppressed: { color: badgeColors.neutral.text, bg: `${neutralAlpha(0.08)}`,   fill: 'var(--dmq-border-gray)' },
 };
 
 function pct(value: number, total: number) {
@@ -143,15 +143,15 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
   const bounceRate = sentCount > 0 ? rate(bouncedCount, sentCount) : '-';
 
   const stages: PipelineStage[] = [
-    { key: 'import', label: 'Import', icon: Upload, count: importedCount, ...PALETTE.import, barBg: `${neutralAlpha(0.06)}`, barFill: PALETTE.import.fill, dotColor: '#A1A1AA', iconBg: PALETTE.import.bg, sublabel: `${batchesCount} batches processed`, navHint: 'Go to Import', navScreen: 'import', badgeBg: '', badgeText: '' },
-    { key: 'verified', label: 'Email Verified', icon: ShieldCheck, count: verifiedCount, ...PALETTE.verified, barBg: `${blueAlpha(0.06)}`, barFill: PALETTE.verified.fill, dotColor: '#60A5FA', iconBg: PALETTE.verified.bg, sublabel: `${validEmails} valid, ${riskyEmails} risky, ${invalidEmails} invalid`, navHint: 'Go to Leads', navScreen: 'leads', badgeBg: '', badgeText: '' },
-    { key: 'drafted', label: 'Drafted', icon: FileText, count: draftedCount, ...PALETTE.drafted, barBg: `${amberAlpha(0.06)}`, barFill: PALETTE.drafted.fill, dotColor: '#FBBF24', iconBg: PALETTE.drafted.bg, sublabel: 'AI-generated drafts', navHint: 'Go to Email Studio', navScreen: 'email-studio', badge: `${draftsPendingReview} pending`, badgeBg: `${amberAlpha(0.12)}`, badgeText: badgeColors.warning.text },
-    { key: 'approved', label: 'Approved', icon: CheckCircle2, count: approvedCount, ...PALETTE.approved, barBg: `${purpleAlpha(0.06)}`, barFill: PALETTE.approved.fill, dotColor: '#C084FC', iconBg: PALETTE.approved.bg, sublabel: 'Ready to send', navHint: 'Go to Email Studio', navScreen: 'email-studio', badgeBg: '', badgeText: '' },
-    { key: 'queued', label: 'Queued', icon: Clock, count: queuedCount, ...PALETTE.queued, barBg: `${indigoAlpha(0.06)}`, barFill: PALETTE.queued.fill, dotColor: '#818CF8', iconBg: PALETTE.queued.bg, sublabel: 'In send queue', navHint: 'Go to Queue', navScreen: 'queue', badgeBg: '', badgeText: '' },
-    { key: 'sent', label: 'Sent', icon: Send, count: sentCount, ...PALETTE.sent, barBg: `${greenAlpha(0.06)}`, barFill: PALETTE.sent.fill, dotColor: '#34D399', iconBg: PALETTE.sent.bg, sublabel: 'Emails delivered', navHint: 'Go to Queue', navScreen: 'queue', badge: `${deliveryRate} delivery`, badgeBg: `${greenAlpha(0.12)}`, badgeText: badgeColors.positive.text },
-    { key: 'replied', label: 'Replied', icon: Mail, count: repliedCount, ...PALETTE.replied, barBg: `${goldAlpha(0.06)}`, barFill: PALETTE.replied.fill, dotColor: gold, iconBg: PALETTE.replied.bg, sublabel: `${repliesThisWeek} this week`, navHint: 'Go to Replies', navScreen: 'inbox', badge: `${replyRate} reply rate`, badgeBg: `${goldAlpha(0.12)}`, badgeText: '#B8960C' },
+    { key: 'import', label: 'Import', icon: Upload, count: importedCount, ...PALETTE.import, barBg: `${neutralAlpha(0.06)}`, barFill: PALETTE.import.fill, dotColor: 'var(--dmq-border-gray)', iconBg: PALETTE.import.bg, sublabel: `${batchesCount} batches processed`, navHint: 'Go to Import', navScreen: 'import', badgeBg: '', badgeText: '' },
+    { key: 'verified', label: 'Email Verified', icon: ShieldCheck, count: verifiedCount, ...PALETTE.verified, barBg: `${blueAlpha(0.06)}`, barFill: PALETTE.verified.fill, dotColor: 'var(--dmq-blue-400)', iconBg: PALETTE.verified.bg, sublabel: `${validEmails} valid, ${riskyEmails} risky, ${invalidEmails} invalid`, navHint: 'Go to Leads', navScreen: 'leads', badgeBg: '', badgeText: '' },
+    { key: 'drafted', label: 'Drafted', icon: FileText, count: draftedCount, ...PALETTE.drafted, barBg: `${amberAlpha(0.06)}`, barFill: PALETTE.drafted.fill, dotColor: 'var(--dmq-amber)', iconBg: PALETTE.drafted.bg, sublabel: 'AI-generated drafts', navHint: 'Go to Email Studio', navScreen: 'email-studio', badge: `${draftsPendingReview} pending`, badgeBg: `${amberAlpha(0.12)}`, badgeText: badgeColors.warning.text },
+    { key: 'approved', label: 'Approved', icon: CheckCircle2, count: approvedCount, ...PALETTE.approved, barBg: `${purpleAlpha(0.06)}`, barFill: PALETTE.approved.fill, dotColor: 'var(--dmq-purple-light)', iconBg: PALETTE.approved.bg, sublabel: 'Ready to send', navHint: 'Go to Email Studio', navScreen: 'email-studio', badgeBg: '', badgeText: '' },
+    { key: 'queued', label: 'Queued', icon: Clock, count: queuedCount, ...PALETTE.queued, barBg: `${indigoAlpha(0.06)}`, barFill: PALETTE.queued.fill, dotColor: 'var(--dmq-sky-blue)', iconBg: PALETTE.queued.bg, sublabel: 'In send queue', navHint: 'Go to Queue', navScreen: 'queue', badgeBg: '', badgeText: '' },
+    { key: 'sent', label: 'Sent', icon: Send, count: sentCount, ...PALETTE.sent, barBg: `${greenAlpha(0.06)}`, barFill: PALETTE.sent.fill, dotColor: 'var(--dmq-emerald-light)', iconBg: PALETTE.sent.bg, sublabel: 'Emails delivered', navHint: 'Go to Queue', navScreen: 'queue', badge: `${deliveryRate} delivery`, badgeBg: `${greenAlpha(0.12)}`, badgeText: badgeColors.positive.text },
+    { key: 'replied', label: 'Replied', icon: Mail, count: repliedCount, ...PALETTE.replied, barBg: `${goldAlpha(0.06)}`, barFill: PALETTE.replied.fill, dotColor: gold, iconBg: PALETTE.replied.bg, sublabel: `${repliesThisWeek} this week`, navHint: 'Go to Replies', navScreen: 'inbox', badge: `${replyRate} reply rate`, badgeBg: `${goldAlpha(0.12)}`, badgeText: 'var(--dmq-gold-dark)' },
     { key: 'bounced', label: 'Bounced', icon: Ban, count: bouncedCount, ...PALETTE.bounced, barBg: `${redAlpha(0.06)}`, barFill: PALETTE.bounced.fill, dotColor: colors.red, iconBg: PALETTE.bounced.bg, sublabel: 'Failed deliveries', navHint: 'Go to Bounces', navScreen: 'bounces', badge: `${bounceRate} bounce rate`, badgeBg: `${redAlpha(0.12)}`, badgeText: badgeColors.negative.text },
-    { key: 'suppressed', label: 'Suppressed', icon: Ban, count: suppressedCount, ...PALETTE.suppressed, barBg: `${neutralAlpha(0.04)}`, barFill: PALETTE.suppressed.fill, dotColor: '#A1A1AA', iconBg: PALETTE.suppressed.bg, sublabel: 'Excluded contacts', navHint: 'Go to Bounces', navScreen: 'bounces', badgeBg: '', badgeText: '' },
+    { key: 'suppressed', label: 'Suppressed', icon: Ban, count: suppressedCount, ...PALETTE.suppressed, barBg: `${neutralAlpha(0.04)}`, barFill: PALETTE.suppressed.fill, dotColor: 'var(--dmq-border-gray)', iconBg: PALETTE.suppressed.bg, sublabel: 'Excluded contacts', navHint: 'Go to Bounces', navScreen: 'bounces', badgeBg: '', badgeText: '' },
   ];
 
   const maxCount = Math.max(1, ...stages.map(s => s.count));
@@ -368,21 +368,21 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
           <div className="flex flex-wrap gap-3">
             <Button
               variant="outline" size="sm"
-              className="h-9 gap-2 text-xs font-medium"
+              className="h-10 gap-2 text-xs font-medium min-h-[44px]"
               style={{ background: `${neutralAlpha(0.06)}`, border: `1px solid ${border}` }}
               onClick={() => nav('import')}>
               <UploadCloud className="w-3.5 h-3.5" /> Upload New List
             </Button>
             <Button
               variant="outline" size="sm"
-              className="h-9 gap-2 text-xs font-medium"
+              className="h-10 gap-2 text-xs font-medium min-h-[44px]"
               style={{ background: `${blueAlpha(0.06)}`, border: `1px solid ${blueAlpha(0.15)}` }}
               onClick={() => nav('leads')}>
               <ShieldCheck className="w-3.5 h-3.5" /> Verify All Emails
             </Button>
             <Button
               variant="outline" size="sm"
-              className="h-9 gap-2 text-xs font-medium"
+              className="h-10 gap-2 text-xs font-medium min-h-[44px]"
               style={{ background: `${amberAlpha(0.06)}`, border: `1px solid ${amberAlpha(0.15)}` }}
               onClick={() => nav('email-studio')}>
               <FileCheck className="w-3.5 h-3.5" /> Review Pending Drafts

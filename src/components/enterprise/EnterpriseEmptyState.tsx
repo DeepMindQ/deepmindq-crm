@@ -1,6 +1,7 @@
 'use client';
 
 import { LucideIcon } from 'lucide-react';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 
 interface EnterpriseEmptyStateProps {
   icon: LucideIcon;
@@ -23,7 +24,7 @@ export function EnterpriseEmptyState({
   onSecondaryAction,
   variant = 'default',
 }: EnterpriseEmptyStateProps) {
-  const accentColor = variant === 'intelligence' ? '#3B82F6' : '#3B82F6';
+  const accentColor = variant === 'intelligence' ? tokens.accent.DEFAULT : tokens.accent.DEFAULT;
 
   return (
     <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
@@ -37,9 +38,9 @@ export function EnterpriseEmptyState({
         <Icon className="w-6 h-6" style={{ color: accentColor }} />
       </div>
 
-      <h3 className="text-sm font-semibold mb-1.5" style={{ color: '#e8ecf4' }}>{title}</h3>
+      <h3 className="text-sm font-semibold mb-1.5" style={{ color: tokens.text.primary }}>{title}</h3>
       {description && (
-        <p className="text-xs mb-5" style={{ color: '#8892a8', maxWidth: '320px' }}>{description}</p>
+        <p className="text-xs mb-5" style={{ color: tokens.text.secondary, maxWidth: '320px' }}>{description}</p>
       )}
 
       <div className="flex items-center gap-3">
@@ -47,7 +48,7 @@ export function EnterpriseEmptyState({
           <button
             onClick={onAction}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-colors"
-            style={{ background: '#2563EB', color: '#fff' }}
+            style={{ background: tokens.accent.dim, color: tokens.flat.white }}
           >
             {actionLabel}
           </button>
@@ -56,7 +57,7 @@ export function EnterpriseEmptyState({
           <button
             onClick={onSecondaryAction}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-colors"
-            style={{ border: '1px solid #1e2535', color: '#8892a8' }}
+            style={{ border: '1px solid #1e2535', color: tokens.text.secondary }}
           >
             {secondaryActionLabel}
           </button>

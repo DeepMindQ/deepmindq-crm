@@ -258,11 +258,11 @@ export default function CompanyResolutionModal({
                       {/* Select button */}
                       <Button
                         size="sm"
-                        className="h-7 px-2.5 text-xs gap-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        className="h-10 px-2.5 text-xs gap-1 opacity-0 group-hover:opacity-100 transition-opacity min-h-[44px]"
                         style={{
                           background:
                             'linear-gradient(135deg, oklch(0.75 0.18 160), oklch(0.70 0.15 180))',
-                          color: '#000',
+                          color: 'var(--dmq-black)',
                         }}
                         onClick={() => onConfirm(candidate.companyId)}
                         disabled={loading}

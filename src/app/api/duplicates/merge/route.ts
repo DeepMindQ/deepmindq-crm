@@ -10,6 +10,9 @@ import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
 import { mergeDuplicate, skipDuplicate } from '@/lib/data-intelligence/dedup-engine';
 import type { MergeStrategy } from '@/lib/data-intelligence/dedup-engine';
+// Note: mergeDuplicate() already wraps its multi-step DB writes in db.$transaction() internally.
+// skipDuplicate() is a single DB write and is inherently atomic.
+// No additional transaction wrapper is needed at the route level.
 
 const VALID_STRATEGIES: MergeStrategy[] = ['keep_survivor', 'keep_duplicate', 'keep_most_recent'];
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { motion } from 'framer-motion'
 import { ZoomIn, ZoomOut, Maximize2, Info, Filter, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
@@ -39,23 +40,23 @@ interface KGVisualizationProps {
 }
 
 const NODE_COLORS: Record<string, { fill: string; stroke: string; glow: string }> = {
-  company: { fill: 'rgba(59,130,246,0.2)', stroke: '#3b82f6', glow: 'rgba(59,130,246,0.3)' },
-  person: { fill: 'rgba(168,85,247,0.2)', stroke: '#a855f7', glow: 'rgba(168,85,247,0.3)' },
-  technology: { fill: 'rgba(6,182,212,0.2)', stroke: '#06b6d4', glow: 'rgba(6,182,212,0.3)' },
-  industry: { fill: 'rgba(245,158,11,0.2)', stroke: '#f59e0b', glow: 'rgba(245,158,11,0.3)' },
-  signal: { fill: 'rgba(239,68,68,0.2)', stroke: '#ef4444', glow: 'rgba(239,68,68,0.3)' },
-  opportunity: { fill: 'rgba(34,197,94,0.2)', stroke: '#22c55e', glow: 'rgba(34,197,94,0.3)' },
-  concept: { fill: 'rgba(136,146,168,0.2)', stroke: '#8892a8', glow: 'rgba(136,146,168,0.3)' },
+  company: { fill: tokens.accent.strong, stroke: tokens.accent.DEFAULT, glow: tokens.accent.strong },
+  person: { fill: tokens.domain.opportunity, stroke: tokens.domain.opportunity, glow: tokens.domain.opportunity },
+  technology: { fill: tokens.domain.enrichment, stroke: tokens.domain.enrichment, glow: tokens.domain.enrichment },
+  industry: { fill: tokens.confidence.medium.border, stroke: tokens.domain.reasoning, glow: tokens.trust.medium.border },
+  signal: { fill: tokens.confidence.low.border, stroke: tokens.domain.risk, glow: 'rgba(239,68,68,0.3)' },
+  opportunity: { fill: tokens.trust.verified.border, stroke: tokens.domain.action, glow: tokens.trust.verified.border },
+  concept: { fill: tokens.priority.low.border, stroke: tokens.text.secondary, glow: tokens.priority.low.border },
 }
 
 const EDGE_COLORS: Record<string, string> = {
-  related_to: '#8892a8',
-  works_at: '#a855f7',
-  uses: '#06b6d4',
-  competes_with: '#ef4444',
-  signals: '#3b82f6',
-  part_of: '#f59e0b',
-  leads_to: '#22c55e',
+  related_to: tokens.text.secondary,
+  works_at: tokens.domain.opportunity,
+  uses: tokens.domain.enrichment,
+  competes_with: tokens.domain.risk,
+  signals: tokens.accent.DEFAULT,
+  part_of: tokens.domain.reasoning,
+  leads_to: tokens.domain.action,
 }
 
 // Circular layout algorithm
@@ -145,7 +146,7 @@ export function KGVisualization({
       <svg
         viewBox={`0 0 ${width} ${height}`}
         className="w-full"
-        style={{ background: '#0a0c10' }}
+        style={{ background: tokens.text.inverse }}
         role="img"
         aria-label="Knowledge graph visualization"
       >
@@ -168,7 +169,7 @@ export function KGVisualization({
               >
                 <line
                   x1={from.x} y1={from.y} x2={to.x} y2={to.y}
-                  stroke={EDGE_COLORS[edge.type] || '#8892a8'}
+                  stroke={EDGE_COLORS[edge.type] || tokens.text.secondary}
                   strokeWidth={(edge.weight || 0.5) * 2 + 0.5}
                   strokeDasharray={edge.type === 'signals' ? '4 4' : undefined}
                 />
@@ -217,7 +218,7 @@ export function KGVisualization({
                 <text
                   x={pos.x} y={pos.y + r + 14}
                   textAnchor="middle"
-                  fill="#e8ecf4"
+                  fill={tokens.text.primary}
                   fontSize="10"
                   fontWeight="500"
                 >

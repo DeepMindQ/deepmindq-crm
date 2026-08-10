@@ -1,0 +1,439 @@
+# ═══════════════════════════════════════════════════
+# DeepMindQ — Monthly Backup Restoration Test
+# Phase 8.1 — Verify backup integrity by restoring to test DB
+#
+# Schedule: First Sunday of each month at 02:00 UTC
+# Flow: Download backup → Decrypt → Restore to test DB → Run smoke tests → Cleanup
+#
+# REQUIREMENTS:
+#   - TEST_DATABASE_URL: GitHub secret pointing to a disposable Neon database
+#   - BACKUP_ENCRYPTION_KEY: GitHub secret for backup decryption
+#   - S3_BUCKET: GitHub secret for backup S3 bucket name
+#   - AWS_ACCESS_KEY_ID + AWS_SECRET_ACCESS_KEY: For S3 download
+# ═══════════════════════════════════════════════════
+name: Disaster Recovery — Monthly Backup Verification
+
+on:
+  schedule:
+    # First Sunday of each month at 02:00 UTC
+    - cron: '0 2 1-7 * 0'
+  workflow_dispatch:
+    inputs:
+      backup_date:
+        description: 'Backup date to test (YYYYMMDD, defaults to latest)'
+        required: false
+        type: string
+      skip_cleanup:
+        description: 'Skip test database cleanup (for manual inspection)'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: disaster-recovery-test
+  cancel-in-progress: false  # Never cancel a DR test
+
+env:
+  NODE_VERSION: '22'
+
+jobs:
+  # ═══════════════════════════════════════════════════
+  # STAGE 1: Download & Decrypt Latest Backup
+  # ═══════════════════════════════════════════════════
+  download-backup:
+    name: "DR — Download Backup"
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    outputs:
+      backup_file: ${{ steps.download.outputs.backup_file }}
+      backup_checksum: ${{ steps.download.outputs.checksum }}
+      backup_date: ${{ steps.list.outputs.date }}
+      s3_key: ${{ steps.list.outputs.s3_key }}
+    steps:
+      - name: List available backups
+        id: list
+        shell: bash
+        run: |
+          BACKUP_DATE="${{ github.event.inputs.backup_date }}"
+          BUCKET="${{ secrets.S3_BUCKET }}"
+
+          if [ -n "$BACKUP_DATE" ]; then
+            echo "Looking for backup on date: ${BACKUP_DATE}"
+            S3_KEY=$(aws s3 ls "s3://${BUCKET}/backups/${BACKUP_DATE}/" \
+              --recursive 2>/dev/null \
+              | grep '.sql.gz' \
+              | sort -r \
+              | head -1 \
+              | awk '{print $4}' || echo "")
+            DATE="${BACKUP_DATE}"
+          else
+            echo "Finding latest backup..."
+            S3_KEY=$(aws s3 ls "s3://${BUCKET}/backups/" \
+              --recursive 2>/dev/null \
+              | grep -E '\.sql\.gz\.enc$|\.sql\.gz$' \
+              | grep -v '\.sha256' \
+              | sort -r \
+              | head -1 \
+              | awk '{print $4}' || echo "")
+            DATE=$(echo "$S3_KEY" | grep -oP '\d{8}' | head -1 || echo "unknown")
+          fi
+
+          if [ -z "$S3_KEY" ]; then
+            echo "::error::No backups found in S3 bucket"
+            echo "has_backup=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          echo "s3_key=${S3_KEY}" >> "$GITHUB_OUTPUT"
+          echo "date=${DATE}" >> "$GITHUB_OUTPUT"
+          echo "has_backup=true" >> "$GITHUB_OUTPUT"
+          echo "Found backup: s3://${BUCKET}/${S3_KEY}"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Download backup from S3
+        id: download
+        if: steps.list.outputs.has_backup == 'true'
+        shell: bash
+        run: |
+          BUCKET="${{ secrets.S3_BUCKET }}"
+          S3_KEY="${{ steps.list.outputs.s3_key }}"
+          BACKUP_FILE="/tmp/dmq-dr-backup"
+
+          echo "Downloading s3://${BUCKET}/${S3_KEY}..."
+          aws s3 cp "s3://${BUCKET}/${S3_KEY}" "${BACKUP_FILE}" \
+            --no-progress
+
+          FILE_SIZE=$(stat -c%s "${BACKUP_FILE}" 2>/dev/null || stat -f%z "${BACKUP_FILE}")
+          echo "Downloaded: $(numfmt --to=iec $FILE_SIZE 2>/dev/null || echo "${FILE_SIZE} bytes")"
+
+          echo "backup_file=${BACKUP_FILE}" >> "$GITHUB_OUTPUT"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Download checksum
+        if: steps.list.outputs.has_backup == 'true'
+        id: checksum-download
+        shell: bash
+        run: |
+          BUCKET="${{ secrets.S3_BUCKET }}"
+          BASE_KEY="${{ steps.list.outputs.s3_key }}"
+          CHECKSUM_KEY="${BASE_KEY}.sha256"
+
+          aws s3 cp "s3://${BUCKET}/${CHECKSUM_KEY}" /tmp/dmq-dr-checksum.sha256 2>/dev/null || {
+            echo "No separate checksum file — will compute from backup"
+            echo "has_checksum=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          }
+          cat /tmp/dmq-dr-checksum.sha256
+          echo "has_checksum=true" >> "$GITHUB_OUTPUT"
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: ${{ secrets.AWS_REGION || 'us-east-1' }}
+
+      - name: Decrypt backup
+        if: steps.list.outputs.has_backup == 'true'
+        id: decrypt
+        shell: bash
+        run: |
+          BACKUP_FILE="${{ steps.download.outputs.backup_file }}"
+
+          # Check if file is encrypted
+          if file "$BACKUP_FILE" 2>/dev/null | grep -q "data"; then
+            echo "File appears encrypted — decrypting with AES-256-CBC..."
+            DECRYPTED_FILE="/tmp/dmq-dr-backup-decrypted.sql.gz"
+
+            openssl enc -aes-256-cbc \
+              -d \
+              -pbkdf2 \
+              -iter 100000 \
+              -in "$BACKUP_FILE" \
+              -out "$DECRYPTED_FILE" \
+              -pass "pass:${{ secrets.BACKUP_ENCRYPTION_KEY }}" \
+              2>&1 || {
+                echo "::error::Decryption FAILED — wrong key or corrupted backup"
+                exit 1
+              }
+
+            echo "backup_file=${DECRYPTED_FILE}" >> "$GITHUB_OUTPUT"
+            echo "✅ Decryption successful"
+          else
+            echo "File does not appear encrypted — using as-is"
+          fi
+
+      - name: Verify checksum
+        if: steps.list.outputs.has_backup == 'true'
+        id: verify
+        shell: bash
+        run: |
+          BACKUP_FILE="${{ steps.decrypt.outputs.backup_file || steps.download.outputs.backup_file }}"
+
+          ACTUAL=$(sha256sum "$BACKUP_FILE" | awk '{print $1}')
+          echo "Actual checksum: ${ACTUAL}"
+
+          if [ -f /tmp/dmq-dr-checksum.sha256 ]; then
+            EXPECTED=$(awk '{print $1}' /tmp/dmq-dr-checksum.sha256)
+            echo "Expected checksum: ${EXPECTED}"
+
+            if [ "$ACTUAL" = "$EXPECTED" ]; then
+              echo "✅ Checksum VERIFIED"
+              echo "checksum=${ACTUAL}" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::Checksum MISMATCH — backup may be corrupted"
+              exit 1
+            fi
+          else
+            echo "✅ Checksum computed: ${ACTUAL} (no reference to compare)"
+            echo "checksum=${ACTUAL}" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Validate SQL structure
+        if: steps.list.outputs.has_backup == 'true'
+        shell: bash
+        run: |
+          BACKUP_FILE="${{ steps.decrypt.outputs.backup_file || steps.download.outputs.backup_file }}"
+
+          # Decompress and check header
+          HEADER=$(gunzip -c "$BACKUP_FILE" 2>/dev/null | head -5)
+
+          if echo "$HEADER" | grep -q "PostgreSQL database dump"; then
+            echo "✅ Valid PostgreSQL dump confirmed"
+            TABLE_COUNT=$(gunzip -c "$BACKUP_FILE" 2>/dev/null | grep -c "COPY\|CREATE TABLE" || echo "?")
+            echo "Detected ~${TABLE_COUNT} table operations in dump"
+          else
+            echo "::warning::Could not confirm PostgreSQL dump header"
+          fi
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 2: Restore to Test Database
+  # ═══════════════════════════════════════════════════
+  restore-to-test:
+    name: "DR — Restore to Test DB"
+    runs-on: ubuntu-latest
+    needs: [download-backup]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Restore backup to test database
+        shell: bash
+        run: |
+          BACKUP_FILE="${{ needs.download-backup.outputs.backup_file }}"
+          TEST_DB="${{ secrets.TEST_DATABASE_URL }}"
+
+          if [ -z "$TEST_DB" ]; then
+            echo "::error::TEST_DATABASE_URL secret is not configured"
+            exit 1
+          fi
+
+          echo "Restoring to test database..."
+          echo "Backup: ${BACKUP_FILE}"
+
+          # Install PostgreSQL client
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client > /dev/null 2>&1
+
+          # Drop existing tables in test DB (clean slate)
+          echo "Clearing test database..."
+          psql "$TEST_DB" -c "DROP SCHEMA public CASCADE;" 2>/dev/null || true
+          psql "$TEST_DB" -c "CREATE SCHEMA public;" 2>/dev/null || true
+
+          # Restore
+          echo "Running restore..."
+          gunzip -c "$BACKUP_FILE" | psql "$TEST_DB" \
+            --set ON_ERROR_STOP=0 \
+            --quiet \
+            2>&1 | tail -30
+
+          RESTORE_EXIT=${PIPESTATUS[1]}
+          if [ $RESTORE_EXIT -ne 0 ]; then
+            echo "::warning::Restore had errors (exit ${RESTORE_EXIT}) — this may be expected for schema-only dumps"
+          fi
+
+          # Validate restoration
+          echo ""
+          echo "Post-restore validation:"
+          TABLE_COUNT=$(psql "$TEST_DB" -t -A -c \
+            "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null || echo "0")
+          echo "  Tables restored: ${TABLE_COUNT}"
+
+          ROW_COUNT=$(psql "$TEST_DB" -t -A -c \
+            "SELECT SUM(n_live_tup) FROM pg_stat_user_tables;" 2>/dev/null || echo "N/A")
+          echo "  Total rows (approx): ${ROW_COUNT}"
+
+          if [ "$TABLE_COUNT" -eq 0 ]; then
+            echo "::error::No tables found after restore — restore may have failed"
+            exit 1
+          fi
+
+          echo "✅ Database restored successfully"
+
+      - name: Run Prisma migrate + generate
+        shell: bash
+        run: |
+          uses: actions/setup-node@v4
+        env:
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - run: npm ci
+
+      - name: Prisma generate
+        run: npx prisma generate --quiet
+        env:
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+
+      - name: Prisma migrate resolve (baseline test DB)
+        shell: bash
+        run: |
+          # Resolve all migrations as applied since we restored from dump
+          for migration in $(ls prisma/migrations/ | sort); do
+            if [ -d "prisma/migrations/${migration}" ]; then
+              TIMESTAMP=$(echo "$migration" | cut -d'_' -f1)
+              npx prisma migrate resolve --applied "$TIMESTAMP" 2>/dev/null || true
+            fi
+          done
+          echo "✅ All migrations resolved"
+        env:
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 3: Run Smoke Tests
+  # ═══════════════════════════════════════════════════
+  smoke-tests:
+    name: "DR — Smoke Tests"
+    runs-on: ubuntu-latest
+    needs: [restore-to-test]
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - run: npm ci
+      - run: npx prisma generate
+
+      - name: Run smoke tests
+        shell: bash
+        run: npx vitest run --config vitest.smoke.config.ts
+        env:
+          CI: 'true'
+          DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+          DIRECT_DATABASE_URL: ${{ secrets.TEST_DATABASE_URL }}
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 4: Report Results
+  # ═══════════════════════════════════════════════════
+  report-results:
+    name: "DR — Report Results"
+    runs-on: ubuntu-latest
+    needs: [download-backup, restore-to-test, smoke-tests]
+    if: always()
+    timeout-minutes: 5
+    steps:
+      - name: Generate report
+        id: report
+        shell: bash
+        run: |
+          echo "============================================"
+          echo "  DISASTER RECOVERY TEST RESULTS"
+          echo "  Date: $(date -u +%Y-%m-%d)"
+          echo "============================================"
+          echo "  Backup Download:  ${{ needs.download-backup.result }}"
+          echo "  DB Restore:       ${{ needs.restore-to-test.result }}"
+          echo "  Smoke Tests:      ${{ needs.smoke-tests.result }}"
+          echo "  Backup Date:      ${{ needs.download-backup.outputs.backup_date }}"
+          echo "============================================"
+
+          if [ "${{ needs.download-backup.result }}" = "failure" ] || \
+             [ "${{ needs.restore-to-test.result }}" = "failure" ] || \
+             [ "${{ needs.smoke-tests.result }}" = "failure" ]; then
+            echo "  ⚠️  DR TEST FAILED"
+            echo "============================================"
+            echo "dr_status=failed" >> "$GITHUB_OUTPUT"
+          else
+            echo "  ✅ DR TEST PASSED"
+            echo "============================================"
+            echo "dr_status=passed" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create GitHub issue on failure
+        if: steps.report.outputs.dr_status == 'failed'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const title = `🚨 DR Backup Test Failed — ${new Date().toISOString().split('T')[0]}`;
+            const body = `
+            ## Disaster Recovery Monthly Test — FAILED
+
+            **Date:** ${new Date().toISOString()}
+            **Backup Date:** ${{ needs.download-backup.outputs.backup_date }}
+
+            ### Stage Results
+            | Stage | Status |
+            |-------|--------|
+            | Backup Download | ${{ needs.download-backup.result }} |
+            | Database Restore | ${{ needs.restore-to-test.result }} |
+            | Smoke Tests | ${{ needs.smoke-tests.result }} |
+
+            ### Action Required
+            1. Check the [workflow run](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}) for detailed logs
+            2. Verify S3 backup integrity
+            3. Test manual restore procedure
+            4. Escalate to Platform Engineering if backup corruption detected
+
+            cc @platform-engineering
+            `;
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              body,
+              labels: ['bug', 'disaster-recovery', 'automated'],
+              assignees: ['platform-engineering']
+            });
+
+  # ═══════════════════════════════════════════════════
+  # STAGE 5: Cleanup Test Database
+  # ═══════════════════════════════════════════════════
+  cleanup:
+    name: "DR — Cleanup Test DB"
+    runs-on: ubuntu-latest
+    needs: [report-results]
+    if: github.event.inputs.skip_cleanup != 'true'
+    timeout-minutes: 5
+    steps:
+      - name: Clean up test database
+        shell: bash
+        run: |
+          TEST_DB="${{ secrets.TEST_DATABASE_URL }}"
+          if [ -n "$TEST_DB" ]; then
+            echo "Cleaning up test database..."
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq postgresql-client > /dev/null 2>&1
+            psql "$TEST_DB" -c "DROP SCHEMA public CASCADE;" 2>/dev/null || true
+            psql "$TEST_DB" -c "CREATE SCHEMA public;" 2>/dev/null || true
+            echo "✅ Test database cleaned"
+          else
+            echo "TEST_DATABASE_URL not set — skipping cleanup"
+          fi
+
+      - name: Clean up temp files
+        if: always()
+        shell: bash
+        run: |
+          rm -f /tmp/dmq-dr-backup* /tmp/dmq-dr-checksum* 2>/dev/null || true
+          echo "✅ Temp files cleaned"

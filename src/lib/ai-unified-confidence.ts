@@ -1,17 +1,22 @@
 /**
- * Unified AI Confidence Engine — WI-16C
- * ========================================
+ * Unified AI Confidence Engine — WI-16C (CANONICAL)
+ * ====================================================
  *
- * Replaces the fragmented confidence systems with a single, unified model.
- * Merges:
- *   - intelligence-sources/confidence-engine.ts (3-factor composite)
- *   - engines/scoring-engine.ts (9-dimension revenue score)
- *   - ai-copilot/quality-gates.ts (4-gate quality)
+ * ⭐ This is the CANONICAL confidence system for the entire platform.
+ * Phase 2.7: All other confidence modules are now deprecated in favor of this.
  *
- * Into one consistent confidence framework that produces:
+ * Supersedes:
+ *   - intelligence-confidence.ts (4-factor, opportunity-specific)
+ *   - blended-confidence.ts (6-source blending, no calibration)
+ *
+ * Use:
+ *   - computeUnifiedConfidence()  — synchronous, for quick computations
+ *   - computeCalibratedConfidence() — async, applies real CalibrationCurve correction factors
+ *
+ * Provides:
  *   - A unified confidence score (0-100)
  *   - A confidence grade (A+ through F)
- *   - A multi-factor breakdown
+ *   - A multi-factor breakdown (6 dimensions)
  *   - Explainability (why this score?)
  *   - Calibration data (accuracy over time)
  *   - Trust classification (enterprise / advisory / speculative)
@@ -25,6 +30,8 @@
  */
 
 import { logger } from '@/lib/logger';
+import { tokens } from '@/lib/design-tokens';
+import { getCalibration, applyCalibration } from '@/lib/confidence-calibration-engine';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -68,8 +75,10 @@ export interface ConfidenceResult {
   modelVersion: string;
   /** Phase 1: Whether the confidence floor was applied. */
   confidenceFloorApplied?: boolean;
-  /** Phase 1: Calibration status of the confidence model. */
+  /** Phase 2: Calibration status of the confidence model. */
   calibrationStatus?: 'uncalibrated' | 'partially_calibrated' | 'calibrated';
+  /** Phase 2: The correction factor applied (1.0 = no correction). */
+  calibrationFactor?: number;
   /** Phase 1: How much to trust the confidence score itself (0-100). */
   confidenceInConfidence?: number;
   /** Phase 1: Reason why confidence was floored (if applicable). */
@@ -139,6 +148,8 @@ export interface ConfidenceInput {
   tenantId?: string;
   /** Pre-loaded custom confidence weights (keys map to ConfidenceDimension, values are 0-1 weights). */
   customWeights?: Record<string, number>;
+  /** Phase 2: Internal — pass pre-fetched calibration status for sync path. */
+  _calibrationStatus?: 'uncalibrated' | 'partially_calibrated' | 'calibrated';
 }
 
 // ── Source Reliability Registry ──────────────────────────────────────────────
@@ -691,9 +702,9 @@ export function computeUnifiedConfidence(input: ConfidenceInput): ConfidenceResu
   const trustClass = scoreToTrustClass(score);
   const enterpriseReady = score >= 70;
 
-  // Phase 1: Calibration status (placeholder — real calibration requires feedback data)
-  // When CalibrationCurve records exist, this will be 'calibrated' or 'partially_calibrated'
-  const calibrationStatus: 'uncalibrated' | 'partially_calibrated' | 'calibrated' = 'uncalibrated';
+  // Phase 2: Calibration status — fetched from CalibrationCurve table
+  // Note: Synchronous path uses 'uncalibrated' default. Use computeCalibratedConfidence() for async calibrated version.
+  const calibrationStatus: 'uncalibrated' | 'partially_calibrated' | 'calibrated' = input._calibrationStatus ?? 'uncalibrated';
 
   // Phase 1: Confidence-in-Confidence
   // How much should a user trust this confidence score?
@@ -848,18 +859,108 @@ export function formatConfidenceForDisplay(result: ConfidenceResult): {
   factors: Array<{ dimension: string; score: number }>;
 } {
   const colorMap: Record<string, string> = {
-    'A+': '#059669', 'A': '#059669', 'A-': '#10b981',
-    'B+': '#65a30d', 'B': '#84cc16', 'B-': '#a3e635',
-    'C+': '#ca8a04', 'C': '#eab308', 'C-': '#f59e0b',
-    'D': '#f97316', 'F': '#ef4444',
+    'A+': tokens.extended.emeraldDeep.value, 'A': tokens.extended.emeraldDeep.value, 'A-': tokens.extended.emerald.value,
+    'B+': tokens.extended.limeDark.value, 'B': tokens.extended.lime.value, 'B-': tokens.extended.limeBright.value,
+    'C+': tokens.extended.yellowDeep.value, 'C': tokens.extended.amber.value, 'C-': tokens.domain.reasoning,
+    'D': tokens.trust.low.value, 'F': tokens.domain.risk,
   };
 
   return {
     label: `${result.score}/100 (${result.grade})`,
-    color: colorMap[result.grade] || '#6b7280',
+    color: colorMap[result.grade] || tokens.neutral['500'],
     factors: result.factors.map(f => ({
       dimension: f.dimension.replace('_', ' '),
       score: f.score,
     })),
+  };
+}
+
+// ── Phase 2: Calibration-Aware Async Wrapper ──────────────────────────────────
+
+/**
+ * computeCalibratedConfidence — Phase 2 Task 2.2
+ *
+ * Async version of computeUnifiedConfidence that applies real calibration
+ * correction factors from the CalibrationCurve table.
+ *
+ * Pipeline:
+ *   1. Compute raw unified confidence (same 6-dimension formula)
+ *   2. Fetch calibration data for the 'overall' dimension
+ *   3. Apply correction factor to the raw score
+ *   4. Re-grade and re-classify with the calibrated score
+ *   5. Attach real calibration status to the result
+ */
+export async function computeCalibratedConfidence(
+  input: ConfidenceInput
+): Promise<ConfidenceResult> {
+  // Step 1: Compute raw confidence
+  const raw = computeUnifiedConfidence(input);
+
+  // Step 2: Fetch calibration data
+  let calibratedScore = raw.score;
+  let calibrationStatus: 'uncalibrated' | 'partially_calibrated' | 'calibrated' = 'uncalibrated';
+  let calibrationFactor = 1.0;
+
+  try {
+    const calibration = await getCalibration('overall');
+    if (calibration.dimensions.length > 0) {
+      const dim = calibration.dimensions[0];
+      calibrationStatus = dim.status;
+
+      // Apply correction factor if calibrated or partially calibrated
+      if (dim.status !== 'uncalibrated') {
+        const result = await applyCalibration(raw.score, 'overall');
+        calibratedScore = result.calibrated;
+        calibrationFactor = result.factor;
+
+        logger.debug('[UnifiedConfidence] Calibration applied', {
+          rawScore: raw.score,
+          calibratedScore,
+          factor: calibrationFactor,
+          status: calibrationStatus,
+          sampleCount: dim.sampleCount,
+        });
+      }
+    }
+  } catch (err) {
+    logger.warn('[UnifiedConfidence] Failed to apply calibration, using raw score:', { error: err });
+  }
+
+  // Step 3: Re-grade with calibrated score
+  const grade = scoreToGrade(calibratedScore);
+  const trustClass = scoreToTrustClass(calibratedScore);
+  const enterpriseReady = calibratedScore >= 70;
+
+  // Recompute confidence-in-confidence with real calibration status
+  const evidenceCount = input.evidenceCount ?? 0;
+  const daysSince = input.daysSinceResearch;
+  let cicScore = 50;
+  if (evidenceCount >= 10) cicScore += 20;
+  else if (evidenceCount >= 5) cicScore += 10;
+  else if (evidenceCount < 2) cicScore -= 20;
+  if (daysSince !== undefined) {
+    if (daysSince <= 7) cicScore += 15;
+    else if (daysSince <= 30) cicScore += 5;
+    else if (daysSince > 90) cicScore -= 10;
+    else if (daysSince > 180) cicScore -= 20;
+  }
+  if (calibrationStatus === 'uncalibrated') cicScore -= 10;
+  if (raw.confidenceFloorApplied) cicScore -= 15;
+
+  return {
+    score: calibratedScore,
+    grade,
+    trustClass,
+    enterpriseReady,
+    factors: raw.factors,
+    summary: raw.summary,
+    recommendations: raw.recommendations,
+    timestamp: raw.timestamp,
+    modelVersion: raw.modelVersion,
+    confidenceFloorApplied: raw.confidenceFloorApplied,
+    calibrationStatus,
+    calibrationFactor,
+    confidenceInConfidence: Math.max(0, Math.min(100, cicScore)),
+    floorReason: raw.floorReason,
   };
 }

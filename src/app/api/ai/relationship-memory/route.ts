@@ -4,6 +4,7 @@ import { format } from 'date-fns'
 import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { tokens } from '@/lib/design-tokens';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -78,7 +79,7 @@ const CACHE_TTL = 5 * 60 * 1000
 // ---------------------------------------------------------------------------
 
 function nameToColor(name: string): string {
-  const colors = ['#6366F1', '#0EA5E9', '#10B981', '#F59E0B', '#EC4899', '#8B5CF6', '#EF4444', '#14B8A6']
+  const colors = [tokens.extended.indigo.value, tokens.extended.sky.value, tokens.extended.emerald.value, tokens.domain.reasoning, tokens.extended.pink.value, tokens.extended.purple.value, tokens.domain.risk, tokens.trust.high.value]
   let hash = 0
   for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash)
   return colors[Math.abs(hash) % colors.length]

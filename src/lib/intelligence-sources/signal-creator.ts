@@ -190,6 +190,10 @@ export async function createSignalFromIntelligenceObject(
       },
     })
 
+    // Invalidate intelligence cache for this company (fire-and-forget)
+    const { invalidateIntelligenceCache } = await import('@/lib/intelligence-cache');
+    invalidateIntelligenceCache(input.companyId).catch(() => {});
+
     return { success: true, signalId: signal.id }
   } catch (error) {
     return { success: false, error: error instanceof Error ? error.message : 'Unknown error' }

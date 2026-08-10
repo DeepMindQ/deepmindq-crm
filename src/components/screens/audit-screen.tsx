@@ -76,27 +76,27 @@ const ACTION_COLORS: Record<string, string> = {
 // ── Action accent hex colors (for left border bar) ─────────────────────────
 
 const ACTION_ACCENT_HEX: Record<string, string> = {
-  create:  '#059669',
-  update:  '#2563EB',
-  delete:  '#DC2626',
-  approve: '#16A34A',
-  reject:  '#D97706',
-  send:    '#9333EA',
-  import:  '#0284C7',
-  verify:  '#22d3ee',
+  create:  'var(--dmq-emerald-deep)',
+  update:  'var(--dmq-accent-dim)',
+  delete:  'var(--dmq-red)',
+  approve: 'var(--dmq-green-deep)',
+  reject:  'var(--dmq-amber-deep)',
+  send:    'var(--dmq-purple-600)',
+  import:  'var(--dmq-sky-600)',
+  verify:  'var(--dmq-cyan)',
 };
 
 // ── Action accent colors (for StatCard) ────────────────────────────────────
 
 const ACTION_ACCENT_COLORS: Record<string, string> = {
-  create:  '#059669',
-  update:  '#2563EB',
-  delete:  '#DC2626',
-  approve: '#16A34A',
-  reject:  '#D97706',
-  send:    '#9333EA',
-  import:  '#0284C7',
-  verify:  '#22d3ee',
+  create:  'var(--dmq-emerald-deep)',
+  update:  'var(--dmq-accent-dim)',
+  delete:  'var(--dmq-red)',
+  approve: 'var(--dmq-green-deep)',
+  reject:  'var(--dmq-amber-deep)',
+  send:    'var(--dmq-purple-600)',
+  import:  'var(--dmq-sky-600)',
+  verify:  'var(--dmq-cyan)',
 };
 
 // ── Entity icon map ────────────────────────────────────────────────────────
@@ -316,7 +316,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
               label="Unique Entities"
               value={stats.uniqueEntities}
               icon={Layers}
-              color="#818cf8"
+              color="var(--dmq-sky-blue)"
               delay={0.2}
             />
           </StaggerItem>
@@ -394,7 +394,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
                     {paged.map((entry, idx) => {
                       const isExpanded = expandedRow === entry.id;
                       const actionColor = ACTION_COLORS[entry.action] || 'bg-zinc-500/15 text-zinc-600 border-zinc-500/30';
-                      const accentHex = ACTION_ACCENT_HEX[entry.action] || '#52525B';
+                      const accentHex = ACTION_ACCENT_HEX[entry.action] || 'var(--dmq-zinc-dark)';
                       const entityIcon  = ENTITY_ICONS[entry.entityType] || '\u{1F4CB}';
                       const isLong      = entry.details.length > 80;
 
@@ -482,7 +482,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 w-8 p-0 border-gray-200 text-muted-foreground hover:text-foreground hover:border-gray-300 transition-all duration-200"
+                    className="h-10 w-10 p-0 border-gray-200 text-muted-foreground hover:text-foreground hover:border-gray-300 transition-all duration-200 min-h-[44px]"
                     disabled={safePage <= 1}
                     onClick={() => setPage(p => Math.max(1, p - 1))}
                   >
@@ -494,7 +494,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
                       key={p}
                       variant={p === safePage ? 'default' : 'outline'}
                       size="sm"
-                      className={`h-8 w-8 p-0 text-xs font-medium transition-all duration-200 ${
+                      className={`h-10 w-8 p-0 text-xs font-medium transition-all duration-200 ${
                         p === safePage
                           ? 'bg-gradient-to-br from-yellow-500/90 to-amber-600/90 text-black shadow-lg shadow-amber-500/20 hover:from-yellow-500 hover:to-amber-600 border-0'
                           : 'border-gray-200 text-muted-foreground hover:text-foreground hover:border-gray-300 hover:bg-gray-100/50'
@@ -508,7 +508,7 @@ export default function AuditScreen({ navigateTo }: { navigateTo?: (screen: stri
                   <Button
                     variant="outline"
                     size="sm"
-                    className="h-8 w-8 p-0 border-gray-200 text-muted-foreground hover:text-foreground hover:border-gray-300 transition-all duration-200"
+                    className="h-10 w-10 p-0 border-gray-200 text-muted-foreground hover:text-foreground hover:border-gray-300 transition-all duration-200 min-h-[44px]"
                     disabled={safePage >= totalPages}
                     onClick={() => setPage(p => Math.min(totalPages, p + 1))}
                   >

@@ -186,7 +186,7 @@ describe('Phase 3 Gate 4: Failure Recovery Validation', () => {
 
       expect(node).toBeDefined();
       expect(node.id).toBe('outage-node-1');
-      expect(getNode('outage-node-1')).toBeDefined();
+      expect(await getNode('outage-node-1')).toBeDefined();
 
       const mem = storeMemory({
         id: 'outage-mem-1',
@@ -337,16 +337,16 @@ describe('Phase 3 Gate 4: Failure Recovery Validation', () => {
    * Map state is unaffected by any DB failure scenario.
    */
   describe('Scenario 4: No Intelligence Loss', () => {
-    it('all Map CRUD operations work during simulated outage', () => {
+    it('all Map CRUD operations work during simulated outage', async () => {
       shouldFail = true;
       failUntilCount = 100;
 
       // Create
       addNode({ id: 'loss-test-1', label: 'Test 1', type: 'company', aliases: [], properties: {} });
-      expect(getNode('loss-test-1')).toBeDefined();
+      expect(await getNode('loss-test-1')).toBeDefined();
 
       // Read
-      const node = getNode('loss-test-1');
+      const node = await getNode('loss-test-1');
       expect(node?.label).toBe('Test 1');
 
       // Create more
@@ -361,7 +361,7 @@ describe('Phase 3 Gate 4: Failure Recovery Validation', () => {
       // Delete
       const removed = removeNode('loss-test-1');
       expect(removed).toBe(true);
-      expect(getNode('loss-test-1')).toBeUndefined();
+      expect(await getNode('loss-test-1')).toBeUndefined();
 
       // Memory delete
       const forgotten = forgetMemory('loss-test-mem');
@@ -369,14 +369,14 @@ describe('Phase 3 Gate 4: Failure Recovery Validation', () => {
       expect(recallMemory('loss-test-mem')).toBeUndefined();
     });
 
-    it('Map state remains consistent after write/delete cycles', () => {
+    it('Map state remains consistent after write/delete cycles', async () => {
       // Create-delete cycle 100 times
       for (let i = 0; i < 100; i++) {
         addNode({ id: `cycle-node-${i}`, label: `Cycle ${i}`, type: 'company', aliases: [], properties: {} });
-        expect(getNode(`cycle-node-${i}`)).toBeDefined();
+        expect(await getNode(`cycle-node-${i}`)).toBeDefined();
 
         removeNode(`cycle-node-${i}`);
-        expect(getNode(`cycle-node-${i}`)).toBeUndefined();
+        expect(await getNode(`cycle-node-${i}`)).toBeUndefined();
       }
     });
   });

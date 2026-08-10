@@ -1,6 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import {
   Upload, Brain, Sparkles, Target, ArrowRight, CheckCircle2,
   Building2, Users, FileSpreadsheet
@@ -62,13 +63,13 @@ export function FirstExperienceGuide({ onNavigate, hasCompanies, hasContacts, ha
         transition={{ duration: 0.6 }}
       >
         <div className="w-14 h-14 rounded-xl mx-auto mb-5 flex items-center justify-center"
-          style={{ background: 'rgba(59,130,246,0.1)', border: '1.5px solid rgba(59,130,246,0.2)' }}>
-          <Sparkles className="w-7 h-7" style={{ color: '#3B82F6' }} />
+          style={{ background: tokens.accent.subtle, border: '1.5px solid rgba(59,130,246,0.2)' }}>
+          <Sparkles className="w-7 h-7" style={{ color: tokens.accent.DEFAULT }} />
         </div>
-        <h1 className="text-2xl font-bold tracking-tight mb-3" style={{ color: '#e8ecf4' }}>
+        <h1 className="text-2xl font-bold tracking-tight mb-3" style={{ color: tokens.text.primary }}>
           Welcome to DeepMindQ
         </h1>
-        <p className="text-base" style={{ color: '#8892a8', maxWidth: '480px' }}>
+        <p className="text-base" style={{ color: tokens.text.secondary, maxWidth: '480px' }}>
           Your Enterprise Intelligence OS is ready. Follow these steps to unlock AI-powered intelligence.
         </p>
       </motion.div>
@@ -82,8 +83,8 @@ export function FirstExperienceGuide({ onNavigate, hasCompanies, hasContacts, ha
               key={step.id}
               className="relative flex flex-col p-5 rounded-xl"
               style={{
-                background: '#141821',
-                border: '1px solid #1e2535',
+                background: tokens.surface.card,
+                border: '1px solid {tokens.border.default}',
               }}
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
@@ -91,23 +92,23 @@ export function FirstExperienceGuide({ onNavigate, hasCompanies, hasContacts, ha
             >
               {/* Step number */}
               <div className="absolute -top-3 -left-3 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold"
-                style={{ background: '#2563EB', color: '#fff' }}>
+                style={{ background: tokens.accent.dim, color: tokens.flat.white }}>
                 {i + 1}
               </div>
 
               <div className="w-10 h-10 rounded-lg flex items-center justify-center mb-4 mt-1"
-                style={{ background: 'rgba(59,130,246,0.1)' }}>
-                <Icon className="w-5 h-5" style={{ color: '#3B82F6' }} />
+                style={{ background: tokens.accent.subtle }}>
+                <Icon className="w-5 h-5" style={{ color: tokens.accent.DEFAULT }} />
               </div>
 
-              <h3 className="text-sm font-semibold mb-2" style={{ color: '#e8ecf4' }}>{step.title}</h3>
-              <p className="text-xs leading-relaxed flex-1" style={{ color: '#8892a8' }}>{step.description}</p>
+              <h3 className="text-sm font-semibold mb-2" style={{ color: tokens.text.primary }}>{step.title}</h3>
+              <p className="text-xs leading-relaxed flex-1" style={{ color: tokens.text.secondary }}>{step.description}</p>
 
               {step.cta && (
                 <button
                   onClick={() => step.action && onNavigate(step.action)}
                   className="mt-4 flex items-center gap-1.5 text-xs font-semibold transition-colors"
-                  style={{ color: '#3B82F6' }}
+                  style={{ color: tokens.accent.DEFAULT }}
                 >
                   {step.cta}
                   <ArrowRight className="w-3 h-3" />
@@ -128,7 +129,7 @@ export function FirstExperienceGuide({ onNavigate, hasCompanies, hasContacts, ha
         <button
           onClick={() => onNavigate('data-import')}
           className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-all"
-          style={{ background: 'linear-gradient(135deg, #2563EB, #3B82F6)', color: '#fff' }}
+          style={{ background: 'linear-gradient(135deg, {tokens.accent.dim}, {tokens.accent.DEFAULT})', color: tokens.flat.white }}
         >
           <Upload className="w-4 h-4" />
           Start by Importing Data

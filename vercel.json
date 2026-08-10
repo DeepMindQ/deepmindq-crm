@@ -16,6 +16,26 @@
     {
       "path": "/api/cron/job-processor",
       "schedule": "0 6 * * *"
+    },
+    {
+      "path": "/api/cron/calibration-runner",
+      "schedule": "0 3 * * *"
+    },
+    {
+      "path": "/api/cron/persistence-evidence",
+      "schedule": "0 4 * * *"
+    },
+    {
+      "path": "/api/cron/persistence-performance",
+      "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/data-retention",
+      "schedule": "0 5 * * *"
+    },
+    {
+      "path": "/api/cron/backup-verify",
+      "schedule": "0 3 1 * *"
     }
   ]
 }

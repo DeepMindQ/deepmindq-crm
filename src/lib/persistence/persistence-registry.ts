@@ -147,6 +147,15 @@ export const PERSISTENCE_REGISTRY: PersistentMapRegistration[] = [
     isPrimary: false,
     dependsOn: 'retrieval_index',
   },
+
+  // ── Financial Intelligence: Cached Profiles ──
+  {
+    store: 'financial_profiles',
+    sourceFile: 'src/app/api/companies/enrich/route.ts',
+    mapName: 'N/A (write-through from enrich pipeline)',
+    description: 'Cached financial profiles computed by the enrichment pipeline — keyed by companyId',
+    isPrimary: true,
+  },
 ] as const;
 
 /** Get all primary (non-derived) persistence stores. */

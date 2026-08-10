@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import { checkApiAuth } from '@/lib/api-auth'
 import { logger } from '@/lib/logger'
-import { streamAICall } from '@/lib/llm-stream'
+import { governedStreamAICall } from '@/lib/ai-governance'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -24,24 +24,6 @@ export async function POST(request: NextRequest) {
   const { errorResponse, session } = await checkApiAuth(request)
   if (errorResponse) return errorResponse
 
-  // ── GOVERNANCE GATE (Phase 0: Temporary Block) ──
-  // This streaming endpoint bypasses the AI Governance Layer (ai-governance.ts).
-  // Until governedStreamAICall() is implemented (Phase 5), this endpoint is
-  // DISABLED to prevent ungoverned AI output from reaching users.
-  // Tracked: G9 in Master Product Specification.
-  return new Response(
-    JSON.stringify({
-      success: false,
-      error: 'This endpoint is temporarily disabled during Phase 0 governance hardening.',
-      detail: 'The chat-stream endpoint bypasses AI governance controls (hallucination prevention, evidence grounding, audit trail, cost governance). A governed streaming implementation (governedStreamAICall) will be available in Phase 5. Use /api/ai/advisor for governed AI interactions.',
-      timestamp: new Date().toISOString(),
-    }),
-    {
-      status: 403,
-      headers: { 'Content-Type': 'application/json' },
-    },
-  )
-
   // ── Parse request body ──
   let body: ChatStreamRequest
   try {
@@ -61,7 +43,7 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Validate messages ──
-  const { messages, model, temperature, maxTokens } = body
+  const { messages, temperature, maxTokens } = body
 
   if (!Array.isArray(messages) || messages.length === 0) {
     return new Response(
@@ -96,9 +78,6 @@ export async function POST(request: NextRequest) {
   }
 
   // ── Build system/user prompts from messages array ──
-  // The streamAICall expects a single system prompt and user prompt.
-  // We extract the last system message as systemPrompt and concatenate
-  // the remaining messages for the user prompt.
   let systemPrompt = 'You are DeepMindQ AI Assistant, an intelligent sales CRM assistant. Be helpful, concise, and actionable. Use markdown formatting for readability when appropriate.'
 
   const nonSystemMessages: ChatStreamMessage[] = []
@@ -129,44 +108,42 @@ export async function POST(request: NextRequest) {
     )
   }
 
-  logger.info(`[chat-stream] Starting stream for user=${session?.email ?? 'unknown'}, messages=${messages.length}`)
+  logger.info(`[chat-stream] Starting governed stream for user=${session?.email ?? 'unknown'}, messages=${messages.length}`)
 
-  try {
-    // ── Create the streaming response ──
-    const sseStream = await streamAICall(systemPrompt, userPrompt, {
-      model,
-      temperature,
-      maxTokens,
-      timeoutMs: 120_000, // 2 minute timeout for chat
-      signal: request.signal,
-      feature: 'chat-stream',
-    })
+  // ── Governed streaming call ──
+  const governed = await governedStreamAICall({
+    generationType: 'chat_stream',
+    systemPrompt,
+    userPrompt,
+    temperature: temperature ?? 0.7,
+    maxTokens: maxTokens ?? 4096,
+    signal: request.signal,
+    feature: 'chat-stream',
+  })
 
-    return new Response(sseStream, {
-      status: 200,
-      headers: {
-        'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache, no-transform',
-        'Connection': 'keep-alive',
-        'X-Accel-Buffering': 'no', // Disable nginx buffering (if behind proxy)
-      },
-    })
-  } catch (err) {
-    // @ts-expect-error -- unreachable code (403 block above), but TypeScript still checks
-    const msg = (err instanceof Error) ? err.message : String(err)
-    logger.error(`[chat-stream] Failed to create stream: ${msg}`)
-
+  // If governance blocked, return 422
+  if (!governed.governanceResult.canProceed) {
     return new Response(
       JSON.stringify({
         success: false,
-        error: 'Failed to start AI stream',
-        detail: msg,
+        error: 'Governance check failed',
+        reason: governed.governanceResult.rejectionReason,
         timestamp: new Date().toISOString(),
       }),
       {
-        status: 500,
+        status: 422,
         headers: { 'Content-Type': 'application/json' },
       },
     )
   }
+
+  return new Response(governed.stream, {
+    status: 200,
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'Connection': 'keep-alive',
+      'X-Accel-Buffering': 'no',
+    },
+  })
 }

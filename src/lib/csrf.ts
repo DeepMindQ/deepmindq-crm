@@ -1,11 +1,31 @@
-import { randomBytes } from 'crypto'
+/**
+ * CSRF Protection — Double-Submit Cookie Pattern
+ *
+ * P0.4 DEEP FIX: Replaced Node.js crypto.randomBytes with
+ * crypto.getRandomValues (Web Crypto API) for Edge compatibility.
+ *
+ * Pattern:
+ *   1. Server sets a non-httpOnly csrf-token cookie on page loads
+ *   2. Client reads cookie, sends same value as x-csrf-token header
+ *   3. Server compares header == cookie (constant-time)
+ *   4. If mismatch or missing → 403
+ *
+ * The csrf-token cookie MUST be set by:
+ *   - Edge middleware (src/middleware.ts) — uses generateCsrfToken()
+ *   - Next.js 16 proxy (src/proxy.ts) — uses generateCsrfToken()
+ * Both import from this file (single source of truth).
+ */
 
 const CSRF_TOKEN_HEADER = 'x-csrf-token'
 const CSRF_COOKIE_NAME = 'csrf-token'
 
-// Generate a new CSRF token
+// Generate a new CSRF token using Web Crypto API (Edge-compatible)
 export function generateCsrfToken(): string {
-  return randomBytes(32).toString('hex')
+  const bytes = new Uint8Array(32)
+  crypto.getRandomValues(bytes)
+  return Array.from(bytes)
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
 }
 
 // Validate a CSRF token from request

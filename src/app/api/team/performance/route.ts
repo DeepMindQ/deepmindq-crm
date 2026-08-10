@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { tokens } from '@/lib/design-tokens';
 import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
@@ -11,12 +12,12 @@ const STATUS_ORDER = ['imported', 'cleaned', 'drafted', 'queued', 'sent', 'repli
 
 const STATUS_COLORS: Record<string, string> = {
   imported: '#6b7280',
-  cleaned: '#8b5cf6',
-  drafted: '#3b82f6',
-  queued: '#f59e0b',
-  sent: '#D4AF37',
-  replied: '#10b981',
-  bounced: '#ef4444',
+  cleaned: tokens.extended.purple.value,
+  drafted: tokens.accent.DEFAULT,
+  queued: tokens.domain.reasoning,
+  sent: tokens.gold.DEFAULT,
+  replied: tokens.extended.emerald.value,
+  bounced: tokens.domain.risk,
 };
 
 function getInitials(name: string): string {

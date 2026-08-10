@@ -676,13 +676,38 @@ async function calibrateFromFeedback(
 
         if (usefulCount > notUsefulCount && usefulCount >= 1) {
           const boost = Math.min(15, usefulCount * 3);
+          const newConfidence = Math.min(95, previousConfidence + boost);
+
+          // Phase 2.10: Actually write the adjusted score back to AccountScore
+          try {
+            await db.accountScore.upsert({
+              where: { companyId: submission.companyId },
+              create: {
+                companyId: submission.companyId,
+                score: newConfidence,
+                category: newConfidence >= 80 ? 'HOT_ACCOUNT' : newConfidence >= 60 ? 'WARM_ACCOUNT' : newConfidence >= 40 ? 'NURTURE' : 'AT_RISK',
+                scoreBreakdown: JSON.stringify({ overallScore: newConfidence, adjustedByFeedback: true }),
+                calculatedAt: new Date(),
+              },
+              update: {
+                score: newConfidence,
+                category: newConfidence >= 80 ? 'HOT_ACCOUNT' : newConfidence >= 60 ? 'WARM_ACCOUNT' : newConfidence >= 40 ? 'NURTURE' : 'AT_RISK',
+                scoreBreakdown: JSON.stringify({ overallScore: newConfidence, adjustedByFeedback: true }),
+                calculatedAt: new Date(),
+              },
+            });
+            logger.info('[FeedbackLoop] Account score adjusted', { companyId: submission.companyId, previousConfidence, newConfidence, boost });
+          } catch (err) {
+            logger.warn('[FeedbackLoop] Failed to write adjusted score:', { error: err });
+          }
+
           return {
             applied: true,
             details: {
               signalType: submission.companyId,
               direction: 'increased',
               previousConfidence,
-              newConfidence: Math.min(95, previousConfidence + boost),
+              newConfidence,
               reason: `${usefulCount} positive feedback items — confidence increased by ${boost} points`,
             },
           };
@@ -690,13 +715,38 @@ async function calibrateFromFeedback(
 
         if (notUsefulCount > usefulCount && notUsefulCount >= 1) {
           const penalty = Math.min(20, notUsefulCount * 5);
+          const newConfidence = Math.max(30, previousConfidence - penalty);
+
+          // Phase 2.10: Actually write the adjusted score back to AccountScore
+          try {
+            await db.accountScore.upsert({
+              where: { companyId: submission.companyId },
+              create: {
+                companyId: submission.companyId,
+                score: newConfidence,
+                category: newConfidence >= 80 ? 'HOT_ACCOUNT' : newConfidence >= 60 ? 'WARM_ACCOUNT' : newConfidence >= 40 ? 'NURTURE' : 'AT_RISK',
+                scoreBreakdown: JSON.stringify({ overallScore: newConfidence, adjustedByFeedback: true }),
+                calculatedAt: new Date(),
+              },
+              update: {
+                score: newConfidence,
+                category: newConfidence >= 80 ? 'HOT_ACCOUNT' : newConfidence >= 60 ? 'WARM_ACCOUNT' : newConfidence >= 40 ? 'NURTURE' : 'AT_RISK',
+                scoreBreakdown: JSON.stringify({ overallScore: newConfidence, adjustedByFeedback: true }),
+                calculatedAt: new Date(),
+              },
+            });
+            logger.info('[FeedbackLoop] Account score adjusted', { companyId: submission.companyId, previousConfidence, newConfidence, penalty: -penalty });
+          } catch (err) {
+            logger.warn('[FeedbackLoop] Failed to write adjusted score:', { error: err });
+          }
+
           return {
             applied: true,
             details: {
               signalType: submission.companyId,
               direction: 'decreased',
               previousConfidence,
-              newConfidence: Math.max(30, previousConfidence - penalty),
+              newConfidence,
               reason: `${notUsefulCount} negative feedback items — confidence decreased by ${penalty} points`,
             },
           };
@@ -998,12 +1048,12 @@ export async function getLearningAnalytics(): Promise<LearningAnalytics> {
 /**
  * Search institutional memory for feedback learning patterns.
  */
-export function searchFeedbackMemories(
+export async function searchFeedbackMemories(
   query: string,
   options?: { companyId?: string; limit?: number }
-): Array<{ memory: MemoryItem; relevance: number; learningType: string }> {
+): Promise<Array<{ memory: MemoryItem; relevance: number; learningType: string }>> {
   try {
-    const results = searchMemories({
+    const results = await searchMemories({
       query,
       category: ['learning_insight'],
       tags: options ? ['feedback_learning', ...([] as string[])] : ['feedback_learning'],

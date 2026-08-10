@@ -222,8 +222,8 @@ export function ExplorationLayer({
           variants={childVariants}
           className="rounded-xl p-3.5"
           style={{
-            background: 'rgba(139, 92, 246, 0.06)',
-            border: '1px solid rgba(139, 92, 246, 0.2)',
+            background: tokens.extended.purple.bgSubtle,
+            border: `1px solid ${tokens.extended.purple.border}`,
           }}
         >
           <div className="flex items-center gap-1.5 mb-1.5">
@@ -232,7 +232,7 @@ export function ExplorationLayer({
               style={{
                 width: '10px',
                 height: '10px',
-                backgroundColor: 'rgba(139, 92, 246, 0.8)',
+                backgroundColor: tokens.extended.purple.value,
               }}
             />
             <span
@@ -240,7 +240,7 @@ export function ExplorationLayer({
               style={{
                 fontSize: '10px',
                 letterSpacing: '1.5px',
-                color: '#a78bfa',
+                color: tokens.extended.violet.value,
               }}
             >
               AI Context — Not a Directive
@@ -368,7 +368,7 @@ export function ExplorationLayer({
                     background: 'transparent',
                   }}
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.02)';
+                    (e.currentTarget as HTMLElement).style.background = tokens.opacity.white.hint;
                   }}
                   onMouseLeave={(e) => {
                     (e.currentTarget as HTMLElement).style.background = 'transparent';

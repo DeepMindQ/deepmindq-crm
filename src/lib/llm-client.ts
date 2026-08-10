@@ -24,6 +24,7 @@ import { getLLMChain, getSearchProvider } from '@/lib/ai-config'
 import { runQualityGates, formatQualityReportForLog } from '@/lib/ai-copilot/quality-gates'
 import type { QualityReport } from '@/lib/ai-copilot/quality-gates'
 import { logger } from '@/lib/logger'
+import { countTokens } from '@/lib/token-counter'
 
 // ─── Type Exports (from zai-helpers.ts — consumed by 20+ files) ─────────────
 
@@ -199,16 +200,31 @@ export async function callAI(options: CallAIOptions): Promise<CallAIResult> {
   return { raw: '', parsed: null, success: false, error: lastError, latencyMs }
 }
 
+// ─── Token Usage Type ─────────────────────────────────────────────────
+
+export interface TokenUsage {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+}
+
 // ─── callLLM — Direct provider chain (from zai-helpers.ts) ───────────────
 
 const GEMINI_FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
+
+interface LLMProviderResult {
+  text: string;
+  usage: TokenUsage | null;
+}
 
 async function callLLMProvider(
   baseURL: string,
   apiKey: string,
   model: string,
   userMessages: Array<{ role: string; content: string }>,
-): Promise<string> {
+  temperature: number = 0.7,
+  maxTokens: number = 8192,
+): Promise<LLMProviderResult> {
   const response = await fetch(`${baseURL}/chat/completions`, {
     method: 'POST',
     headers: {
@@ -218,8 +234,8 @@ async function callLLMProvider(
     body: JSON.stringify({
       model,
       messages: userMessages,
-      temperature: 0.7,
-      max_tokens: 8192,
+      temperature,
+      max_tokens: maxTokens,
     }),
   })
 
@@ -229,10 +245,43 @@ async function callLLMProvider(
   }
 
   const data = await response.json()
-  return data.choices?.[0]?.message?.content ?? ''
+  const text = data.choices?.[0]?.message?.content ?? ''
+
+  // Extract usage from provider response if available
+  let usage: TokenUsage | null = null
+  if (data.usage) {
+    const u = data.usage
+    usage = {
+      promptTokens: u.prompt_tokens ?? 0,
+      completionTokens: u.completion_tokens ?? 0,
+      totalTokens: u.total_tokens ?? (u.prompt_tokens ?? 0) + (u.completion_tokens ?? 0),
+    }
+  }
+
+  return { text, usage }
 }
 
-export async function callLLM(systemPrompt: string, userPrompt: string): Promise<string> {
+export async function callLLM(
+  systemPrompt: string,
+  userPrompt: string,
+  options?: { temperature?: number; maxTokens?: number },
+): Promise<string> {
+  const result = await callLLMWithUsage(systemPrompt, userPrompt, options)
+  return result.text
+}
+
+/**
+ * Like callLLM() but also returns provider-reported token usage.
+ * If the provider doesn't return usage, `usage` will be null.
+ */
+export async function callLLMWithUsage(
+  systemPrompt: string,
+  userPrompt: string,
+  options?: { temperature?: number; maxTokens?: number },
+): Promise<{ text: string; usage: TokenUsage | null }> {
+  const temperature = options?.temperature ?? 0.7
+  const maxTokens = options?.maxTokens ?? 8192
+
   const messages = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt },
@@ -246,14 +295,16 @@ export async function callLLM(systemPrompt: string, userPrompt: string): Promise
       if (provider.label.includes('Gemini')) {
         for (const model of GEMINI_FALLBACK_MODELS) {
           try {
-            return await callLLMProvider(provider.baseUrl, provider.apiKey, model, messages)
+            const result = await callLLMProvider(provider.baseUrl, provider.apiKey, model, messages, temperature, maxTokens)
+            if (result.text) return result
           } catch (err) {
             errors.push(`Gemini/${model}: ${err instanceof Error ? err.message : err}`)
           }
         }
         continue
       }
-      return await callLLMProvider(provider.baseUrl, provider.apiKey, provider.model, messages)
+      const result = await callLLMProvider(provider.baseUrl, provider.apiKey, provider.model, messages, temperature, maxTokens)
+      return result
     } catch (err) {
       errors.push(`${provider.label}: ${err instanceof Error ? err.message : err}`)
     }
@@ -576,15 +627,21 @@ async function trackUsage(
   errorMessage?: string,
 ): Promise<void> {
   try {
-    const { logAIUsage } = await import('@/lib/ai-copilot/usage-tracker')
+    const { logAIUsage, estimateCost } = await import('@/lib/ai-copilot/usage-tracker')
+
+    // Estimate completion tokens via tiktoken (best-effort).
+    // We don't have the actual prompt text here, so prompt tokens stay 0.
+    const completionTokens = await countTokens(rawOutput)
+    const estimatedCost = estimateCost('unknown', 0, completionTokens)
+
     await logAIUsage({
       feature: feature,
       model: 'unknown',
       companyId: companyId ?? null,
       promptTokens: 0,
-      completionTokens: 0,
-      totalTokens: 0,
-      estimatedCost: 0,
+      completionTokens,
+      totalTokens: completionTokens,
+      estimatedCost,
       status: errorMessage ? 'failed' : 'success',
       errorMessage: errorMessage ?? undefined,
     })

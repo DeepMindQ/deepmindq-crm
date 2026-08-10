@@ -90,11 +90,11 @@ export interface AccountDeltaTrackerProps {
 
 // ── Delta type visual config ──
 const DELTA_TYPE_CONFIG: Record<DeltaType, { label: string; color: string; bg: string; icon: typeof TrendingUp }> = {
-  score_change:      { label: 'Score Change',    color: '#3b82f6', bg: 'rgba(59,130,246,0.08)',  icon: TrendingUp },
-  new_signal:        { label: 'New Signal',      color: '#06b6d4', bg: 'rgba(6,182,212,0.08)',   icon: Zap },
-  evidence_update:   { label: 'Evidence Update', color: '#8b5cf6', bg: 'rgba(139,92,246,0.08)',  icon: AlertTriangle },
-  priority_shift:    { label: 'Priority Shift',  color: '#f59e0b', bg: 'rgba(245,158,11,0.08)',  icon: TrendingDown },
-  confidence_change: { label: 'Confidence Change', color: '#10b981', bg: 'rgba(16,185,129,0.08)', icon: TrendingUp },
+  score_change:      { label: 'Score Change',    color: tokens.accent.DEFAULT, bg: tokens.accent.ghost,  icon: TrendingUp },
+  new_signal:        { label: 'New Signal',      color: tokens.domain.enrichment, bg: tokens.accent.ghost,   icon: Zap },
+  evidence_update:   { label: 'Evidence Update', color: tokens.extended.purple.value, bg: tokens.extended.purple.bgSubtle,  icon: AlertTriangle },
+  priority_shift:    { label: 'Priority Shift',  color: tokens.domain.reasoning, bg: tokens.confidence.medium.bg,  icon: TrendingDown },
+  confidence_change: { label: 'Confidence Change', color: tokens.extended.emerald.value, bg: tokens.extended.emerald.bg, icon: TrendingUp },
 };
 
 export function AccountDeltaTracker({
@@ -161,7 +161,7 @@ export function AccountDeltaTracker({
             <Badge
               variant="secondary"
               className="text-[10px] px-1.5 py-0"
-              style={{ background: 'rgba(245,158,11,0.1)', color: '#f59e0b', border: 0 }}
+              style={{ background: tokens.confidence.medium.bg, color: tokens.domain.reasoning, border: 0 }}
             >
               {filteredDeltas.length} changes
             </Badge>
@@ -208,8 +208,8 @@ export function AccountDeltaTracker({
 
       {/* Error state */}
       {error && (
-        <div className="flex items-center gap-3 rounded-xl border p-4" style={{ background: 'rgba(239,68,68,0.05)', borderColor: 'rgba(239,68,68,0.15)' }}>
-          <AlertTriangle className="w-4 h-4" style={{ color: '#ef4444' }} />
+        <div className="flex items-center gap-3 rounded-xl border p-4" style={{ background: tokens.opacity.shadow, borderColor: tokens.confidence.low.bg }}>
+          <AlertTriangle className="w-4 h-4" style={{ color: tokens.domain.risk }} />
           <span className="text-xs" style={{ color: tokens.text.secondary }}>{error}</span>
         </div>
       )}

@@ -107,7 +107,7 @@ async function runKG1Wiring() {
   console.log('  VERIFICATION — Graph Traversal');
   console.log('════════════════════════════════════════════════════════════\n');
 
-  const companyNode = getNode(TEST_COMPANY_ID);
+  const companyNode = await getNode(TEST_COMPANY_ID);
   if (companyNode) {
     console.log(`[VERIFY] Company node: ${companyNode.label} (id: ${companyNode.id}, type: ${companyNode.type})`);
   } else {
@@ -127,7 +127,7 @@ async function runKG1Wiring() {
   console.log('─'.repeat(60));
   console.log(`Company [${TEST_COMPANY_ID}]`);
   for (const edge of signalEdges) {
-    const signalNode = getNode(edge.targetId);
+    const signalNode = await getNode(edge.targetId);
     if (signalNode) {
       const signalType = signalNode.properties?.signalType ?? 'unknown';
       console.log(`  │`);
@@ -158,7 +158,7 @@ async function runKG1Wiring() {
   ) && allPassed;
 
   for (const signal of signalsToWire) {
-    const node = getNode(`signal:${signal.id}`);
+    const node = await getNode(`signal:${signal.id}`);
     allPassed = pass(!!node, `Signal node signal:${signal.id} exists`) && allPassed;
     if (node) {
       allPassed = pass(node.type === 'signal', `  → type is 'signal'`) && allPassed;

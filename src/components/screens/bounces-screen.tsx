@@ -106,7 +106,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
             />
           </div>
           <div className="flex items-center gap-2 pt-2">
-            <PulseDot color="#EF4444" />
+            <PulseDot color="var(--dmq-domain-risk)" />
             <span className="text-xs text-muted-foreground">Live monitoring</span>
           </div>
         </div>
@@ -118,7 +118,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
               label="Total Bounces"
               value={bounces.length}
               icon={TrendingDown}
-              color="#EF4444"
+              color="var(--dmq-domain-risk)"
               delay={0}
             />
           </StaggerItem>
@@ -127,7 +127,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
               label="Hard Bounces"
               value={hardBounces}
               icon={Ban}
-              color="#F97316"
+              color="var(--dmq-orange-500)"
               delay={0.08}
             />
           </StaggerItem>
@@ -136,7 +136,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
               label="Soft Bounces"
               value={softBounces}
               icon={AlertTriangle}
-              color="#FBBF24"
+              color="var(--dmq-amber)"
               delay={0.16}
             />
           </StaggerItem>
@@ -145,7 +145,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
               label="Suppressions"
               value={suppressions.length}
               icon={ShieldAlert}
-              color="#A855F7"
+              color="var(--dmq-domain-opportunity)"
               delay={0.24}
             />
           </StaggerItem>
@@ -214,7 +214,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
                       >
                         <TableCell className="pl-6 py-3.5">
                           <div className="flex items-center gap-3">
-                            <div className="w-[3px] h-8 rounded-full bg-red-500/0 group-hover:bg-red-500 transition-colors duration-300" />
+                            <div className="w-[3px] h-10 rounded-full bg-red-500/0 group-hover:bg-red-500 transition-colors duration-300" />
                             <span className="text-foreground text-sm font-medium">{b.contactName}</span>
                           </div>
                         </TableCell>
@@ -292,7 +292,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
                       >
                         <TableCell className="pl-6 py-3.5">
                           <div className="flex items-center gap-3">
-                            <div className="w-[3px] h-8 rounded-full bg-purple-500/0 group-hover:bg-purple-500 transition-colors duration-300" />
+                            <div className="w-[3px] h-10 rounded-full bg-purple-500/0 group-hover:bg-purple-500 transition-colors duration-300" />
                             <span className="text-foreground text-sm font-medium">{s.contactName}</span>
                           </div>
                         </TableCell>
@@ -303,7 +303,7 @@ export default function BouncesScreen({ navigateTo }: { navigateTo?: (screen: st
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 text-xs text-red-600 hover:text-red-600 hover:bg-red-50 gap-1.5"
+                            className="h-10 text-xs text-red-600 hover:text-red-600 hover:bg-red-50 gap-1.5 min-h-[44px]"
                             onClick={() => handleRemoveSuppression(s.id)}
                           >
                             <Trash2 className="w-3.5 h-3.5" />

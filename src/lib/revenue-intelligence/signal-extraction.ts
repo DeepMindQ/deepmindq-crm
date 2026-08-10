@@ -16,6 +16,7 @@ import {
 import type { SignalCategory } from './signal-patterns';
 import { FRESHNESS_CONFIG, SOURCE_RELIABILITY } from '@/lib/intelligence-sources';
 import type { SourceType } from '@/lib/intelligence-sources';
+import { getCalibrationAdjustments } from '@/lib/feedback-learning-loop';
 
 // ─── Exported Interfaces ──────────────────────────────────────────
 
@@ -292,7 +293,28 @@ export async function detectSignalsForCompany(
     }
   }
 
-  return Array.from(best.values()).sort((a, b) => b.score - a.score);
+  const detected = Array.from(best.values()).sort((a, b) => b.score - a.score);
+
+  // ── Phase 4: Apply feedback-driven calibration adjustments (Phase 2.4 learning loop) ──
+  try {
+    const adjustments = await getCalibrationAdjustments(companyId);
+    if (adjustments.length > 0) {
+      // Compute average shift from calibration (magnitude is 0-1, convert to 0-100 scale)
+      const totalShift = adjustments.reduce((sum, a) => {
+        const shift = a.direction === 'up' ? a.magnitude * 100 : -a.magnitude * 100;
+        return sum + shift;
+      }, 0);
+      // Apply shift to each signal's score and confidence proportionally
+      for (const signal of detected) {
+        signal.score = Math.max(0, Math.min(100, signal.score + totalShift * 0.5));
+        signal.confidence = Math.max(0, Math.min(1, signal.confidence + (totalShift / 100) * 0.3));
+      }
+    }
+  } catch {
+    // Non-blocking: calibration failure must not break signal detection
+  }
+
+  return detected.sort((a, b) => b.score - a.score);
 }
 
 /**

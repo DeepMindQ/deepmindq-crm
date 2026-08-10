@@ -1,6 +1,7 @@
 'use client';
 
 import { Loader2 } from 'lucide-react';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 
 interface EnterpriseLoadingProps {
   message?: string;
@@ -25,17 +26,17 @@ export function EnterpriseLoading({
     <div className={`flex flex-col items-center justify-center ${config.padding} ${config.gap}`}>
       <div
         className={`${config.spinner} rounded-lg flex items-center justify-center`}
-        style={{ background: 'rgba(59,130,246,0.1)' }}
+        style={{ background: tokens.accent.subtle }}
       >
-        <Loader2 className={`${config.spinner} animate-spin`} style={{ color: '#3B82F6' }} />
+        <Loader2 className={`${config.spinner} animate-spin`} style={{ color: tokens.accent.DEFAULT }} />
       </div>
-      <p className={config.text} style={{ color: '#8892a8' }}>{message}</p>
+      <p className={config.text} style={{ color: tokens.text.secondary }}>{message}</p>
     </div>
   );
 
   if (fullScreen) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#0a0c10' }}>
+      <div className="min-h-screen flex items-center justify-center" style={{ background: tokens.text.inverse }}>
         {content}
       </div>
     );

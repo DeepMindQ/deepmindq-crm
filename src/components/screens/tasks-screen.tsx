@@ -359,7 +359,7 @@ export default function TasksScreen() {
             key={s}
             onClick={() => setStatusFilter(s)}
             className={cn(
-              'inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-150',
+              'inline-flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-sm font-medium whitespace-nowrap transition-all duration-150',
               statusFilter === s
                 ? 'bg-amber-600 text-white shadow-xs'
                 : 'text-gray-500 hover:text-gray-900 hover:bg-gray-100',
@@ -386,11 +386,11 @@ export default function TasksScreen() {
             placeholder="Search tasks..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="pl-9 h-9 bg-white border-gray-200 rounded-lg text-sm focus:border-amber-400 focus:ring-amber-100"
+            className="pl-9 h-10 bg-white border-gray-200 rounded-lg text-sm focus:border-amber-400 focus:ring-amber-100"
           />
         </div>
         <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-          <SelectTrigger className="w-36 h-9 bg-white border-gray-200 rounded-lg text-sm">
+          <SelectTrigger className="w-36 h-10 bg-white border-gray-200 rounded-lg text-sm">
             <Filter className="size-3.5 mr-1.5 text-gray-600" />
             <SelectValue placeholder={PRIORITY_LABELS[priorityFilter]} />
           </SelectTrigger>
@@ -627,7 +627,7 @@ export default function TasksScreen() {
                 <PopoverTrigger asChild>
                   <button
                     className={cn(
-                      'flex items-center gap-2 h-9 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-left hover:bg-gray-50 transition-colors',
+                      'flex items-center gap-2 h-10 w-full rounded-lg border border-gray-200 bg-white px-3 text-sm text-left hover:bg-gray-50 transition-colors min-h-[44px]',
                       !form.dueDate && 'text-gray-600',
                     )}
                   >

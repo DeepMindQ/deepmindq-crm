@@ -10,6 +10,8 @@
  *   // Use the returned function as a query interceptor
  */
 
+import { logger } from '@/lib/logger'
+
 /** Structured log format for query safety warnings. */
 interface QuerySafetyWarning {
   model: string;
@@ -80,8 +82,9 @@ export function createQuerySafetyMiddleware() {
           timestamp: new Date().toISOString(),
         };
 
-        console.warn(
+        logger.warn(
           `[QUERY-SAFETY] Unbounded findMany on ${warning.model} at ${warning.caller}`,
+          { model: warning.model, caller: warning.caller },
         );
       }
     }

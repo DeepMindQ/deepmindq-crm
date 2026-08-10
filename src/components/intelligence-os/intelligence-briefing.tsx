@@ -1,5 +1,6 @@
 'use client';
 
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -151,9 +152,9 @@ export function IntelligenceBriefing() {
         className="flex items-center justify-center gap-8 mb-8"
       >
         {[
-          { icon: Building2, label: 'Accounts', value: briefing.companies.length, color: '#2563EB' },
-          { icon: Sparkles, label: 'Capabilities', value: briefing.totalCapabilities, color: '#8B5CF6' },
-          { icon: Zap, label: 'Signals', value: briefing.totalSignals, color: '#F59E0B' },
+          { icon: Building2, label: 'Accounts', value: briefing.companies.length, color: tokens.accent.dim },
+          { icon: Sparkles, label: 'Capabilities', value: briefing.totalCapabilities, color: tokens.extended.purple.value },
+          { icon: Zap, label: 'Signals', value: briefing.totalSignals, color: tokens.domain.reasoning },
         ].map((stat) => (
           <div key={stat.label} className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${stat.color}12` }}>
@@ -196,13 +197,13 @@ export function IntelligenceBriefing() {
                   <path
                     d="M18 2.0845a15.9155 15.9155 0 0 1 0 31.831 15.9155 15.9155 0 0 1 0-31.831"
                     fill="none"
-                    stroke="#E5E7EB"
+                    stroke={tokens.neutral['200']}
                     strokeWidth="3"
                   />
                   <path
                     d="M18 2.0845a15.9155 15.9155 0 0 1 0 31.831 15.9155 15.9155 0 0 1 0-31.831"
                     fill="none"
-                    stroke={company.intelligenceScore >= 75 ? '#059669' : company.intelligenceScore >= 50 ? '#F59E0B' : '#3B82F6'}
+                    stroke={company.intelligenceScore >= 75 ? tokens.extended.emeraldDeep.value : company.intelligenceScore >= 50 ? tokens.domain.reasoning : tokens.accent.DEFAULT}
                     strokeWidth="3"
                     strokeDasharray={`${company.intelligenceScore}, 100`}
                     strokeLinecap="round"
@@ -227,7 +228,7 @@ export function IntelligenceBriefing() {
                 )}
                 <div
                   className="w-6 h-6 rounded flex items-center justify-center"
-                  style={{ background: company.intelligenceScore >= 75 ? '#05966915' : '#F59E0B15' }}
+                  style={{ background: company.intelligenceScore >= 75 ? '#05966915' : tokens.domain.reasoning }}
                 >
                   {company.intelligenceScore >= 75 ? (
                     <TrendingUp className="w-3.5 h-3.5 text-emerald-600" />

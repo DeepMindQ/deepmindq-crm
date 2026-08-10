@@ -1,5 +1,6 @@
 'use client'
 
+import { tokens } from '@/components/intelligence-os/design-tokens'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import type { LucideIcon } from 'lucide-react'
@@ -91,13 +92,13 @@ export function ScoreGauge({
   const circ = 2 * Math.PI * r
   const offset = circ - (clampedScore / 100) * circ
   const getColor = (s: number) =>
-    s >= 80 ? '#059669' : s >= 60 ? '#D97706' : s >= 40 ? '#F59E0B' : '#DC2626'
+    s >= 80 ? tokens.extended.emeraldDeep.value : s >= 60 ? tokens.extended.amberDeep.value : s >= 40 ? tokens.domain.reasoning : tokens.extended.red.value
 
   return (
     <div className={cn('flex flex-col items-center gap-4', className)}>
       <div className="relative" style={{ width: size, height: size }}>
         <svg aria-hidden="true" viewBox={`0 0 ${size} ${size}`} className="w-full h-full -rotate-90">
-          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
+          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={tokens.neutral['100']} strokeWidth={strokeWidth} />
           <circle
             cx={size/2} cy={size/2} r={r}
             fill="none" stroke={getColor(clampedScore)} strokeWidth={strokeWidth}
@@ -158,10 +159,10 @@ interface ScoreTripleProps {
 }
 
 export function getScoreColor(score: number): string {
-  if (score >= 80) return '#059669'
-  if (score >= 60) return '#D97706'
-  if (score >= 40) return '#F59E0B'
-  return '#DC2626'
+  if (score >= 80) return tokens.extended.emeraldDeep.value
+  if (score >= 60) return tokens.extended.amberDeep.value
+  if (score >= 40) return tokens.domain.reasoning
+  return tokens.extended.red.value
 }
 
 export function ScoreTriple({ intelligence, accountPriority, revenueOpportunity, className }: ScoreTripleProps) {
@@ -182,7 +183,7 @@ export function ScoreTriple({ intelligence, accountPriority, revenueOpportunity,
           {/* Mini radial gauge */}
           <div className="relative" style={{ width: 56, height: 56 }}>
             <svg aria-hidden="true" viewBox="0 0 56 56" className="w-full h-full -rotate-90">
-              <circle cx={28} cy={28} r={22} fill="none" stroke="#F3F4F6" strokeWidth={5} />
+              <circle cx={28} cy={28} r={22} fill="none" stroke={tokens.neutral['100']} strokeWidth={5} />
               <circle
                 cx={28} cy={28} r={22}
                 fill="none" stroke={s.color || getScoreColor(s.score)} strokeWidth={5}
@@ -202,8 +203,8 @@ export function ScoreTriple({ intelligence, accountPriority, revenueOpportunity,
             <span
               className="inline-block mt-0.5 text-[10px] font-medium uppercase tracking-wider px-1.5 py-0.5 rounded-full"
               style={{
-                backgroundColor: s.color ? `${s.color}15` : '#F3F4F6',
-                color: s.color || '#6B7280',
+                backgroundColor: s.color ? `${s.color}15` : tokens.neutral['100'],
+                color: s.color || tokens.trust.unverified.value,
               }}
             >
               {s.tier || 'unknown'}
@@ -247,7 +248,7 @@ interface SparklineProps {
   className?: string
 }
 
-export function Sparkline({ data, width = 80, height = 32, color = '#D97706', className }: SparklineProps) {
+export function Sparkline({ data, width = 80, height = 32, color = tokens.extended.amberDeep.value, className }: SparklineProps) {
   if (!data || data.length < 2) return null
   const max = Math.max(...data)
   const min = Math.min(...data)

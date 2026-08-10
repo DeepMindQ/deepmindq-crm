@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { CheckCircle2, AlertTriangle, XCircle, Info } from 'lucide-react'
 import { Progress } from '@/components/ui/progress'
 import { Badge } from '@/components/ui/badge'
@@ -30,17 +31,17 @@ interface DataCompletenessBarsProps {
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
-  contact: '#3b82f6',
-  company: '#a855f7',
-  enrichment: '#06b6d4',
-  signal: '#f59e0b',
-  custom: '#8892a8',
+  contact: tokens.accent.DEFAULT,
+  company: tokens.domain.opportunity,
+  enrichment: tokens.domain.enrichment,
+  signal: tokens.domain.reasoning,
+  custom: tokens.text.secondary,
 }
 
 function getStatus(score: number): { icon: typeof CheckCircle2; color: string; label: string } {
-  if (score >= 80) return { icon: CheckCircle2, color: '#22c55e', label: 'Good' }
-  if (score >= 50) return { icon: AlertTriangle, color: '#f59e0b', label: 'Needs Work' }
-  return { icon: XCircle, color: '#ef4444', label: 'Poor' }
+  if (score >= 80) return { icon: CheckCircle2, color: tokens.domain.action, label: 'Good' }
+  if (score >= 50) return { icon: AlertTriangle, color: tokens.domain.reasoning, label: 'Needs Work' }
+  return { icon: XCircle, color: tokens.domain.risk, label: 'Poor' }
 }
 
 export function DataCompletenessBars({ data, showDetails = true, className }: DataCompletenessBarsProps) {
@@ -94,7 +95,7 @@ export function DataCompletenessBars({ data, showDetails = true, className }: Da
                 <div className="flex items-center gap-2">
                   <span
                     className="w-1.5 h-1.5 rounded-full"
-                    style={{ background: CATEGORY_COLORS[field.category] || '#8892a8' }}
+                    style={{ background: CATEGORY_COLORS[field.category] || tokens.text.secondary }}
                   />
                   <span className="text-xs font-medium">{field.label}</span>
                 </div>

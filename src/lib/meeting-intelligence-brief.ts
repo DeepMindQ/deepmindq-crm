@@ -24,6 +24,7 @@
  */
 
 import { db } from '@/lib/db';
+import { tokens } from '@/lib/design-tokens';
 import { logger } from '@/lib/logger';
 import { ConversationEngine } from './engines/conversation-engine';
 import type { ConversationResult, BriefingType, MeetingType } from './engines/conversation-engine';
@@ -302,7 +303,7 @@ function buildBriefHTML(
   // Header
   sections.push(`
     <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; max-width: 800px; margin: 0 auto; padding: 40px;">
-      <h1 style="color: #1a1a2e; border-bottom: 3px solid #4361ee; padding-bottom: 12px;">
+      <h1 style="color: #1a1a2e; border-bottom: 3px solid {tokens.extended.blueBright.value}; padding-bottom: 12px;">
         Meeting Brief: ${company?.rawName || result.companyName}
       </h1>
       <p style="color: #666; font-size: 14px;">
@@ -314,21 +315,21 @@ function buildBriefHTML(
 
   // Meeting Objective
   sections.push(`
-    <h2 style="color: #4361ee; margin-top: 32px;">Meeting Objective</h2>
+    <h2 style="color: {tokens.extended.blueBright.value}; margin-top: 32px;">Meeting Objective</h2>
     <p style="font-size: 16px; line-height: 1.6;">${result.meetingObjective}</p>
   `);
 
   // Company Context
   if (result.companyContext) {
     sections.push(`
-      <h2 style="color: #4361ee; margin-top: 32px;">Company Context</h2>
+      <h2 style="color: {tokens.extended.blueBright.value}; margin-top: 32px;">Company Context</h2>
       <p style="font-size: 16px; line-height: 1.6;">${result.companyContext}</p>
     `);
   }
 
   // Buyer Profile
   sections.push(`
-    <h2 style="color: #4361ee; margin-top: 32px;">Buyer Profile</h2>
+    <h2 style="color: {tokens.extended.blueBright.value}; margin-top: 32px;">Buyer Profile</h2>
     <div style="background: #f8f9fa; padding: 16px; border-radius: 8px;">
       <p><strong>${result.buyerProfile.name}</strong> — ${result.buyerProfile.role}</p>
       <p>Seniority: ${result.buyerProfile.seniority.replace('_', ' ')} | Influence: ${result.buyerProfile.influenceScore}/100</p>
@@ -347,7 +348,7 @@ function buildBriefHTML(
     `).join('');
 
     sections.push(`
-      <h2 style="color: #4361ee; margin-top: 32px;">Talking Points</h2>
+      <h2 style="color: {tokens.extended.blueBright.value}; margin-top: 32px;">Talking Points</h2>
       <ul style="font-size: 15px; line-height: 1.6;">${pointsHtml}</ul>
     `);
   }
@@ -362,7 +363,7 @@ function buildBriefHTML(
     `).join('');
 
     sections.push(`
-      <h2 style="color: #4361ee; margin-top: 32px;">Questions to Ask</h2>
+      <h2 style="color: {tokens.extended.blueBright.value}; margin-top: 32px;">Questions to Ask</h2>
       <ul style="font-size: 15px; line-height: 1.6;">${questionsHtml}</ul>
     `);
   }
@@ -370,7 +371,7 @@ function buildBriefHTML(
   // Recommended Positioning
   if (result.recommendedPositioning) {
     sections.push(`
-      <h2 style="color: #4361ee; margin-top: 32px;">Recommended Positioning</h2>
+      <h2 style="color: {tokens.extended.blueBright.value}; margin-top: 32px;">Recommended Positioning</h2>
       <p style="font-size: 16px; line-height: 1.6;">${result.recommendedPositioning}</p>
     ${result.valuePropositionAngle ? `<p style="font-size: 15px; color: #444;">Value Angle: ${result.valuePropositionAngle}</p>` : ''}
     `);
@@ -380,7 +381,7 @@ function buildBriefHTML(
   if (result.postMeetingActions.length > 0) {
     const actionsHtml = result.postMeetingActions.map(a => `<li>${a}</li>`).join('');
     sections.push(`
-      <h2 style="color: #4361ee; margin-top: 32px;">Post-Meeting Actions</h2>
+      <h2 style="color: {tokens.extended.blueBright.value}; margin-top: 32px;">Post-Meeting Actions</h2>
       <ul style="font-size: 15px;">${actionsHtml}</ul>
     `);
   }
@@ -396,7 +397,7 @@ function buildBriefHTML(
     `).join('');
 
     sections.push(`
-      <h2 style="color: #4361ee; margin-top: 32px;">Buying Committee</h2>
+      <h2 style="color: {tokens.extended.blueBright.value}; margin-top: 32px;">Buying Committee</h2>
       <table style="width: 100%; border-collapse: collapse; font-size: 14px;">
         <thead>
           <tr style="background: #f8f9fa;">

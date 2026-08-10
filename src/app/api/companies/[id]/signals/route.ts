@@ -85,6 +85,10 @@ export async function POST(
       },
     });
 
+    // Invalidate intelligence cache for this company
+    const { invalidateIntelligenceCache } = await import('@/lib/intelligence-cache');
+    invalidateIntelligenceCache(companyId).catch(() => {});
+
     return NextResponse.json({ signal }, { status: 201 });
   } catch (error) {
     logger.error('Company signal creation error:', { error: error });

@@ -1,5 +1,6 @@
 'use client';
 
+import { tokens } from '@/components/intelligence-os/design-tokens';
 /* ═══════════════════════════════════════════════════════════════
    MS9 §2 — Advisor Message Bubble (Atom)
    
@@ -75,9 +76,9 @@ export function AdvisorMessageBubble({
             <span
               className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-semibold uppercase tracking-wider"
               style={{
-                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                backgroundColor: tokens.extended.purple.bg,
                 color: 'var(--accent-secondary)',
-                border: '1px solid rgba(139, 92, 246, 0.15)',
+                border: `1px solid ${tokens.extended.purple.border}`,
               }}
             >
               <span

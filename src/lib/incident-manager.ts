@@ -11,6 +11,8 @@
  */
 
 import { db } from '@/lib/db'
+import { tokens } from '@/lib/design-tokens';
+import { logger } from '@/lib/logger';
 
 export type Severity = 'SEV1' | 'SEV2' | 'SEV3' | 'SEV4'
 export type IncidentStatus = 'investigating' | 'identified' | 'monitoring' | 'resolved' | 'postmortem'
@@ -69,10 +71,10 @@ export const SEVERITY_LABELS: Record<Severity, string> = {
  * Severity color mapping for UI rendering.
  */
 export const SEVERITY_COLORS: Record<Severity, string> = {
-  SEV1: '#dc2626',
-  SEV2: '#f59e0b',
-  SEV3: '#3b82f6',
-  SEV4: '#6b7280',
+  SEV1: tokens.extended.red.value,
+  SEV2: tokens.domain.reasoning,
+  SEV3: tokens.accent.DEFAULT,
+  SEV4: tokens.neutral['500'],
 }
 
 /**
@@ -163,7 +165,7 @@ class IncidentManager {
     // Validate transition
     const validTransitions = VALID_TRANSITIONS[incident.status]
     if (!validTransitions.includes(newStatus)) {
-      console.warn(
+      logger.warn(
         `[IncidentManager] Invalid transition: ${incident.status} → ${newStatus} for ${id}. ` +
         `Valid: ${validTransitions.join(', ')}`
       )
@@ -422,10 +424,10 @@ class IncidentManager {
         for (const inc of parsed) {
           this.incidents.set(inc.id, inc)
         }
-        console.log(`[IncidentManager] Loaded ${parsed.length} incidents from DB`)
+        logger.info(`[IncidentManager] Loaded ${parsed.length} incidents from DB`)
       }
     } catch (error) {
-      console.warn('[IncidentManager] Failed to load incidents from DB:', error)
+      logger.warn('[IncidentManager] Failed to load incidents from DB', { error })
     }
 
     this.loaded = true
@@ -449,7 +451,7 @@ class IncidentManager {
         })
       } catch (error) {
         // Non-blocking — never let persistence break incident management
-        console.warn('[IncidentManager] Failed to persist incidents to DB:', error)
+        logger.warn('[IncidentManager] Failed to persist incidents to DB', { error })
       }
     })()
   }

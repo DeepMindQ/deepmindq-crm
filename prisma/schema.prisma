@@ -222,6 +222,7 @@ enum IntelligencePersistenceStore {
   retrieval_index
   retrieval_corpus_stats
   retrieval_metrics
+  financial_profiles
 }
 
 enum KnowledgeGraphEntityType {
@@ -403,6 +404,10 @@ model Contact {
   @@index([leadScore])
   @@index([assignedTo])
   @@index([source])
+  // P5.1: Composite indexes for common query patterns
+  @@index([companyId, status])
+  @@index([companyId, leadScore(sort: Desc)])
+  @@index([emailHealth])
 }
 
 model Company {
@@ -510,6 +515,8 @@ model Company {
   @@index([priorityTier])
   @@index([accountPriorityScore(sort: Desc)])
   @@index([parentId]) // Phase 0 (G7a): Parent-subsidiary lookup
+  // P5.1: Composite index for tier-filtered company list queries
+  @@index([status, priorityTier])
 }
 
 model ImportBatch {
@@ -1504,6 +1511,37 @@ model AIGenerationAudit {
   @@index([governancePassed])
   @@index([companyId, generationType, createdAt])
   @@index([companyId, createdAt])
+}
+
+// ── P3.3: AI Output Versioning ──
+// Versioned snapshots of AI-generated output for diff/history/comparison.
+// Every AI generation gets a versioned snapshot: "What did intelligence say about Company X last month vs today?"
+
+model AIGenerationSnapshot {
+  id                String   @id @default(cuid())
+  entityType        String   // 'company' | 'contact' | 'opportunity' | 'signal' | 'general'
+  entityId          String?  // FK to the entity this snapshot is about
+  generationType    String   // same as AIGenerationAudit.generationType
+  version           Int      // incremented per entity+generationType combination
+  input             Json     // the evidence/context that produced this output
+  output            Json     // the generated intelligence (truncated to prevent bloat)
+  confidence        Float    @default(0) // confidence score at generation time
+  model             String?  // which LLM model was used
+  promptTokens      Int      @default(0)
+  completionTokens  Int      @default(0)
+  costUsd           Float    @default(0)
+  governanceChecks  Json?    @default("{}")
+  hallucinationRisk Float?   // hallucination risk score if checked
+  previousVersionId String?  // links to the previous version for diff
+  createdAt         DateTime @default(now())
+
+  previousVersion AIGenerationSnapshot? @relation("SnapshotVersioning", fields: [previousVersionId], references: [id])
+  nextVersions    AIGenerationSnapshot[] @relation("SnapshotVersioning")
+
+  @@index([entityType, entityId, generationType])
+  @@index([entityType, entityId, generationType, version])
+  @@index([createdAt])
+  @@index([generationType])
 }
 
 // ── Signal-Capability Matching ──
@@ -3938,4 +3976,187 @@ model TenantScoringConfig {
 
   @@unique([tenantId])
   @@index([isActive])
+}
+
+// ── P3.6: AI Experiment Persistence ──
+// Persists A/B testing experiments (prompt, model, scoring_weights) across restarts.
+// In-memory store is primary; DB is durable backup + cold-start source.
+model AIExperiment {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  status      String   @default("draft") // draft, running, paused, completed
+  experimentType String @default("prompt") // prompt, model, scoring_weights
+  promptId    String?  // for prompt experiments
+  targetEntity String? // what's being tested (e.g., "model-upgrade-v2")
+  variants    Json     // ExperimentVariant[] as JSON
+  metrics     Json     @default("{}") // accumulated metrics per variant
+  results     Json?    // computed results with statistical significance
+  winner      String?  // winning variant ID
+  confidence  Float?   // statistical confidence of winner
+  startedAt   DateTime?
+  completedAt DateTime?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([status])
+  @@index([experimentType])
+  @@index([createdAt])
+}
+
+// ── P4.3: Webhook Delivery Tracking ──
+model WebhookDelivery {
+  id            String   @id @default(cuid())
+  webhookConfigId String?
+  event         String
+  targetUrl     String
+  payload       Json
+  signature     String?
+  status        String   @default("pending") // pending, delivering, delivered, failed, expired
+  statusCode    Int?
+  responseBody  String?
+  errorMessage  String?
+  retryCount    Int      @default(0)
+  maxRetries    Int      @default(3)
+  nextRetryAt   DateTime?
+  deliveredAt   DateTime?
+  createdAt     DateTime @default(now())
+  expiresAt     DateTime?
+
+  @@index([status])
+  @@index([event])
+  @@index([webhookConfigId])
+  @@index([createdAt])
+  @@index([nextRetryAt])
+}
+
+// ── P4.3: Webhook Dead-Letter Queue ──
+model WebhookDeadLetter {
+  id            String   @id @default(cuid())
+  originalDeliveryId String?
+  event         String
+  targetUrl     String
+  payload       Json
+  lastError     String?
+  lastStatusCode Int?
+  totalRetries  Int      @default(0)
+  resolvedAt    DateTime?
+  resolution    String?  // 'retried_manually', 'deleted', 'target_fixed'
+  createdAt     DateTime @default(now())
+
+  @@index([event])
+  @@index([resolvedAt])
+  @@index([createdAt])
+}
+
+// ─────────────────────────────────────────────────────────────
+// Phase 6-8: Compliance, Enterprise Admin, Disaster Recovery
+// ─────────────────────────────────────────────────────────────
+
+// P6.4: Log every read/write of sensitive intelligence data
+model DataAccessAudit {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String   // read, write, export, delete, admin_access
+  entityType String // company, contact, intelligence, knowledge, scoring, audit_log
+  entityId  String
+  metadata  Json     @default("{}")
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([entityType, entityId])
+  @@index([action, createdAt])
+  @@index([createdAt])
+}
+
+// P6.2: Track GDPR deletion requests with 30-day grace
+model DataDeletionRequest {
+  id            String    @id @default(cuid())
+  requesterId   String
+  requesterEmail String
+  reason        String?
+  status        String    @default("pending") // pending, data_exported, access_disabled, deletion_scheduled, completed, cancelled
+  exportDataExportId String? // Link to DataExport for pre-deletion archive
+  scope         Json      // { entityTypes: [...], companyId?: "..." }
+  gracePeriodEndsAt DateTime // Day 30 - when permanent deletion occurs
+  completedAt   DateTime?
+  cancellationReason String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([status])
+  @@index([requesterId])
+  @@index([gracePeriodEndsAt])
+  @@index([createdAt])
+}
+
+// P7.4: Configurable retention per entity type
+model RetentionPolicy {
+  id          String   @id @default(cuid())
+  entityType  String   @unique // "signals", "audit_logs", "ai_generations", "knowledge_entries", "usage_logs", "timelines", "email_events"
+  retentionDays Int     @default(90)
+  actionType  String   @default("delete") // "delete", "archive", "anonymize"
+  isActive    Boolean  @default(true)
+  legalHold   Boolean  @default(false) // When true, retention is suspended
+  lastRunAt   DateTime?
+  lastDeletedCount Int @default(0)
+  updatedBy   String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([entityType])
+  @@index([isActive])
+}
+
+// P7.3: Audit trail for scoring weight changes
+model ScoringConfigHistory {
+  id        String   @id @default(cuid())
+  previousConfig Json
+  newConfig     Json
+  changedBy     String
+  changeReason  String?
+  createdAt      DateTime @default(now())
+
+  @@index([changedBy])
+  @@index([createdAt])
+}
+
+// P7.5: Multi-environment configuration
+model EnvironmentConfig {
+  id          String   @id @default(cuid())
+  environment String   @unique // "development", "staging", "production"
+  featureFlags Json   @default("{}")
+  databaseUrl String? // Encrypted reference (never store actual URL in DB)
+  deploymentUrl String?
+  lastPromotedAt DateTime?
+  promotedBy   String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([environment])
+}
+
+// P8.1: Database backup tracking
+model BackupRecord {
+  id          String   @id @default(cuid())
+  type        String   // "full", "incremental", "pre_migration"
+  status      String   @default("created") // "created", "verified", "restored", "expired", "failed"
+  storagePath String?
+  fileSizeBytes Int?
+  checksum    String?  // SHA-256 of backup file
+  durationMs  Int?
+  snapshotTime DateTime // Point-in-time of the backup
+  expiresAt   DateTime?
+  verifiedAt  DateTime?
+  restoredAt  DateTime?
+  createdBy   String?
+  createdAt   DateTime @default(now())
+
+  @@index([type])
+  @@index([status])
+  @@index([snapshotTime])
+  @@index([expiresAt])
+  @@index([createdAt])
 }

@@ -125,12 +125,12 @@ export interface IntelligenceNarrativeProps {
 
 function getDomainAccent(variant: NarrativeVariant) {
   const map: Record<NarrativeVariant, { color: string; bg: string; border: string; icon: typeof Zap }> = {
-    signal:      { color: tokens.domain.signal,      bg: 'rgba(59, 130, 246, 0.1)',      border: 'rgba(59, 130, 246, 0.2)',      icon: Zap },
-    opportunity: { color: tokens.domain.opportunity, bg: 'rgba(139, 92, 246, 0.1)',     border: 'rgba(139, 92, 246, 0.2)',     icon: TrendingUp },
-    risk:        { color: tokens.domain.risk,         bg: 'rgba(239, 68, 68, 0.1)',       border: 'rgba(239, 68, 68, 0.2)',       icon: AlertTriangle },
-    enrichment:  { color: tokens.domain.enrichment,   bg: 'rgba(6, 182, 212, 0.1)',       border: 'rgba(6, 182, 212, 0.2)',       icon: Sparkles },
-    reasoning:   { color: tokens.domain.reasoning,    bg: 'rgba(245, 158, 11, 0.1)',      border: 'rgba(245, 158, 11, 0.2)',      icon: Brain },
-    action:      { color: tokens.domain.action,       bg: 'rgba(16, 185, 129, 0.1)',      border: 'rgba(16, 185, 129, 0.2)',      icon: Target },
+    signal:      { color: tokens.domain.signal,      bg: tokens.accent.subtle,      border: tokens.accent.subtle,      icon: Zap },
+    opportunity: { color: tokens.domain.opportunity, bg: tokens.extended.purple.bg,     border: tokens.extended.purple.border,     icon: TrendingUp },
+    risk:        { color: tokens.domain.risk,         bg: tokens.priority.critical.bg,       border: tokens.priority.critical.border,       icon: AlertTriangle },
+    enrichment:  { color: tokens.domain.enrichment,   bg: tokens.extended.sky.bg,       border: tokens.extended.sky.border,       icon: Sparkles },
+    reasoning:   { color: tokens.domain.reasoning,    bg: tokens.priority.high.bg,      border: tokens.priority.high.border,      icon: Brain },
+    action:      { color: tokens.domain.action,       bg: tokens.extended.emerald.bg,      border: tokens.extended.emerald.border,      icon: Target },
   };
   return map[variant || 'signal'];
 }
@@ -179,17 +179,17 @@ function PriorityBadge({ priority, isNew }: { priority?: string; isNew?: boolean
   if (!priority && !isNew) return null;
   const p = priority?.toLowerCase();
   const priorityColors: Record<string, { bg: string; color: string }> = {
-    critical: { bg: 'rgba(239, 68, 68, 0.1)', color: '#ef4444' },
-    high:     { bg: 'rgba(245, 158, 11, 0.1)', color: '#f59e0b' },
-    medium:   { bg: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6' },
-    low:      { bg: 'rgba(136, 146, 168, 0.1)', color: '#8892a8' },
+    critical: { bg: tokens.confidence.low.bg, color: tokens.domain.risk },
+    high:     { bg: tokens.confidence.medium.bg, color: tokens.domain.reasoning },
+    medium:   { bg: tokens.accent.subtle, color: tokens.accent.DEFAULT },
+    low:      { bg: tokens.priority.low.bg, color: tokens.text.secondary },
   };
 
   return (
     <div className="flex items-center gap-1.5">
       {isNew && (
         <span className="inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full"
-          style={{ background: 'rgba(16, 185, 129, 0.1)', color: '#10b981' }}>
+          style={{ background: tokens.extended.emerald.bg, color: tokens.extended.emerald.value }}>
           <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
           New
         </span>
@@ -663,11 +663,11 @@ export function IntelligenceNarrative({
                     <div
                       className="mb-3 px-3 py-2 rounded-lg"
                       style={{
-                        background: 'rgba(245, 158, 11, 0.06)',
-                        border: '1px solid rgba(245, 158, 11, 0.12)',
+                        background: tokens.confidence.medium.bg,
+                        border: `1px solid ${tokens.priority.high.border}`,
                       }}
                     >
-                      <p className="text-xs font-medium" style={{ color: '#f59e0b' }}>{_impactStatement}</p>
+                      <p className="text-xs font-medium" style={{ color: tokens.domain.reasoning }}>{_impactStatement}</p>
                     </div>
                   )}
                   <div className="space-y-2">

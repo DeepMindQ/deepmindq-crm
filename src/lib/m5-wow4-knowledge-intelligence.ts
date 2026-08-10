@@ -172,9 +172,9 @@ function generateId(prefix: string): string {
  * Extract unique entities from query understanding, trying to resolve
  * them in the knowledge graph.
  */
-function resolveQueryEntities(
+async function resolveQueryEntities(
   queryUnderstanding: QueryUnderstanding,
-): Array<{ node: GraphNode; extractedEntity: ExtractedEntity }> {
+): Promise<Array<{ node: GraphNode; extractedEntity: ExtractedEntity }>> {
   const resolved: Array<{ node: GraphNode; extractedEntity: ExtractedEntity }> = [];
   const seen = new Set<string>();
 
@@ -182,7 +182,7 @@ function resolveQueryEntities(
     if (seen.has(entity.normalized)) continue;
     seen.add(entity.normalized);
 
-    const nodes = resolveEntity(entity.text);
+    const nodes = await resolveEntity(entity.text);
     if (nodes.length > 0) {
       resolved.push({ node: nodes[0]!, extractedEntity: entity });
     }
@@ -403,9 +403,9 @@ function synthesizeAnswer(
  *
  * NON-THROWING: Returns structured result even on failure.
  */
-export function queryKnowledgeIntelligence(
+export async function queryKnowledgeIntelligence(
   input: KnowledgeQueryInput,
-): KnowledgeIntelligenceOutput {
+): Promise<KnowledgeIntelligenceOutput> {
   const startTime = Date.now();
   const answerId = generateId('kiq');
 
@@ -433,7 +433,7 @@ export function queryKnowledgeIntelligence(
 
   // ── Phase 3: Knowledge Graph Entity Resolution & Expansion ────────
   const graphStart = Date.now();
-  const resolvedEntities = resolveQueryEntities(queryUnderstanding);
+  const resolvedEntities = await resolveQueryEntities(queryUnderstanding);
 
   // Expand from each resolved entity to discover related knowledge
   const graphExpansions: Array<{
@@ -460,7 +460,7 @@ export function queryKnowledgeIntelligence(
 
   // ── Phase 4: Memory Search ────────────────────────────────────────
   const memoryStart = Date.now();
-  const memoryContext = buildMemoryContext({
+  const memoryContext = await buildMemoryContext({
     query: input.query,
     scopeEntityType: input.companyId ? 'company' : undefined,
     scopeEntityId: input.companyId,
@@ -468,7 +468,7 @@ export function queryKnowledgeIntelligence(
   });
 
   // Also do explicit memory search for broader recall
-  const memorySearchResults = searchMemories({
+  const memorySearchResults = await searchMemories({
     query: input.query,
     limit: 10,
     scopeEntityId: input.companyId,

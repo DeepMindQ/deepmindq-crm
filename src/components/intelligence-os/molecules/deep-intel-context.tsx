@@ -54,9 +54,9 @@ export function DeepIntelContext({
 
   // Purple accent color from domain.opportunity — used for AI context
   const purpleAccent = tokens.domain.opportunity;
-  const purpleGhost = 'rgba(168, 85, 247, 0.06)';
-  const purpleBorder = 'rgba(168, 85, 247, 0.2)';
-  const purpleText = '#a78bfa';
+  const purpleGhost = tokens.extended.purple.bgFaint;
+  const purpleBorder = tokens.domain.opportunity;
+  const purpleText = tokens.extended.violet.value;
 
   return (
     <motion.div

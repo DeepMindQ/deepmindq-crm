@@ -21,6 +21,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { computeIntelligenceDeltas, captureIntelligenceSnapshot } from '@/lib/intelligence-delta-service';
 import { checkApiAuth } from '@/lib/api-auth';
+import { utilityGuard, RateLimitedError } from '@/lib/intelligence-api/guard';
 
 // ═══════════════════════════════════════════════════════════════════════════
 // GET /api/intelligence/deltas — Compute Intelligence Deltas
@@ -31,6 +32,19 @@ export async function GET(request: NextRequest) {
 
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
+
+  // ── Correlation-id + rate limiting guard ──
+  let ctx;
+  try {
+    ctx = utilityGuard(request, 'deltas');
+  } catch (e) {
+    if (e instanceof RateLimitedError) {
+      return NextResponse.json({ error: 'Rate limited', code: 'RATE_LIMITED' }, { status: 429, headers: e.headers });
+    }
+    throw e;
+  }
+
+  const headers = { 'Content-Type': 'application/json', ...ctx.responseHeaders };
 
   try {
     const url = request.nextUrl;
@@ -60,7 +74,7 @@ export async function GET(request: NextRequest) {
           ...result.meta,
         },
       },
-      { headers: { 'Content-Type': 'application/json' } },
+      { headers },
     );
   } catch (err) {
     logger.error('[intelligence/deltas] Unhandled error', { error: err });
@@ -69,9 +83,10 @@ export async function GET(request: NextRequest) {
         success: false,
         data: [],
         error: err instanceof Error ? err.message : 'Internal server error',
+        code: 'INTERNAL_ERROR',
         meta: { endpoint: 'intelligence/deltas', timingMs: Date.now() - startedAt },
       },
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
+      { status: 500, headers },
     );
   }
 }
@@ -86,6 +101,19 @@ export async function POST(request: NextRequest) {
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
+  // ── Correlation-id + rate limiting guard ──
+  let ctx;
+  try {
+    ctx = utilityGuard(request, 'deltas');
+  } catch (e) {
+    if (e instanceof RateLimitedError) {
+      return NextResponse.json({ error: 'Rate limited', code: 'RATE_LIMITED' }, { status: 429, headers: e.headers });
+    }
+    throw e;
+  }
+
+  const headers = { 'Content-Type': 'application/json', ...ctx.responseHeaders };
+
   try {
     const body = await request.json().catch(() => ({}));
     const { companyId, reason } = body as {
@@ -98,10 +126,11 @@ export async function POST(request: NextRequest) {
         {
           success: false,
           error: 'companyId is required',
+          code: 'VALIDATION_FAILED',
           data: null,
           meta: { endpoint: 'intelligence/deltas', timingMs: Date.now() - startedAt },
         },
-        { status: 400, headers: { 'Content-Type': 'application/json' } },
+        { status: 400, headers },
       );
     }
 
@@ -114,7 +143,7 @@ export async function POST(request: NextRequest) {
         error: null,
         meta: { endpoint: 'intelligence/deltas', timingMs: Date.now() - startedAt },
       },
-      { headers: { 'Content-Type': 'application/json' } },
+      { headers },
     );
   } catch (err) {
     logger.error('[intelligence/deltas] Snapshot capture failed', { error: err });
@@ -123,9 +152,10 @@ export async function POST(request: NextRequest) {
         success: false,
         data: null,
         error: err instanceof Error ? err.message : 'Snapshot capture failed',
+        code: 'INTERNAL_ERROR',
         meta: { endpoint: 'intelligence/deltas', timingMs: Date.now() - startedAt },
       },
-      { status: 500, headers: { 'Content-Type': 'application/json' } },
+      { status: 500, headers },
     );
   }
 }

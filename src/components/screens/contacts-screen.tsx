@@ -285,7 +285,7 @@ export default function ContactsScreen() {
 
   /* ── Queries ── */
   /* ── Fetch company name for filter banner ── */
-  const { data: filterCompany } = useQuery({
+  const { data: filterCompany, isLoading: filterCompanyLoading } = useQuery({
     queryKey: ['company-brief-contacts', navFilterCompanyId],
     queryFn: () => fetch(`/api/companies/${navFilterCompanyId}`).then(r => {
       if (!r.ok) throw new Error('Failed to load company')
@@ -317,7 +317,7 @@ export default function ContactsScreen() {
     },
   })
 
-  const { data: companiesList } = useQuery({
+  const { data: companiesList, isLoading: companiesListLoading } = useQuery({
     queryKey: ['companies', 'contact-dialog'],
     queryFn: () =>
       fetch('/api/companies?pageSize=200')
@@ -575,7 +575,7 @@ export default function ContactsScreen() {
           {/* Column Visibility Toggle */}
           <Popover>
             <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="border-gray-200 text-gray-500 rounded-lg h-8 text-xs">
+              <Button variant="outline" size="sm" className="border-gray-200 text-gray-500 rounded-lg h-10 text-xs min-h-[44px]">
                 <Columns3 className="size-3.5 mr-1.5" />
                 <span className="hidden sm:inline">Columns</span>
               </Button>
@@ -589,7 +589,7 @@ export default function ContactsScreen() {
               ]).map(col => (
                 <button
                   key={col.key}
-                  className="flex items-center gap-2.5 w-full px-2 py-1.5 rounded-lg text-sm text-gray-800 hover:bg-gray-50 transition-colors text-left"
+                  className="flex items-center gap-2.5 w-full px-2 py-2.5 rounded-lg text-sm text-gray-800 hover:bg-gray-50 transition-colors text-left min-h-[44px]"
                   onClick={() => setVisibleColumns(prev => ({ ...prev, [col.key]: !prev[col.key] }))}
                 >
                   <div className={cn('size-4 rounded border flex items-center justify-center transition-colors', visibleColumns[col.key] ? 'bg-amber-600 border-amber-600' : 'border-gray-300')}>
@@ -657,7 +657,7 @@ export default function ContactsScreen() {
             placeholder="Search contacts..."
             value={search}
             onChange={e => updateSearch(e.target.value)}
-            className="bg-white border border-gray-200 rounded-lg h-9 pl-9 pr-8 text-sm placeholder:text-gray-400 focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+            className="bg-white border border-gray-200 rounded-lg h-10 pl-9 pr-8 text-sm placeholder:text-gray-400 focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
           />
           {search && (
             <button
@@ -671,7 +671,7 @@ export default function ContactsScreen() {
         </div>
 
         <Select value={status || 'all'} onValueChange={updateStatus}>
-          <SelectTrigger className="border-gray-200 rounded-lg h-9 w-32 text-sm">
+          <SelectTrigger className="border-gray-200 rounded-lg h-10 w-32 text-sm">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -684,7 +684,7 @@ export default function ContactsScreen() {
         </Select>
 
         <Select value={health || 'all'} onValueChange={updateHealth} data-filter="health">
-          <SelectTrigger className="border-gray-200 rounded-lg h-9 w-32 text-sm">
+          <SelectTrigger className="border-gray-200 rounded-lg h-10 w-32 text-sm">
             <SelectValue placeholder="Health" />
           </SelectTrigger>
           <SelectContent>
@@ -699,7 +699,7 @@ export default function ContactsScreen() {
         {/* Company Filter (searchable dropdown) */}
         <Popover>
           <PopoverTrigger asChild>
-            <Button variant="outline" size="sm" className="border-gray-200 rounded-lg h-9 w-40 text-sm justify-start font-normal text-gray-500">
+            <Button variant="outline" size="sm" className="border-gray-200 rounded-lg h-10 w-40 text-sm justify-start font-normal text-gray-500 min-h-[44px]">
               <Building2 className="size-3.5 mr-1.5 text-gray-600 shrink-0" />
               {activeCompanyId
                 ? ((companiesList || []) as Company[]).find((c: Company) => c.id === activeCompanyId)?.name || 'Company'
@@ -712,12 +712,12 @@ export default function ContactsScreen() {
                 placeholder="Search companies..."
                 value={companySearch}
                 onChange={e => setCompanySearch(e.target.value)}
-                className="h-8 border-gray-200 rounded-lg text-sm"
+                className="h-10 border-gray-200 rounded-lg text-sm"
               />
             </div>
             <div className="max-h-48 overflow-y-auto">
               <button
-                className="w-full text-left px-2.5 py-1.5 text-sm text-gray-800 hover:bg-gray-50 rounded-lg transition-colors font-medium"
+                className="w-full text-left px-2.5 py-2.5 text-sm text-gray-800 hover:bg-gray-50 rounded-lg transition-colors font-medium min-h-[44px]"
                 onClick={() => { setFilterCompanyId(''); setPage(1) }}
               >
                 All Companies
@@ -726,7 +726,7 @@ export default function ContactsScreen() {
                 <button
                   key={c.id}
                   className={cn(
-                    'w-full text-left px-2.5 py-1.5 text-sm rounded-lg transition-colors truncate',
+                    'w-full text-left px-2.5 py-2.5 text-sm rounded-lg transition-colors truncate min-h-[44px]',
                     activeCompanyId === c.id ? 'bg-amber-50 text-amber-700 font-medium' : 'text-gray-800 hover:bg-gray-50'
                   )}
                   onClick={() => { setFilterCompanyId(c.id); setPage(1); setCompanySearch('') }}
@@ -746,7 +746,7 @@ export default function ContactsScreen() {
               type="date"
               value={createdAfter}
               onChange={e => { setCreatedAfter(e.target.value); setPage(1) }}
-              className="h-9 w-[146px] bg-white border-gray-200 rounded-lg text-xs pl-8 pr-2"
+              className="h-10 w-[146px] bg-white border-gray-200 rounded-lg text-xs pl-8 pr-2"
             />
           </div>
           <span className="text-gray-700 text-xs">–</span>
@@ -754,13 +754,13 @@ export default function ContactsScreen() {
             type="date"
             value={createdBefore}
             onChange={e => { setCreatedBefore(e.target.value); setPage(1) }}
-            className="h-9 w-[130px] bg-white border-gray-200 rounded-lg text-xs pl-2 pr-2"
+            className="h-10 w-[130px] bg-white border-gray-200 rounded-lg text-xs pl-2 pr-2"
           />
         </div>
 
         {/* Reset Filters */}
         {hasActiveFilters && (
-          <Button variant="ghost" size="sm" onClick={resetFilters} className="h-9 text-xs text-gray-500 hover:text-gray-800">
+          <Button variant="ghost" size="sm" onClick={resetFilters} className="h-10 text-xs text-gray-500 hover:text-gray-800 min-h-[44px]">
             <RotateCcw className="size-3.5 mr-1.5" /> Reset
           </Button>
         )}
@@ -1041,7 +1041,7 @@ export default function ContactsScreen() {
               size="sm"
               disabled={page <= 1}
               onClick={() => setPage(p => p - 1)}
-              className="border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-900 h-8 text-xs"
+              className="border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-900 h-10 text-xs"
             >
               <ChevronLeft className="size-3.5 mr-1" /> Previous
             </Button>
@@ -1050,7 +1050,7 @@ export default function ContactsScreen() {
               size="sm"
               disabled={page >= totalPages}
               onClick={() => setPage(p => p + 1)}
-              className="border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-900 h-8 text-xs"
+              className="border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-900 h-10 text-xs"
             >
               Next <ChevronRight className="size-3.5 ml-1" />
             </Button>
@@ -1070,7 +1070,7 @@ export default function ContactsScreen() {
             {/* Select All / Deselect All */}
             <button
               onClick={toggleAll}
-              className="flex items-center gap-1.5 px-2 py-1 rounded-lg hover:bg-gray-50 transition-colors text-xs whitespace-nowrap"
+              className="flex items-center gap-1.5 px-2 py-2.5 rounded-lg hover:bg-gray-50 transition-colors text-xs whitespace-nowrap"
             >
               {selected.size === contacts.length ? <Square className="size-3.5" /> : <CheckSquare className="size-3.5" />}
               {selected.size === contacts.length ? 'Deselect All' : 'Select All'}
@@ -1084,7 +1084,7 @@ export default function ContactsScreen() {
               size="sm"
               onClick={() => bulkValidateMutation.mutate(Array.from(selected))}
               disabled={bulkValidateMutation.isPending}
-              className="h-7 text-xs text-gray-500 hover:text-foreground hover:bg-gray-100 rounded-lg"
+              className="h-10 text-xs text-gray-500 hover:text-foreground hover:bg-gray-100 rounded-lg"
             >
               {bulkValidateMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <ShieldCheck className="size-3.5 mr-1.5" />}
               Validate
@@ -1093,7 +1093,7 @@ export default function ContactsScreen() {
             {/* Change Status */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="sm" className="h-7 text-xs text-gray-500 hover:text-foreground hover:bg-gray-100 rounded-lg">
+                <Button variant="ghost" size="sm" className="h-10 text-xs text-gray-500 hover:text-foreground hover:bg-gray-100 rounded-lg min-h-[44px]">
                   <Archive className="size-3.5 mr-1.5" /> Status
                 </Button>
               </DropdownMenuTrigger>
@@ -1114,7 +1114,7 @@ export default function ContactsScreen() {
             </DropdownMenu>
 
             {/* Export */}
-            <Button variant="ghost" size="sm" onClick={handleExportSelected} className="h-7 text-xs text-gray-500 hover:text-foreground hover:bg-gray-100 rounded-lg">
+            <Button variant="ghost" size="sm" onClick={handleExportSelected} className="h-10 text-xs text-gray-500 hover:text-foreground hover:bg-gray-100 rounded-lg min-h-[44px]">
               <Download className="size-3.5 mr-1.5" /> Export
             </Button>
 
@@ -1124,7 +1124,7 @@ export default function ContactsScreen() {
               size="sm"
               onClick={() => bulkArchiveMutation.mutate(Array.from(selected))}
               disabled={bulkArchiveMutation.isPending}
-              className="h-7 text-xs text-gray-500 hover:text-foreground hover:bg-gray-100 rounded-lg"
+              className="h-10 text-xs text-gray-500 hover:text-foreground hover:bg-gray-100 rounded-lg"
             >
               {bulkArchiveMutation.isPending ? <Loader2 className="size-3.5 mr-1.5 animate-spin" /> : <Archive className="size-3.5 mr-1.5" />}
               Archive
@@ -1135,7 +1135,7 @@ export default function ContactsScreen() {
               variant="ghost"
               size="sm"
               onClick={() => setBulkDeleteOpen(true)}
-              className="h-7 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
+              className="h-10 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 rounded-lg"
             >
               <Trash2 className="size-3.5 mr-1.5" /> Delete
             </Button>
@@ -1155,7 +1155,7 @@ export default function ContactsScreen() {
               <Input
                 value={form.name}
                 onChange={e => updateField('name', e.target.value)}
-                className="border-gray-200 rounded-lg h-9 text-sm"
+                className="border-gray-200 rounded-lg h-10 text-sm"
               />
             </div>
             <div className="grid gap-1.5">
@@ -1164,7 +1164,7 @@ export default function ContactsScreen() {
                 type="email"
                 value={form.email}
                 onChange={e => updateField('email', e.target.value)}
-                className="border-gray-200 rounded-lg h-9 text-sm font-mono"
+                className="border-gray-200 rounded-lg h-10 text-sm font-mono"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1173,13 +1173,13 @@ export default function ContactsScreen() {
                 <Input
                   value={form.jobTitle}
                   onChange={e => updateField('jobTitle', e.target.value)}
-                  className="border-gray-200 rounded-lg h-9 text-sm"
+                  className="border-gray-200 rounded-lg h-10 text-sm"
                 />
               </div>
               <div className="grid gap-1.5">
                 <Label className="text-sm font-medium text-gray-800">Role</Label>
                 <Select value={form.roleBucket} onValueChange={v => updateField('roleBucket', v)}>
-                  <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm">
+                  <SelectTrigger className="border-gray-200 rounded-lg h-10 text-sm">
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1192,7 +1192,7 @@ export default function ContactsScreen() {
               <div className="grid gap-1.5">
                 <Label className="text-sm font-medium text-gray-800">Company *</Label>
                 <Select value={form.companyId} onValueChange={v => updateField('companyId', v)}>
-                  <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm">
+                  <SelectTrigger className="border-gray-200 rounded-lg h-10 text-sm">
                     <SelectValue placeholder="Select company" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1207,7 +1207,7 @@ export default function ContactsScreen() {
                 <Input
                   value={form.linkedinUrl}
                   onChange={e => updateField('linkedinUrl', e.target.value)}
-                  className="border-gray-200 rounded-lg h-9 text-sm"
+                  className="border-gray-200 rounded-lg h-10 text-sm"
                 />
               </div>
             </div>
@@ -1246,7 +1246,7 @@ export default function ContactsScreen() {
               <Input
                 value={editForm.name}
                 onChange={e => updateEditField('name', e.target.value)}
-                className="border-gray-200 rounded-lg h-9 text-sm"
+                className="border-gray-200 rounded-lg h-10 text-sm"
               />
             </div>
             <div className="grid gap-1.5">
@@ -1255,7 +1255,7 @@ export default function ContactsScreen() {
                 type="email"
                 value={editForm.email}
                 onChange={e => updateEditField('email', e.target.value)}
-                className="border-gray-200 rounded-lg h-9 text-sm font-mono"
+                className="border-gray-200 rounded-lg h-10 text-sm font-mono"
               />
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1264,13 +1264,13 @@ export default function ContactsScreen() {
                 <Input
                   value={editForm.jobTitle}
                   onChange={e => updateEditField('jobTitle', e.target.value)}
-                  className="border-gray-200 rounded-lg h-9 text-sm"
+                  className="border-gray-200 rounded-lg h-10 text-sm"
                 />
               </div>
               <div className="grid gap-1.5">
                 <Label className="text-sm font-medium text-gray-800">Role</Label>
                 <Select value={editForm.roleBucket} onValueChange={v => updateEditField('roleBucket', v)}>
-                  <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm">
+                  <SelectTrigger className="border-gray-200 rounded-lg h-10 text-sm">
                     <SelectValue placeholder="Select" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1283,7 +1283,7 @@ export default function ContactsScreen() {
               <div className="grid gap-1.5">
                 <Label className="text-sm font-medium text-gray-800">Company</Label>
                 <Select value={editForm.companyId} onValueChange={v => updateEditField('companyId', v)}>
-                  <SelectTrigger className="border-gray-200 rounded-lg h-9 text-sm">
+                  <SelectTrigger className="border-gray-200 rounded-lg h-10 text-sm">
                     <SelectValue placeholder="Select company" />
                   </SelectTrigger>
                   <SelectContent>
@@ -1298,7 +1298,7 @@ export default function ContactsScreen() {
                 <Input
                   value={editForm.linkedinUrl}
                   onChange={e => updateEditField('linkedinUrl', e.target.value)}
-                  className="border-gray-200 rounded-lg h-9 text-sm"
+                  className="border-gray-200 rounded-lg h-10 text-sm"
                 />
               </div>
             </div>
@@ -1463,7 +1463,7 @@ export default function ContactsScreen() {
                   </div>
                   <div className="flex items-center gap-2">
                     <span className="text-[11px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
-                      style={{ background: s.influence === 'Decision Maker' ? 'rgba(212,175,55,0.12)' : 'rgba(99,102,241,0.08)', color: s.influence === 'Decision Maker' ? 'var(--ios-gold-dark)' : 'var(--ios-indigo)' }}>
+                      style={{ background: s.influence === 'Decision Maker' ? 'var(--dmq-gold-bg-medium)' : 'var(--dmq-indigo-bg-ghost)', color: s.influence === 'Decision Maker' ? 'var(--ios-gold-dark)' : 'var(--ios-indigo)' }}>
                       {s.influence}
                     </span>
                     <span className="text-[11px] font-bold px-1.5 py-0.5 rounded-full bg-gray-100 text-gray-600">

@@ -7,6 +7,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 
 interface CalibrationSummary {
   dimensions: Array<{
@@ -53,7 +54,7 @@ export default function AdminCalibrationPage() {
           {/* Overall stats */}
           <div className="grid grid-cols-4 gap-4">
             <div className="bg-white rounded-lg border p-4 shadow-sm text-center">
-              <p className="text-3xl font-bold" style={{ color: data.isCalibrated ? '#059669' : '#D97706' }}>{data.isCalibrated ? 'CALIBRATED' : 'LEARNING'}</p>
+              <p className="text-3xl font-bold" style={{ color: data.isCalibrated ? tokens.extended.emeraldDeep.value : tokens.extended.amberDeep.value }}>{data.isCalibrated ? 'CALIBRATED' : 'LEARNING'}</p>
               <p className="text-xs text-gray-500 mt-1">System Status</p>
             </div>
             <div className="bg-white rounded-lg border p-4 shadow-sm text-center">

@@ -6,6 +6,8 @@
  * exceed acceptable response times and trigger alerts or fallback behavior.
  */
 
+import { logger } from '@/lib/logger'
+
 // ─── Latency Budget Constants (in milliseconds) ──────────────────────────
 
 /** Retrieval: vector search / hybrid retrieval calls */
@@ -90,8 +92,9 @@ export function checkLatencyBudget(
   const overtimeMs = withinBudget ? 0 : elapsedMs - budget;
 
   if (!withinBudget) {
-    console.warn(
+    logger.warn(
       `[AI-LATENCY] Budget exceeded for "${operation}": ${elapsedMs.toFixed(0)}ms (budget: ${budget}ms, overtime: ${overtimeMs.toFixed(0)}ms)`,
+      { operation, elapsedMs, budget, overtimeMs },
     );
   }
 

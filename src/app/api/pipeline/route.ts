@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { tokens } from '@/lib/design-tokens';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
@@ -52,14 +53,14 @@ try {
       return NextResponse.json({
         stages: [
           { key: 'imported', label: 'Imported', count: 0, color: '#71717a' },
-          { key: 'verified', label: 'Verified', count: 0, color: '#60a5fa' },
-          { key: 'drafted', label: 'Drafted', count: 0, color: '#fbbf24' },
-          { key: 'approved', label: 'Approved', count: 0, color: '#c084fc' },
-          { key: 'queued', label: 'Queued', count: 0, color: '#818cf8' },
-          { key: 'sent', label: 'Sent', count: 0, color: '#34d399' },
-          { key: 'replied', label: 'Replied', count: 0, color: '#22c55e' },
-          { key: 'bounced', label: 'Bounced', count: 0, color: '#f87171' },
-          { key: 'suppressed', label: 'Suppressed', count: 0, color: '#94a3b8' },
+          { key: 'verified', label: 'Verified', count: 0, color: tokens.accent.bright },
+          { key: 'drafted', label: 'Drafted', count: 0, color: tokens.extended.amber.value },
+          { key: 'approved', label: 'Approved', count: 0, color: tokens.extended.violet.value },
+          { key: 'queued', label: 'Queued', count: 0, color: tokens.flat.skyBlue },
+          { key: 'sent', label: 'Sent', count: 0, color: tokens.extended.emerald.value },
+          { key: 'replied', label: 'Replied', count: 0, color: tokens.domain.action },
+          { key: 'bounced', label: 'Bounced', count: 0, color: tokens.extended.rose.value },
+          { key: 'suppressed', label: 'Suppressed', count: 0, color: tokens.neutral['400'] },
         ],
         totalLeads: 0,
         conversionRate: 0,
@@ -87,14 +88,14 @@ try {
 
     const stages = [
       { key: 'imported', label: 'Imported', count: imported, color: '#71717a' },
-      { key: 'verified', label: 'Verified', count: verified, color: '#60a5fa' },
-      { key: 'drafted', label: 'Drafted', count: drafted, color: '#fbbf24' },
-      { key: 'approved', label: 'Approved', count: approved, color: '#c084fc' },
-      { key: 'queued', label: 'Queued', count: queued, color: '#818cf8' },
-      { key: 'sent', label: 'Sent', count: sent, color: '#34d399' },
-      { key: 'replied', label: 'Replied', count: replied, color: '#22c55e' },
-      { key: 'bounced', label: 'Bounced', count: bounced, color: '#f87171' },
-      { key: 'suppressed', label: 'Suppressed', count: suppressed, color: '#94a3b8' },
+      { key: 'verified', label: 'Verified', count: verified, color: tokens.accent.bright },
+      { key: 'drafted', label: 'Drafted', count: drafted, color: tokens.extended.amber.value },
+      { key: 'approved', label: 'Approved', count: approved, color: tokens.extended.violet.value },
+      { key: 'queued', label: 'Queued', count: queued, color: tokens.flat.skyBlue },
+      { key: 'sent', label: 'Sent', count: sent, color: tokens.extended.emerald.value },
+      { key: 'replied', label: 'Replied', count: replied, color: tokens.domain.action },
+      { key: 'bounced', label: 'Bounced', count: bounced, color: tokens.extended.rose.value },
+      { key: 'suppressed', label: 'Suppressed', count: suppressed, color: tokens.neutral['400'] },
     ];
 
     return NextResponse.json({

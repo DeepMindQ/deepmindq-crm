@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useMemo, useCallback, type ReactNode } from 'react';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import {
   ArrowUp,
   ArrowDown,
@@ -173,11 +174,11 @@ export function DataTable({
   }, [data, filteredData, hasServerPagination, visibleColumns, exportFilename]);
 
   // ── Enterprise color tokens ──
-  const bg = '#141821';
-  const border = '#1e2535';
-  const textColor = '#e8ecf4';
-  const muted = '#8892a8';
-  const primary = '#2563EB';
+  const bg = tokens.surface.card;
+  const border = tokens.border.default;
+  const textColor = tokens.text.primary;
+  const muted = tokens.text.secondary;
+  const primary = tokens.accent.dim;
 
   const showToolbar = title || filterable || exportable || columns.length > 2;
 
@@ -212,7 +213,7 @@ export function DataTable({
               <button
                 onClick={handleExport}
                 className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-colors hover:opacity-90"
-                style={{ background: primary, color: '#fff' }}
+                style={{ background: primary, color: tokens.flat.white }}
               >
                 <Download className="h-3.5 w-3.5" />
                 Download CSV
@@ -244,7 +245,7 @@ export function DataTable({
                           background: hiddenColumns.has(col.key) ? 'transparent' : primary,
                         }}
                       >
-                        {!hiddenColumns.has(col.key) && <Check className="h-3 w-3" style={{ color: '#fff' }} />}
+                        {!hiddenColumns.has(col.key) && <Check className="h-3 w-3" style={{ color: tokens.flat.white }} />}
                       </div>
                       {col.label}
                     </DropdownMenuItem>
@@ -282,7 +283,7 @@ export function DataTable({
                             <ArrowDown className="h-3.5 w-3.5" style={{ color: primary }} />
                           )
                         ) : (
-                          <ChevronsUpDown className="h-3.5 w-3.5" style={{ color: '#5a6478' }} />
+                          <ChevronsUpDown className="h-3.5 w-3.5" style={{ color: tokens.text.muted }} />
                         )}
                       </span>
                     )}
@@ -297,7 +298,7 @@ export function DataTable({
                 <tr key={`skeleton-${rowIdx}`}>
                   {visibleColumns.map((col) => (
                     <td key={col.key} className="px-4 py-3">
-                      <Skeleton className="h-4 w-3/4 rounded" style={{ background: '#1e2535' }} />
+                      <Skeleton className="h-4 w-3/4 rounded" style={{ background: tokens.border.default }} />
                     </td>
                   ))}
                 </tr>
@@ -306,7 +307,7 @@ export function DataTable({
               <tr>
                 <td colSpan={visibleColumns.length} className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <Search className="h-8 w-8" style={{ color: '#5a6478' }} />
+                    <Search className="h-8 w-8" style={{ color: tokens.text.muted }} />
                     <p className="text-sm" style={{ color: muted }}>No results match your filter</p>
                     <button
                       onClick={() => handleFilterChange('')}
@@ -322,7 +323,7 @@ export function DataTable({
               <tr>
                 <td colSpan={visibleColumns.length} className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center gap-2">
-                    <Inbox className="h-8 w-8" style={{ color: '#5a6478' }} />
+                    <Inbox className="h-8 w-8" style={{ color: tokens.text.muted }} />
                     <p className="text-sm" style={{ color: muted }}>{emptyMessage}</p>
                   </div>
                 </td>
@@ -349,7 +350,7 @@ export function DataTable({
                       : undefined
                   }
                   onMouseEnter={(e) => {
-                    (e.currentTarget as HTMLElement).style.background = 'rgba(37,99,235,0.04)';
+                    (e.currentTarget as HTMLElement).style.background = tokens.accent.ghost;
                   }}
                   onMouseLeave={(e) => {
                     (e.currentTarget as HTMLElement).style.background = 'transparent';
@@ -383,7 +384,7 @@ export function DataTable({
               className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
               style={{
                 border: `1px solid ${border}`,
-                color: currentPage <= 1 ? '#5a6478' : textColor,
+                color: currentPage <= 1 ? tokens.text.muted : textColor,
                 opacity: currentPage <= 1 ? 0.5 : 1,
               }}
               disabled={currentPage <= 1}
@@ -403,7 +404,7 @@ export function DataTable({
                   className="inline-flex items-center justify-center w-8 h-8 rounded-lg text-xs font-medium transition-colors"
                   style={{
                     background: p === currentPage ? primary : 'transparent',
-                    color: p === currentPage ? '#fff' : muted,
+                    color: p === currentPage ? tokens.flat.white : muted,
                     border: p === currentPage ? 'none' : `1px solid ${border}`,
                   }}
                   onClick={() => handlePageChange(p)}
@@ -416,7 +417,7 @@ export function DataTable({
               className="inline-flex items-center justify-center w-8 h-8 rounded-lg transition-colors"
               style={{
                 border: `1px solid ${border}`,
-                color: currentPage >= totalPages ? '#5a6478' : textColor,
+                color: currentPage >= totalPages ? tokens.text.muted : textColor,
                 opacity: currentPage >= totalPages ? 0.5 : 1,
               }}
               disabled={currentPage >= totalPages}

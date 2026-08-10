@@ -8,8 +8,7 @@ import {
 import { cn } from '@/lib/utils';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
-import { ErrorState } from '@/components/enterprise/ErrorState';
+import { EnterpriseErrorState, EnterpriseLoading, EnterpriseEmptyState } from '@/components/enterprise';
 
 /* ═══════════════════════════════════════════════════════════════
    Types
@@ -163,19 +162,10 @@ export default function IntelligenceHealthScreen() {
   };
 
   if (loading) {
-    return (
-      <div className="space-y-6">
-        <Skeleton className="h-10 w-72" />
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1, 2, 3, 4].map(i => <Skeleton key={i} className="h-24 rounded-xl" />)}
-        </div>
-        <Skeleton className="h-40 rounded-xl" />
-        <Skeleton className="h-80 rounded-xl" />
-      </div>
-    );
+    return <EnterpriseLoading message="Loading pipeline health data..." size="lg" />;
   }
 
-  if (error && !healthData) return <ErrorState message={error} onRetry={fetchData} />;
+  if (error && !healthData) return <EnterpriseErrorState title="Failed to load data" message={error} onRetry={fetchData} />;
   if (!healthData) return null;
 
   const { connectors, summary } = healthData;
@@ -244,7 +234,11 @@ export default function IntelligenceHealthScreen() {
           Health Distribution
         </h3>
         {totalForBar === 0 ? (
-          <p className="text-sm text-slate-400">No connector health data available</p>
+          <EnterpriseEmptyState
+            icon={Heart}
+            title="No connector health data"
+            description="Health data will populate once connectors are configured and running."
+          />
         ) : (
           <div className="space-y-3">
             <div className="flex h-5 rounded-full overflow-hidden bg-slate-100">
@@ -364,7 +358,7 @@ export default function IntelligenceHealthScreen() {
                     <p className="text-xs text-red-600 mt-0.5">{(c as any).failureCount} consecutive failures</p>
                   )}
                 </div>
-                <Button variant="outline" size="sm" className="h-7 text-[11px] border-red-200 text-red-600 hover:bg-red-100 gap-1">
+                <Button variant="outline" size="sm" className="h-10 text-[11px] border-red-200 text-red-600 hover:bg-red-100 gap-1 min-h-[44px]">
                   <RefreshCw className="h-3 w-3" />
                   Retry
                 </Button>

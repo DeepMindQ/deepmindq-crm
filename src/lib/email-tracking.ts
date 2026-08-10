@@ -1,4 +1,6 @@
 import crypto from 'crypto';
+import { tokens } from '@/lib/design-tokens';
+import { logger } from '@/lib/logger';
 
 /* ═══════════════════════════════════════════════════
    Email Tracking — Open & Click tracking utilities
@@ -9,7 +11,7 @@ import crypto from 'crypto';
 
 const TRACKING_SECRET = process.env.TRACKING_SECRET;
 if (!TRACKING_SECRET) {
-  console.warn('[email-tracking] TRACKING_SECRET is not set. Email tracking signatures will be invalid.');
+  logger.warn('[email-tracking] TRACKING_SECRET is not set. Email tracking signatures will be invalid.');
 }
 
 /* ── E-06: Generate a unique Message-ID ── */

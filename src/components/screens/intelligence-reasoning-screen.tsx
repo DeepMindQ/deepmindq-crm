@@ -123,7 +123,7 @@ function ConfidenceCircle({ score }: { score: number }) {
   const radius = 56;
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (score / 100) * circumference;
-  const color = score >= 80 ? '#10B981' : score >= 60 ? '#F59E0B' : '#EF4444';
+  const color = score >= 80 ? 'var(--dmq-emerald)' : score >= 60 ? 'var(--dmq-domain-reasoning)' : 'var(--dmq-domain-risk)';
 
   return (
     <div className="relative flex items-center justify-center w-36 h-36 mx-auto">

@@ -70,12 +70,12 @@ interface ContactOption {
    ═══════════════════════════════════════════════════════════════════════ */
 
 const PIPELINE_STAGES: { key: OpportunityStatus; label: string; color: string }[] = [
-  { key: 'researching', label: 'Researching', color: '#0ea5e9' },
-  { key: 'qualified', label: 'Qualified', color: '#3b82f6' },
-  { key: 'proposal', label: 'Proposal', color: '#8b5cf6' },
-  { key: 'negotiation', label: 'Negotiation', color: '#f59e0b' },
-  { key: 'won', label: 'Won', color: '#22c55e' },
-  { key: 'lost', label: 'Lost', color: '#ef4444' },
+  { key: 'researching', label: 'Researching', color: 'var(--dmq-sky)' },
+  { key: 'qualified', label: 'Qualified', color: 'var(--dmq-accent-blue)' },
+  { key: 'proposal', label: 'Proposal', color: 'var(--dmq-purple)' },
+  { key: 'negotiation', label: 'Negotiation', color: 'var(--dmq-domain-reasoning)' },
+  { key: 'won', label: 'Won', color: 'var(--dmq-domain-action)' },
+  { key: 'lost', label: 'Lost', color: 'var(--dmq-domain-risk)' },
 ]
 
 const ACTIVE_STAGES = PIPELINE_STAGES.filter(s => !['won', 'lost', 'archived'].includes(s.key))
@@ -318,7 +318,7 @@ export default function OpportunitiesScreen() {
             <button
               onClick={() => setViewMode('kanban')}
               className={cn(
-                'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
+                'inline-flex items-center gap-1.5 px-2.5 py-2.5 rounded-md text-xs font-medium transition-all duration-150',
                 viewMode === 'kanban' ? 'bg-amber-600 text-white shadow-xs' : 'text-gray-500 hover:text-gray-800',
               )}
             >
@@ -327,7 +327,7 @@ export default function OpportunitiesScreen() {
             <button
               onClick={() => setViewMode('list')}
               className={cn(
-                'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
+                'inline-flex items-center gap-1.5 px-2.5 py-2.5 rounded-md text-xs font-medium transition-all duration-150',
                 viewMode === 'list' ? 'bg-amber-600 text-white shadow-xs' : 'text-gray-500 hover:text-gray-800',
               )}
             >
@@ -336,7 +336,7 @@ export default function OpportunitiesScreen() {
             <button
               onClick={() => setViewMode('cards')}
               className={cn(
-                'inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium transition-all duration-150',
+                'inline-flex items-center gap-1.5 px-2.5 py-2.5 rounded-md text-xs font-medium transition-all duration-150',
                 viewMode === 'cards' ? 'bg-amber-600 text-white shadow-xs' : 'text-gray-500 hover:text-gray-800',
               )}
             >
@@ -506,7 +506,7 @@ export default function OpportunitiesScreen() {
                               {nextStage && (
                                 <button
                                   onClick={() => handleAdvance(opp)}
-                                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-500 hover:text-amber-700 hover:border-amber-200 hover:bg-amber-50/50 transition-all duration-150"
+                                  className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-lg border border-gray-200 text-[11px] font-medium text-gray-500 hover:text-amber-700 hover:border-amber-200 hover:bg-amber-50/50 transition-all duration-150"
                                 >
                                   Advance to {PIPELINE_STAGES.find(s => s.key === nextStage)?.label}
                                   <ChevronRight className="size-3" />

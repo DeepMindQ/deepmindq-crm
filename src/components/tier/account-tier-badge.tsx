@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Badge } from '@/components/ui/badge'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
 
@@ -14,10 +15,10 @@ interface TierConfig {
 }
 
 const TIERS: Record<string, TierConfig> = {
-  hot: { name: 'Hot', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.3)', description: 'High-priority account with active buying signals', threshold: 80 },
-  warm: { name: 'Warm', color: '#f59e0b', bg: 'rgba(245,158,11,0.12)', border: 'rgba(245,158,11,0.3)', description: 'Account showing engagement and potential interest', threshold: 60 },
-  nurture: { name: 'Nurture', color: '#3b82f6', bg: 'rgba(59,130,246,0.12)', border: 'rgba(59,130,246,0.3)', description: 'Account for long-term relationship building', threshold: 40 },
-  cold: { name: 'Cold', color: '#6b7280', bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.3)', description: 'Low-engagement account requiring reactivation', threshold: 0 },
+  hot: { name: 'Hot', color: tokens.domain.risk, bg: tokens.priority.critical.bg, border: 'rgba(239,68,68,0.3)', description: 'High-priority account with active buying signals', threshold: 80 },
+  warm: { name: 'Warm', color: tokens.domain.reasoning, bg: tokens.trust.medium.bg, border: tokens.trust.medium.border, description: 'Account showing engagement and potential interest', threshold: 60 },
+  nurture: { name: 'Nurture', color: tokens.accent.DEFAULT, bg: tokens.priority.medium.bg, border: tokens.accent.strong, description: 'Account for long-term relationship building', threshold: 40 },
+  cold: { name: 'Cold', color: tokens.neutral['500'], bg: tokens.trust.unverified.bg, border: tokens.trust.unverified.border, description: 'Low-engagement account requiring reactivation', threshold: 0 },
 }
 
 interface AccountTierBadgeProps {

@@ -303,13 +303,12 @@ export async function embedEntity(
     });
 
     // Phase 0.4: Native pgvector dual-write (non-blocking — fails gracefully)
+    // UPDATE existing row (Prisma upsert already handles the INSERT with all NOT NULL columns above)
     try {
       await db.$executeRawUnsafe(
-        `INSERT INTO "Embedding" ("id", "embedding_vector")
-         VALUES ($1, $2::vector)
-         ON CONFLICT ("entityId") DO UPDATE SET "embedding_vector" = $2::vector`,
-        entityId,
-        `[${Array.from(result.vector).join(',')}]`
+        `UPDATE "Embedding" SET "embedding_vector" = $1::vector WHERE "entityId" = $2 AND "embedding_vector" IS DISTINCT FROM $1::vector`,
+        `[${Array.from(result.vector).join(',')}]`,
+        entityId
       );
     } catch (pgvectorErr) {
       // pgvector column may not exist yet — non-blocking
@@ -569,7 +568,7 @@ export async function searchPgVector(
     }));
   } catch (err) {
     logger.warn(`[retrieval-engine] pgvector search failed, falling back to in-memory: ${err instanceof Error ? err.message : err}`);
-    return search(query, topK, filter);
+    return []; // let caller (search()) fall through to in-memory brute-force
   }
 }
 

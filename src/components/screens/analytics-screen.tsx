@@ -70,7 +70,7 @@ function ChartTip({ active, payload, label }: { active?: boolean; payload?: Arra
   if (!active || !payload?.length) return null;
   return (
     <div className="rounded-lg border px-3 py-2.5 shadow-2xl"
-      style={{ background: '#FFF', border: '1px solid #E5E7EB', boxShadow: '0 4px 20px rgba(0,0,0,0.12)' }}>
+      style={{ background: 'var(--dmq-white)', border: '1px solid var(--dmq-neutral-200)', boxShadow: '0 4px 20px var(--dmq-black-bg)' }}>
       {label && <p className="text-[11px] font-medium text-muted-foreground mb-1.5">{label}</p>}
       {payload.map((p, i: number) => (
         <div key={i} className="flex items-center gap-2 text-xs">
@@ -186,7 +186,7 @@ export default function AnalyticsScreen({ navigateTo: _navigateTo }: { navigateT
     { name: 'Valid', value: eh.valid, color: colors.green },
     { name: 'Risky', value: eh.risky, color: colors.amber },
     { name: 'Invalid', value: eh.invalid, color: colors.red },
-    { name: 'Unknown', value: eh.unknown, color: '#71717a' },
+    { name: 'Unknown', value: eh.unknown, color: 'var(--dmq-zinc)' },
   ];
 
   /* ── Top Content ── */
@@ -234,14 +234,14 @@ export default function AnalyticsScreen({ navigateTo: _navigateTo }: { navigateT
       <div className={cls.scrollContainer}>
         <div className="flex flex-col items-center justify-center py-20 text-center">
           <div className="w-12 h-12 rounded-xl flex items-center justify-center mb-4" style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
-            <Activity className="w-6 h-6" style={{ color: '#EF4444' }} />
+            <Activity className="w-6 h-6" style={{ color: 'var(--dmq-domain-risk)' }} />
           </div>
-          <h3 className="text-sm font-semibold mb-1" style={{ color: '#e8ecf4' }}>Failed to load analytics</h3>
-          <p className="text-xs mb-5" style={{ color: '#8892a8', maxWidth: '320px' }}>Could not fetch dashboard data. This may be a temporary issue.</p>
+          <h3 className="text-sm font-semibold mb-1" style={{ color: 'var(--dmq-text-primary)' }}>Failed to load analytics</h3>
+          <p className="text-xs mb-5" style={{ color: 'var(--dmq-text-secondary)', maxWidth: '320px' }}>Could not fetch dashboard data. This may be a temporary issue.</p>
           <button
             onClick={() => refetchDash()}
             className="inline-flex items-center gap-1.5 px-4 py-2 rounded-lg text-xs font-semibold transition-colors"
-            style={{ background: '#2563EB', color: '#fff' }}
+            style={{ background: 'var(--dmq-accent-dim)', color: 'var(--dmq-white)' }}
           >
             <TrendingUp className="w-3.5 h-3.5" /> Retry
           </button>
@@ -263,7 +263,7 @@ export default function AnalyticsScreen({ navigateTo: _navigateTo }: { navigateT
         </div>
         <div className="flex items-center gap-2">
           <Select value={timeRange} onValueChange={setTimeRange}>
-            <SelectTrigger className="w-[140px] h-8 text-xs" style={{ background: card, border: `1px solid ${border}` }}>
+            <SelectTrigger className="w-[140px] h-10 text-xs" style={{ background: card, border: `1px solid ${border}` }}>
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -273,7 +273,7 @@ export default function AnalyticsScreen({ navigateTo: _navigateTo }: { navigateT
               <SelectItem value="90d">Last 90 days</SelectItem>
             </SelectContent>
           </Select>
-          <Button variant="outline" size="sm" className="h-8 gap-1.5 text-xs" style={{ background: card, border: `1px solid ${border}` }}>
+          <Button variant="outline" size="sm" className="h-10 gap-1.5 text-xs min-h-[44px]" style={{ background: card, border: `1px solid ${border}` }}>
             <FileSpreadsheet className="w-3.5 h-3.5" /> Export
           </Button>
         </div>
@@ -295,14 +295,14 @@ export default function AnalyticsScreen({ navigateTo: _navigateTo }: { navigateT
             <BarChart data={funnelData} layout="vertical" margin={{ top: 4, right: 60, left: 80, bottom: 4 }}>
               <defs>
                 <linearGradient id="funnelGrad" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.85} />
-                  <stop offset="100%" stopColor="#D4AF37" stopOpacity={0.4} />
+                  <stop offset="0%" stopColor="var(--dmq-gold)" stopOpacity={0.85} />
+                  <stop offset="100%" stopColor="var(--dmq-gold)" stopOpacity={0.4} />
                 </linearGradient>
               </defs>
-              <CartesianGrid horizontal={false} stroke="rgba(0,0,0,0.04)" strokeDasharray="3 3" />
-              <XAxis type="number" tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={{ stroke: 'rgba(0,0,0,0.06)' }} tickLine={false} />
-              <YAxis type="category" dataKey="label" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={false} tickLine={false} width={75} />
-              <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(212,175,55,0.04)' }} />
+              <CartesianGrid horizontal={false} stroke="var(--dmq-black-whisper)" strokeDasharray="3 3" />
+              <XAxis type="number" tick={{ fill: 'var(--dmq-neutral-500)', fontSize: 11 }} axisLine={{ stroke: 'var(--dmq-black-micro)' }} tickLine={false} />
+              <YAxis type="category" dataKey="label" tick={{ fill: 'var(--dmq-neutral-500)', fontSize: 12 }} axisLine={false} tickLine={false} width={75} />
+              <Tooltip content={<ChartTip />} cursor={{ fill: 'var(--dmq-gold-bg-hint)' }} />
               <Bar dataKey="count" fill="url(#funnelGrad)" radius={[0, 6, 6, 0]} barSize={28} name="Count">
                 {funnelData.map((entry: { key: string; label: string; count?: number; conversionPct?: string | number }, idx: number) => (
                   <Cell key={idx} fill="url(#funnelGrad)" opacity={1 - idx * 0.08} />
@@ -324,26 +324,26 @@ export default function AnalyticsScreen({ navigateTo: _navigateTo }: { navigateT
             <AreaChart data={trendData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
               <defs>
                 <linearGradient id="sentGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#3B82F6" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#3B82F6" stopOpacity={0.02} />
+                  <stop offset="0%" stopColor="var(--dmq-accent-blue)" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="var(--dmq-accent-blue)" stopOpacity={0.02} />
                 </linearGradient>
                 <linearGradient id="openGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#10B981" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#10B981" stopOpacity={0.02} />
+                  <stop offset="0%" stopColor="var(--dmq-emerald)" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="var(--dmq-emerald)" stopOpacity={0.02} />
                 </linearGradient>
                 <linearGradient id="clickGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#D4AF37" stopOpacity={0.35} />
-                  <stop offset="100%" stopColor="#D4AF37" stopOpacity={0.02} />
+                  <stop offset="0%" stopColor="var(--dmq-gold)" stopOpacity={0.35} />
+                  <stop offset="100%" stopColor="var(--dmq-gold)" stopOpacity={0.02} />
                 </linearGradient>
               </defs>
-              <CartesianGrid stroke="rgba(0,0,0,0.04)" strokeDasharray="3 3" vertical={false} />
-              <XAxis dataKey="day" tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={{ stroke: 'rgba(0,0,0,0.06)' }} tickLine={false} />
-              <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} />
+              <CartesianGrid stroke="var(--dmq-black-whisper)" strokeDasharray="3 3" vertical={false} />
+              <XAxis dataKey="day" tick={{ fill: 'var(--dmq-neutral-500)', fontSize: 11 }} axisLine={{ stroke: 'var(--dmq-black-micro)' }} tickLine={false} />
+              <YAxis tick={{ fill: 'var(--dmq-neutral-500)', fontSize: 11 }} axisLine={false} tickLine={false} />
               <Tooltip content={<ChartTip />} />
               <Legend content={<ChartLegend />} />
-              <Area type="monotone" dataKey="sent" stroke="#3B82F6" fill="url(#sentGrad)" strokeWidth={2} />
-              <Area type="monotone" dataKey="opened" stroke="#10B981" fill="url(#openGrad)" strokeWidth={2} />
-              <Area type="monotone" dataKey="clicked" stroke="#D4AF37" fill="url(#clickGrad)" strokeWidth={2} />
+              <Area type="monotone" dataKey="sent" stroke="var(--dmq-accent-blue)" fill="url(#sentGrad)" strokeWidth={2} />
+              <Area type="monotone" dataKey="opened" stroke="var(--dmq-emerald)" fill="url(#openGrad)" strokeWidth={2} />
+              <Area type="monotone" dataKey="clicked" stroke="var(--dmq-gold)" fill="url(#clickGrad)" strokeWidth={2} />
             </AreaChart>
           </ResponsiveContainer>
         </div>
@@ -368,7 +368,7 @@ export default function AnalyticsScreen({ navigateTo: _navigateTo }: { navigateT
                 <text x="50%" y="46%" textAnchor="middle" dominantBaseline="central" fill="white" fontSize={28} fontWeight="bold" className="recharts-text">
                   {totalReplies}
                 </text>
-                <text x="50%" y="60%" textAnchor="middle" dominantBaseline="central" fill="#6B7280" fontSize={11} className="recharts-text">
+                <text x="50%" y="60%" textAnchor="middle" dominantBaseline="central" fill="var(--dmq-neutral-500)" fontSize={11} className="recharts-text">
                   Total Replies
                 </text>
               </PieChart>
@@ -391,10 +391,10 @@ export default function AnalyticsScreen({ navigateTo: _navigateTo }: { navigateT
             <SectionHeader title="Email Health Distribution" subtitle="Verification status across all contacts" />
             <ResponsiveContainer width="100%" height={260}>
               <BarChart data={healthData} margin={{ top: 4, right: 4, left: -10, bottom: 0 }}>
-                <CartesianGrid stroke="rgba(0,0,0,0.04)" strokeDasharray="3 3" vertical={false} />
-                <XAxis dataKey="name" tick={{ fill: '#6B7280', fontSize: 12 }} axisLine={{ stroke: 'rgba(0,0,0,0.06)' }} tickLine={false} />
-                <YAxis tick={{ fill: '#6B7280', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <Tooltip content={<ChartTip />} cursor={{ fill: 'rgba(212,175,55,0.04)' }} />
+                <CartesianGrid stroke="var(--dmq-black-whisper)" strokeDasharray="3 3" vertical={false} />
+                <XAxis dataKey="name" tick={{ fill: 'var(--dmq-neutral-500)', fontSize: 12 }} axisLine={{ stroke: 'var(--dmq-black-micro)' }} tickLine={false} />
+                <YAxis tick={{ fill: 'var(--dmq-neutral-500)', fontSize: 11 }} axisLine={false} tickLine={false} />
+                <Tooltip content={<ChartTip />} cursor={{ fill: 'var(--dmq-gold-bg-hint)' }} />
                 <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={48} name="Count">
                   {healthData.map((entry, idx) => (
                     <Cell key={idx} fill={entry.color} fillOpacity={0.8} />
@@ -445,11 +445,11 @@ export default function AnalyticsScreen({ navigateTo: _navigateTo }: { navigateT
                     <TableCell className="text-xs text-foreground text-right tabular-nums py-2.5">{item.clicks}</TableCell>
                     <TableCell className="text-xs text-right pr-4 py-2.5">
                       {item.replied ? (
-                        <Badge variant="outline" className="text-[11px]" style={{ background: 'rgba(16,185,129,0.12)', color: '#059669', borderColor: 'rgba(16,185,129,0.2)' }}>
+                        <Badge variant="outline" className="text-[11px]" style={{ background: 'rgba(16,185,129,0.12)', color: 'var(--dmq-emerald-deep)', borderColor: 'rgba(16,185,129,0.2)' }}>
                           Replied
                         </Badge>
                       ) : (
-                        <Badge variant="outline" className="text-[11px]" style={{ background: 'rgba(0,0,0,0.03)', color: '#6B7280', borderColor: border }}>
+                        <Badge variant="outline" className="text-[11px]" style={{ background: 'rgba(0,0,0,0.03)', color: 'var(--dmq-neutral-500)', borderColor: border }}>
                           Sent
                         </Badge>
                       )}

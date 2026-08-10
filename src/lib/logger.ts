@@ -7,10 +7,42 @@ interface LogEntry {
   timestamp: string
   level: LogLevel
   message: string
+  traceId?: string
   [key: string]: unknown
 }
 
 const isDev = process.env.NODE_ENV !== 'production'
+
+// ── Trace Context ──
+let _traceContext: { traceId?: string } = {}
+
+/**
+ * Set the current trace context for automatic injection into log entries.
+ * Called by tracing middleware or instrumentation.
+ */
+export function setTraceContext(ctx: { traceId?: string }): void {
+  _traceContext = ctx
+}
+
+/**
+ * Get the current trace ID for log enrichment.
+ */
+export function getTraceId(): string | undefined {
+  return _traceContext.traceId
+}
+
+// ── Safe Write (avoids recursion if logger is used in error-handling paths) ──
+function safeWrite(formatted: string, colorFormatted?: string): void {
+  try {
+    if (isDev && colorFormatted) {
+      console.log(colorFormatted)
+    } else {
+      console.log(formatted)
+    }
+  } catch {
+    // Last resort — if console itself fails, silently drop
+  }
+}
 
 function formatEntry(entry: LogEntry): string {
   return JSON.stringify(entry)
@@ -24,6 +56,19 @@ function log(level: LogLevel, message: string, meta: Record<string, unknown> = {
     ...meta,
   }
 
+  // Inject traceId from current trace context
+  if (_traceContext.traceId) {
+    entry.traceId = _traceContext.traceId
+  }
+
+  // Sentry integration for error/fatal levels with an Error object
+  if ((level === 'error' || level === 'fatal') && meta?.error instanceof Error) {
+    // Fire-and-forget Sentry capture
+    import('@sentry/nextjs').then(Sentry => {
+      Sentry.captureException(meta.error, { extra: { message, ...meta } })
+    }).catch(() => { /* Sentry not available */ })
+  }
+
   if (isDev) {
     const colors: Record<LogLevel, string> = {
       debug: '\x1b[36m',
@@ -33,9 +78,9 @@ function log(level: LogLevel, message: string, meta: Record<string, unknown> = {
       fatal: '\x1b[35m',
     }
     const reset = '\x1b[0m'
-    console.log(`${colors[level]}[${level.toUpperCase()}]${reset} ${message}`, meta)
+    safeWrite(formatEntry(entry), `${colors[level]}[${level.toUpperCase()}]${reset} ${message}`)
   } else {
-    console.log(formatEntry(entry))
+    safeWrite(formatEntry(entry))
   }
 }
 

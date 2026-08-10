@@ -53,7 +53,7 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { computeUnifiedConfidence } from '@/lib/ai-unified-confidence';
+import { computeUnifiedConfidence, computeCalibratedConfidence, type ConfidenceInput, type ConfidenceResult } from '@/lib/ai-unified-confidence';
 import {
   generateRecommendations as kgRecommendations,
   expandFromEntity,
@@ -625,6 +625,16 @@ export async function generateCompanyRecommendation(
   });
 }
 
+// ── Internal: Calibrated-first confidence (tries calibrated, falls back to sync) ──
+
+async function getBestConfidence(input: ConfidenceInput): Promise<ConfidenceResult> {
+  try {
+    return await computeCalibratedConfidence(input);
+  } catch {
+    return computeUnifiedConfidence(input);
+  }
+}
+
 // ── Internal: Count open contradictions for a company ─────────────────
 
 async function getOpenConflictCount(companyId: string): Promise<number> {
@@ -841,7 +851,7 @@ async function buildCompanyRecommendation(
   let memoryPatterns: AccountRecommendation['memoryPatterns'];
 
   try {
-    const memories = searchMemories({
+    const memories = await searchMemories({
       query: company.rawName,
       category: ['company_intelligence'] as any,
       minConfidence: 0.5,
@@ -1104,7 +1114,7 @@ async function buildCompanyRecommendation(
 
   let confidenceResult = null;
   try {
-    confidenceResult = computeUnifiedConfidence({
+    confidenceResult = await getBestConfidence({
       entityId: company.id,
       entityType: 'company',
       fieldConfidence: {

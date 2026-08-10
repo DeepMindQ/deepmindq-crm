@@ -9,6 +9,7 @@
  */
 
 import { PrismaClient } from '@prisma/client'
+import { logger } from '@/lib/logger'
 
 export interface MigrationStep {
   name: string
@@ -53,7 +54,7 @@ export async function preMigrationCheck(db: PrismaClient): Promise<{ ok: boolean
       `SELECT pg_database_size(current_database()) / 1024 / 1024 as available_mb`
     )
     // Log DB size for awareness — not a blocking check
-    console.log(`[PreMigration] Current database size: ${diskSpace[0].available_mb} MB`)
+    logger.info(`[PreMigration] Current database size: ${diskSpace[0].available_mb} MB`)
   } catch {
     // Non-critical check
   }
@@ -71,11 +72,11 @@ export async function runMigration(
 
   for (const step of steps) {
     const start = Date.now()
-    console.log(`[Migration] Starting: ${step.name}`)
+    logger.info(`[Migration] Starting: ${step.name}`)
 
     if (options?.dryRun) {
       results.push({ step: step.name, success: true, durationMs: 0 })
-      console.log(`[Migration] DRY RUN: ${step.name} (skipped)`)
+      logger.info(`[Migration] DRY RUN: ${step.name} (skipped)`)
       continue
     }
 
@@ -83,15 +84,15 @@ export async function runMigration(
       await step.forward(db)
       const duration = Date.now() - start
       results.push({ step: step.name, success: true, durationMs: duration })
-      console.log(`[Migration] Completed: ${step.name} (${duration}ms)`)
+      logger.info(`[Migration] Completed: ${step.name} (${duration}ms)`)
     } catch (error) {
       const duration = Date.now() - start
       const errorMsg = error instanceof Error ? error.message : 'Unknown error'
       results.push({ step: step.name, success: false, durationMs: duration, error: errorMsg })
-      console.error(`[Migration] FAILED: ${step.name} (${errorMsg})`)
+      logger.error(`[Migration] FAILED: ${step.name} (${errorMsg})`)
 
       if (options?.stopOnError !== false) {
-        console.log('[Migration] Stopping due to error. Run rollback to undo.')
+        logger.info('[Migration] Stopping due to error. Run rollback to undo.')
         break
       }
     }
@@ -114,12 +115,12 @@ export async function rollbackMigration(
   for (let i = targetIdx; i >= 0; i--) {
     const step = steps[i]
     const start = Date.now()
-    console.log(`[Rollback] Reverting: ${step.name}`)
+    logger.info(`[Rollback] Reverting: ${step.name}`)
 
     try {
       await step.rollback(db)
       results.push({ step: step.name, success: true, durationMs: Date.now() - start })
-      console.log(`[Rollback] Reverted: ${step.name}`)
+      logger.info(`[Rollback] Reverted: ${step.name}`)
     } catch (error) {
       results.push({
         step: step.name,
@@ -127,7 +128,7 @@ export async function rollbackMigration(
         durationMs: Date.now() - start,
         error: error instanceof Error ? error.message : 'Unknown',
       })
-      console.error(`[Rollback] FAILED: ${step.name}`)
+      logger.error(`[Rollback] FAILED: ${step.name}`)
       break
     }
   }
@@ -150,7 +151,7 @@ export async function batchUpdate(
     const batch = allIds.slice(i, i + batchSize).map(r => r.id)
     const updated = await updateFn(batch)
     totalUpdated += updated
-    console.log(
+    logger.info(
       `[DataMigration] ${tableName}: batch ${Math.floor(i / batchSize) + 1}/${Math.ceil(allIds.length / batchSize)} updated ${updated} rows`
     )
   }

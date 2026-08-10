@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Radar, Target, ChevronRight, RefreshCw, Filter, Flame, Sun, Sprout, AlertTriangle } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { EnterpriseLoading, EnterpriseEmptyState } from '@/components/enterprise';
 
 interface OpportunityItem { companyId: string; companyName: string; industry: string | null; category: string; title: string; description: string; score: number; confidence: number; signalCount: number; topSignals: Array<{ type: string; title: string; score: number }>; }
 
@@ -55,20 +56,30 @@ export default function RevenueIntelligenceOpportunitiesScreen({ navigateTo }: {
   return (
     <div className="p-6 md:p-8 max-w-7xl mx-auto space-y-8">
       <header className="space-y-1">
-        <div className="flex items-center justify-between"><div className="flex items-center gap-2.5"><div className="w-9 h-9 rounded-lg bg-gold-subtle flex items-center justify-center"><Radar className="w-5 h-5 text-gold" /></div><h1 className="text-2xl font-semibold text-foreground">Opportunity Radar</h1></div><button onClick={fetchOpps} className="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-black/[0.04] transition-colors"><RefreshCw className="w-3.5 h-3.5" />Refresh</button></div>
+        <div className="flex items-center justify-between"><div className="flex items-center gap-2.5"><div className="w-10 h-10 rounded-lg bg-gold-subtle flex items-center justify-center min-h-[44px]"><Radar className="w-5 h-5 text-gold" /></div><h1 className="text-2xl font-semibold text-foreground">Opportunity Radar</h1></div><button onClick={fetchOpps} className="inline-flex items-center gap-1.5 px-3 py-2.5 text-sm text-muted-foreground hover:text-foreground border border-border rounded-lg hover:bg-black/[0.04] transition-colors min-h-[44px]"><RefreshCw className="w-3.5 h-3.5" />Refresh</button></div>
         <p className="text-sm text-muted-foreground">Cross-account opportunity detection powered by signal analysis.</p>
       </header>
 
       <div className="flex flex-wrap gap-2">
-        {[{ label: 'Dashboard', view: 'revenue-intelligence' }, { label: 'Opportunity Radar', view: 'revenue-intelligence-opportunities', active: true }, { label: 'Recommendations', view: 'revenue-intelligence-recommendations' }].map(item => (<button key={item.view} onClick={() => !(item as any).active && navigateTo?.(item.view as any)} disabled={(item as any).active} className={`px-3.5 py-1.5 rounded-full text-sm font-medium transition-colors ${(item as any).active ? 'bg-primary text-primary-foreground' : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'}`}>{item.label}</button>))}
+        {[{ label: 'Dashboard', view: 'revenue-intelligence' }, { label: 'Opportunity Radar', view: 'revenue-intelligence-opportunities', active: true }, { label: 'Recommendations', view: 'revenue-intelligence-recommendations' }].map(item => (<button key={item.view} onClick={() => !(item as any).active && navigateTo?.(item.view as any)} disabled={(item as any).active} className={`px-3.5 py-2.5 rounded-full text-sm font-medium transition-colors ${(item as any).active ? 'bg-primary text-primary-foreground' : 'bg-muted/60 text-muted-foreground hover:text-foreground hover:bg-muted'}`}>{item.label}</button>))}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex items-center gap-1.5 text-sm text-muted-foreground"><Filter className="w-4 h-4" />Filters:</div>
-        {[{ label: 'All', value: null }, { label: 'TECHNOLOGY', value: 'TECHNOLOGY' }, { label: 'GROWTH', value: 'GROWTH' }, { label: 'PARTNERSHIP', value: 'PARTNERSHIP' }, { label: 'PAIN', value: 'PAIN' }, { label: 'LEADERSHIP', value: 'LEADERSHIP' }].map(f => (<button key={String(f.value)} onClick={() => setFilterType(f.value)} className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${filterType === f.value ? 'bg-primary text-primary-foreground' : 'bg-muted/60 text-muted-foreground hover:text-foreground'}`}>{f.label}</button>))}
+        {[{ label: 'All', value: null }, { label: 'TECHNOLOGY', value: 'TECHNOLOGY' }, { label: 'GROWTH', value: 'GROWTH' }, { label: 'PARTNERSHIP', value: 'PARTNERSHIP' }, { label: 'PAIN', value: 'PAIN' }, { label: 'LEADERSHIP', value: 'LEADERSHIP' }].map(f => (<button key={String(f.value)} onClick={() => setFilterType(f.value)} className={`px-2.5 py-2.5 rounded-md text-xs font-medium transition-colors ${filterType === f.value ? 'bg-primary text-primary-foreground' : 'bg-muted/60 text-muted-foreground hover:text-foreground'}`}>{f.label}</button>))}
       </div>
 
-      {loading ? (<div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{[...Array(6)].map((_, i) => (<div key={i} className="h-72 bg-muted rounded-xl animate-pulse" />))}</div>) : error || opportunities.length === 0 ? (<div className="bg-white border border-border rounded-xl p-12 text-center"><Radar className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" /><p className="text-sm text-muted-foreground">{error || 'No opportunities detected.'}</p></div>) : (<><p className="text-sm text-muted-foreground">{opportunities.length} opportunities found</p><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{opportunities.map(o => (<OpportunityCard key={o.companyId} opp={o} onViewBrief={id => navigateTo?.('revenue-intelligence-brief' as any, id)} />))}</div></>)}
+      {loading ? (
+        <EnterpriseLoading message="Loading opportunities..." />
+      ) : error || opportunities.length === 0 ? (
+        <EnterpriseEmptyState
+          icon={Radar}
+          title={error ? 'Failed to load opportunities' : 'No opportunities detected'}
+          description={error || 'Cross-account opportunity detection will surface actionable intelligence here.'}
+          actionLabel={!error ? 'Refresh' : undefined}
+          onAction={!error ? fetchOpps : undefined}
+        />
+      ) : (<><p className="text-sm text-muted-foreground">{opportunities.length} opportunities found</p><div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">{opportunities.map(o => (<OpportunityCard key={o.companyId} opp={o} onViewBrief={id => navigateTo?.('revenue-intelligence-brief' as any, id)} />))}</div></>)}
     </div>
   );
 }

@@ -40,7 +40,7 @@ async function seedValidationData() {
   const startTime = Date.now()
 
   // ── Scenario 1: Enterprise (Acme Corp — rich external, rich internal) ──
-  const acme = await db.company.findFirst({ where: { rawName: 'Acme Corp' } })
+  const acme = await db.company.findFirst({ where: { rawName: 'Acme Corp' }, select: { id: true, rawName: true } })
   let acmeId = acme?.id
 
   if (!acmeId) {
@@ -117,7 +117,7 @@ async function seedValidationData() {
   }
 
   // Seed enterprise research card
-  const acmeCard = await db.companyResearchCard.findUnique({ where: { companyId: acmeId } })
+  const acmeCard = await db.companyResearchCard.findUnique({ where: { companyId: acmeId }, select: { id: true, companyId: true, businessOverview: true, techStack: true, keyPeople: true, revenue: true, employeeCount: true } })
   if (!acmeCard) {
     await db.companyResearchCard.create({
       data: {
@@ -149,7 +149,7 @@ async function seedValidationData() {
   }
 
   // ── Scenario 2: Mid-Market (TechStart Inc — some external, some internal) ──
-  const techStart = await db.company.findFirst({ where: { rawName: 'TechStart Inc' } })
+  const techStart = await db.company.findFirst({ where: { rawName: 'TechStart Inc' }, select: { id: true, rawName: true } })
   let techStartId = techStart?.id
 
   if (!techStartId) {
@@ -177,7 +177,7 @@ async function seedValidationData() {
       ],
     })
     // Add a reply for Lisa
-    const lisaContact = await db.contact.findFirst({ where: { email: 'lisa@techstart.io' } })
+    const lisaContact = await db.contact.findFirst({ where: { email: 'lisa@techstart.io' }, select: { id: true, rawName: true, email: true, companyId: true } })
     if (lisaContact) {
       await db.reply.create({ data: { contactId: lisaContact.id, subject: 'Re: Data strategy discussion', body: 'Thanks for reaching out — we are indeed looking at data intelligence solutions. Would love to schedule a call next week.', category: 'positive' } })
     }
@@ -204,7 +204,7 @@ async function seedValidationData() {
   }
 
   // ── Scenario 3: Small Company (LocalBiz Solutions — near-zero external, strong internal) ──
-  const localBiz = await db.company.findFirst({ where: { rawName: 'LocalBiz Solutions' } })
+  const localBiz = await db.company.findFirst({ where: { rawName: 'LocalBiz Solutions' }, select: { id: true, rawName: true } })
   let localBizId = localBiz?.id
 
   if (!localBizId) {
@@ -231,8 +231,8 @@ async function seedValidationData() {
       ],
     })
     // Add replies
-    const rajeshContact = await db.contact.findFirst({ where: { email: 'rajesh@localbiz.co' } })
-    const anitaContact = await db.contact.findFirst({ where: { email: 'anita@localbiz.co' } })
+    const rajeshContact = await db.contact.findFirst({ where: { email: 'rajesh@localbiz.co' }, select: { id: true, rawName: true, email: true, companyId: true } })
+    const anitaContact = await db.contact.findFirst({ where: { email: 'anita@localbiz.co' }, select: { id: true, rawName: true, email: true, companyId: true } })
     if (rajeshContact) {
       const replyData = [
         { subject: 'Re: Initial outreach', body: 'Thanks for reaching out! We are actually looking for something like this. Can we schedule a demo?', category: 'positive' },
@@ -252,7 +252,7 @@ async function seedValidationData() {
 
   const lbNotes = await db.contactNote.count({ where: { contact: { companyId: localBizId } } })
   if (lbNotes === 0) {
-    const rajesh = await db.contact.findFirst({ where: { email: 'rajesh@localbiz.co' } })
+    const rajesh = await db.contact.findFirst({ where: { email: 'rajesh@localbiz.co' }, select: { id: true, rawName: true, email: true, companyId: true } })
     if (rajesh) {
       await db.contactNote.createMany({
         data: [
@@ -261,7 +261,7 @@ async function seedValidationData() {
         ],
       })
     }
-    const anita = await db.contact.findFirst({ where: { email: 'anita@localbiz.co' } })
+    const anita = await db.contact.findFirst({ where: { email: 'anita@localbiz.co' }, select: { id: true, rawName: true, email: true, companyId: true } })
     if (anita) {
       await db.contactNote.create({
         data: {

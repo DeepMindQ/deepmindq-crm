@@ -35,9 +35,12 @@
  */
 
 import { callLLM } from '@/lib/llm-client';
-import { getLLMChain, getProviderConfig } from '@/lib/ai-config';
+import { countTokens } from '@/lib/token-counter';
+import { tokens } from '@/lib/design-tokens';
+import { getLLMChain, getProviderConfig, testProviderConnection, getAIConfigWithKeys } from '@/lib/ai-config';
 import { logger } from '@/lib/logger';
 import { logAIUsage, estimateCost } from '@/lib/ai-copilot/usage-tracker';
+import { getModelCost } from '@/lib/unified-ai-cost-tracking';
 import type { AIUsageFeature } from '@/lib/ai-copilot/types';
 
 // ─── Types ──────────────────────────────────────────────────────────────
@@ -112,6 +115,11 @@ const MAX_RECENT_LATENCIES = 100;
 const CIRCUIT_BREAKER_THRESHOLD = 5; // Open after 5 consecutive failures
 const CIRCUIT_BREAKER_RESET_MS = 60_000; // Reset after 60 seconds
 const CIRCUIT_BREAKER_HALF_OPEN_MS = 30_000; // Half-open after 30s (try one request)
+
+// Phase 4: Per-provider rate limiting (requests per minute)
+const RATE_LIMIT_WINDOW_MS = 60_000;
+const RATE_LIMIT_MAX_RPM = 30; // Max 30 requests per minute per provider (conservative for free tiers)
+const providerRateLimitTimestamps = new Map<string, number[]>();
 
 const providerPerformance = new Map<string, ProviderPerformanceRecord>();
 
@@ -189,6 +197,26 @@ function isProviderCircuitOpen(model: string): boolean {
   return true;
 }
 
+// Phase 4: Per-provider RPM rate limiting
+function isProviderRateLimited(model: string): boolean {
+  const now = Date.now();
+  const timestamps = providerRateLimitTimestamps.get(model);
+  if (!timestamps || timestamps.length === 0) return false;
+
+  // Prune timestamps outside the window
+  const windowStart = now - RATE_LIMIT_WINDOW_MS;
+  const recent = timestamps.filter(t => t >= windowStart);
+  providerRateLimitTimestamps.set(model, recent);
+
+  return recent.length >= RATE_LIMIT_MAX_RPM;
+}
+
+function recordProviderRequest(model: string): void {
+  const timestamps = providerRateLimitTimestamps.get(model) || [];
+  timestamps.push(Date.now());
+  providerRateLimitTimestamps.set(model, timestamps);
+}
+
 // ─── Tier Configurations ────────────────────────────────────────────────
 
 interface TierConfig {
@@ -219,14 +247,27 @@ const TIER_CONFIGS: Record<Tier, TierConfig> = {
 };
 
 // ─── Token Estimation ──────────────────────────────────────────────────
+// estimateTokens (synchronous heuristic) is imported from @/lib/token-counter.
+// countTokens (async, tiktoken-aware) is used throughout this module.
+
+// ─── Cost Estimation Helper ────────────────────────────────────────────
 
 /**
- * Rough token estimate — 4 chars/token average for English text.
- * Used for cost estimation when the provider doesn't return token counts.
+ * Phase 4: Estimate a provider's cost tier for chain ordering.
+ * Uses the unified cost registry when available, falls back to
+ * heuristic model-family matching.
  */
-function estimateTokens(text: string): number {
-  if (!text) return 0;
-  return Math.ceil(text.length / 4);
+function estimateProviderCost(model: string): number {
+  try {
+    const cost = getModelCost(model);
+    if (cost) return cost.inputPerM + cost.outputPerM;
+  } catch { /* ignore */ }
+  // Fallback: approximate costs by model family
+  if (model.includes('8b') || model.includes('8B')) return 0.05; // Cheapest
+  if (model.includes('70b') || model.includes('70B')) return 0.30;
+  if (model.includes('flash')) return 0.075;
+  if (model.includes('1.5-pro')) return 1.25;
+  return 0.50; // Default medium estimate
 }
 
 // ─── ModelRouter ────────────────────────────────────────────────────────
@@ -264,8 +305,8 @@ export const ModelRouter = {
       // when ai-config can't be read (e.g. during tests without DB).
       try {
         const text = await callLLM(params.systemPrompt, params.userPrompt);
-        const promptTokens = estimateTokens(params.systemPrompt + params.userPrompt);
-        const completionTokens = estimateTokens(text);
+        const promptTokens = await countTokens(params.systemPrompt + params.userPrompt);
+        const completionTokens = await countTokens(text);
         const cost = estimateCost('unknown', promptTokens, completionTokens);
         await this._audit({
           params,
@@ -338,6 +379,15 @@ export const ModelRouter = {
         continue;
       }
 
+      // Phase 4: Per-provider rate limiting — skip if RPM exceeded
+      if (isProviderRateLimited(provider.model)) {
+        const msg = `Rate limit reached for ${provider.model} (${RATE_LIMIT_MAX_RPM} RPM)`;
+        errors.push(msg);
+        logger.warn(`[model-router] skipping ${provider.model}: rate limited (${RATE_LIMIT_MAX_RPM} RPM)`);
+        continue;
+      }
+      recordProviderRequest(provider.model);
+
       try {
         logger.info(`[model-router] trying provider: ${provider.label}`);
         // Use callLLM with this provider's config — it handles Gemini variants
@@ -349,8 +399,8 @@ export const ModelRouter = {
           throw new Error('Empty response from provider');
         }
 
-        const promptTokens = estimateTokens(params.systemPrompt + params.userPrompt);
-        const completionTokens = estimateTokens(text);
+        const promptTokens = await countTokens(params.systemPrompt + params.userPrompt);
+        const completionTokens = await countTokens(text);
         const cost = estimateCost(provider.model, promptTokens, completionTokens);
         const durationMs = Date.now() - startedAt;
 
@@ -446,7 +496,8 @@ export const ModelRouter = {
       else others.push(provider);
     }
 
-    // Sort preferred by their position in preferredLabels (priority order)
+    // Sort preferred by their position in preferredLabels (priority order),
+    // then sub-sort by cost within same preference level.
     preferred.sort((a, b) => {
       const aIdx = config.preferredLabels.findIndex(
         (label) =>
@@ -458,7 +509,11 @@ export const ModelRouter = {
           b.label?.toLowerCase().includes(label.toLowerCase()) ||
           b.model?.toLowerCase().includes(label.toLowerCase().replace(/\s/g, '-')),
       );
-      return aIdx - bIdx;
+      if (aIdx !== bIdx) return aIdx - bIdx;
+      // Phase 4: Cost-aware sub-sorting — prefer cheaper providers within same tier preference
+      const aCost = estimateProviderCost(a.model);
+      const bCost = estimateProviderCost(b.model);
+      return aCost - bCost;
     });
 
     return [...preferred, ...others];
@@ -590,5 +645,103 @@ export const ModelRouter = {
     }
 
     return stats.sort((a, b) => b.totalCalls - a.totalCalls);
+  },
+
+  /**
+   * Phase 4: Proactively ping all configured providers to check connectivity.
+   * Updates circuit breaker state based on results.
+   * Should be called periodically (e.g., every 5 minutes) or before critical operations.
+   */
+  async pingProviders(): Promise<Array<{ provider: string; model: string; healthy: boolean; latencyMs: number; error?: string }>> {
+    let chain: Awaited<ReturnType<typeof getLLMChain>> = [];
+    try {
+      chain = await getLLMChain();
+    } catch {
+      chain = [];
+    }
+
+    if (chain.length === 0) {
+      logger.info('[model-router] pingProviders: no providers in chain');
+      return [];
+    }
+
+    // Resolve full config to find provider IDs for testProviderConnection
+    let fullConfig: Awaited<ReturnType<typeof getAIConfigWithKeys>> | null = null;
+    try {
+      fullConfig = await getAIConfigWithKeys();
+    } catch { /* ignore — fall back to direct fetch */ }
+
+    const results: Array<{ provider: string; model: string; healthy: boolean; latencyMs: number; error?: string }> = [];
+
+    for (const provider of chain) {
+      const start = Date.now();
+      let healthy = false;
+      let error: string | undefined;
+
+      // Try to find the provider ID so we can use testProviderConnection
+      const providerId = fullConfig
+        ? Object.entries(fullConfig.providers).find(
+            ([, cfg]) => cfg.model === provider.model && cfg.baseUrl === provider.baseUrl,
+          )?.[0]
+        : undefined;
+
+      if (providerId) {
+        // Use testProviderConnection for validated providers
+        try {
+          const result = await testProviderConnection(providerId);
+          healthy = result.success;
+          if (!healthy) error = result.message;
+        } catch (err) {
+          error = err instanceof Error ? err.message : 'Unknown error';
+        }
+      } else {
+        // Fallback: direct fetch with 5-second timeout
+        try {
+          const controller = new AbortController();
+          const timeout = setTimeout(() => controller.abort(), 5000);
+          const res = await fetch(`${provider.baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': `Bearer ${provider.apiKey}`,
+            },
+            body: JSON.stringify({
+              model: provider.model,
+              messages: [{ role: 'user', content: 'ping' }],
+              max_tokens: 1,
+            }),
+            signal: controller.signal,
+          });
+          clearTimeout(timeout);
+          healthy = res.ok;
+          if (!healthy) error = `HTTP ${res.status}`;
+        } catch (err) {
+          error = err instanceof Error ? err.message : 'Unknown error';
+        }
+      }
+
+      const latencyMs = Date.now() - start;
+
+      if (healthy) {
+        recordProviderSuccess(provider.model, latencyMs);
+      } else {
+        recordProviderFailure(provider.model);
+      }
+
+      results.push({
+        provider: provider.label,
+        model: provider.model,
+        healthy,
+        latencyMs,
+        error,
+      });
+    }
+
+    const healthyCount = results.filter(r => r.healthy).length;
+    logger.info(
+      `[model-router] pingProviders: ${healthyCount}/${results.length} providers healthy`,
+    );
+
+    return results;
   },
 };

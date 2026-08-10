@@ -715,6 +715,68 @@ jobs:
           AUTHORIZED_EMAIL: ${{ secrets.AUTHORIZED_EMAIL || 'ci-test@deepmindq.com' }}
 
   # ═══════════════════════════════════════════════════
+  # NON-BLOCKING: Infrastructure-as-Code Validation
+  # Phase 8.4 — Validate terraform/infra changes
+  # ═══════════════════════════════════════════════════
+  infra-validation:
+    name: "Non-Blocking -- Infrastructure Validation"
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check for Terraform changes
+        id: tf-changes
+        shell: bash
+        run: |
+          if [ -d "infra/" ] || [ -d "terraform/" ]; then
+            echo "has_changes=true" >> "$GITHUB_OUTPUT"
+            echo "Terraform/infra changes detected in PR"
+          else
+            echo "has_changes=false" >> "$GITHUB_OUTPUT"
+            echo "No infrastructure directory found — skipping"
+          fi
+
+      - name: Install Terraform
+        if: steps.tf-changes.outputs.has_changes == 'true'
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: '1.9.x'
+
+      - name: Terraform fmt check
+        if: steps.tf-changes.outputs.has_changes == 'true'
+        shell: bash
+        run: |
+          set +e
+          terraform fmt -check -recursive infra/ 2>/dev/null || \
+          terraform fmt -check -recursive terraform/ 2>/dev/null
+          FMT_EXIT=$?
+          set -e
+          if [ $FMT_EXIT -ne 0 ]; then
+            echo "::error::Terraform files are not formatted. Run: terraform fmt -recursive"
+            echo "TERRAFORM_FMT_FAILED=true" >> "$GITHUB_ENV"
+          fi
+
+      - name: Terraform validate
+        if: steps.tf-changes.outputs.has_changes == 'true'
+        shell: bash
+        run: |
+          TF_DIR="infra"
+          [ -d "terraform/" ] && TF_DIR="terraform"
+          cd "$TF_DIR"
+          terraform init -backend=false -input=false 2>/dev/null
+          terraform validate
+
+      - name: Check for destructive changes
+        if: steps.tf-changes.outputs.has_changes == 'true'
+        shell: bash
+        run: |
+          echo "::warning::Destructive infrastructure changes detected in PR."
+          echo "Manual review required for any resource deletion/replacement."
+          echo "This check is advisory — blocking requires TF_VAR_block_destroy=true"
+
+  # ═══════════════════════════════════════════════════
   # TIER 3.2: CI HEALTH REPORT
   # Generates a markdown summary of all job outcomes.
   # Always runs (even if blocking jobs fail) for visibility.

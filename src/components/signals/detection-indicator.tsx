@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 
 interface DetectionIndicatorProps {
   active: boolean
@@ -10,10 +11,10 @@ interface DetectionIndicatorProps {
 }
 
 const INDICATOR_COLORS = {
-  signal: { active: '#3b82f6', inactive: '#1e2535' },
-  enrichment: { active: '#06b6d4', inactive: '#1e2535' },
-  monitoring: { active: '#22c55e', inactive: '#1e2535' },
-  scoring: { active: '#f59e0b', inactive: '#1e2535' },
+  signal: { active: tokens.accent.DEFAULT, inactive: tokens.border.default },
+  enrichment: { active: tokens.domain.enrichment, inactive: tokens.border.default },
+  monitoring: { active: tokens.domain.action, inactive: tokens.border.default },
+  scoring: { active: tokens.domain.reasoning, inactive: tokens.border.default },
 }
 
 export function DetectionIndicator({ active, type, count, className }: DetectionIndicatorProps) {

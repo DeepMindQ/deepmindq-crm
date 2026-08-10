@@ -94,11 +94,35 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // For non-delete events, schedule a sync
+    // For non-delete events, trigger async sync for the changed entity
     if (eventType !== 'deleted' && connections.length > 0) {
-      // Mark connection as needing re-sync
-      // In production, this would trigger an async sync job
-      logger.info('[webhook:salesforce] Sync triggered by webhook', { connectionId: connections[0].id });
+      // P4.1: Map Salesforce entity to sync options
+      const entity = String(
+        (body?.sobject as Record<string, unknown>)?.type ||
+        (body?.ChangeEventHeader as Record<string, unknown>)?.entityName ||
+        'unknown'
+      );
+      const connectionId = connections[0].id;
+
+      const syncOptions: Record<string, boolean> = {
+        syncAccounts: entity === 'Account',
+        syncContacts: entity === 'Contact',
+        syncDeals: entity === 'Opportunity',
+      };
+
+      // Fire-and-forget async sync
+      (async () => {
+        try {
+          const { syncFromCRM } = await import('@/lib/crm/crm-sync-service');
+          await syncFromCRM(connectionId, {
+            ...syncOptions,
+            limit: 10,
+          });
+          logger.info(`[sf-webhook] Async sync completed for ${entity}/${entityId}`);
+        } catch (syncErr) {
+          logger.error(`[sf-webhook] Async sync failed for ${entity}/${entityId}`, { error: syncErr });
+        }
+      })();
     }
 
     return NextResponse.json({ received: true, eventType, entityId });

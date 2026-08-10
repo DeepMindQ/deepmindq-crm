@@ -252,7 +252,7 @@ function RecommendationQueueCard({
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => onUndo(item.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-[11px] font-medium transition-colors"
               style={{ backgroundColor: `${tokens.text.muted}15`, color: tokens.text.secondary }}
             >
               <RotateCcw className="w-3 h-3" />
@@ -264,7 +264,7 @@ function RecommendationQueueCard({
                 whileHover={{ backgroundColor: `${tokens.domain.risk}15` }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => onDismiss(item.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-[11px] font-medium transition-colors"
                 style={{ color: tokens.text.secondary, minHeight: '36px' }}
               >
                 <X className="w-3 h-3" />
@@ -274,7 +274,7 @@ function RecommendationQueueCard({
                 whileHover={{ backgroundColor: `${tokens.domain.reasoning}15` }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => onSnooze(item.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-[11px] font-medium transition-colors"
                 style={{ color: tokens.text.secondary, minHeight: '36px' }}
               >
                 <Pause className="w-3 h-3" />
@@ -284,7 +284,7 @@ function RecommendationQueueCard({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => onAccept(item.id)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-semibold transition-colors"
+                className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-[11px] font-semibold transition-colors"
                 style={{ backgroundColor: `${tokens.domain.action}15`, color: tokens.domain.action, minHeight: '36px' }}
               >
                 <Check className="w-3 h-3" />
@@ -295,7 +295,7 @@ function RecommendationQueueCard({
             <motion.button
               whileTap={{ scale: 0.95 }}
               onClick={() => onUndo(item.id)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-[11px] font-medium transition-colors"
+              className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg text-[11px] font-medium transition-colors"
               style={{ backgroundColor: `${tokens.text.muted}15`, color: tokens.text.secondary }}
             >
               <RotateCcw className="w-3 h-3" />
@@ -505,7 +505,7 @@ export default function RecommendationQueueScreen() {
                     <select
                       value={priorityFilter}
                       onChange={e => setPriorityFilter(e.target.value)}
-                      className="text-[11px] rounded-md px-2 py-1 border outline-none"
+                      className="text-[11px] rounded-md px-2 py-2.5 border outline-none"
                       style={{
                         borderColor: tokens.border.default,
                         backgroundColor: tokens.surface.card,
@@ -526,7 +526,7 @@ export default function RecommendationQueueScreen() {
                     <select
                       value={sourceFilter}
                       onChange={e => setSourceFilter(e.target.value)}
-                      className="text-[11px] rounded-md px-2 py-1 border outline-none"
+                      className="text-[11px] rounded-md px-2 py-2.5 border outline-none"
                       style={{
                         borderColor: tokens.border.default,
                         backgroundColor: tokens.surface.card,
@@ -546,7 +546,7 @@ export default function RecommendationQueueScreen() {
                     <select
                       value={sortBy}
                       onChange={e => setSortBy(e.target.value)}
-                      className="text-[11px] rounded-md px-2 py-1 border outline-none"
+                      className="text-[11px] rounded-md px-2 py-2.5 border outline-none"
                       style={{
                         borderColor: tokens.border.default,
                         backgroundColor: tokens.surface.card,

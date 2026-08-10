@@ -192,8 +192,8 @@ export function BatchOperationsPanel({ entityType, items, className, onExecute, 
             <span className="text-xs flex-1" style={{ color: tokens.text.primary }}>
               Confirm: {OPERATIONS[activeOp].label} on {selectedIds.size} items?
             </span>
-            <button onClick={handleCancel} className="text-[10px] px-2 py-1 rounded border" style={{ color: tokens.text.secondary, borderColor: tokens.border.default }}>Cancel</button>
-            <button onClick={() => handleExecute(activeOp)} className="text-[10px] font-semibold px-3 py-1 rounded-lg" style={{ background: OPERATIONS[activeOp].color, color: '#fff' }}>Confirm</button>
+            <button onClick={handleCancel} className="text-[10px] px-2 py-2.5 rounded border" style={{ color: tokens.text.secondary, borderColor: tokens.border.default }}>Cancel</button>
+            <button onClick={() => handleExecute(activeOp)} className="text-[10px] font-semibold px-3 py-2.5 rounded-lg" style={{ background: OPERATIONS[activeOp].color, color: 'var(--dmq-white)' }}>Confirm</button>
           </motion.div>
         )}
 

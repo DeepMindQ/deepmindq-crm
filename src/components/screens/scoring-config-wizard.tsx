@@ -100,10 +100,10 @@ export function ScoringConfigWizard({ className, onSave, onReset }: ScoringConfi
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button onClick={handleReset} disabled={resetConfigMutation.loading} className="flex items-center gap-1 text-[11px] px-3 py-1.5 rounded-lg hover:bg-white/5 border transition-colors" style={{ color: tokens.text.secondary, borderColor: tokens.border.default, opacity: resetConfigMutation.loading ? 0.5 : 1 }}>
+          <button onClick={handleReset} disabled={resetConfigMutation.loading} className="flex items-center gap-1 text-[11px] px-3 py-2.5 rounded-lg hover:bg-white/5 border transition-colors min-h-[44px]" style={{ color: tokens.text.secondary, borderColor: tokens.border.default, opacity: resetConfigMutation.loading ? 0.5 : 1 }}>
             {resetConfigMutation.loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <RotateCcw className="w-3.5 h-3.5" />}Reset
           </button>
-          <button onClick={handleSave} disabled={!hasChanges || saveConfigMutation.loading} className={cn('flex items-center gap-1 text-[11px] font-semibold px-3 py-1.5 rounded-lg transition-colors', (!hasChanges || saveConfigMutation.loading) && 'opacity-50')} style={{ background: tokens.domain.signal, color: '#fff' }}>
+          <button onClick={handleSave} disabled={!hasChanges || saveConfigMutation.loading} className={cn('flex items-center gap-1 text-[11px] font-semibold px-3 py-2.5 rounded-lg transition-colors', (!hasChanges || saveConfigMutation.loading) && 'opacity-50')} style={{ background: tokens.domain.signal, color: 'var(--dmq-white)' }}>
             {saveConfigMutation.loading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}Save
           </button>
         </div>
@@ -149,7 +149,7 @@ export function ScoringConfigWizard({ className, onSave, onReset }: ScoringConfi
 
             return (
               <div key={cat}>
-                <button onClick={() => setActiveCategory(isExpanded ? null : cat)} className="w-full flex items-center gap-2 py-2 text-left">
+                <button onClick={() => setActiveCategory(isExpanded ? null : cat)} className="w-full flex items-center gap-2 py-2.5 text-left min-h-[44px]">
                   {isExpanded ? <ChevronDown className="w-3 h-3" style={{ color: tokens.text.muted }} /> : <ChevronRight className="w-3 h-3" style={{ color: tokens.text.muted }} />}
                   <span className="text-xs font-semibold flex-1" style={{ color: tokens.text.primary }}>{cat}</span>
                   <span className={cn('text-[10px] tabular-nums', catTotal !== 100 && 'font-bold')} style={{ color: catTotal === 100 ? tokens.text.muted : tokens.domain.risk }}>

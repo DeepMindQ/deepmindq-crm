@@ -16,6 +16,7 @@
    ═══════════════════════════════════════════════════ */
 
 import { db } from '@/lib/db';
+import { tokens } from '@/lib/design-tokens';
 import { NextResponse } from 'next/server';
 import { sendEmail, getProviderInfo } from '@/lib/email-provider';
 import { logger } from '@/lib/logger';
@@ -189,20 +190,20 @@ function buildEmailHtml(params: {
   const { body, cta, firstName, signature } = params;
   const greeting = firstName ? `Hi ${firstName},` : 'Hello,';
   const ctaBlock = cta
-    ? `\n<p style="margin-top: 24px; font-size: 14px; color: #374151;">${cta}</p>`
+    ? `\n<p style="margin-top: 24px; font-size: 14px; color: {tokens.neutral['700']};">${cta}</p>`
     : '';
   const sigBlock = signature
-    ? `\n<div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 13px; white-space: pre-line;">${signature}</div>`
+    ? `\n<div style="margin-top: 32px; padding-top: 16px; border-top: 1px solid {tokens.neutral['200']}; color: {tokens.trust.unverified.value}; font-size: 13px; white-space: pre-line;">${signature}</div>`
     : '';
 
   return `<!DOCTYPE html>
 <html>
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
-<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 16px; color: #1f2937; background: #ffffff; line-height: 1.7; font-size: 14px;">
+<body style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 560px; margin: 0 auto; padding: 32px 16px; color: #1f2937; background: {tokens.flat.white}; line-height: 1.7; font-size: 14px;">
   <p style="font-size: 14px; color: #1f2937;">${greeting}</p>
   <div style="font-size: 14px; color: #1f2937; white-space: pre-line; margin-top: 16px;">${escapeHtml(body)}</div>${ctaBlock}${sigBlock}
-  <div style="margin-top: 40px; text-align: center; font-size: 11px; color: #9ca3af;">
-    <span style="color: #D4AF37;">${getBrandNameSync()}</span> &middot; AI-Powered Outreach
+  <div style="margin-top: 40px; text-align: center; font-size: 11px; color: {tokens.neutral['400']};">
+    <span style="color: {tokens.gold.DEFAULT};">${getBrandNameSync()}</span> &middot; AI-Powered Outreach
   </div>
 </body>
 </html>`;

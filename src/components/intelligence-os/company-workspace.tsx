@@ -1,5 +1,6 @@
 'use client';
 
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -67,21 +68,21 @@ function getConfidenceColor(val: number): string {
 }
 
 function getConfidenceBg(val: number): string {
-  if (val >= 75) return 'rgba(16,185,129,0.08)';
-  if (val >= 50) return 'rgba(245,158,11,0.08)';
-  return 'rgba(239,68,68,0.08)';
+  if (val >= 75) return 'tokens.extended.emerald.bg';
+  if (val >= 50) return tokens.confidence.medium.bg;
+  return tokens.priority.critical.bg;
 }
 
 function getConfidenceFill(val: number): string {
-  if (val >= 75) return 'rgba(16,185,129,0.6)';
-  if (val >= 50) return 'rgba(245,158,11,0.6)';
-  return 'rgba(239,68,68,0.6)';
+  if (val >= 75) return tokens.extended.emerald.value;
+  if (val >= 50) return tokens.domain.reasoning;
+  return tokens.domain.risk;
 }
 
 /* ── Type Label Config ── */
 const TYPE_CONFIG: Record<string, { label: string; color: string; icon: React.ElementType }> = {
   signal:            { label: 'INTELLIGENCE SIGNAL',  color: IOS.signal,      icon: Zap },
-  need:              { label: 'DETECTED NEED',        color: '#f59e0b',     icon: Target },
+  need:              { label: 'DETECTED NEED',        color: tokens.domain.reasoning,     icon: Target },
   capability_match:  { label: 'CAPABILITY MATCH',     color: IOS.confHigh,   icon: Target },
   action:            { label: 'RECOMMENDED ACTION',   color: IOS.opportunity, icon: Sparkles },
   stakeholder:       { label: 'KEY STAKEHOLDER',      color: IOS.intelligence, icon: Users },
@@ -239,21 +240,21 @@ function FeedbackControl({
     <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
       <button
         onClick={() => submitFeedback('accurate')}
-        className="p-1 rounded transition-colors hover:bg-[rgba(16,185,129,0.1)]"
+        className="p-1 rounded transition-colors hover:bg-[tokens.extended.emerald.bg]"
         title="Accurate"
       >
         <ThumbsUp className="w-3 h-3" style={{ color: IOS.textMuted }} />
       </button>
       <button
         onClick={() => submitFeedback('outdated')}
-        className="p-1 rounded transition-colors hover:bg-[rgba(245,158,11,0.1)]"
+        className="p-1 rounded transition-colors hover:bg-[tokens.priority.high.bg]"
         title="Outdated"
       >
         <Clock className="w-3 h-3" style={{ color: IOS.textMuted }} />
       </button>
       <button
         onClick={() => submitFeedback('incorrect')}
-        className="p-1 rounded transition-colors hover:bg-[rgba(239,68,68,0.1)]"
+        className="p-1 rounded transition-colors hover:bg-[tokens.priority.critical.bg]"
         title="Incorrect"
       >
         <ThumbsDown className="w-3 h-3" style={{ color: IOS.textMuted }} />
@@ -282,9 +283,9 @@ function IntelligenceSurface({
   const TypeIcon = typeConf.icon;
   const accentColor = typeConf.color;
   const roleColor = item.type === 'stakeholder' && item.category
-    ? item.category === 'Decision Maker' ? '#ef4444'
-      : item.category === 'Influencer' ? '#f59e0b'
-        : item.category === 'Team Member' ? '#06b6d4'
+    ? item.category === 'Decision Maker' ? tokens.domain.risk
+      : item.category === 'Influencer' ? tokens.domain.reasoning
+        : item.category === 'Team Member' ? tokens.domain.enrichment
           : IOS.textMuted
     : undefined;
 
@@ -321,7 +322,7 @@ function IntelligenceSurface({
             {item.priority === 'high' && (
               <span
                 className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[9px] font-bold tracking-wide"
-                style={{ background: 'rgba(239,68,68,0.1)', color: IOS.confLow, border: '1px solid rgba(239,68,68,0.2)' }}
+                style={{ background: tokens.confidence.low.bg, color: IOS.confLow, border: '1px solid tokens.priority.critical.border' }}
               >
                 HIGH PRIORITY
               </span>
@@ -535,10 +536,10 @@ function SectionHeader({
    ═══════════════════════════════════════════════════════════════════════════ */
 
 const SIGNAL_GROUPS = [
-  { key: 'technology', label: 'Technology Signals', icon: Cpu, accent: '#06b6d4', categories: ['tech_change'] },
+  { key: 'technology', label: 'Technology Signals', icon: Cpu, accent: tokens.domain.enrichment, categories: ['tech_change'] },
   { key: 'business', label: 'Business Signals', icon: Briefcase, accent: IOS.confHigh, categories: ['funding', 'expansion', 'partnership'] },
   { key: 'external', label: 'External Signals', icon: Newspaper, accent: IOS.signal, categories: ['news', 'mention', 'leadership_change'] },
-  { key: 'relationship', label: 'Relationship Signals', icon: Users, accent: '#8b5cf6', categories: ['hiring'] },
+  { key: 'relationship', label: 'Relationship Signals', icon: Users, accent: tokens.extended.purple.value, categories: ['hiring'] },
 ];
 
 function groupSignalsByCategory(signals: IntelligenceObject[]) {
@@ -957,7 +958,7 @@ function ExecutiveBriefModal({
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center"
-      style={{ background: 'rgba(10,12,16,0.85)', backdropFilter: 'blur(8px)' }}
+      style={{ background: tokens.surface.overlay, backdropFilter: 'blur(8px)' }}
       onClick={onClose}
     >
       <motion.div
@@ -967,7 +968,7 @@ function ExecutiveBriefModal({
         transition={{ duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
         className="ios-card w-full max-w-2xl max-h-[85vh] overflow-y-auto"
         style={{
-          boxShadow: `0 25px 50px rgba(0,0,0,0.5), 0 0 80px ${IOS.accent}08`,
+          boxShadow: `0 25px 50px tokens.opacity.medium, 0 0 80px ${IOS.accent}08`,
           border: `1px solid ${IOS.borderHover}`,
         }}
         onClick={(e) => e.stopPropagation()}
@@ -1257,9 +1258,9 @@ function PipelineProgressPanel({
           className="rounded-xl overflow-hidden"
           style={{
             background: IOS.bgCard,
-            border: `1px solid ${state === 'error' ? '#ef444440' : state === 'complete' ? `${IOS.confHigh}30` : `${IOS.accent}30`}`,
+            border: `1px solid ${state === 'error' ? tokens.domain.risk : state === 'complete' ? `${IOS.confHigh}30` : `${IOS.accent}30`}`,
             boxShadow: state === 'running'
-              ? `0 0 40px ${IOS.accent}08, 0 4px 20px rgba(0,0,0,0.3)`
+              ? `0 0 40px ${IOS.accent}08, 0 4px 20px tokens.opacity.subtle`
               : state === 'complete'
               ? `0 0 30px ${IOS.confHigh}06, 0 4px 16px rgba(0,0,0,0.2)`
               : 'none',
@@ -1281,8 +1282,8 @@ function PipelineProgressPanel({
                   <CheckCircle2Icon className="w-3.5 h-3.5" style={{ color: IOS.confHigh }} />
                 </div>
               ) : (
-                <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: 'rgba(239,68,68,0.15)' }}>
-                  <XCircle className="w-3.5 h-3.5" style={{ color: '#ef4444' }} />
+                <div className="w-6 h-6 rounded-full flex items-center justify-center" style={{ background: tokens.confidence.low.bg }}>
+                  <XCircle className="w-3.5 h-3.5" style={{ color: tokens.domain.risk }} />
                 </div>
               )}
               <div>
@@ -1293,7 +1294,7 @@ function PipelineProgressPanel({
                   {stages.length > 0 && (
                     <span className="text-[10px]" style={{ color: IOS.textMuted }}>
                       {completedCount}/{stages.length} stages complete
-                      {failedCount > 0 && <span style={{ color: '#ef4444' }}> · {failedCount} failed</span>}
+                      {failedCount > 0 && <span style={{ color: tokens.domain.risk }}> · {failedCount} failed</span>}
                     </span>
                   )}
                   {totalDuration > 0 && (
@@ -1370,7 +1371,7 @@ function PipelineProgressPanel({
                         </p>
                         <div
                           className="rounded-lg p-4"
-                          style={{ background: '#f8fafc', border: `1px solid ${IOS.border}` }}
+                          style={{ background: tokens.flat.coolBg, border: `1px solid ${IOS.border}` }}
                         >
                           <AIProgressTracker steps={phaseTrackerSteps} />
                         </div>
@@ -1438,12 +1439,12 @@ type Section = 'executive' | 'evidence' | 'technology' | 'alignment' | 'stakehol
 const SECTIONS: { key: Section; label: string; icon: React.ElementType; accent: string }[] = [
   { key: 'executive',    label: 'Understanding',        icon: Brain,     accent: IOS.accent },
   { key: 'evidence',     label: 'Signals & Evidence',    icon: Zap,       accent: IOS.signal },
-  { key: 'technology',   label: 'Technology',            icon: Server,    accent: '#06b6d4' },
+  { key: 'technology',   label: 'Technology',            icon: Server,    accent: tokens.domain.enrichment },
   { key: 'alignment',    label: 'Capability Alignment',  icon: Target,    accent: IOS.confHigh },
   { key: 'stakeholders', label: 'Stakeholders',          icon: Users,     accent: IOS.intelligence },
   { key: 'actions',      label: 'Actions',              icon: Sparkles,  accent: IOS.opportunity },
   { key: 'evidence-library', label: 'Evidence Library',  icon: BookOpen,  accent: IOS.confMedium },
-  { key: 'history',      label: 'Intelligence History',  icon: BarChart3, accent: '#06b6d4' },
+  { key: 'history',      label: 'Intelligence History',  icon: BarChart3, accent: tokens.domain.enrichment },
 ];
 
 export function CompanyWorkspace() {
@@ -1700,7 +1701,7 @@ export function CompanyWorkspace() {
                 background: pipelineState === 'running'
                   ? `${IOS.signal}20`
                   : `linear-gradient(135deg, ${IOS.signal}, ${IOS.opportunity})`,
-                color: '#fff',
+                color: tokens.flat.white,
                 boxShadow: pipelineState === 'running' ? 'none' : `0 0 24px ${IOS.signal}25, 0 4px 14px rgba(0,0,0,0.35)`,
                 border: 'none',
                 opacity: pipelineState === 'running' ? 0.7 : 1,
@@ -1723,8 +1724,8 @@ export function CompanyWorkspace() {
                 background: briefLoading
                   ? `${IOS.accent}20`
                   : `linear-gradient(135deg, ${IOS.accent}, ${IOS.accentDim})`,
-                color: '#fff',
-                boxShadow: briefLoading ? 'none' : `0 0 20px ${IOS.accent}30, 0 4px 12px rgba(0,0,0,0.3)`,
+                color: tokens.flat.white,
+                boxShadow: briefLoading ? 'none' : `0 0 20px ${IOS.accent}30, 0 4px 12px tokens.opacity.subtle`,
                 border: 'none',
               }}
             >
@@ -1806,7 +1807,7 @@ export function CompanyWorkspace() {
                 onClick={() => scrollToSection(section.key)}
                 className="flex items-center gap-2 px-3 py-2 rounded-lg text-[11px] font-semibold whitespace-nowrap transition-all shrink-0"
                 style={{
-                  color: isActive ? '#fff' : IOS.textSecondary,
+                  color: isActive ? tokens.flat.white : IOS.textSecondary,
                   background: isActive ? `${section.accent}` : 'transparent',
                   border: isActive ? 'none' : `1px solid transparent`,
                 }}
@@ -1829,8 +1830,8 @@ export function CompanyWorkspace() {
                   <span
                     className="text-[9px] font-bold px-1.5 py-0.5 rounded-full tabular-nums"
                     style={{
-                      background: isActive ? 'rgba(255,255,255,0.2)' : `${section.accent}12`,
-                      color: isActive ? '#fff' : section.accent,
+                      background: isActive ? tokens.opacity.white.faint : `${section.accent}12`,
+                      color: isActive ? tokens.flat.white : section.accent,
                     }}
                   >
                     {count}
@@ -2081,13 +2082,13 @@ export function CompanyWorkspace() {
           ref={(el) => { sectionRefs.current.technology = el; }}
           id="section-technology"
         >
-          <SectionHeader icon={Server} title="Technology Intelligence" accent="#06b6d4" />
+          <SectionHeader icon={Server} title="Technology Intelligence" accent={tokens.domain.enrichment} />
 
           {/* Digital Maturity + Tech Landscape */}
           <div className="ios-card p-5 mb-4" style={{ borderLeft: `2px solid #06b6d4` }}>
             <div className="flex items-start justify-between gap-4 mb-3">
               <div>
-                <p className="text-[9px] font-bold tracking-[0.2em] uppercase" style={{ color: '#06b6d4' }}>
+                <p className="text-[9px] font-bold tracking-[0.2em] uppercase" style={{ color: tokens.domain.enrichment }}>
                   Digital Maturity
                 </p>
                 <p className="text-lg font-bold capitalize mt-1" style={{ color: IOS.textPrimary }}>
@@ -2097,7 +2098,7 @@ export function CompanyWorkspace() {
               {intelligence.technology.techSignals.length > 0 && (
                 <span
                   className="text-[9px] font-bold px-2 py-0.5 rounded-full"
-                  style={{ background: 'rgba(6,182,212,0.1)', color: '#06b6d4' }}
+                  style={{ background: tokens.domain.enrichment, color: tokens.domain.enrichment }}
                 >
                   {intelligence.technology.techSignals.length} change signal{intelligence.technology.techSignals.length !== 1 ? 's' : ''}
                 </span>
@@ -2139,8 +2140,8 @@ export function CompanyWorkspace() {
                     <div className="space-y-2">
                       {relevantCaps.map(cap => (
                         <div key={cap.id} className="flex items-start gap-2 px-3 py-2 rounded-lg"
-                          style={{ background: 'rgba(6,182,212,0.06)', border: `1px solid rgba(6,182,212,0.15)` }}>
-                          <Cpu className="w-3 h-3 shrink-0 mt-0.5" style={{ color: '#06b6d4' }} />
+                          style={{ background: tokens.accent.ghost, border: `1px solid ${tokens.extended.sky.border}` }}>
+                          <Cpu className="w-3 h-3 shrink-0 mt-0.5" style={{ color: tokens.domain.enrichment }} />
                           <div>
                             <p className="text-xs font-medium" style={{ color: IOS.textPrimary }}>
                               {cap.title} — {cap.confidence}% match
@@ -2190,7 +2191,7 @@ export function CompanyWorkspace() {
 
           {intelligence.technology.knownTech.length === 0 && intelligence.technology.techSignals.length === 0 && (
             <div className="ios-card p-12 text-center">
-              <Server className="w-8 h-8 mx-auto mb-3" style={{ color: 'rgba(6,182,212,0.3)' }} />
+              <Server className="w-8 h-8 mx-auto mb-3" style={{ color: tokens.domain.enrichment }} />
               <p className="text-sm" style={{ color: IOS.textSecondary }}>No technology intelligence available yet. Enrich account to discover technology landscape.</p>
             </div>
           )}
@@ -2331,7 +2332,7 @@ export function CompanyWorkspace() {
           ref={(el) => { sectionRefs.current.history = el; }}
           id="section-history"
         >
-          <SectionHeader icon={BarChart3} title="Intelligence History" accent="#06b6d4" />
+          <SectionHeader icon={BarChart3} title="Intelligence History" accent={tokens.domain.enrichment} />
 
           {intelligence.signals.filter(s => s.temporal).length > 0 ? (
             <div className="space-y-2">
@@ -2379,7 +2380,7 @@ export function CompanyWorkspace() {
             </div>
           ) : (
             <div className="ios-card p-12 text-center">
-              <BarChart3 className="w-8 h-8 mx-auto mb-3" style={{ color: 'rgba(6,182,212,0.3)' }} />
+              <BarChart3 className="w-8 h-8 mx-auto mb-3" style={{ color: tokens.domain.enrichment }} />
               <p className="text-sm" style={{ color: IOS.textSecondary }}>
                 Intelligence history will appear as signals are detected over time.
               </p>

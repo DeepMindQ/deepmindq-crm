@@ -8,6 +8,10 @@
 import * as Sentry from '@sentry/nextjs'
 import { performance } from 'perf_hooks'
 import { db } from '@/lib/db'
+import { logger } from '@/lib/logger'
+import { dispatchAlert } from '@/lib/notification-dispatcher'
+import { registerTimer } from '@/lib/timer-registry'
+import { getSLABreachRoutes } from '@/lib/sla-monitor'
 
 // ── Metric Types ──
 interface MetricPoint {
@@ -29,7 +33,7 @@ interface AlertRule {
   cooldownMs: number
   enabled: boolean
   lastTriggered?: number
-  notificationChannels: ('log' | 'email' | 'slack')[]
+  notificationChannels: ('log' | 'email' | 'slack' | 'pagerduty')[]
 }
 
 interface Alert {
@@ -143,11 +147,20 @@ export function evaluateAlerts(): Alert[] {
       activeAlerts.push(alert)
       triggered.push(alert)
 
-      // Log alert
-      console.info(`[ALERT] [${rule.severity.toUpperCase()}] ${alert.message}`)
+      // Dispatch alert to configured notification channels
+      dispatchAlert({
+        alertId: alert.id,
+        ruleName: alert.ruleName,
+        severity: alert.severity,
+        message: alert.message,
+        metric: alert.metric,
+        value,
+        threshold: rule.threshold,
+        timestamp: alert.timestamp,
+      }, rule.notificationChannels).catch(() => {}) // fire-and-forget
 
-      // Send critical alerts to Sentry
-      if (rule.severity === 'critical') {
+      // Send critical and warning alerts to Sentry
+      if (rule.severity === 'critical' || rule.severity === 'warning') {
         Sentry.captureMessage(alert.message, {
           level: 'error',
           tags: { alertRule: rule.id, metric: rule.metric },
@@ -156,6 +169,41 @@ export function evaluateAlerts(): Alert[] {
       }
     }
   }
+
+  // ── SLA Breach Alert Evaluation (P5.3) ──
+  // Routes with >5 SLA breaches in the last hour trigger a warning alert.
+  try {
+    const slaBreached = getSLABreachRoutes(5, 3600000)
+    for (const route of slaBreached) {
+      const alert: Alert = {
+        id: `alert_${Date.now()}_sla_${route.route.replace(/\//g, '_')}`,
+        ruleId: 'sla-breach',
+        ruleName: 'SLA Breach',
+        severity: 'warning',
+        metric: `sla.breach.${route.route}`,
+        value: route.breachCount,
+        threshold: 5,
+        message: `SLA Breach: ${route.route} (${route.category}) has ${route.breachCount} breaches in the last hour (P99: ${route.p99Ms}ms, threshold: ${route.slaThreshold}ms)`,
+        timestamp: new Date().toISOString(),
+      }
+      activeAlerts.push(alert)
+      triggered.push(alert)
+
+      dispatchAlert({
+        alertId: alert.id,
+        ruleName: alert.ruleName,
+        severity: alert.severity,
+        message: alert.message,
+        metric: alert.metric,
+        value: route.breachCount,
+        threshold: 5,
+        timestamp: alert.timestamp,
+      }, ['log', 'slack']).catch(() => {})
+    }
+  } catch {
+    // SLA monitor may not be available in all runtimes
+  }
+
   return triggered
 }
 
@@ -228,7 +276,7 @@ export async function persistMetricSnapshot(): Promise<void> {
     })
   } catch (error) {
     // Non-blocking — never let persistence break metrics collection
-    console.warn('[Monitoring] Failed to persist metric snapshot:', error)
+    logger.warn('[Monitoring] Failed to persist metric snapshot', { error })
   }
 }
 
@@ -262,6 +310,9 @@ export function startMetricsPersistence(intervalMs = 5 * 60 * 1000): () => void 
 
   // Don't prevent process exit
   if (timer.unref) timer.unref()
+
+  // Register with timer-registry for clean shutdown (SIGTERM/SIGINT)
+  registerTimer(timer)
 
   // Fire once immediately
   persistMetricSnapshot()

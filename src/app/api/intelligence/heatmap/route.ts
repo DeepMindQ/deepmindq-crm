@@ -8,11 +8,12 @@
  * suitable for rendering a heatmap visualization.
  */
 
-import { NextRequest, NextResponse } from 'next/server';
+import { NextRequest } from 'next/server';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { computeUnifiedConfidence, type ConfidenceInput, type ConfidenceDimension } from '@/lib/ai-unified-confidence';
 import { checkApiAuth } from '@/lib/api-auth';
+import { utilityGuard, utilitySuccess, utilityCatchError, RateLimitedError } from '@/lib/intelligence-api/guard';
 
 // ── Dimensions ─────────────────────────────────────────────────────────
 
@@ -28,6 +29,26 @@ const DIMENSIONS: ConfidenceDimension[] = [
 // ── GET ─────────────────────────────────────────────────────────────────
 
 export async function GET(request: NextRequest) {
+  let correlationId;
+  let responseHeaders;
+
+  const { errorResponse } = await checkApiAuth(request);
+  if (errorResponse) return errorResponse;
+
+  try {
+    const ctx = utilityGuard(request, 'heatmap');
+    correlationId = ctx.correlationId;
+    responseHeaders = ctx.responseHeaders;
+  } catch (e) {
+    if (e instanceof RateLimitedError) {
+      return new Response(JSON.stringify(e.errorBody), { status: 429, headers: e.headers });
+    }
+    throw e;
+  }
+
+  const ctx = { correlationId, responseHeaders };
+  const startedAt = Date.now();
+
   try {
     const url = new URL(request.url);
     const industry = url.searchParams.get('industry') || undefined;
@@ -35,9 +56,6 @@ export async function GET(request: NextRequest) {
     const minScore = minScoreParam ? parseInt(minScoreParam, 10) : 0;
     const limitParam = url.searchParams.get('limit');
     const limit = limitParam ? Math.min(parseInt(limitParam, 10), 500) : 100;
-
-    const { errorResponse } = await checkApiAuth(request);
-    if (errorResponse) return errorResponse;
 
     // Build where clause
     const where: Record<string, unknown> = {};
@@ -124,13 +142,8 @@ export async function GET(request: NextRequest) {
       companiesReturned: companies.length,
     });
 
-    return NextResponse.json({ success: true, data: response });
+    return utilitySuccess(ctx, response, 'heatmap', Date.now() - startedAt);
   } catch (error) {
-    const message = error instanceof Error ? error.message : 'Internal server error';
-    logger.error('[heatmap] GET failed', { error: message });
-    return NextResponse.json(
-      { success: false, error: message },
-      { status: 500 },
-    );
+    return utilityCatchError(ctx, error, 500, 'INTERNAL_ERROR', 'heatmap', Date.now() - startedAt);
   }
 }

@@ -41,7 +41,7 @@ export async function GET(request: Request) {
       case 'memories': {
         const query = searchParams.get('query') || '';
         const companyId = searchParams.get('companyId') || undefined;
-        const memories = searchFeedbackMemories(query, { companyId, limit: 20 });
+        const memories = await searchFeedbackMemories(query, { companyId, limit: 20 });
         return NextResponse.json({ success: true, data: { memories, total: memories.length } });
       }
 

@@ -12,6 +12,7 @@
    ═══════════════════════════════════════════════════════════════ */
 
 import { useState, useCallback } from 'react';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { ArrowUp } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -75,7 +76,7 @@ export function AdvisorInputArea({
         onFocusCapture={(e) => {
           const wrapper = e.currentTarget;
           wrapper.style.borderColor = 'var(--accent)';
-          wrapper.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.15)';
+          wrapper.style.boxShadow = `0 0 0 3px ${tokens.accent.subtle}`;
         }}
         onBlurCapture={(e) => {
           const wrapper = e.currentTarget;

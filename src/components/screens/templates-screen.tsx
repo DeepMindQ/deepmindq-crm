@@ -216,7 +216,7 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
       <div className="space-y-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <SectionHeader title="Email Templates" subtitle="Manage reusable email templates with variable placeholders" />
-          <Button onClick={openCreate} className="gap-2" style={{ background: `linear-gradient(135deg, ${gold}, #E8C860)` }}>
+          <Button onClick={openCreate} className="gap-2" style={{ background: `linear-gradient(135deg, ${gold}, var(--dmq-gold-light))` }}>
             <Plus className="w-4 h-4" /> Create Template
           </Button>
         </div>
@@ -442,7 +442,7 @@ export default function TemplatesScreen({ navigateTo }: { navigateTo?: (screen: 
             </div>
             <div className="flex justify-end gap-2 pt-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>Cancel</Button>
-              <Button onClick={handleSave} disabled={saving} style={{ background: `linear-gradient(135deg, ${gold}, #E8C860)` }}>
+              <Button onClick={handleSave} disabled={saving} style={{ background: `linear-gradient(135deg, ${gold}, var(--dmq-gold-light))` }}>
                 {saving ? 'Saving...' : editingTemplate ? 'Update' : 'Create'}
               </Button>
             </div>

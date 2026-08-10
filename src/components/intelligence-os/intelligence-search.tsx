@@ -1,5 +1,6 @@
 'use client';
 
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -99,10 +100,10 @@ export function IntelligenceSearch() {
   };
 
   const typeColors = {
-    company: '#2563EB',
-    capability: '#8B5CF6',
-    signal: '#F59E0B',
-    contact: '#06B6D4',
+    company: tokens.accent.dim,
+    capability: tokens.extended.purple.value,
+    signal: tokens.domain.reasoning,
+    contact: tokens.domain.enrichment,
   };
 
   return (

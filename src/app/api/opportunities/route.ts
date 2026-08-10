@@ -19,9 +19,32 @@ try {
     const where = companyId ? { companyId } : {};
 
     const [opportunities, total] = await Promise.all([
+      // P5.1: Explicit select to avoid SELECT * and heavy JSON fields
       db.opportunityRecommendation.findMany({
         where,
-        include: { company: true },
+        select: {
+          id: true,
+          companyId: true,
+          signalId: true,
+          opportunityTitle: true,
+          businessTrigger: true,
+          whyNow: true,
+          businessProblem: true,
+          recommendedCapability: true,
+          suggestedConversation: true,
+          confidenceScore: true,
+          freshnessScore: true,
+          matchScore: true,
+          opportunityScore: true,
+          priority: true,
+          status: true,
+          rejectionReason: true,
+          reviewedBy: true,
+          reviewedAt: true,
+          createdAt: true,
+          updatedAt: true,
+          company: { select: { id: true, rawName: true, domain: true, industry: true } },
+        },
         orderBy: { createdAt: "desc" },
         skip: (page - 1) * pageSize,
         take: pageSize,

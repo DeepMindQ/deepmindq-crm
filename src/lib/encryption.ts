@@ -24,6 +24,27 @@
 
 import { logger } from '@/lib/logger';
 
+// ── Edge-Compatible Base64 Helpers ────────────────────────────
+// Replaces Node.js Buffer.from() for base64 encoding/decoding.
+// Uses btoa/atob which are available in Edge Runtime + Node.js 16+.
+
+function uint8ArrayToBase64(bytes: Uint8Array): string {
+  let binary = ''
+  for (let i = 0; i < bytes.length; i++) {
+    binary += String.fromCharCode(bytes[i])
+  }
+  return btoa(binary)
+}
+
+function base64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
+  const binary = atob(base64)
+  const bytes = new Uint8Array(binary.length)
+  for (let i = 0; i < binary.length; i++) {
+    bytes[i] = binary.charCodeAt(i)
+  }
+  return bytes
+}
+
 // ── Types ────────────────────────────────────────────────────────────
 
 export interface EncryptionResult {
@@ -179,8 +200,8 @@ export async function encryptField(
     );
     lastEncryptionTime = new Date().toISOString();
 
-    // Base64 encode
-    return Buffer.from(combined).toString('base64');
+    // Base64 encode — Edge-compatible (no Buffer)
+    return uint8ArrayToBase64(combined);
   } catch (err) {
     logger.error('[Encryption] Encryption failed', {
       error: err instanceof Error ? err.message : String(err),
@@ -209,7 +230,8 @@ export async function decryptField(
 
   // Check if this is actually encrypted (base64-encoded with version prefix)
   try {
-    const combined = Buffer.from(encrypted, 'base64');
+    // Base64 decode — Edge-compatible (no Buffer)
+    const combined = base64ToUint8Array(encrypted);
     if (combined.length < 1 + IV_LENGTH + TAG_LENGTH / 8) {
       // Too short to be encrypted — return as-is
       return encrypted;
@@ -359,6 +381,11 @@ export const ENCRYPTED_FIELDS = [
   // User PII
   'userEmail',
   'userPhone',
+  // Knowledge PII
+  'content',
+  'sourceUrl',
+  // Company sensitive
+  'internalSummary',
 ] as const;
 
 /**
@@ -375,6 +402,8 @@ export function isTlsEnforced(): boolean {
 
 const CONTACT_PII_FIELDS = ['email', 'phone', 'linkedinUrl', 'rawName', 'normalizedName'];
 const USER_PII_FIELDS = ['email', 'phone'];
+const KNOWLEDGE_PII_FIELDS = ['content', 'sourceUrl'] as const;
+const COMPANY_SENSITIVE_FIELDS = ['internalSummary'] as const;
 
 /**
  * Encrypt contact-specific PII fields in a data object.
@@ -434,6 +463,74 @@ export async function encryptUserFields(data: Record<string, unknown>): Promise<
 export async function decryptUserFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
   const result = { ...data };
   for (const field of USER_PII_FIELDS) {
+    if (typeof result[field] === 'string' && result[field]) {
+      const decrypted = await decryptField(field, result[field]);
+      if (decrypted !== null) {
+        result[field] = decrypted;
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Encrypt knowledge-specific PII fields in a data object.
+ * Encrypts: content, sourceUrl
+ */
+export async function encryptKnowledgeFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const result = { ...data };
+  for (const field of KNOWLEDGE_PII_FIELDS) {
+    if (typeof result[field] === 'string' && result[field]) {
+      const encrypted = await encryptField(field, result[field]);
+      if (encrypted !== null) {
+        result[field] = encrypted;
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Decrypt knowledge-specific PII fields in a data object.
+ * Decrypts: content, sourceUrl
+ */
+export async function decryptKnowledgeFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const result = { ...data };
+  for (const field of KNOWLEDGE_PII_FIELDS) {
+    if (typeof result[field] === 'string' && result[field]) {
+      const decrypted = await decryptField(field, result[field]);
+      if (decrypted !== null) {
+        result[field] = decrypted;
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Encrypt company-sensitive fields in a data object.
+ * Encrypts: internalSummary
+ */
+export async function encryptCompanySensitiveFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const result = { ...data };
+  for (const field of COMPANY_SENSITIVE_FIELDS) {
+    if (typeof result[field] === 'string' && result[field]) {
+      const encrypted = await encryptField(field, result[field]);
+      if (encrypted !== null) {
+        result[field] = encrypted;
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Decrypt company-sensitive fields in a data object.
+ * Decrypts: internalSummary
+ */
+export async function decryptCompanySensitiveFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+  const result = { ...data };
+  for (const field of COMPANY_SENSITIVE_FIELDS) {
     if (typeof result[field] === 'string' && result[field]) {
       const decrypted = await decryptField(field, result[field]);
       if (decrypted !== null) {

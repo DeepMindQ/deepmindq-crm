@@ -152,7 +152,7 @@ function SignalRow({ signal, onAction }: { signal: IntelligenceSignal; onAction:
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      whileHover={{ backgroundColor: 'rgba(255,255,255,0.02)' }}
+      whileHover={{ backgroundColor: 'var(--dmq-white-trace)' }}
       onClick={() => onAction(signal.id)}
       className="cursor-pointer rounded-xl border p-4 transition-all duration-200"
       style={{
@@ -216,7 +216,7 @@ function QuickActionButton({ icon: Icon, label, color, onClick }: {
 }) {
   return (
     <motion.button
-      whileHover={{ scale: 1.02, backgroundColor: 'rgba(255,255,255,0.04)' }}
+      whileHover={{ scale: 1.02, backgroundColor: 'var(--dmq-white-ghost)' }}
       whileTap={{ scale: 0.98 }}
       onClick={onClick}
       className="flex items-center gap-2.5 px-3 py-3 rounded-lg border text-[12px] font-medium justify-start transition-colors"

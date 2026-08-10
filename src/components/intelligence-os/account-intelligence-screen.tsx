@@ -105,19 +105,19 @@ export interface AccountIntelligenceScreenProps {
 
 // ─── Grade Color Map ────────────────────────────────────────
 const GRADE_COLORS: Record<IntelligenceGrade, string> = {
-  A: '#22c55e',
-  B: '#14b8a6',
-  C: '#f59e0b',
-  D: '#f97316',
-  F: '#ef4444',
+  A: tokens.domain.action,
+  B: tokens.trust.high.value,
+  C: tokens.domain.reasoning,
+  D: tokens.trust.low.value,
+  F: tokens.domain.risk,
 };
 
 const GRADE_BG: Record<IntelligenceGrade, string> = {
-  A: 'rgba(34, 197, 94, 0.12)',
-  B: 'rgba(20, 184, 166, 0.12)',
-  C: 'rgba(245, 158, 11, 0.12)',
-  D: 'rgba(249, 115, 22, 0.12)',
-  F: 'rgba(239, 68, 68, 0.12)',
+  A: tokens.trust.verified.bg,
+  B: tokens.trust.high.bg,
+  C: tokens.trust.medium.bg,
+  D: tokens.trust.low.bg,
+  F: tokens.priority.critical.bg,
 };
 
 // ─── Impact Level Colors ────────────────────────────────────

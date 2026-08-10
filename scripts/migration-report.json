@@ -1,0 +1,231 @@
+{
+  "css_properties_generated": 153,
+  "total_hex_instances": 185,
+  "unique_hex_values": 55,
+  "files_affected": 29,
+  "instances_replaced": 48,
+  "files_modified": 15,
+  "replacements": [
+    {
+      "hex": "#f87171",
+      "var": "--dmq-rose",
+      "files": 2,
+      "instances": 5,
+      "total_available": 6
+    },
+    {
+      "hex": "#374151",
+      "var": "--dmq-neutral-700",
+      "files": 3,
+      "instances": 6,
+      "total_available": 6
+    },
+    {
+      "hex": "#a855f7",
+      "var": "--dmq-domain-opportunity",
+      "files": 3,
+      "instances": 4,
+      "total_available": 5
+    },
+    {
+      "hex": "#16a34a",
+      "var": "--dmq-green-deep",
+      "files": 2,
+      "instances": 4,
+      "total_available": 4
+    },
+    {
+      "hex": "#ea580c",
+      "var": "--dmq-orange",
+      "files": 2,
+      "instances": 4,
+      "total_available": 4
+    },
+    {
+      "hex": "#0ea5e9",
+      "var": "--dmq-sky",
+      "files": 3,
+      "instances": 4,
+      "total_available": 4
+    },
+    {
+      "hex": "#8b5cf6",
+      "var": "--dmq-purple",
+      "files": 3,
+      "instances": 4,
+      "total_available": 4
+    },
+    {
+      "hex": "#6366f1",
+      "var": "--dmq-indigo",
+      "files": 3,
+      "instances": 4,
+      "total_available": 4
+    },
+    {
+      "hex": "#a1a1aa",
+      "var": "--dmq-border-gray",
+      "files": 1,
+      "instances": 4,
+      "total_available": 4
+    },
+    {
+      "hex": "#06b6d4",
+      "var": "--dmq-domain-enrichment",
+      "files": 1,
+      "instances": 2,
+      "total_available": 3
+    },
+    {
+      "hex": "#22d3ee",
+      "var": "--dmq-cyan",
+      "files": 2,
+      "instances": 2,
+      "total_available": 3
+    },
+    {
+      "hex": "#818cf8",
+      "var": "--dmq-sky-blue",
+      "files": 3,
+      "instances": 3,
+      "total_available": 3
+    },
+    {
+      "hex": "#ffffff",
+      "var": "--dmq-white",
+      "files": 2,
+      "instances": 2,
+      "total_available": 2
+    }
+  ],
+  "top_20": [
+    {
+      "hex": "#d4af37",
+      "count": 39,
+      "mapped": true,
+      "var": "--dmq-gold"
+    },
+    {
+      "hex": "#e8c860",
+      "count": 23,
+      "mapped": true,
+      "var": "--dmq-gold-light"
+    },
+    {
+      "hex": "#f87171",
+      "count": 6,
+      "mapped": true,
+      "var": "--dmq-rose"
+    },
+    {
+      "hex": "#2563eb",
+      "count": 6,
+      "mapped": true,
+      "var": "--dmq-accent-dim"
+    },
+    {
+      "hex": "#374151",
+      "count": 6,
+      "mapped": true,
+      "var": "--dmq-neutral-700"
+    },
+    {
+      "hex": "#a855f7",
+      "count": 5,
+      "mapped": true,
+      "var": "--dmq-domain-opportunity"
+    },
+    {
+      "hex": "#1d4ed8",
+      "count": 5,
+      "mapped": true,
+      "var": "--dmq-blue"
+    },
+    {
+      "hex": "#3b82f6",
+      "count": 4,
+      "mapped": true,
+      "var": "--dmq-accent-blue"
+    },
+    {
+      "hex": "#c084fc",
+      "count": 4,
+      "mapped": false,
+      "var": null
+    },
+    {
+      "hex": "#16a34a",
+      "count": 4,
+      "mapped": true,
+      "var": "--dmq-green-deep"
+    },
+    {
+      "hex": "#ea580c",
+      "count": 4,
+      "mapped": true,
+      "var": "--dmq-orange"
+    },
+    {
+      "hex": "#0ea5e9",
+      "count": 4,
+      "mapped": true,
+      "var": "--dmq-sky"
+    },
+    {
+      "hex": "#8b5cf6",
+      "count": 4,
+      "mapped": true,
+      "var": "--dmq-purple"
+    },
+    {
+      "hex": "#6366f1",
+      "count": 4,
+      "mapped": true,
+      "var": "--dmq-indigo"
+    },
+    {
+      "hex": "#a1a1aa",
+      "count": 4,
+      "mapped": true,
+      "var": "--dmq-border-gray"
+    },
+    {
+      "hex": "#06b6d4",
+      "count": 3,
+      "mapped": true,
+      "var": "--dmq-domain-enrichment"
+    },
+    {
+      "hex": "#22d3ee",
+      "count": 3,
+      "mapped": true,
+      "var": "--dmq-cyan"
+    },
+    {
+      "hex": "#818cf8",
+      "count": 3,
+      "mapped": true,
+      "var": "--dmq-sky-blue"
+    },
+    {
+      "hex": "#ffffff",
+      "count": 2,
+      "mapped": true,
+      "var": "--dmq-white"
+    },
+    {
+      "hex": "#0f1117",
+      "count": 2,
+      "mapped": true,
+      "var": "--dmq-surface-dark-alt"
+    }
+  ],
+  "unhandled_top": [
+    {
+      "hex": "#c084fc",
+      "count": 4
+    }
+  ],
+  "theoretical_coverage_pct": 85.9,
+  "migration_coverage_pct": 25.9
+}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -22,8 +23,8 @@ import {
 const C = {
   gold: 'var(--color-gold-dim)',
   goldLight: 'var(--color-gold)',
-  text: '#111827',
-  textMuted: '#6B7280',
+  text: tokens.neutral['900'],
+  textMuted: tokens.trust.unverified.value,
 };
 
 type LoginStep = 'email' | 'password' | 'otp' | 'set_password' | 'success';
@@ -279,7 +280,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
     <div
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto"
       style={{
-        background: 'linear-gradient(135deg, #0a0c10 0%, #111827 50%, #0a0c10 100%)',
+        background: `linear-gradient(135deg, #0a0c10 0%, ${tokens.neutral['900']} 50%, #0a0c10 100%)`,
         fontFamily: "var(--font-inter), system-ui, sans-serif",
       }}
     >
@@ -322,8 +323,8 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
         <div
           className="rounded-2xl p-8 shadow-2xl border"
           style={{
-            background: 'rgba(17, 24, 39, 0.8)',
-            borderColor: 'rgba(184, 134, 11, 0.15)',
+            background: tokens.surfaceExtended.backdropAlt,
+            borderColor: tokens.gold.borderFaint,
             backdropFilter: 'blur(20px)',
           }}
         >
@@ -365,7 +366,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                           ? 'text-white shadow-lg'
                           : 'text-gray-400 hover:text-gray-300'
                       }`}
-                      style={mode === 'otp' ? { background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` } : { background: 'rgba(255,255,255,0.05)' }}
+                      style={mode === 'otp' ? { background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` } : { background: tokens.opacity.white.shadow }}
                     >
                       <div className="flex items-center justify-center gap-2">
                         <ShieldCheck className="w-4 h-4" />
@@ -380,7 +381,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                           ? 'text-white shadow-lg'
                           : 'text-gray-400 hover:text-gray-300'
                       }`}
-                      style={mode === 'password' ? { background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` } : { background: 'rgba(255,255,255,0.05)' }}
+                      style={mode === 'password' ? { background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` } : { background: tokens.opacity.white.shadow }}
                     >
                       <div className="flex items-center justify-center gap-2">
                         <Lock className="w-4 h-4" />

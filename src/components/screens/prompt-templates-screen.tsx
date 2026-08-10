@@ -251,7 +251,7 @@ export default function PromptTemplatesScreen() {
             placeholder="Search templates..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 h-9"
+            className="pl-9 h-10"
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
@@ -260,7 +260,7 @@ export default function PromptTemplatesScreen() {
               key={cat}
               variant={category === cat ? 'default' : 'outline'}
               size="sm"
-              className={`h-8 text-xs rounded-lg ${category === cat ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}`}
+              className={`h-10 text-xs rounded-lg ${category === cat ? 'bg-amber-600 hover:bg-amber-700 text-white' : ''}`}
               onClick={() => setCategory(cat)}
             >
               {cat === 'all' ? 'All' : CATEGORY_CONFIG[cat]?.label ?? cat}
@@ -268,7 +268,7 @@ export default function PromptTemplatesScreen() {
           ))}
           <Button
             onClick={openCreate}
-            className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg h-8 text-xs ml-auto"
+            className="bg-amber-600 hover:bg-amber-700 text-white rounded-lg h-10 text-xs ml-auto min-h-[44px]"
           >
             <Plus className="size-3.5 mr-1" />
             New Template
@@ -388,7 +388,7 @@ export default function PromptTemplatesScreen() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    className="h-10 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 min-h-[44px]"
                     onClick={() => setExpandedId(isExpanded ? null : template.id)}
                   >
                     <Eye className="size-3.5 mr-1" />
@@ -397,7 +397,7 @@ export default function PromptTemplatesScreen() {
                   <Button
                     variant="ghost"
                     size="sm"
-                    className="h-7 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100"
+                    className="h-10 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-100 min-h-[44px]"
                     onClick={() => duplicateMutation.mutate(template)}
                   >
                     <Copy className="size-3.5 mr-1" />
@@ -408,7 +408,7 @@ export default function PromptTemplatesScreen() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs text-gray-600 hover:text-amber-700 hover:bg-amber-50"
+                        className="h-10 text-xs text-gray-600 hover:text-amber-700 hover:bg-amber-50 min-h-[44px]"
                         onClick={() => openEdit(template)}
                       >
                         <Edit3 className="size-3.5 mr-1" />
@@ -417,7 +417,7 @@ export default function PromptTemplatesScreen() {
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="h-7 text-xs text-red-500 hover:text-red-700 hover:bg-red-50"
+                        className="h-10 text-xs text-red-500 hover:text-red-700 hover:bg-red-50 min-h-[44px]"
                         onClick={() => setDeleteId(template.id)}
                       >
                         <Trash2 className="size-3.5 mr-1" />
@@ -454,13 +454,13 @@ export default function PromptTemplatesScreen() {
                   value={formName}
                   onChange={(e) => setFormName(e.target.value)}
                   placeholder="e.g. Warm Introduction Email"
-                  className="h-9"
+                  className="h-10"
                 />
               </div>
               <div className="space-y-1.5">
                 <Label className="text-xs font-medium">Category *</Label>
                 <Select value={formCategory} onValueChange={setFormCategory}>
-                  <SelectTrigger className="h-9">
+                  <SelectTrigger className="h-10">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -479,7 +479,7 @@ export default function PromptTemplatesScreen() {
                 value={formDescription}
                 onChange={(e) => setFormDescription(e.target.value)}
                 placeholder="Brief description of when to use this template"
-                className="h-9"
+                className="h-10"
               />
             </div>
 

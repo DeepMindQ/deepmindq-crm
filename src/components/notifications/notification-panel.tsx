@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Button } from '@/components/ui/button'
@@ -89,7 +90,7 @@ export function NotificationPanel() {
                 <div
                   className="w-12 h-12 rounded-xl flex items-center justify-center mb-3"
                   style={{
-                    background: 'rgba(59,130,246,0.1)',
+                    background: tokens.accent.subtle,
                     border: '1px solid rgba(59,130,246,0.2)',
                   }}
                 >

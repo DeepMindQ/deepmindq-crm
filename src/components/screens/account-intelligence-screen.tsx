@@ -163,7 +163,7 @@ export default function AccountIntelligenceScreen() {
   });
 
   // Fetch company details
-  const { data: company } = useQuery({
+  const { data: company, isLoading: companyLoading } = useQuery({
     queryKey: ['account-intelligence-company', selectedCompanyId],
     queryFn: async () => {
       if (!selectedCompanyId) return null;
@@ -176,7 +176,7 @@ export default function AccountIntelligenceScreen() {
   });
 
   // Fetch signals
-  const { data: signals } = useQuery({
+  const { data: signals, isLoading: signalsLoading } = useQuery({
     queryKey: ['account-intelligence-signals', selectedCompanyId],
     queryFn: async () => {
       if (!selectedCompanyId) return [];
@@ -190,7 +190,7 @@ export default function AccountIntelligenceScreen() {
   });
 
   // Fetch contacts
-  const { data: contacts } = useQuery({
+  const { data: contacts, isLoading: contactsLoading } = useQuery({
     queryKey: ['account-intelligence-contacts', selectedCompanyId],
     queryFn: async () => {
       if (!selectedCompanyId) return [];

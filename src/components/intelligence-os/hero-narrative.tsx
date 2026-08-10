@@ -55,10 +55,10 @@ export interface HeroNarrativeProps {
 
 // ── Priority visual config aligned with design tokens ──
 const PRIORITY_STYLES: Record<string, { color: string; bg: string; border: string }> = {
-  critical: { color: '#ef4444', bg: 'rgba(239,68,68,0.08)', border: 'rgba(239,68,68,0.15)' },
-  high:     { color: '#f59e0b', bg: 'rgba(245,158,11,0.08)', border: 'rgba(245,158,11,0.15)' },
-  medium:   { color: '#3b82f6', bg: 'rgba(59,130,246,0.08)', border: 'rgba(59,130,246,0.15)' },
-  low:      { color: '#8892a8', bg: 'rgba(136,146,168,0.08)', border: 'rgba(136,146,168,0.15)' },
+  critical: { color: tokens.domain.risk, bg: tokens.priority.critical.bg, border: tokens.confidence.low.bg },
+  high:     { color: tokens.domain.reasoning, bg: tokens.confidence.medium.bg, border: tokens.confidence.medium.bg },
+  medium:   { color: tokens.accent.DEFAULT, bg: tokens.accent.ghost, border: tokens.accent.subtle },
+  low:      { color: tokens.text.secondary, bg: tokens.opacity.trace, border: tokens.opacity.whisper },
 };
 
 export function HeroNarrative({

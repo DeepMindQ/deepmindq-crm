@@ -9,9 +9,10 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { checkApiAuth } from '@/lib/api-auth';
+import { dispatchAction, listHandlers } from '@/lib/integration-dispatcher';
 
 // ---------------------------------------------------------------------------
-// Connector definitions
+// Connector definitions (schema / capability metadata for API consumers)
 // ---------------------------------------------------------------------------
 
 interface ConnectorAction {
@@ -144,12 +145,12 @@ const CONNECTORS: Connector[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// GET — list connectors & capabilities
+// GET — list connectors, capabilities, and registered action handlers
 // ---------------------------------------------------------------------------
 
-export async function GET(request: NextRequest): Promise<NextResponse> {
-  const auth = await checkApiAuth(request);
-  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function GET(request: NextRequest): Promise<Response> {
+  const { session, errorResponse } = await checkApiAuth(request);
+  if (errorResponse) return errorResponse;
 
   const summary = CONNECTORS.map((c) => ({
     id: c.id,
@@ -163,16 +164,17 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     version: '1.0.0',
     connectors: summary,
     totalActions: CONNECTORS.reduce((sum, c) => sum + c.actions.length, 0),
+    registeredHandlers: listHandlers(),
   });
 }
 
 // ---------------------------------------------------------------------------
-// POST — execute an action
+// POST — execute an action via the integration dispatcher
 // ---------------------------------------------------------------------------
 
-export async function POST(request: NextRequest): Promise<NextResponse> {
-  const auth = await checkApiAuth(request);
-  if (!auth) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+export async function POST(request: NextRequest): Promise<Response> {
+  const { session, errorResponse } = await checkApiAuth(request);
+  if (errorResponse) return errorResponse;
 
   try {
     const body = (await request.json()) as {
@@ -198,8 +200,8 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    const action = connector.actions.find((a) => a.id === body.action);
-    if (!action) {
+    const actionDef = connector.actions.find((a) => a.id === body.action);
+    if (!actionDef) {
       return NextResponse.json(
         {
           error: `Unknown action "${body.action}" for connector "${connector.id}". Available: ${connector.actions.map((a) => a.id).join(', ')}`,
@@ -208,9 +210,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       );
     }
 
-    // Validate required fields
+    // Validate required fields against connector schema
     const params = body.params ?? {};
-    for (const field of action.inputFields) {
+    for (const field of actionDef.inputFields) {
       if (field.required && params[field.key] === undefined) {
         return NextResponse.json(
           { error: `Missing required parameter: "${field.label}" (${field.key})` },
@@ -219,17 +221,14 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
       }
     }
 
-    // Mock execution — in production this would dispatch to real handlers.
-    const mockId = `${connector.id}.${action.id}_${Date.now().toString(36)}`;
-
-    return NextResponse.json({
-      success: true,
-      connector: connector.id,
-      action: action.id,
-      executionId: mockId,
-      message: `Action "${action.name}" on "${connector.name}" executed successfully (mock).`,
-      input: params,
+    // Dispatch through the integration dispatcher
+    const action = body.action;
+    const result = await dispatchAction(action, params as Record<string, unknown>, {
+      userId: session?.id,
+      requestId: crypto.randomUUID(),
     });
+
+    return NextResponse.json(result, { status: result.success ? 200 : 400 });
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : 'Internal server error';
     return NextResponse.json({ error: message }, { status: 500 });

@@ -136,6 +136,17 @@ export function estimateUnifiedCost(model: string, inputTokens: number, outputTo
   );
 }
 
+/**
+ * Get the combined input+output cost per 1M tokens for a model.
+ * Returns undefined if model is not found in the registry.
+ */
+export function getModelCost(model: string): { inputPerM: number; outputPerM: number } | undefined {
+  const config = MODEL_COST_REGISTRY.find(c => c.model === model) ||
+    MODEL_COST_REGISTRY.find(c => model.includes(c.model.split('/').pop() || ''));
+  if (!config || config.model === 'default') return undefined;
+  return { inputPerM: config.inputPerM, outputPerM: config.outputPerM };
+}
+
 // ─── Budget Configuration ──────────────────────────────────────────────
 
 interface BudgetConfig {

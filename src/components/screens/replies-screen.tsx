@@ -58,7 +58,7 @@ const CATEGORY_ICONS: Record<string, typeof Mail> = {
 /* ══════════════════════════════ Design Tokens ══════════════════════════════ */
 
 const gold = 'var(--color-gold-dim)', goldLight = 'var(--color-gold)';
-const card = 'rgba(255, 255, 255, 0.85)', border = 'rgba(0, 0, 0, 0.08)';
+const card = 'var(--dmq-white-card)', border = 'var(--dmq-black-faint)';
 
 function fmtDate(iso: string) {
   const d = new Date(iso);
@@ -143,8 +143,8 @@ export default function RepliesScreen({ navigateTo }: { navigateTo?: (screen: st
         <div className="grid grid-cols-3 gap-4">
           {[
             { icon: Inbox, label: 'Total Replies', value: stats.total, color: gold },
-            { icon: TrendingUp, label: 'Positive', value: stats.positive, color: '#10B981' },
-            { icon: TrendingDown, label: 'Negative', value: stats.negative, color: '#EF4444' },
+            { icon: TrendingUp, label: 'Positive', value: stats.positive, color: 'var(--dmq-emerald)' },
+            { icon: TrendingDown, label: 'Negative', value: stats.negative, color: 'var(--dmq-domain-risk)' },
           ].map(({ icon: Icon, label, value, color }, i) => (
             <motion.div key={label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5, delay: i * 0.06, ease: [0.22, 1, 0.36, 1] }}
@@ -167,14 +167,14 @@ export default function RepliesScreen({ navigateTo }: { navigateTo?: (screen: st
           <div className="flex items-center gap-1.5 flex-wrap">
             {tabsWithCounts.map(tab => (
               <button key={tab.key}
-                className={`text-[11px] px-3 py-1.5 rounded-lg font-medium transition-all duration-200 ${
+                className={`text-[11px] px-3 py-2.5 rounded-lg font-medium transition-all duration-200 ${
                   categoryFilter === tab.key
                     ? 'text-black'
                     : 'text-muted-foreground hover:text-foreground'
                 }`}
                 style={categoryFilter === tab.key
-                  ? { background: 'linear-gradient(135deg, #D4AF37, #E8C860)' }
-                  : { background: 'rgba(0,0,0,0.03)', border: `1px solid ${border}` }}
+                  ? { background: 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))' }
+                  : { background: 'var(--dmq-black-shadow)', border: `1px solid ${border}` }}
                 onClick={() => setCategoryFilter(tab.key)}>
                 {tab.label}
                 <span className={`ml-1.5 tabular-nums ${categoryFilter === tab.key ? 'text-black/70' : 'text-muted-foreground/50'}`}>
@@ -186,7 +186,7 @@ export default function RepliesScreen({ navigateTo }: { navigateTo?: (screen: st
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search replies..."
-              className="h-8 pl-8 pr-7 w-44 text-xs rounded-lg" style={{ background: card, border: `1px solid ${border}` }} />
+              className="h-10 pl-8 pr-7 w-44 text-xs rounded-lg" style={{ background: card, border: `1px solid ${border}` }} />
             {search && <X className="w-3 h-3 absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground cursor-pointer hover:text-foreground" onClick={() => setSearch('')} />}
           </div>
         </div>
@@ -259,7 +259,7 @@ export default function RepliesScreen({ navigateTo }: { navigateTo?: (screen: st
                             <Tooltip>
                               <TooltipTrigger asChild>
                                 <motion.button whileTap={{ scale: 0.9 }} onClick={(e) => { e.stopPropagation(); setDetailReply(reply); }}
-                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-black/[0.03]">
+                                  className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-black/[0.03]">
                                   <Eye className="w-3 h-3" />
                                 </motion.button>
                               </TooltipTrigger>
@@ -269,7 +269,7 @@ export default function RepliesScreen({ navigateTo }: { navigateTo?: (screen: st
                               <TooltipTrigger asChild>
                                 <motion.button whileTap={{ scale: 0.9 }}
                                   onClick={(e) => { e.stopPropagation(); setFollowUpReply(reply); }}
-                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-black/[0.03]">
+                                  className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-black/[0.03]">
                                   <MessageSquarePlus className="w-3 h-3" />
                                 </motion.button>
                               </TooltipTrigger>
@@ -279,7 +279,7 @@ export default function RepliesScreen({ navigateTo }: { navigateTo?: (screen: st
                               <TooltipTrigger asChild>
                                 <motion.button whileTap={{ scale: 0.9 }}
                                   onClick={(e) => { e.stopPropagation(); setSuppressReply(reply); }}
-                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50">
+                                  className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-red-600 hover:bg-red-50">
                                   <Ban className="w-3 h-3" />
                                 </motion.button>
                               </TooltipTrigger>
@@ -289,7 +289,7 @@ export default function RepliesScreen({ navigateTo }: { navigateTo?: (screen: st
                               <TooltipTrigger asChild>
                                 <motion.button whileTap={{ scale: 0.9 }}
                                   onClick={(e) => { e.stopPropagation(); setMarkDialog({ reply, category: 'positive' }); }}
-                                  className="w-7 h-7 rounded-lg flex items-center justify-center text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50">
+                                  className="w-10 h-10 rounded-lg flex items-center justify-center text-muted-foreground hover:text-emerald-600 hover:bg-emerald-50">
                                   <ThumbsUp className="w-3 h-3" />
                                 </motion.button>
                               </TooltipTrigger>
@@ -379,7 +379,7 @@ export default function RepliesScreen({ navigateTo }: { navigateTo?: (screen: st
               <Button variant="outline" onClick={() => setFollowUpReply(null)}>Cancel</Button>
               <Button onClick={() => followUpReply && followUpMutation.mutate({ contactId: followUpReply.contactId!, replyId: followUpReply.id })}
                 disabled={followUpMutation.isPending || !followUpReply?.contactId}
-                style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }}>
+                style={{ background: 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))', color: 'var(--dmq-black)' }}>
                 {followUpMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Generate Draft'}
               </Button>
             </DialogFooter>
@@ -405,7 +405,7 @@ export default function RepliesScreen({ navigateTo }: { navigateTo?: (screen: st
               <Button variant="outline" onClick={() => setMarkDialog(null)}>Cancel</Button>
               <Button onClick={() => markDialog && markMutation.mutate({ id: markDialog.reply.id, category: markDialog.category })}
                 disabled={markMutation.isPending}
-                style={{ background: 'linear-gradient(135deg, #D4AF37, #E8C860)', color: '#000' }}>
+                style={{ background: 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))', color: 'var(--dmq-black)' }}>
                 {markMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Update'}
               </Button>
             </DialogFooter>

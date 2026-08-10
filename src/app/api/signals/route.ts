@@ -53,10 +53,27 @@ try {
 
     /* ── Fetch signals with company + capability matches ── */
     const [signals, total, categoriesRaw, evidenceCountsRaw] = await Promise.all([
-      // Signals paginated
+      // Signals paginated — P5.1: explicit select to avoid SELECT *
       db.companySignal.findMany({
         where,
-        include: {
+        select: {
+          id: true,
+          companyId: true,
+          signalType: true,
+          title: true,
+          description: true,
+          severity: true,
+          impact: true,
+          confidence: true,
+          status: true,
+          isRead: true,
+          createdAt: true,
+          meaningCategory: true,
+          businessImpact: true,
+          recommendedAction: true,
+          timingWindow: true,
+          expiresAt: true,
+          evidenceIds: true,
           company: {
             select: { id: true, normalizedName: true, website: true },
           },
@@ -69,7 +86,9 @@ try {
             },
           },
           signalCapabilityMatches: {
-            include: {
+            select: {
+              matchScore: true,
+              reason: true,
               capability: {
                 select: { id: true, title: true, category: true },
               },

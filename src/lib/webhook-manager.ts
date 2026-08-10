@@ -1,4 +1,5 @@
 import { db } from '@/lib/db';
+import { dispatchReliableWebhook } from '@/lib/webhook-reliability';
 
 // Types
 export interface WebhookConfig {
@@ -111,31 +112,30 @@ export async function dispatchWebhook(
     if (!config.active || !config.events.includes(event)) continue
 
     const start = Date.now()
+    const signature = generateSignature(body, config.secret)
+
     try {
-      const signature = generateSignature(body, config.secret)
-      const res = await fetch(config.url, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'X-Webhook-Signature': `sha256=${signature}`,
-          'X-Webhook-Event': event,
-          'X-Webhook-ID': config.id,
-          'X-Delivery-Timestamp': fullEvent.timestamp,
-        },
-        body,
-      })
+      // Use reliable dispatch (P4.3): creates delivery record, retries on failure
+      const result = await dispatchReliableWebhook(
+        event,
+        config.url,
+        fullEvent,
+        signature,
+        config.id,
+        config.retryCount || 3,
+      )
 
       config.lastTriggeredAt = fullEvent.timestamp
-      if (res.ok) {
+      if (result.success) {
         config.successCount++
       } else {
         config.failureCount++
       }
 
       results.push({
-        success: res.ok,
-        statusCode: res.status,
-        response: await res.text(),
+        success: result.success,
+        statusCode: result.statusCode ?? 0,
+        response: result.error ?? '',
         duration: Date.now() - start,
       })
     } catch (error) {

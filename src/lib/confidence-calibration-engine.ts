@@ -47,6 +47,10 @@ export interface CalibrationSummary {
   totalSamples: number;
   isCalibrated: boolean;
   recommendations: string[];
+  /** P3.2: Expected Calibration Error (0 = perfect, >0.1 needs recalibration) */
+  ece: number;
+  /** P3.2: Human-readable bucket-level report strings */
+  bucketReport: string[];
 }
 
 // ── Outcome → Score Mapping ────────────────────────────────────────────────
@@ -221,12 +225,28 @@ export async function getCalibration(
     const isCalibrated = dimensions.length > 0 &&
       dimensions.every(d => d.status === 'calibrated');
 
+    // P3.2: Compute overall ECE and bucket report from merged buckets
+    const mergedBuckets: Record<string, { correct: number; total: number }> = {};
+    for (const d of dimensions) {
+      for (const [key, data] of Object.entries(d.buckets)) {
+        if (!mergedBuckets[key]) mergedBuckets[key] = { correct: 0, total: 0 };
+        mergedBuckets[key].correct += data.correct;
+        mergedBuckets[key].total += data.total;
+      }
+    }
+    const { ece, bucketDetails } = computeECE(mergedBuckets);
+    const bucketReport = bucketDetails.map(bd =>
+      `When model says ${bd.midpoint}% confidence, actual accuracy is ${bd.accuracy}% (gap: ${bd.gap}%, n=${bd.samples})`
+    );
+
     return {
       dimensions,
       overallCorrectionFactor,
       totalSamples,
       isCalibrated,
       recommendations,
+      ece,
+      bucketReport,
     };
   } catch (err) {
     logger.error('[CalibrationEngine] Failed to get calibration:', { error: err, dimension });
@@ -236,6 +256,8 @@ export async function getCalibration(
       totalSamples: 0,
       isCalibrated: false,
       recommendations: ['Unable to load calibration data'],
+      ece: 0,
+      bucketReport: [],
     };
   }
 }
@@ -397,6 +419,259 @@ function generateCalibrationRecommendations(
   }
 
   return recs;
+}
+
+// ── P3.2: ECE Computation ───────────────────────────────────────────────────
+
+/**
+ * P3.2: Compute Expected Calibration Error (ECE).
+ *
+ * ECE = Σ (n_b / N) × |accuracy_b - confidence_b|
+ * where:
+ *   n_b = number of samples in bucket b
+ *   N = total number of samples
+ *   accuracy_b = actual accuracy within bucket b (correct/total)
+ *   confidence_b = predicted confidence midpoint of bucket b
+ *
+ * ECE ranges from 0 (perfectly calibrated) to 1 (terribly calibrated).
+ * ECE < 0.05 is good, ECE > 0.1 needs recalibration.
+ */
+export function computeECE(buckets: Record<string, { correct: number; total: number }>): {
+  ece: number;
+  bucketDetails: Array<{
+    bucket: string;
+    midpoint: number;
+    accuracy: number;
+    gap: number;
+    weight: number;
+    samples: number;
+  }>;
+} {
+  let totalSamples = 0;
+  for (const b of Object.values(buckets)) totalSamples += b.total;
+  if (totalSamples === 0) return { ece: 0, bucketDetails: [] };
+
+  const bucketRanges: Array<{ key: string; low: number; high: number }> = [
+    { key: '0-10', low: 0, high: 10 },
+    { key: '10-20', low: 10, high: 20 },
+    { key: '20-30', low: 20, high: 30 },
+    { key: '30-40', low: 30, high: 40 },
+    { key: '40-50', low: 40, high: 50 },
+    { key: '50-60', low: 50, high: 60 },
+    { key: '60-70', low: 60, high: 70 },
+    { key: '70-80', low: 70, high: 80 },
+    { key: '80-90', low: 80, high: 90 },
+    { key: '90-100', low: 90, high: 100 },
+  ];
+
+  let ece = 0;
+  const bucketDetails: Array<{
+    bucket: string;
+    midpoint: number;
+    accuracy: number;
+    gap: number;
+    weight: number;
+    samples: number;
+  }> = [];
+
+  for (const range of bucketRanges) {
+    const bucket = buckets[range.key];
+    if (!bucket || bucket.total === 0) continue;
+
+    const midpoint = (range.low + range.high) / 2 / 100; // 0-1 scale
+    const accuracy = bucket.correct / bucket.total;
+    const gap = Math.abs(accuracy - midpoint);
+    const weight = bucket.total / totalSamples;
+
+    ece += weight * gap;
+    bucketDetails.push({
+      bucket: range.key,
+      midpoint: Math.round(midpoint * 100),
+      accuracy: Math.round(accuracy * 10000) / 100,
+      gap: Math.round(gap * 10000) / 100,
+      weight: Math.round(weight * 10000) / 100,
+      samples: bucket.total,
+    });
+  }
+
+  return {
+    ece: Math.round(ece * 10000) / 10000,
+    bucketDetails,
+  };
+}
+
+// ── P3.2: Calibration Report Generation ──────────────────────────────────────
+
+/**
+ * P3.2: Generate calibration report.
+ * Returns human-readable calibration data: "When model says X% confidence, actual accuracy is Y%"
+ */
+export async function generateCalibrationReport(dimension?: string): Promise<{
+  generatedAt: string;
+  dimensions: Array<{
+    dimension: string;
+    ece: number;
+    needsRecalibration: boolean;
+    totalSamples: number;
+    status: string;
+    bucketReport: string[];
+  }>;
+  overallECE: number;
+  overallNeedsRecalibration: boolean;
+  recommendations: string[];
+}> {
+  try {
+    const whereClause = dimension ? { where: { dimension } } : {};
+    const curves = await db.calibrationCurve.findMany({
+      ...whereClause,
+      orderBy: { sampleCount: 'desc' },
+    });
+
+    if (curves.length === 0) {
+      return {
+        generatedAt: new Date().toISOString(),
+        dimensions: [],
+        overallECE: 0,
+        overallNeedsRecalibration: false,
+        recommendations: ['No calibration data recorded yet. Begin by recording outcomes against predicted scores.'],
+      };
+    }
+
+    // Merge buckets across all dimensions for overall ECE
+    const mergedBuckets: Record<string, { correct: number; total: number }> = {};
+    let overallTotalSamples = 0;
+
+    const dimReports = curves.map(curve => {
+      let buckets: Record<string, { correct: number; total: number }> = {};
+      try {
+        buckets = typeof curve.buckets === 'string'
+          ? JSON.parse(curve.buckets)
+          : (curve.buckets as Record<string, { correct: number; total: number }>);
+      } catch {
+        buckets = {};
+      }
+
+      const { ece, bucketDetails } = computeECE(buckets);
+
+      // Generate human-readable bucket report
+      const bucketReport = bucketDetails.map(bd =>
+        `When model says ${bd.midpoint}% confidence, actual accuracy is ${bd.accuracy}% (gap: ${bd.gap}%, n=${bd.samples})`
+      );
+
+      // Accumulate into merged buckets
+      for (const [key, data] of Object.entries(buckets)) {
+        if (!mergedBuckets[key]) mergedBuckets[key] = { correct: 0, total: 0 };
+        mergedBuckets[key].correct += data.correct;
+        mergedBuckets[key].total += data.total;
+        overallTotalSamples += data.total;
+      }
+
+      return {
+        dimension: curve.dimension,
+        ece,
+        needsRecalibration: ece > 0.1,
+        totalSamples: curve.sampleCount,
+        status: curve.status,
+        bucketReport,
+      };
+    });
+
+    const { ece: overallECE } = computeECE(mergedBuckets);
+    const overallNeedsRecalibration = overallECE > 0.1;
+
+    // Generate recommendations
+    const recommendations: string[] = [];
+    const needsRecal = dimReports.filter(d => d.needsRecalibration);
+    if (needsRecal.length > 0) {
+      recommendations.push(
+        `Recalibration needed for ${needsRecal.length} dimension(s): ${needsRecal.map(d => `${d.dimension} (ECE=${d.ece})`).join(', ')}. Consider resetting buckets or adjusting scoring models.`
+      );
+    }
+    const goodDims = dimReports.filter(d => d.ece > 0 && d.ece <= 0.05);
+    if (goodDims.length > 0) {
+      recommendations.push(
+        `Well-calibrated dimensions (ECE ≤ 0.05): ${goodDims.map(d => d.dimension).join(', ')}.`
+      );
+    }
+    if (overallTotalSamples < 50) {
+      recommendations.push(`Low sample count (${overallTotalSamples}). Collect at least 50 outcomes for reliable calibration.`);
+    }
+    if (overallNeedsRecalibration) {
+      recommendations.push('Overall ECE exceeds 0.1 threshold. Automated recalibration alert will be triggered.');
+    }
+    if (recommendations.length === 0) {
+      recommendations.push('All dimensions are within acceptable calibration range.');
+    }
+
+    return {
+      generatedAt: new Date().toISOString(),
+      dimensions: dimReports,
+      overallECE,
+      overallNeedsRecalibration,
+      recommendations,
+    };
+  } catch (err) {
+    logger.error('[CalibrationEngine] Failed to generate calibration report:', { error: err, dimension });
+    return {
+      generatedAt: new Date().toISOString(),
+      dimensions: [],
+      overallECE: 0,
+      overallNeedsRecalibration: false,
+      recommendations: ['Failed to generate calibration report. Check server logs.'],
+    };
+  }
+}
+
+// ── P3.2: Calibration Health Check ──────────────────────────────────────────
+
+/**
+ * P3.2: Check if recalibration is needed and trigger alert if so.
+ * Called by the scheduled calibration check in instrumentation.ts
+ */
+export async function checkCalibrationHealth(): Promise<{
+  needsAttention: boolean;
+  dimensions: Array<{ dimension: string; ece: number; status: string }>;
+}> {
+  try {
+    const curves = await db.calibrationCurve.findMany();
+
+    if (curves.length === 0) {
+      return { needsAttention: false, dimensions: [] };
+    }
+
+    const dimHealth = curves.map(curve => {
+      let buckets: Record<string, { correct: number; total: number }> = {};
+      try {
+        buckets = typeof curve.buckets === 'string'
+          ? JSON.parse(curve.buckets)
+          : (curve.buckets as Record<string, { correct: number; total: number }>);
+      } catch {
+        buckets = {};
+      }
+
+      const { ece } = computeECE(buckets);
+      return {
+        dimension: curve.dimension,
+        ece,
+        status: curve.status,
+      };
+    });
+
+    const needsAttention = dimHealth.some(d => d.ece > 0.1);
+
+    if (needsAttention) {
+      const badDims = dimHealth.filter(d => d.ece > 0.1);
+      logger.warn('[CalibrationEngine] Recalibration needed', {
+        dimensions: badDims.map(d => `${d.dimension} (ECE=${d.ece})`),
+        totalDimensions: dimHealth.length,
+      });
+    }
+
+    return { needsAttention, dimensions: dimHealth };
+  } catch (err) {
+    logger.error('[CalibrationEngine] Calibration health check failed:', { error: err });
+    return { needsAttention: false, dimensions: [] };
+  }
 }
 
 /**

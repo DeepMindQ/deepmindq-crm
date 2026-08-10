@@ -259,7 +259,7 @@ describe('1.4 — Cold-Start Trigger Validation', () => {
     expect(() => wireMapStateProvider()).not.toThrow();
   });
 
-  it('full cold-start cycle: wire then hydrate then Maps accessible', () => {
+  it('full cold-start cycle: wire then hydrate then Maps accessible', async () => {
     wireMapStateProvider();
 
     clearGraph();
@@ -280,7 +280,7 @@ describe('1.4 — Cold-Start Trigger Validation', () => {
       },
     ] as any);
 
-    const node = getNode('cs-node-1');
+    const node = await getNode('cs-node-1');
     expect(node).toBeDefined();
     expect(node?.label).toBe('ColdStart Co');
 

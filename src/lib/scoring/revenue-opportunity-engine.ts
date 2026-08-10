@@ -29,6 +29,7 @@ import { scoreBuyingIntent, type BuyingIntentScore } from './buying-intent-engin
 import { getCachedScoringConfig, getRecencyCutoffSync, scoreChangeEvents } from '@/lib/scoring-config';
 import type { ScoringConfig } from '@/lib/scoring-config';
 import { logger } from '@/lib/logger';
+import { computeUnifiedConfidence } from '@/lib/ai-unified-confidence';
 
 // ── Types ──
 
@@ -412,11 +413,30 @@ export async function scoreRevenueOpportunity(
   const rawTotal = factors.reduce((sum, f) => sum + f.points, 0);
   const opportunityScore = Math.max(0, Math.min(100, rawTotal));
 
-  // Confidence: based on evidence coverage and configurable scoring weights
+  // Confidence: unified 6-dimension confidence (replaces ad-hoc formula)
   const scoringConfig = getCachedScoringConfig();
-  const confidence = Math.min(95,
-    30 + (evidenceCount * 5) + (factors.length * 3) + (bestOppProbability > 0 ? 10 : 0)
-  );
+  const unifiedConf = computeUnifiedConfidence({
+    entityId: companyId,
+    entityType: 'opportunity',
+    sources: factors.slice(0, 6).map(f => ({
+      name: f.source,
+      reliability: Math.min(1, Math.abs(f.points) / Math.max(1, f.maxPoints)),
+      type: f.category,
+    })),
+    averageSourceReliability: factors.length > 0
+      ? Math.min(1, factors.reduce((s, f) => s + Math.abs(f.points) / Math.max(1, f.maxPoints), 0) / factors.length)
+      : 0.3,
+    evidenceCount,
+    crossValidatedFacts: factors.length,
+    totalFacts: factors.length,
+    coveredDimensions: new Set(factors.map(f => f.category)).size,
+    expectedDimensions: 5,
+    dataCompleteness: Math.min(1, new Set(factors.map(f => f.category)).size / 5),
+    aiOutputConfidence: Math.min(1, opportunityScore / 100),
+    hallucinationRiskScore: evidenceCount < 3 ? 45 : 15,
+    qualityGateScore: factors.length >= 3 ? 80 : 50,
+  });
+  const confidence = unifiedConf.score;
 
   // Account fit (normalised 0-100 from signal-based factors)
   const accountFit = Math.min(100, Math.round(

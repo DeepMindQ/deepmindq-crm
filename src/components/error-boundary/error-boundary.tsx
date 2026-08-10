@@ -1,5 +1,6 @@
 'use client'
 import React from 'react'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import {
   AlertTriangle,
   WifiOff,
@@ -35,44 +36,44 @@ const categoryConfig: Record<ErrorCategory, {
   runtime: {
     icon: AlertTriangle,
     label: 'Runtime Error',
-    color: '#EF4444',
-    bgColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: 'rgba(239, 68, 68, 0.2)',
+    color: tokens.domain.risk,
+    bgColor: tokens.confidence.low.bg,
+    borderColor: tokens.confidence.low.border,
   },
   network: {
     icon: WifiOff,
     label: 'Network Error',
-    color: '#F97316',
-    bgColor: 'rgba(249, 115, 22, 0.1)',
-    borderColor: 'rgba(249, 115, 22, 0.2)',
+    color: tokens.trust.low.value,
+    bgColor: tokens.trust.low.bg,
+    borderColor: tokens.trust.low.border,
   },
   auth: {
     icon: ShieldAlert,
     label: 'Authentication Error',
-    color: '#EF4444',
-    bgColor: 'rgba(239, 68, 68, 0.1)',
-    borderColor: 'rgba(239, 68, 68, 0.2)',
+    color: tokens.domain.risk,
+    bgColor: tokens.confidence.low.bg,
+    borderColor: tokens.confidence.low.border,
   },
   validation: {
     icon: FileWarning,
     label: 'Validation Error',
-    color: '#F59E0B',
-    bgColor: 'rgba(245, 158, 11, 0.1)',
-    borderColor: 'rgba(245, 158, 11, 0.2)',
+    color: tokens.domain.reasoning,
+    bgColor: tokens.confidence.medium.bg,
+    borderColor: tokens.confidence.medium.border,
   },
   timeout: {
     icon: Clock,
     label: 'Timeout Error',
-    color: '#F59E0B',
-    bgColor: 'rgba(245, 158, 11, 0.1)',
-    borderColor: 'rgba(245, 158, 11, 0.2)',
+    color: tokens.domain.reasoning,
+    bgColor: tokens.confidence.medium.bg,
+    borderColor: tokens.confidence.medium.border,
   },
   unknown: {
     icon: Bug,
     label: 'Unknown Error',
-    color: '#8892A8',
-    bgColor: 'rgba(136, 146, 168, 0.1)',
-    borderColor: 'rgba(136, 146, 168, 0.2)',
+    color: tokens.text.secondary,
+    bgColor: tokens.priority.low.bg,
+    borderColor: tokens.priority.low.border,
   },
 }
 
@@ -202,7 +203,7 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             </button>
             <button
               className="px-4 py-2 text-xs font-medium rounded-lg text-white flex items-center gap-2"
-              style={{ background: '#2563EB' }}
+              style={{ background: tokens.accent.dim }}
               onClick={this.handleReload}
             >
               Reload Page

@@ -99,7 +99,7 @@ const TIER_CONFIG: Record<string, {
 }> = {
   HOT: {
     label: 'Hot',
-    color: '#EF4444',
+    color: 'var(--dmq-domain-risk)',
     bgClass: 'bg-red-50',
     textClass: 'text-red-700',
     icon: Flame,
@@ -113,14 +113,14 @@ const TIER_CONFIG: Record<string, {
   },
   NURTURE: {
     label: 'Nurture',
-    color: '#2563EB',
+    color: 'var(--dmq-accent-dim)',
     bgClass: 'bg-blue-50',
     textClass: 'text-blue-700',
     icon: Sprout,
   },
   LOW: {
     label: 'Low',
-    color: '#9CA3AF',
+    color: 'var(--dmq-neutral-400)',
     bgClass: 'bg-gray-50',
     textClass: 'text-gray-600',
     icon: Minus,
@@ -150,10 +150,10 @@ function getTierConfig(tier: string) {
 }
 
 function scoreBarColor(score: number): string {
-  if (score >= 75) return '#059669';
+  if (score >= 75) return 'var(--dmq-emerald-deep)';
   if (score >= 50) return 'var(--color-gold)';
-  if (score >= 25) return '#D97706';
-  return '#EF4444';
+  if (score >= 25) return 'var(--dmq-amber-deep)';
+  return 'var(--dmq-domain-risk)';
 }
 
 /* ═══════════════════════════════════════════════════════════
@@ -267,9 +267,9 @@ function CompanyRow({
       <td className="py-3 px-4">
         <div className="flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold"
           style={{
-            background: rank <= 3 ? 'linear-gradient(135deg, #D4AF37, #E8C860)' : '#F3F4F6',
-            color: rank <= 3 ? '#fff' : '#6B7280',
-            boxShadow: rank <= 3 ? '0 0 10px rgba(212,175,55,0.3)' : 'none',
+            background: rank <= 3 ? 'linear-gradient(135deg, var(--dmq-gold), var(--dmq-gold-light))' : 'var(--dmq-neutral-100)',
+            color: rank <= 3 ? 'var(--dmq-white)' : 'var(--dmq-neutral-500)',
+            boxShadow: rank <= 3 ? '0 0 10px var(--dmq-gold-border)' : 'none',
           }}
         >
           {rank}
@@ -495,7 +495,7 @@ export default function AccountRankingScreen() {
         label: 'Hot Accounts',
         count: tierDistribution.HOT ?? 0,
         icon: Flame,
-        color: '#EF4444',
+        color: 'var(--dmq-domain-risk)',
       },
       {
         tier: 'ACTIVE' as const,
@@ -509,14 +509,14 @@ export default function AccountRankingScreen() {
         label: 'Nurture Accounts',
         count: tierDistribution.NURTURE ?? 0,
         icon: Sprout,
-        color: '#2563EB',
+        color: 'var(--dmq-accent-dim)',
       },
       {
         tier: 'LOW' as const,
         label: 'Low Priority',
         count: tierDistribution.LOW ?? 0,
         icon: Minus,
-        color: '#9CA3AF',
+        color: 'var(--dmq-neutral-400)',
       },
     ],
     [tierDistribution]
@@ -561,7 +561,7 @@ export default function AccountRankingScreen() {
               placeholder="Search companies…"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 w-full sm:w-64 h-9 bg-white border-gray-200"
+              className="pl-9 w-full sm:w-64 h-10 bg-white border-gray-200"
             />
           </div>
 
@@ -569,7 +569,7 @@ export default function AccountRankingScreen() {
           <div className="flex items-center gap-2">
             <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
             <Select value={sortField} onValueChange={handleSortChange}>
-              <SelectTrigger className="w-[170px] h-9 bg-white border-gray-200">
+              <SelectTrigger className="w-[170px] h-10 bg-white border-gray-200">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -583,7 +583,7 @@ export default function AccountRankingScreen() {
             <Button
               variant="ghost"
               size="icon"
-              className="h-9 w-9"
+              className="h-10 w-10 min-h-[44px]"
               onClick={() => setSortOrder((p) => (p === 'desc' ? 'asc' : 'desc'))}
               title={sortOrder === 'desc' ? 'Descending' : 'Ascending'}
             >
@@ -598,7 +598,7 @@ export default function AccountRankingScreen() {
             variant="outline"
             onClick={handleRecompute}
             disabled={recomputing}
-            className="h-9 border-gray-200 bg-white hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-all"
+            className="h-10 border-gray-200 bg-white hover:bg-amber-50 hover:border-amber-300 hover:text-amber-700 transition-all min-h-[44px]"
           >
             {recomputing ? (
               <Loader2 className="w-4 h-4 animate-spin" />
@@ -660,7 +660,7 @@ export default function AccountRankingScreen() {
 
       {/* ── Table ── */}
       <div className="rounded-xl border border-gray-200 bg-white overflow-hidden"
-        style={{ boxShadow: '0 1px 3px rgba(0,0,0,0.04), 0 1px 2px rgba(0,0,0,0.03)' }}
+        style={{ boxShadow: '0 1px 3px var(--dmq-black-whisper), 0 1px 2px var(--dmq-black-shadow)' }}
       >
         <ScrollArea className="max-h-[600px]">
           <table className="w-full">

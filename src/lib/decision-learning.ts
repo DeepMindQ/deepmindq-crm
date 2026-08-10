@@ -705,3 +705,74 @@ export function learningAdjustedTrust(
     confidenceLevel
   );
 }
+
+// ── Phase 2.11: Agent Effectiveness Audit ───────────────────────────
+
+/**
+ * Record agent effectiveness as a LearningEvent for audit trail.
+ * This enables the feedback loop to be observable in the learning dashboard.
+ *
+ * Called after each feedback submission cycle (batched, not per-feedback).
+ * Writes to LearningEvent table with:
+ *   - eventType: 'lesson_learned' for agent effectiveness
+ *   - source: 'ai_recommendation'
+ *   - learnedInsight: Effectiveness summary
+ *   - applicableContext: Agent type + time window
+ *
+ * @returns The ID of the created LearningEvent, or null if skipped
+ */
+export async function recordAgentEffectiveness(
+  agentType: string
+): Promise<string | null> {
+  try {
+    const stats = await getLearningStats();
+    const agentStat = stats.agentStats[agentType];
+
+    if (!agentStat || agentStat.totalRecommendations < 5) {
+      // Not enough data to record meaningful effectiveness
+      return null;
+    }
+
+    const effectiveness = agentStat.effectivenessScore;
+    const trend = stats.trend;
+    const insight = `${formatAgentLabel(agentType)} effectiveness: ${effectiveness}/100 (${agentStat.averageRating}/5 avg rating, ${agentStat.totalRecommendations} total, ${agentStat.positiveOutcomes} positive outcomes). System trend: ${trend}.`;
+
+    const eventId = `effectiveness-${agentType}-${Date.now()}`;
+
+    await db.learningEvent.create({
+      data: {
+        id: eventId,
+        eventType: 'lesson_learned',
+        source: 'ai_recommendation',
+        description: `Agent effectiveness audit: ${agentType}`,
+        learnedInsight: insight,
+        applicableContext: JSON.stringify({
+          agentType,
+          effectivenessScore: effectiveness,
+          averageRating: agentStat.averageRating,
+          totalRecommendations: agentStat.totalRecommendations,
+          positiveOutcomes: agentStat.positiveOutcomes,
+          negativeOutcomes: agentStat.negativeOutcomes,
+          trend,
+          recordedAt: new Date().toISOString(),
+        }),
+        applicableTags: JSON.stringify([`agent:${agentType}`, 'effectiveness-audit', `effectiveness:${effectiveness >= 70 ? 'high' : effectiveness >= 40 ? 'medium' : 'low'}`]),
+        confidence: effectiveness / 100,
+        verified: false,
+        reuseCount: 0,
+      },
+    });
+
+    logger.info('[decision-learning] Agent effectiveness recorded', {
+      eventId,
+      agentType,
+      effectiveness,
+      trend,
+    });
+
+    return eventId;
+  } catch (error) {
+    logger.error('[decision-learning] Failed to record agent effectiveness:', { error });
+    return null;
+  }
+}

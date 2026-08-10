@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { motion, AnimatePresence } from 'framer-motion'
 import { Brain, Clock, ArrowUpRight, ArrowDownRight, Minus, Filter, Search, ChevronRight, Sparkles, BookOpen } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -39,12 +40,12 @@ interface MemoryBrowserProps {
 }
 
 const TYPE_CONFIG: Record<string, { color: string; bg: string; icon: typeof Brain; label: string }> = {
-  insight: { color: '#3b82f6', bg: 'rgba(59,130,246,0.1)', icon: Sparkles, label: 'Insight' },
-  pattern: { color: '#a855f7', bg: 'rgba(168,85,247,0.1)', icon: Brain, label: 'Pattern' },
-  correction: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)', icon: ArrowDownRight, label: 'Correction' },
-  preference: { color: '#22c55e', bg: 'rgba(34,197,94,0.1)', icon: ArrowUpRight, label: 'Preference' },
-  signal_learned: { color: '#06b6d4', bg: 'rgba(6,182,212,0.1)', icon: BookOpen, label: 'Signal Learned' },
-  feedback_incorporated: { color: '#f59e0b', bg: 'rgba(245,158,11,0.1)', icon: Brain, label: 'Feedback' },
+  insight: { color: tokens.accent.DEFAULT, bg: tokens.accent.subtle, icon: Sparkles, label: 'Insight' },
+  pattern: { color: tokens.domain.opportunity, bg: tokens.domain.opportunity, icon: Brain, label: 'Pattern' },
+  correction: { color: tokens.domain.risk, bg: tokens.confidence.low.bg, icon: ArrowDownRight, label: 'Correction' },
+  preference: { color: tokens.domain.action, bg: tokens.trust.verified.bg, icon: ArrowUpRight, label: 'Preference' },
+  signal_learned: { color: tokens.domain.enrichment, bg: tokens.domain.enrichment, icon: BookOpen, label: 'Signal Learned' },
+  feedback_incorporated: { color: tokens.domain.reasoning, bg: tokens.confidence.medium.bg, icon: Brain, label: 'Feedback' },
 }
 
 function formatRelativeTime(date: Date): string {

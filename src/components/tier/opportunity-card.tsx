@@ -1,6 +1,7 @@
 'use client'
 
 import { motion } from 'framer-motion'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Target, DollarSign, ArrowRight, Brain, Sparkles, Users } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -30,7 +31,7 @@ export function OpportunityCard({
   id, title, description, companyName, tier, score, probability,
   estimatedValue, nextAction, contacts, source, isNew, onClick, className
 }: OpportunityCardProps) {
-  const probColor = probability >= 70 ? '#22c55e' : probability >= 40 ? '#f59e0b' : '#ef4444'
+  const probColor = probability >= 70 ? tokens.domain.action : probability >= 40 ? tokens.domain.reasoning : tokens.domain.risk
 
   return (
     <motion.div
@@ -40,7 +41,7 @@ export function OpportunityCard({
         isNew && 'ring-1 ring-primary/20',
         className
       )}
-      whileHover={onClick ? { y: -1, boxShadow: '0 1px 3px 0 rgba(0,0,0,0.12), 0 1px 2px -1px rgba(0,0,0,0.06)', borderColor: '#2a3348' } : undefined}
+      whileHover={onClick ? { y: -1, boxShadow: '0 1px 3px 0 rgba(0,0,0,0.12), 0 1px 2px -1px rgba(0,0,0,0.06)', borderColor: tokens.border.hover } : undefined}
       whileTap={onClick ? { scale: 0.99 } : undefined}
       onClick={onClick}
       role="article"

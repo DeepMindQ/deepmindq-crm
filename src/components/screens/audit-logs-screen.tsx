@@ -99,7 +99,7 @@ export function AuditLogsScreen() {
   const totalPages = Math.ceil(total / PAGE_SIZE)
 
   // ── Fetch users for filter dropdown ──
-  const { data: usersData } = useQuery({
+  const { data: usersData, isLoading: usersLoading } = useQuery({
     queryKey: ['audit-users'],
     queryFn: () => fetchApi<any[]>('/api/users').then(res => res.data),
   })
@@ -219,7 +219,7 @@ export function AuditLogsScreen() {
           <div>
             <label className="text-[11px] font-medium text-gray-500 block mb-1">Entity</label>
             <Select value={entity} onValueChange={(v) => { setEntity(v === '__all__' ? '' : v); setPage(0) }}>
-              <SelectTrigger className="h-8 border-gray-200 rounded-lg text-xs">
+              <SelectTrigger className="h-10 border-gray-200 rounded-lg text-xs">
                 <SelectValue placeholder="All Entities" />
               </SelectTrigger>
               <SelectContent>
@@ -236,7 +236,7 @@ export function AuditLogsScreen() {
           <div>
             <label className="text-[11px] font-medium text-gray-500 block mb-1">Action</label>
             <Select value={action} onValueChange={(v) => { setAction(v === '__all__' ? '' : v); setPage(0) }}>
-              <SelectTrigger className="h-8 border-gray-200 rounded-lg text-xs">
+              <SelectTrigger className="h-10 border-gray-200 rounded-lg text-xs">
                 <SelectValue placeholder="All Actions" />
               </SelectTrigger>
               <SelectContent>
@@ -256,7 +256,7 @@ export function AuditLogsScreen() {
               type="date"
               value={fromDate}
               onChange={e => { setFromDate(e.target.value); setPage(0) }}
-              className="h-8 border-gray-200 rounded-lg text-xs"
+              className="h-10 border-gray-200 rounded-lg text-xs"
             />
           </div>
 
@@ -267,7 +267,7 @@ export function AuditLogsScreen() {
               type="date"
               value={toDate}
               onChange={e => { setToDate(e.target.value); setPage(0) }}
-              className="h-8 border-gray-200 rounded-lg text-xs"
+              className="h-10 border-gray-200 rounded-lg text-xs"
             />
           </div>
 
@@ -276,7 +276,7 @@ export function AuditLogsScreen() {
             <div>
               <label className="text-[11px] font-medium text-gray-500 block mb-1">User</label>
               <Select value={userId} onValueChange={(v) => { setUserId(v === '__all__' ? '' : v); setPage(0) }}>
-                <SelectTrigger className="h-8 border-gray-200 rounded-lg text-xs">
+                <SelectTrigger className="h-10 border-gray-200 rounded-lg text-xs">
                   <SelectValue placeholder="All Users" />
                 </SelectTrigger>
                 <SelectContent>
@@ -297,7 +297,7 @@ export function AuditLogsScreen() {
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-gray-500 hover:text-gray-800 h-7"
+              className="text-xs text-gray-500 hover:text-gray-800 h-10 min-h-[44px]"
               onClick={handleReset}
             >
               Clear filters
@@ -481,7 +481,7 @@ export function AuditLogsScreen() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 px-2 text-xs rounded-lg border-gray-200"
+                      className="h-10 px-2 text-xs rounded-lg border-gray-200 min-h-[44px]"
                       disabled={page === 0}
                       onClick={() => setPage(0)}
                     >
@@ -491,7 +491,7 @@ export function AuditLogsScreen() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 px-2 text-xs rounded-lg border-gray-200"
+                      className="h-10 px-2 text-xs rounded-lg border-gray-200 min-h-[44px]"
                       disabled={page === 0}
                       onClick={() => setPage(p => p - 1)}
                     >
@@ -508,7 +508,7 @@ export function AuditLogsScreen() {
                             key={p}
                             onClick={() => setPage(p as number)}
                             className={cn(
-                              'h-7 w-7 rounded-lg text-xs font-medium transition-colors',
+                              'h-10 w-10 rounded-lg text-xs font-medium transition-colors min-h-[44px]',
                               page === p
                                 ? 'bg-amber-600 text-white shadow-xs'
                                 : 'text-gray-600 hover:bg-gray-100',
@@ -523,7 +523,7 @@ export function AuditLogsScreen() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 px-2 text-xs rounded-lg border-gray-200"
+                      className="h-10 px-2 text-xs rounded-lg border-gray-200 min-h-[44px]"
                       disabled={page >= totalPages - 1}
                       onClick={() => setPage(p => p + 1)}
                     >
@@ -532,7 +532,7 @@ export function AuditLogsScreen() {
                     <Button
                       variant="outline"
                       size="sm"
-                      className="h-7 px-2 text-xs rounded-lg border-gray-200"
+                      className="h-10 px-2 text-xs rounded-lg border-gray-200 min-h-[44px]"
                       disabled={page >= totalPages - 1}
                       onClick={() => setPage(totalPages - 1)}
                     >

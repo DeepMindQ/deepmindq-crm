@@ -194,7 +194,7 @@ describe('Gate 3: Write Failure Handling', () => {
 // ── Gate 4: Multi-Tenant Isolation ────────────────────────────────
 
 describe('Gate 4: Multi-Tenant Isolation', () => {
-  it('KG nodes can be created with different company scopes', () => {
+  it('KG nodes can be created with different company scopes', async () => {
     const nodeA = addNode({
       id: 'company-a-node',
       label: 'Company A',
@@ -210,8 +210,8 @@ describe('Gate 4: Multi-Tenant Isolation', () => {
       properties: { _companyId: 'company-b-id' },
     });
 
-    expect(getNode('company-a-node')).toBeDefined();
-    expect(getNode('company-b-node')).toBeDefined();
+    expect(await getNode('company-a-node')).toBeDefined();
+    expect(await getNode('company-b-node')).toBeDefined();
     expect(nodeA.id).not.toBe(nodeB.id);
   });
 
@@ -263,7 +263,7 @@ describe('Gate 4: Multi-Tenant Isolation', () => {
     }
   });
 
-  it('Global nodes are accessible to all tenants', () => {
+  it('Global nodes are accessible to all tenants', async () => {
     const globalNode = addNode({
       id: 'global-tech-node',
       label: 'PostgreSQL',
@@ -272,7 +272,7 @@ describe('Gate 4: Multi-Tenant Isolation', () => {
       properties: {},
     });
 
-    expect(getNode('global-tech-node')).toBeDefined();
+    expect(await getNode('global-tech-node')).toBeDefined();
     expect(globalNode.label).toBe('PostgreSQL');
   });
 });
@@ -289,10 +289,10 @@ describe('Gate 5: Performance Baseline', () => {
     expect(avgMs).toBeLessThan(5);
   });
 
-  it('getNode: 1000 ops under 1ms avg', () => {
+  it('getNode: 1000 ops under 1ms avg', async () => {
     addNode({ id: 'perf-lookup-node', label: 'Lookup Test', type: 'company', aliases: [], properties: {} });
     const start = performance.now();
-    for (let i = 0; i < 1000; i++) getNode('perf-lookup-node');
+    for (let i = 0; i < 1000; i++) await getNode('perf-lookup-node');
     const avgMs = (performance.now() - start) / 1000;
     expect(avgMs).toBeLessThan(1);
   });
@@ -342,12 +342,12 @@ describe('Gate 6: Rollback Safety', () => {
     expect(result.success).toBe(true);
   });
 
-  it('Map operations work independently of persistence', () => {
+  it('Map operations work independently of persistence', async () => {
     addNode({ id: 'rollback-node', label: 'Rollback', type: 'company', aliases: [], properties: {} });
-    expect(getNode('rollback-node')).toBeDefined();
+    expect(await getNode('rollback-node')).toBeDefined();
     const removed = removeNode('rollback-node');
     expect(removed).toBe(true);
-    expect(getNode('rollback-node')).toBeUndefined();
+    expect(await getNode('rollback-node')).toBeUndefined();
   });
 
   it('Memory operations work independently of persistence', () => {

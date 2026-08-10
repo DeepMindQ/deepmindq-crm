@@ -7,6 +7,7 @@
  */
 
 import { getBrandNameSync } from '@/lib/brand-helper';
+import { tokens } from '@/lib/design-tokens';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -46,8 +47,8 @@ interface SendResult {
 
 const LEVEL_COLORS: Record<NotificationPayload['level'], string> = {
   info: '#36a64f',
-  warning: '#f2c744',
-  critical: '#e01e5a',
+  warning: tokens.gold.light,
+  critical: tokens.extended.pink.value,
 };
 
 const _LEVEL_THEME_COLORS: Record<NotificationPayload['level'], string> = {

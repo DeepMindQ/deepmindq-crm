@@ -69,22 +69,35 @@ try {
       .replace(/\{\{jobTitle\}\}/g, jobTitle)
       .replace(/\{\{cta\}\}/g, firstPendingStep.cta || 'Would you be open to a quick chat?')
 
-    // 7. Save as Draft
-    const draft = await db.draft.create({
-      data: {
-        contactId: targetContactId,
-        subject: personalizedSubject,
-        body: personalizedBody,
-        cta: firstPendingStep.cta || 'soft',
-        status: 'draft',
-      },
-    })
-
-    // 8. Mark sequence as active if not already
+    // 7 & 8. Create draft and activate sequence atomically
+    let draft
     if (!sequence.isActive) {
-      await db.emailSequence.update({
-        where: { id: sequenceId },
-        data: { isActive: true },
+      const result = await db.$transaction(async (tx) => {
+        const d = await tx.draft.create({
+          data: {
+            contactId: targetContactId,
+            subject: personalizedSubject,
+            body: personalizedBody,
+            cta: firstPendingStep.cta || 'soft',
+            status: 'draft',
+          },
+        })
+        await tx.emailSequence.update({
+          where: { id: sequenceId },
+          data: { isActive: true },
+        })
+        return d
+      }, { timeout: 30000 })
+      draft = result
+    } else {
+      draft = await db.draft.create({
+        data: {
+          contactId: targetContactId,
+          subject: personalizedSubject,
+          body: personalizedBody,
+          cta: firstPendingStep.cta || 'soft',
+          status: 'draft',
+        },
       })
     }
 

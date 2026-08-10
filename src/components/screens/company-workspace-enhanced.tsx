@@ -252,7 +252,7 @@ export default function CompanyWorkspaceEnhanced() {
                     <div className="flex items-center gap-2 mt-2">
                       <button
                         onClick={handleRefresh}
-                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border text-[11px] font-medium transition-colors"
+                        className="flex items-center gap-1.5 px-3 py-2.5 rounded-lg border text-[11px] font-medium transition-colors min-h-[44px]"
                         style={{ borderColor: tokens.border.default, color: tokens.text.secondary, backgroundColor: 'transparent' }}
                       >
                         <RefreshCw className="w-3 h-3" />

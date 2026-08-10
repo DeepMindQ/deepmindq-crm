@@ -6,6 +6,8 @@
    Legacy screens remain accessible via internal navigation.
    ═══════════════════════════════════════════════════ */
 
+'use client';
+
 import { lazy, Suspense } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary';
 

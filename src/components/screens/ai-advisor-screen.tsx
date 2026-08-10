@@ -36,9 +36,11 @@ import type {
 import { useAppStore } from '@/lib/store';
 import { FeedbackForm } from '@/components/feedback/feedback-form';
 import { ErrorBoundary } from '@/components/error-boundary';
+import { EnterpriseLoading } from '@/components/enterprise';
 
 export default function AIAdvisorScreen() {
   const selectedCompanyId = useAppStore((s: any) => s.selectedCompanyId);
+  const [contextLoading, setContextLoading] = useState(true);
   const [accountContext, setAccountContext] = useState<AdvisorAccountContext>({
     primaryAccount: null,
     activeSignals: [],
@@ -75,14 +77,27 @@ export default function AIAdvisorScreen() {
         if (!cancelled) {
           setAccountContext(ctx);
           setSidebarData(sidebar);
+          setContextLoading(false);
         }
       } catch (err) {
         console.error('[AIAdvisor] Failed to load context:', err);
+        if (!cancelled) setContextLoading(false);
       }
     })();
 
     return () => { cancelled = true; };
   }, [selectedCompanyId]);
+
+  // ── Show loading state while context is being fetched ──
+  if (contextLoading && selectedCompanyId) {
+    return (
+      <ErrorBoundary>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <EnterpriseLoading message="Loading advisor context..." size="lg" />
+        </div>
+      </ErrorBoundary>
+    );
+  }
 
   // ── Real API: sendQuery callback ──
   const sendQuery = useCallback(async (

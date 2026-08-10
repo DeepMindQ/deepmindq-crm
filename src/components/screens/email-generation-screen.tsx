@@ -110,7 +110,7 @@ function providerDisplayName(provider: string) {
    ═══════════════════════════════════════════════════════════════ */
 
 function AiStatusBanner({ onGoToSettings }: { onGoToSettings: () => void }) {
-  const { data: prefs, error: prefsError } = useQuery({
+  const { data: prefs, isLoading: prefsLoading, error: prefsError } = useQuery({
     queryKey: ['preferences'],
     queryFn: () => fetch('/api/preferences').then(r => {
       if (!r.ok) throw new Error('Failed to load preferences')
@@ -186,7 +186,7 @@ function ToggleGroup<T extends string>({
             key={opt.value}
             onClick={() => onChange(opt.value)}
             className={cn(
-              'px-4 py-2 rounded-lg text-sm font-medium transition-all duration-150',
+              'px-4 py-2.5 rounded-lg text-sm font-medium transition-all duration-150 min-h-[44px]',
               value === opt.value ? TOGGLE_ACTIVE : TOGGLE_INACTIVE,
             )}
           >
@@ -271,7 +271,7 @@ export default function EmailGenerationScreen() {
   }
 
   // ── Preferences for defaults ──
-  const { data: prefs, error: prefsError } = useQuery({
+  const { data: prefs, isLoading: prefsLoading, error: prefsError } = useQuery({
     queryKey: ['preferences'],
     queryFn: () => fetch('/api/preferences').then(r => {
       if (!r.ok) throw new Error('Failed to load preferences')
@@ -457,7 +457,7 @@ export default function EmailGenerationScreen() {
           const c = contacts.find(ct => ct.id === id)
           if (c) selectContact(c)
         }}>
-          <SelectTrigger className="w-full h-9 border-gray-200 rounded-lg text-sm">
+          <SelectTrigger className="w-full h-10 border-gray-200 rounded-lg text-sm">
             <SelectValue placeholder="Select a contact..." />
           </SelectTrigger>
           <SelectContent>
@@ -540,7 +540,7 @@ export default function EmailGenerationScreen() {
                   placeholder="Search companies..."
                   value={companySearch}
                   onChange={e => handleCompanySearchChange(e.target.value)}
-                  className="pl-8 h-8 bg-gray-100 border-gray-200 rounded-lg text-xs focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+                  className="pl-8 h-10 bg-gray-100 border-gray-200 rounded-lg text-xs focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
                 />
               </div>
 
@@ -628,7 +628,7 @@ export default function EmailGenerationScreen() {
                 placeholder="Search contacts..."
                 value={contactSearch}
                 onChange={e => handleSearchChange(e.target.value)}
-                className="pl-8 h-8 bg-gray-100 border-gray-200 rounded-lg text-xs focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
+                className="pl-8 h-10 bg-gray-100 border-gray-200 rounded-lg text-xs focus-visible:ring-amber-500/20 focus-visible:border-amber-400"
               />
             </div>
           </div>
@@ -727,7 +727,7 @@ export default function EmailGenerationScreen() {
                 <Button
                   size="sm"
                   variant="outline"
-                  className="h-7 text-xs border-amber-200 text-amber-700 hover:bg-amber-100 shrink-0"
+                  className="h-10 text-xs border-amber-200 text-amber-700 hover:bg-amber-100 shrink-0 min-h-[44px]"
                   onClick={goToSettings}
                 >
                   Open Settings

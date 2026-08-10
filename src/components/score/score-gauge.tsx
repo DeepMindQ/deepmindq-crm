@@ -1,6 +1,7 @@
 'use client'
 
 import { cn } from '@/lib/utils'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 
 interface ScoreGaugeProps {
   score: number // 0-100
@@ -19,7 +20,7 @@ export function ScoreGauge({ score, size = 'md', showLabel = true, label, classN
   const circumference = 2 * Math.PI * radius
   const filled = (score / 100) * circumference
 
-  const color = score >= 80 ? '#22c55e' : score >= 60 ? '#3b82f6' : score >= 40 ? '#f59e0b' : '#ef4444'
+  const color = score >= 80 ? tokens.domain.action : score >= 60 ? tokens.accent.DEFAULT : score >= 40 ? tokens.domain.reasoning : tokens.domain.risk
   const scoreLabel = score >= 80 ? 'Excellent' : score >= 60 ? 'Good' : score >= 40 ? 'Fair' : 'Low'
 
   return (

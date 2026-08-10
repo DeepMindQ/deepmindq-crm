@@ -1,5 +1,6 @@
 'use client';
 
+import { tokens } from '@/components/intelligence-os/design-tokens';
 /**
  * WI-17C — Account Recommendation Card
  *
@@ -76,9 +77,9 @@ interface AccountRecommendation {
 // ── Color System ──
 
 const COLORS = {
-  bgCard: 'var(--ios-bg-card, rgba(255,255,255,0.05))',
+  bgCard: 'var(--ios-bg-card, tokens.opacity.white.ghost)',
   bgElevated: 'var(--ios-bg-elevated, #1a1a2e)',
-  border: 'var(--ios-border, rgba(255,255,255,0.1))',
+  border: tokens.border.subtle,
   textPrimary: 'var(--ios-text-primary, #f0f0f5)',
   textSecondary: 'var(--ios-text-secondary, #a0a0b8)',
   textMuted: 'var(--ios-text-muted, #6b6b80)',
@@ -94,10 +95,10 @@ const COLORS = {
 // ── Priority Config ──
 
 const PRIORITY_CONFIG = {
-  critical: { label: 'CRITICAL', color: '#ef4444', bg: 'rgba(239,68,68,0.12)', border: 'rgba(239,68,68,0.3)' },
-  high: { label: 'HIGH', color: '#f97316', bg: 'rgba(249,115,22,0.12)', border: 'rgba(249,115,22,0.3)' },
-  medium: { label: 'MEDIUM', color: '#eab308', bg: 'rgba(234,179,8,0.12)', border: 'rgba(234,179,8,0.3)' },
-  low: { label: 'LOW', color: '#6b7280', bg: 'rgba(107,114,128,0.12)', border: 'rgba(107,114,128,0.3)' },
+  critical: { label: 'CRITICAL', color: tokens.domain.risk, bg: tokens.priority.critical.bg, border: tokens.extended.rose.border },
+  high: { label: 'HIGH', color: tokens.trust.low.value, bg: tokens.trust.low.bg, border: tokens.trust.low.border },
+  medium: { label: 'MEDIUM', color: tokens.extended.amber.value, bg: tokens.extended.amber.bg, border: tokens.extended.amber.border },
+  low: { label: 'LOW', color: tokens.neutral['500'], bg: tokens.trust.unverified.bg, border: tokens.trust.unverified.border },
 };
 
 const REASON_CATEGORY_ICONS: Record<string, React.ElementType> = {
@@ -111,10 +112,10 @@ const REASON_CATEGORY_ICONS: Record<string, React.ElementType> = {
 };
 
 const RISK_SEVERITY_COLORS = {
-  critical: '#ef4444',
-  high: '#f97316',
-  medium: '#eab308',
-  low: '#6b7280',
+  critical: tokens.domain.risk,
+  high: tokens.trust.low.value,
+  medium: tokens.extended.amber.value,
+  low: tokens.neutral['500'],
 };
 
 // ── Score Color Helper ──
@@ -126,9 +127,9 @@ function getScoreColor(score: number): string {
 }
 
 function getScoreBarFill(score: number): string {
-  if (score >= 75) return 'rgba(16,185,129,0.6)';
-  if (score >= 50) return 'rgba(245,158,11,0.6)';
-  return 'rgba(239,68,68,0.6)';
+  if (score >= 75) return tokens.extended.emerald.value;
+  if (score >= 50) return tokens.domain.reasoning;
+  return tokens.domain.risk;
 }
 
 // ── Component ──
@@ -242,7 +243,7 @@ export function RecommendationCard({ companyId, compact = false }: Recommendatio
           </div>
 
           {/* Score bar */}
-          <div className="w-20 h-1.5 rounded-full mt-1" style={{ background: 'rgba(255,255,255,0.06)' }}>
+          <div className="w-20 h-1.5 rounded-full mt-1" style={{ background: tokens.opacity.white.trace }}>
             <div className="h-full rounded-full transition-all duration-500"
               style={{ width: `${data.opportunityScore}%`, background: getScoreBarFill(data.opportunityScore) }} />
           </div>
@@ -314,7 +315,7 @@ export function RecommendationCard({ companyId, compact = false }: Recommendatio
 
               return (
                 <div key={i} className="flex items-start gap-2.5 py-1.5 px-3 rounded-lg"
-                  style={{ background: 'rgba(255,255,255,0.02)' }}>
+                  style={{ background: tokens.opacity.white.hint }}>
                   <div className="mt-0.5 shrink-0">
                     <ReasonIcon className="w-3.5 h-3.5" style={{ color: strengthColor }} />
                   </div>
@@ -326,7 +327,7 @@ export function RecommendationCard({ companyId, compact = false }: Recommendatio
                     </div>
                     {/* Strength indicator */}
                     <div className="flex items-center gap-1.5 mt-1">
-                      <div className="w-12 h-1 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                      <div className="w-12 h-1 rounded-full" style={{ background: tokens.opacity.white.trace }}>
                         <div className="h-full rounded-full"
                           style={{ width: `${strengthPercent}%`, background: `${strengthColor}60` }} />
                       </div>
@@ -472,7 +473,7 @@ export function RecommendationCard({ companyId, compact = false }: Recommendatio
                   <span className="text-[11px] w-32 shrink-0 capitalize" style={{ color: COLORS.textSecondary }}>
                     {factor.dimension.replace(/_/g, ' ')}
                   </span>
-                  <div className="flex-1 h-1.5 rounded-full" style={{ background: 'rgba(255,255,255,0.06)' }}>
+                  <div className="flex-1 h-1.5 rounded-full" style={{ background: tokens.opacity.white.trace }}>
                     <div className="h-full rounded-full transition-all"
                       style={{ width: `${factor.score}%`, background: `${fColor}60` }} />
                   </div>
@@ -497,7 +498,7 @@ export function RecommendationCard({ companyId, compact = false }: Recommendatio
 
       {/* ═══ STATS FOOTER ═══ */}
       <div className="px-5 py-3 flex items-center gap-4 flex-wrap"
-        style={{ background: 'rgba(255,255,255,0.02)', borderTop: `1px solid ${COLORS.border}` }}>
+        style={{ background: tokens.opacity.white.hint, borderTop: `1px solid ${COLORS.border}` }}>
         <span className="text-[10px]" style={{ color: COLORS.textMuted }}>
           <Zap className="w-3 h-3 inline mr-1" style={{ color: COLORS.signal }} />
           {data.signalCount} signals

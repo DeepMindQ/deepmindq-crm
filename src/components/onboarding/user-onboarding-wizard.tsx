@@ -235,7 +235,7 @@ export function UserOnboardingWizard({ onComplete, onDismiss, className, userNam
                     <div key={s.id} className={cn('w-2 h-2 rounded-full transition-colors', i > currentStep && 'opacity-30')} style={{ background: i <= currentStep ? tokens.domain.signal : tokens.text.muted }} />
                   ))}
                 </div>
-                <button onClick={handleNext} className="flex items-center gap-1 text-xs font-semibold px-4 py-2 rounded-lg transition-colors" style={{ background: tokens.domain.signal, color: '#fff' }}>
+                <button onClick={handleNext} className="flex items-center gap-1 text-xs font-semibold px-4 py-2 rounded-lg transition-colors" style={{ background: tokens.domain.signal, color: tokens.flat.white }}>
                   {isLast ? 'Get Started' : 'Next'}<ChevronRight className="w-4 h-4" />
                 </button>
               </div>

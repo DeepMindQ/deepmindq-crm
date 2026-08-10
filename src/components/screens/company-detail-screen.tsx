@@ -54,9 +54,9 @@ import { useTranslation } from '@/lib/use-translation';
 /* ===================================================
    Constants & Colors
    =================================================== */
-const INTEL = '#2563eb';
-const GOLD = '#D4AF37';
-const INTEL_GRADIENT = 'linear-gradient(135deg, #1e40af, #2563eb, #3b82f6)';
+const INTEL = 'var(--dmq-accent-dim)';
+const GOLD = 'var(--dmq-gold)';
+const INTEL_GRADIENT = 'linear-gradient(135deg, var(--dmq-blue-800), var(--dmq-accent-dim), var(--dmq-accent-blue))';
 
 const STATUS_COLORS: Record<string, string> = {
   prospect: 'bg-blue-500/20 text-blue-600 border-blue-500/30',
@@ -84,13 +84,13 @@ function ScoreRing({ score, size = 72, strokeWidth = 5, label, color }: {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (score / 100) * circumference;
-  const c = color || (score >= 80 ? '#059669' : score >= 60 ? '#D97706' : score >= 40 ? '#ea580c' : '#DC2626');
+  const c = color || (score >= 80 ? 'var(--dmq-emerald-deep)' : score >= 60 ? 'var(--dmq-amber-deep)' : score >= 40 ? 'var(--dmq-orange)' : 'var(--dmq-red)');
 
   return (
     <div className="flex flex-col items-center gap-1">
       <div className="relative flex-shrink-0" style={{ width: size, height: size }}>
         <svg aria-hidden="true" width={size} height={size} className="-rotate-90">
-          <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="#F3F4F6" strokeWidth={strokeWidth} />
+          <circle cx={size/2} cy={size/2} r={radius} fill="none" stroke="var(--dmq-neutral-100)" strokeWidth={strokeWidth} />
           <motion.circle
             cx={size/2} cy={size/2} r={radius}
             fill="none" stroke={c} strokeWidth={strokeWidth}
@@ -164,7 +164,7 @@ function IntelligenceHero({
   const salesMotion = aiActions?.detectedSalesMotion ?? 'unknown';
 
   return (
-    <AnimatedCard delay={0} glow="rgba(37, 99, 235, 0.12)">
+    <AnimatedCard delay={0} glow="var(--dmq-blue-bright-bg-alt)">
       <div className="overflow-hidden">
         {/* Gradient top accent */}
         <div className="h-1" style={{ background: INTEL_GRADIENT }} />
@@ -188,7 +188,7 @@ function IntelligenceHero({
                 <Button
                   size="sm"
                   variant="outline"
-                  className="ml-auto h-7 text-[11px] gap-1 shrink-0"
+                  className="ml-auto h-10 text-[11px] gap-1 shrink-0 min-h-[44px]"
                   onClick={() => onExport?.('json')}
                 >
                   <FileText className="w-3 h-3" />
@@ -205,10 +205,10 @@ function IntelligenceHero({
 
               {/* KPI strip */}
               <div className="grid grid-cols-4 gap-3">
-                <KPIChip icon={Target} label="Score" value={score} color={score >= 80 ? '#059669' : score >= 60 ? '#D97706' : '#DC2626'} />
+                <KPIChip icon={Target} label="Score" value={score} color={score >= 80 ? 'var(--dmq-emerald-deep)' : score >= 60 ? 'var(--dmq-amber-deep)' : 'var(--dmq-red)'} />
                 <KPIChip icon={Bell} label="Signals" value={signalCount} color={INTEL} />
-                <KPIChip icon={Users} label="Contacts" value={contactCount} color="#7c3aed" />
-                <KPIChip icon={Zap} label="Opps" value={oppCount} color="#d97706" />
+                <KPIChip icon={Users} label="Contacts" value={contactCount} color="var(--dmq-purple-deep)" />
+                <KPIChip icon={Zap} label="Opps" value={oppCount} color="var(--dmq-amber-deep)" />
               </div>
             </div>
 
@@ -231,9 +231,9 @@ function IntelligenceHero({
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: 'Account Fit', value: aiScore.accountFit, color: INTEL },
-                { label: 'Contact Influence', value: aiScore.contactInfluence, color: '#059669' },
-                { label: 'Opp. Strength', value: aiScore.opportunityStrength, color: '#d97706' },
-                { label: 'Buying Intent', value: aiScore.buyingIntent, color: '#7c3aed' },
+                { label: 'Contact Influence', value: aiScore.contactInfluence, color: 'var(--dmq-emerald-deep)' },
+                { label: 'Opp. Strength', value: aiScore.opportunityStrength, color: 'var(--dmq-amber-deep)' },
+                { label: 'Buying Intent', value: aiScore.buyingIntent, color: 'var(--dmq-purple-deep)' },
               ].map((sub, i) => (
                 <div key={i} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-gray-50/80 border border-gray-100">
                   <div className="flex-1">
@@ -269,7 +269,7 @@ function IntelligenceHero({
               <Badge className="text-[11px] bg-purple-500/15 text-purple-600 border-purple-200 shrink-0">
                 {aiActions.actions?.length || 0} Actions
               </Badge>
-              <Button size="sm" variant="ghost" className="h-7 text-[11px] text-amber-700 hover:text-amber-900 shrink-0" onClick={onNavigateActions}>
+              <Button size="sm" variant="ghost" className="h-10 text-[11px] text-amber-700 hover:text-amber-900 shrink-0 min-h-[44px]" onClick={onNavigateActions}>
                 View All <ChevronRight size={12} />
               </Button>
             </div>
@@ -281,7 +281,7 @@ function IntelligenceHero({
               size="sm"
               onClick={loadingScore ? undefined : onRefreshScore}
               disabled={loadingScore}
-              className="gap-1.5 h-8 text-xs bg-blue-600 hover:bg-blue-700 text-white"
+              className="gap-1.5 h-10 text-xs bg-blue-600 hover:bg-blue-700 text-white min-h-[44px]"
             >
               {loadingScore ? <Loader2 size={13} className="animate-spin" /> : <Sparkles size={13} />}
               {loadingScore ? 'Scoring...' : 'Run Intelligence'}
@@ -290,12 +290,12 @@ function IntelligenceHero({
               size="sm"
               variant="outline"
               onClick={onRefreshActions}
-              className="gap-1.5 h-8 text-xs border-gray-200"
+              className="gap-1.5 h-10 text-xs border-gray-200 min-h-[44px]"
             >
               <Lightbulb size={13} className="text-amber-500" /> Generate Actions
             </Button>
             <div className="ml-auto flex items-center gap-1.5 text-[11px] text-muted-foreground">
-              <PulseDot color={confidence >= 60 ? '#059669' : '#d97706'} />
+              <PulseDot color={confidence >= 60 ? 'var(--dmq-emerald-deep)' : 'var(--dmq-amber-deep)'} />
               {confidence}% confidence
               {aiScore?.evidenceCount > 0 && <><span className="mx-1">·</span>{aiScore.evidenceCount} evidence sources</>}
             </div>
@@ -353,7 +353,7 @@ function SignalCard({ signal, onToggleRead }: { signal: any; onToggleRead: () =>
    Contact Mini Card
    =================================================== */
 function ContactMiniCard({ contact, onSelect }: { contact: any; onSelect: () => void }) {
-  const roleColor = contact.roleBucket === 'Executive' ? '#7c3aed' : contact.roleBucket === 'Manager' ? '#2563eb' : '#059669';
+  const roleColor = contact.roleBucket === 'Executive' ? 'var(--dmq-purple-deep)' : contact.roleBucket === 'Manager' ? 'var(--dmq-accent-dim)' : 'var(--dmq-emerald-deep)';
   return (
     <motion.div
       whileHover={{ y: -1 }}
@@ -443,7 +443,7 @@ function EvidenceRow({ evidence }: { evidence: any }) {
    Action Card
    =================================================== */
 function ActionCard({ action, index, companyId }: { action: any; index: number; companyId?: string }) {
-  const priorityColor = action.priority === 'critical' ? '#dc2626' : action.priority === 'high' ? '#ea580c' : action.priority === 'medium' ? '#d97706' : '#059669';
+  const priorityColor = action.priority === 'critical' ? 'var(--dmq-red)' : action.priority === 'high' ? 'var(--dmq-orange)' : action.priority === 'medium' ? 'var(--dmq-amber-deep)' : 'var(--dmq-emerald-deep)';
   return (
     <motion.div
       initial={{ opacity: 0, x: -12 }}
@@ -816,7 +816,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
           <div className="flex items-center justify-between max-w-[1600px] mx-auto px-5 py-3">
             <div className="flex items-center gap-3">
               <motion.button whileHover={{ x: -2 }} whileTap={{ scale: 0.95 }} onClick={onBack}
-                className="w-8 h-8 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center hover:border-blue-500/30 transition-colors">
+                className="w-10 h-10 rounded-lg border border-gray-200 bg-gray-50 flex items-center justify-center hover:border-blue-500/30 transition-colors">
                 <ArrowLeft size={15} className="text-muted-foreground" />
               </motion.button>
               <div className="flex items-center gap-2">
@@ -827,17 +827,17 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
             </div>
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={handleEnrich} disabled={enriching}
-                className="gap-1.5 h-8 text-[11px] bg-blue-600 hover:bg-blue-700 text-white">
+                className="gap-1.5 h-10 text-[11px] bg-blue-600 hover:bg-blue-700 text-white min-h-[44px]">
                 {enriching ? <Loader2 size={12} className="animate-spin" /> : <Sparkles size={12} />}
                 {enriching ? 'Enriching...' : 'AI Enrich'}
               </Button>
               <Button size="sm" variant="outline" onClick={() => setIsEditing(!isEditing)}
-                className="gap-1.5 h-8 text-[11px] border-gray-600 text-gray-300 hover:text-white">
+                className="gap-1.5 h-10 text-[11px] border-gray-600 text-gray-300 hover:text-white">
                 {isEditing ? <X size={12} /> : <Edit3 size={12} />}
                 {isEditing ? 'Cancel' : 'Edit'}
               </Button>
               {isEditing && (
-                <Button size="sm" onClick={saveCompany} className="gap-1.5 h-8 text-[11px]" style={{ background: GOLD, color: '#060910' }}>
+                <Button size="sm" onClick={saveCompany} className="gap-1.5 h-10 text-[11px] min-h-[44px]" style={{ background: GOLD, color: 'var(--dmq-surface-base)' }}>
                   <Save size={12} /> Save
                 </Button>
               )}
@@ -945,7 +945,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               {/* LEFT COLUMN - Signals + Contacts */}
               <div className="space-y-5">
                 {/* AI Signals */}
-                <SectionPanel title={t('company.activeSignals')} icon={Bell} accent="#ea580c" count={signals.length} onRefresh={fetchSignals}>
+                <SectionPanel title={t('company.activeSignals')} icon={Bell} accent="var(--dmq-orange)" count={signals.length} onRefresh={fetchSignals}>
                   {signals.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground">
                       <Bell size={24} className="mx-auto mb-2 opacity-30" />
@@ -963,7 +963,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                 </SectionPanel>
 
                 {/* Key Contacts */}
-                <SectionPanel title={t('company.keyContacts')} icon={Users} accent="#7c3aed" count={contacts.length} onRefresh={fetchContacts}>
+                <SectionPanel title={t('company.keyContacts')} icon={Users} accent="var(--dmq-purple-deep)" count={contacts.length} onRefresh={fetchContacts}>
                   {contacts.length === 0 ? (
                     <div className="text-center py-6 text-muted-foreground">
                       <Users size={24} className="mx-auto mb-2 opacity-30" />
@@ -982,7 +982,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                 </SectionPanel>
 
                 {/* Add Note */}
-                <Button variant="outline" className="w-full gap-2 h-9 text-xs border-dashed" onClick={() => setNoteDialogOpen(true)}>
+                <Button variant="outline" className="w-full gap-2 h-10 text-xs border-dashed min-h-[44px]" onClick={() => setNoteDialogOpen(true)}>
                   <Plus size={13} /> Add Research Note
                 </Button>
               </div>
@@ -1020,7 +1020,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
 
                 {/* AI Action Recommendations */}
                 <ErrorBoundary>
-                <SectionPanel title="AI Action Recommendations" icon={Zap} accent="#d97706" onRefresh={fetchAIActions}>
+                <SectionPanel title="AI Action Recommendations" icon={Zap} accent="var(--dmq-amber-deep)" onRefresh={fetchAIActions}>
                   {loadingActions ? (
                     <div className="flex flex-col items-center py-8 gap-3">
                       <Loader2 size={24} className="animate-spin text-amber-500" />
@@ -1047,7 +1047,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               <div className="space-y-5">
                 {/* Score Breakdown */}
                 {aiScore && (
-                  <SectionPanel title="Score Breakdown" icon={Target} accent="#059669">
+                  <SectionPanel title="Score Breakdown" icon={Target} accent="var(--dmq-emerald-deep)">
                     <div className="space-y-2.5">
                       {aiScore.factors?.sort((a: any, b: any) => b.points - a.points).slice(0, 8).map((factor: any, i: number) => (
                         <div key={i} className="flex items-center gap-2">
@@ -1095,7 +1095,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                       { name: 'Buying Intent', key: 'buyingIntent', score: aiScore?.buyingIntent ?? 0, weight: 0.2, maxScore: 100, description: 'Detected buying signals and engagement level' },
                     ]}
                     previousScore={undefined}
-                    tier={{ name: getTierFromScore(aiScore?.score ?? company?.intelligenceScore ?? 0), color: (aiScore?.score ?? 0) >= 80 ? '#22c55e' : (aiScore?.score ?? 0) >= 60 ? '#3b82f6' : '#f59e0b', threshold: 0 }}
+                    tier={{ name: getTierFromScore(aiScore?.score ?? company?.intelligenceScore ?? 0), color: (aiScore?.score ?? 0) >= 80 ? 'var(--dmq-domain-action)' : (aiScore?.score ?? 0) >= 60 ? 'var(--dmq-accent-blue)' : 'var(--dmq-domain-reasoning)', threshold: 0 }}
                     showWeights={true}
                     className="mt-4"
                   />
@@ -1121,7 +1121,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
 
                 {/* Intelligence Maturity Index */}
                 <ErrorBoundary>
-                <SectionPanel title="Intelligence Maturity" icon={Gauge} accent="#059669">
+                <SectionPanel title="Intelligence Maturity" icon={Gauge} accent="var(--dmq-emerald-deep)">
                   <MaturityIndexCard maturity={{
                     score: 0,
                     level: 'emerging',
@@ -1134,7 +1134,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
 
                 {/* Temporal Intelligence Timeline */}
                 <ErrorBoundary>
-                <SectionPanel title="Intelligence Timeline" icon={Activity} accent="#3b82f6">
+                <SectionPanel title="Intelligence Timeline" icon={Activity} accent="var(--dmq-accent-blue)">
                   <TemporalIntelligenceTimeline temporal={{
                     companyId: company?.id ?? '',
                     signalsLast7Days: 0, signalsLast30Days: 0, signalsPerWeek: 0,
@@ -1146,7 +1146,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                 </ErrorBoundary>
 
                 {/* Evidence Sources */}
-                <SectionPanel title={t('company.evidenceSources')} icon={Database} accent="#7c3aed" count={evidence.length} onRefresh={fetchEvidence} collapsible>
+                <SectionPanel title={t('company.evidenceSources')} icon={Database} accent="var(--dmq-purple-deep)" count={evidence.length} onRefresh={fetchEvidence} collapsible>
                   {evidence.length === 0 ? (
                     <div className="text-center py-4 text-muted-foreground">
                       <Database size={20} className="mx-auto mb-2 opacity-30" />
@@ -1160,7 +1160,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                 </SectionPanel>
 
                 {/* Recent Notes */}
-                <SectionPanel title={t('company.researchNotes')} icon={FileText} accent="#3b82f6" count={notes.length} onRefresh={fetchNotes} collapsible>
+                <SectionPanel title={t('company.researchNotes')} icon={FileText} accent="var(--dmq-accent-blue)" count={notes.length} onRefresh={fetchNotes} collapsible>
                   {notes.length === 0 ? (
                     <div className="text-center py-4 text-muted-foreground">
                       <FileText size={20} className="mx-auto mb-2 opacity-30" />
@@ -1197,7 +1197,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                       {['name', 'industry', 'sizeRange', 'location', 'country', 'website'].map(field => (
                         <div key={field}>
                           <label className="text-[11px] text-muted-foreground uppercase tracking-wider">{field.replace(/([A-Z])/g, ' $1')}</label>
-                          <Input value={editForm[field] || ''} onChange={e => setEditForm(p => ({ ...p, [field]: e.target.value }))} className="mt-1 h-8 text-xs bg-gray-50 border-gray-200" />
+                          <Input value={editForm[field] || ''} onChange={e => setEditForm(p => ({ ...p, [field]: e.target.value }))} className="mt-1 h-10 text-xs bg-gray-50 border-gray-200" />
                         </div>
                       ))}
                     </div>
@@ -1233,7 +1233,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
                 </SectionPanel>
               </div>
               <div className="lg:col-span-2">
-                <SectionPanel title="Research Intelligence" icon={BookOpen} accent="#059669">
+                <SectionPanel title="Research Intelligence" icon={BookOpen} accent="var(--dmq-emerald-deep)">
                   {!researchCard ? (
                     <div className="text-center py-10">
                       <BookOpen size={32} className="mx-auto mb-3 text-muted-foreground/30" />
@@ -1316,7 +1316,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               ============================================= */}
           {activeView === 'timeline' && (
             <div className="mt-5">
-              <SectionPanel title={t('company.activityTimeline')} icon={Clock} accent="#3b82f6" count={timeline.length} onRefresh={fetchTimeline}>
+              <SectionPanel title={t('company.activityTimeline')} icon={Clock} accent="var(--dmq-accent-blue)" count={timeline.length} onRefresh={fetchTimeline}>
                 {timeline.length === 0 ? (
                   <div className="text-center py-10 text-muted-foreground">
                     <Clock size={32} className="mx-auto mb-3 opacity-30" />
@@ -1336,7 +1336,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               ============================================= */}
           {activeView === 'evidence' && (
             <div className="mt-5">
-              <SectionPanel title={t('company.evidenceSources')} icon={Database} accent="#7c3aed" count={evidence.length} onRefresh={fetchEvidence}>
+              <SectionPanel title={t('company.evidenceSources')} icon={Database} accent="var(--dmq-purple-deep)" count={evidence.length} onRefresh={fetchEvidence}>
                 {evidence.length === 0 ? (
                   <div className="text-center py-10 text-muted-foreground">
                     <Database size={32} className="mx-auto mb-3 opacity-30" />
@@ -1384,7 +1384,7 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
               placeholder="Note title (optional)"
               value={noteForm.title}
               onChange={e => setNoteForm(p => ({ ...p, title: e.target.value }))}
-              className="h-9 text-xs"
+              className="h-10 text-xs"
             />
             <Textarea
               placeholder="Research notes, observations, findings..."
@@ -1394,11 +1394,11 @@ export default function CompanyDetailScreen({ companyId, navigateTo, onBack }: a
             />
             <div className="flex items-center gap-2">
               <Button size="sm" onClick={saveNote} disabled={savingNote || !noteForm.body.trim()}
-                className="gap-1.5 h-8 text-xs bg-blue-600 text-white">
+                className="gap-1.5 h-10 text-xs bg-blue-600 text-white min-h-[44px]">
                 {savingNote ? <Loader2 size={12} className="animate-spin" /> : <Save size={12} />}
                 Save Note
               </Button>
-              <Button size="sm" variant="outline" onClick={() => setNoteDialogOpen(false)} className="h-8 text-xs">Cancel</Button>
+              <Button size="sm" variant="outline" onClick={() => setNoteDialogOpen(false)} className="h-10 text-xs min-h-[44px]">Cancel</Button>
             </div>
           </div>
         </DialogContent>

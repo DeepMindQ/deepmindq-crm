@@ -6,6 +6,7 @@ import { CheckCircle2, Clock, XCircle, ArrowRight, Star, Filter, Zap, Brain, Tar
 import { cn } from '@/lib/utils'
 import { tokens } from '@/components/intelligence-os/design-tokens'
 import { useRecommendations, useMutation } from '@/lib/realtime-hooks'
+import { EnterpriseLoading, EnterpriseEmptyState } from '@/components/enterprise'
 
 type RecStatus = 'pending' | 'accepted' | 'dismissed' | 'snoozed' | 'executed'
 type RecPriority = 'critical' | 'high' | 'medium' | 'low'
@@ -74,6 +75,10 @@ export function RecommendationQueueV2({ recommendations = [], className, onActio
   const effectiveRecommendations: Recommendation[] = recommendations.length > 0
     ? recommendations
     : ((fetchedRecommendations as Recommendation[] | undefined) ?? [])
+
+  if (fetchLoading && effectiveRecommendations.length === 0) {
+    return <EnterpriseLoading message="Loading recommendations..." />
+  }
 
   const filtered = useMemo(() => {
     return effectiveRecommendations
@@ -166,7 +171,7 @@ export function RecommendationQueueV2({ recommendations = [], className, onActio
             return (
               <motion.div key={rec.id} layout initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, x: -20 }} className={cn('rounded-xl border p-3 transition-all', isSelected && 'ring-1')} style={{ background: tokens.surface.card, borderColor: isSelected ? tokens.domain.signal : tokens.border.default, ...(isSelected ? { ['--tw-ring-color' as string]: tokens.domain.signal } as React.CSSProperties : {}) }}>
                 <div className="flex items-start gap-3">
-                  <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(rec.id)} className="mt-1 accent-[#3b82f6]" />
+                  <input type="checkbox" checked={isSelected} onChange={() => toggleSelect(rec.id)} className="mt-1 accent-[var(--dmq-accent-blue)]" />
                   <div className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0" style={{ background: `${priConfig.color}12` }}>
                     <priConfig.icon className="w-4 h-4" style={{ color: priConfig.color }} />
                   </div>
@@ -205,10 +210,13 @@ export function RecommendationQueueV2({ recommendations = [], className, onActio
           })}
         </AnimatePresence>
         {filtered.length === 0 && (
-          <div className="py-12 text-center">
-            <Sparkles className="w-8 h-8 mx-auto mb-2" style={{ color: tokens.text.muted }} />
-            <p className="text-xs" style={{ color: tokens.text.secondary }}>No recommendations match your filters</p>
-          </div>
+          <EnterpriseEmptyState
+            icon={Sparkles}
+            title="No recommendations match your filters"
+            description="Try adjusting status or priority filters to see recommendations."
+            actionLabel={statusFilter !== 'pending' || priorityFilter !== 'all' ? 'Show all' : undefined}
+            onAction={statusFilter !== 'pending' || priorityFilter !== 'all' ? () => { setStatusFilter('all'); setPriorityFilter('all') } : undefined}
+          />
         )}
       </div>
     </div>

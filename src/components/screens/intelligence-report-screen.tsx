@@ -201,12 +201,12 @@ export default function IntelligenceReportScreen({
         {/* View Toggle */}
         <div className="flex items-center rounded-lg border border-slate-200 bg-white p-1 shadow-sm">
           <button onClick={() => setActiveView('builder')}
-            className={cn('px-3 py-1.5 rounded-md text-xs font-medium transition-all',
+            className={cn('px-3 py-2.5 rounded-md text-xs font-medium transition-all min-h-[44px]',
               activeView === 'builder' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50')}>
             Builder
           </button>
           <button onClick={() => setActiveView('reports')}
-            className={cn('px-3 py-1.5 rounded-md text-xs font-medium transition-all',
+            className={cn('px-3 py-2.5 rounded-md text-xs font-medium transition-all min-h-[44px]',
               activeView === 'reports' ? 'bg-blue-600 text-white shadow-sm' : 'text-slate-500 hover:text-slate-700 hover:bg-slate-50')}>
             Reports ({generatedReports.length})
           </button>
@@ -227,7 +227,7 @@ export default function IntelligenceReportScreen({
               <div className="space-y-1.5 mb-4">
                 <label className="text-xs font-medium text-slate-500">Template</label>
                 <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
-                  <SelectTrigger className="h-9 border-slate-200 text-sm">
+                  <SelectTrigger className="h-10 border-slate-200 text-sm">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -264,9 +264,9 @@ export default function IntelligenceReportScreen({
                 <label className="text-xs font-medium text-slate-500">Date Range</label>
                 <div className="grid grid-cols-2 gap-2">
                   <Input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                    className="h-9 text-xs border-slate-200" />
+                    className="h-10 text-xs border-slate-200" />
                   <Input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                    className="h-9 text-xs border-slate-200" />
+                    className="h-10 text-xs border-slate-200" />
                 </div>
               </div>
 
@@ -297,10 +297,10 @@ export default function IntelligenceReportScreen({
               <div className="flex items-center justify-between mb-6">
                 <h3 className="text-sm font-semibold text-slate-900">Report Preview</h3>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-8 text-xs border-slate-200 gap-1.5">
+                  <Button variant="outline" size="sm" className="h-10 text-xs border-slate-200 gap-1.5 min-h-[44px]">
                     <Printer className="h-3.5 w-3.5" /> Print
                   </Button>
-                  <Button size="sm" className="h-8 text-xs bg-blue-600 hover:bg-blue-700 gap-1.5">
+                  <Button size="sm" className="h-10 text-xs bg-blue-600 hover:bg-blue-700 gap-1.5 min-h-[44px]">
                     <Download className="h-3.5 w-3.5" /> Download
                   </Button>
                 </div>
@@ -464,10 +464,10 @@ export default function IntelligenceReportScreen({
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Button variant="outline" size="sm" className="h-8 text-xs border-slate-200 gap-1.5">
+                  <Button variant="outline" size="sm" className="h-10 text-xs border-slate-200 gap-1.5 min-h-[44px]">
                     <Eye className="h-3.5 w-3.5" /> Preview
                   </Button>
-                  <Button size="sm" className="h-8 text-xs bg-blue-600 hover:bg-blue-700 gap-1.5">
+                  <Button size="sm" className="h-10 text-xs bg-blue-600 hover:bg-blue-700 gap-1.5 min-h-[44px]">
                     <Download className="h-3.5 w-3.5" /> Download
                   </Button>
                 </div>

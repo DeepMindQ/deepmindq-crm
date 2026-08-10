@@ -10,6 +10,7 @@
  */
 
 import { salesforceAdapter } from './salesforce-adapter';
+import { tokens } from '@/lib/design-tokens';
 import { hubSpotAdapter } from './hubspot-adapter';
 
 // ─── Connector Registry ──────────────────────────────────────────

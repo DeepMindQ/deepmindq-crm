@@ -15,6 +15,7 @@ import {
   discoverMarket,
   type MarketDiscoveryResponse,
 } from '@/lib/market-discovery';
+import { utilityGuard, utilityError, utilitySuccess, utilityCatchError, RateLimitedError } from '@/lib/intelligence-api/guard';
 
 // ─── Input Validation ─────────────────────────────────────────────
 
@@ -54,33 +55,30 @@ export async function POST(req: NextRequest) {
   const { errorResponse } = await checkApiAuth(req);
   if (errorResponse) return errorResponse;
 
+  // ── Correlation-id + rate limiting guard ──
+  let ctx;
+  try {
+    ctx = utilityGuard(req, 'market-discovery');
+  } catch (e) {
+    if (e instanceof RateLimitedError) {
+      return NextResponse.json({ error: 'Rate limited', code: 'RATE_LIMITED' }, { status: 429, headers: e.headers });
+    }
+    throw e;
+  }
+
   try {
     // Parse request body
     let body: unknown;
     try {
       body = await req.json();
     } catch {
-      return NextResponse.json(
-        {
-          success: false,
-          error: 'Invalid JSON in request body',
-          timestamp: new Date().toISOString(),
-        },
-        { status: 400 },
-      );
+      return utilityError(ctx, 400, 'Invalid JSON in request body', 'VALIDATION_FAILED');
     }
 
     // Validate input
     const { data, error } = validateInput(body);
     if (error) {
-      return NextResponse.json(
-        {
-          success: false,
-          error,
-          timestamp: new Date().toISOString(),
-        },
-        { status: 400 },
-      );
+      return utilityError(ctx, 400, error, 'VALIDATION_FAILED');
     }
 
     logger.info('[market-discovery] Processing request', {
@@ -96,24 +94,8 @@ export async function POST(req: NextRequest) {
       latencyMs: result.latencyMs,
     });
 
-    return NextResponse.json(result, { status: 200 });
+    return utilitySuccess(ctx, result, 'market-discovery', Date.now() - startedAt);
   } catch (err) {
-    const message = err instanceof Error ? err.message : 'Unknown error';
-    const latencyMs = Date.now() - startedAt;
-
-    logger.error('[market-discovery] Request failed', {
-      error: message,
-      latencyMs,
-    });
-
-    return NextResponse.json(
-      {
-        success: false,
-        error: 'Market discovery failed. Please try again.',
-        detail: process.env.NODE_ENV === 'development' ? message : undefined,
-        timestamp: new Date().toISOString(),
-      },
-      { status: 500 },
-    );
+    return utilityCatchError(ctx, err, 500, 'INTERNAL_ERROR', 'Market discovery failed', Date.now() - startedAt);
   }
 }

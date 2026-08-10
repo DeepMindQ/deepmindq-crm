@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { logger } from '@/lib/logger'
 import { biasDetector } from '@/lib/bias-detector'
 import { checkApiAuth } from '@/lib/api-auth'
 
@@ -17,7 +18,7 @@ export async function GET(request: NextRequest) {
     const report = await biasDetector.generateBiasReport()
     return NextResponse.json(report)
   } catch (error) {
-    console.error('[API /admin/bias-report GET]', error)
+    logger.error('[API /admin/bias-report GET]', { error })
     return NextResponse.json(
       { error: 'Failed to generate bias report' },
       { status: 500 }

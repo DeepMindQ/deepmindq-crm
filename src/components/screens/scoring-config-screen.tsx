@@ -25,6 +25,7 @@ import { Progress } from '@/components/ui/progress'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { EnterpriseLoading } from '@/components/enterprise'
 
 /* ═══════════════════════════════════════════════════
    Types — aligned with src/lib/scoring-config.ts
@@ -190,7 +191,7 @@ function TierThresholdRow({
         max={100}
         value={value}
         onChange={(e) => onChange(parseInt(e.target.value) || 0)}
-        className="h-7 w-16 text-xs text-right tabular-nums"
+        className="h-10 w-16 text-xs text-right tabular-nums"
         aria-label={`${label} threshold`}
       />
     </div>
@@ -586,21 +587,21 @@ export default function ScoringConfigScreen() {
               <CardContent className="space-y-3">
                 <TierThresholdRow
                   label="Hot"
-                  color="#ef4444"
+                  color="var(--dmq-domain-risk)"
                   value={thresholds.hot}
                   onChange={(v) => updateThreshold('hot', v)}
                   description="90+ score"
                 />
                 <TierThresholdRow
                   label="Active"
-                  color="#22c55e"
+                  color="var(--dmq-domain-action)"
                   value={thresholds.active}
                   onChange={(v) => updateThreshold('active', v)}
                   description="70-89 score"
                 />
                 <TierThresholdRow
                   label="Nurture"
-                  color="#3b82f6"
+                  color="var(--dmq-accent-blue)"
                   value={thresholds.nurture}
                   onChange={(v) => updateThreshold('nurture', v)}
                   description="50-69 score"
@@ -620,7 +621,7 @@ export default function ScoringConfigScreen() {
                         setRecencyDays(parseInt(e.target.value) || 30)
                         markChanged()
                       }}
-                      className="h-7 w-16 text-xs text-right tabular-nums"
+                      className="h-10 w-16 text-xs text-right tabular-nums"
                       aria-label="Signal recency days"
                     />
                     <span className="text-[10px] text-muted-foreground">

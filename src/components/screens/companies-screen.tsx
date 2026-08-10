@@ -67,20 +67,20 @@ interface CompaniesResponse {
 }
 
 const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
-  prospect: { bg: 'rgba(59,130,246,0.12)', text: 'var(--ios-accent-dim)' },
-  researching: { bg: 'rgba(245,158,11,0.12)', text: 'var(--ios-status-amber-text)' },
-  active: { bg: 'rgba(16,185,129,0.12)', text: 'var(--ios-status-green-text)' },
-  engaged: { bg: 'rgba(139,92,246,0.12)', text: 'var(--ios-status-purple-text)' },
-  paused: { bg: 'rgba(161,161,170,0.12)', text: 'var(--ios-status-neutral-text)' },
-  closed_won: { bg: 'rgba(34,197,94,0.12)', text: 'var(--ios-status-green-text)' },
-  closed_lost: { bg: 'rgba(239,68,68,0.12)', text: 'var(--ios-status-red-text)' },
+  prospect: { bg: 'var(--dmq-accent-bg-medium)', text: 'var(--ios-accent-dim)' },
+  researching: { bg: 'var(--dmq-reasoning-bg-medium)', text: 'var(--ios-status-amber-text)' },
+  active: { bg: 'var(--dmq-emerald-bg-medium)', text: 'var(--ios-status-green-text)' },
+  engaged: { bg: 'var(--dmq-purple-bg-medium)', text: 'var(--ios-status-purple-text)' },
+  paused: { bg: 'var(--dmq-neutral-bg)', text: 'var(--ios-status-neutral-text)' },
+  closed_won: { bg: 'var(--dmq-trust-verified-bg)', text: 'var(--ios-status-green-text)' },
+  closed_lost: { bg: 'var(--dmq-risk-bg-medium)', text: 'var(--ios-status-red-text)' },
 };
 
 const TIER_BADGE: Record<string, { bg: string; text: string; icon: typeof Flame; label: string }> = {
-  HOT: { bg: 'rgba(239,68,68,0.12)', text: 'var(--ios-status-red-text)', icon: Flame, label: 'HOT' },
-  ACTIVE: { bg: 'rgba(16,185,129,0.12)', text: 'var(--ios-status-green-text)', icon: Zap, label: 'ACTIVE' },
-  NURTURE: { bg: 'rgba(245,158,11,0.12)', text: 'var(--ios-status-amber-text)', icon: Sprout, label: 'NURTURE' },
-  LOW: { bg: 'rgba(161,161,170,0.12)', text: 'var(--ios-status-neutral-text)', icon: Minus, label: 'LOW' },
+  HOT: { bg: 'var(--dmq-risk-bg-medium)', text: 'var(--ios-status-red-text)', icon: Flame, label: 'HOT' },
+  ACTIVE: { bg: 'var(--dmq-emerald-bg-medium)', text: 'var(--ios-status-green-text)', icon: Zap, label: 'ACTIVE' },
+  NURTURE: { bg: 'var(--dmq-reasoning-bg-medium)', text: 'var(--ios-status-amber-text)', icon: Sprout, label: 'NURTURE' },
+  LOW: { bg: 'var(--dmq-neutral-bg)', text: 'var(--ios-status-neutral-text)', icon: Minus, label: 'LOW' },
 };
 const TIER_OPTIONS = ['HOT', 'ACTIVE', 'NURTURE', 'LOW'];
 const SIZE_RANGES = ['1-10', '11-50', '51-200', '201-1000', '1001-5000', '5001+'];
@@ -141,13 +141,13 @@ function ScoreBar({ score }: { score: number | null }) {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const c = STATUS_COLORS[status] ?? { bg: 'rgba(100,100,100,.12)', text: 'var(--ios-status-neutral-text)' };
+  const c = STATUS_COLORS[status] ?? { bg: 'var(--dmq-gray-bg)', text: 'var(--ios-status-neutral-text)' };
   return <span className="inline-flex text-[11px] font-medium px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: c.bg, color: c.text }}>{statusLabel(status)}</span>;
 }
 
 function TierBadge({ tier }: { tier: string | null }) {
   if (!tier) return <span className="text-[11px] text-gray-300">—</span>;
-  const t = TIER_BADGE[tier] ?? { bg: 'rgba(100,100,100,.12)', text: 'var(--ios-status-neutral-text)', icon: Minus, label: tier };
+  const t = TIER_BADGE[tier] ?? { bg: 'var(--dmq-gray-bg)', text: 'var(--ios-status-neutral-text)', icon: Minus, label: tier };
   const Icon = t.icon;
   return (
     <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full whitespace-nowrap" style={{ background: t.bg, color: t.text }}>
@@ -206,7 +206,7 @@ function CompanyCard({ c, onClick }: { c: CompanyRow; onClick: () => void }) {
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} whileHover={{ y: -2 }} onClick={onClick}
       className="rounded-xl border p-4 cursor-pointer transition-shadow hover:shadow-md flex flex-col gap-3"
-      style={{ background: 'rgba(255,255,255,.85)', borderColor: 'rgba(0,0,0,.05)' }}>
+      style={{ background: 'var(--dmq-white-card)', borderColor: 'var(--dmq-black-hint)' }}>
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-semibold text-gray-900 truncate">{c.rawName}</h3>
@@ -257,26 +257,26 @@ function CompanyDialog({ open, onOpenChange, editing, onSubmit, submitting }: {
         <div className="grid gap-3.5 py-2">
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Company Name <span className="text-red-500">*</span></Label>
-            <Input placeholder="e.g. Acme Corp" value={form.rawName} onChange={set('rawName')} className="h-9 text-sm" autoFocus
+            <Input placeholder="e.g. Acme Corp" value={form.rawName} onChange={set('rawName')} className="h-10 text-sm" autoFocus
               onKeyDown={e => { if (e.key === 'Enter' && valid) onSubmit(form, editing?.id); }} />
           </div>
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1.5"><Label className="text-xs font-medium">Domain</Label><Input placeholder="acme.com" value={form.domain} onChange={set('domain')} className="h-9 text-sm" /></div>
-            <div className="space-y-1.5"><Label className="text-xs font-medium">Website</Label><Input placeholder="https://acme.com" value={form.website} onChange={set('website')} className="h-9 text-sm" /></div>
+            <div className="space-y-1.5"><Label className="text-xs font-medium">Domain</Label><Input placeholder="acme.com" value={form.domain} onChange={set('domain')} className="h-10 text-sm" /></div>
+            <div className="space-y-1.5"><Label className="text-xs font-medium">Website</Label><Input placeholder="https://acme.com" value={form.website} onChange={set('website')} className="h-10 text-sm" /></div>
           </div>
           <div className="space-y-1.5">
             <Label className="text-xs font-medium">Industry</Label>
-            <Input placeholder="e.g. Technology" value={form.industry} onChange={set('industry')} className="h-9 text-sm" />
+            <Input placeholder="e.g. Technology" value={form.industry} onChange={set('industry')} className="h-10 text-sm" />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="text-xs font-medium">Size Range</Label>
               <Select value={form.sizeRange} onValueChange={v => setForm(f => ({ ...f, sizeRange: v }))}>
-                <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select size" /></SelectTrigger>
+                <SelectTrigger className="h-10 text-sm"><SelectValue placeholder="Select size" /></SelectTrigger>
                 <SelectContent>{SIZE_RANGES.map(s => <SelectItem key={s} value={s}>{s}</SelectItem>)}</SelectContent>
               </Select>
             </div>
-            <div className="space-y-1.5"><Label className="text-xs font-medium">Country</Label><Input placeholder="e.g. US" value={form.country} onChange={set('country')} className="h-9 text-sm" /></div>
+            <div className="space-y-1.5"><Label className="text-xs font-medium">Country</Label><Input placeholder="e.g. US" value={form.country} onChange={set('country')} className="h-10 text-sm" /></div>
           </div>
           <div className="space-y-1.5"><Label className="text-xs font-medium">Notes</Label>
             <Textarea placeholder="Internal notes..." value={form.notes} onChange={set('notes')} className="text-sm min-h-[56px] resize-none" />
@@ -342,7 +342,7 @@ export default function CompaniesScreen() {
   const total = (data as CompaniesResponse)?.pagination?.total ?? 0;
   const totalPages = (data as CompaniesResponse)?.pagination?.totalPages ?? Math.max(1, Math.ceil(total / 20));
 
-  const { data: meta } = useQuery({
+  const { data: meta, isLoading: metaLoading } = useQuery({
     queryKey: ['companies-meta'],
     queryFn: async () => { const { data: d, error } = await fetchApi('/api/companies/meta'); if (error) throw new Error(error); return d!; },
     staleTime: 60_000,
@@ -434,12 +434,12 @@ export default function CompaniesScreen() {
           </div>
           <div className="flex items-center gap-2">
             <div className="flex items-center rounded-lg border border-gray-200 p-0.5" style={{ background: 'rgba(255,255,255,.85)' }}>
-              <Button variant="ghost" size="sm" className={cn('h-7 w-7 p-0', view === 'table' && 'bg-gray-100')} onClick={() => setView('table')}><List size={14} /></Button>
-              <Button variant="ghost" size="sm" className={cn('h-7 w-7 p-0', view === 'grid' && 'bg-gray-100')} onClick={() => setView('grid')}><LayoutGrid size={14} /></Button>
+              <Button variant="ghost" size="sm" className={cn('h-10 w-10 p-0 min-h-[44px]', view === 'table' && 'bg-gray-100')} onClick={() => setView('table')}><List size={14} /></Button>
+              <Button variant="ghost" size="sm" className={cn('h-10 w-10 p-0 min-h-[44px]', view === 'grid' && 'bg-gray-100')} onClick={() => setView('grid')}><LayoutGrid size={14} /></Button>
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="sm" className="h-8 px-3 text-xs font-medium"><Download size={14} className="mr-1.5" />Export</Button>
+                <Button variant="outline" size="sm" className="h-10 px-3 text-xs font-medium min-h-[44px]"><Download size={14} className="mr-1.5" />Export</Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end">
                 <DropdownMenuItem onClick={() => { exportCSV(companies); toast.success(`Exported ${companies.length}`); }}>Export All</DropdownMenuItem>
@@ -447,7 +447,7 @@ export default function CompaniesScreen() {
               </DropdownMenuContent>
             </DropdownMenu>
             <Button size="sm" onClick={() => { setEditing(null); setDlgOpen(true); }}
-              className="h-8 px-3 text-xs font-semibold rounded-lg" style={{ background: 'var(--color-gold)', color: 'var(--ios-gold-text)' }}>
+              className="h-10 px-3 text-xs font-semibold rounded-lg" style={{ background: 'var(--color-gold)', color: 'var(--ios-gold-text)' }}>
               <Plus size={14} className="mr-1.5" />Add Company
             </Button>
           </div>
@@ -457,7 +457,7 @@ export default function CompaniesScreen() {
         <div className="flex items-center gap-2 flex-wrap">
           <div className="relative flex-1 min-w-[200px]">
             <Search size={14} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-gray-400" />
-            <Input aria-label="Search companies" placeholder="Search name, domain, industry…" value={search} onChange={e => updateSearch(e.target.value)} className="h-8 pl-8 pr-8 text-xs rounded-lg" />
+            <Input aria-label="Search companies" placeholder="Search name, domain, industry…" value={search} onChange={e => updateSearch(e.target.value)} className="h-10 pl-8 pr-8 text-xs rounded-lg" />
             {search && <button onClick={() => { setSearch(''); setDebounced(''); setPage(1); }} className="absolute right-2.5 top-1/2 -translate-y-1/2"><X size={12} className="text-gray-400" /></button>}
           </div>
           <FilterSelect value={industry} onChange={v => setIndustry(v)} placeholder="All Industries" items={industries.slice(0, 20)} />
@@ -465,7 +465,7 @@ export default function CompaniesScreen() {
           <FilterSelect value={sizeRange} onChange={v => setSizeRange(v)} placeholder="All Sizes" items={SIZE_RANGES} />
           <FilterSelect value={tier} onChange={v => setTier(v)} placeholder="All Tiers" items={TIER_OPTIONS} />
           {activeFilters > 0 && (
-            <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-500" onClick={() => { setSearch(''); setDebounced(''); setIndustry(''); setStatus(''); setSizeRange(''); setTier(''); setPage(1); }}>Clear all</Button>
+            <Button variant="ghost" size="sm" className="h-10 text-xs text-gray-500 min-h-[44px]" onClick={() => { setSearch(''); setDebounced(''); setIndustry(''); setStatus(''); setSizeRange(''); setTier(''); setPage(1); }}>Clear all</Button>
           )}
         </div>
       </div>
@@ -477,10 +477,10 @@ export default function CompaniesScreen() {
             className="flex items-center gap-3 px-4 py-2.5 rounded-xl border" style={{ background: 'rgba(59,130,246,.04)', borderColor: 'rgba(59,130,246,.15)' }}>
             <Check size={14} className="text-blue-600" />
             <span className="text-xs font-medium text-blue-600">{selected.size} selected</span>
-            <Button variant="outline" size="sm" className="h-7 text-xs ml-2" onClick={bulkDelete}><Trash2 size={12} className="mr-1" />Delete</Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={() => { exportCSV(companies.filter(c => selected.has(c.id))); toast.success(`Exported ${selected.size}`); }}><Download size={12} className="mr-1" />Export</Button>
-            <Button variant="outline" size="sm" className="h-7 text-xs" onClick={bulkEnrich} style={{ borderColor: 'rgba(212,175,55,.4)', color: 'var(--color-gold)' }}><Sparkles size={12} className="mr-1" />AI Enrich</Button>
-            <Button variant="ghost" size="sm" className="h-7 text-xs ml-auto text-gray-400" onClick={() => setSelected(new Set())}>Clear</Button>
+            <Button variant="outline" size="sm" className="h-10 text-xs ml-2 min-h-[44px]" onClick={bulkDelete}><Trash2 size={12} className="mr-1" />Delete</Button>
+            <Button variant="outline" size="sm" className="h-10 text-xs min-h-[44px]" onClick={() => { exportCSV(companies.filter(c => selected.has(c.id))); toast.success(`Exported ${selected.size}`); }}><Download size={12} className="mr-1" />Export</Button>
+            <Button variant="outline" size="sm" className="h-10 text-xs min-h-[44px]" onClick={bulkEnrich} style={{ borderColor: 'rgba(212,175,55,.4)', color: 'var(--color-gold)' }}><Sparkles size={12} className="mr-1" />AI Enrich</Button>
+            <Button variant="ghost" size="sm" className="h-10 text-xs ml-auto text-gray-400 min-h-[44px]" onClick={() => setSelected(new Set())}>Clear</Button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -557,7 +557,7 @@ export default function CompaniesScreen() {
                           <TableCell className="hidden md:table-cell"><span className="text-[11px] text-gray-400">{relativeTime(c.lastActivityAt || c.updatedAt)}</span></TableCell>
                           <TableCell onClick={e => e.stopPropagation()}>
                             <DropdownMenu>
-                              <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-7 w-7 p-0"><MoreHorizontal size={14} className="text-gray-400" /></Button></DropdownMenuTrigger>
+                              <DropdownMenuTrigger asChild><Button variant="ghost" size="sm" className="h-10 w-10 p-0 min-h-[44px]"><MoreHorizontal size={14} className="text-gray-400" /></Button></DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
                                 <DropdownMenuItem onClick={() => goTo(c.id)}><Eye size={14} className="mr-2" />View</DropdownMenuItem>
                                 <DropdownMenuItem onClick={() => { setEditing(c); setDlgOpen(true); }}><Pencil size={14} className="mr-2" />Edit</DropdownMenuItem>
@@ -589,16 +589,16 @@ export default function CompaniesScreen() {
               <div className="flex items-center justify-between px-4 py-2.5 border-t border-gray-100 shrink-0">
                 <span className="text-xs text-gray-500">{(page - 1) * 20 + 1}–{Math.min(page * 20, total)} of {total}</span>
                 <div className="flex items-center gap-1">
-                  <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={page <= 1} onClick={() => setPage(p => p - 1)}><ChevronLeft size={14} /></Button>
+                  <Button variant="outline" size="sm" className="h-10 w-10 p-0 min-h-[44px]" disabled={page <= 1} onClick={() => setPage(p => p - 1)}><ChevronLeft size={14} /></Button>
                   {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
                     let p: number;
                     if (totalPages <= 5) p = i + 1;
                     else if (page <= 3) p = i + 1;
                     else if (page >= totalPages - 2) p = totalPages - 4 + i;
                     else p = page - 2 + i;
-                    return <Button key={p} variant={p === page ? 'default' : 'outline'} size="sm" className={cn('h-7 w-7 p-0 text-xs', p === page && 'bg-amber-500 hover:bg-amber-600 text-white')} onClick={() => setPage(p)}>{p}</Button>;
+                    return <Button key={p} variant={p === page ? 'default' : 'outline'} size="sm" className={cn('h-10 w-10 p-0 text-xs min-h-[44px]', p === page && 'bg-amber-500 hover:bg-amber-600 text-white')} onClick={() => setPage(p)}>{p}</Button>;
                   })}
-                  <Button variant="outline" size="sm" className="h-7 w-7 p-0" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}><ChevronRight size={14} /></Button>
+                  <Button variant="outline" size="sm" className="h-10 w-10 p-0 min-h-[44px]" disabled={page >= totalPages} onClick={() => setPage(p => p + 1)}><ChevronRight size={14} /></Button>
                 </div>
               </div>
             )}
@@ -636,7 +636,7 @@ function FilterSelect({ value, onChange, placeholder, items, keys }: {
 }) {
   return (
     <Select value={value || '__all__'} onValueChange={v => onChange(v === '__all__' ? '' : v)}>
-      <SelectTrigger className="h-8 w-[140px] text-xs"><SelectValue placeholder={placeholder} /></SelectTrigger>
+      <SelectTrigger className="h-10 w-[140px] text-xs"><SelectValue placeholder={placeholder} /></SelectTrigger>
       <SelectContent>
         <SelectItem value="__all__">{placeholder}</SelectItem>
         {items.map((item, i) => <SelectItem key={keys?.[i] ?? item} value={keys?.[i] ?? item}>{item}</SelectItem>)}

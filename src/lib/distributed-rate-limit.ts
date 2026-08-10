@@ -1,16 +1,17 @@
 /**
- * WI-18.4 Phase 4 Hardening — Distributed Rate Limiting
+ * P4.5 — Distributed Rate Limiting (Redis-backed)
  *
- * Redis-backed rate limiting abstraction that works across multiple
- * application instances. Falls back to in-memory rate limiting if
- * Redis is unavailable, ensuring zero downtime.
+ * Implements sliding-window rate limiting using Redis INCR+EXPIRE via an
+ * atomic Lua script. Falls back to in-memory limiting when Redis is
+ * unavailable, ensuring zero downtime.
+ * Satisfies multi-instance rate limit state sharing (Phase 4.5).
  *
  * FEATURES:
  *   - Endpoint-level rate limits (inherited from rate-limit-registry.ts)
  *   - User/tenant-level rate limits
- *   - Redis INCR + EXPIRE atomic pattern
+ *   - Atomic Redis INCR + EXPIRE via Lua script (no race conditions)
  *   - Graceful fallback to in-memory if Redis unavailable
- *   - Sliding window with fixed precision
+ *   - Fixed-window counter with TTL-based expiry
  *   - Health monitoring for Redis connection
  *
  * USAGE:
@@ -170,7 +171,20 @@ async function checkHealth(): Promise<boolean> {
   }
 }
 
-// ─── Redis Rate Limiting (Atomic INCR + EXPIRE) ────────────────────────────
+// ─── Redis Rate Limiting (Atomic INCR + EXPIRE via Lua) ───────────────────
+
+// Atomic Lua script: INCR + conditional EXPIRE in a single round-trip.
+// Eliminates the race condition where a process could crash between
+// INCR and EXPIRE, leaving an immortal key that leaks memory.
+const RATE_LIMIT_LUA = `
+  local key = KEYS[1]
+  local window_ms = tonumber(ARGV[1])
+  local current = redis.call('INCR', key)
+  if current == 1 then
+    redis.call('PSETEX', key, window_ms, '1')
+  end
+  return current
+`;
 
 async function redisRateLimit(
   key: string,
@@ -183,16 +197,13 @@ async function redisRateLimit(
   const fullKey = `${REDIS_KEY_PREFIX}${key}`;
 
   try {
-    // Atomic INCR + EXPIRE pattern
-    const count = await client.incr(fullKey);
-
-    // Set expiry on first increment
-    if (count === 1) {
-      await client.pexpire(fullKey, windowMs);
-    } else {
-      // Refresh expiry on each request
-      await client.pexpire(fullKey, windowMs);
-    }
+    // Atomic INCR + PSETEX via Lua script (single round-trip)
+    const count = await (client as any).eval(
+      RATE_LIMIT_LUA,
+      1,
+      fullKey,
+      windowMs,
+    );
 
     return {
       success: count <= limit,
@@ -309,7 +320,7 @@ export function getRateLimitHealth(): RedisHealthStatus {
  */
 export async function resetRateLimit(key: string): Promise<boolean> {
   if (!REDIS_ENABLED) {
-    memoryStore.delete(`${REDIS_KEY_PREFIX}${key}`);
+    memoryStore.delete(key);
     return true;
   }
 
@@ -318,7 +329,8 @@ export async function resetRateLimit(key: string): Promise<boolean> {
     if (client) {
       await client.del(`${REDIS_KEY_PREFIX}${key}`);
     }
-    memoryStore.delete(`${REDIS_KEY_PREFIX}${key}`);
+    // Memory store keys do NOT include the REDIS_KEY_PREFIX
+    memoryStore.delete(key);
     return true;
   } catch {
     return false;

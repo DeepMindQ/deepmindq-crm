@@ -7,6 +7,7 @@ import { TemporalIntelligenceTimeline } from '@/components/intelligence-os/molec
 import { cn } from '@/lib/utils'
 import { tokens } from '@/components/intelligence-os/design-tokens'
 import { useCompanyDetail, useCompanySignals, useCompanyScore } from '@/lib/realtime-hooks'
+import { EnterpriseLoading, EnterpriseEmptyState } from '@/components/enterprise'
 
 type TabId = 'overview' | 'contacts' | 'opportunities' | 'signals' | 'timeline'
 
@@ -42,6 +43,15 @@ export function CompanyWorkspaceV2({ companyId, onBack, onNavigate, className }:
   const { data: companyData, loading, refetch } = useCompanyDetail(companyId, 60000)
   const { data: signalsData } = useCompanySignals(companyId, 45000)
   const { data: scoreData } = useCompanyScore(companyId)
+
+  // ── Initial loading state ──
+  if (loading) {
+    return (
+      <div className={cn('space-y-4', className)}>
+        <EnterpriseLoading message="Loading company details..." />
+      </div>
+    )
+  }
 
   // Derived counts from fetched data
   const signals = useMemo(() => {
@@ -193,15 +203,13 @@ export function CompanyWorkspaceV2({ companyId, onBack, onNavigate, className }:
           )}
           {activeTab === 'contacts' && (
             contactsLoading ? (
-              <div className="py-8 text-center">
-                <div className="h-6 w-48 rounded animate-pulse mx-auto mb-2" style={{ background: tokens.surface.secondary }} />
-                <div className="h-4 w-32 rounded animate-pulse mx-auto" style={{ background: tokens.surface.secondary }} />
-              </div>
+              <EnterpriseLoading message="Loading contacts..." size="sm" />
             ) : contacts.length === 0 ? (
-              <div className="py-8 text-center">
-                <Users className="w-8 h-8 mx-auto mb-2" style={{ color: tokens.text.muted }} />
-                <p className="text-xs" style={{ color: tokens.text.secondary }}>No contacts found for this company</p>
-              </div>
+              <EnterpriseEmptyState
+                icon={Users}
+                title="No contacts found for this company"
+                description="Contacts will appear once they are discovered or imported."
+              />
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {contacts.map((c: any) => (
@@ -227,15 +235,13 @@ export function CompanyWorkspaceV2({ companyId, onBack, onNavigate, className }:
           )}
           {activeTab === 'opportunities' && (
             opportunitiesLoading ? (
-              <div className="py-8 text-center">
-                <div className="h-6 w-48 rounded animate-pulse mx-auto mb-2" style={{ background: tokens.surface.secondary }} />
-                <div className="h-4 w-32 rounded animate-pulse mx-auto" style={{ background: tokens.surface.secondary }} />
-              </div>
+              <EnterpriseLoading message="Loading opportunities..." size="sm" />
             ) : opportunities.length === 0 ? (
-              <div className="py-8 text-center">
-                <Target className="w-8 h-8 mx-auto mb-2" style={{ color: tokens.text.muted }} />
-                <p className="text-xs" style={{ color: tokens.text.secondary }}>No opportunities found for this company</p>
-              </div>
+              <EnterpriseEmptyState
+                icon={Target}
+                title="No opportunities found for this company"
+                description="Opportunities will surface once intelligence signals are detected."
+              />
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {opportunities.map((o: any) => (
@@ -259,10 +265,11 @@ export function CompanyWorkspaceV2({ companyId, onBack, onNavigate, className }:
           )}
           {activeTab === 'signals' && (
             signals.length === 0 ? (
-              <div className="py-8 text-center">
-                <Radar className="w-8 h-8 mx-auto mb-2" style={{ color: tokens.text.muted }} />
-                <p className="text-xs" style={{ color: tokens.text.secondary }}>No signals detected for this company</p>
-              </div>
+              <EnterpriseEmptyState
+                icon={Radar}
+                title="No signals detected for this company"
+                description="Intelligence signals will be collected as data sources are connected."
+              />
             ) : (
               <div className="space-y-2 max-h-[400px] overflow-y-auto">
                 {signals.map((s: any) => (

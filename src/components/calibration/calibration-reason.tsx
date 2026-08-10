@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { tokens } from '@/components/intelligence-os/design-tokens';
 import { motion, AnimatePresence } from 'framer-motion'
 import { ChevronDown, ChevronRight, Brain, Scale, TrendingUp, ExternalLink } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
@@ -51,7 +52,7 @@ export function CalibrationReason({
         aria-expanded={isExpanded}
         aria-controls="calibration-details"
       >
-        <div className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: 'rgba(59,130,246,0.1)', border: '1px solid rgba(59,130,246,0.2)' }}>
+        <div className="shrink-0 w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: tokens.accent.subtle, border: '1px solid rgba(59,130,246,0.2)' }}>
           <Scale className="w-4 h-4 text-primary" />
         </div>
 

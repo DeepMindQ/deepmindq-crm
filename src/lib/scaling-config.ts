@@ -4,6 +4,8 @@
  * Configuration and utilities for multi-instance deployment.
  */
 
+import { logger } from '@/lib/logger';
+
 export const SCALING_CONFIG = {
   // ── Instance Configuration ──
   instance: {
@@ -116,17 +118,17 @@ export function setupGracefulShutdown(server: { close: (cb?: () => void) => void
   const shutdown = async (signal: string) => {
     if (draining) return
     draining = true
-    console.log(`[Shutdown] Received ${signal}. Draining connections...`)
+    logger.info(`[Shutdown] Received ${signal}. Draining connections...`)
     
     // Stop accepting new connections
     server.close(() => {
-      console.log('[Shutdown] Server closed. Exiting.')
+      logger.info('[Shutdown] Server closed. Exiting.')
       process.exit(0)
     })
     
     // Force exit after drain timeout
     setTimeout(() => {
-      console.error('[Shutdown] Forced exit after drain timeout')
+      logger.error('[Shutdown] Forced exit after drain timeout')
       process.exit(1)
     }, SCALING_CONFIG.instance.drainTimeoutMs)
   }

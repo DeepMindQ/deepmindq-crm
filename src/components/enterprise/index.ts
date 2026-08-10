@@ -2,6 +2,7 @@
 export { EnterpriseLoading } from './EnterpriseLoading';
 export { EnterpriseErrorState } from './EnterpriseErrorState';
 export { EnterpriseEmptyState } from './EnterpriseEmptyState';
+export { ScreenStateWrapper, useScreenState } from '@/components/shared/screen-state-wrapper';
 
 // Existing enterprise components
 export { DataTable } from './DataTable';

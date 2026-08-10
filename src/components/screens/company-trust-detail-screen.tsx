@@ -93,7 +93,7 @@ export default function CompanyTrustDetailScreen() {
         action={
           <button
             onClick={() => setActiveView('accounts')}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition"
+            className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 transition min-h-[44px]"
           >
             Browse Companies
           </button>
@@ -152,7 +152,7 @@ export default function CompanyTrustDetailScreen() {
           <TrustScoreBadge score={trustScore} grade={trustGrade} size="md" />
           <button
             onClick={() => refetch()}
-            className="flex items-center gap-2 px-3 py-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg hover:bg-accent/50 transition"
+            className="flex items-center gap-2 px-3 py-2.5 text-xs font-medium text-muted-foreground border border-border rounded-lg hover:bg-accent/50 transition"
             disabled={isFetching}
           >
             <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />

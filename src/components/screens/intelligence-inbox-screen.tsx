@@ -192,31 +192,31 @@ function InboxItemCard({
               {item.status === 'pending' && (
                 <>
                   <Button size="sm" variant="outline"
-                    className="h-7 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50 gap-1"
+                    className="h-10 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50 gap-1 min-h-[44px]"
                     disabled={busy} onClick={() => onReview(item.id, 'approve')}>
                     {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
                     Approve
                   </Button>
                   <Button size="sm" variant="outline"
-                    className="h-7 text-xs text-red-700 border-red-200 hover:bg-red-50 gap-1"
+                    className="h-10 text-xs text-red-700 border-red-200 hover:bg-red-50 gap-1 min-h-[44px]"
                     disabled={busy} onClick={() => onReview(item.id, 'reject')}>
                     {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
                     Reject
                   </Button>
                   <Button size="sm" variant="outline"
-                    className="h-7 text-xs text-slate-600 border-slate-200 hover:bg-slate-50 gap-1"
+                    className="h-10 text-xs text-slate-600 border-slate-200 hover:bg-slate-50 gap-1 min-h-[44px]"
                     disabled={busy} onClick={() => onDismiss(item.id)}>
                     <Trash2 className="h-3 w-3" />
                     Dismiss
                   </Button>
                   <Button size="sm" variant="outline"
-                    className="h-7 text-xs text-blue-600 border-blue-200 hover:bg-blue-50 gap-1"
+                    className="h-10 text-xs text-blue-600 border-blue-200 hover:bg-blue-50 gap-1 min-h-[44px]"
                     disabled={busy} onClick={() => onInvestigate(item.companyId)}>
                     <Eye className="h-3 w-3" />
                     Investigate
                   </Button>
                   <Button size="sm" variant="outline"
-                    className="h-7 text-xs text-purple-600 border-purple-200 hover:bg-purple-50 gap-1"
+                    className="h-10 text-xs text-purple-600 border-purple-200 hover:bg-purple-50 gap-1 min-h-[44px]"
                     disabled={busy} onClick={() => onCreateOpportunity(item.companyId)}>
                     <Target className="h-3 w-3" />
                     Create Opportunity
@@ -225,7 +225,7 @@ function InboxItemCard({
               )}
               {item.status === 'approved' && (
                 <Button size="sm" variant="outline"
-                  className="h-7 text-xs text-blue-700 border-blue-200 hover:bg-blue-50 gap-1"
+                  className="h-10 text-xs text-blue-700 border-blue-200 hover:bg-blue-50 gap-1 min-h-[44px]"
                   disabled={busy} onClick={() => onConvert(item.id)}>
                   {busy ? <Loader2 className="h-3 w-3 animate-spin" /> : <ArrowRight className="h-3 w-3" />}
                   Convert to Intelligence
@@ -233,7 +233,7 @@ function InboxItemCard({
               )}
               {item.status === 'converted' && (
                 <Button size="sm" variant="outline"
-                  className="h-7 text-xs text-slate-400 cursor-not-allowed" disabled>
+                  className="h-10 text-xs text-slate-400 cursor-not-allowed min-h-[44px]" disabled>
                   <CheckCheck className="h-3 w-3 mr-1" />
                   Converted
                 </Button>
@@ -441,14 +441,14 @@ export default function IntelligenceInboxScreen() {
           <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
             <Input
-              className="h-9 pl-9 text-sm border-slate-200"
+              className="h-10 pl-9 text-sm border-slate-200"
               placeholder="Search content, submitter, company..."
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
           </div>
           <Select value={statusFilter} onValueChange={setStatusFilter}>
-            <SelectTrigger className="w-[130px] h-9 text-xs border-slate-200"><SelectValue placeholder="Status" /></SelectTrigger>
+            <SelectTrigger className="w-[130px] h-10 text-xs border-slate-200"><SelectValue placeholder="Status" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Status</SelectItem>
               <SelectItem value="pending">Pending</SelectItem>
@@ -458,7 +458,7 @@ export default function IntelligenceInboxScreen() {
             </SelectContent>
           </Select>
           <Select value={priorityFilter} onValueChange={setPriorityFilter}>
-            <SelectTrigger className="w-[130px] h-9 text-xs border-slate-200"><SelectValue placeholder="Priority" /></SelectTrigger>
+            <SelectTrigger className="w-[130px] h-10 text-xs border-slate-200"><SelectValue placeholder="Priority" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Priority</SelectItem>
               <SelectItem value="low">Low</SelectItem>
@@ -468,7 +468,7 @@ export default function IntelligenceInboxScreen() {
             </SelectContent>
           </Select>
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[140px] h-9 text-xs border-slate-200"><SelectValue placeholder="Category" /></SelectTrigger>
+            <SelectTrigger className="w-[140px] h-10 text-xs border-slate-200"><SelectValue placeholder="Category" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Categories</SelectItem>
               <SelectItem value="Strategy">Strategy</SelectItem>
@@ -493,17 +493,17 @@ export default function IntelligenceInboxScreen() {
           <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
             <span className="text-xs text-slate-500">{selectedIds.size} selected</span>
             <Button size="sm" variant="outline"
-              className="h-7 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50 gap-1"
+              className="h-10 text-xs text-emerald-700 border-emerald-200 hover:bg-emerald-50 gap-1 min-h-[44px]"
               onClick={handleBatchApprove}>
               <CheckCheck className="h-3 w-3" /> Batch Approve
             </Button>
             <Button size="sm" variant="outline"
-              className="h-7 text-xs text-slate-600 border-slate-200 hover:bg-slate-50 gap-1"
+              className="h-10 text-xs text-slate-600 border-slate-200 hover:bg-slate-50 gap-1 min-h-[44px]"
               onClick={handleBatchDismiss}>
               <Trash2 className="h-3 w-3" /> Batch Dismiss
             </Button>
             <Button size="sm" variant="ghost"
-              className="h-7 text-xs text-slate-500 gap-1"
+              className="h-10 text-xs text-slate-500 gap-1 min-h-[44px]"
               onClick={() => setSelectedIds(new Set())}>
               <XCircle className="h-3 w-3" /> Clear
             </Button>
@@ -512,7 +512,7 @@ export default function IntelligenceInboxScreen() {
         {selectedIds.size === 0 && (
           <div className="flex items-center gap-3 mt-3 pt-3 border-t border-slate-100">
             <Button size="sm" variant="outline"
-              className="h-7 text-xs text-orange-600 border-orange-200 hover:bg-orange-50 gap-1"
+              className="h-10 text-xs text-orange-600 border-orange-200 hover:bg-orange-50 gap-1 min-h-[44px]"
               onClick={handleDismissAllLowSeverity}>
               <Trash2 className="h-3 w-3" /> Dismiss All Low-Severity
             </Button>

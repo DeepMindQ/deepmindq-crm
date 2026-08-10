@@ -6,6 +6,7 @@
    ═══════════════════════════════════════════════════ */
 
 import { db } from './db';
+import { tokens } from '@/lib/design-tokens';
 import { sendEmail } from './email-provider';
 import { logger } from '@/lib/logger';
 
@@ -65,29 +66,29 @@ function buildOtpEmailHtml(code: string, purpose: OtpPurpose, appName = 'DeepMin
 <body style="margin:0;padding:0;background:#f9fafb;font-family:system-ui,-apple-system,sans-serif;">
   <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;">
     <tr><td align="center">
-      <table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1);overflow:hidden;">
+      <table width="480" cellpadding="0" cellspacing="0" style="background:{tokens.flat.white};border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1);overflow:hidden;">
         <tr>
-          <td style="background:linear-gradient(135deg,#B8860B,#D4A843);padding:32px 40px;text-align:center;">
-            <h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">${appName}</h1>
+          <td style="background:linear-gradient(135deg,{tokens.gold.dark},#D4A843);padding:32px 40px;text-align:center;">
+            <h1 style="margin:0;color:{tokens.flat.white};font-size:24px;font-weight:700;">${appName}</h1>
           </td>
         </tr>
         <tr>
           <td style="padding:40px;">
-            <h2 style="margin:0 0 8px;color:#111827;font-size:20px;">${label}</h2>
-            <p style="margin:0 0 24px;color:#6b7280;font-size:15px;line-height:1.5;">
+            <h2 style="margin:0 0 8px;color:{tokens.neutral['900']};font-size:20px;">${label}</h2>
+            <p style="margin:0 0 24px;color:{tokens.trust.unverified.value};font-size:15px;line-height:1.5;">
               Use the following code to complete your request. This code expires in ${OTP_EXPIRY_MINUTES} minutes.
             </p>
-            <div style="background:#f3f4f6;border-radius:8px;padding:20px;text-align:center;margin:0 0 24px;">
-              <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#B8860B;font-family:monospace;">${code}</span>
+            <div style="background:{tokens.neutral['100']};border-radius:8px;padding:20px;text-align:center;margin:0 0 24px;">
+              <span style="font-size:36px;font-weight:700;letter-spacing:8px;color:{tokens.gold.dark};font-family:monospace;">${code}</span>
             </div>
-            <p style="margin:0;color:#9ca3af;font-size:13px;line-height:1.5;">
+            <p style="margin:0;color:{tokens.neutral['400']};font-size:13px;line-height:1.5;">
               If you did not request this code, please ignore this email. Do not share this code with anyone.
             </p>
           </td>
         </tr>
         <tr>
-          <td style="padding:20px 40px;border-top:1px solid #f3f4f6;text-align:center;">
-            <p style="margin:0;color:#9ca3af;font-size:12px;">&copy; ${new Date().getFullYear()} ${appName}. All rights reserved.</p>
+          <td style="padding:20px 40px;border-top:1px solid {tokens.neutral['100']};text-align:center;">
+            <p style="margin:0;color:{tokens.neutral['400']};font-size:12px;">&copy; ${new Date().getFullYear()} ${appName}. All rights reserved.</p>
           </td>
         </tr>
       </table>

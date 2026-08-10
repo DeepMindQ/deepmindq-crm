@@ -24,7 +24,7 @@
  */
 
 import { logger } from '@/lib/logger';
-import { callLLM } from '@/lib/llm-client';
+import { governedAICall } from '@/lib/ai-governance';
 
 // ── Feature Flags ────────────────────────────────────────────────────────────
 
@@ -603,7 +603,7 @@ function generateRecommendations(params: {
  *
  * Takes the original evidence/context and the AI's output, asks a fast-tier
  * LLM whether the output is factually supported. Uses the project's callLLM
- * (direct provider chain) for low-latency verification.
+ * (governed provider chain via ai-governance.ts) for verified low-latency verification.
  *
  * Feature-gated by ENABLE_LLM_HALLUCINATION_CHECK env var (default: false).
  * NON-THROWING: always returns a result, never throws.
@@ -623,8 +623,9 @@ export async function verifyWithLLM(
   const truncatedOutput = aiOutput.substring(0, 1500);
 
   try {
-    const response = await callLLM(
-      `You are a factual verification assistant. Your ONLY job is to determine if an AI output is factually supported by the provided evidence.
+    const result = await governedAICall({
+      generationType: 'hallucination_verification',
+      systemPrompt: `You are a factual verification assistant. Your ONLY job is to determine if an AI output is factually supported by the provided evidence.
 
 Rules:
 - Answer YES if the AI output is supported by or consistent with the evidence.
@@ -635,12 +636,15 @@ Rules:
 Respond in EXACTLY this format:
 ANSWER: YES or NO
 EXPLANATION: <brief reason>`,
-      `EVIDENCE:
+      userPrompt: `EVIDENCE:
 ${truncatedEvidence}
 
 AI OUTPUT TO VERIFY:
 ${truncatedOutput}`,
-    );
+      enforceGovernance: false,
+      enforceHallucinationThreshold: 0,
+    });
+    const response = result.response ?? '';
 
     const latencyMs = Date.now() - startTime;
     const upperResponse = response.toUpperCase();

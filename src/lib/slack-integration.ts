@@ -8,6 +8,8 @@
 
 import { getBrandNameSync } from '@/lib/brand-helper';
 import { tokens } from '@/lib/design-tokens';
+import { validateOutboundUrl } from '@/lib/ssrf-protection';
+import { logger } from '@/lib/logger';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -93,6 +95,7 @@ function buildSlackPayload(
 
 /**
  * Send a notification to Slack via an incoming webhook.
+ * Validates the webhook URL against SSRF protection rules before making the request.
  */
 export async function sendSlackNotification(
   config: IntegrationConfig,
@@ -102,10 +105,20 @@ export async function sendSlackNotification(
     return { success: false, error: 'Integration is disabled or webhook URL is missing' };
   }
 
+  // SSRF Protection: Validate URL before making outbound request
+  const urlCheck = validateOutboundUrl(config.webhookUrl);
+  if (!urlCheck.safe) {
+    logger.error('[slack-integration] SSRF protection blocked outbound request', {
+      url: config.webhookUrl,
+      reason: urlCheck.error,
+    });
+    return { success: false, error: `URL blocked by security policy: ${urlCheck.error}` };
+  }
+
   const body = buildSlackPayload(config, payload);
 
   try {
-    const response = await fetch(config.webhookUrl, {
+    const response = await fetch(urlCheck.url!, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -171,6 +184,7 @@ function buildTeamsPayload(
 
 /**
  * Send a notification to Microsoft Teams via an incoming webhook.
+ * Validates the webhook URL against SSRF protection rules before making the request.
  */
 export async function sendTeamsNotification(
   config: IntegrationConfig,
@@ -180,10 +194,20 @@ export async function sendTeamsNotification(
     return { success: false, error: 'Integration is disabled or webhook URL is missing' };
   }
 
+  // SSRF Protection: Validate URL before making outbound request
+  const urlCheck = validateOutboundUrl(config.webhookUrl);
+  if (!urlCheck.safe) {
+    logger.error('[teams-integration] SSRF protection blocked outbound request', {
+      url: config.webhookUrl,
+      reason: urlCheck.error,
+    });
+    return { success: false, error: `URL blocked by security policy: ${urlCheck.error}` };
+  }
+
   const body = buildTeamsPayload(config, payload);
 
   try {
-    const response = await fetch(config.webhookUrl, {
+    const response = await fetch(urlCheck.url!, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -226,6 +250,7 @@ export async function sendIntegrationNotification(
 
 /**
  * Send a one-off Slack notification to an arbitrary webhook URL.
+ * Subject to SSRF protection validation.
  */
 export async function quickSlack(
   webhookUrl: string,
@@ -239,6 +264,7 @@ export async function quickSlack(
 
 /**
  * Send a one-off Teams notification to an arbitrary webhook URL.
+ * Subject to SSRF protection validation.
  */
 export async function quickTeams(
   webhookUrl: string,

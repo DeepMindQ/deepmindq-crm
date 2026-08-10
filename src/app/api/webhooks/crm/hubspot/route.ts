@@ -24,10 +24,15 @@ import { createHmac, timingSafeEqual } from 'crypto';
  * HubSpot signs the webhook body with the app's client secret.
  */
 function verifyHubSpotSignature(body: string, signature: string | null, secret: string | null): boolean {
-  if (!secret || !signature) {
-    // No secret configured — allow in development mode
-    logger.warn('[webhook:hubspot] No client secret configured, skipping signature verification');
-    return true;
+  // FAIL-CLOSED: If no secret is configured, REJECT the webhook.
+  // Previously this returned true (allowing unauthenticated access). Fixed in Phase A.
+  if (!secret) {
+    logger.error('[webhook:hubspot] HUBSPOT_CLIENT_SECRET not configured — rejecting webhook (fail-closed)');
+    return false;
+  }
+  if (!signature) {
+    logger.warn('[webhook:hubspot] Missing X-HubSpot-Signature header — rejecting webhook');
+    return false;
   }
 
   try {

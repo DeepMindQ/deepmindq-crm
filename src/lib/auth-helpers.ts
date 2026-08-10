@@ -32,7 +32,9 @@ export { CSRF_COOKIE_NAME, CSRF_TOKEN_HEADER };
 // NOTE: /api/intelligence/* requires auth — intelligence is premium data.
 export const PUBLIC_PATH_PREFIXES: string[] = [
   '/api/auth/',
-  '/api/webhooks/',
+  '/api/webhooks/crm/',    // Inbound CRM webhooks (HubSpot, Salesforce) — verified via HMAC signatures
+  '/api/webhooks/bounce',  // Inbound email bounce notifications — verified via provider signatures
+  '/api/webhooks/reply',   // Inbound email reply webhooks — verified via provider signatures
   '/api/tracking/',
   '/api/unsubscribe',
   '/api/cron/',

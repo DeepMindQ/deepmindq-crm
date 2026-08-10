@@ -107,6 +107,10 @@ const ALERT_RULES: AlertRule[] = [
   { id: 'db-query-time', name: 'Slow Database Query', metric: 'db.query.duration', condition: 'gt', threshold: 2000, windowMs: 60000, severity: 'warning', cooldownMs: 300000, enabled: true, notificationChannels: ['log'] },
   { id: 'memory-usage', name: 'High Memory Usage', metric: 'system.memory.percent', condition: 'gt', threshold: 85, windowMs: 30000, severity: 'critical', cooldownMs: 60000, enabled: true, notificationChannels: ['log', 'email', 'slack'] },
   { id: 'ai-latency', name: 'High AI Latency', metric: 'ai.request.duration', condition: 'gt', threshold: 10000, windowMs: 60000, severity: 'warning', cooldownMs: 300000, enabled: true, notificationChannels: ['log'] },
+  // Phase A.5: Critical failure alert rules
+  { id: 'auth-failure-burst', name: 'Authentication Failure Burst', metric: 'auth.failure.count', condition: 'gt', threshold: 10, windowMs: 60000, severity: 'critical', cooldownMs: 300000, enabled: true, notificationChannels: ['log', 'email', 'slack'] },
+  { id: 'db-pool-exhaustion', name: 'Database Pool Exhaustion', metric: 'db.pool.waiting', condition: 'gt', threshold: 5, windowMs: 30000, severity: 'critical', cooldownMs: 120000, enabled: true, notificationChannels: ['log', 'email', 'slack'] },
+  { id: 'ai-pipeline-failure', name: 'AI Pipeline Failure', metric: 'ai.pipeline.error.count', condition: 'gt', threshold: 5, windowMs: 60000, severity: 'critical', cooldownMs: 300000, enabled: true, notificationChannels: ['log', 'email', 'slack'] },
 ]
 
 // ── Alert Manager ──

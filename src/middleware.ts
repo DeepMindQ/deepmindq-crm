@@ -44,6 +44,7 @@ import { generateCsrfToken } from '@/lib/csrf'
 import { extractTraceContext, injectTraceContext } from '@/lib/tracing'
 import type { TraceContext } from '@/lib/tracing'
 import { recordRouteLatency } from '@/lib/sla-monitor'
+import { metrics } from '@/lib/monitoring'
 
 /**
  * Inject distributed tracing headers onto a response.
@@ -83,9 +84,11 @@ export async function middleware(request: NextRequest) {
   // ── 0. Extract distributed trace context (before any auth) ──
   const traceCtx = extractTraceContext(request.headers)
 
+  // ── Pre-extract session token (shared across all auth blocks) ──
+  const token = getSessionToken(request)
+
   // ── 1. Protect /app/* pages — session required ─────────
   if (pathname.startsWith('/app') || pathname === '/') {
-    const token = getSessionToken(request)
     let session = null
 
     if (token) {
@@ -94,6 +97,8 @@ export async function middleware(request: NextRequest) {
 
     // Unauthenticated — redirect to /login
     if (!session) {
+      // Record auth failure metric for alerting (Phase A.5)
+      try { metrics.record('auth.failure.count', 1, { route: pathname, reason: 'no_session' }) } catch { /* non-blocking */ }
       const redirect = NextResponse.redirect(new URL('/login', request.url))
       return withResponseTiming(withTraceHeaders(applySecurityHeaders(redirect), traceCtx, request), pathname, startTime)
     }
@@ -148,13 +153,14 @@ export async function middleware(request: NextRequest) {
     }
 
     // Session validation — Edge-compatible (no Prisma)
-    const token = getSessionToken(request)
     if (!token) {
+      try { metrics.record('auth.failure.count', 1, { route: pathname, reason: 'no_token' }) } catch { /* non-blocking */ }
       return withResponseTiming(withTraceHeaders(unauthorizedResponse(), traceCtx, request), pathname, startTime)
     }
 
     const session = await validateSessionEdge(token)
     if (!session) {
+      try { metrics.record('auth.failure.count', 1, { route: pathname, reason: 'invalid_session' }) } catch { /* non-blocking */ }
       return withResponseTiming(withTraceHeaders(unauthorizedResponse(), traceCtx, request), pathname, startTime)
     }
 

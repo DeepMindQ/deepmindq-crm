@@ -23,8 +23,16 @@ const SLOW_QUERY_THRESHOLD_MS = 1000;
 /**
  * Parse connection_limit from the DATABASE_URL query string.
  * Falls back to 10 for serverless (Vercel) or 20 for standard environments.
+ * Phase C: Now also uses DATABASE_POOL_SIZE env var when set.
  */
 function parseConnectionLimit(): number {
+  // Phase C: Explicit env var takes precedence
+  const envLimit = process.env.DATABASE_POOL_SIZE;
+  if (envLimit) {
+    const parsed = parseInt(envLimit, 10);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+
   const dbUrl = process.env.DATABASE_URL ?? '';
   try {
     const url = new URL(dbUrl);
@@ -37,11 +45,11 @@ function parseConnectionLimit(): number {
     // DATABASE_URL is not a valid URL — use defaults
   }
 
-  // Serverless detection
+  // Serverless detection — default to 10
   if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
     return 10;
   }
-  return 20;
+  return 10; // Phase C: Standardized to 10 across all environments
 }
 
 // ─── Diagnostics ───────────────────────────────────────────────────────────
@@ -142,6 +150,7 @@ function createExtendedClient() {
 
 /**
  * Build a datasource URL with connection_limit parameter.
+ * Phase C: Also appends pool_timeout=30000 (30s) and statement_cache_size.
  * Appends or overrides the connection_limit in the DATABASE_URL.
  */
 function buildDatasourceUrl(connectionLimit: number): string {
@@ -149,6 +158,8 @@ function buildDatasourceUrl(connectionLimit: number): string {
   try {
     const url = new URL(dbUrl);
     url.searchParams.set('connection_limit', String(connectionLimit));
+    // Phase C: Pool timeout — 30 seconds
+    url.searchParams.set('pool_timeout', '30');
     // pgBouncer mode: use pgbouncer=true for Neon serverless
     if (process.env.VERCEL || process.env.AWS_LAMBDA_FUNCTION_NAME) {
       url.searchParams.set('pgbouncer', 'true');

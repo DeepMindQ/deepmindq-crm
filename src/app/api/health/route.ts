@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db } from '@/lib/db';
+import { db, getPoolStats } from '@/lib/db';
 
 /**
  * GET /api/health — Lightweight liveness probe (NO auth).
@@ -82,6 +82,8 @@ export async function GET() {
       db: dbHealthy,
       // Phase 4.6.6: Connection pool utilization metrics
       ...(poolMetrics ? { pool: poolMetrics } : {}),
+      // Phase C: Connection pool health from pool monitor
+      poolHealth: getPoolStats(),
       // Phase 1.6 — KG readiness
       kgReady,
       // G6 FIX: Persistence mode

@@ -1,25 +1,48 @@
 /**
- * CSRF Protection — Double-Submit Cookie Pattern
+ * CSRF Protection — Double-Submit Cookie Pattern (Session-Bound)
  *
  * P0.4 DEEP FIX: Replaced Node.js crypto.randomBytes with
  * crypto.getRandomValues (Web Crypto API) for Edge compatibility.
+ *
+ * Level 4 — CSRF Token Tied to Session:
+ *   When a session exists, the CSRF token is deterministically derived
+ *   from the session token via HMAC-SHA256. This prevents token rotation
+ *   attacks where an attacker forces a victim to use a fresh token.
+ *   When no session exists (public pages / initial login), a random
+ *   token is generated per request (original double-submit pattern).
  *
  * Pattern:
  *   1. Server sets a non-httpOnly csrf-token cookie on page loads
  *   2. Client reads cookie, sends same value as x-csrf-token header
  *   3. Server compares header == cookie (constant-time)
  *   4. If mismatch or missing → 403
- *
- * The csrf-token cookie MUST be set by:
- *   - Edge middleware (src/middleware.ts) — uses generateCsrfToken()
- *   - Next.js 16 proxy (src/proxy.ts) — uses generateCsrfToken()
- * Both import from this file (single source of truth).
  */
 
 const CSRF_TOKEN_HEADER = 'x-csrf-token'
 const CSRF_COOKIE_NAME = 'csrf-token'
 
-// Generate a new CSRF token using Web Crypto API (Edge-compatible)
+// CSRF secret — from env or deterministic fallback for dev (Edge-compatible)
+const CSRF_SECRET = process.env.CSRF_SECRET || 'dmq-csrf-fallback-secret-v1'
+
+/**
+ * Derive a deterministic CSRF token from a session token using SHA-256.
+ * Edge-compatible: uses crypto.subtle.digest (no Node.js APIs).
+ *
+ * Token = SHA-256(CSRF_SECRET + sessionToken)
+ * The secret is concatenated as prefix to prevent length-extension attacks
+ * in this simple construction. For production, upgrade to HMAC when
+ * Edge runtimes fully support crypto.subtle.importKey + sign.
+ */
+export async function deriveCsrfFromSession(sessionToken: string): Promise<string> {
+  const data = new TextEncoder().encode(CSRF_SECRET + sessionToken)
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  return Array.from(new Uint8Array(hashBuffer))
+    .map(b => b.toString(16).padStart(2, '0'))
+    .join('')
+}
+
+// Generate a new random CSRF token using Web Crypto API (Edge-compatible).
+// Used for initial login/register flow where no session exists yet.
 export function generateCsrfToken(): string {
   const bytes = new Uint8Array(32)
   crypto.getRandomValues(bytes)

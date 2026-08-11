@@ -7,6 +7,7 @@ import {
   utilitySuccess,
   RateLimitedError,
 } from '@/lib/intelligence-api/guard';
+import { getQualityMetrics, getFeedbackAnalytics } from '@/lib/ai-reliability';
 
 /**
  * AI Health Center API (Wave 8.3)
@@ -94,6 +95,22 @@ const startedAt = Date.now();
       where: { createdAt: { gte: weekAgo } },
     });
 
+    // ── Quality metrics from reliability layer ──
+    let qualityMetrics: Awaited<ReturnType<typeof getQualityMetrics>> | null = null;
+    try {
+      qualityMetrics = await getQualityMetrics(30);
+    } catch {
+      // Non-blocking — continue without quality metrics
+    }
+
+    // ── Feedback analytics ──
+    let feedbackAnalytics: Awaited<ReturnType<typeof getFeedbackAnalytics>> | null = null;
+    try {
+      feedbackAnalytics = await getFeedbackAnalytics(30);
+    } catch {
+      // Non-blocking — continue without feedback data
+    }
+
     return utilitySuccess(ctx, {
       overview: {
         totalInsights,
@@ -108,6 +125,24 @@ const startedAt = Date.now();
         highUrgencyCount,
         expiringSoon,
       },
+      aiQualityMetrics: qualityMetrics ? {
+        feedbackApprovalRate: feedbackAnalytics?.approvalRate ?? null,
+        hallucinationRiskRate: qualityMetrics.hallucinationRiskRate,
+        avgConfidenceTrend: qualityMetrics.avgConfidence,
+        p95LatencyMs: qualityMetrics.p95LatencyMs,
+        healthScore: qualityMetrics.healthScore,
+        successRate: qualityMetrics.successRate,
+        failureRate: qualityMetrics.failureRate,
+        totalGenerations: qualityMetrics.totalGenerations,
+      } : null,
+      feedback: feedbackAnalytics ? {
+        totalFeedback: feedbackAnalytics.totalFeedback,
+        approvalRate: feedbackAnalytics.approvalRate,
+        negativeRate: feedbackAnalytics.negativeRate,
+        correctionRate: feedbackAnalytics.correctionRate,
+        byType: feedbackAnalytics.byType,
+        recentCorrections: feedbackAnalytics.recentCorrections,
+      } : null,
       byType: typeGroups.map((g) => ({
         type: g.type,
         count: g._count.type,

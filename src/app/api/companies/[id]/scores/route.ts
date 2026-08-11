@@ -28,6 +28,7 @@ import { companyIdSchema } from '@/lib/intelligence-api/validators';
 import { classifyIntelligenceTier, parseRevenueBreakdown } from '@/lib/intelligence-api/intelligence-middleware';
 import { normalizeTierForDisplay } from '@/lib/intelligence-api/types';
 import { checkApiAuth } from '@/lib/api-auth';
+import { buildKeysetWhere, encodeCursor } from '@/lib/keyset-pagination';
 
 // ── Canonical Response Types (single source of truth) ──
 // These types are also consumed by the frontend ScoreTriple component.
@@ -102,6 +103,10 @@ export interface UnifiedScoresResponse {
   revenueOpportunity: RevenueOpportunityDetail | null;
   history: ScoreHistoryEntry[];
   fetchedAt: string;
+  /** Cursor for fetching the next page of history entries. */
+  nextHistoryCursor?: string | null;
+  /** Whether more history entries exist beyond the current page. */
+  historyHasMore?: boolean;
 }
 
 // ── Helpers ──
@@ -203,9 +208,18 @@ const startedAt = Date.now();
     }
 
     // Fetch AccountScore + PriorityScoreHistory in parallel
-    // F12: History pagination via page/limit query params
+    // F12: History pagination via page/limit query params with keyset support
     const historyPage = Math.max(1, parseInt(request.nextUrl.searchParams.get('historyPage') || '1', 10) || 1);
     const historyLimit = Math.min(100, Math.max(1, parseInt(request.nextUrl.searchParams.get('historyLimit') || '10', 10) || 10));
+    const historyCursor = request.nextUrl.searchParams.get('historyCursor') || null;
+
+    // Keyset pagination for history
+    const historyKeysetWhere = historyCursor
+      ? buildKeysetWhere({ cursor: historyCursor, sortBy: 'computedAt', sortOrder: 'desc', additionalCursorFields: { id: null } })
+      : {};
+    const historySkip = historyCursor ? undefined : (historyPage - 1) * historyLimit;
+    const historyTake = historyCursor ? historyLimit + 1 : historyLimit;
+
     const [accountScore, historyEntries] = await Promise.all([
       db.accountScore.findUnique({
         where: { companyId: id },
@@ -214,10 +228,10 @@ const startedAt = Date.now();
         return null;
       }),
       db.priorityScoreHistory.findMany({
-        where: { companyId: id },
+        where: { companyId: id, ...historyKeysetWhere },
         orderBy: { computedAt: 'desc' },
-        skip: (historyPage - 1) * historyLimit,
-        take: historyLimit,
+        ...(historySkip !== undefined ? { skip: historySkip } : {}),
+        take: historyTake,
         select: {
           id: true,
           accountPriorityScore: true,
@@ -237,6 +251,13 @@ const startedAt = Date.now();
         },
       }),
     ]);
+
+    // Keyset: detect hasMore and trim extra history item
+    const historyHasMore = historyCursor ? historyEntries.length > historyLimit : false;
+    if (historyHasMore) historyEntries.pop();
+    const nextHistoryCursor = historyHasMore && historyEntries.length > 0
+      ? encodeCursor({ computedAt: historyEntries[historyEntries.length - 1].computedAt, id: historyEntries[historyEntries.length - 1].id })
+      : null;
 
     // Build Intelligence Score detail (live-computed preferred, stored fallback)
     const intelligence: IntelligenceScoreDetail = intelligenceResult
@@ -320,6 +341,8 @@ const startedAt = Date.now();
       revenueOpportunity,
       history,
       fetchedAt: new Date().toISOString(),
+      nextHistoryCursor,
+      historyHasMore,
     };
 
     return utilitySuccess(ctx, response, 'scores', Date.now() - startedAt);

@@ -41,6 +41,8 @@ import { RetrievalEngine } from './retrieval-engine';
 import type { EvidenceChain, EvidenceGap, GroundingContext } from './grounding-engine';
 import { runQualityGates, formatQualityReportForLog } from '@/lib/ai-copilot/quality-gates';
 import type { QualityReport } from '@/lib/ai-copilot/quality-gates';
+import { runHallucinationCheckAsync, buildEvidenceContextFromChain, formatHallucinationReportForLog } from '@/lib/ai-hallucination-prevention';
+import type { HallucinationCheckResult, LLMVerificationResult } from '@/lib/ai-hallucination-prevention';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
@@ -122,6 +124,8 @@ export interface Brief {
   error: string | null;
   /** Quality gate report from ai-copilot quality gates (Phase 2 absorption) */
   qualityReport?: QualityReport;
+  /** Hallucination check result (Phase D: dual-pass verification) */
+  hallucinationCheck?: HallucinationCheckResult & { llmVerification?: LLMVerificationResult };
 }
 
 // ─── Brief Type Configurations ──────────────────────────────────────────
@@ -654,9 +658,38 @@ export const SynthesisEngine = {
       // Quality gates need parseable JSON — skip for non-JSON output
     }
 
+    // ── Phase D: Dual-pass hallucination verification ──
+    let hallucinationCheck: (HallucinationCheckResult & { llmVerification?: LLMVerificationResult }) | undefined;
+    let hallucinationWarning = '';
+    try {
+      const evidenceContext = buildEvidenceContextFromChain({
+        evidences: chain.evidences.map(e => ({
+          id: e.id,
+          source: e.source,
+          url: e.url,
+          snippet: e.snippet,
+          content: e.content,
+          reliability: e.reliability,
+          confidence: e.confidence,
+        })),
+      });
+
+      hallucinationCheck = await runHallucinationCheckAsync(responseText, evidenceContext);
+      logger.info(formatHallucinationReportForLog(hallucinationCheck));
+
+      // If hallucination risk is high/critical and fails trust threshold, append warning to brief
+      if (!hallucinationCheck.passesTrustThreshold &&
+          (hallucinationCheck.riskLevel === 'high' || hallucinationCheck.riskLevel === 'critical')) {
+        hallucinationWarning = `\n\n> ⚠ **Hallucination Risk Warning** (${hallucinationCheck.riskLevel}, score: ${hallucinationCheck.hallucinationRiskScore}/100): This brief contains claims that may not be fully supported by the evidence. ${hallucinationCheck.hallucinatedCitations} hallucinated citation(s), ${hallucinationCheck.uncitedClaims} uncited claim(s). Review recommended before acting on this brief.`;
+        warnings.push(`Hallucination risk ${hallucinationCheck.riskLevel} (score: ${hallucinationCheck.hallucinationRiskScore}/100) — review recommended`);
+      }
+    } catch (err) {
+      logger.warn(`[synthesis-engine] hallucination check failed (non-blocking): ${err instanceof Error ? err.message : err}`);
+    }
+
     return {
       type: request.briefType,
-      content: responseText,
+      content: responseText + hallucinationWarning,
       sections,
       citations,
       confidence,
@@ -671,6 +704,7 @@ export const SynthesisEngine = {
       success: true,
       error: null,
       qualityReport,
+      hallucinationCheck,
     };
   },
 };

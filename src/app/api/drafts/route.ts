@@ -1,10 +1,12 @@
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { Prisma, DraftStatus } from '@prisma/client';
 import { generateEmailDraft } from '@/lib/email-generation';
 import { generateMessageId, signQueueId } from '@/lib/email-tracking';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { validateRequest } from '@/lib/with-validation';
+import { genericBodySchema } from '@/lib/validation-schemas';
 
 /* ═══════════════════════════════════════════════════
    GET — List drafts with optional status filter
@@ -69,13 +71,15 @@ function deriveRole(title: string): string {
    E-06: Sets messageId on draft. Optionally sets inReplyTo/references
          if inReplyToDraftId is provided (follow-up).
    ═══════════════════════════════════════════════════ */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
-    const body = await request.json();
+    const validated = await validateRequest(request, genericBodySchema);
+    if (validated instanceof Response) return validated;
+    const body = validated.data as Record<string, any>;
     const { contactId, inReplyToDraftId } = body;
 
     // ── Mode 2: Direct prospect generation (no contactId) ──
@@ -364,13 +368,15 @@ try {
    Single: { id, status, subject, body, cta, rejectReason }
    Bulk:   { ids: string[], action: "approve" | "reject" | "regenerate" | "delete" }
    ═══════════════════════════════════════════════════ */
-export async function PATCH(request: Request) {
+export async function PATCH(request: NextRequest) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
 try {
-    const body = await request.json();
+    const validated = await validateRequest(request, genericBodySchema);
+    if (validated instanceof Response) return validated;
+    const body = validated.data as Record<string, any>;
 
     // ── E-12: Bulk operations ──
     if (body.ids && Array.isArray(body.ids) && body.action) {

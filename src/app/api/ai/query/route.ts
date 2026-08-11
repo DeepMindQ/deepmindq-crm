@@ -5,6 +5,8 @@ import { extractJSON } from '@/lib/llm-client'
 import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { validateRequest } from '@/lib/with-validation';
+import { genericBodySchema } from '@/lib/validation-schemas';
 
 // ---------------------------------------------------------------------------
 // Safe Prisma query builder
@@ -101,7 +103,9 @@ export async function POST(request: NextRequest) {
   if (errorResponse) return errorResponse;
 
 try {
-    const body = await request.json() as Record<string, unknown>
+    const validated = await validateRequest(request, genericBodySchema)
+    if (validated instanceof Response) return validated
+    const body = validated.data as Record<string, unknown>
     const { query } = body as { query?: unknown }
 
     if (!query || typeof query !== 'string') {

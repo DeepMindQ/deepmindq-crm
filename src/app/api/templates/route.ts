@@ -1,8 +1,10 @@
 import { db } from '@/lib/db';
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { Prisma } from '@prisma/client';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { validateRequest } from '@/lib/with-validation';
+import { genericBodySchema } from '@/lib/validation-schemas';
 
 /* ═══════════════════════════════════════════════════
    GET /api/templates
@@ -41,14 +43,23 @@ try {
    POST /api/templates
    Create a new email template
    ═══════════════════════════════════════════════════ */
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
+  const validated = await validateRequest(request, genericBodySchema);
+  if (validated instanceof Response) return validated;
+  const raw = validated.data as Record<string, unknown>;
+
 try {
-    const body = await request.json();
-    const { name, subject, body: templateBody, cta, serviceLine, tone, category } = body;
+    const name = raw.name as string | undefined;
+    const subject = raw.subject as string | undefined;
+    const templateBody = raw.body as string | undefined;
+    const cta = raw.cta as string | undefined;
+    const serviceLine = raw.serviceLine as string | undefined;
+    const tone = raw.tone as string | undefined;
+    const category = raw.category as string | undefined;
 
     if (!name || !subject || !templateBody) {
       return NextResponse.json({ error: 'name, subject, and body are required' }, { status: 400 });
@@ -90,14 +101,25 @@ try {
    PUT /api/templates
    Update an existing template
    ═══════════════════════════════════════════════════ */
-export async function PUT(request: Request) {
+export async function PUT(request: NextRequest) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
+  const validated = await validateRequest(request, genericBodySchema);
+  if (validated instanceof Response) return validated;
+  const raw = validated.data as Record<string, unknown>;
+
 try {
-    const body = await request.json();
-    const { id, name, subject, body: templateBody, cta, serviceLine, tone, category, isActive } = body;
+    const id = raw.id as string | undefined;
+    const name = raw.name as string | undefined;
+    const subject = raw.subject as string | undefined;
+    const templateBody = raw.body as string | undefined;
+    const cta = raw.cta as string | undefined;
+    const serviceLine = raw.serviceLine as string | undefined;
+    const tone = raw.tone as string | undefined;
+    const category = raw.category as string | undefined;
+    const isActive = raw.isActive as boolean | undefined;
 
     if (!id) {
       return NextResponse.json({ error: 'id is required' }, { status: 400 });

@@ -27,7 +27,6 @@ import {
   isApiRoute,
   isRateLimitedPublicApi,
   validateCsrf,
-  getSecurityHeaders,
   applySecurityHeaders,
   unauthorizedResponse,
   rateLimitedResponse,
@@ -36,10 +35,9 @@ import {
   edgeRateLimit,
   edgeAuditAuthFailure,
   edgeAuditCsrfFailure,
-  SESSION_COOKIE_NAME,
 } from '@/lib/auth-helpers';
 import { getRateLimitConfig } from '@/lib/rate-limit-registry';
-import { generateCsrfToken, CSRF_COOKIE_NAME } from '@/lib/csrf';
+import { generateCsrfToken, deriveCsrfFromSession, CSRF_COOKIE_NAME } from '@/lib/csrf';
 
 export const config = {
   // Run middleware on ALL routes except Next.js internals and static assets
@@ -73,7 +71,8 @@ export async function proxy(request: NextRequest) {
   if (isPublicPath(pathname)) {
     // P0 Deep Audit #3 FIX: Inject CSRF cookie on public auth pages
     // (login, signup, etc.) so the client has a token for POST requests.
-    injectCsrfCookie(response);
+    // No session token → random token (for initial login flow).
+    await injectCsrfCookie(response);
 
     // Still apply rate limiting to public auth APIs
     if (isRateLimitedPublicApi(pathname)) {
@@ -176,11 +175,11 @@ function handleApiRoute(
 /* ═══════════════════════════════════════════════════════
    Page Route Handler
    ═══════════════════════════════════════════════════════ */
-function handlePageRoute(
+async function handlePageRoute(
   request: NextRequest,
   _response: NextResponse,
   pathname: string
-): NextResponse {
+): Promise<NextResponse> {
   const token = getSessionToken(request);
 
   if (!token) {
@@ -193,9 +192,9 @@ function handlePageRoute(
   // User has a session token — allow through
   // (actual validation happens in the page/API route with DB access)
   const response = NextResponse.next();
-  // P0 Deep Audit #3 FIX: Inject CSRF cookie on authenticated page loads
-  // so the client can make POST/PUT/DELETE requests with a valid token.
-  injectCsrfCookie(response);
+  // Level 4 — Session-bound CSRF cookie: derive from session token
+  // so the CSRF token is stable for the session lifetime.
+  await injectCsrfCookie(response, token);
   applySecurityHeaders(response);
   return response;
 }
@@ -254,11 +253,19 @@ function applyRateLimiting(
 
 /**
  * Inject CSRF cookie into response.
- * P0 Deep Audit #3 FIX: Centralized CSRF cookie injection.
- * Uses the canonical generateCsrfToken from csrf.ts.
+ *
+ * Level 4 — Session-Bound CSRF:
+ *   When a sessionToken is provided (authenticated user), the CSRF token
+ *   is deterministically derived from the session via SHA-256. This prevents
+ *   token-rotation attacks and ensures the CSRF cookie is stable for the
+ *   lifetime of the session.
+ *   When no sessionToken (public pages / login flow), a random token is
+ *   generated per request (original double-submit pattern for initial login).
  */
-function injectCsrfCookie(response: NextResponse): void {
-  const csrfToken = generateCsrfToken();
+async function injectCsrfCookie(response: NextResponse, sessionToken?: string): Promise<void> {
+  const csrfToken = sessionToken
+    ? await deriveCsrfFromSession(sessionToken)
+    : generateCsrfToken();
   response.cookies.set(CSRF_COOKIE_NAME, csrfToken, {
     httpOnly: false,  // Must be readable by JS client
     secure: process.env.NODE_ENV === 'production',

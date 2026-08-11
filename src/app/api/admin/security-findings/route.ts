@@ -9,8 +9,10 @@
 
 import { NextResponse } from 'next/server';
 import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
+import { validateBody } from '@/lib/apiHelpers';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { adminSecurityFindingCreateSchema } from '@/lib/validation-schemas';
 
 export const dynamic = 'force-dynamic';
 
@@ -82,7 +84,9 @@ export async function POST(request: Request) {
   if (adminCheck) return adminCheck;
 
   try {
-    const body = await request.json();
+    const rawBody = await request.json();
+    const parsed = validateBody(adminSecurityFindingCreateSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
     const {
       title,
       description,
@@ -96,39 +100,7 @@ export async function POST(request: Request) {
       assignedTo,
       evidence,
       externalTestRef,
-    } = body;
-
-    // Validation
-    if (!title || typeof title !== 'string') {
-      return NextResponse.json(
-        { success: false, error: 'Missing or invalid "title" field', timestamp: new Date().toISOString() },
-        { status: 400 },
-      );
-    }
-    if (!description || typeof description !== 'string') {
-      return NextResponse.json(
-        { success: false, error: 'Missing or invalid "description" field', timestamp: new Date().toISOString() },
-        { status: 400 },
-      );
-    }
-    if (!severity || !VALID_SEVERITIES.includes(severity)) {
-      return NextResponse.json(
-        { success: false, error: `Invalid "severity". Must be one of: ${VALID_SEVERITIES.join(', ')}`, timestamp: new Date().toISOString() },
-        { status: 400 },
-      );
-    }
-    if (!category || typeof category !== 'string') {
-      return NextResponse.json(
-        { success: false, error: 'Missing or invalid "category" field', timestamp: new Date().toISOString() },
-        { status: 400 },
-      );
-    }
-    if (!remediation || typeof remediation !== 'string') {
-      return NextResponse.json(
-        { success: false, error: 'Missing or invalid "remediation" field', timestamp: new Date().toISOString() },
-        { status: 400 },
-      );
-    }
+    } = parsed;
 
     const finding = await db.securityFinding.create({
       data: {

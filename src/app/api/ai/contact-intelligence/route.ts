@@ -5,6 +5,8 @@ import { calculateLeadScore } from '@/lib/lead-scoring';
 import { createInsights } from '@/lib/ai-insight-service';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { validateRequest } from '@/lib/with-validation';
+import { genericBodySchema } from '@/lib/validation-schemas';
 
 /**
  * Wave 5.1 — Contact Intelligence Score API
@@ -124,8 +126,11 @@ export async function POST(request: NextRequest) {
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
+  const validated = await validateRequest(request, genericBodySchema);
+  if (validated instanceof Response) return validated;
+  const body = validated.data;
+
 try {
-    const body = await request.json();
     const { companyId } = body;
     if (!companyId) return apiError('companyId required', 400);
 

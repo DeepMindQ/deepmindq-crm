@@ -9,13 +9,14 @@
 
 import { NextRequest } from 'next/server';
 import { checkApiAuth } from '@/lib/api-auth';
-import { apiError, apiSuccess } from '@/lib/apiHelpers';
+import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
 import {
   createExperiment,
   listExperiments,
   getExperimentSummary,
   type ExperimentMetric,
 } from '@/lib/prompt-ab-testing';
+import { aiExperimentFullCreateSchema } from '@/lib/validation-schemas';
 
 const VALID_METRICS: ExperimentMetric[] = [
   'accuracy', 'hallucination_rate', 'latency_ms',
@@ -77,7 +78,9 @@ export async function POST(req: NextRequest) {
     const auth = await checkApiAuth(req);
     if (auth.errorResponse) return auth.errorResponse;
 
-    const body = await req.json();
+    const rawBody = await req.json();
+    const parsed = validateBody(aiExperimentFullCreateSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
     const {
       name,
       description,
@@ -87,24 +90,13 @@ export async function POST(req: NextRequest) {
       weights,
       minSamplesPerVariant,
       significanceThreshold,
-    } = body;
-
-    // Validation
-    if (!name || !promptId || !variants || variants.length < 2) {
-      return apiError('name, promptId, and at least 2 variants are required', 400);
-    }
-    if (!VALID_METRICS.includes(primaryMetric)) {
-      return apiError(`primaryMetric must be one of: ${VALID_METRICS.join(', ')}`, 400);
-    }
-    if (variants.length > 10) {
-      return apiError('Maximum 10 variants per experiment', 400);
-    }
+    } = parsed;
 
     const experiment = createExperiment({
       name,
       description: description || '',
       promptId,
-      variants,
+      variants: variants as any,
       primaryMetric,
       weights,
       minSamplesPerVariant,

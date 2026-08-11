@@ -26,6 +26,7 @@ import { extractJSON } from '@/lib/llm-client';
 import { governedAICall } from '@/lib/ai-governance';
 import type { SignalType, SignalSeverity, SignalImpact } from '@prisma/client';
 import { logger } from '@/lib/logger';
+import { runHallucinationCheckAsync, buildMinimalEvidenceContext, formatHallucinationReportForLog } from '@/lib/ai-hallucination-prevention';
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -275,6 +276,37 @@ Analyze these search results and extract ALL actionable intelligence signals and
     const validSignals = parsed.signals.filter(
       s => s.title && ['funding', 'hiring', 'leadership', 'technology', 'expansion', 'partnership', 'product', 'risk', 'other'].includes(s.type || 'other'),
     );
+
+    // ── Phase D: Fire-and-forget dual-pass hallucination check on LLM output ──
+    try {
+      const evidenceItems = allResults
+        .map((r, i) => ({
+          marker: `E${i + 1}`,
+          text: r.snippet || r.description || '',
+          source: r.url || 'web_search',
+          url: r.url,
+          confidence: 0.7,
+        }));
+      const evidenceContext = buildMinimalEvidenceContext(evidenceItems);
+
+      // Fire-and-forget: do not await — non-blocking hallucination audit
+      runHallucinationCheckAsync(llmResult.response ?? '', evidenceContext)
+        .then(result => {
+          logger.info(
+            `[IntelligencePipeline] Post-generation hallucination check for ${company.rawName}: ` +
+            `risk=${result.riskLevel} (${result.hallucinationRiskScore}/100), ` +
+            `trust=${result.passesTrustThreshold ? 'PASS' : 'FAIL'}`,
+          );
+          if (!result.passesTrustThreshold) {
+            logger.info(formatHallucinationReportForLog(result));
+          }
+        })
+        .catch(err => {
+          logger.warn(`[IntelligencePipeline] Fire-and-forget hallucination check failed: ${err instanceof Error ? err.message : err}`);
+        });
+    } catch {
+      // Non-blocking — never break the pipeline
+    }
 
     let signalsCreated = 0;
     let evidenceCreated = 0;

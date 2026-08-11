@@ -28,8 +28,8 @@ import { governedAICall } from '@/lib/ai-governance';
 
 // ── Feature Flags ────────────────────────────────────────────────────────────
 
-/** Phase 3 Item 4.1: Enable LLM second-pass hallucination detection. Default: false (off for latency). */
-const ENABLE_LLM_HALLUCINATION_CHECK = process.env.ENABLE_LLM_HALLUCINATION_CHECK === 'true';
+/** Phase 3 Item 4.1: Enable LLM second-pass hallucination detection. Default: true (on for safety). Set env ENABLE_LLM_HALLUCINATION_CHECK=false to disable. */
+const ENABLE_LLM_HALLUCINATION_CHECK = process.env.ENABLE_LLM_HALLUCINATION_CHECK !== 'false';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -605,7 +605,7 @@ function generateRecommendations(params: {
  * LLM whether the output is factually supported. Uses the project's callLLM
  * (governed provider chain via ai-governance.ts) for verified low-latency verification.
  *
- * Feature-gated by ENABLE_LLM_HALLUCINATION_CHECK env var (default: false).
+ * Feature-gated by ENABLE_LLM_HALLUCINATION_CHECK env var (default: true, set to 'false' to disable).
  * NON-THROWING: always returns a result, never throws.
  */
 export async function verifyWithLLM(

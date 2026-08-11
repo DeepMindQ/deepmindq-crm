@@ -8,7 +8,7 @@
 
 import { NextRequest } from 'next/server';
 import { checkApiAuth } from '@/lib/api-auth';
-import { apiError, apiSuccess } from '@/lib/apiHelpers';
+import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
 import {
   getExperiment,
   startExperiment,
@@ -19,9 +19,10 @@ import {
   recordMetric,
   type ExperimentMetric,
 } from '@/lib/prompt-ab-testing';
+import { aiExperimentPatchSchema } from '@/lib/validation-schemas';
 
-const VALID_ACTIONS = ['start', 'pause', 'resume', 'complete'] as const;
-const VALID_METRICS: ExperimentMetric[] = [
+const _VALID_ACTIONS = ['start', 'pause', 'resume', 'complete'] as const;
+const _VALID_METRICS: ExperimentMetric[] = [
   'accuracy', 'hallucination_rate', 'latency_ms',
   'user_rating', 'relevance_score', 'completion_rate',
 ];
@@ -64,8 +65,9 @@ export async function PATCH(
     if (auth.errorResponse) return auth.errorResponse;
     const { id } = await params;
 
-    const body = await req.json();
-    const { action } = body;
+    const rawBody = await req.json();
+    const parsed = validateBody(aiExperimentPatchSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
 
     const experiment = getExperiment(id);
     if (!experiment) {
@@ -73,9 +75,9 @@ export async function PATCH(
     }
 
     // Handle lifecycle actions
-    if (action && VALID_ACTIONS.includes(action)) {
+    if (parsed.action) {
       let success = false;
-      switch (action) {
+      switch (parsed.action) {
         case 'start':
           success = startExperiment(id);
           break;
@@ -91,23 +93,19 @@ export async function PATCH(
       }
 
       if (!success) {
-        return apiError(`Failed to ${action} experiment (check current status)`, 409);
+        return apiError(`Failed to ${parsed.action} experiment (check current status)`, 409);
       }
 
       return apiSuccess({
-        message: `Experiment ${action}d`,
+        message: `Experiment ${parsed.action}d`,
         experimentId: id,
-        status: action === 'start' ? 'running' : action === 'complete' ? 'completed' : action === 'pause' ? 'paused' : 'running',
+        status: parsed.action === 'start' ? 'running' : parsed.action === 'complete' ? 'completed' : parsed.action === 'pause' ? 'paused' : 'running',
       });
     }
 
     // Handle metric recording
-    if (body.metric && body.variantId && body.value !== undefined) {
-      if (!VALID_METRICS.includes(body.metric)) {
-        return apiError(`Invalid metric: ${body.metric}`, 400);
-      }
-
-      const recorded = recordMetric(id, body.variantId, body.metric, body.value, body.sampleId);
+    if (parsed.metric && parsed.variantId && parsed.value !== undefined) {
+      const recorded = recordMetric(id, parsed.variantId, parsed.metric, parsed.value, parsed.sampleId);
       if (!recorded) {
         return apiError('Failed to record metric (experiment not found)', 404);
       }
@@ -117,14 +115,12 @@ export async function PATCH(
       return apiSuccess({
         message: 'Metric recorded',
         experimentId: id,
-        variantId: body.variantId,
-        metric: body.metric,
-        value: body.value,
+        variantId: parsed.variantId,
+        metric: parsed.metric,
+        value: parsed.value,
         currentAnalysis,
       });
     }
-
-    return apiError('Specify either "action" (start/pause/resume/complete) or metric recording fields', 400);
   } catch (err) {
     if (err instanceof Error && err.message.includes('Unauthorized')) {
       return apiError('Unauthorized', 401);

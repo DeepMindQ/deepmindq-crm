@@ -6,7 +6,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { validateBody } from '@/lib/apiHelpers';
 import { advisorConversationApi } from '@/lib/advisor/advisor-persistence';
+import { aiAdvisorWorkspaceSaveSchema } from '@/lib/validation-schemas';
 
 export async function POST(request: NextRequest) {
   // ── Auth guard ──
@@ -14,26 +16,14 @@ export async function POST(request: NextRequest) {
   if (errorResponse) return errorResponse;
 
   try {
-    const body = await request.json();
-
-    // Basic validation
-    if (!body.conversationId || typeof body.conversationId !== 'string') {
-      return NextResponse.json(
-        { error: 'conversationId is required' },
-        { status: 400 },
-      );
-    }
-
-    if (!body.workspace || typeof body.workspace !== 'object') {
-      return NextResponse.json(
-        { error: 'workspace is required' },
-        { status: 400 },
-      );
-    }
+    const rawBody = await request.json();
+    const parsed = validateBody(aiAdvisorWorkspaceSaveSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
+    const { conversationId, workspace } = parsed;
 
     await advisorConversationApi.saveWorkspace({
-      conversationId: body.conversationId,
-      workspace: body.workspace,
+      conversationId,
+      workspace: workspace as unknown as Parameters<typeof advisorConversationApi.saveWorkspace>[0]['workspace'],
     });
 
     return NextResponse.json({ success: true });

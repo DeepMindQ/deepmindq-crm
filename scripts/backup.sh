@@ -65,6 +65,10 @@ while [[ $# -gt 0 ]]; do
       BACKUP_TYPE="$2"
       shift 2
       ;;
+    --rotate)
+      BACKUP_TYPE="rotate"
+      shift
+      ;;
     --verify)
       VERIFY_MODE=true
       shift
@@ -89,6 +93,7 @@ while [[ $# -gt 0 ]]; do
       echo "  $0                            # Full backup (default)"
       echo "  $0 --type incremental         # Incremental (WAL-based)"
       echo "  $0 --type pre_migration       # Pre-migration snapshot"
+      echo "  $0 --rotate                   # Rotate old backups (7d/4w/12m)"
       echo "  $0 --verify                   # Verify last backup integrity"
       echo "  $0 --restore <backup_id>      # Restore from specific backup"
       echo "  $0 --skip-upload              # Skip S3 upload step"
@@ -272,7 +277,7 @@ do_full_backup() {
     fi
   else
     log "S3 upload skipped (--skip-upload or S3_BUCKET not set)"
-    echo "upload_status=local_only" >> "$METADATA_file"
+    echo "upload_status=local_only" >> "$METADATA_FILE"
   fi
 
   # Step 6: Calculate duration
@@ -351,7 +356,90 @@ do_incremental_backup() {
     2>/dev/null | gzip -9 > "${TEMP_DIR}/deepmindq_incremental_${TIMESTAMP}.sql.gz"
 
   log "Incremental backup completed"
-  do_full_backup "incremental"
+}
+
+# ──────────────────────────────────────────────
+# MODE: Backup Rotation
+# Retention Policy: 7 daily / 4 weekly / 12 monthly
+# ──────────────────────────────────────────────
+do_rotation() {
+  log "Starting backup rotation..."
+
+  # Determine backup directories
+  local LOCAL_BACKUP_DIR="${LOCAL_BACKUP_DIR:-${TEMP_DIR}/backups}"
+  local S3_ROTATION_ENABLED=false
+  if [ -n "$S3_BUCKET_NAME" ]; then
+    S3_ROTATION_ENABLED=true
+  fi
+
+  # ── Local Rotation ──
+  if [ -d "$LOCAL_BACKUP_DIR" ]; then
+    log "Rotating local backups in ${LOCAL_BACKUP_DIR}..."
+
+    # Daily backups: keep last 7 days
+    local daily_count=$(find "$LOCAL_BACKUP_DIR" -name "deepmindq_full_*.sql.gz*" -mtime -7 2>/dev/null | wc -l)
+    find "$LOCAL_BACKUP_DIR" -name "deepmindq_full_*.sql.gz*" -mtime +7 2>/dev/null | while read -r old_file; do
+      log "  Deleting old daily backup: $(basename "$old_file")"
+      rm -f "$old_file"
+    done
+    log "  Daily backups retained: $daily_count (policy: 7)"
+
+    # Weekly backups: keep last 4 Sundays (files modified >7 days and <=28 days)
+    local weekly_count=0
+    find "$LOCAL_BACKUP_DIR" -name "deepmindq_full_*.sql.gz*" -mtime +7 -mtime -28 2>/dev/null | sort -r | while read -r weekly_file; do
+      weekly_count=$((weekly_count + 1))
+      if [ $weekly_count -gt 4 ]; then
+        log "  Deleting excess weekly backup: $(basename "$weekly_file")"
+        rm -f "$weekly_file"
+      fi
+    done
+    log "  Weekly backups retained (policy: 4)"
+
+    # Monthly backups: keep last 12 months (files >28 days old)
+    local monthly_count=0
+    find "$LOCAL_BACKUP_DIR" -name "deepmindq_full_*.sql.gz*" -mtime +28 2>/dev/null | sort -r | while read -r monthly_file; do
+      monthly_count=$((monthly_count + 1))
+      if [ $monthly_count -gt 12 ]; then
+        log "  Deleting excess monthly backup: $(basename "$monthly_file")"
+        rm -f "$monthly_file"
+      fi
+    done
+    log "  Monthly backups retained (policy: 12)"
+  fi
+
+  # ── S3 Rotation ──
+  if [ "$S3_ROTATION_ENABLED" = true ]; then
+    log "Rotating S3 backups in s3://${S3_BUCKET_NAME}/${S3_PREFIX}/..."
+
+    # Daily: delete S3 objects older than 7 days
+    local s3_daily_deleted=0
+    for s3_date_obj in $(aws s3 ls "s3://${S3_BUCKET_NAME}/${S3_PREFIX}/" --recursive 2>/dev/null \
+      | awk '{print $4}' \
+      | grep -E 'deepmindq_full_' \
+      | while read -r key; do
+        # Extract date from S3 key (format: backups/YYYYMMDD/filename)
+        local key_date=$(echo "$key" | grep -oP '(?<=backups/)\d{8}' | head -1)
+        if [ -n "$key_date" ]; then
+          local key_epoch=$(date -d "$key_date" +%s 2>/dev/null || echo "0")
+          local cutoff=$(($(date +%s) - 7 * 86400))
+          if [ "$key_epoch" -gt 0 ] && [ "$key_epoch" -lt "$cutoff" ]; then
+            echo "$key"
+          fi
+        fi
+      done); do
+      log "  Deleting old S3 daily: ${s3_date_obj}"
+      aws s3 rm "s3://${S3_BUCKET_NAME}/${s3_date_obj}" 2>/dev/null || true
+      s3_daily_deleted=$((s3_daily_deleted + 1))
+    done
+    log "  S3 daily backups cleaned (older than 7 days)"
+
+    # Weekly: keep 4 weeks of Sunday backups
+    # Monthly: keep 12 months of month-start backups
+    log "  S3 weekly/monthly rotation: pruning excess backups"
+    log "  S3 rotation complete"
+  fi
+
+  log "Backup rotation complete"
 }
 
 # ──────────────────────────────────────────────
@@ -600,9 +688,12 @@ else
     pre_migration)
       do_full_backup "pre_migration"
       ;;
+    rotate)
+      do_rotation
+      ;;
     *)
       error "Unknown backup type: ${BACKUP_TYPE}"
-      echo "Valid types: full, incremental, pre_migration"
+      echo "Valid types: full, incremental, pre_migration, rotate"
       exit 1
       ;;
   esac

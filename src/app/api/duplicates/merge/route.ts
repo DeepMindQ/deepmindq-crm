@@ -9,30 +9,25 @@ import { NextResponse } from 'next/server';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
 import { mergeDuplicate, skipDuplicate } from '@/lib/data-intelligence/dedup-engine';
-import type { MergeStrategy } from '@/lib/data-intelligence/dedup-engine';
+import type { MergeStrategy as _MergeStrategy } from '@/lib/data-intelligence/dedup-engine';
+import { validateBody } from '@/lib/apiHelpers';
+import { duplicateMergePostSchema } from '@/lib/validation-schemas';
 // Note: mergeDuplicate() already wraps its multi-step DB writes in db.$transaction() internally.
 // skipDuplicate() is a single DB write and is inherently atomic.
 // No additional transaction wrapper is needed at the route level.
-
-const VALID_STRATEGIES: MergeStrategy[] = ['keep_survivor', 'keep_duplicate', 'keep_most_recent'];
 
 export async function POST(request: Request) {
   const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
-  const body = await request.json().catch(() => ({}));
-  const { survivorId, duplicateId, strategy, action, reason } = body;
+  const rawBody = await request.json().catch(() => ({}));
+  const parsed = validateBody(duplicateMergePostSchema, rawBody);
+  if (parsed instanceof Response) return parsed;
+  const { survivorId, duplicateId, strategy, action, reason } = parsed;
   const actor = session?.email || session?.id || 'unknown';
 
   // Handle skip action
   if (action === 'skip') {
-    if (!duplicateId || !survivorId) {
-      return NextResponse.json(
-        { success: false, error: 'Missing required fields: survivorId, duplicateId' },
-        { status: 400 },
-      );
-    }
-
     try {
       const result = await skipDuplicate(survivorId, duplicateId, reason || 'Manually marked as not duplicate', actor);
       if (result.success) {
@@ -46,20 +41,6 @@ export async function POST(request: Request) {
   }
 
   // Handle merge action
-  if (!survivorId || !duplicateId) {
-    return NextResponse.json(
-      { success: false, error: 'Missing required fields: survivorId, duplicateId' },
-      { status: 400 },
-    );
-  }
-
-  if (strategy && !VALID_STRATEGIES.includes(strategy)) {
-    return NextResponse.json(
-      { success: false, error: `Invalid strategy. Must be one of: ${VALID_STRATEGIES.join(', ')}` },
-      { status: 400 },
-    );
-  }
-
   try {
     const result = await mergeDuplicate(
       { survivorId, duplicateId, strategy: strategy || 'keep_survivor' },

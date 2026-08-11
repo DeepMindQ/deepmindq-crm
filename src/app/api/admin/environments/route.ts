@@ -13,6 +13,8 @@ import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { logDataAccess } from '@/lib/access-audit';
+import { validateBody } from '@/lib/apiHelpers';
+import { adminEnvironmentPutSchema, adminEnvironmentPromoteSchema } from '@/lib/validation-schemas';
 
 export const dynamic = 'force-dynamic';
 
@@ -64,42 +66,16 @@ export async function PUT(request: Request) {
   if (adminCheck) return adminCheck;
 
   try {
-    const body = await request.json();
-    const { environment, featureFlags, deploymentUrl } = body;
-
-    if (!environment || typeof environment !== 'string') {
-      return NextResponse.json(
-        { success: false, error: 'Missing or invalid "environment" field', timestamp: new Date().toISOString() },
-        { status: 400 }
-      );
-    }
-
-    // Validate environment name
-    const validEnvironments = ['development', 'staging', 'production'];
-    if (!validEnvironments.includes(environment)) {
-      return NextResponse.json(
-        { success: false, error: `Invalid environment. Must be one of: ${validEnvironments.join(', ')}`, timestamp: new Date().toISOString() },
-        { status: 400 }
-      );
-    }
+    const rawBody = await request.json();
+    const parsed = validateBody(adminEnvironmentPutSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
+    const { environment, featureFlags, deploymentUrl } = parsed;
 
     const updateData: Record<string, unknown> = {};
     if (featureFlags !== undefined) {
-      if (typeof featureFlags !== 'object' || featureFlags === null || Array.isArray(featureFlags)) {
-        return NextResponse.json(
-          { success: false, error: 'featureFlags must be a JSON object', timestamp: new Date().toISOString() },
-          { status: 400 }
-        );
-      }
       updateData.featureFlags = featureFlags;
     }
     if (deploymentUrl !== undefined) {
-      if (typeof deploymentUrl !== 'string') {
-        return NextResponse.json(
-          { success: false, error: 'deploymentUrl must be a string', timestamp: new Date().toISOString() },
-          { status: 400 }
-        );
-      }
       updateData.deploymentUrl = deploymentUrl;
     }
 
@@ -161,22 +137,10 @@ export async function POST(request: Request) {
   if (adminCheck) return adminCheck;
 
   try {
-    const body = await request.json();
-    const { action, from, to } = body;
-
-    if (action !== 'promote') {
-      return NextResponse.json(
-        { success: false, error: 'Invalid action. Use "promote".', timestamp: new Date().toISOString() },
-        { status: 400 }
-      );
-    }
-
-    if (!from || !to || typeof from !== 'string' || typeof to !== 'string') {
-      return NextResponse.json(
-        { success: false, error: 'Missing "from" or "to" environment', timestamp: new Date().toISOString() },
-        { status: 400 }
-      );
-    }
+    const rawBody = await request.json();
+    const parsed = validateBody(adminEnvironmentPromoteSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
+    const { from, to } = parsed;
 
     // Fetch source environment
     const sourceEnv = await db.environmentConfig.findUnique({

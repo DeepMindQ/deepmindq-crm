@@ -15,6 +15,8 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { checkApiAuth, requireAdminRole } from '@/lib/api-auth';
 import { logDataAccess } from '@/lib/access-audit';
+import { validateBody } from '@/lib/apiHelpers';
+import { accountDataDeletionCancelSchema, accountDataDeletionInitiateSchema } from '@/lib/validation-schemas';
 
 export const dynamic = 'force-dynamic';
 
@@ -196,15 +198,10 @@ export async function POST(request: NextRequest) {
   // ── Cancel action: ?action=cancel ───────────────────────────────
   if (searchParams.get('action') === 'cancel') {
     try {
-      const body = (await request.json().catch(() => ({}))) as { id: string; reason?: string };
-      const { id: requestId, reason } = body;
-
-      if (!requestId) {
-        return NextResponse.json(
-          { success: false, error: 'Missing deletion request id' },
-          { status: 400 },
-        );
-      }
+      const rawBody = await request.json();
+      const parsed = validateBody(accountDataDeletionCancelSchema, rawBody);
+      if (parsed instanceof Response) return parsed;
+      const { id: requestId, reason } = parsed;
 
       const existing = await db.dataDeletionRequest.findUnique({
         where: { id: requestId },
@@ -273,11 +270,10 @@ export async function POST(request: NextRequest) {
 
   // ── Default: Initiate new deletion request ──────────────────────
   try {
-    const body = (await request.json().catch(() => ({}))) as {
-      reason?: string;
-      scope?: { entityTypes?: string[] };
-    };
-    const { reason, scope } = body;
+    const rawBody = (await request.json().catch(() => ({}))) as Record<string, unknown>;
+    const parsed = validateBody(accountDataDeletionInitiateSchema, rawBody);
+    if (parsed instanceof Response) return parsed;
+    const { reason, scope } = parsed;
 
     const gracePeriodEndsAt = new Date(
       Date.now() + GRACE_PERIOD_DAYS * 24 * 60 * 60 * 1000,

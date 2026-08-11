@@ -1,9 +1,10 @@
 import { db } from '@/lib/db'
-import { apiError, apiSuccess, apiPaginated } from '@/lib/apiHelpers'
+import { apiError, apiSuccess, apiPaginated, validateBody } from '@/lib/apiHelpers'
 import { checkApiAuth } from '@/lib/api-auth'
 import { hasPermission, type Permission } from '@/lib/rbac'
 import { logger } from '@/lib/logger'
 import { safeInt } from '@/lib/apiHelpers'
+import { adminUserPatchSchema } from '@/lib/validation-schemas'
 
 // Fields safe to return — never expose passwordHash
 const USER_SAFE_SELECT = {
@@ -98,17 +99,10 @@ export async function PATCH(request: Request) {
   }
 
   try {
-    const body = await request.json()
-    const { id, role, status, name } = body as {
-      id?: string
-      role?: string
-      status?: 'active' | 'suspended' | 'inactive'
-      name?: string
-    }
-
-    if (!id || typeof id !== 'string') {
-      return apiError('Missing or invalid "id" field', 400)
-    }
+    const rawBody = await request.json()
+    const parsed = validateBody(adminUserPatchSchema, rawBody)
+    if (parsed instanceof Response) return parsed
+    const { id, role, status, name } = parsed
 
     // Prevent self-demotion: can't change own role
     if (role && id === session!.id) {

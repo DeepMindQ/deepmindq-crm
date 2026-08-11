@@ -24,6 +24,7 @@ vi.mock('@/lib/db', () => ({
 
 vi.mock('@/lib/intelligence-sources/job-queue', () => ({
   enqueueJob: mockEnqueueJob,
+  registerJobProcessor: vi.fn(),
 }))
 
 import {

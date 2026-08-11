@@ -138,19 +138,39 @@ export function csrfCheck(request: NextRequest): { valid: boolean; response?: Ne
   };
 }
 
+// ── CSP Nonce Generation (Edge-compatible) ─────────────
+/**
+ * Generate a cryptographic random nonce for Content Security Policy.
+ * Edge-compatible: uses crypto.getRandomValues (no Node.js APIs).
+ * 16 bytes → 24 base64 characters — sufficient entropy for per-request nonce.
+ */
+export function generateCspNonce(): string {
+  const bytes = new Uint8Array(16)
+  crypto.getRandomValues(bytes)
+  // Base64url encoding (no padding, URL-safe)
+  return Array.from(bytes)
+    .map(b => b.toString(64).padStart(2, '0').slice(-2))
+    .join('')
+    .slice(0, 24)
+}
+
 // ── Security Headers ───────────────────────────────────
 /**
  * Standard security headers applied to all responses.
+ * @param nonce - Optional CSP nonce. When provided, added to script-src as 'nonce-<value>'.
  */
-export function getSecurityHeaders(): Record<string, string> {
+export function getSecurityHeaders(nonce?: string): Record<string, string> {
+  const nonceDirective = nonce ? ` 'nonce-${nonce}'` : ''
   const csp = [
     "default-src 'self'",
-    // WI-18.1-07: Nonce-based CSP for scripts (unsafe-inline removed)
-    // The middleware and next.config.js will inject the actual nonce.
-    // For now, allow 'self' + 'unsafe-eval' for Next.js hot-reload in dev.
+    // Level 5 — Nonce-based CSP for scripts.
+    //   Production: 'self' + nonce (no eval, no inline)
+    //   Development: 'self' + nonce + eval (hot-reload)
     process.env.NODE_ENV === 'production'
-      ? "script-src 'self'"
-      : "script-src 'self' 'unsafe-eval'",
+      ? `script-src 'self'${nonceDirective}`
+      : `script-src 'self'${nonceDirective} 'unsafe-eval'`,
+    // style-src allows inline styles (industry standard).
+    // script-src is fully locked down with nonce.
     "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
     "font-src 'self' https://fonts.gstatic.com data:",
     "img-src 'self' data: blob: https://*.googleusercontent.com",
@@ -173,9 +193,13 @@ export function getSecurityHeaders(): Record<string, string> {
 
 /**
  * Apply security headers to a NextResponse.
+ * Generates a per-request CSP nonce and sets it as x-csp-nonce header
+ * so the layout/page can read it for inline script tags.
  */
 export function applySecurityHeaders(response: NextResponse): NextResponse {
-  const headers = getSecurityHeaders();
+  const nonce = generateCspNonce();
+  response.headers.set('x-csp-nonce', nonce);
+  const headers = getSecurityHeaders(nonce);
   for (const [key, value] of Object.entries(headers)) {
     response.headers.set(key, value);
   }

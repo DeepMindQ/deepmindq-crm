@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { scoreContactInfluence, scoreCompanyContacts } from '@/lib/scoring/contact-influence-engine';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { validateRequest } from '@/lib/with-validation';
+import { genericBodySchema } from '@/lib/validation-schemas';
 
 export async function POST(request: NextRequest) {
     // ── Authentication Guard ──
@@ -9,7 +11,9 @@ export async function POST(request: NextRequest) {
   if (errorResponse) return errorResponse;
 
 try {
-    const body = await request.json();
+    const validated = await validateRequest(request, genericBodySchema);
+    if (validated instanceof Response) return validated;
+    const body = validated.data as { contactId?: string; companyId?: string };
     const { contactId, companyId } = body;
 
     if (contactId) {

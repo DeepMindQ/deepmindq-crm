@@ -78,6 +78,17 @@ export interface BudgetAlert {
   timestamp: string;
 }
 
+export interface SpendAlertNotification {
+  id: string;
+  type: BudgetAlert['type'];
+  message: string;
+  currentValue: number;
+  threshold: number;
+  timestamp: string;
+  delivered: boolean;
+  deliveryChannel: 'webhook' | 'log';
+}
+
 export interface CostReport {
   period: string;
   totalRequests: number;
@@ -88,6 +99,14 @@ export interface CostReport {
   byModel: Record<string, { requests: number; costUsd: number; tokens: number }>;
   byProvider: Record<string, { requests: number; costUsd: number }>;
   alerts: BudgetAlert[];
+  anomalies: Array<{
+    model: string;
+    costUsd: number;
+    anomalyScore: number;
+    reason: string;
+    timestamp: string;
+  }>;
+  notifications: SpendAlertNotification[];
 }
 
 // ─── Model Cost Registry ──────────────────────────────────────────────
@@ -177,18 +196,45 @@ export function setBudgetConfig(config: Partial<BudgetConfig>): void {
 // ─── Alert Store ──────────────────────────────────────────────────────
 
 const recentAlerts: BudgetAlert[] = [];
+const alertNotifications: SpendAlertNotification[] = [];
+let alertWebhookUrl: string | null = null;
 
 function addAlert(alert: Omit<BudgetAlert, 'id' | 'timestamp'>): void {
-  recentAlerts.push({
+  const budgetAlert: BudgetAlert = {
     ...alert,
     id: `alert_${Date.now().toString(36)}`,
     timestamp: new Date().toISOString(),
-  });
+  };
+  recentAlerts.push(budgetAlert);
   // Keep only last 100 alerts
   if (recentAlerts.length > 100) {
     recentAlerts.splice(0, recentAlerts.length - 100);
   }
   logger.warn(`[cost-tracking] Alert: ${alert.type} — ${alert.message}`);
+
+  // Create a notification for this alert
+  const notification: SpendAlertNotification = {
+    id: `notif_${Date.now().toString(36)}`,
+    type: alert.type,
+    message: alert.message,
+    currentValue: alert.currentValue,
+    threshold: alert.threshold,
+    timestamp: budgetAlert.timestamp,
+    delivered: false,
+    deliveryChannel: alertWebhookUrl ? 'webhook' : 'log',
+  };
+  alertNotifications.push(notification);
+  // Keep only last 200 notifications
+  if (alertNotifications.length > 200) {
+    alertNotifications.splice(0, alertNotifications.length - 200);
+  }
+
+  // Attempt webhook delivery (fire-and-forget)
+  if (alertWebhookUrl) {
+    deliverWebhook(notification).catch(() => {
+      // Non-throwing: delivery failures never block anything
+    });
+  }
 }
 
 // ─── Daily Cost Tracking ──────────────────────────────────────────────
@@ -271,6 +317,11 @@ export async function recordUnifiedCost(record: Omit<UnifiedCostRecord, 'id' | '
     logger.info(`[cost-tracking] Route ${record.route}: $${costUsd.toFixed(6)}`);
   }
 
+  // ── Anomaly Detection ──
+  checkAndAlertAnomaly(record, costUsd).catch(() => {
+    // Non-throwing: anomaly detection failures never block AI operations
+  });
+
   return id;
 }
 
@@ -343,6 +394,8 @@ export async function getUnifiedCostReport(windowHours: number = 24): Promise<Co
       byModel,
       byProvider,
       alerts: [...recentAlerts].reverse(),
+      anomalies: [...detectedAnomalies].reverse(),
+      notifications: [...alertNotifications].reverse(),
     };
   } catch (err) {
     logger.error(`[cost-tracking] Failed to generate report: ${err instanceof Error ? err.message : err}`);
@@ -351,6 +404,8 @@ export async function getUnifiedCostReport(windowHours: number = 24): Promise<Co
       totalRequests: 0, totalTokens: 0, totalCostUsd: 0,
       avgCostPerRequest: 0, byRoute: {}, byModel: {}, byProvider: {},
       alerts: [],
+      anomalies: [],
+      notifications: [],
     };
   }
 }
@@ -402,4 +457,243 @@ export function getDailyCostSummary(): {
       a.type === 'daily_limit' && a.timestamp.startsWith(dailyCostDate)
     ).reverse(),
   };
+}
+
+// ─── Cost Anomaly Detection ─────────────────────────────────────────────
+
+interface CostBaseline {
+  avgCostPerRequest: number;
+  stdDev: number;
+  requestCount: number;
+  windowHours: number;
+}
+
+/** Cache for the computed baseline (refreshed every 30 minutes). */
+let cachedBaseline: CostBaseline | null = null;
+let baselineComputedAt = 0;
+const BASELINE_CACHE_TTL_MS = 30 * 60 * 1000; // 30 minutes
+
+/** In-memory store of detected anomalies. */
+const detectedAnomalies: Array<{
+  model: string;
+  costUsd: number;
+  anomalyScore: number;
+  reason: string;
+  timestamp: string;
+}> = [];
+
+/**
+ * Compute a cost baseline from historical usage data.
+ * Uses the last N hours of data to establish what's "normal".
+ * Results are cached for 30 minutes to avoid expensive DB queries on every request.
+ */
+export async function computeCostBaseline(windowHours: number = 168): Promise<CostBaseline> {
+  // Return cached baseline if still fresh
+  const now = Date.now();
+  if (cachedBaseline && cachedBaseline.windowHours === windowHours && (now - baselineComputedAt) < BASELINE_CACHE_TTL_MS) {
+    return cachedBaseline;
+  }
+
+  try {
+    const since = new Date(now - windowHours * 60 * 60 * 1000);
+    const logs = await db.aIUsageLog.findMany({
+      where: { createdAt: { gte: since } },
+      select: { estimatedCost: true },
+    });
+
+    const requestCount = logs.length;
+    if (requestCount === 0) {
+      cachedBaseline = { avgCostPerRequest: 0, stdDev: 0, requestCount: 0, windowHours };
+      baselineComputedAt = now;
+      return cachedBaseline;
+    }
+
+    const costs = logs.map(l => l.estimatedCost);
+    const sum = costs.reduce((a, b) => a + b, 0);
+    const avgCostPerRequest = sum / requestCount;
+
+    // Standard deviation
+    const squaredDiffs = costs.map(c => (c - avgCostPerRequest) ** 2);
+    const variance = squaredDiffs.reduce((a, b) => a + b, 0) / requestCount;
+    const stdDev = Math.sqrt(variance);
+
+    cachedBaseline = {
+      avgCostPerRequest: Math.round(avgCostPerRequest * 10000) / 10000,
+      stdDev: Math.round(stdDev * 10000) / 10000,
+      requestCount,
+      windowHours,
+    };
+    baselineComputedAt = now;
+
+    logger.info(
+      `[cost-tracking] Baseline computed: avg=$${cachedBaseline.avgCostPerRequest.toFixed(6)}, ` +
+      `stddev=$${cachedBaseline.stdDev.toFixed(6)}, n=${requestCount}, window=${windowHours}h`
+    );
+
+    return cachedBaseline;
+  } catch (err) {
+    logger.error(`[cost-tracking] Failed to compute baseline: ${err instanceof Error ? err.message : err}`);
+    // Return whatever we have cached, or a null-like baseline
+    if (!cachedBaseline) {
+      cachedBaseline = { avgCostPerRequest: 0, stdDev: 0, requestCount: 0, windowHours };
+    }
+    return cachedBaseline;
+  }
+}
+
+/**
+ * Check if a cost record represents an anomaly compared to baseline.
+ * An anomaly is: cost > mean + 3*stddev (statistical outlier)
+ * OR cost > 10x the average (even without enough data for stddev).
+ *
+ * Returns: { isAnomaly: boolean, anomalyScore: number (0-100), reason: string }
+ */
+export function detectCostAnomaly(
+  costUsd: number,
+  model: string,
+  baseline: CostBaseline | null
+): { isAnomaly: boolean; anomalyScore: number; reason: string } {
+  // No baseline means we can't detect anomalies
+  if (!baseline || baseline.requestCount < 5) {
+    return { isAnomaly: false, anomalyScore: 0, reason: 'Insufficient baseline data' };
+  }
+
+  const { avgCostPerRequest, stdDev, requestCount } = baseline;
+
+  // Hard limit: cost > 10x average regardless of stddev
+  if (avgCostPerRequest > 0 && costUsd > avgCostPerRequest * 10) {
+    const ratio = costUsd / avgCostPerRequest;
+    const score = Math.min(100, Math.round(50 + (ratio - 10) * 5));
+    return {
+      isAnomaly: true,
+      anomalyScore: score,
+      reason: `Cost $${costUsd.toFixed(4)} is ${ratio.toFixed(1)}x the average ($${avgCostPerRequest.toFixed(4)}) for ${model}`,
+    };
+  }
+
+  // Statistical outlier: cost > mean + 3*stddev
+  if (stdDev > 0 && costUsd > avgCostPerRequest + 3 * stdDev) {
+    const zScore = (costUsd - avgCostPerRequest) / stdDev;
+    const score = Math.min(100, Math.round(30 + zScore * 5));
+    return {
+      isAnomaly: true,
+      anomalyScore: score,
+      reason: `Cost $${costUsd.toFixed(4)} is ${zScore.toFixed(1)}σ above mean ($${avgCostPerRequest.toFixed(4)} ± $${stdDev.toFixed(4)}) for ${model}`,
+    };
+  }
+
+  return { isAnomaly: false, anomalyScore: 0, reason: 'Normal' };
+}
+
+/**
+ * Run anomaly detection on a cost record after recording it.
+ * Should be called inside recordUnifiedCost().
+ * Non-throwing: failures never block AI operations.
+ */
+async function checkAndAlertAnomaly(
+  record: Omit<UnifiedCostRecord, 'id' | 'timestamp' | 'totalTokens' | 'costUsd'>,
+  costUsd: number
+): Promise<void> {
+  try {
+    const baseline = await computeCostBaseline(168);
+    const result = detectCostAnomaly(costUsd, record.model, baseline);
+
+    if (result.isAnomaly) {
+      // Store the detected anomaly
+      const anomaly = {
+        model: record.model,
+        costUsd,
+        anomalyScore: result.anomalyScore,
+        reason: result.reason,
+        timestamp: new Date().toISOString(),
+      };
+      detectedAnomalies.push(anomaly);
+      // Keep only last 50 anomalies
+      if (detectedAnomalies.length > 50) {
+        detectedAnomalies.splice(0, detectedAnomalies.length - 50);
+      }
+
+      // Fire an unusual_spike budget alert (this was previously defined but never triggered)
+      addAlert({
+        type: 'unusual_spike',
+        message: result.reason,
+        currentValue: costUsd,
+        threshold: baseline.avgCostPerRequest + 3 * baseline.stdDev,
+      });
+
+      logger.warn(`[cost-tracking] Anomaly detected (score ${result.anomalyScore}/100): ${result.reason}`);
+    }
+  } catch (err) {
+    logger.error(`[cost-tracking] Anomaly detection failed: ${err instanceof Error ? err.message : err}`);
+  }
+}
+
+// ─── Spend Alert Notifications ────────────────────────────────────────
+
+/**
+ * Deliver a notification to a registered webhook URL.
+ * Fire-and-forget with a 3-second timeout.
+ * Non-throwing: delivery failures are logged but never propagated.
+ */
+async function deliverWebhook(notification: SpendAlertNotification): Promise<void> {
+  if (!alertWebhookUrl) return;
+
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 3000);
+
+    const response = await fetch(alertWebhookUrl, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: notification.id,
+        type: notification.type,
+        message: notification.message,
+        currentValue: notification.currentValue,
+        threshold: notification.threshold,
+        timestamp: notification.timestamp,
+        source: 'unified-ai-cost-tracking',
+      }),
+      signal: controller.signal,
+    });
+
+    clearTimeout(timeoutId);
+
+    if (response.ok) {
+      notification.delivered = true;
+      logger.info(`[cost-tracking] Alert notification delivered to webhook: ${notification.id}`);
+    } else {
+      logger.warn(`[cost-tracking] Webhook delivery failed (HTTP ${response.status}): ${notification.id}`);
+    }
+  } catch (err) {
+    const reason = err instanceof Error ? err.message : 'Unknown error';
+    logger.warn(`[cost-tracking] Webhook delivery error: ${reason}`);
+  }
+}
+
+/**
+ * Register a webhook URL for spend alert notifications.
+ * When a budget alert fires, POST a JSON payload to this URL.
+ */
+export function registerAlertWebhook(url: string): void {
+  alertWebhookUrl = url;
+  logger.info(`[cost-tracking] Alert webhook registered: ${url}`);
+}
+
+/**
+ * Get all pending (undelivered) alert notifications.
+ */
+export function getPendingAlerts(): SpendAlertNotification[] {
+  return alertNotifications.filter(n => !n.delivered);
+}
+
+/**
+ * Mark an alert as delivered.
+ */
+export function markAlertDelivered(alertId: string): void {
+  const notification = alertNotifications.find(n => n.id === alertId);
+  if (notification) {
+    notification.delivered = true;
+    logger.info(`[cost-tracking] Alert ${alertId} marked as delivered`);
+  }
 }

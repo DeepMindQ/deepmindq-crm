@@ -35,7 +35,7 @@ describe('SECURITY GATE: Edge Proxy Enforcement (CI Gate 2)', () => {
   });
 
   it('must apply security headers', () => {
-    expect(proxy).toContain('getSecurityHeaders');
+    // proxy.ts imports applySecurityHeaders from auth-helpers.ts
     expect(proxy).toContain('applySecurityHeaders');
   });
 
@@ -147,14 +147,14 @@ describe('SECURITY GATE: CSP Hardening (CI Gate 6)', () => {
 
   it('production script-src must not contain unsafe-inline', () => {
     // Extract just the script-src directive for production
-    const prodMatch = auth.match(/NODE_ENV === 'production'\s*\? "script-src '[^"]*"/);
+    const prodMatch = auth.match(/NODE_ENV === 'production'\s*\? `script-src '[^`]*/);
     expect(prodMatch).not.toBeNull();
     expect(prodMatch![0]).not.toContain('unsafe-inline');
   });
 
   it('development script-src may include unsafe-eval for HMR', () => {
     // Extract just the script-src directive for development (else branch of ternary)
-    const devMatch = auth.match(/: "script-src '[^"]*"/);
+    const devMatch = auth.match(/: `script-src '[^`]*/);
     expect(devMatch).not.toBeNull();
     expect(devMatch![0]).toContain('unsafe-eval');
   });

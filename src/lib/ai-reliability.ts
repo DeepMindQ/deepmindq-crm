@@ -445,3 +445,172 @@ export async function trackGeneration<T>(
     throw err;
   }
 }
+
+// ── Feedback Tracking (Phase D) ──
+
+export type FeedbackType = 'positive' | 'negative' | 'correction';
+
+export interface AIFeedbackRecord {
+  id: string;
+  insightId: string;
+  generationType: GenerationType;
+  feedbackType: FeedbackType;
+  userComment?: string;
+  correctedAnswer?: string;
+  createdAt: string;
+}
+
+/**
+ * Record user feedback on an AI output.
+ * Stores feedback in AIInsight metadata for the associated insight.
+ */
+export async function recordFeedback(params: {
+  insightId: string;
+  generationType: GenerationType;
+  feedbackType: FeedbackType;
+  userComment?: string;
+  correctedAnswer?: string;
+}): Promise<string> {
+  const now = new Date().toISOString();
+  const feedbackId = `fb_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  try {
+    // Update the original insight's feedback field
+    await db.aIInsight.update({
+      where: { id: params.insightId },
+      data: {
+        feedback: params.feedbackType === 'positive' ? 'positive' : 'negative',
+        feedbackNote: params.userComment || params.correctedAnswer || null,
+      },
+    }).catch(() => {
+      // Original insight may not exist — that's OK
+    });
+
+    // Create a dedicated feedback record for analytics
+    await db.aIInsight.create({
+      data: {
+        type: 'RECOMMENDATION',
+        title: `AI Feedback: ${params.feedbackType} on ${params.generationType}`,
+        description: params.userComment || params.correctedAnswer || `User ${params.feedbackType} feedback on ${params.generationType}`,
+        evidence: JSON.stringify([]),
+        confidenceScore: 0,
+        impactScore: 0,
+        urgencyScore: 0,
+        sourceType: 'ai_feedback',
+        sourceRoute: '/api/ai/feedback',
+        metadata: JSON.stringify({
+          _feedbackRecord: true,
+          feedbackId,
+          insightId: params.insightId,
+          generationType: params.generationType,
+          feedbackType: params.feedbackType,
+          userComment: params.userComment,
+          correctedAnswer: params.correctedAnswer,
+          createdAt: now,
+        }),
+        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000), // 90-day retention
+      },
+    });
+  } catch (err) {
+    // Don't let feedback recording failures block user operations
+    logger.warn('[ai-reliability] Failed to persist feedback record:', { error: err });
+  }
+
+  return feedbackId;
+}
+
+/**
+ * Get feedback analytics aggregated over a time window.
+ * Returns: approval rate, feedback volume trend, top issues, correction frequency.
+ */
+export async function getFeedbackAnalytics(days = 30): Promise<{
+  totalFeedback: number;
+  approvalRate: number;
+  negativeRate: number;
+  correctionRate: number;
+  byType: Record<string, { positive: number; negative: number; corrections: number }>;
+  recentCorrections: Array<{ insightId: string; type: string; comment: string; at: string }>;
+}> {
+  const since = new Date(Date.now() - days * 24 * 60 * 60 * 1000);
+
+  const records: AIFeedbackRecord[] = [];
+  try {
+    const rows = await db.aIInsight.findMany({
+      where: {
+        sourceType: 'ai_feedback',
+        createdAt: { gte: since },
+      },
+      select: { id: true, metadata: true, createdAt: true },
+      orderBy: { createdAt: 'desc' },
+      take: 1000,
+    });
+
+    for (const r of rows) {
+      try {
+        const meta = typeof r.metadata === 'string' ? JSON.parse(r.metadata) : r.metadata;
+        if (meta._feedbackRecord) {
+          records.push({
+            id: r.id,
+            insightId: meta.insightId || '',
+            generationType: meta.generationType || 'unknown',
+            feedbackType: meta.feedbackType || 'negative',
+            userComment: meta.userComment,
+            correctedAnswer: meta.correctedAnswer,
+            createdAt: r.createdAt.toISOString(),
+          });
+        }
+      } catch {
+        // Skip malformed records
+      }
+    }
+  } catch (err) {
+    logger.warn('[ai-reliability] Failed to fetch feedback records:', { error: err });
+  }
+
+  if (records.length === 0) {
+    return {
+      totalFeedback: 0,
+      approvalRate: 100,
+      negativeRate: 0,
+      correctionRate: 0,
+      byType: {},
+      recentCorrections: [],
+    };
+  }
+
+  const total = records.length;
+  const positive = records.filter(r => r.feedbackType === 'positive').length;
+  const negative = records.filter(r => r.feedbackType === 'negative').length;
+  const corrections = records.filter(r => r.feedbackType === 'correction').length;
+
+  // Per-type breakdown
+  const byType: Record<string, { positive: number; negative: number; corrections: number }> = {};
+  for (const r of records) {
+    if (!byType[r.generationType]) {
+      byType[r.generationType] = { positive: 0, negative: 0, corrections: 0 };
+    }
+    if (r.feedbackType === 'positive') byType[r.generationType].positive++;
+    else if (r.feedbackType === 'negative') byType[r.generationType].negative++;
+    else if (r.feedbackType === 'correction') byType[r.generationType].corrections++;
+  }
+
+  // Recent corrections (last 10)
+  const recentCorrections = records
+    .filter(r => r.feedbackType === 'correction')
+    .slice(0, 10)
+    .map(r => ({
+      insightId: r.insightId,
+      type: r.generationType,
+      comment: r.userComment || r.correctedAnswer || '',
+      at: r.createdAt,
+    }));
+
+  return {
+    totalFeedback: total,
+    approvalRate: parseFloat(((positive / total) * 100).toFixed(1)),
+    negativeRate: parseFloat(((negative / total) * 100).toFixed(1)),
+    correctionRate: parseFloat(((corrections / total) * 100).toFixed(1)),
+    byType,
+    recentCorrections,
+  };
+}

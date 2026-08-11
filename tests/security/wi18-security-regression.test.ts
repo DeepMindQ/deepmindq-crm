@@ -388,7 +388,7 @@ describe('WI-18.1-01: Proxy implementation details', () => {
   });
 
   it('should import security headers', () => {
-    expect(content).toContain('getSecurityHeaders');
+    expect(content).toContain('applySecurityHeaders');
   });
 
   it('should validate CSRF on state-changing API requests', () => {

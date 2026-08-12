@@ -8,6 +8,8 @@ import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
+import { ErrorPanel } from '@/components/ui/error-panel';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
@@ -317,6 +319,9 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
     return () => { cancelled = true; };
   }, []);
 
+  /* ── Leads error state ── */
+  const [leadsError, setLeadsError] = useState<Error | null>(null);
+
   const buildQueryString = useCallback(() => {
     const params = new URLSearchParams();
     if (search.trim()) params.set('search', search.trim());
@@ -342,7 +347,11 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
       setLeads(data.leads || []);
       setTotal(data.total || 0);
       setTotalPages(data.totalPages || 0);
-    } catch { toast.error('Failed to load leads'); }
+      setLeadsError(null);
+    } catch (err) {
+      setLeadsError(err instanceof Error ? err : new Error('Failed to load leads'));
+      toast.error('Failed to load leads');
+    }
     finally { setLeadsLoading(false); }
   }, [buildQueryString]);
 
@@ -637,7 +646,9 @@ export default function LeadsScreen({ navigateTo }: { navigateTo?: (screen: stri
         <div className="flex-1 min-w-0">
 
           {leadsLoading ? (
-            <LoadingState message="Loading AI-prioritized leads..." lines={6} />
+            <LoadingSkeleton variant="list" count={6} label="Loading leads" />
+          ) : leadsError ? (
+            <ErrorPanel error={leadsError} onRetry={fetchLeads} variant="inline" />
           ) : leads.length === 0 ? (
             <EmptyState
               icon={Inbox}

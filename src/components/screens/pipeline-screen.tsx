@@ -6,6 +6,8 @@ import { motion } from 'framer-motion';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
+import { ErrorPanel } from '@/components/ui/error-panel';
 import { ScreenBreadcrumb } from '@/components/shared/screen-breadcrumb';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import {
@@ -101,10 +103,11 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
   const nav = navigateTo || ((screen: string) => useAppStore.getState().setActiveView(screen as any));
 
   /* ── Data fetching ── */
-  const { data: dashData, isLoading } = useQuery<DashboardData>({
+  const { data: dashData, isLoading, error, refetch } = useQuery<DashboardData>({
     queryKey: ['pipeline-dashboard'],
     queryFn: () => fetch('/api/dashboard').then(r => r.json()),
     staleTime: 30000,
+    retry: 1,
   });
 
   const { data: leadsData } = useQuery<{ total: number }>({
@@ -114,10 +117,14 @@ export default function PipelineScreen({ navigateTo }: { navigateTo?: (screen: s
   });
 
   /* ── Loading ── */
-  if (isLoading) return <ScreenSkeleton kpiCount={4} panels={3} />;
+  if (isLoading) return <LoadingSkeleton variant="dashboard" label="Loading pipeline" />;
 
-  if (!dashData) return (
-    <div className="text-muted-foreground text-sm p-6">Failed to load pipeline data.</div>
+  /* ── Error ── */
+  if (error || !dashData) return (
+    <ErrorPanel
+      error={error || new Error('Failed to load pipeline data')}
+      onRetry={() => refetch()}
+    />
   );
 
   /* ── Compute stages ── */

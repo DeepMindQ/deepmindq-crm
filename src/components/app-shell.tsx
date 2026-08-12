@@ -3,6 +3,7 @@
 import React, { useState, useEffect, Suspense, Component, useCallback, lazy, type ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/ui/animated-components';
+import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 import { Toaster } from '@/components/ui/sonner';
 import { AiChatSidebar } from '@/components/shared/ai-chat-sidebar';
 import { AiChatButton } from '@/components/shared/ai-chat-button';
@@ -139,46 +140,7 @@ class ScreenErrorBoundary extends Component<{ children: ReactNode; name: string 
    ═══════════════════════════════════════════════════════════════════════ */
 
 function ScreenLoader() {
-  return (
-    <div className="space-y-6 p-1">
-      {/* Header skeleton */}
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="h-7 w-48 rounded-lg bg-gray-200 animate-pulse" />
-          <div className="h-7 w-24 rounded-lg bg-gray-200 animate-pulse" />
-        </div>
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-28 rounded-lg bg-gray-200 animate-pulse" />
-          <div className="h-8 w-8 rounded-lg bg-gray-200 animate-pulse" />
-        </div>
-      </div>
-      {/* Stat cards skeleton */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="h-24 rounded-xl bg-white border border-gray-200 p-4 space-y-3">
-            <div className="h-3 w-16 rounded bg-gray-200 animate-pulse" />
-            <div className="h-6 w-20 rounded bg-gray-100 animate-pulse" />
-          </div>
-        ))}
-      </div>
-      {/* Table skeleton */}
-      <div className="rounded-xl bg-white border border-gray-200 overflow-hidden">
-        <div className="flex items-center gap-4 px-4 py-3 border-b border-gray-200">
-          {Array.from({ length: 5 }).map((_, i) => (
-            <div key={i} className="h-3 flex-1 rounded bg-gray-200 animate-pulse" />
-          ))}
-        </div>
-        {Array.from({ length: 6 }).map((_, i) => (
-          <div key={i} className="flex items-center gap-4 px-4 py-3 border-b border-gray-100">
-            <div className="h-4 w-4 rounded bg-gray-200 animate-pulse" />
-            {Array.from({ length: 5 }).map((_, j) => (
-              <div key={j} className="h-3 flex-1 rounded bg-gray-100 animate-pulse" style={{ animationDelay: `${(i * 5 + j) * 50}ms` }} />
-            ))}
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+  return <LoadingSkeleton variant="dashboard" label="Loading screen" />;
 }
 
 /* ═══════════════════════════════════════════════════════════════════════
@@ -605,7 +567,7 @@ function Header({
         bg-[oklch(0.11_0.01_260)]/80 backdrop-blur-xl
         border-b border-[oklch(0.22_0.005_260)]
         transition-[padding-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
-        ${sidebarCollapsed ? 'pl-20' : 'pl-[276px]'}
+        ${sidebarCollapsed ? 'lg:pl-20' : 'lg:pl-[276px]'}
       `}
     >
       <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -848,7 +810,7 @@ export function AppShell({ onLogout }: { onLogout: () => void }) {
         className={`
           flex-1 min-w-0 flex flex-col
           transition-[margin-left] duration-300 ease-[cubic-bezier(0.4,0,0.2,1)]
-          ${sidebarCollapsed ? 'ml-16' : 'ml-[260px]'}
+          ${sidebarCollapsed ? 'lg:ml-16' : 'lg:ml-[260px]'}
         `}
       >
         {/* Header */}

@@ -5,6 +5,7 @@ import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
 import { aiChatSchema } from '@/lib/validation-schemas';
+import { withApiLogging } from '@/lib/api-logging-middleware';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -173,7 +174,7 @@ function generateTemplateResponse(message: string): string {
 // POST /api/ai/chat
 // ---------------------------------------------------------------------------
 
-export async function POST(request: NextRequest) {
+async function aiChatHandler(request: NextRequest) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
@@ -239,3 +240,5 @@ ${
     return apiError('Failed to process chat message')
   }
 }
+
+export const POST = withApiLogging(aiChatHandler, '/api/ai/chat');

@@ -16,8 +16,9 @@ import { generateEmailIntelligence } from '@/lib/email-intelligence-engine';
 import { createInsights } from '@/lib/ai-insight-service';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { withApiLogging } from '@/lib/api-logging-middleware';
 
-export async function GET(request: NextRequest) {
+async function getHandler(request: NextRequest) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
@@ -70,3 +71,5 @@ try {
     return apiError(message, message.includes('not found') ? 404 : 500);
   }
 }
+
+export const GET = withApiLogging(getHandler, '/api/ai/email-intelligence');

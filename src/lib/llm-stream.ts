@@ -39,10 +39,12 @@ interface SSEChunk {
 
 /**
  * Format an SSE line.
- * Each event is `event: <type>\ndata: <json>\n\n`
+ * IMPORTANT: The chat sidebar parser only reads lines starting with "data:" and JSON.parses them.
+ * It checks parsed.event === 'chunk'|'done'|'error'.
+ * So we send: data: {"event":"chunk","data":"text"}\n\n
  */
 function formatSSE(chunk: SSEChunk): string {
-  return `event: ${chunk.event}\ndata: ${JSON.stringify(chunk.data)}\n\n`
+  return `data: ${JSON.stringify({ event: chunk.event, data: chunk.data })}\n\n`
 }
 
 /**
@@ -94,9 +96,20 @@ export async function streamAICall(
     }
   }
 
+  // ── Z.ai SDK ULTIMATE FALLBACK ──
+  // When no external providers have keys, use the built-in z-ai-web-dev-sdk.
+  // Since Z.ai SDK doesn't support streaming, we simulate it by delivering
+  // the full response as a single chunk followed by done.
+  try {
+    logger.info('[llm-stream] No external providers available — falling back to Z.ai SDK (simulated stream)')
+    return await streamZaiSDKFallback(systemPrompt, userPrompt, temperature, maxTokens, timeoutMs, options?.signal)
+  } catch (zaiErr) {
+    logger.warn('[llm-stream] Z.ai SDK fallback also failed:', { error: zaiErr instanceof Error ? zaiErr.message : zaiErr })
+  }
+
   // All providers failed — return a stream with a single error event
   const errorMessage = errors.length > 0
-    ? `All LLM providers failed:\n${errors.map(e => '  - ' + e).join('\n')}`
+    ? `All LLM providers failed:\n${errors.map(e => '  - ' + e).join('\n')}\nZ.ai SDK fallback also failed.`
     : 'No LLM providers configured. Add API keys in Settings > AI Providers.'
 
   logger.error(`[llm-stream] ${feature} failed: ${errorMessage}`)
@@ -107,6 +120,105 @@ export async function streamAICall(
       controller.close()
     },
   })
+}
+
+/**
+ * Z.ai SDK streaming fallback — simulates SSE streaming by delivering
+ * the complete response as chunks (split by sentences for natural feel).
+ */
+async function streamZaiSDKFallback(
+  systemPrompt: string,
+  userPrompt: string,
+  temperature: number,
+  maxTokens: number,
+  timeoutMs: number,
+  externalSignal?: AbortSignal,
+): Promise<ReadableStream<string>> {
+  // Dynamic import to avoid circular deps
+  const { getZAI } = await import('@/lib/llm-client')
+  const zai = await getZAI()
+
+  // Race the call against timeout
+  const completion = await Promise.race([
+    zai.chat.completions.create({
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      thinking: { type: 'disabled' },
+      temperature,
+      max_tokens: maxTokens,
+    }),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('Z.ai SDK call timed out')), timeoutMs)
+    ),
+  ])
+
+  const fullText = completion.choices?.[0]?.message?.content ?? ''
+
+  if (!fullText) {
+    return new ReadableStream<string>({
+      start(controller) {
+        controller.enqueue(formatSSE({ event: 'error', data: 'Z.ai SDK returned empty response' }))
+        controller.close()
+      },
+    })
+  }
+
+  // Simulate streaming by splitting into sentence-level chunks
+  // This gives the user a "typing" effect even with non-streaming SDK
+  const chunks = splitIntoStreamingChunks(fullText)
+
+  return new ReadableStream<string>({
+    async start(controller) {
+      for (const chunk of chunks) {
+        if (externalSignal?.aborted) {
+          controller.enqueue(formatSSE({ event: 'error', data: 'Cancelled' }))
+          controller.close()
+          return
+        }
+        controller.enqueue(formatSSE({ event: 'chunk', data: chunk }))
+        // Small delay between chunks for natural typing feel (20-50ms)
+        await new Promise(resolve => setTimeout(resolve, 20 + Math.random() * 30))
+      }
+      controller.enqueue(formatSSE({ event: 'done', data: '' }))
+      controller.close()
+    },
+  })
+}
+
+/**
+ * Split text into chunks that feel natural when streamed.
+ * Splits on sentence boundaries, then on word boundaries for long sentences.
+ */
+function splitIntoStreamingChunks(text: string): string[] {
+  // For short text, deliver as one chunk
+  if (text.length < 50) return [text]
+
+  const chunks: string[] = []
+  // Split on sentences (period, exclamation, question mark followed by space or end)
+  const sentences = text.split(/(?<=[.!?])\s+/)
+
+  for (const sentence of sentences) {
+    if (sentence.length <= 80) {
+      chunks.push(sentence)
+    } else {
+      // Split long sentences into phrase chunks
+      const phrases = sentence.split(/(?<=[,;:])\s+|(?<=\s)/)
+      let current = ''
+      for (const phrase of phrases) {
+        if (current.length + phrase.length > 60 && current) {
+          chunks.push(current)
+          current = phrase
+        } else {
+          current += phrase
+        }
+      }
+      if (current) chunks.push(current)
+    }
+  }
+
+  return chunks.filter(c => c.length > 0)
 }
 
 /**

@@ -18,6 +18,10 @@ interface UseRealtimeReturn {
   clear: () => void
 }
 
+// ── Reconnection backoff config ───────────────────────────────────────
+const BASE_RECONNECT_MS = 1_000;
+const MAX_RECONNECT_MS = 30_000;
+
 // ── Hook ─────────────────────────────────────────────────────────────
 
 export function useRealtime(): UseRealtimeReturn {
@@ -29,6 +33,10 @@ export function useRealtime(): UseRealtimeReturn {
   const esRef = useRef<EventSource | null>(null)
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const intentionalClose = useRef(false)
+  const reconnectAttempts = useRef(0)
+  /** Tracks the last event ID received, used for reconnection catch-up. */
+  const lastEventIdRef = useRef<string>('')
+  const consecutiveErrors = useRef(0)
 
   const clear = useCallback(() => {
     setNotifications([])
@@ -39,15 +47,32 @@ export function useRealtime(): UseRealtimeReturn {
   useEffect(() => {
     intentionalClose.current = false
 
+    function getBackoffMs(): number {
+      const attempt = reconnectAttempts.current;
+      // Exponential backoff with jitter
+      const base = Math.min(BASE_RECONNECT_MS * Math.pow(2, attempt), MAX_RECONNECT_MS);
+      const jitter = base * 0.2 * Math.random();
+      return Math.floor(base + jitter);
+    }
+
     function connect() {
       // Avoid opening a second connection
       if (esRef.current) return
 
-      const es = new EventSource('/api/realtime')
+      // Build URL with Last-Event-ID for reconnection catch-up
+      const url = new URL('/api/realtime', window.location.origin)
+      if (lastEventIdRef.current) {
+        url.searchParams.set('lastEventId', lastEventIdRef.current)
+      }
+
+      const es = new EventSource(url.toString())
       esRef.current = es
 
       es.addEventListener('connected', () => {
         setConnected(true)
+        // Reset reconnection state on successful connection
+        reconnectAttempts.current = 0
+        consecutiveErrors.current = 0
       })
 
       es.addEventListener('notification', (e: MessageEvent) => {
@@ -78,17 +103,28 @@ export function useRealtime(): UseRealtimeReturn {
       })
 
       es.addEventListener('heartbeat', () => {
-        // No-op — keeps connection alive
+        // No-op — keeps connection alive, resets error counter
+        consecutiveErrors.current = 0
       })
+
+      // Track last event ID for reconnection
+      es.onmessage = (e) => {
+        if (e.lastEventId) {
+          lastEventIdRef.current = e.lastEventId
+        }
+      }
 
       es.onerror = () => {
         setConnected(false)
+        consecutiveErrors.current++
         es.close()
         esRef.current = null
+        reconnectAttempts.current++
 
-        // Reconnect after 3 seconds unless intentionally closed
+        // Reconnect with exponential backoff unless intentionally closed
         if (!intentionalClose.current) {
-          reconnectTimer.current = setTimeout(connect, 3_000)
+          const delay = getBackoffMs()
+          reconnectTimer.current = setTimeout(connect, delay)
         }
       }
     }

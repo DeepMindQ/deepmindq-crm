@@ -7,8 +7,9 @@ import { createContactSchema } from "@/lib/validations";
 import { logger } from '@/lib/logger';
 import { checkApiAuth, filterResponseArrayByRole } from '@/lib/api-auth';
 import { activateIntelligenceAsync } from '@/lib/intelligence-activation';
+import { withApiLogging } from '@/lib/api-logging-middleware';
 
-export async function GET(request: NextRequest) {
+async function contactsListHandler(request: NextRequest) {
     // ── Authentication + RBAC Guard ──
   const { errorResponse, session } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
@@ -168,7 +169,7 @@ try {
   }
 }
 
-export async function POST(request: NextRequest) {
+async function contactsCreateHandler(request: NextRequest) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
@@ -231,3 +232,6 @@ try {
     return apiError("Failed to create contact", 500);
   }
 }
+
+export const GET = withApiLogging(contactsListHandler, '/api/contacts');
+export const POST = withApiLogging(contactsCreateHandler, '/api/contacts');

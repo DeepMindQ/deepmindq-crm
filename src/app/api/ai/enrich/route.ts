@@ -6,6 +6,7 @@ import { createInsight } from '@/lib/ai-insight-service'
 import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger'
 import { checkApiAuth } from '@/lib/api-auth'
+import { withApiLogging } from '@/lib/api-logging-middleware'
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -309,7 +310,7 @@ Respond as JSON array: [{ "field": "...", "suggestedValue": "...", "confidence":
 // POST /api/ai/enrich
 // ---------------------------------------------------------------------------
 
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request)
   if (errorResponse) return errorResponse
@@ -330,3 +331,5 @@ export async function POST(request: NextRequest) {
     return apiError('Failed to enrich entity')
   }
 }
+
+export const POST = withApiLogging(postHandler, '/api/ai/enrich');

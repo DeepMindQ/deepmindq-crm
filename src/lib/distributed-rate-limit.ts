@@ -13,6 +13,7 @@
  *   - Graceful fallback to in-memory if Redis unavailable
  *   - Fixed-window counter with TTL-based expiry
  *   - Health monitoring for Redis connection
+ *   - Supports both Upstash (HTTP/serverless) and ioredis (TCP/Docker)
  *
  * USAGE:
  *   import { distributedRateLimit } from '@/lib/distributed-rate-limit';
@@ -26,6 +27,7 @@
  */
 
 import { logger } from '@/lib/logger';
+import { getRedisClient } from '@/lib/redis-client';
 
 // ─── Types ────────────────────────────────────────────────────────────────
 
@@ -59,64 +61,24 @@ export interface RedisHealthStatus {
 // ─── Redis Configuration ───────────────────────────────────────────────────
 
 const REDIS_URL = process.env.REDIS_URL;
-const REDIS_ENABLED = REDIS_URL && REDIS_URL.length > 0;
+const UPSTASH_URL = process.env.UPSTASH_REDIS_REST_URL;
+const REDIS_ENABLED = !!(REDIS_URL || UPSTASH_URL);
 const REDIS_KEY_PREFIX = 'dmq:ratelimit:';
 const HEALTH_CHECK_INTERVAL_MS = 30_000;
 const MAX_CONSECUTIVE_ERRORS = 3;
 const FALLBACK_COOLDOWN_MS = 60_000;
 
-// ─── Redis Client (lazy loaded) ──────────────────────────────────────────
-
-let redisClient: any | null = null;
-let redisLoading = false;
+// ─── Redis Client ────────────────────────────────────────────────────────
+// Uses the shared redis-client.ts abstraction that supports both
+// Upstash (HTTP/serverless) and ioredis (TCP/Docker) backends.
 
 /**
- * Lazy-load Redis client.
- * Only connects when first needed, avoiding startup failures if Redis is down.
+ * Get the shared Redis client (supports both Upstash and ioredis backends).
+ * See src/lib/redis-client.ts for backend selection logic.
  */
-async function getRedisClient() {
+async function getRedis() {
   if (!REDIS_ENABLED) return null;
-  if (redisClient) return redisClient;
-  if (redisLoading) return null;
-
-  redisLoading = true;
-  try {
-    // Dynamic import to avoid requiring ioredis at startup
-    const Redis = (await import('ioredis')).default;
-    redisClient = new Redis(REDIS_URL, {
-      maxRetriesPerRequest: 1,
-      connectTimeout: 2000,
-      lazyConnect: true,
-      retryStrategy: (times) => {
-        if (times > 2) return null; // Don't retry more than 2 times
-        return Math.min(times * 200, 1000);
-      },
-    });
-
-    redisClient.on('error', (err: Error) => {
-      healthStatus.errorCount++;
-      healthStatus.consecutiveErrors++;
-      logger.warn(`[distributed-rate-limit] Redis error: ${err.message}`);
-    });
-
-    redisClient.on('connect', () => {
-      healthStatus.consecutiveErrors = 0;
-    });
-
-    await redisClient.ping();
-    healthStatus.available = true;
-    logger.info('[distributed-rate-limit] Redis connected');
-    return redisClient;
-  } catch (err) {
-    logger.warn(
-      '[distributed-rate-limit] Redis unavailable, using in-memory fallback',
-      { error: err instanceof Error ? err.message : String(err) },
-    );
-    redisClient = null;
-    return null;
-  } finally {
-    redisLoading = false;
-  }
+  return getRedisClient();
 }
 
 // ─── Health Status ─────────────────────────────────────────────────────────
@@ -152,7 +114,7 @@ async function checkHealth(): Promise<boolean> {
   }
 
   try {
-    const client = await getRedisClient();
+    const client = await getRedis();
     if (!client) {
       healthStatus.available = false;
       return false;
@@ -191,7 +153,7 @@ async function redisRateLimit(
   limit: number,
   windowMs: number,
 ): Promise<DistributedRateLimitResult | null> {
-  const client = await getRedisClient();
+  const client = await getRedis();
   if (!client) return null;
 
   const fullKey = `${REDIS_KEY_PREFIX}${key}`;
@@ -325,7 +287,7 @@ export async function resetRateLimit(key: string): Promise<boolean> {
   }
 
   try {
-    const client = await getRedisClient();
+    const client = await getRedis();
     if (client) {
       await client.del(`${REDIS_KEY_PREFIX}${key}`);
     }

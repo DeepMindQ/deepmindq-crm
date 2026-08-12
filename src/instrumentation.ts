@@ -90,6 +90,47 @@ export async function register() {
       logger.error('[startup] Failed to pre-load scoring config (non-fatal, using defaults)', { error: err });
     }
 
+    // ── Phase F: SWR Cache Warming for Reference Data ──
+    // Pre-populate the stale-while-revalidate cache with reference data
+    // so the first user request gets an immediate response.
+    try {
+      const { swrPrefetch } = await import('@/lib/swr-cache');
+
+      // Warm scoring config (5-min stale, 15-min max TTL)
+      swrPrefetch({
+        key: 'ref:scoring-config',
+        fetcher: async () => {
+          const { getScoringConfig } = await import('@/lib/scoring-config');
+          return getScoringConfig();
+        },
+        staleTtlMs: 5 * 60 * 1000,
+        maxTtlMs: 15 * 60 * 1000,
+      });
+
+      // Warm brand config (10-min stale, 30-min max TTL)
+      swrPrefetch({
+        key: 'ref:brand-config',
+        fetcher: async () => {
+          const { getBrandName } = await import('@/lib/brand-helper');
+          return { brandName: await getBrandName() };
+        },
+        staleTtlMs: 10 * 60 * 1000,
+        maxTtlMs: 30 * 60 * 1000,
+      });
+
+      logger.info('[startup] SWR cache warming initiated (scoring-config, brand-config)');
+    } catch (err) {
+      logger.error('[startup] Failed to warm SWR cache (non-fatal)', { error: err });
+    }
+
+    // ── Phase F: Initialize Redis Pub/Sub for cross-instance SSE ──
+    try {
+      const { initPubSub } = await import('@/lib/redis-pubsub');
+      await initPubSub();
+    } catch (err) {
+      logger.error('[startup] Failed to initialize Redis pub/sub (non-fatal, using in-memory eventBus)', { error: err });
+    }
+
     // Bridge API observability metrics into main monitoring (30-second flush)
     try {
       const { startApiMetricsBridge } = await import('@/lib/api-auto-observability');
@@ -244,6 +285,11 @@ export async function register() {
       _shutdownRegistered = true;
       const shutdown = async (signal: string) => {
         logger.info(`[shutdown] Received ${signal}, cleaning up...`);
+        // Shutdown Redis pub/sub (Phase F)
+        try {
+          const { shutdownPubSub } = await import('@/lib/redis-pubsub');
+          await shutdownPubSub();
+        } catch { /* pub/sub not initialized */ }
         // Clear all registered interval timers
         clearAllTimers();
         // Flush Sentry

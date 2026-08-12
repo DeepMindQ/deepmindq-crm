@@ -5,10 +5,11 @@ import { checkApiAuth } from '@/lib/api-auth'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { sendEmail, type SendEmailResult } from '@/lib/email-provider'
 import { registerTrackingEvent, signTrackingEventId } from '@/lib/email-tracking'
-import { eventBus } from '@/lib/event-bus'
+import { publishSSEEvent } from '@/lib/redis-pubsub'
 import { logAction } from '@/lib/audit'
 import { emailSendRateLimit } from '@/lib/rate-limit'
 import { logger } from '@/lib/logger';
+import { withApiLogging } from '@/lib/api-logging-middleware';
 
 // ── Validation ───────────────────────────────────────────────────────
 
@@ -58,7 +59,7 @@ function injectClickTracking(html: string, eventId: string, origin: string): str
 
 // ── POST handler ─────────────────────────────────────────────────────
 
-export async function POST(request: NextRequest) {
+async function emailSendHandler(request: NextRequest) {
   // Auth gate: authenticated users only for email sending
   const { session, errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
@@ -179,8 +180,8 @@ export async function POST(request: NextRequest) {
       },
     })
 
-    // Emit via event bus so SSE picks it up
-    eventBus.emit('notification', {
+    // Emit via Redis-backed pub/sub for cross-instance SSE delivery
+    await publishSSEEvent('notification', {
       id: auditEntry.id,
       title: notificationDetails.title,
       message: notificationDetails.message,
@@ -208,3 +209,5 @@ export async function POST(request: NextRequest) {
     return apiError('Failed to send email', 500)
   }
 }
+
+export const POST = withApiLogging(emailSendHandler, '/api/emails/send');

@@ -6,6 +6,7 @@ import { validateBody } from '@/lib/apiHelpers';
 import { createCompanySchema } from '@/lib/validations';
 import { checkApiAuth, filterResponseArrayByRole } from '@/lib/api-auth';
 import { activateIntelligenceAsync } from '@/lib/intelligence-activation';
+import { withApiLogging } from '@/lib/api-logging-middleware';
 
 /* ═══════════════════════════════════════════════════
    GET — List companies with search, filter, sort, paginate
@@ -18,7 +19,7 @@ import { activateIntelligenceAsync } from '@/lib/intelligence-activation';
      filters: { tiers: CompanyPriorityTier[], statuses: CompanyStatus[] }
    }
    ═══════════════════════════════════════════════════ */
-export async function GET(request: Request) {
+async function companiesListHandler(request: Request) {
     // ── Authentication Guard ──
   const { errorResponse, session } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
@@ -219,7 +220,7 @@ try {
 /* ═══════════════════════════════════════════════════
    POST — Create a new company
    ═══════════════════════════════════════════════════ */
-export async function POST(request: Request) {
+async function companiesCreateHandler(request: Request) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
@@ -302,3 +303,6 @@ try {
     return NextResponse.json({ error: 'Failed to create company' }, { status: 500 });
   }
 }
+
+export const GET = withApiLogging(companiesListHandler, '/api/companies');
+export const POST = withApiLogging(companiesCreateHandler, '/api/companies');

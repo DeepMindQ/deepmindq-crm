@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers'
 import { checkApiAuth } from '@/lib/api-auth'
 import { approvalService } from '@/lib/approval-service'
+import { withApiLogging } from '@/lib/api-logging-middleware'
 
 // ---------------------------------------------------------------------------
 // Types — Wave 8A: Evidence-Linked Decomposed Scoring
@@ -540,7 +541,7 @@ async function scoreContact(
 // POST /api/ai/score-leads
 // ---------------------------------------------------------------------------
 
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
   // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request)
   if (errorResponse) return errorResponse
@@ -649,3 +650,5 @@ export async function POST(request: NextRequest) {
     return apiError('Failed to score leads')
   }
 }
+
+export const POST = withApiLogging(postHandler, '/api/ai/score-leads');

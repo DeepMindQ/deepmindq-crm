@@ -6,6 +6,7 @@ import { sdkWebSearch } from '@/lib/llm-client'
 import { governedAICall } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { withApiLogging } from '@/lib/api-logging-middleware';
 
 // ---------------------------------------------------------------------------
 // Types — VP Sales-Ready Executive Brief
@@ -347,7 +348,7 @@ Be SPECIFIC. Reference REAL information from search results. Every claim needs e
 // GET /api/ai/account-brief?companyId=xxx
 // ---------------------------------------------------------------------------
 
-export async function GET(request: NextRequest) {
+async function getHandler(request: NextRequest) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
@@ -479,3 +480,5 @@ const companyId = request.nextUrl.searchParams.get('companyId')
 
   return apiSuccess(response)
 }
+
+export const GET = withApiLogging(getHandler, '/api/ai/account-brief');

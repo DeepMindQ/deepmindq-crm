@@ -1810,8 +1810,8 @@ export async function governedStreamAICall(
   if (!preFlight.governanceResult.canProceed) {
     const errorStream = new ReadableStream<string>({
       start(controller) {
-        controller.enqueue(`event: error\ndata: ${JSON.stringify(preFlight.governanceResult.rejectionReason ?? 'Governance blocked')}\n\n`);
-        controller.enqueue(`event: done\ndata: {}\n\n`);
+        controller.enqueue(`data: ${JSON.stringify({ event: 'error', data: preFlight.governanceResult.rejectionReason ?? 'Governance blocked' })}\n\n`);
+        controller.enqueue(`data: ${JSON.stringify({ event: 'done', data: null })}\n\n`);
         controller.close();
       },
     });

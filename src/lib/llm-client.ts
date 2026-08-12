@@ -310,10 +310,49 @@ export async function callLLMWithUsage(
     }
   }
 
+  // ── Z.ai SDK ULTIMATE FALLBACK ──
+  // When no external providers have keys, use the built-in z-ai-web-dev-sdk.
+  // This ensures AI ALWAYS works — even with zero configuration.
+  try {
+    logger.info('[llm-client] No external providers available — falling back to Z.ai SDK')
+    const text = await callZaiSDK(systemPrompt, userPrompt, temperature, maxTokens)
+    if (text) return { text, usage: null }
+  } catch (zaiErr) {
+    logger.warn('[llm-client] Z.ai SDK fallback also failed:', { error: zaiErr instanceof Error ? zaiErr.message : zaiErr })
+  }
+
   const msg = errors.length > 0
-    ? `All LLM providers failed:\n${errors.map(e => '  - ' + e).join('\n')}`
+    ? `All LLM providers failed:\n${errors.map(e => '  - ' + e).join('\n')}\nZ.ai SDK fallback also failed.`
     : 'No LLM providers configured. Add API keys in Settings > AI Providers.'
   throw new Error(msg)
+}
+
+// ─── Z.ai SDK Fallback Call ─────────────────────────────────────────────
+
+/**
+ * Call the z-ai-web-dev-sdk directly. This is the ULTIMATE fallback that
+ * ensures AI ALWAYS works even with zero external provider API keys.
+ *
+ * The z-ai-web-dev-sdk is pre-installed in the DeepMindQ environment and
+ * requires NO configuration — it works out of the box.
+ */
+async function callZaiSDK(
+  systemPrompt: string,
+  userPrompt: string,
+  temperature: number = 0.7,
+  maxTokens: number = 4096,
+): Promise<string> {
+  const zai = await getZAI()
+  const completion = await zai.chat.completions.create({
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt },
+    ],
+    thinking: { type: 'disabled' },
+    temperature,
+    max_tokens: maxTokens,
+  })
+  return completion.choices?.[0]?.message?.content ?? ''
 }
 
 // ─── Revenue LLM Call — never throws, returns '' (from llm-helper.ts) ────
@@ -353,7 +392,8 @@ export async function revenueLLMCall(systemPrompt: string, userPrompt: string): 
         return await callProviderForRevenue(provider.baseUrl, provider.apiKey, provider.model, messages)
       } catch { continue }
     }
-    return ''
+    // Z.ai SDK fallback — ensures revenue intelligence works with zero config
+    return await callZaiSDK(systemPrompt, userPrompt, 0.5, 2048)
   } catch {
     return ''
   }

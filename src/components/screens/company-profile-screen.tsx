@@ -17,6 +17,7 @@ import type { Company, Contact, Opportunity, CompanyNote, CompanyResearchCard, T
 import type { ScoreItem } from '@/components/shared/design-system'
 
 // Sub-components
+import { IntelligenceBriefing } from './company-profile/intelligence-briefing'
 import { Q1WhatChanged, Q2WhyMatters, Q3WhoEngage, Q4WhatSay, Q5WhatDo } from './company-profile/q-sections'
 import { IntelligenceTab } from './company-profile/intelligence-health-tab'
 import { CompanyHeader, RESEARCH_LABELS, researchColors } from './company-profile/company-header'
@@ -183,6 +184,9 @@ export default function CompanyProfileScreen() {
         onGenerateResearch={() => generateResearch.mutate()} onAddNote={() => setNoteOpen(true)} onAddContact={() => setContactOpen(true)}
         onAddOpportunity={() => setOppOpen(true)} onGenerateEmail={handleGenerateEmail} onReEnrich={() => generateResearch.mutate()}
       />
+
+      {/* ── AI Intelligence Briefing — The Hero Moment ── */}
+      <IntelligenceBriefing companyId={selectedCompanyId} />
 
       {isNewAccount && (
         <div className="rounded-xl border border-dashed border-gray-200 bg-gradient-to-br from-amber-50/60 to-orange-50/30 p-10 text-center slide-up">

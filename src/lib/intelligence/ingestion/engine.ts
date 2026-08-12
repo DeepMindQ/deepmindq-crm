@@ -10,8 +10,8 @@
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { parseCSV, parseExcelRow, type ParsedRow } from './parsers';
-import { detectColumns, type ColumnMapping } from './column-detector';
-import { extractEntities, type ExtractedEntities } from './entity-extractor';
+import { detectColumns } from './column-detector';
+import { extractEntities } from './entity-extractor';
 import type { IngestionFileType } from '@prisma/client';
 
 export interface IngestionResult {

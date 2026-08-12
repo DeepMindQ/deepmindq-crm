@@ -90,8 +90,8 @@ async function startUpstashPolling(): Promise<void> {
     }
   }, POLL_INTERVAL_MS);
 
-  if (_pollTimer && typeof (_pollTimer as any).unref === 'function') {
-    (_pollTimer as any).unref();
+  if (_pollTimer && typeof _pollTimer.unref === 'function') {
+    _pollTimer.unref();
   }
 
   logger.info(`[redis-pubsub] Upstash polling started (interval=${POLL_INTERVAL_MS}ms)`);
@@ -99,6 +99,7 @@ async function startUpstashPolling(): Promise<void> {
 
 // ─── ioredis Native Pub/Sub ──────────────────────────────────────────────
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _ioSubscriber: any = null;
 
 async function startIoRedisSubscription(): Promise<void> {

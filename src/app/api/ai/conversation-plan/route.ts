@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
+import { apiSuccess, validateBody } from '@/lib/apiHelpers';
 import { sdkWebSearch } from '@/lib/llm-client';
 import { governedAICall } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';

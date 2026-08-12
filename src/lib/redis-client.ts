@@ -47,10 +47,11 @@ let _loading = false;
  * Wraps an @upstash/redis instance to satisfy RedisClientLike.
  * Upstash uses HTTP (REST) instead of TCP, making it serverless-compatible.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function wrapUpstash(upstash: any): RedisClientLike {
   return {
     get(key: string): Promise<string | null> {
-      return upstash.get(key);
+      return upstash.get(key) as Promise<string | null>;
     },
     set(key: string, value: string, px?: number): Promise<string | null> {
       // Upstash set returns 'OK' on success, or the value with GET option
@@ -65,7 +66,7 @@ function wrapUpstash(upstash: any): RedisClientLike {
       return upstash.del(...keys) as Promise<number>;
     },
     eval(script: string, numKeys: number, ...args: (string | number)[]): Promise<unknown> {
-      return upstash.eval(script, numKeys, ...args.map(String));
+      return upstash.eval(script, numKeys, ...args.map(String)) as Promise<unknown>;
     },
     async ping(): Promise<string> {
       const result = await upstash.ping();
@@ -107,38 +108,39 @@ function wrapUpstash(upstash: any): RedisClientLike {
  * Wraps an ioredis instance to satisfy RedisClientLike.
  * ioredis uses TCP connections — suitable for Docker/self-hosted deployments.
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function wrapIoRedis(redis: any): RedisClientLike {
   return {
     get(key: string): Promise<string | null> {
-      return redis.get(key);
+      return redis.get(key) as Promise<string | null>;
     },
     set(key: string, value: string, px?: number): Promise<string | null> {
       if (px) {
-        return redis.set(key, value, 'PX', px);
+        return redis.set(key, value, 'PX', px) as Promise<string | null>;
       }
-      return redis.set(key, value);
+      return redis.set(key, value) as Promise<string | null>;
     },
     del(key: string | string[]): Promise<number> {
-      return redis.del(key);
+      return redis.del(key) as Promise<number>;
     },
     eval(script: string, numKeys: number, ...args: (string | number)[]): Promise<unknown> {
-      return redis.eval(script, numKeys, ...args);
+      return redis.eval(script, numKeys, ...args) as Promise<unknown>;
     },
     ping(): Promise<string> {
-      return redis.ping();
+      return redis.ping() as Promise<string>;
     },
     keys(pattern: string): Promise<string[]> {
-      return redis.keys(pattern);
+      return redis.keys(pattern) as Promise<string[]>;
     },
     incr(key: string): Promise<number> {
-      return redis.incr(key);
+      return redis.incr(key) as Promise<number>;
     },
     async pexpire(key: string, ms: number): Promise<boolean> {
       const result = await redis.pexpire(key, ms);
       return result === 1;
     },
     publish(channel: string, message: string): Promise<number> {
-      return redis.publish(channel, message);
+      return redis.publish(channel, message) as Promise<number>;
     },
     on(event: string, handler: (...args: unknown[]) => void): void {
       redis.on(event, handler);

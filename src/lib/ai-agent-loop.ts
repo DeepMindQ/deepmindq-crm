@@ -29,8 +29,8 @@
 
 import { getLLMChain } from '@/lib/ai-config'
 import { logger } from '@/lib/logger'
-import { CRM_TOOLS, type ToolDefinition } from './ai-tool-definitions'
-import { executeToolCall, type ToolResult } from './ai-tool-executor'
+import { CRM_TOOLS } from './ai-tool-definitions'
+import { executeToolCall } from './ai-tool-executor'
 
 // ─── Types ──────────────────────────────────────────────────────────────
 
@@ -152,13 +152,13 @@ export async function agentLoopWithTools(
     timeoutMs = 120_000,
     signal,
     maxToolRounds = 5,
-    feature = 'agent-loop',
+    feature: _deprecatedFeature = 'agent-loop',
     onToolCall,
     onToolResult,
   } = options
 
   const toolCallsExecuted: AgentLoopResult['toolCallsExecuted'] = []
-  let conversationHistory: LLMMessage[] = [
+  const conversationHistory: LLMMessage[] = [
     { role: 'system', content: `${systemPrompt}\n${TOOL_USE_SYSTEM_ADDON}` },
     ...messages.map((m) => ({ role: m.role, content: m.content })),
   ]
@@ -423,7 +423,7 @@ export async function agentLoopZaiFallback(
   temperature: number,
   maxTokens: number,
   timeoutMs: number,
-  signal?: AbortSignal,
+  _signal?: AbortSignal,
 ): Promise<ReadableStream<string>> {
   try {
     const { getZAI } = await import('./llm-client')
@@ -479,8 +479,6 @@ function createAgentStream(
   toolCalls: AgentLoopResult['toolCallsExecuted'],
   finalText: string,
 ): ReadableStream<string> {
-  const encoder = new TextEncoder()
-
   return new ReadableStream<string>({
     async start(controller) {
       // 1. Send tool-status events so the sidebar shows progress

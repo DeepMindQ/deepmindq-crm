@@ -17,8 +17,8 @@
 
 import { logger } from '@/lib/logger'
 import { getCorrelationId, CORRELATION_HEADER } from '@/lib/correlation-id'
-import { createRequestContext, withRequestContext, getRequestDurationMs } from '@/lib/request-context'
-import { NextResponse, NextRequest } from 'next/server'
+import { createRequestContext, withRequestContext } from '@/lib/request-context'
+import { NextResponse } from 'next/server'
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 type ApiHandler = (request: any, context?: { params?: Record<string, string> }) => Promise<Response>

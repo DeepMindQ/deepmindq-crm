@@ -16,6 +16,16 @@ vi.mock('next/server', () => ({
   },
 }));
 
+// ── Mock next/headers (cookies()) ─────────────────────────
+const mockCookieStore = {
+  get: vi.fn().mockReturnValue(undefined),
+  set: vi.fn(),
+  delete: vi.fn(),
+};
+vi.mock('next/headers', () => ({
+  cookies: vi.fn().mockResolvedValue(mockCookieStore),
+}));
+
 // ── Mock DB ───────────────────────────────────────────────
 const mockUserFindUnique = vi.fn();
 const mockUserCreate = vi.fn();
@@ -46,6 +56,7 @@ vi.mock('@/lib/session', () => ({
     expiresAt: new Date(Date.now() + 86400000),
   }),
   deleteSession: vi.fn().mockResolvedValue(undefined),
+  destroyCurrentSession: vi.fn().mockResolvedValue(undefined),
 }));
 
 // ── Mock CSRF ─────────────────────────────────────────────
@@ -54,7 +65,7 @@ vi.mock('@/lib/csrf', () => ({
   generateCsrfToken: vi.fn().mockReturnValue('csrf-token-123'),
 }));
 
-// ── Mock rate limiter ────────────────────────────────────
+// ── Mock rate-limit (legacy) ─────────────────────────────
 const rateLimitMap = new Map<string, number>();
 vi.mock('@/lib/rate-limit', () => ({
   checkRateLimit: vi.fn((key: string, max: number) => {
@@ -65,9 +76,40 @@ vi.mock('@/lib/rate-limit', () => ({
   }),
 }));
 
+// ── Mock auth-helpers (generalApiRateLimit used by register) ──
+vi.mock('@/lib/auth-helpers', () => ({
+  generalApiRateLimit: vi.fn().mockReturnValue({ success: true, remaining: 99, resetAt: Date.now() + 60000 }),
+  edgeRateLimit: vi.fn().mockReturnValue({ success: true, remaining: 99, resetAt: Date.now() + 60000 }),
+}));
+
+// ── Mock password ────────────────────────────────────────
+vi.mock('@/lib/password', () => ({
+  hashPassword: vi.fn().mockResolvedValue('$2b$10$hashedpassword'),
+}));
+
+// ── Mock otp ─────────────────────────────────────────────
+vi.mock('@/lib/otp', () => ({
+  requestOtp: vi.fn().mockResolvedValue({ success: true }),
+}));
+
 // ── Mock email ────────────────────────────────────────────
 vi.mock('@/lib/email', () => ({
   sendOtpEmail: vi.fn().mockResolvedValue(true),
+}));
+
+// ── Mock logger ──────────────────────────────────────────
+vi.mock('@/lib/logger', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
+// ── Mock encryption (dev mode returns plaintext) ─────────
+vi.mock('@/lib/encryption', () => ({
+  encryptUserFields: vi.fn().mockImplementation(async (data: Record<string, unknown>) => data),
 }));
 
 const TEST_USER = {
@@ -84,15 +126,24 @@ const TEST_USER = {
 };
 
 describe('Auth Flow API', () => {
-  beforeEach(() => {
+  let mockGeneralApiRateLimit: ReturnType<typeof vi.fn>;
+
+  beforeEach(async () => {
     vi.clearAllMocks();
     rateLimitMap.clear();
+    // Reset generalApiRateLimit mock to return success by default
+    const authHelpers = await import('@/lib/auth-helpers');
+    mockGeneralApiRateLimit = vi.mocked(authHelpers.generalApiRateLimit);
+    mockGeneralApiRateLimit.mockReturnValue({ success: true, remaining: 99, resetAt: Date.now() + 60000 });
   });
 
   describe('POST /api/auth/register', () => {
     it('creates a new user and sends OTP', async () => {
       mockUserFindUnique.mockResolvedValue(null); // No existing user
       mockUserCreate.mockResolvedValue(TEST_USER);
+
+      // Set AUTHORIZED_EMAIL env var (required by register route)
+      process.env.AUTHORIZED_EMAIL = 'newuser@deepmindq.com';
 
       const { POST } = await import('@/app/api/auth/register/route');
       const request = new Request('http://localhost/api/auth/register', {
@@ -104,6 +155,8 @@ describe('Auth Flow API', () => {
           phone: '+1234567890',
           company: 'Acme',
           designation: 'VP Sales',
+          password: 'SecurePass123!',
+          confirmPassword: 'SecurePass123!',
         }),
       });
 
@@ -112,6 +165,8 @@ describe('Auth Flow API', () => {
 
       expect(response.status).toBeLessThan(400);
       expect(mockUserCreate).toHaveBeenCalled();
+
+      delete process.env.AUTHORIZED_EMAIL;
     });
 
     it('rejects duplicate email registration', async () => {
@@ -124,6 +179,8 @@ describe('Auth Flow API', () => {
         body: JSON.stringify({
           email: 'newuser@deepmindq.com',
           name: 'New User',
+          password: 'SecurePass123!',
+          confirmPassword: 'SecurePass123!',
         }),
       });
 
@@ -192,14 +249,18 @@ describe('Auth Flow API', () => {
 
   describe('Rate Limiting', () => {
     it('triggers rate limiting after repeated register attempts', async () => {
-      // Simulate hitting rate limit
-      rateLimitMap.set('register:attacker@test.com', 100);
+      // Mock generalApiRateLimit to return failure (rate limited)
+      mockGeneralApiRateLimit.mockReturnValue({
+        success: false,
+        remaining: 0,
+        resetAt: Date.now() + 60000,
+      });
 
       const { POST } = await import('@/app/api/auth/register/route');
       const request = new Request('http://localhost/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: 'attacker@test.com', name: 'Attacker' }),
+        body: JSON.stringify({ email: 'attacker@test.com', name: 'Attacker', password: 'SecurePass123!', confirmPassword: 'SecurePass123!' }),
       });
 
       const response = await POST(request);

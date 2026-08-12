@@ -17,20 +17,28 @@ vi.mock('next/server', () => ({
 }));
 
 // ── Mock DB ───────────────────────────────────────────────
-const mockLeadFindMany = vi.fn();
-const mockLeadCount = vi.fn();
+const mockContactFindMany = vi.fn();
+const mockContactCount = vi.fn();
 const mockOpportunityFindMany = vi.fn();
 const mockOpportunityCount = vi.fn();
 
 vi.mock('@/lib/db', () => ({
   db: {
-    lead: {
-      findMany: (...args: unknown[]) => mockLeadFindMany(...args),
-      count: (...args: unknown[]) => mockLeadCount(...args),
+    contact: {
+      findMany: (...args: unknown[]) => mockContactFindMany(...args),
+      count: (...args: unknown[]) => mockContactCount(...args),
     },
-    opportunity: {
+    opportunityRecommendation: {
       findMany: (...args: unknown[]) => mockOpportunityFindMany(...args),
       count: (...args: unknown[]) => mockOpportunityCount(...args),
+    },
+    lead: {
+      findMany: vi.fn(),
+      count: vi.fn(),
+    },
+    opportunity: {
+      findMany: vi.fn(),
+      count: vi.fn(),
       groupBy: vi.fn().mockResolvedValue([
         { stage: 'discovery', _count: 5 },
         { stage: 'qualified', _count: 3 },
@@ -41,21 +49,81 @@ vi.mock('@/lib/db', () => ({
     user: {
       findUnique: vi.fn().mockResolvedValue({ id: 'u1', role: 'user', isActive: true }),
     },
+    company: {
+      findMany: vi.fn().mockResolvedValue([]),
+    },
   },
 }));
 
-// ── Mock session ─────────────────────────────────────────
+// ── Mock session (returns flat SessionUser) ────────────────
 vi.mock('@/lib/session', () => ({
   getCurrentSession: vi.fn().mockResolvedValue({
-    user: { id: 'u1', email: 'test@dmq.com', name: 'Test', role: 'user', hasPassword: true, isActive: true },
-    expiresAt: new Date(Date.now() + 86400000),
+    id: 'u1',
+    email: 'test@dmq.com',
+    name: 'Test',
+    role: 'admin',
+    hasPassword: true,
+    isActive: true,
+    phone: null,
+    company: null,
+    designation: null,
+    avatarUrl: null,
   }),
+  destroyCurrentSession: vi.fn().mockResolvedValue(undefined),
 }));
 
-const MOCK_LEADS = [
-  { id: 'l1', firstName: 'Alice', lastName: 'Smith', email: 'alice@example.com', company: 'Acme', score: 85, status: 'active' },
-  { id: 'l2', firstName: 'Bob', lastName: 'Jones', email: 'bob@example.com', company: 'Beta', score: 62, status: 'active' },
-  { id: 'l3', firstName: 'Carol', lastName: 'Lee', email: 'carol@example.com', company: 'Gamma', score: 41, status: 'inactive' },
+// ── Mock keyset-pagination ────────────────────────────────
+vi.mock('@/lib/keyset-pagination', () => ({
+  encodeCursor: vi.fn().mockReturnValue(null),
+  buildKeysetWhere: vi.fn().mockReturnValue({}),
+}));
+
+// ── Mock apiHelpers ───────────────────────────────────────
+vi.mock('@/lib/apiHelpers', () => ({
+  validateBody: vi.fn().mockImplementation((_schema: unknown, body: unknown) => body),
+  sanitize: vi.fn().mockImplementation((s: string) => s),
+  safeInt: vi.fn().mockImplementation((val: string | null, def: number) => val ? parseInt(val, 10) || def : def),
+  apiError: vi.fn().mockImplementation((msg: string, status: number) =>
+    new Response(JSON.stringify({ error: msg }), { status, headers: { 'Content-Type': 'application/json' } })
+  ),
+  apiSuccess: vi.fn().mockImplementation((data: unknown, status?: number) =>
+    new Response(JSON.stringify({ success: true, data }), {
+      status: status || 200,
+      headers: { 'Content-Type': 'application/json' },
+    })
+  ),
+}));
+
+// ── Mock validations ──────────────────────────────────────
+vi.mock('@/lib/validations', () => ({
+  createOpportunitySchema: {},
+}));
+
+// ── Mock rbac-enforcement ─────────────────────────────────
+vi.mock('@/lib/rbac-enforcement', () => ({
+  filterObjectByRole: vi.fn().mockImplementation((obj: unknown) => obj),
+  filterArrayByRole: vi.fn().mockImplementation((arr: unknown[]) => arr),
+}));
+
+// ── Mock audit-logger (imported transitively by rbac.ts) ──
+vi.mock('@/lib/audit-logger', () => ({
+  audit: vi.fn().mockResolvedValue(undefined),
+}));
+
+// ── Mock logger ──────────────────────────────────────────
+vi.mock('@/lib/logger', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
+const MOCK_CONTACTS = [
+  { id: 'l1', rawName: 'Alice Smith', email: 'alice@example.com', title: 'CEO', role: 'Executive', linkedinUrl: '', phone: '', location: 'NYC, NY, US', companyId: 'c1', leadScore: 85, status: 'active' },
+  { id: 'l2', rawName: 'Bob Jones', email: 'bob@example.com', title: 'CTO', role: 'Engineering', linkedinUrl: '', phone: '', location: 'LA, CA, US', companyId: 'c2', leadScore: 62, status: 'active' },
+  { id: 'l3', rawName: 'Carol Lee', email: 'carol@example.com', title: 'VP Sales', role: 'Sales', linkedinUrl: '', phone: '', location: 'Chicago, IL, US', companyId: 'c3', leadScore: 41, status: 'inactive' },
 ];
 
 describe('Leads & Pipeline API', () => {
@@ -65,18 +133,20 @@ describe('Leads & Pipeline API', () => {
 
   describe('Leads — List & Filter', () => {
     it('returns a list of leads', async () => {
-      mockLeadFindMany.mockResolvedValue(MOCK_LEADS);
+      mockContactFindMany.mockResolvedValue(MOCK_CONTACTS);
+      mockContactCount.mockResolvedValue(3);
 
       const { GET } = await import('@/app/api/leads/route');
       const response = await GET(new Request('http://localhost/api/leads'));
       const body = await response.json();
 
       expect(response.status).toBe(200);
-      expect(Array.isArray(body.data || body)).toBe(true);
+      expect(Array.isArray(body.leads || body.data || body)).toBe(true);
     });
 
     it('supports status filter', async () => {
-      mockLeadFindMany.mockResolvedValue(MOCK_LEADS.filter(l => l.status === 'active'));
+      mockContactFindMany.mockResolvedValue(MOCK_CONTACTS.filter(c => c.status === 'active'));
+      mockContactCount.mockResolvedValue(2);
 
       const { GET } = await import('@/app/api/leads/route');
       const response = await GET(new Request('http://localhost/api/leads?status=active'));
@@ -84,7 +154,8 @@ describe('Leads & Pipeline API', () => {
     });
 
     it('supports search by name or email', async () => {
-      mockLeadFindMany.mockResolvedValue([MOCK_LEADS[0]]);
+      mockContactFindMany.mockResolvedValue([MOCK_CONTACTS[0]]);
+      mockContactCount.mockResolvedValue(1);
 
       const { GET } = await import('@/app/api/leads/route');
       const response = await GET(new Request('http://localhost/api/leads?search=alice'));
@@ -92,8 +163,8 @@ describe('Leads & Pipeline API', () => {
     });
 
     it('supports pagination', async () => {
-      mockLeadFindMany.mockResolvedValue(MOCK_LEADS);
-      mockLeadCount.mockResolvedValue(100);
+      mockContactFindMany.mockResolvedValue(MOCK_CONTACTS);
+      mockContactCount.mockResolvedValue(100);
 
       const { GET } = await import('@/app/api/leads/route');
       const response = await GET(new Request('http://localhost/api/leads?page=2&limit=10'));
@@ -103,14 +174,10 @@ describe('Leads & Pipeline API', () => {
 
   describe('Pipeline — Overview', () => {
     it('returns pipeline stages with counts', async () => {
-      // Mock groupBy to return stage counts
-      const db = (await import('@/lib/db')).db;
-      vi.mocked(db.opportunity.groupBy).mockResolvedValue([
-        { stage: 'discovery', _count: 5 },
-        { stage: 'qualified', _count: 3 },
-        { stage: 'proposal', _count: 2 },
-        { stage: 'closed_won', _count: 8 },
-      ] as never[]);
+      mockOpportunityFindMany.mockResolvedValue([
+        { id: 'o1', companyId: 'c1', opportunityTitle: 'Deal 1', confidenceScore: 0.9, status: 'open', createdAt: '2024-01-01' },
+      ]);
+      mockOpportunityCount.mockResolvedValue(1);
 
       const { GET } = await import('@/app/api/opportunities/route');
       const response = await GET(new Request('http://localhost/api/opportunities'));

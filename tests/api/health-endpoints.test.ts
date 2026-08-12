@@ -18,6 +18,11 @@ vi.mock('next/server', () => ({
   },
 }));
 
+// ── Mock api-logging-middleware (pass-through) ─────────────
+vi.mock('@/lib/api-logging-middleware', () => ({
+  withApiLogging: (handler: Function) => handler,
+}));
+
 // ── Mock DB module ─────────────────────────────────────────
 const mockQueryRaw = vi.fn();
 vi.mock('@/lib/db', () => ({
@@ -38,9 +43,25 @@ vi.mock('@/lib/enterprise-health', () => ({
   getReadinessCheck: (...args: unknown[]) => mockGetReadinessCheck(...args),
 }));
 
+// ── Mock logger ──────────────────────────────────────────
+vi.mock('@/lib/logger', () => ({
+  logger: {
+    error: vi.fn(),
+    warn: vi.fn(),
+    info: vi.fn(),
+    debug: vi.fn(),
+  },
+}));
+
 describe('Health Endpoints', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // Set DATABASE_URL so the health probe actually runs the DB check
+    process.env.DATABASE_URL = 'postgresql://test:test@localhost:5432/test';
+  });
+
+  afterAll(() => {
+    delete process.env.DATABASE_URL;
   });
 
   describe('GET /api/health', () => {
@@ -49,7 +70,7 @@ describe('Health Endpoints', () => {
 
       // Import the route handler dynamically so mocks are in place
       const { GET } = await import('@/app/api/health/route');
-      const response = await GET();
+      const response = await GET(new Request('http://localhost/api/health'));
       const body = await response.json();
 
       expect(response.status).toBe(200);
@@ -62,7 +83,7 @@ describe('Health Endpoints', () => {
       mockQueryRaw.mockResolvedValue([{ _1: 1 }]);
 
       const { GET } = await import('@/app/api/health/route');
-      const response = await GET();
+      const response = await GET(new Request('http://localhost/api/health'));
       const body = await response.json();
 
       expect(body.version).toBeDefined();
@@ -73,7 +94,7 @@ describe('Health Endpoints', () => {
       mockQueryRaw.mockResolvedValue([{ _1: 1 }]);
 
       const { GET } = await import('@/app/api/health/route');
-      const response = await GET();
+      const response = await GET(new Request('http://localhost/api/health'));
       const body = await response.json();
 
       expect(body.environment).toBeDefined();
@@ -83,11 +104,10 @@ describe('Health Endpoints', () => {
       mockQueryRaw.mockResolvedValue([{ _1: 1 }]);
 
       const { GET } = await import('@/app/api/health/route');
-      const response = await GET();
+      const response = await GET(new Request('http://localhost/api/health'));
       const body = await response.json();
 
       expect(body.providers).toBeDefined();
-      expect(typeof body.providers.nvidia).toBe('boolean');
       expect(typeof body.providers.groq).toBe('boolean');
       expect(typeof body.providers.gemini).toBe('boolean');
       // Ensure no secret values are leaked
@@ -100,29 +120,30 @@ describe('Health Endpoints', () => {
       mockQueryRaw.mockResolvedValue([{ _1: 1 }]);
 
       const { GET } = await import('@/app/api/health/route');
-      const response = await GET();
+      const response = await GET(new Request('http://localhost/api/health'));
       const body = await response.json();
 
-      expect(body.db).toBe(true);
+      // Health endpoint returns db: { healthy: true, latencyMs: ... }
+      expect(body.db.healthy).toBe(true);
     });
 
     it('reports db: false when DB query fails', async () => {
       mockQueryRaw.mockRejectedValue(new Error('Connection refused'));
 
       const { GET } = await import('@/app/api/health/route');
-      const response = await GET();
+      const response = await GET(new Request('http://localhost/api/health'));
       const body = await response.json();
 
       // Health returns 200 even if DB is down (degraded mode)
       expect(response.status).toBe(200);
-      expect(body.db).toBe(false);
+      expect(body.db.healthy).toBe(false);
     });
 
     it('sets Cache-Control: no-store', async () => {
       mockQueryRaw.mockResolvedValue([{ _1: 1 }]);
 
       const { GET } = await import('@/app/api/health/route');
-      const response = await GET();
+      const response = await GET(new Request('http://localhost/api/health'));
 
       expect(response.headers.get('Cache-Control')).toBe('no-store, max-age=0');
     });

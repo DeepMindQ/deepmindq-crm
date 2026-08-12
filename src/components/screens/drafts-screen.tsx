@@ -8,6 +8,8 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
+import { ErrorPanel } from '@/components/ui/error-panel';
 import { Separator } from '@/components/ui/separator';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -117,6 +119,7 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
   const { t } = useTranslation();
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [loading, setLoading] = useState(true);
+  const [draftsError, setDraftsError] = useState<Error | null>(null);
   const [tab, setTab] = useState('all');
   const [selectedDraft, setSelectedDraft] = useState<Draft | null>(null);
   const [editBody, setEditBody] = useState('');
@@ -189,7 +192,11 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
           } : undefined,
         })));
       })
-      .catch((err) => { logger.error("[DraftsScreen] Error:", { error: err }) })
+      .then(() => { setDraftsError(null); })
+      .catch((err) => {
+        logger.error("[DraftsScreen] Error:", { error: err });
+        setDraftsError(err instanceof Error ? err : new Error('Failed to load drafts'));
+      })
       .finally(() => { setLoading(false); });
   }, [tab, refreshKey]);
 
@@ -882,11 +889,9 @@ export default function DraftsScreen({ navigateTo }: DraftsScreenProps) {
           </div>
 
           {loading ? (
-            <AnimatedCard hover={false}>
-              <CardContent className="p-6 space-y-4">
-                {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
-              </CardContent>
-            </AnimatedCard>
+            <LoadingSkeleton variant="list" count={5} label="Loading drafts" />
+          ) : draftsError ? (
+            <ErrorPanel error={draftsError} onRetry={() => setRefreshKey(k => k + 1)} variant="inline" />
           ) : filteredDrafts.length === 0 ? (
             <EmptyState
               icon={FileText}

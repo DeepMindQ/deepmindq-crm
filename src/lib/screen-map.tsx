@@ -9,7 +9,8 @@
 'use client';
 
 import { lazy, Suspense } from 'react';
-import { ErrorBoundary } from '@/components/error-boundary';
+import { ErrorBoundary } from '@/components/error-boundary/error-boundary';
+import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
 
 type ScreenComponent = React.LazyExoticComponent<React.ComponentType<any>> | React.FC<any>;
 
@@ -33,15 +34,10 @@ function withScreenErrorBoundary(
   };
 }
 
-/** Shared loading indicator for lazy screens */
+/** Shared loading indicator for lazy screens — uses the design system LoadingSkeleton */
 function ScreenLoadingFallback({ name }: { name: string }) {
   return (
-    <div className="flex items-center justify-center py-20">
-      <div className="text-center">
-        <div className="w-8 h-8 border-2 border-amber-500/30 border-t-amber-500 rounded-full animate-spin mx-auto mb-3" />
-        <p className="text-xs text-gray-500">Loading {name.replace(/-/g, ' ')}…</p>
-      </div>
-    </div>
+    <LoadingSkeleton variant="dashboard" label={`Loading ${name.replace(/-/g, ' ')}`} />
   );
 }
 

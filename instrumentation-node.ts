@@ -52,7 +52,7 @@ async function registerNodeOTel() {
           url: OTEL_ENDPOINT,
         })
         console.info(`[OTel] Configured OTLP gRPC exporter to ${OTEL_ENDPOINT}`)
-      } catch (grpcErr) {
+      } catch (_grpcErr) {
         // gRPC exporter not available — try HTTP exporter as fallback
         console.info('[OTel] gRPC exporter not available, trying HTTP exporter')
         try {
@@ -61,7 +61,7 @@ async function registerNodeOTel() {
             url: OTEL_ENDPOINT.replace(/:4317$/, ':4318'), // gRPC → HTTP port
           })
           console.info(`[OTel] Configured OTLP HTTP exporter to ${OTEL_ENDPOINT.replace(/:4317$/, ':4318')}`)
-        } catch (httpErr) {
+        } catch (_httpErr) {
           console.info('[OTel] No OTLP exporter available, traces will be logged to console only')
         }
       }

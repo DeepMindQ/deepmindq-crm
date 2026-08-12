@@ -156,7 +156,7 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'intelligence-operations': withScreenErrorBoundary(IntelligenceOperationsScreen, 'intelligence-operations'),
   'command-center': withScreenErrorBoundary(CommandCenterScreen, 'command-center'),
   'activation-workspace': withScreenErrorBoundary(ActivationWorkspaceScreen, 'activation-workspace'),
-  'company-workspace': withScreenErrorBoundary(CompanyWorkspaceScreen, 'company-workspace'),
+  'company-workspace': withScreenErrorBoundary(CompanyProfileScreen, 'company-workspace'),
   'knowledge-workspace': withScreenErrorBoundary(KnowledgeWorkspaceScreen, 'knowledge-workspace'),
   'capability-workspace': withScreenErrorBoundary(CapabilityWorkspaceScreen, 'capability-workspace'),
   'intelligence-briefing': withScreenErrorBoundary(IntelligenceBriefingScreen, 'intelligence-briefing'),
@@ -182,8 +182,8 @@ export const SCREEN_MAP: Record<string, ScreenComponent> = {
   'scoring-config': withScreenErrorBoundary(ScoringConfigScreen, 'scoring-config'),
 
   // ── Detail views ──
-  // DEPRECATED: company-detail now routes to Intelligence OS CompanyWorkspace
-  'company-detail': withScreenErrorBoundary(CompanyWorkspaceScreen, 'company-detail'),
+  // Unified company view — all company navigation routes here
+  'company-detail': withScreenErrorBoundary(CompanyProfileScreen, 'company-detail'),
   'contact-detail': withScreenErrorBoundary(ContactDetailBridge, 'contact-detail'),
 
   // ── Legacy screens (backward compat via internal navigation) ──

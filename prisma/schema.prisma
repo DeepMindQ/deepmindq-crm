@@ -1,0 +1,472 @@
+// ═══════════════════════════════════════════════════════════════════════════
+// DeepMindQ — Enterprise Intelligence OS
+// Data Model v1.0
+//
+// Mission: "Understand Before You Sell"
+// This schema models intelligence entities, not CRM records.
+// ═══════════════════════════════════════════════════════════════════════════
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider     = "postgresql"
+  url          = env("DATABASE_URL")
+  relationMode = "foreignKeys"
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Enums
+// ═══════════════════════════════════════════════════════════════════════════
+
+enum IntelligenceSource {
+  upload          // CSV/Excel manual upload
+  crm             // Connected CRM system
+  manual          // Manual data entry
+  external        // External data provider
+  ai_inferred     // AI-generated intelligence
+  signal_detected // Signal engine detection
+}
+
+enum SignalType {
+  hiring_change       // Significant hiring/spending changes
+  leadership_change   // Executive/leadership changes
+  technology_change   // Tech stack changes
+  funding_event       // Funding rounds, IPOs
+  market_expansion    // Geographic/product expansion
+  partnership         // New partnerships or integrations
+  competitor_move     // Competitive intelligence
+  financial_indicator // Revenue, growth signals
+  product_launch      // New product/milestone
+  regulatory          // Compliance/regulatory changes
+  customer_signal     // Customer satisfaction/churn signals
+  social_mention      // News, social media, PR
+}
+
+enum SignalSeverity {
+  critical // High-impact, immediate action needed
+  high     // Significant change, monitor closely
+  medium   // Notable pattern, track over time
+  low      // Minor signal, informational
+}
+
+enum SignalStatus {
+  detected    // Newly detected
+  validated   // Evidence verified
+  analyzed    // AI reasoning applied
+  acted_upon  // User took action
+  expired     // Signal no longer relevant
+  dismissed   // User dismissed as irrelevant
+}
+
+enum EvidenceReliability {
+  verified   // Confirmed by multiple sources
+  likely     // Single authoritative source
+  inferred   // AI inference from patterns
+  unverified // Unconfirmed, needs validation
+}
+
+enum ConfidenceLevel {
+  very_high // 90-100% confidence
+  high      // 75-89% confidence
+  medium    // 50-74% confidence
+  low       // 25-49% confidence
+  very_low  // 0-24% confidence
+}
+
+enum OrgTrackingStatus {
+  active     // Actively tracked
+  paused     // Tracking paused
+  archived   // No longer tracked
+}
+
+enum PersonRole {
+  executive     // C-suite
+  vice_president // VP level
+  director      // Director level
+  manager       // Manager level
+  individual    // Individual contributor
+  advisor       // Board advisor, consultant
+  partner       // External partner
+  unknown       // Role not identified
+}
+
+enum IngestionStatus {
+  pending    // File uploaded, not yet processed
+  processing // Currently being parsed and extracted
+  completed  // Successfully ingested
+  failed     // Ingestion failed
+  partial    // Partially ingested (some rows failed)
+}
+
+enum IngestionFileType {
+  csv
+  xlsx
+  xls
+  json
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Core Intelligence Entities
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Organization — An intelligence target (not a "Company" or "Account")
+/// Represents any organization we track for intelligence purposes.
+model Organization {
+  id              String              @id @default(cuid())
+  name            String              // Canonical name (e.g., "Acme Corporation")
+  domain          String?             // Primary domain (e.g., "acme.com")
+  aliases         String[]            // Alternative names, former names
+  industry        String?             // Industry classification
+  subIndustry     String?             // More specific industry
+  description     String?             // Business description
+  website         String?             // Primary website URL
+  headquarters    String?             // HQ location
+  employeeCount   Int?                // Estimated employee count
+  revenue         String?             // Revenue range or estimate
+  foundedYear     Int?                // Year founded
+
+  // Intelligence state
+  trackingStatus  OrgTrackingStatus   @default(active)
+  intelligenceScore Float?           // Composite intelligence score (0-100)
+  lastSignalAt    DateTime?           // Most recent signal timestamp
+  lastEnrichedAt  DateTime?           // Last enrichment timestamp
+
+  // Metadata
+  source          IntelligenceSource  @default(manual)
+  firstSeenAt     DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+
+  // Relations
+  people          Person[]
+  signals         Signal[]
+  evidence        Evidence[]
+  insights        Insight[]
+  briefings       Briefing[]
+  relationships   Relationship[]      @relation("orgToOrg")
+  dataIngestions  DataIngestionRow[]
+
+  @@index([domain])
+  @@index([trackingStatus])
+  @@index([intelligenceScore(sort: Desc)])
+  @@index([lastSignalAt(sort: Desc)])
+}
+
+/// Person — A human intelligence node (not a "Contact")
+/// Anyone relevant to our intelligence understanding.
+model Person {
+  id              String         @id @default(cuid())
+  fullName        String
+  email           String?
+  title           String?
+  role            PersonRole      @default(unknown)
+  department      String?         // Engineering, Sales, Marketing, etc.
+  seniority       String?         // Senior, Mid, Junior
+  linkedInUrl     String?
+  notes           String?
+
+  // Organization association
+  organizationId  String?
+  organization    Organization?   @relation(fields: [organizationId], references: [id])
+
+  // Intelligence metadata
+  source          IntelligenceSource @default(manual)
+  firstSeenAt     DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  // Relations
+  relationships   Relationship[]  @relation("personToPerson")
+
+  @@index([organizationId])
+  @@index([fullName])
+  @@index([email])
+}
+
+/// Relationship — Connection between entities in the knowledge graph
+model Relationship {
+  id          String   @id @default(cuid())
+  type        String   // "works_at", "reports_to", "partnered_with", "competes_with", "invested_in"
+  label       String?  // Human-readable description
+  weight      Float?   @default(1.0) // Relationship strength (0-1)
+
+  // Can connect org↔org
+  sourceOrgId  String?  @relation("orgToOrg", fields: [sourceOrgId], references: [id])
+  targetOrgId  String?  @relation("orgToOrg", fields: [targetOrgId], references: [id])
+
+  // Can connect person↔person
+  sourcePersonId String?  @relation("personToPerson", fields: [sourcePersonId], references: [id])
+  targetPersonId String?  @relation("personToPerson", fields: [targetPersonId], references: [id])
+
+  // Metadata
+  evidenceId  String?  // Evidence backing this relationship
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sourceOrgId])
+  @@index([targetOrgId])
+  @@index([sourcePersonId])
+  @@index([targetPersonId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Signal Intelligence
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Signal — A detected business event or pattern
+/// The raw intelligence event before analysis.
+model Signal {
+  id              String          @id @default(cuid())
+  organizationId  String
+  organization    Organization    @relation(fields: [organizationId], references: [id])
+
+  signalType      SignalType
+  severity        SignalSeverity  @default(medium)
+  status          SignalStatus    @default(detected)
+
+  // Signal content
+  title           String          // Brief signal title
+  description     String          // Detailed description
+  rawContent      String?         // Original raw text/source
+
+  // Scoring
+  confidenceScore Float?          // 0-100, how confident we are in this signal
+  impactScore     Float?          // 0-100, potential business impact
+
+  // Timing
+  detectedAt      DateTime        @default(now())
+  eventDate       DateTime?       // When the actual event occurred (if known)
+  expiresAt       DateTime?       // When this signal becomes stale
+
+  // Source tracking
+  source          IntelligenceSource @default(signal_detected)
+  sourceUrl       String?         // URL of the source
+  sourceLabel     String?         // Human-readable source name
+
+  // Metadata
+  analyzedAt      DateTime?       // When AI analysis was applied
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // Relations
+  evidence        Evidence[]
+  insights        Insight[]
+
+  @@index([organizationId])
+  @@index([signalType])
+  @@index([severity])
+  @@index([status])
+  @@index([detectedAt(sort: Desc)])
+  @@index([organizationId, detectedAt(sort: Desc)])
+}
+
+/// Evidence — Source backing an intelligence claim
+/// Every intelligence output must have evidence.
+model Evidence {
+  id              String              @id @default(cuid())
+  signalId        String?
+  signal          Signal?             @relation(fields: [signalId], references: [id])
+  organizationId  String
+  organization    Organization        @relation(fields: [organizationId], references: [id])
+
+  // Evidence content
+  claim           String              // What this evidence supports
+  sourceType      String              // "news_article", "press_release", "job_posting", "filing", "social"
+  sourceUrl       String?             // Direct URL to source
+  sourceTitle     String?             // Title of the source
+  sourceDate      DateTime?           // When the source was published
+  excerpt         String?             // Relevant excerpt from source
+
+  // Reliability
+  reliability     EvidenceReliability @default(unverified)
+
+  // Metadata
+  createdAt       DateTime            @default(now())
+
+  @@index([signalId])
+  @@index([organizationId])
+  @@index([reliability])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AI Intelligence Outputs
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Insight — AI-generated actionable intelligence
+/// The output of the AI reasoning engine.
+model Insight {
+  id              String           @id @default(cuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+  signalId        String?
+  signal          Signal?          @relation(fields: [signalId], references: [id])
+
+  // Intelligence content
+  category        String           // "opportunity", "risk", "recommendation", "pattern"
+  title           String           // Brief insight title
+  narrative       String           // Full AI-generated reasoning narrative
+  recommendation  String?         // Suggested action
+  suggestedMessage String?         // Template message for outreach
+
+  // Confidence
+  confidence      ConfidenceLevel  @default(medium)
+  confidenceScore Float?           // Numeric 0-100
+
+  // Evidence backing
+  evidenceIds     String[]         // IDs of evidence supporting this insight
+  signalIds       String[]         // IDs of related signals
+
+  // Reasoning metadata
+  reasoningMethod String           // "llm", "rule", "hybrid", "template"
+  modelUsed       String?          // LLM model used (if applicable)
+  promptVersion   String?          // Prompt template version (if applicable)
+
+  // Status
+  status          String           @default("active") // "active", "acted_upon", "dismissed", "expired"
+  dismissedReason String?          // Why user dismissed (feedback)
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([organizationId])
+  @@index([signalId])
+  @@index([category])
+  @@index([confidence])
+  @@index([organizationId, createdAt(sort: Desc)])
+}
+
+/// Briefing — AI-generated intelligence summary per organization
+/// The core output: "Here's what you need to know about Acme Corp."
+model Briefing {
+  id              String           @id @default(cuid())
+  organizationId  String
+  organization    Organization     @relation(fields: [organizationId], references: [id])
+
+  // Briefing content
+  executiveSummary String          // 2-3 sentence top-level summary
+  keyFindings     String[]         // Array of key intelligence findings
+  opportunityScore Float?          // 0-100 revenue opportunity score
+  riskFactors     String[]         // Identified risk factors
+  recommendedActions String[]      // Suggested next steps
+
+  // Intelligence snapshot
+  signalCount     Int              @default(0)
+  activeSignals  Int              @default(0)
+  insightCount    Int              @default(0)
+  evidenceCount   Int              @default(0)
+
+  // Confidence
+  overallConfidence ConfidenceLevel @default(medium)
+
+  // Metadata
+  generatedAt     DateTime         @default(now())
+  version         Int              @default(1)
+
+  @@index([organizationId])
+  @@index([organizationId, generatedAt(sort: Desc)])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Data Ingestion
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// DataIngestion — Record of a file upload
+model DataIngestion {
+  id              String              @id @default(cuid())
+  fileName        String
+  fileSize        Int
+  fileType        IngestionFileType
+  status          IngestionStatus    @default(pending)
+
+  // Processing results
+  totalRows       Int?
+  processedRows   Int?
+  failedRows      Int?
+  organizationsCreated Int?
+  peopleCreated   Int?
+
+  // Column mapping (what columns were detected)
+  columnMap        String?            // JSON: detected column → field mapping
+
+  // Error tracking
+  errorMessage    String?
+  errorDetails    String?            // JSON: row-level errors
+
+  // Metadata
+  uploadedBy      String?            // User ID who uploaded
+  uploadedAt      DateTime            @default(now())
+  completedAt     DateTime?
+
+  // Relations
+  rows            DataIngestionRow[]
+
+  @@index([status])
+  @@index([uploadedAt(sort: Desc)])
+}
+
+/// DataIngestionRow — Individual row from an uploaded file
+model DataIngestionRow {
+  id              String              @id @default(cuid())
+  ingestionId     String
+  ingestion       DataIngestion       @relation(fields: [ingestionId], references: [id])
+
+  // Raw data
+  rawData         String              // JSON: original row data
+  rowNumber       Int
+
+  // Extraction results
+  organizationId  String?             // Created organization ID
+  personId        String?             // Created person ID
+
+  // Status
+  status          String              @default("pending") // "pending", "extracted", "failed"
+  error           String?             // Extraction error message
+
+  createdAt       DateTime            @default(now())
+
+  @@index([ingestionId])
+  @@index([organizationId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Platform Users (existing auth system)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  name          String?
+  role          String    @default("user") // "admin", "user"
+  passwordHash  String?
+  otpCode       String?
+  otpExpiresAt  DateTime?
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id])
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([token])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String?
+  action    String
+  resource  String?
+  details   String?  // JSON
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([action])
+  @@index([createdAt(sort: Desc)])
+}

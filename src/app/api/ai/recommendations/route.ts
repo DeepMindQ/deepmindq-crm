@@ -4,6 +4,7 @@ import { formatDistanceToNow } from 'date-fns'
 import { createInsights } from '@/lib/ai-insight-service'
 import { governedAICallAggregate } from '@/lib/ai-governance'
 import { logger } from '@/lib/logger';
+import { withApiLogging } from '@/lib/api-logging-middleware';
 import { checkApiAuth } from '@/lib/api-auth';
 
 // ---------------------------------------------------------------------------
@@ -361,7 +362,7 @@ async function enhanceWithAI(recs: Recommendation[]): Promise<Recommendation[]> 
 // GET /api/ai/recommendations
 // ---------------------------------------------------------------------------
 
-export async function GET(request: Request) {
+async function getHandler(request: Request) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
@@ -449,3 +450,5 @@ try {
     return apiError('Failed to generate recommendations')
   }
 }
+
+export const GET = withApiLogging(getHandler, '/api/ai/recommendations');

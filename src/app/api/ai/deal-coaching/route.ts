@@ -4,8 +4,10 @@ import { apiError, apiSuccess } from '@/lib/apiHelpers';
 import { createInsights } from '@/lib/ai-insight-service';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { governedAICallAggregate } from '@/lib/ai-governance';
+import { withApiLogging } from '@/lib/api-logging-middleware';
 
-// Stage-specific coaching config
+// Stage-specific coaching config (rule-based context that feeds into LLM)
 const STAGE_COACHING: Record<string, {
   topics: Array<{ topic: string; why: string; timing: string }>;
   focus: string[];
@@ -61,12 +63,94 @@ const STAGE_COACHING: Record<string, {
   },
 };
 
-export async function GET(request: NextRequest) {
-    // ── Authentication Guard ──
+// ── LLM-enhanced coaching generation ──────────────────────────────────
+
+const COACHING_SYSTEM_PROMPT = `You are a senior sales coach and deal strategist for a B2B CRM platform. Your role is to analyze deal data and provide actionable coaching.
+
+Given structured deal context (stage, signals, activity patterns, company data), produce a JSON object with:
+- narrative: 2-3 sentence strategic assessment of the deal's health and trajectory
+- positioningNotes: Specific advice on how to position the conversation for this deal stage
+- talkTrack: 3-5 specific conversation openers or talk tracks tailored to this deal
+- riskMitigation: Specific actions to reduce churn risk
+- advancedTopics: 2-3 advanced coaching topics beyond the standard stage topics
+
+Rules:
+- Be specific — reference the actual deal data provided
+- Be actionable — every suggestion should be something the rep can execute today
+- Be concise — keep the narrative under 3 sentences
+- Return valid JSON only, no markdown fences`;
+
+interface LLMCoachingResult {
+  narrative?: string;
+  positioningNotes?: string;
+  talkTrack?: string[];
+  riskMitigation?: string[];
+  advancedTopics?: Array<{ topic: string; why: string; timing: string }>;
+}
+
+async function generateAIEnhancedCoaching(context: {
+  opportunityTitle: string;
+  companyName: string;
+  currentStage: string;
+  daysSinceActivity: number;
+  daysInStage: number;
+  confidenceScore: number;
+  matchScore: number;
+  engagementScore: number;
+  businessProblem: string | null;
+  strengths: string[];
+  gaps: string[];
+  churnRiskFactors: string[];
+  stageTopics: string[];
+  stageFocus: string[];
+}): Promise<LLMCoachingResult> {
+  const userPrompt = `Deal Context:
+- Opportunity: "${context.opportunityTitle}" at ${context.companyName}
+- Current Stage: ${context.currentStage}
+- Days in Stage: ${context.daysInStage} (ideal: ${STAGE_COACHING[context.currentStage]?.idealDaysInStage ?? 14})
+- Days Since Last Activity: ${context.daysSinceActivity}
+- Confidence Score: ${context.confidenceScore}%
+- Match Score: ${Math.round(context.matchScore * 100)}%
+- Engagement Score: ${context.engagementScore}
+- Business Problem: ${context.businessProblem || 'Not specified'}
+- Strengths: ${context.strengths.join(', ') || 'None identified'}
+- Gaps: ${context.gaps.join(', ') || 'None identified'}
+- Churn Risk Factors: ${context.churnRiskFactors.join(', ') || 'None'}
+- Standard Stage Topics: ${context.stageTopics.join(', ')}
+- Stage Focus Areas: ${context.stageFocus.join(', ')}
+
+Generate specific coaching for this deal.`;
+
+  try {
+    const result = await governedAICallAggregate({
+      generationType: 'deal_coaching',
+      systemPrompt: COACHING_SYSTEM_PROMPT,
+      userPrompt,
+      tier: 'smart',
+      maxTokens: 2048,
+      temperature: 0.6,
+    });
+
+    if (result.success && result.response) {
+      // Extract JSON from response
+      const { extractJSON } = await import('@/lib/llm-client');
+      const parsed = extractJSON(result.response) as LLMCoachingResult | null;
+      if (parsed) return parsed;
+    }
+  } catch {
+    // LLM unavailable — fall back to empty
+  }
+
+  return {}; // Empty = rule-based only
+}
+
+// ── GET handler ──────────────────────────────────────────────────────
+
+async function dealCoachingHandler(request: NextRequest) {
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
 
-try {
+  try {
     const { searchParams } = new URL(request.url);
     const pursuitId = searchParams.get('pursuitId');
     const companyId = searchParams.get('companyId');
@@ -114,7 +198,11 @@ try {
         nextSteps: Array<{ action: string; priority: string; deadline: string }>;
         churnRisk: number;
         churnRiskFactors: string[];
+        narrative?: string;
+        talkTrack?: string[];
+        riskMitigation?: string[];
       };
+      aiEnhanced: boolean;
     }> = [];
 
     for (const p of pursuits) {
@@ -137,7 +225,7 @@ try {
         return Math.min(100, Math.max(0, Math.round((idx / (stageOrder.length - 2)) * 100)));
       })();
 
-      // Strengths
+      // ── Rule-based signals (fast, always available) ──
       const strengths: Array<{ area: string; evidence: string }> = [];
       if (opp && opp.confidenceScore >= 70) strengths.push({ area: 'Strong Signal', evidence: `High confidence score of ${opp.confidenceScore}%` });
       if (daysSinceActivity <= 3) strengths.push({ area: 'Active Engagement', evidence: `Recent activity (${daysSinceActivity} days ago)` });
@@ -145,7 +233,6 @@ try {
       if (opp && opp.matchScore >= 0.6) strengths.push({ area: 'Good Fit', evidence: `Capability match score ${Math.round(opp.matchScore * 100)}%` });
       if (company && company.engagementScore >= 50) strengths.push({ area: 'Company Engagement', evidence: `High engagement score of ${company.engagementScore}` });
 
-      // Gaps
       const gaps: Array<{ area: string; severity: 'high' | 'medium' | 'low'; suggestion: string }> = [];
       if (!p.nextAction) gaps.push({ area: 'Missing Next Action', severity: 'high', suggestion: 'Define a clear next step with deadline to maintain momentum' });
       if (daysSinceActivity > 7) gaps.push({ area: 'Stale Activity', severity: daysSinceActivity > 14 ? 'high' : 'medium', suggestion: `No activity in ${daysSinceActivity} days — schedule a touchpoint immediately` });
@@ -153,7 +240,6 @@ try {
       if (opp && opp.confidenceScore < 40) gaps.push({ area: 'Low Confidence', severity: 'medium', suggestion: 'Gather more evidence or re-qualify this opportunity' });
       if (daysInStage > stageConfig.idealDaysInStage) gaps.push({ area: 'Slow Stage Progress', severity: 'medium', suggestion: `Exceeding ideal ${stageConfig.idealDaysInStage} days in ${currentStage} — push for advancement` });
 
-      // Churn risk
       let churnRisk = 0;
       const churnRiskFactors: string[] = [];
       if (daysSinceActivity > 14) { churnRisk += 35; churnRiskFactors.push('No activity in 14+ days'); }
@@ -163,7 +249,6 @@ try {
       if (opp && opp.confidenceScore < 30) { churnRisk += 20; churnRiskFactors.push('Very low confidence'); }
       churnRisk = Math.min(100, churnRisk);
 
-      // Next steps
       const nextSteps: Array<{ action: string; priority: string; deadline: string }> = [];
       if (!p.owner) nextSteps.push({ action: 'Assign a sales rep to own this pursuit', priority: 'high', deadline: 'Today' });
       if (!p.nextAction) nextSteps.push({ action: 'Define and schedule the next action with the prospect', priority: 'high', deadline: 'Within 24 hours' });
@@ -172,14 +257,66 @@ try {
       if (currentStage === 'qualification' && daysInStage > 10) nextSteps.push({ action: 'Prepare and present proposal to advance to proposal stage', priority: 'medium', deadline: 'This week' });
       if (currentStage === 'proposal' && daysInStage > 14) nextSteps.push({ action: 'Follow up on proposal, address objections, push to negotiation', priority: 'high', deadline: 'Within 48 hours' });
 
+      // ── LLM-enhanced coaching (for single pursuit, fire-and-forget for batch) ──
+      let aiEnhanced = false;
+      let narrative: string | undefined;
+      let talkTrack: string[] | undefined;
+      let riskMitigation: string[] | undefined;
+      let aiPositioningNotes: string | undefined;
+
+      if (pursuitId && opp && company) {
+        try {
+          const aiCoaching = await generateAIEnhancedCoaching({
+            opportunityTitle: opp.opportunityTitle || 'Untitled',
+            companyName: company.normalizedName || company.rawName,
+            currentStage,
+            daysSinceActivity,
+            daysInStage,
+            confidenceScore: opp.confidenceScore ?? 0,
+            matchScore: opp.matchScore ?? 0,
+            engagementScore: company.engagementScore ?? 0,
+            businessProblem: opp.businessProblem,
+            strengths: strengths.map(s => s.area),
+            gaps: gaps.map(g => g.area),
+            churnRiskFactors,
+            stageTopics: stageConfig.topics.map(t => t.topic),
+            stageFocus: stageConfig.focus,
+          });
+
+          if (aiCoaching && Object.keys(aiCoaching).length > 0) {
+            aiEnhanced = true;
+            narrative = aiCoaching.narrative;
+            talkTrack = aiCoaching.talkTrack;
+            riskMitigation = aiCoaching.riskMitigation;
+            if (aiCoaching.positioningNotes) {
+              aiPositioningNotes = aiCoaching.positioningNotes;
+            }
+            if (aiCoaching.advancedTopics && aiCoaching.advancedTopics.length > 0) {
+              // Merge advanced topics with standard stage topics
+              const existingTopics = stageConfig.topics;
+              for (const topic of aiCoaching.advancedTopics) {
+                if (!existingTopics.some(t => t.topic === topic.topic)) {
+                  existingTopics.push(topic);
+                }
+              }
+            }
+          }
+        } catch (err) {
+          logger.warn('[deal-coaching] AI coaching generation failed, using rule-based only', { error: err instanceof Error ? err.message : err });
+        }
+      }
+
       const coaching = {
         strengths,
         gaps,
         conversationTopics: stageConfig.topics,
-        positioningNotes: opp?.suggestedConversation || `Focus on the business problem: ${opp?.businessProblem || 'unspecified'}`,
+        positioningNotes: aiPositioningNotes || opp?.suggestedConversation || `Focus on the business problem: ${opp?.businessProblem || 'unspecified'}`,
         nextSteps,
         churnRisk,
         churnRiskFactors,
+        ...(narrative ? { narrative } : {}),
+        ...(talkTrack ? { talkTrack } : {}),
+        ...(riskMitigation ? { riskMitigation } : {}),
       };
 
       coachingResults.push({
@@ -191,6 +328,7 @@ try {
         daysInStage,
         daysSinceActivity,
         coaching,
+        aiEnhanced,
       });
 
       // Persist coaching for single pursuit
@@ -201,7 +339,7 @@ try {
             opportunityId: p.opportunityId,
             type: 'RECOMMENDATION' as const,
             title: `Coaching: ${opp?.opportunityTitle || 'Deal'}`,
-            description: `Stage ${currentStage} coaching — ${strengths.length} strengths, ${gaps.length} gaps, churn risk ${churnRisk}%`,
+            description: `Stage ${currentStage} coaching — ${strengths.length} strengths, ${gaps.length} gaps, churn risk ${churnRisk}%${aiEnhanced ? ' (AI-enhanced)' : ''}`,
             evidence: [
               ...strengths.map(s => ({ source: 'coaching-engine', snippet: s.evidence, reliability: 0.8 })),
               ...gaps.map(g => ({ source: 'coaching-engine', snippet: `${g.area}: ${g.suggestion}`, reliability: 0.85 })),
@@ -227,3 +365,5 @@ try {
     return apiError('Failed to generate deal coaching', 500);
   }
 }
+
+export const GET = withApiLogging(dealCoachingHandler, '/api/ai/deal-coaching');

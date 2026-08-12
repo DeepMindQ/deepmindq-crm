@@ -4,8 +4,9 @@ import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
 import { validateRequest } from '@/lib/with-validation';
 import { genericBodySchema } from '@/lib/validation-schemas';
+import { withApiLogging } from '@/lib/api-logging-middleware';
 
-export async function POST(request: NextRequest) {
+async function postHandler(request: NextRequest) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
@@ -32,3 +33,5 @@ try {
     return NextResponse.json({ error: 'Failed to score contacts' }, { status: 500 });
   }
 }
+
+export const POST = withApiLogging(postHandler, '/api/ai/score-contacts');

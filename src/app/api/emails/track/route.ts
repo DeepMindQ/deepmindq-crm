@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { recordTrackingEvent, verifyTrackingEventId } from '@/lib/email-tracking'
-import { eventBus } from '@/lib/event-bus'
+import { publishSSEEvent } from '@/lib/redis-pubsub'
+import { withApiLogging } from '@/lib/api-logging-middleware'
 
 // ── 1×1 transparent GIF (base64) ────────────────────────────────────
 const TRANSPARENT_GIF_BUFFER = Buffer.from(
@@ -10,7 +11,7 @@ const TRANSPARENT_GIF_BUFFER = Buffer.from(
 
 // ── GET handler ──────────────────────────────────────────────────────
 
-export async function GET(request: NextRequest) {
+async function trackHandler(request: NextRequest) {
   const { searchParams } = new URL(request.url)
   const eidToken = searchParams.get('eid')
   const type = searchParams.get('type') // 'open' | 'click'
@@ -46,7 +47,8 @@ export async function GET(request: NextRequest) {
     })
 
     if (record) {
-      eventBus.emit('email_opened', {
+      // Use Redis-backed pub/sub for cross-instance SSE delivery
+      publishSSEEvent('email_opened', {
         eventId: eid,
         contactId: record.contactId,
         draftId: record.draftId,
@@ -77,7 +79,8 @@ export async function GET(request: NextRequest) {
     })
 
     if (record) {
-      eventBus.emit('email_clicked', {
+      // Use Redis-backed pub/sub for cross-instance SSE delivery
+      publishSSEEvent('email_clicked', {
         eventId: eid,
         contactId: record.contactId,
         draftId: record.draftId,
@@ -108,3 +111,5 @@ export async function GET(request: NextRequest) {
 
   return new NextResponse('Unknown tracking type', { status: 400 })
 }
+
+export const GET = withApiLogging(trackHandler, '/api/emails/track');

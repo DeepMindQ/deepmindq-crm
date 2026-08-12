@@ -17,15 +17,62 @@
 
 async function registerNodeOTel() {
   try {
+    const { env } = await import('@/lib/env-config');
     // Dynamic import — only initializes if packages are installed
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const sdkNodeMod = await import('@opentelemetry/sdk-node' as any)
     const autoInstrMod = await import('@opentelemetry/auto-instrumentations-node' as any)
     const resourceMod = await import('@opentelemetry/resources' as any)
 
+    const OTEL_ENDPOINT = env.otelExporterEndpoint
+
+    // Build resource attributes for trace correlation in the observability backend
+    const resource = new resourceMod.Resource({
+      'service.name': env.otelServiceName,
+      'service.version': env.appVersion,
+      'deployment.environment': env.deployEnvironment,
+      'deploy.slot': env.deploySlot,
+      'deploy.region': env.deployRegion,
+    })
+
+    // Auto-instrumentations — disable filesystem instrumentation to reduce noise
+    const instrumentations = [
+      autoInstrMod.getNodeAutoInstrumentations({
+        // Disable expensive/noisy instrumentations
+        '@opentelemetry/instrumentation-fs': { enabled: false },
+      }),
+    ]
+
+    let traceExporter: any = undefined
+
+    if (OTEL_ENDPOINT) {
+      try {
+        // Use OTLP gRPC exporter when endpoint is configured
+        const otlpExporter = await import('@opentelemetry/exporter-trace-otlp-grpc' as any)
+        traceExporter = new otlpExporter.OTLPTraceExporter({
+          url: OTEL_ENDPOINT,
+        })
+        console.info(`[OTel] Configured OTLP gRPC exporter to ${OTEL_ENDPOINT}`)
+      } catch (_grpcErr) {
+        // gRPC exporter not available — try HTTP exporter as fallback
+        console.info('[OTel] gRPC exporter not available, trying HTTP exporter')
+        try {
+          const otlpHttpExporter = await import('@opentelemetry/exporter-trace-otlp-http' as any)
+          traceExporter = new otlpHttpExporter.OTLPTraceExporter({
+            url: OTEL_ENDPOINT.replace(/:4317$/, ':4318'), // gRPC → HTTP port
+          })
+          console.info(`[OTel] Configured OTLP HTTP exporter to ${OTEL_ENDPOINT.replace(/:4317$/, ':4318')}`)
+        } catch (_httpErr) {
+          console.info('[OTel] No OTLP exporter available, traces will be logged to console only')
+        }
+      }
+    } else {
+      console.info('[OTel] No OTEL_EXPORTER_OTLP_ENDPOINT configured — traces available locally only')
+    }
+
     const sdk = new sdkNodeMod.NodeSDK({
-      resource: new resourceMod.Resource({ 'service.name': 'deepmindq' }),
-      instrumentations: [autoInstrMod.getNodeAutoInstrumentations()],
+      resource,
+      instrumentations,
+      ...(traceExporter ? { spanExporter: traceExporter } : {}),
     })
 
     sdk.start()

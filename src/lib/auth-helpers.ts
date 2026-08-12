@@ -39,6 +39,7 @@ export const PUBLIC_PATH_PREFIXES: string[] = [
   '/api/unsubscribe',
   '/api/cron/',
   '/api/health/',
+  '/api/health',               // Health endpoint (exact match, no trailing slash)
   '/api/ping',
   '/api/ready',
   '/api/version',
@@ -147,11 +148,10 @@ export function csrfCheck(request: NextRequest): { valid: boolean; response?: Ne
 export function generateCspNonce(): string {
   const bytes = new Uint8Array(16)
   crypto.getRandomValues(bytes)
-  // Base64url encoding (no padding, URL-safe)
-  return Array.from(bytes)
-    .map(b => b.toString(64).padStart(2, '0').slice(-2))
-    .join('')
-    .slice(0, 24)
+  // Base64url encoding using btoa (Edge-compatible via globalThis.btoa)
+  // 16 bytes → 24 base64 characters (no padding)
+  const binary = Array.from(bytes).map(b => String.fromCharCode(b)).join('')
+  return globalThis.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '').slice(0, 24)
 }
 
 // ── Security Headers ───────────────────────────────────
@@ -287,10 +287,58 @@ export function otpRateLimit(email: string): { success: boolean; remaining: numb
 }
 
 /**
- * General API rate limit per IP.
+ * General API rate limit per IP (Edge-compatible, in-memory).
+ * Used by proxy.ts (Edge Runtime) for per-request rate limiting.
+ * For distributed rate limiting in Node.js API routes, use distributedApiRateLimit().
  */
 export function generalApiRateLimit(ip: string, path: string): { success: boolean; remaining: number; resetAt: number } {
   return edgeRateLimit(`api:${ip}:${path}`, 100, 60_000);
+}
+
+/**
+ * Distributed API rate limit per IP (Node.js only).
+ *
+ * Uses Redis-backed distributed rate limiting for multi-instance deployments.
+ * Falls back to in-memory limiting when Redis is unavailable.
+ *
+ * IMPORTANT: This function is async and uses dynamic imports (ioredis/upstash).
+ * Do NOT use in Edge Runtime (proxy.ts). Use in Node.js API routes only.
+ *
+ * @param ip - Client IP address
+ * @param path - API path for key construction
+ * @param limit - Max requests in window (default: 100)
+ * @param windowMs - Time window in milliseconds (default: 60_000)
+ * @returns Rate limit result with success status and metadata
+ *
+ * @example
+ *   // In a Node.js API route:
+ *   const result = await distributedApiRateLimit(ip, '/api/companies');
+ *   if (!result.success) return rateLimitedResponse();
+ */
+export async function distributedApiRateLimit(
+  ip: string,
+  path: string,
+  limit = 100,
+  windowMs = 60_000,
+): Promise<{ success: boolean; remaining: number; resetAt: number; backend: string }> {
+  try {
+    const { distributedRateLimit } = await import('@/lib/distributed-rate-limit');
+    const result = await distributedRateLimit({
+      key: `api:${path}`,
+      limit,
+      windowMs,
+      identifier: ip,
+    });
+    return {
+      success: result.success,
+      remaining: result.remaining,
+      resetAt: result.resetAt,
+      backend: result.backend,
+    };
+  } catch {
+    // Fallback to in-memory if distributed rate limit module fails to load
+    return { ...generalApiRateLimit(ip, path), backend: 'memory-fallback' };
+  }
 }
 
 // ── Response Helpers ────────────────────────────────────

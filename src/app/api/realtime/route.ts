@@ -50,7 +50,10 @@ const encoder = new TextEncoder()
       // Send initial connection confirmation
       send({ connected: true, timestamp: new Date().toISOString() }, 'connected')
 
-      // Subscribe to all forwarded events
+      // Subscribe to all forwarded events (in-memory eventBus)
+      // Note: Redis pub/sub events from other instances are relayed to
+      // the eventBus by initPubSub() (called from instrumentation.ts).
+      // So this single subscription point handles both local and cross-instance events.
       const unsubscribers = FORWARDED_EVENTS.map((eventName) =>
         eventBus.on(eventName, (evt) => {
           try {

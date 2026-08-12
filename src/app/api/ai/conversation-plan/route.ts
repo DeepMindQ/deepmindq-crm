@@ -1,10 +1,11 @@
 import { NextRequest } from 'next/server';
 import { z } from 'zod';
-import { apiError, apiSuccess, validateBody } from '@/lib/apiHelpers';
+import { apiSuccess, validateBody } from '@/lib/apiHelpers';
 import { sdkWebSearch } from '@/lib/llm-client';
 import { governedAICall } from '@/lib/ai-governance';
 import { logger } from '@/lib/logger';
 import { checkApiAuth } from '@/lib/api-auth';
+import { withApiLogging } from '@/lib/api-logging-middleware';
 
 // ---------------------------------------------------------------------------
 // Validation
@@ -207,15 +208,21 @@ Generate a highly specific, actionable conversation plan. Use the web research t
 // POST /api/ai/conversation-plan
 // ---------------------------------------------------------------------------
 
-export async function POST(request: NextRequest) {
+async function conversationPlanHandler(request: NextRequest) {
     // ── Authentication Guard ──
   const { errorResponse } = await checkApiAuth(request);
   if (errorResponse) return errorResponse;
+
+  let companyName = 'Unknown';
+  let executiveRole = 'Unknown';
 
 try {
     const body = await request.json();
     const parsed = validateBody(conversationPlanSchema, body);
     if (parsed instanceof Response) return parsed;
+
+    companyName = parsed.companyName;
+    executiveRole = parsed.executiveRole;
 
     const result = await generateConversationPlan(parsed);
 
@@ -228,7 +235,40 @@ try {
     const message = error instanceof Error ? error.message : 'Failed to generate conversation plan';
     logger.error('[conversation-plan] Error:', { detail: message });
 
-    // Graceful fallback: return a generic but useful plan
-    return apiError(message, 500);
+    // Graceful fallback: return a structured rule-based plan
+    const fallbackPlan = {
+      objective: `Establish initial engagement with ${companyName}`,
+      keyTopics: [
+        'Business priorities and challenges',
+        `${executiveRole} responsibilities and decision criteria`,
+        'Industry trends and competitive landscape',
+      ],
+      openingApproach: `Reference a relevant industry development. Ask about ${companyName}'s current priorities to understand where your solution fits.`,
+      talkingPoints: [
+        'Ask about their top 3 business challenges this quarter',
+        'Discuss how similar companies in their industry are approaching this problem',
+        'Position your capabilities as a potential solution to their stated challenges',
+      ],
+      potentialObjections: [
+        'No budget allocated',
+        'Already have a solution in place',
+        'Need to involve other stakeholders',
+      ],
+      nextSteps: [
+        'Schedule a follow-up meeting with broader stakeholder group',
+        'Prepare a tailored capability demonstration',
+        'Share relevant case study from similar company',
+      ],
+      tips: `Focus on listening. Let the ${executiveRole} describe their challenges first. Tailor your value proposition to their specific pain points.`,
+    };
+
+    return apiSuccess({
+      plan: fallbackPlan,
+      sources: [],
+      generatedAt: new Date().toISOString(),
+      fallback: true,
+    });
   }
 }
+
+export const POST = withApiLogging(conversationPlanHandler, '/api/ai/conversation-plan');

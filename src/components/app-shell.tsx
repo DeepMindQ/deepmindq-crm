@@ -793,9 +793,7 @@ export function AppShell({ onLogout }: { onLogout: () => void }) {
 
       {/* AI Chat Sidebar + FAB */}
       <AiChatSidebar isOpen={aiChatOpen} onClose={() => setAiChatOpen(false)} />
-      <div className="md:hidden">
-        <AiChatButton isOpen={aiChatOpen} onToggle={() => setAiChatOpen(!aiChatOpen)} />
-      </div>
+      <AiChatButton isOpen={aiChatOpen} onToggle={() => setAiChatOpen(!aiChatOpen)} />
 
       {/* Sidebar */}
       <Sidebar

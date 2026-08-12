@@ -14,17 +14,21 @@ export function AiChatButton({ isOpen, onToggle }: AiChatButtonProps) {
     <motion.button
       onClick={onToggle}
       className={cn(
-        'fixed bottom-6 right-6 z-50 size-14 rounded-full shadow-lg',
+        'fixed z-50 size-14 rounded-full shadow-lg',
         'text-white flex items-center justify-center',
         'hover:shadow-xl active:scale-95',
         'transition-shadow cursor-pointer',
         'focus:outline-none focus:ring-2 focus:ring-offset-2',
+        // Position: bottom-right, but move left when sidebar is open on desktop
       )}
       style={{
+        bottom: '1.5rem',
+        right: isOpen ? 'calc(400px + 1.5rem)' : '1.5rem',
         background: 'linear-gradient(135deg, var(--color-gold), var(--color-gold-dim))',
         boxShadow: '0 4px 20px rgba(212, 175, 55, 0.3)',
         '--tw-ring-color': 'var(--color-gold)',
         '--tw-ring-offset-color': 'var(--background)',
+        transition: 'right 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
       } as React.CSSProperties}
       whileHover={{ scale: 1.05, boxShadow: '0 8px 30px rgba(212, 175, 55, 0.4)' }}
       whileTap={{ scale: 0.95 }}

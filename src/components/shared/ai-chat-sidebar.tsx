@@ -22,6 +22,8 @@ interface ChatMessage {
   errorDetail?: string
   /** Tool-use status: shows when AI is querying CRM data */
   toolStatus?: string
+  /** Cumulative list of tool names executed (for display after streaming starts) */
+  toolNames?: string[]
 }
 
 interface AiChatSidebarProps {
@@ -164,6 +166,26 @@ function renderMarkdown(text: string): React.ReactNode[] {
 
   while (i < lines.length) {
     const line = lines[i]
+
+    // Headings: ###, ##, #
+    const headingMatch = line.match(/^(#{1,3})\s+(.+)/)
+    if (headingMatch) {
+      const level = headingMatch[1].length // 1, 2, or 3
+      const headingText = headingMatch[2].trim()
+      const Tag = `h${Math.min(level + 1, 4)}` as 'h2' | 'h3' | 'h4'
+      elements.push(
+        <Tag key={`h-${i}`} className={cn(
+          'font-semibold my-1.5',
+          level === 1 && 'text-sm',
+          level === 2 && 'text-xs',
+          level === 3 && 'text-[11px]',
+        )} style={{ color: 'var(--color-foreground)' }}>
+          {renderInline(headingText)}
+        </Tag>,
+      )
+      i++
+      continue
+    }
 
     // Bullet points: "- item" or "* item" or "• item"
     if (/^[\-\*\•]\s+/.test(line)) {
@@ -436,12 +458,19 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
             )
             setIsLoading(false)
           },
-          // onToolStatus — show tool execution progress in the message bubble
+          // onToolStatus — show tool execution progress, accumulate tool names
           (status) => {
             setMessages((prev) =>
-              prev.map((m) =>
-                m.id === assistantId ? { ...m, toolStatus: status } : m,
-              ),
+              prev.map((m) => {
+                if (m.id !== assistantId) return m
+                const toolMatch = status.match(/Queried (.+?) [✓✗]/)
+                const toolName = toolMatch ? toolMatch[1] : undefined
+                return {
+                  ...m,
+                  toolStatus: status,
+                  toolNames: toolName ? [...(m.toolNames || []), toolName] : m.toolNames,
+                }
+              }),
             )
           },
         )
@@ -483,39 +512,108 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
     [isLoading, messages, context],
   )
 
+  // ── Clear conversation ──
+  const clearConversation = useCallback(() => {
+    abortControllerRef.current?.abort()
+    setMessages([])
+    setInput('')
+    setIsLoading(false)
+    setToolThinking(false)
+  }, [])
+
   // ── Retry last failed message ──
   const retryLastMessage = useCallback(() => {
-    if (isRetrying) return
+    if (isRetrying || isLoading) return
     // Find the last user message
     const lastUserIdx = [...messages].reverse().findIndex((m) => m.role === 'user')
     if (lastUserIdx === -1) return
 
     const lastUserMsg = messages[messages.length - 1 - lastUserIdx]
-    // Remove the error message and re-send
+    // Remove the error message
     setMessages((prev) => {
-      // Remove trailing assistant error messages
       const cleaned = [...prev]
-      while (cleaned.length > 0 && cleaned[cleaned.length - 1].role === 'assistant' && cleaned[cleaned.length - 1].errorDetail) {
-        cleaned.pop()
-      }
-      // Also remove empty streaming messages
-      while (cleaned.length > 0 && cleaned[cleaned.length - 1].role === 'assistant' && !cleaned[cleaned.length - 1].content) {
+      while (cleaned.length > 0 && cleaned[cleaned.length - 1].role === 'assistant' && (cleaned[cleaned.length - 1].errorDetail || !cleaned[cleaned.length - 1].content)) {
         cleaned.pop()
       }
       return cleaned
     })
     setIsRetrying(true)
-    // Small delay to let state settle, then send
+    // Use a ref-based approach: directly call sendMessage after state settles
     setTimeout(() => {
       setIsRetrying(false)
-      // We need to send with the cleaned message list — the sendMessage callback
-      // reads from `messages` state, so we trigger a re-send by reconstructing
-      const retryInput = lastUserMsg.content
-      setInput(retryInput)
-      // Clear input after use
-      setTimeout(() => setInput(''), 50)
-    }, 100)
-  }, [isRetrying, messages])
+      // Directly invoke with the last user message text
+      // We construct a minimal retry by calling fetch ourselves
+      void (async () => {
+        const trimmed = lastUserMsg.content.trim()
+        if (!trimmed) return
+
+        const assistantId = crypto.randomUUID()
+        setToolThinking(true)
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: assistantId,
+            role: 'assistant',
+            content: '',
+            timestamp: new Date(),
+            isStreaming: true,
+            toolStatus: 'Retrying...',
+          },
+        ])
+        setIsLoading(true)
+
+        const controller = new AbortController()
+        abortControllerRef.current = controller
+
+        try {
+          const conversationMessages = messages
+            .filter((m) => !(m.role === 'assistant' && m.errorDetail))
+            .map((m) => ({ role: m.role, content: m.content }))
+
+          const res = await fetch('/api/ai/chat-stream', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            signal: controller.signal,
+            body: JSON.stringify({
+              messages: conversationMessages,
+              context: context || undefined,
+              temperature: 0.7,
+              maxTokens: 4096,
+            }),
+          })
+
+          const contentType = res.headers.get('content-type') ?? ''
+          if (!res.ok || contentType.includes('application/json')) {
+            const errorData = await res.json().catch(() => ({ error: 'Unknown error' }))
+            const errorMsg = errorData.error || errorData.reason || `Error ${res.status}`
+            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, isStreaming: false, errorDetail: errorMsg } : m))
+            setIsLoading(false)
+            return
+          }
+
+          if (!res.body) throw new Error('No response body received')
+
+          const reader = res.body.getReader()
+          parseSSEStream(
+            reader,
+            (chunk) => setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: m.content + chunk } : m)),
+            () => { setToolThinking(false); setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, isStreaming: false, toolStatus: undefined } : m)); setIsLoading(false); checkProviderHealth().then(setProviderStatus) },
+            (errMsg) => { setToolThinking(false); setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, content: m.content || '', isStreaming: false, errorDetail: errMsg } : m)); setIsLoading(false) },
+            (status) => setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, toolStatus: status } : m)),
+          )
+        } catch (err) {
+          if (!controller.signal.aborted) {
+            const errorMsg = err instanceof Error ? err.message : 'Network error'
+            setMessages((prev) => prev.map((m) => m.id === assistantId ? { ...m, isStreaming: false, errorDetail: errorMsg } : m))
+          }
+          setIsLoading(false)
+        } finally {
+          setToolThinking(false)
+        }
+      })()
+    }, 150)
+  }, [isRetrying, isLoading, messages, context])
 
   // ── Cancel in-progress request ──
   const cancelRequest = useCallback(() => {
@@ -603,13 +701,26 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                   <p className="text-[11px]" style={{ color: 'var(--text-dim)' }}>DeepMindQ</p>
                 </div>
               </div>
-              <button
-                onClick={onClose}
-                className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
-                aria-label="Close AI Assistant"
-              >
-                <X className="size-4" style={{ color: 'var(--color-muted-foreground)' }} />
-              </button>
+              <div className="flex items-center gap-1">
+                {/* New Chat / Clear conversation */}
+                {messages.length > 0 && (
+                  <button
+                    onClick={clearConversation}
+                    className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                    aria-label="Clear conversation"
+                    title="New chat"
+                  >
+                    <RotateCcw className="size-3.5" style={{ color: 'var(--color-muted-foreground)' }} />
+                  </button>
+                )}
+                <button
+                  onClick={onClose}
+                  className="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+                  aria-label="Close AI Assistant"
+                >
+                  <X className="size-4" style={{ color: 'var(--color-muted-foreground)' }} />
+                </button>
+              </div>
             </div>
 
             {/* ── Context Bar ── */}
@@ -692,8 +803,17 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
               {messages.map((msg) => (
                 <div
                   key={msg.id}
-                  className={cn('flex', msg.role === 'user' ? 'justify-end' : 'justify-start')}
+                  className={cn('flex gap-2', msg.role === 'user' ? 'justify-end' : 'justify-start')}
                 >
+                  {/* Assistant avatar */}
+                  {msg.role === 'assistant' && (
+                    <div
+                      className="size-7 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                      style={{ background: 'color-mix(in oklch, var(--color-gold) 15%, transparent)' }}
+                    >
+                      <Sparkles className="size-3.5" style={{ color: 'var(--color-gold)' }} />
+                    </div>
+                  )}
                   <div
                     className={cn(
                       'max-w-[85%] rounded-2xl px-3.5 py-2.5 text-sm leading-relaxed',
@@ -737,33 +857,50 @@ export function AiChatSidebar({ isOpen, onClose }: AiChatSidebarProps) {
                         </div>
                       </div>
                     ) : (
-                      /* Tool-use thinking indicator or normal content */
-                      msg.toolStatus && (msg.isStreaming || !msg.content) ? (
-                        <div className="flex items-center gap-2 py-1">
-                          <Database className="size-3.5 animate-pulse shrink-0" style={{ color: 'var(--color-gold)' }} />
-                          <span className="text-xs" style={{ color: 'var(--color-gold-dim)' }}>{msg.toolStatus}</span>
-                          <Loader2 className="size-3 animate-spin shrink-0" style={{ color: 'var(--text-dim)' }} />
-                        </div>
-                      ) : (
-                        /* Normal or streaming content */
-                        <div className="whitespace-pre-wrap break-words [&>strong]:font-semibold [&_strong]:font-semibold">
-                          {renderMarkdown(msg.content)}
-                          {/* Streaming cursor */}
-                          {msg.isStreaming && (
-                            <span className="inline-block w-1.5 h-4 ml-0.5 animate-pulse rounded-sm" style={{ background: 'var(--color-gold)' }} />
-                          )}
-                        </div>
-                      )
+                      <>
+                        {/* Tool-use thinking indicator: show while streaming with no content, or while content is streaming and toolStatus is active */}
+                        {msg.toolStatus && msg.isStreaming && !msg.content ? (
+                          <div className="flex items-center gap-2 py-1">
+                            <Database className="size-3.5 animate-pulse shrink-0" style={{ color: 'var(--color-gold)' }} />
+                            <span className="text-xs" style={{ color: 'var(--color-gold-dim)' }}>{msg.toolStatus}</span>
+                            <Loader2 className="size-3 animate-spin shrink-0" style={{ color: 'var(--text-dim)' }} />
+                          </div>
+                        ) : (
+                          /* Normal or streaming content */
+                          <div className="whitespace-pre-wrap break-words [&>strong]:font-semibold [&_strong]:font-semibold">
+                            {/* Show tool-use badge above content if tools were used */}
+                            {msg.toolNames && msg.toolNames.length > 0 && (
+                              <div className="flex flex-wrap gap-1 mb-1.5">
+                                {msg.toolNames.map((name, idx) => (
+                                  <span
+                                    key={idx}
+                                    className="inline-flex items-center gap-1 text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                                    style={{ background: 'color-mix(in oklch, var(--color-gold) 10%, transparent)', color: 'var(--color-gold-dim)' }}
+                                  >
+                                    <Database className="size-2.5" />
+                                    {name}
+                                  </span>
+                                ))}
+                              </div>
+                            )}
+                            {renderMarkdown(msg.content)}
+                            {/* Streaming cursor */}
+                            {msg.isStreaming && (
+                              <span className="inline-block w-1.5 h-4 ml-0.5 animate-pulse rounded-sm" style={{ background: 'var(--color-gold)' }} />
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
-                    <div
-                      className={cn(
-                        'text-[11px] mt-1.5',
-                        msg.role === 'user' ? 'text-white/60 text-right' : '',
-                      )}
-                      style={msg.role !== 'user' ? { color: 'var(--text-dim)' } : undefined}
-                    >
-                      {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </div>
+                    {/* Timestamp — only show for finalized messages with content */}
+                    {!msg.isStreaming && msg.content && !msg.errorDetail && (
+                      <div
+                        className="text-[11px] mt-1.5"
+                        style={{ color: 'var(--text-dim)' }}
+                      >
+                        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </div>
+                    )}
                   </div>
                 </div>
               ))}

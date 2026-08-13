@@ -262,7 +262,7 @@ export default function CommandCenterPage() {
 
 function OverviewView({ stats, orgs, totalSignals, highValueOrgs, onNavigate }: {
   stats: GraphStats; orgs: OrgSummary[]; totalSignals: number; highValueOrgs: number;
-  onNavigate: (/* tab: TabId */ tabId: TabId) => void;
+  onNavigate: (_tab: TabId) => void;
 }) {
   const topOrgs = useMemo(() => [...orgs].sort((a, b) => (b.intelligenceScore || 0) - (a.intelligenceScore || 0)).slice(0, 5), [orgs]);
 

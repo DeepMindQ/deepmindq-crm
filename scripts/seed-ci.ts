@@ -111,10 +111,10 @@ async function main() {
 
   // ── Insights (model: "category", "narrative", "confidence" enum, "confidenceScore" Float) ──
   await prisma.insight.create({
-    data: { category: 'opportunity', title: 'Acme Corp expansion opportunity', narrative: 'Hiring surge suggests expansion. Good timing for outreach.', organizationId: org1.id, signalId: signal1.id, signalIds: [signal1.id], confidence: 'high', confidenceScore: 80 },
+    data: { category: 'opportunity', title: 'Acme Corp expansion opportunity', narrative: 'Hiring surge suggests expansion. Good timing for outreach.', organizationId: org1.id, signalId: signal1.id, signalIds: [signal1.id], confidence: 'high', confidenceScore: 80, reasoningMethod: 'rule', status: 'active' },
   })
   await prisma.insight.create({
-    data: { category: 'risk', title: 'Globex competitive threat', narrative: 'Series C positions Globex to compete in core market.', organizationId: org2.id, confidence: 'medium', confidenceScore: 70, recommendation: 'Monitor product launches' },
+    data: { category: 'risk', title: 'Globex competitive threat', narrative: 'Series C positions Globex to compete in core market.', organizationId: org2.id, confidence: 'medium', confidenceScore: 70, recommendation: 'Monitor product launches', reasoningMethod: 'rule', status: 'active' },
   })
 
   // ── Briefing (model: "executiveSummary" required, no "title"/"status") ──

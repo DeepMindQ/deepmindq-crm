@@ -104,7 +104,7 @@ const eslintConfig = [
 
       // ── General: STRICT ──
       "prefer-const": "error",
-      "no-unused-vars": "warn",
+      "no-unused-vars": ["warn", { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_", "caughtErrorsIgnorePattern": "^_" }],
       "no-console": ["error", { "allow": ["warn", "error", "info"] }],
       "no-debugger": "error",
       "no-empty": "warn",

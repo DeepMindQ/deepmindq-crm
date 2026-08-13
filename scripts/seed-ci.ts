@@ -6,9 +6,10 @@
  *  - 5 people
  *  - 3 relationships
  *  - 3 signals
+ *  - 1 evidence
  *  - 2 insights
  *  - 1 briefing
- *  - 1 user + session
+ *  - 1 user
  *
  * Run: npx tsx scripts/seed-ci.ts
  * Env:  DATABASE_URL must be set
@@ -43,8 +44,8 @@ async function main() {
       industry: 'Technology',
       website: 'https://acme.com',
       description: 'Enterprise software company',
-      revenueRange: '$50M-$100M',
-      employeeRange: '200-500',
+      revenue: '$50M-$100M',
+      employeeCount: 350,
       trackingStatus: 'active',
       intelligenceScore: 72,
       source: 'upload',
@@ -57,8 +58,8 @@ async function main() {
       industry: 'Finance',
       website: 'https://globex.com',
       description: 'Financial services provider',
-      revenueRange: '$100M-$500M',
-      employeeRange: '500-1000',
+      revenue: '$100M-$500M',
+      employeeCount: 750,
       trackingStatus: 'active',
       intelligenceScore: 85,
       source: 'crm',
@@ -92,8 +93,8 @@ async function main() {
       domain: 'stark.industries',
       industry: 'Defense',
       description: 'Advanced technology and defense',
-      revenueRange: '$1B+',
-      employeeRange: '10000+',
+      revenue: '$1B+',
+      employeeCount: 15000,
       trackingStatus: 'active',
       intelligenceScore: 95,
       source: 'ai_inferred',
@@ -128,7 +129,7 @@ async function main() {
       source: 'manual',
     },
   })
-  const person4 = await prisma.person.create({
+  await prisma.person.create({
     data: {
       name: 'Diana Prince',
       email: 'diana@umbrella.co',
@@ -137,7 +138,7 @@ async function main() {
       source: 'external',
     },
   })
-  const person5 = await prisma.person.create({
+  await prisma.person.create({
     data: {
       name: 'Tony Stark',
       email: 'tony@stark.industries',
@@ -179,39 +180,39 @@ async function main() {
   // ── Signals ──
   const signal1 = await prisma.signal.create({
     data: {
-      type: 'hiring_change',
+      signalType: 'hiring_change',
       severity: 'high',
       status: 'detected',
       title: 'Acme Corp hiring surge',
       description: 'Acme Corp posted 15 new engineering roles in the last week',
-      sourceOrgId: org1.id,
-      confidence: 0.85,
+      organizationId: org1.id,
+      confidenceScore: 85,
       detectedAt: new Date('2026-01-15'),
       source: 'external',
     },
   })
   await prisma.signal.create({
     data: {
-      type: 'funding_event',
+      signalType: 'funding_event',
       severity: 'critical',
       status: 'analyzed',
       title: 'Globex Series C',
       description: 'Globex raised $200M Series C at $2B valuation',
-      sourceOrgId: org2.id,
-      confidence: 0.95,
+      organizationId: org2.id,
+      confidenceScore: 95,
       detectedAt: new Date('2026-01-10'),
       source: 'external',
     },
   })
   await prisma.signal.create({
     data: {
-      type: 'technology_change',
+      signalType: 'technology_change',
       severity: 'medium',
       status: 'validated',
       title: 'Stark Industries adopts Kubernetes',
       description: 'Migration from monolith to microservices detected',
-      sourceOrgId: org5.id,
-      confidence: 0.75,
+      organizationId: org5.id,
+      confidenceScore: 75,
       detectedAt: new Date('2026-01-12'),
       source: 'ai_inferred',
     },
@@ -221,51 +222,54 @@ async function main() {
   await prisma.evidence.create({
     data: {
       signalId: signal1.id,
+      organizationId: org1.id,
+      claim: 'Acme Corp is actively hiring engineering talent',
       sourceType: 'job_posting',
       sourceUrl: 'https://linkedin.com/jobs/acme-corp',
-      content: '15 new engineering positions posted',
+      excerpt: '15 new engineering positions posted in the last week',
       reliability: 'likely',
-      capturedAt: new Date('2026-01-15'),
     },
   })
 
   // ── Insights ──
   await prisma.insight.create({
     data: {
-      type: 'opportunity',
+      category: 'opportunity',
       title: 'Acme Corp expansion opportunity',
-      content: 'Hiring surge suggests expansion. Good timing for outreach.',
-      sourceOrgId: org1.id,
+      narrative: 'Hiring surge suggests expansion phase. Good timing for outreach about enterprise solutions.',
+      organizationId: org1.id,
+      signalId: signal1.id,
       signalIds: [signal1.id],
-      confidence: 0.8,
-      status: 'active',
-      reasoning: 'Rapid hiring indicates budget approval and growth phase',
+      confidence: 'high',
+      confidenceScore: 80,
     },
   })
   await prisma.insight.create({
     data: {
-      type: 'risk',
+      category: 'risk',
       title: 'Globex competitive threat',
-      content: 'Series C funding positions Globex to compete in our core market.',
-      sourceOrgId: org2.id,
-      confidence: 0.7,
-      status: 'active',
-      reasoning: 'New capital enables aggressive market expansion',
+      narrative: 'Series C funding positions Globex to compete in our core market segment.',
+      organizationId: org2.id,
+      confidence: 'medium',
+      confidenceScore: 70,
+      recommendation: 'Monitor Globex product launches and partnership announcements',
     },
   })
 
   // ── Briefing ──
   await prisma.briefing.create({
     data: {
-      title: 'Weekly Intelligence Briefing',
-      summary: 'Key intelligence updates from tracked organizations',
-      sourceOrgId: org1.id,
-      status: 'published',
-      generatedAt: new Date('2026-01-16'),
+      organizationId: org1.id,
+      executiveSummary: 'Acme Corp shows strong growth signals with 15 new engineering hires and expanding product line.',
+      keyFindings: ['Engineering hiring surge', 'New product team forming', 'Budget expansion confirmed'],
+      opportunityScore: 78,
+      signalCount: 1,
+      activeSignals: 1,
+      insightCount: 1,
     },
   })
 
-  // ── User + Session ──
+  // ── User ──
   await prisma.user.create({
     data: {
       name: 'CI Test User',
@@ -275,14 +279,14 @@ async function main() {
   })
 
   console.log('[seed-ci] Seed complete.')
-  console.log(`  Organizations: 5`)
-  console.log(`  People: 5`)
-  console.log(`  Relationships: 3`)
-  console.log(`  Signals: 3`)
-  console.log(`  Evidence: 1`)
-  console.log(`  Insights: 2`)
-  console.log(`  Briefings: 1`)
-  console.log(`  Users: 1`)
+  console.log('  Organizations: 5')
+  console.log('  People: 5')
+  console.log('  Relationships: 3')
+  console.log('  Signals: 3')
+  console.log('  Evidence: 1')
+  console.log('  Insights: 2')
+  console.log('  Briefings: 1')
+  console.log('  Users: 1')
 }
 
 main()

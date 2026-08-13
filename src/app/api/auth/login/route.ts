@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Invalid email or password' }, { status: 401 });
     }
 
-    if (!user.hasPassword || !user.passwordHash) {
+    if (!user.passwordHash) {
       return NextResponse.json({
         error: 'No password set. Please use OTP-only login to set your password first.',
         needsOtpLogin: true,

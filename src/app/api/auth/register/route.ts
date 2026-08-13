@@ -81,7 +81,6 @@ export async function POST(request: NextRequest) {
         email: encryptedData.email as string,
         name: name.trim(),
         passwordHash,
-        hasPassword: true,
         role: 'admin', // First user is always admin; can be changed later
       },
     });

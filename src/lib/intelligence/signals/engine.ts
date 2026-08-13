@@ -132,7 +132,7 @@ export async function detectSignalsForOrganization(orgId: string): Promise<Detec
 /**
  * Detect industry-specific signals.
  */
-function detectIndustrySignals(org: { name: string; industry: string | null; domain?: string | null }): DetectedSignal[] {
+function detectIndustrySignals(org: { name: string; industry: string | null; domain?: string | null; id?: string }): DetectedSignal[] {
   const signals: DetectedSignal[] = [];
   const industry = (org.industry || '').toLowerCase();
 

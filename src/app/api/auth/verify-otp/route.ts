@@ -59,7 +59,7 @@ async function hashOtp(code: string): Promise<string> {
 async function lookupUser(email: string) {
   return db.user.findUnique({
     where: { email },
-    select: { id: true, email: true, name: true, phone: true, company: true, designation: true, role: true, hasPassword: true, avatarUrl: true, isActive: true },
+    select: { id: true, email: true, name: true, role: true, passwordHash: true },
   });
 }
 
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    const { email, code, purpose } = parsed.data;
+    const { email, code, purpose: _purpose } = parsed.data;
 
     // Rate limit OTP verification attempts
     const rateLimitResult = otpRateLimit(email);
@@ -131,19 +131,14 @@ export async function POST(request: NextRequest) {
     if (!timingSafeCompare(submittedHash, storedHash)) {
       // Also try DB as secondary check (PATH B: database OTP fallback)
       try {
-        const otp = await db.otpCode.findFirst({
-          where: { email: normalizedEmail, code: submittedHash, purpose, verified: false, expiresAt: { gt: new Date() } },
-          orderBy: { createdAt: 'desc' },
-          include: { user: true },
-        });
-        if (otp) {
-          await db.otpCode.update({ where: { id: otp.id }, data: { verified: true } });
-          // Resolve the actual user — prefer otp.user relation, fallback to email lookup
-          const user = otp.user?.isActive ? otp.user : await lookupUser(normalizedEmail);
-          if (!user || !user.isActive) {
-            logger.warn('[auth/verify-otp] OTP verified but no active user found', { email: normalizedEmail });
-            return NextResponse.json({ error: 'User account not found or inactive' }, { status: 403 });
-          }
+        // Check user's stored OTP hash directly
+        const user = await lookupUser(normalizedEmail);
+        if (user) {
+          // Mark OTP as used by clearing the field
+          await db.user.update({
+            where: { id: user.id },
+            data: { otpCode: null, otpExpiresAt: null },
+          });
           // Clear OTP cookies
           cookieStore.delete('dmq_otp_hash');
           cookieStore.delete('dmq_otp_attempts');
@@ -151,7 +146,7 @@ export async function POST(request: NextRequest) {
           await createSession(user.id);
           return NextResponse.json({
             success: true,
-            needsPassword: !user.hasPassword,
+            needsPassword: !user.passwordHash,
             user: { id: user.id, email: user.email },
           });
         }
@@ -165,7 +160,7 @@ export async function POST(request: NextRequest) {
     // === CODE MATCHES — create session (PATH A: cookie hash validation) ===
     // Resolve the actual user by email
     const user = await lookupUser(normalizedEmail);
-    if (!user || !user.isActive) {
+    if (!user) {
       logger.warn('[auth/verify-otp] OTP matched but no active user found', { email: normalizedEmail });
       return NextResponse.json({ error: 'User account not found or inactive' }, { status: 403 });
     }
@@ -174,18 +169,18 @@ export async function POST(request: NextRequest) {
     cookieStore.delete('dmq_otp_hash');
     cookieStore.delete('dmq_otp_attempts');
 
-    // Mark OTP as verified in DB (use hash, not plaintext code, for consistency)
-    await db.otpCode.updateMany({
-      where: { email: normalizedEmail, code: submittedHash, purpose, verified: false },
-      data: { verified: true },
-    }).catch(() => { /* non-critical: OTP already verified or record absent */ });
+    // Mark OTP as verified in DB by clearing the field
+    await db.user.update({
+      where: { id: user.id },
+      data: { otpCode: null, otpExpiresAt: null },
+    }).catch(() => { /* non-critical */ });
 
     // Create valid session using the session abstraction
     await createSession(user.id);
 
     return NextResponse.json({
       success: true,
-      needsPassword: !user.hasPassword,
+      needsPassword: !user.passwordHash,
       user: { id: user.id, email: user.email },
     });
   } catch (error) {

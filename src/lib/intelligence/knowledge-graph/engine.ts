@@ -840,7 +840,7 @@ function personToNode(person: { id: string; fullName: string; title?: string | n
   };
 }
 
-function relToEdge(rel: { id: string; type: string; label: string | null; weight: number | null; sourceOrgId?: string | null; targetOrgId?: string | null; sourcePersonId?: string | null; targetPersonId?: string | null; evidenceId?: string | null }, currentNodeId: string): GraphEdge {
+function relToEdge(rel: { id: string; type: string; label: string | null; weight: number | null; sourceOrgId?: string | null; targetOrgId?: string | null; sourcePersonId?: string | null; targetPersonId?: string | null; evidenceId?: string | null }, _currentNodeId: string): GraphEdge {
   const source = rel.sourceOrgId || rel.sourcePersonId || '';
   const target = rel.targetOrgId || rel.targetPersonId || '';
   return {
@@ -855,10 +855,10 @@ function relToEdge(rel: { id: string; type: string; label: string | null; weight
 }
 
 function getNextNodeId(rel: { sourceOrgId?: string | null; targetOrgId?: string | null; sourcePersonId?: string | null; targetPersonId?: string | null }, currentId: string): string | null {
-  if (rel.sourceOrgId === currentId) return rel.targetOrgId;
-  if (rel.targetOrgId === currentId) return rel.sourceOrgId;
-  if (rel.sourcePersonId === currentId) return rel.targetPersonId;
-  if (rel.targetPersonId === currentId) return rel.sourcePersonId;
+  if (rel.sourceOrgId === currentId) return rel.targetOrgId ?? null;
+  if (rel.targetOrgId === currentId) return rel.sourceOrgId ?? null;
+  if (rel.sourcePersonId === currentId) return rel.targetPersonId ?? null;
+  if (rel.targetPersonId === currentId) return rel.sourcePersonId ?? null;
   return null;
 }
 
@@ -896,7 +896,7 @@ function calculatePersonMatchScore(query: string, person: { fullName: string; em
   return Math.min(score, 85);
 }
 
-async function findLargestCluster(orgCount: number, personCount: number): Promise<number> {
+async function findLargestCluster(_orgCount: number, _personCount: number): Promise<number> {
   // Simplified: return the total connected nodes count as an approximation
   const connectedOrgs = await db.relationship.findMany({
     where: { sourceOrgId: { not: null } },

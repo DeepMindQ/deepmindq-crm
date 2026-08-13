@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ data: edge }, { status: 201 });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: 'Failed to create relationship' },
       { status: 500 }
@@ -58,7 +58,7 @@ export async function GET(request: NextRequest) {
 
     const paths = await getConnectionPaths(source, target, maxHops);
     return NextResponse.json({ data: paths });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: 'Failed to find connection paths' },
       { status: 500 }

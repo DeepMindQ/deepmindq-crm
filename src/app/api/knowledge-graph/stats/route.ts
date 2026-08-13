@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
 
     const stats = await getGraphStats();
     return NextResponse.json({ data: stats });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: 'Failed to fetch graph stats' },
       { status: 500 }

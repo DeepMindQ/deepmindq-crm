@@ -79,8 +79,8 @@ export async function audit(event: AuditEvent): Promise<void> {
     await db.auditLog.create({
       data: {
         action: `[${category}] ${action}`,
-        entity: category,
-        entityId: actor || ip || 'unknown',
+        resource: category,
+        ipAddress: ip || null,
         details: details ? JSON.stringify(details) : undefined,
       },
     });

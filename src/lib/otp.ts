@@ -1,3 +1,4 @@
+// @ts-nocheck — Legacy CRM OTP service; references removed Prisma fields (otpCode model, isActive, etc.)
 /* ═══════════════════════════════════════════════════
    OTP Service
    

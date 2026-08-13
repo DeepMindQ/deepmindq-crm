@@ -22,7 +22,7 @@ export async function GET(request: NextRequest) {
 
     const matches = await resolveEntity({ name, domain, email, fuzzy });
     return NextResponse.json({ data: matches });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: 'Entity resolution failed' },
       { status: 500 }

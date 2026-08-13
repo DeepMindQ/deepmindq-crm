@@ -14,7 +14,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       data: { relationshipsCreated: created },
     });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: 'Relationship discovery failed' },
       { status: 500 }

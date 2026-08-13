@@ -16,7 +16,7 @@ export async function GET(
 
     const subgraph = await getSubgraph(id, Math.min(depth, 4));
     return NextResponse.json({ data: subgraph });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: 'Failed to fetch subgraph' },
       { status: 500 }

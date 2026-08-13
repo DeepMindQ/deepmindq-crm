@@ -276,7 +276,7 @@ export async function assignUserRole(
   // Don't allow removing last admin
   if (newRole !== 'admin') {
     const currentAdmins = await db.user.count({
-      where: { role: 'admin', isActive: true },
+      where: { role: 'admin' },
     });
     const targetUser = await db.user.findUnique({
       where: { id: targetUserId },

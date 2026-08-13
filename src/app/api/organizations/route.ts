@@ -42,7 +42,6 @@ export async function GET(request: NextRequest) {
           intelligenceScore: true,
           trackingStatus: true,
           lastSignalAt: true,
-          createdAt: true,
           updatedAt: true,
         },
       }),
@@ -73,7 +72,7 @@ export async function GET(request: NextRequest) {
         pages: Math.ceil(total / limit),
       },
     });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: 'Failed to fetch organizations' },
       { status: 500 }

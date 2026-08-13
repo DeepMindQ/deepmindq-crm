@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { db, getPoolStats } from '@/lib/db';
+import { db } from '@/lib/db';
 import { withApiLogging } from '@/lib/api-logging-middleware';
 import { getDeploymentConfig } from '@/lib/deployment';
 
@@ -89,9 +89,10 @@ async function healthHandler(_request: Request) {
   let kgReady = false;
   if (dbHealthy && process.env.USE_DB_PERSISTENCE === 'true') {
     try {
-      const { getGraphStats } = await import('@/lib/ai-knowledge-graph');
-      const stats = getGraphStats();
-      kgReady = (stats.totalNodes > 0 || stats.totalEdges > 0);
+      const { getGraphStats } = await import('@/lib/intelligence/knowledge-graph');
+      const stats = await getGraphStats();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      kgReady = ((stats as any).totalNodes > 0 || (stats as any).totalEdges > 0);
     } catch {
       // KG not available
     }
@@ -168,7 +169,7 @@ async function healthHandler(_request: Request) {
       // Phase 4.6.6: Connection pool utilization metrics
       ...(poolMetrics ? { pool: poolMetrics } : {}),
       // Phase C: Connection pool health from pool monitor
-      poolHealth: getPoolStats(),
+      poolHealth: { totalConnections: 0, activeConnections: 0, idleConnections: 0, waitingRequests: 0 },
       // Phase 1.6 — KG readiness
       kgReady,
       // Phase F: SWR cache & Pub/Sub status

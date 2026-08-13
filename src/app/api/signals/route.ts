@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ data: signals });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Failed to fetch signals' }, { status: 500 });
   }
 }

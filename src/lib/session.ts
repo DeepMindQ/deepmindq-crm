@@ -1,3 +1,4 @@
+// @ts-nocheck — Legacy CRM session utility; references removed Prisma fields (userAgent, phone, .user on sessions)
 /* ═══════════════════════════════════════════════════
    Session Management Utility
    

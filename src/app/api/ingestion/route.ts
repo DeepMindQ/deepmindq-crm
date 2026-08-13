@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
     });
 
     return NextResponse.json({ data: ingestions });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Failed to fetch ingestion history' }, { status: 500 });
   }
 }

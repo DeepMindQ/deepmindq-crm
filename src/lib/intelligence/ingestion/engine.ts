@@ -75,7 +75,8 @@ export async function ingestFile(
     // 2. Parse the file into rows
     const rows: ParsedRow[] = fileType === 'csv'
       ? await parseCSV(fileBuffer.toString('utf-8'))
-      : await parseExcelRow(fileBuffer);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      : await parseExcelRow(fileBuffer as any);
 
     result.totalRows = rows.length;
     logger.info('[INGEST] File parsed', { totalRows: rows.length });

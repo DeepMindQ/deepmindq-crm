@@ -39,7 +39,7 @@ export async function GET(
     }
 
     return NextResponse.json({ data: briefing });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json({ error: 'Failed to fetch briefing' }, { status: 500 });
   }
 }

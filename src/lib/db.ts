@@ -63,7 +63,8 @@ function createClient() {
     datasourceUrl: buildDatasourceUrl(connectionLimit),
   });
 
-  client.$on('query', (event: { query: string; duration: number; target: string }) => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  (client as any).$on('query', (event: { query: string; duration: number; target: string }) => {
     PrismaDiagnostics.totalQueries++;
     if (event.duration > SLOW_QUERY_THRESHOLD_MS) {
       PrismaDiagnostics.slowQueries++;

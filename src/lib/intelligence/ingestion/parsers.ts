@@ -79,11 +79,13 @@ function parseCSVLine(line: string): string[] {
  * Parse Excel file into rows.
  * Uses exceljs for .xlsx/.xls files.
  */
-export async function parseExcelRow(buffer: Buffer): Promise<ParsedRow[]> {
+export async function parseExcelRow(buffer: ArrayBuffer | Buffer): Promise<ParsedRow[]> {
   // Dynamic import to avoid bundling exceljs when not needed
   const ExcelJS = await import('exceljs');
   const workbook = new ExcelJS.Workbook();
-  await workbook.xlsx.load(buffer);
+  const inputBuffer = buffer instanceof ArrayBuffer ? Buffer.from(buffer) : buffer;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  await workbook.xlsx.load(inputBuffer as any);
 
   const sheet = workbook.worksheets[0];
   if (!sheet || sheet.rowCount < 2) return [];

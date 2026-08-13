@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
         message: `${source.name} merged into ${target.name}. Source deleted.`,
       },
     });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: 'Merge failed' },
       { status: 500 }

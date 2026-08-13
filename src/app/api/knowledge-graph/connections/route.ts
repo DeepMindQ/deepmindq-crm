@@ -13,7 +13,7 @@ export async function GET(
     const { id } = await params;
     const connections = await getConnections(id);
     return NextResponse.json({ data: connections });
-  } catch (error) {
+  } catch (_error) {
     return NextResponse.json(
       { error: 'Failed to fetch connections' },
       { status: 500 }

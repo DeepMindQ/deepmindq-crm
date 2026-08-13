@@ -142,18 +142,16 @@ export async function POST(request: NextRequest) {
     // Also try DB storage (best effort)
     try {
       const { db } = await import('@/lib/db');
-      await db.otpCode.updateMany({
-        where: { email, purpose: 'login', verified: false, expiresAt: { gt: new Date() } },
-        data: { verified: true },
+      // Update user OTP fields directly
+      await db.user.updateMany({
+        where: { email },
+        data: { otpCode: await hashOtp(code), otpExpiresAt: new Date(Date.now() + 10 * 60 * 1000) },
       });
       const user = await db.user.findUnique({ where: { email } });
       if (!user) {
         const encryptedData = await encryptUserFields({ email });
-        await db.user.create({ data: { email: encryptedData.email as string, name: AUTHORIZED_EMAIL ? AUTHORIZED_EMAIL.split('@')[0] : 'Admin', role: 'admin', isActive: true } });
+        await db.user.create({ data: { email: encryptedData.email as string, name: AUTHORIZED_EMAIL ? AUTHORIZED_EMAIL.split('@')[0] : 'Admin', role: 'admin' } });
       }
-      await db.otpCode.create({
-        data: { email, code: await hashOtp(code), purpose: 'login', expiresAt: new Date(Date.now() + 10 * 60 * 1000) },
-      });
     } catch (dbErr) {
       logger.warn('[auth/request-otp] DB failed (cookie is primary):', { error: dbErr instanceof Error ? dbErr.message : dbErr });
     }

@@ -52,7 +52,6 @@ export const POST = withCsrf(async function POST(request: NextRequest) {
       where: { id: user.id },
       data: {
         passwordHash,
-        hasPassword: true,
       },
     });
 

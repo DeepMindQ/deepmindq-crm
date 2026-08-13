@@ -17,8 +17,7 @@ export async function logAction(
     await db.auditLog.create({
       data: {
         action,
-        entity,
-        entityId,
+        resource: entity,
         userId: userId || undefined,
         details: details ? JSON.stringify(details) : undefined,
       },

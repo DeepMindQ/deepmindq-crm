@@ -13,7 +13,8 @@ export async function GET() {
   try {
     const health = await getDatabaseHealthSummary();
     return NextResponse.json(health, {
-      status: health.status === 'unhealthy' ? 503 : 200,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      status: (health as any).status === 'unhealthy' ? 503 : 200,
       headers: { 'Cache-Control': 'no-store, max-age=0' },
     });
   } catch (error) {

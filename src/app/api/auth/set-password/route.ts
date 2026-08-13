@@ -49,7 +49,6 @@ export const POST = withCsrf(async function POST(request: NextRequest) {
       where: { id: otpResult.userId },
       data: {
         passwordHash,
-        hasPassword: true,
       },
     });
 

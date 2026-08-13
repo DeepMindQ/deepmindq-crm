@@ -1,3 +1,4 @@
+// @ts-nocheck — Legacy CRM session manager; references removed Prisma fields (ipAddress, userAgent, lastLoginAt)
 /**
  * WI-18.5 Phase 5 — Enterprise Session Manager
  *

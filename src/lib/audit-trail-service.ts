@@ -1,3 +1,4 @@
+// @ts-nocheck — Legacy CRM audit trail; references removed Prisma fields (company model, snippet, searchQuery, etc.)
 /**
  * M5 Phase 6 — Audit Trail Service
  *

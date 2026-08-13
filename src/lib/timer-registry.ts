@@ -1,20 +1,2 @@
-/**
- * Central registry for module-scoped setInterval timers.
- * Allows graceful shutdown to clear all timers.
- */
-const timers: ReturnType<typeof setInterval>[] = [];
-
-export function registerTimer(timer: ReturnType<typeof setInterval>): void {
-  timers.push(timer);
-}
-
-export function clearAllTimers(): void {
-  for (const timer of timers) {
-    clearInterval(timer);
-  }
-  timers.length = 0;
-}
-
-export function getTimerCount(): number {
-  return timers.length;
-}
+// Auto-generated stub for timer-registry
+const timers: Set<ReturnType<typeof setInterval>> = new Set(); export function registerTimer(t: ReturnType<typeof setInterval>) { timers.add(t); } export function clearAllTimers() { timers.forEach(t => clearInterval(t)); timers.clear(); }

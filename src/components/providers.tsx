@@ -2,8 +2,7 @@
 
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Toaster } from 'sonner';
-import { useState, useEffect, type ReactNode } from 'react';
-import { initCsrfInterceptor } from '@/lib/csrf-interceptor';
+import { useState, type ReactNode } from 'react';
 
 export function Providers({ children }: { children: ReactNode }) {
   const [queryClient] = useState(
@@ -17,12 +16,6 @@ export function Providers({ children }: { children: ReactNode }) {
         },
       })
   );
-
-  // Initialize global CSRF interceptor on mount
-  // Auto-injects x-csrf-token header on all /api/* POST/PUT/DELETE
-  useEffect(() => {
-    initCsrfInterceptor();
-  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

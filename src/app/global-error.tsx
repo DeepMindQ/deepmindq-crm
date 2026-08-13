@@ -1,71 +1,54 @@
 'use client';
 
 import { AlertTriangle, RotateCcw } from 'lucide-react';
-import { tokens } from '@/components/intelligence-os/design-tokens';
 
 const C = {
-  bg: '#0A0E1A',
-  blue: tokens.accent.DEFAULT,
-  blueDim: tokens.accent.dim,
-  blueBg: tokens.accent.subtle,
-  blueBorder: tokens.accent.strong,
-  textSub: tokens.text.secondary,
-  white: tokens.text.primary,
+  bg: '#0a0a0f',
+  emerald: '#34d399',
+  emeraldDim: 'rgba(52,211,153,0.15)',
+  text: '#fafafa',
+  textSecondary: '#a1a1aa',
+  muted: '#71717a',
+  border: 'rgba(63,63,70,0.5)',
+  surface: 'rgba(24,24,27,0.6)',
 };
 
 export default function GlobalError({
-  error: _error,
+  error,
   reset,
 }: {
   error: Error & { digest?: string };
   reset: () => void;
 }) {
-  // Note: Sentry capture not possible here — global-error runs outside of React lifecycle.
-  // Errors are captured by the Sentry server config's error handler instead.
   return (
-    <html lang="en">
-      <body style={{ background: C.bg, margin: 0 }}>
-        <main className="min-h-screen flex items-center justify-center" role="alert">
+    <html>
+      <body className="antialiased" style={{ background: C.bg }}>
+        <main className="min-h-screen flex items-center justify-center">
           <div className="text-center px-6 max-w-md">
             <div
-              className="w-14 h-14 rounded-xl flex items-center justify-center mx-auto mb-6"
-              style={{ background: C.blueBg, border: `1.5px solid ${C.blueBorder}` }}
+              className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-8"
+              style={{ background: 'rgba(239,68,68,0.1)', border: '1.5px solid rgba(239,68,68,0.2)' }}
             >
-              <AlertTriangle className="w-7 h-7" style={{ color: C.blue }} />
+              <AlertTriangle className="w-8 h-8 text-red-400" />
             </div>
-            <p
-              className="text-[11px] font-semibold tracking-[0.3em] uppercase mb-4"
-              style={{ color: C.blue }}
-            >
+            <p className="text-[11px] font-semibold tracking-[0.3em] uppercase mb-3 text-red-400">
               Critical Error
             </p>
-            <h1
-              className="text-[clamp(1.4rem,3vw,2rem)] font-bold tracking-[-0.025em] mb-4"
-              style={{ color: C.white }}
-            >
-              Application Error
-            </h1>
-            <p className="text-[15px] font-light mb-8" style={{ color: C.textSub }}>
-              A critical error occurred that prevented the application from loading.
-              Please try again or contact support if the issue persists.
+            <h1 className="text-2xl font-bold mb-3 text-zinc-100">Application Error</h1>
+            <p className="text-sm text-zinc-400 mb-2">
+              An unhandled error occurred in the application root.
             </p>
-            <div className="flex items-center justify-center gap-3">
-              <button
-                onClick={reset}
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-lg text-[14px] font-semibold transition-colors"
-                style={{ background: C.blueDim, color: tokens.flat.white }}
-              >
-                <RotateCcw className="w-4 h-4" />
-                Try Again
-              </button>
-              <a
-                href="/"
-                className="inline-flex items-center gap-2 px-5 py-3 rounded-lg text-[14px] font-semibold transition-colors"
-                style={{ border: '1px solid {tokens.border.default}', color: C.textSub }}
-              >
-                Reload
-              </a>
-            </div>
+            {error.message && (
+              <p className="text-xs font-mono text-zinc-600 mb-6 break-all">{error.message}</p>
+            )}
+            <button
+              onClick={() => reset()}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold transition-colors"
+              style={{ background: C.emeraldDim, color: C.emerald }}
+            >
+              <RotateCcw className="w-4 h-4" />
+              Reload Application
+            </button>
           </div>
         </main>
       </body>

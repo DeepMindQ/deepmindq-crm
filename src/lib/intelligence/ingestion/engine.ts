@@ -213,6 +213,19 @@ export async function ingestFile(
       peopleCreated: result.peopleCreated,
     });
 
+    // 6. Auto-discover relationships in the knowledge graph
+    if (result.organizationsCreated > 0) {
+      try {
+        const { discoverRelationships } = await import('@/lib/intelligence/knowledge-graph');
+        const relsCreated = await discoverRelationships();
+        logger.info('[INGEST] Knowledge graph relationships discovered', { relsCreated });
+      } catch (kgError) {
+        logger.warn('[INGEST] Knowledge graph discovery failed (non-blocking)', {
+          error: kgError instanceof Error ? kgError.message : 'Unknown',
+        });
+      }
+    }
+
   } catch (error) {
     // Pipeline-level failure
     const errorMsg = error instanceof Error ? error.message : 'Unknown pipeline error';

@@ -37,8 +37,14 @@ let cacheLoadedAt = 0;
 const CACHE_TTL_MS = 5 * 60 * 1000; // Reload from DB every 5 minutes
 
 // ─── Hardcoded Prompt Fallbacks ───────────────────────────────────────
-// These are used when the database is unavailable or no prompt
-// template exists for a given key.
+// FALLBACK PROMPTS: These serve as emergency fallbacks for fresh installs
+// before the seed script (scripts/seed-prompts.ts) has been run.
+// In production, prompts should always come from the database (PromptTemplate
+// table). The DB query path is tried first via loadPromptVersions().
+//
+// To seed the DB, run: npx tsx scripts/seed-prompts.ts
+//
+// NOTE: Keep these in sync with scripts/seed-prompts.ts.
 
 const HARDCODED_PROMPTS: Record<string, { systemPrompt: string; label: string }> = {
   brief_summary: {

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -114,8 +114,13 @@ function StatusBadge({ status }: { status: TaskStatus }) {
 }
 
 export default function AiCommandCenter() {
-  const [loading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [tasks, setTasks] = useState(mockTasks);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
 
   const stats = useMemo(
     () => ({
@@ -141,7 +146,7 @@ export default function AiCommandCenter() {
     );
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center h-64">
         <Loader2 className="size-6 animate-spin text-muted-foreground" />

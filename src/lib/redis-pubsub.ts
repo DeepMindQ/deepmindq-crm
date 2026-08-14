@@ -95,6 +95,8 @@ async function startUpstashPolling(): Promise<void> {
 
 // ─── ioredis Native Pub/Sub ──────────────────────────────────────────────
 
+// NOTE: Typed as `any` because ioredis is an optional dependency that may
+// not be installed. The actual type would be Redis from 'ioredis' if available.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _ioSubscriber: any = null;
 

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -79,6 +80,7 @@ function getTypeColor(type: string) {
 }
 
 export default function IntelligenceKnowledge() {
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [selectedEntity, setSelectedEntity] = useState<string | null>(null);
 
@@ -86,6 +88,13 @@ export default function IntelligenceKnowledge() {
     if (!search) return TOP_ENTITIES;
     return TOP_ENTITIES.filter((e) => e.name.toLowerCase().includes(search.toLowerCase()));
   }, [search]);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const connections = selectedEntity ? CONNECTIONS_MAP[selectedEntity] || [] : [];
   const selectedName = TOP_ENTITIES.find((e) => e.id === selectedEntity)?.name;

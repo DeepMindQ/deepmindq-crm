@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -187,12 +188,20 @@ function getQualityBadge(quality: number) {
 }
 
 export default function IntelligenceSources() {
+  const [isLoading, setIsLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [syncing, setSyncing] = useState<string | null>(null);
   const [connectOpen, setConnectOpen] = useState(false);
   const [newSourceName, setNewSourceName] = useState('');
   const [newSourceType, setNewSourceType] = useState('');
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const filtered = useMemo(() => {
     return MOCK_SOURCES.filter((s) => {

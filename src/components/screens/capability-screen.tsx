@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import {
   Zap,
   Brain,
@@ -100,8 +101,15 @@ const STATUS_CONFIG: Record<Capability['status'], { label: string; color: string
 
 // ── Component ──
 export default function Capability() {
+  const [isLoading, setIsLoading] = useState(true);
   const [capabilities, setCapabilities] = useState(MOCK_CAPABILITIES);
-  const [loading] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const handleToggle = useCallback((id: string) => {
     setCapabilities((prev) =>
@@ -120,7 +128,7 @@ export default function Capability() {
   const textSecondary = tokens.text.secondary;
   const textMuted = tokens.text.muted;
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         className="p-6 space-y-6"

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Textarea } from '@/components/ui/textarea';
@@ -97,7 +98,7 @@ const associatedInsights = [
 ];
 
 export default function ContactDetail() {
-  const [loading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const [editing, setEditing] = useState(false);
   const [notes, setNotes] = useState(
     "Sarah is the primary decision maker at Acme. She's very interested in AI-driven analytics. Key concern: data migration timeline. Next step: send case study from similar SaaS customer.",
@@ -110,13 +111,12 @@ export default function ContactDetail() {
     setTimeout(() => setSaved(false), 2000);
   };
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   return (
     <div className="p-6 space-y-6">

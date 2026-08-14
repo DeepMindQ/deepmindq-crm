@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
@@ -182,15 +183,14 @@ function ScoreRing({ score }: { score: number }) {
 }
 
 export default function CompanyDetail() {
-  const [loading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <Loader2 className="size-6 animate-spin text-muted-foreground" />
-      </div>
-    );
-  }
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   return (
     <div className="p-6 space-y-6">

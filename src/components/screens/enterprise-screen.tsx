@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import {
   Users,
   Activity,
@@ -138,33 +139,20 @@ const ACTIVITY_COLORS = {
 
 // ── Component ──
 export default function Enterprise() {
-  const [loading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const bg = tokens.surface.card;
   const border = tokens.border.default;
   const textPrimary = tokens.text.primary;
   const textSecondary = tokens.text.secondary;
   const textMuted = tokens.text.muted;
-
-  if (loading) {
-    return (
-      <div
-        className="p-6 space-y-6"
-        style={{ background: 'var(--ios-bg-primary)', minHeight: '100%' }}
-      >
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="h-24 rounded-xl animate-pulse" style={{ background: border }} />
-          ))}
-        </div>
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <div key={i} className="h-72 rounded-xl animate-pulse" style={{ background: border }} />
-          ))}
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div

@@ -342,7 +342,7 @@ export class DeepMindQClient {
    * Supports both page-based and cursor-based pagination.
    */
   async listCompanies(params?: ListCompaniesParams): Promise<{
-    companies: any[];
+    companies: import('./types').Company[];
     pagination: PaginationMeta;
     filters?: {
       tiers: Array<{ tier: string; count: number }>;
@@ -364,12 +364,12 @@ export class DeepMindQClient {
   }
 
   /** Get a single company by ID. */
-  async getCompany(id: string): Promise<any> {
+  async getCompany(id: string): Promise<{ company: import('./types').Company }> {
     return this.request(`/companies/${id}`);
   }
 
   /** Create a new company. Triggers the intelligence activation pipeline. */
-  async createCompany(data: CreateCompanyInput): Promise<{ company: any }> {
+  async createCompany(data: CreateCompanyInput): Promise<{ company: import('./types').Company }> {
     return this.request('/companies', { method: 'POST', body: data });
   }
 
@@ -377,7 +377,17 @@ export class DeepMindQClient {
   async getCompanySignals(
     id: string,
     params?: { type?: string; severity?: string },
-  ): Promise<{ signals: any[] }> {
+  ): Promise<{
+    signals: Array<{
+      id: string;
+      signalType: string;
+      severity: string;
+      title: string;
+      description: string;
+      detectedAt: string;
+      confidenceScore: number | null;
+    }>;
+  }> {
     const qp: Record<string, string | undefined> = {};
     if (params?.type) qp.type = params.type;
     if (params?.severity) qp.severity = params.severity;
@@ -393,7 +403,7 @@ export class DeepMindQClient {
 
   /** List contacts with search, status, email health, and role filtering. */
   async listContacts(params?: ListContactsParams): Promise<{
-    contacts: any[];
+    contacts: import('./types').Contact[];
     pagination: PaginationMeta;
   }> {
     const qp: Record<string, string | number | undefined> = {};
@@ -539,7 +549,7 @@ export class DeepMindQClient {
    * Includes AI-powered diagnosis, enrichment strategy, and predictions.
    * Response is cached server-side for 5 minutes.
    */
-  async getDataHealth(): Promise<ApiResponse<any>> {
+  async getDataHealth(): Promise<ApiResponse<Record<string, unknown>>> {
     return this.request('/data-health');
   }
 
@@ -547,7 +557,7 @@ export class DeepMindQClient {
 
   /** List user notifications with optional type and read-status filters. */
   async listNotifications(params?: ListNotificationsParams): Promise<{
-    notifications: any[];
+    notifications: import('./types').NotificationItem[];
     unreadCount: number;
   }> {
     const qp: Record<string, string | number | boolean | undefined> = {};
@@ -565,12 +575,22 @@ export class DeepMindQClient {
   // ── Webhooks ───────────────────────────────────────────────────
 
   /** List all registered webhooks. */
-  async listWebhooks(): Promise<{ webhooks: any[] }> {
+  async listWebhooks(): Promise<{
+    webhooks: Array<{
+      id: string;
+      url: string;
+      events: string[];
+      active: boolean;
+      createdAt: string;
+    }>;
+  }> {
     return this.request('/webhooks/manage');
   }
 
   /** Register a new outbound webhook. */
-  async registerWebhook(data: RegisterWebhookInput): Promise<{ webhook: any }> {
+  async registerWebhook(
+    data: RegisterWebhookInput,
+  ): Promise<{ webhook: { id: string; url: string; events: string[]; active: boolean } }> {
     return this.request('/webhooks/manage', { method: 'POST', body: data });
   }
 

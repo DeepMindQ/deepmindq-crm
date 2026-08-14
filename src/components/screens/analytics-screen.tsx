@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
 import {
   AreaChart,
@@ -76,8 +76,13 @@ const TOP_INDUSTRIES = [
 // ── Component ──
 
 export default function Analytics() {
+  const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange>('30d');
-  const [loading] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
 
   const signalsTimeData = useMemo(() => {
     const daysMap: Record<DateRange, number> = { '7d': 7, '30d': 30, '90d': 90 };
@@ -116,7 +121,7 @@ export default function Analytics() {
     color: textPrimary,
   };
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         className="p-6 space-y-6"

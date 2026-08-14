@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { DataTable, type Column } from '@/components/enterprise/DataTable';
 import { DollarSign, TrendingUp, Target, Percent } from 'lucide-react';
 import {
@@ -62,7 +63,14 @@ const TOP_PERFORMERS: TopPerformer[] = [
 
 // ── Component ──
 export default function RevOps() {
-  const [loading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const stats = useMemo(() => {
     const mrr = '$412K';
@@ -122,7 +130,7 @@ export default function RevOps() {
     [],
   );
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         className="p-6 space-y-6"

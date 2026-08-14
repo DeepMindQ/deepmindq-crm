@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { DataTable, type Column } from '@/components/enterprise/DataTable';
 import { Send, CheckCircle2, XCircle, Clock, Pause, RotateCcw, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
@@ -140,7 +141,14 @@ const PRIORITY_COLORS: Record<string, string> = {
 
 // ── Component ──
 export default function Queue() {
-  const [loading] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const stats = useMemo(() => {
     const inQueue = MOCK_QUEUE.filter(
@@ -212,22 +220,6 @@ export default function Queue() {
     ],
     [textMuted],
   );
-
-  if (loading) {
-    return (
-      <div
-        className="p-6 space-y-6"
-        style={{ background: 'var(--ios-bg-primary)', minHeight: '100%' }}
-      >
-        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <div key={i} className="h-24 rounded-xl animate-pulse" style={{ background: border }} />
-          ))}
-        </div>
-        <div className="h-96 rounded-xl animate-pulse" style={{ background: border }} />
-      </div>
-    );
-  }
 
   return (
     <div

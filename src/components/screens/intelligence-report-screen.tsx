@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -121,6 +122,7 @@ const MOCK_PREVIEW = {
 };
 
 export default function IntelligenceReport() {
+  const [isLoading, setIsLoading] = useState(true);
   const [reportType, setReportType] = useState('');
   const [selectedOrgs, setSelectedOrgs] = useState<string[]>([]);
   const [selectedSections, setSelectedSections] = useState<string[]>([
@@ -131,6 +133,13 @@ export default function IntelligenceReport() {
   ]);
   const [showPreview, setShowPreview] = useState(false);
   const [generating, setGenerating] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const toggleOrg = (id: string) => {
     setSelectedOrgs((prev) => (prev.includes(id) ? prev.filter((o) => o !== id) : [...prev, id]));

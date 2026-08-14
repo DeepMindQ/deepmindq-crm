@@ -1,13 +1,13 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { EmptyState, LoadingSkeleton } from '@/components/ui/screen-states';
+import { EmptyState, LoadingSkeleton, ErrorPanel } from '@/components/ui/screen-states';
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Search, Pencil, Play, FileText, X, Bot } from 'lucide-react';
+import { Plus, Search, Pencil, Play, FileText, Bot } from 'lucide-react';
 
 /* ── Types ── */
 interface PromptTemplate {
@@ -37,98 +37,7 @@ interface PromptTemplate {
   usageCount: number;
 }
 
-/* ── Mock data ── */
-const INITIAL_TEMPLATES: PromptTemplate[] = [
-  {
-    id: '1',
-    name: 'Company Research Brief',
-    category: 'Intelligence',
-    model: 'GPT-4o',
-    systemPrompt:
-      'Analyze the following company data and produce a concise intelligence brief covering market position, recent signals, and key risk factors. Focus on actionable insights for the sales team.',
-    variables: ['company_name', 'industry', 'revenue_range', 'recent_signals'],
-    lastModified: '2025-01-10',
-    usageCount: 847,
-  },
-  {
-    id: '2',
-    name: 'Email Prospecting',
-    category: 'Outreach',
-    model: 'GPT-4o-mini',
-    systemPrompt:
-      "Write a personalized cold outreach email to a prospect. Reference their company's recent news and explain how our platform solves their specific pain points. Keep it under 150 words.",
-    variables: ['prospect_name', 'company', 'pain_point', 'recent_news'],
-    lastModified: '2025-01-08',
-    usageCount: 2341,
-  },
-  {
-    id: '3',
-    name: 'Competitive Battlecard',
-    category: 'Intelligence',
-    model: 'Claude 3.5',
-    systemPrompt:
-      'Generate a competitive battlecard comparing our solution against the specified competitor. Include strengths, weaknesses, win themes, and objection handling guidance.',
-    variables: ['competitor_name', 'deal_context', 'differentiators'],
-    lastModified: '2024-12-20',
-    usageCount: 312,
-  },
-  {
-    id: '4',
-    name: 'Meeting Prep Summary',
-    category: 'Enablement',
-    model: 'GPT-4o',
-    systemPrompt:
-      'Create a pre-meeting prep document for an upcoming call with a prospect. Include company overview, key contacts, previous interactions, and suggested talking points.',
-    variables: ['meeting_topic', 'attendees', 'account_history'],
-    lastModified: '2025-01-12',
-    usageCount: 1567,
-  },
-  {
-    id: '5',
-    name: 'Churn Risk Analysis',
-    category: 'Retention',
-    model: 'Claude 3.5',
-    systemPrompt:
-      "Analyze the customer's usage patterns and engagement signals to assess churn risk. Provide a risk score and recommended retention actions.",
-    variables: ['customer_name', 'usage_data', 'support_tickets', 'contract_end_date'],
-    lastModified: '2025-01-05',
-    usageCount: 428,
-  },
-  {
-    id: '6',
-    name: 'Proposal Generator',
-    category: 'Sales',
-    model: 'GPT-4o',
-    systemPrompt:
-      'Generate a professional sales proposal based on the opportunity details. Include executive summary, solution overview, pricing, timeline, and next steps.',
-    variables: ['opportunity_name', 'client_company', 'scope', 'pricing_tier'],
-    lastModified: '2024-12-15',
-    usageCount: 189,
-  },
-  {
-    id: '7',
-    name: 'Objection Handler',
-    category: 'Enablement',
-    model: 'GPT-4o-mini',
-    systemPrompt:
-      'Given a sales objection, provide a structured response with empathetic acknowledgment, value reframe, evidence, and a closing question.',
-    variables: ['objection_text', 'product_name', 'industry_context'],
-    lastModified: '2025-01-11',
-    usageCount: 934,
-  },
-  {
-    id: '8',
-    name: 'Signal Prioritizer',
-    category: 'Intelligence',
-    model: 'Claude 3.5',
-    systemPrompt:
-      'Evaluate a list of intelligence signals and rank them by revenue impact, recency, and actionability. Provide a brief rationale for each ranking.',
-    variables: ['signal_list', 'account_context', 'time_window'],
-    lastModified: '2025-01-09',
-    usageCount: 567,
-  },
-];
-
+/* ── Constants ── */
 const CATEGORIES = ['All', 'Intelligence', 'Outreach', 'Enablement', 'Retention', 'Sales'];
 const MODELS = ['GPT-4o', 'GPT-4o-mini', 'Claude 3.5'];
 
@@ -136,6 +45,7 @@ const MODELS = ['GPT-4o', 'GPT-4o-mini', 'Claude 3.5'];
 export default function PromptTemplatesScreen() {
   const [templates, setTemplates] = useState<PromptTemplate[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [modalOpen, setModalOpen] = useState(false);
@@ -150,13 +60,47 @@ export default function PromptTemplatesScreen() {
   const [formPrompt, setFormPrompt] = useState('');
   const [formVariables, setFormVariables] = useState('');
 
-  useEffect(() => {
-    const t = setTimeout(() => {
-      setTemplates(INITIAL_TEMPLATES);
+  const fetchPrompts = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/prompts');
+      if (!res.ok) {
+        throw new Error(`Failed to fetch prompt templates (HTTP ${res.status})`);
+      }
+      const json = await res.json();
+      // Support both { data: [...] } envelope and raw array
+      const raw = json.data ?? json.prompts ?? json;
+
+      // Map server PromptVersion → local PromptTemplate shape
+      const mapped: PromptTemplate[] = (Array.isArray(raw) ? raw : []).map(
+        (p: Record<string, unknown>) => ({
+          id: p.id as string,
+          name: (p.label ?? p.name ?? p.key ?? 'Untitled') as string,
+          category: (p.feature ?? p.category ?? 'Intelligence') as string,
+          model: (p.model ?? 'GPT-4o') as string,
+          systemPrompt: (p.systemPrompt ?? '') as string,
+          variables: extractVariables(p.systemPrompt as string),
+          lastModified: p.updatedAt
+            ? String(p.updatedAt).slice(0, 10)
+            : p.createdAt
+              ? String(p.createdAt).slice(0, 10)
+              : new Date().toISOString().slice(0, 10),
+          usageCount: (p.usageCount ?? 0) as number,
+        }),
+      );
+
+      setTemplates(mapped);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Unknown error loading prompt templates'));
+    } finally {
       setLoading(false);
-    }, 500);
-    return () => clearTimeout(t);
+    }
   }, []);
+
+  useEffect(() => {
+    fetchPrompts();
+  }, [fetchPrompts]);
 
   const filtered = templates.filter((t) => {
     const matchSearch = t.name.toLowerCase().includes(search.toLowerCase());
@@ -184,7 +128,7 @@ export default function PromptTemplatesScreen() {
     setModalOpen(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const vars = formVariables
       .split(',')
       .map((v) => v.trim())
@@ -252,7 +196,63 @@ The AI model (${t.model}) has processed the template with the defined variables.
     return map[cat] || 'bg-gray-100 text-gray-800';
   };
 
-  if (loading) return <LoadingSkeleton variant="table" />;
+  /* ── Error State ── */
+  if (error) {
+    return (
+      <div className="flex flex-col h-full">
+        <div
+          className="flex items-center justify-between px-6 py-4 border-b"
+          style={{ borderColor: tokens.border.default }}
+        >
+          <div className="flex items-center gap-3">
+            <FileText className="w-5 h-5" style={{ color: tokens.domain.reasoning }} />
+            <div>
+              <h1 className="text-lg font-semibold" style={{ color: tokens.text.primary }}>
+                Prompt Templates
+              </h1>
+              <p className="text-xs" style={{ color: tokens.text.muted }}>
+                Manage and test AI prompt templates for intelligence and outreach
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 flex items-center justify-center">
+          <ErrorPanel
+            error={error}
+            message="Unable to load prompt templates from the Intelligence OS server."
+            onRetry={fetchPrompts}
+          />
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Loading State ── */
+  if (loading) {
+    return (
+      <div className="flex flex-col h-full">
+        <div
+          className="flex items-center justify-between px-6 py-4 border-b"
+          style={{ borderColor: tokens.border.default }}
+        >
+          <div className="flex items-center gap-3">
+            <FileText className="w-5 h-5" style={{ color: tokens.domain.reasoning }} />
+            <div>
+              <h1 className="text-lg font-semibold" style={{ color: tokens.text.primary }}>
+                Prompt Templates
+              </h1>
+              <p className="text-xs" style={{ color: tokens.text.muted }}>
+                Manage and test AI prompt templates for intelligence and outreach
+              </p>
+            </div>
+          </div>
+        </div>
+        <div className="flex-1 p-6">
+          <LoadingSkeleton variant="table" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -645,4 +645,14 @@ The AI model (${t.model}) has processed the template with the defined variables.
       </Dialog>
     </div>
   );
+}
+
+/* ── Helpers ── */
+
+/** Extract {{variable}} placeholders from a prompt string. */
+function extractVariables(prompt: string | undefined): string[] {
+  if (!prompt) return [];
+  const matches = prompt.match(/\{\{([^}]+)\}\}/g);
+  if (!matches) return [];
+  return [...new Set(matches.map((m) => m.replace(/\{\{|\}\}/g, '').trim()))];
 }

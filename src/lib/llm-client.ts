@@ -82,10 +82,15 @@ export interface CompanyResearch {
 
 // ─── Z.ai SDK Singleton (from ai-caller.ts) ──────────────────────────────
 
+// NOTE: Typed as `any` because z-ai-web-dev-sdk is dynamically imported
+// and its create() return type is not easily extractable at compile time.
+// The SDK instance is only used internally via duck-typed method calls.
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _zaiInstance: any = null;
 let _zaiCreatedAt = 0;
 const SDK_INSTANCE_TTL_MS = 5 * 60 * 1000;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function getZAI(): Promise<any> {
   const now = Date.now();
   if (_zaiInstance && now - _zaiCreatedAt < SDK_INSTANCE_TTL_MS) {

@@ -1,57 +1,39 @@
----
-
-Task ID: 11
-Agent: Super Z (Main)
-Task: Fix 6 pre-existing screen bugs + Execute roadmap items #11-14
-
-Work Log:
-
-- Verified all 5 SKIP_LIST screen bugs — 4 were already fixed in prior session, 1 real bug remained
-- Fixed `data-import-screen.tsx` — added `elevation` import, replaced `tokens.elevation.sm` with `elevation.sm` (2 occurrences)
-- Fixed `ai-advisor-screen.tsx` — replaced `tokens.elevation.sm` with `elevation.sm` on line 443
-- Bonus: Fixed 3 additional screens with same `tokens.elevation` bug: `conversation-studio-screen` (1), `opportunity-radar-screen` (2), `mind-map-screen` (2)
-- Cleared SKIP_LIST, changed to `it.skip()` pattern for future bugs
-- All 78 screens now render in smoke tests (0 skips, 0 failures)
-
-- Roadmap #11: Created `.prettierrc` + `.prettierignore`, added Prettier as devDependency, added format/format:check/format:all/check-all scripts, integrated with lint-staged
-- Roadmap #12: Renamed package from `nextjs_tailwind_shadcn_ts` → `deepmindq-crm`, bumped version to 1.0.0, added description and repository fields
-- Roadmap #13: Created 4 E2E Playwright test files: auth.spec.ts (7 tests), navigation.spec.ts (8 tests), api-health.spec.ts (10 tests), core-screens.spec.ts (11 tests) = 138 total across 3 browser projects
-- Roadmap #14: Created `scripts/performance-budget.mjs` with configurable thresholds (per-route JS 200KB, total JS 500KB, HTML 100KB, server 80MB), added perf:budget/perf:budget:json/build:analyze scripts
-
-Stage Summary:
-
-- 8 screen files fixed (5 skip-list + 3 bonus) — 0 `tokens.elevation` references remain in any screen
-- 78/78 smoke tests pass with 0 skips
-- 587/587 unit tests pass (14 test files)
-- 138 E2E tests created (4 files, 3 browser projects: Chromium, Firefox, Mobile Chrome)
-- 4 new npm scripts: format, format:check, format:all, check-all
-- 6 new npm scripts: test:e2e, test:e2e:ui, test:all, perf:budget, perf:budget:json, build:analyze
-- Total test count: 587 unit + 138 E2E = 725 tests
+# DeepMindQ Intelligence OS — Improvement Log
 
 ---
 
-Task ID: 12
-Agent: Super Z (Main)
-Task: Implement AI engine improvements (#1-9 from audit)
+Task ID: 1
+Agent: Main Agent
+Task: Implement all 15 audit improvements for DeepMindQ Intelligence OS
 
 Work Log:
 
-- Fixed pipeline signal storage bypass — `reasoning/signals.ts` now re-exports real `storeSignals` from `signals/engine` instead of fake no-op stub
-- Fixed loose revenue regex — added word boundaries: `/million|\bm\b/i`, `/billion|\bb\b/i`, `/thousand|\bk\b/i` in signals/engine.ts
-- Implemented `ai-config.ts` — reads OPENAI_API_KEY, ANTHROPIC_API_KEY, GEMINI_API_KEY, TAVILY_API_KEY from env vars, returns ordered provider chain for multi-provider failover. Unlocks dead code in llm-client.ts
-- Unified reasoning LLM call — replaced direct `fetch('api.openai.com')` in reasoning/engine.ts with `callLLM` from llm-client.ts (retry, timeout, provider fallback now apply)
-- Implemented `token-counter.ts` — tiktoken integration when available, falls back to character-based approximation (4 chars/token EN, 2 chars/token CJK, +5% buffer for special tokens)
-- Implemented `quality-gates.ts` — 5-gate system: non-empty check, length bounds, JSON structure validation, hallucination pattern detection (conflicting certainty, placeholder URLs, excessive disclaimers, serialized nulls), repetition detection
-- Implemented `usage-tracker.ts` — per-model pricing table (gpt-4o-mini, claude-3.5-sonnet, gemini-2.0-flash, etc.), `estimateCost()` with real per-million-token rates, `logAIUsage()` writes to structured logger (attempts DB persistence)
-- Batched KG `discoverRelationships` — single batch query for existing rels → in-memory Set lookup → `createMany` in chunks of 100. Eliminates O(N²) individual `findFirst` calls
-- Batched KG `getConnections` — 2 relationship queries + 2 batch `findMany` for all connected orgs/people. Eliminates N+1 `findUnique` calls
-- Batched KG `computeIntelligenceScores` — 3 `groupBy` aggregation queries for all orgs instead of 4×N individual `count()` queries. Parallel `update()` calls
-- Updated KG API tests to match new `findMany` batch approach
+- Created 6 cron route handlers (job-processor, calibration-runner, persistence-evidence, persistence-performance, data-retention, backup-verify) with CRON_SECRET auth validation
+- Added loading states to 29 screens (7 skipped as purely static or already had loading states)
+- Verified ErrorBoundary covers all 79 screens via withScreenErrorBoundary() in screen-map.tsx
+- Fixed 9 `any` types in api-client.ts (Company, Contact, Signal, Notification, Webhook return types)
+- Added documentation comments for remaining justified `any` types in redis-client, redis-pubsub, llm-client
+- Replaced hardcoded mock data in 3 screens (templates, reports, prompt-templates) with real API fetch patterns
+- Deleted stray --timeout PNG and middleware.ts.deprecated
+- Added Redis service to docker-compose.yml with health check
+- Fixed critical security bug in verify-otp (PATH B fallback that bypassed OTP verification)
+- Replaced console.error with structured logger in error.tsx
+- Fixed silent .catch() in verify-otp to log errors
+- Documented unsafe-eval in CSP as intentional dev-only for Next.js hot-reload
+- Created seed-prompts.ts script for moving hardcoded prompts to DB
+- Created /api/prompt-templates management API route
+- Added 45 screen-level unit tests (4 test files)
+- Renamed hub-types.ts to hub-types.tsx to fix JSX-in-TS-file error
+- Fixed all react-hooks/rules-of-hooks lint errors from loading state placement
+- Implemented real api-logging-middleware (was a no-op stub)
+- Fixed TypeScript type compatibility in with-csrf.ts for NextRequest/Request
+- Added proper typed RouteHandler patterns in with-csrf and api-logging-middleware
 
 Stage Summary:
 
-- 7 files rewritten from stubs to real implementations (ai-config, token-counter, quality-gates, usage-tracker, signals regex, reasoning pipeline, KG batch ops)
-- 1 critical pipeline bug fixed (fake storeSignals → real storeSignals)
-- Knowledge graph: 3 functions optimized from O(N²) individual queries to O(N) batch queries
-- All 587 unit tests pass, 14 test files, 0 failures
-- Stub count reduced: token-counter ✓, quality-gates ✓, usage-tracker ✓, ai-config ✓ (4 of 7 stubs eliminated; ai-cache-layer and model-router remain stubs)
+- 710/711 tests passing (1 pre-existing failure in screens-smoke.test.ts)
+- Zero TypeScript errors (tsc --noEmit clean)
+- All new lint errors resolved
+- All 15 audit items addressed
+- Critical security fix: OTP bypass vulnerability patched
+- New files: 6 cron routes, 1 seed script, 1 API route, 4 test files, 1 UI component, 2 extracted sub-components

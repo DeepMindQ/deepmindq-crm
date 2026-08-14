@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { DataTable, type Column } from '@/components/enterprise/DataTable';
 import { Eye } from 'lucide-react';
 
@@ -131,8 +132,15 @@ const CONFIDENTIALITY_CONFIG: Record<
 
 // ── Component ──
 export default function InternalIntelligence() {
+  const [isLoading, setIsLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
-  const [loading] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const filteredData = useMemo(() => {
     if (categoryFilter === 'all') return MOCK_INTEL;
@@ -206,7 +214,7 @@ export default function InternalIntelligence() {
     { key: 'market', label: 'Market' },
   ];
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         className="p-6 space-y-6"

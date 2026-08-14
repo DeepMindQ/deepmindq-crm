@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { AlertTriangle, RotateCcw, ArrowLeft, Copy, Check } from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 export default function Error({
   error,
@@ -14,7 +15,7 @@ export default function Error({
   const errorId = error.digest || `route-${Date.now()}`;
 
   useEffect(() => {
-    console.error('[DeepMindQ] Unhandled error:', error);
+    logger.error('[DeepMindQ] Unhandled route error', { error, digest: error.digest });
     import('@sentry/nextjs')
       .then((mod) => {
         mod.default.captureException(error);

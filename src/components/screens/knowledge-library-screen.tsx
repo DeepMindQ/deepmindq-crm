@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { BookOpen, FileText, BarChart3, Plus, Eye, User, Search } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -123,9 +124,16 @@ const TYPE_ICONS: Record<KnowledgeItem['type'], typeof FileText> = {
 
 // ── Component ──
 export default function KnowledgeLibrary() {
+  const [isLoading, setIsLoading] = useState(true);
   const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
   const [search, setSearch] = useState('');
-  const [loading] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const filteredData = useMemo(() => {
     let items = MOCK_KNOWLEDGE;
@@ -162,7 +170,7 @@ export default function KnowledgeLibrary() {
     { key: 'general', label: 'General' },
   ];
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         className="p-6 space-y-6"

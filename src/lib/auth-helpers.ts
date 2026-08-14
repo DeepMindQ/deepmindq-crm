@@ -168,7 +168,9 @@ export function getSecurityHeaders(nonce?: string): Record<string, string> {
     "default-src 'self'",
     // Level 5 — Nonce-based CSP for scripts.
     //   Production: 'self' + nonce (no eval, no inline)
-    //   Development: 'self' + nonce + eval (hot-reload)
+    //   Development: 'self' + nonce + 'unsafe-eval' (required by Next.js hot-reload / Fast Refresh)
+    //   INTENTIONAL: 'unsafe-eval' is ONLY enabled in development mode. It is never
+    //   present in production CSP. Do NOT add 'unsafe-inline' to script-src in any environment.
     process.env.NODE_ENV === 'production'
       ? `script-src 'self'${nonceDirective}`
       : `script-src 'self'${nonceDirective} 'unsafe-eval'`,

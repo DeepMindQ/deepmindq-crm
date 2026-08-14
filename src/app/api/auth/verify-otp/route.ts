@@ -59,6 +59,8 @@ async function hashOtp(code: string): Promise<string> {
  * Returns null if no active user found — session creation must be aborted.
  */
 async function lookupUser(email: string) {
+  // passwordHash is needed server-side only to determine if the user has set a password.
+  // It is NEVER included in the response payload sent to the client.
   return db.user.findUnique({
     where: { email },
     select: { id: true, email: true, name: true, role: true, passwordHash: true },
@@ -139,35 +141,10 @@ export async function POST(request: NextRequest) {
 
     // Milestone 1 C-03: Use constant-time comparison to prevent timing attacks
     if (!timingSafeCompare(submittedHash, storedHash)) {
-      // Also try DB as secondary check (PATH B: database OTP fallback)
-      try {
-        // Check user's stored OTP hash directly
-        const user = await lookupUser(normalizedEmail);
-        if (user) {
-          // Mark OTP as used by clearing the field
-          await db.user.update({
-            where: { id: user.id },
-            data: { otpCode: null, otpExpiresAt: null },
-          });
-          // Clear OTP cookies
-          cookieStore.delete('dmq_otp_hash');
-          cookieStore.delete('dmq_otp_attempts');
-          // Create valid session using the session abstraction
-          await createSession(user.id);
-          return NextResponse.json({
-            success: true,
-            needsPassword: !user.passwordHash,
-            user: { id: user.id, email: user.email },
-          });
-        }
-      } catch (dbErr) {
-        logger.error('[auth/verify-otp] DB fallback lookup failed', { error: dbErr });
-      }
-
       return NextResponse.json({ error: 'Invalid or expired code' }, { status: 401 });
     }
 
-    // === CODE MATCHES — create session (PATH A: cookie hash validation) ===
+    // === CODE MATCHES — create session ===
     // Resolve the actual user by email
     const user = await lookupUser(normalizedEmail);
     if (!user) {
@@ -187,8 +164,8 @@ export async function POST(request: NextRequest) {
         where: { id: user.id },
         data: { otpCode: null, otpExpiresAt: null },
       })
-      .catch(() => {
-        /* non-critical */
+      .catch((err) => {
+        logger.warn('[auth/verify-otp] Failed to clear OTP in DB', { error: err });
       });
 
     // Create valid session using the session abstraction

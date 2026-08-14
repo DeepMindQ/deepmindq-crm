@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { DataTable, type Column } from '@/components/enterprise/DataTable';
 import { Users, UserPlus, Sparkles, Target, Upload } from 'lucide-react';
 import { toast } from 'sonner';
@@ -133,8 +134,15 @@ const STATUS_CONFIG: Record<Lead['status'], { label: string; color: string; bg: 
 
 // ── Component ──
 export default function Leads() {
+  const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [loading] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const filteredData = useMemo(() => {
     if (statusFilter === 'all') return MOCK_LEADS;
@@ -220,7 +228,7 @@ export default function Leads() {
     { key: 'disqualified', label: 'Disqualified' },
   ];
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         className="p-6 space-y-6"

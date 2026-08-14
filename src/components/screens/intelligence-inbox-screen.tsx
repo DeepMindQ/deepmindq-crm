@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { tokens, getConfidenceTier } from '@/components/intelligence-os/design-tokens';
 import { DataTable, type Column } from '@/components/enterprise/DataTable';
 import {
@@ -252,11 +252,17 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }
 
 // ── Component ──
 export default function IntelligenceInbox() {
+  const [_isLoading, _setIsLoading] = useState(true);
   const [selectedInsight, setSelectedInsight] = useState<Insight | null>(null);
   const [slideOpen, setSlideOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [insights, setInsights] = useState<Insight[]>(MOCK_INSIGHTS);
+
+  useEffect(() => {
+    const t = setTimeout(() => _setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
 
   const filteredInsights = useMemo(() => {
     return insights.filter((i) => {

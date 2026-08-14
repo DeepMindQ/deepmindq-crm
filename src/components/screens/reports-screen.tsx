@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
 import { toast } from 'sonner';
+import { LoadingSkeleton, ErrorPanel } from '@/components/ui/screen-states';
 import {
   FileBarChart,
   BarChart3,
@@ -23,108 +24,67 @@ interface ReportTemplate {
   id: string;
   title: string;
   description: string;
-  icon: React.ElementType;
+  icon: string; // icon key name from server — we map to component on the client
   color: string;
   lastGenerated: string | null;
   category: string;
 }
 
-// ── Mock Data ──
+// ── Icon mapping (maps server icon keys to Lucide components) ──
 
-const REPORT_TEMPLATES: ReportTemplate[] = [
-  {
-    id: 'rpt-001',
-    title: 'Weekly Intelligence Brief',
-    description:
-      'Comprehensive summary of intelligence signals, key account movements, and strategic insights from the past week.',
-    icon: FileBarChart,
-    color: tokens.accent.primary,
-    lastGenerated: '2025-01-14',
-    category: 'Intelligence',
-  },
-  {
-    id: 'rpt-002',
-    title: 'Pipeline Coverage',
-    description:
-      'Analysis of pipeline health, stage distribution, and coverage gaps across all active opportunities.',
-    icon: BarChart3,
-    color: '#059669',
-    lastGenerated: '2025-01-13',
-    category: 'Pipeline',
-  },
-  {
-    id: 'rpt-003',
-    title: 'Signal Activity',
-    description:
-      'Breakdown of detected signals by type, source, and severity with trend analysis over time.',
-    icon: Activity,
-    color: '#D97706',
-    lastGenerated: '2025-01-15',
-    category: 'Intelligence',
-  },
-  {
-    id: 'rpt-004',
-    title: 'Account Rankings',
-    description:
-      'Ranked list of target accounts based on intelligence score, engagement level, and opportunity fit.',
-    icon: Trophy,
-    color: '#7C3AED',
-    lastGenerated: '2025-01-12',
-    category: 'Accounts',
-  },
-  {
-    id: 'rpt-005',
-    title: 'Data Quality',
-    description:
-      'Assessment of data completeness, accuracy, and freshness across all account and contact records.',
-    icon: ShieldCheck,
-    color: '#DC2626',
-    lastGenerated: '2025-01-10',
-    category: 'Data',
-  },
-  {
-    id: 'rpt-006',
-    title: 'AI Usage',
-    description:
-      'Metrics on AI provider usage, token consumption, response quality, and cost analysis.',
-    icon: Bot,
-    color: '#0891B2',
-    lastGenerated: '2025-01-15',
-    category: 'AI',
-  },
-  {
-    id: 'rpt-007',
-    title: 'Competitive Landscape',
-    description:
-      'Intelligence on competitor activities, market positioning, and strategic moves in your target segments.',
-    icon: Globe,
-    color: '#4F46E5',
-    lastGenerated: '2025-01-11',
-    category: 'Intelligence',
-  },
-  {
-    id: 'rpt-008',
-    title: 'Revenue Forecast',
-    description:
-      'Predicted revenue based on pipeline data, historical win rates, and AI-powered opportunity scoring.',
-    icon: TrendingUp,
-    color: '#16A34A',
-    lastGenerated: null,
-    category: 'Revenue',
-  },
-];
+const ICON_MAP: Record<string, React.ElementType> = {
+  FileBarChart,
+  BarChart3,
+  Activity,
+  Trophy,
+  ShieldCheck,
+  Bot,
+  Globe,
+  TrendingUp,
+};
 
-const CATEGORIES = ['All', ...Array.from(new Set(REPORT_TEMPLATES.map((r) => r.category)))];
+function getIcon(iconKey: string): React.ElementType {
+  return ICON_MAP[iconKey] || FileBarChart;
+}
 
 // ── Component ──
 
 export default function Reports() {
+  const [reports, setReports] = useState<ReportTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [generatingId, setGeneratingId] = useState<string | null>(null);
 
+  const fetchReports = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/reports');
+      if (!res.ok) {
+        throw new Error(`Failed to fetch reports (HTTP ${res.status})`);
+      }
+      const json = await res.json();
+      setReports(json.data ?? json.reports ?? json);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Unknown error loading reports'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchReports();
+  }, [fetchReports]);
+
+  const categories = useMemo(
+    () => ['All', ...Array.from(new Set(reports.map((r) => r.category)))],
+    [reports],
+  );
+
   const filtered = useMemo(() => {
-    let result = [...REPORT_TEMPLATES];
+    let result = [...reports];
     if (categoryFilter !== 'All') result = result.filter((r) => r.category === categoryFilter);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -136,7 +96,7 @@ export default function Reports() {
       );
     }
     return result;
-  }, [categoryFilter, searchQuery]);
+  }, [reports, categoryFilter, searchQuery]);
 
   const handleGenerate = useCallback((report: ReportTemplate) => {
     setGeneratingId(report.id);
@@ -151,6 +111,28 @@ export default function Reports() {
   const textPrimary = tokens.text.primary;
   const textSecondary = tokens.text.secondary;
   const textMuted = tokens.text.muted;
+
+  /* ── Error State ── */
+  if (error) {
+    return (
+      <div className="p-6">
+        <ErrorPanel
+          error={error}
+          message="Unable to load intelligence reports from the Intelligence OS server."
+          onRetry={fetchReports}
+        />
+      </div>
+    );
+  }
+
+  /* ── Loading State ── */
+  if (loading) {
+    return (
+      <div className="p-6">
+        <LoadingSkeleton variant="cards" count={8} />
+      </div>
+    );
+  }
 
   return (
     <div
@@ -190,7 +172,7 @@ export default function Reports() {
           />
         </div>
         <div className="flex items-center gap-1.5 flex-wrap">
-          {CATEGORIES.map((cat) => (
+          {categories.map((cat) => (
             <button
               key={cat}
               onClick={() => setCategoryFilter(cat)}
@@ -215,23 +197,25 @@ export default function Reports() {
         >
           <FileBarChart className="w-10 h-10 mx-auto mb-3" style={{ color: textMuted }} />
           <p className="text-sm font-medium" style={{ color: textSecondary }}>
-            No reports match your search
+            {reports.length === 0 ? 'No reports configured yet' : 'No reports match your search'}
           </p>
-          <button
-            className="text-xs font-medium mt-2"
-            style={{ color: tokens.accent.primary }}
-            onClick={() => {
-              setSearchQuery('');
-              setCategoryFilter('All');
-            }}
-          >
-            Clear filters
-          </button>
+          {(searchQuery || categoryFilter !== 'All') && (
+            <button
+              className="text-xs font-medium mt-2"
+              style={{ color: tokens.accent.primary }}
+              onClick={() => {
+                setSearchQuery('');
+                setCategoryFilter('All');
+              }}
+            >
+              Clear filters
+            </button>
+          )}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
           {filtered.map((report) => {
-            const Icon = report.icon;
+            const Icon = getIcon(report.icon);
             const isGenerating = generatingId === report.id;
             return (
               <div

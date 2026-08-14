@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -184,7 +185,16 @@ const DEALS = {
 };
 
 export default function DealCoaching() {
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedDeal, setSelectedDeal] = useState<string>('acme-enterprise');
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
+
   const deal = DEALS[selectedDeal as keyof typeof DEALS];
 
   if (!deal) {

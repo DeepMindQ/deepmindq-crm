@@ -17,6 +17,9 @@ export interface QueryBounds {
   cursor?: { id: string };
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type PrismaFindManyFn<T = any> = (args: any) => Promise<T[]>;
+
 /**
  * Parse and clamp pagination params for findMany queries.
  * Ensures no query can return more than ABSOLUTE_MAX rows.
@@ -44,7 +47,8 @@ export function safeQueryBounds(
  * Usage: safeFindMany(db.company.findMany, { where: {...}, orderBy: {...} }, { limit: 50 })
  */
 export async function safeFindMany<T>(
-  queryFn: (args: any) => Promise<T[]>,
+  queryFn: PrismaFindManyFn<T>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   prismaArgs: Record<string, any>,
   bounds?: { limit?: number; page?: number; cursor?: string },
 ): Promise<T[]> {
@@ -63,7 +67,8 @@ export async function safeFindMany<T>(
  * Log a warning for observability.
  */
 export async function unsafeFindMany<T>(
-  queryFn: (args: any) => Promise<T[]>,
+  queryFn: PrismaFindManyFn<T>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   prismaArgs: Record<string, any>,
   reason: string,
 ): Promise<T[]> {

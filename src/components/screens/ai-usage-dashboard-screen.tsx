@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { Coins, Phone, Clock, DollarSign, BarChart3, TrendingUp } from 'lucide-react';
 import {
   LineChart,
@@ -166,7 +167,15 @@ const PROVIDER_COLORS: Record<string, string> = {
 
 // ── Component ──
 export default function AiUsageDashboard() {
+  const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<'7d' | '14d' | '30d'>('14d');
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const stats = useMemo(() => {
     const totalTokens = MOCK_USAGE_OVER_TIME.reduce((s, d) => s + d.tokens, 0);

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import {
   Search,
   FlaskConical,
@@ -210,6 +211,7 @@ function getFindingTypeConfig(type: string) {
 
 // ── Component ──
 export default function ResearchAgent() {
+  const [isLoading, setIsLoading] = useState(true);
   const [query, setQuery] = useState('');
   const [researching, setResearching] = useState(false);
   const [result, setResult] = useState<ResearchResult | null>(null);
@@ -237,6 +239,13 @@ export default function ResearchAgent() {
     },
   ]);
   const [noResult, setNoResult] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const handleResearch = useCallback(() => {
     const trimmed = query.trim();

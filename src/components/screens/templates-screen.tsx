@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
-import { Skeleton } from '@/components/ui/skeleton';
+import { LoadingSkeleton, ErrorPanel } from '@/components/ui/screen-states';
 import {
   FileText,
   Search,
@@ -31,144 +31,6 @@ interface EmailTemplate {
   lastUsed: string;
   useCount: number;
 }
-
-/* ═══ Mock Data ═══ */
-
-const MOCK_TEMPLATES: EmailTemplate[] = [
-  {
-    id: 'tpl-1',
-    name: 'Introduction',
-    category: 'introduction',
-    subject: 'Quick introduction — {{company}} + {{product}}',
-    body: `Hi {{firstName}},
-
-I noticed {{company}} recently {{recentEvent}} and thought it might be a great time to connect.
-
-I'm reaching out because we've helped similar teams in the {{industry}} space achieve {{metric}} improvement in {{timeframe}}.
-
-Would you be open to a brief 15-minute call this week to explore if there's a fit?
-
-Best regards,
-{{senderName}}`,
-    lastUsed: '2025-01-15T10:00:00Z',
-    useCount: 147,
-  },
-  {
-    id: 'tpl-2',
-    name: 'Follow-up',
-    category: 'follow-up',
-    subject: 'Re: {{previousSubject}} — any thoughts?',
-    body: `Hi {{firstName}},
-
-I wanted to circle back on my previous message. I understand you're busy, so I'll keep this brief.
-
-Based on what I've seen about {{company}}'s {{focusArea}}, I believe there are a few specific areas where we could add real value:
-
-• {{valuePoint1}}
-• {{valuePoint2}}
-• {{valuePoint3}}
-
-Would love to hear your thoughts when you get a chance.
-
-Best,
-{{senderName}}`,
-    lastUsed: '2025-01-14T14:30:00Z',
-    useCount: 203,
-  },
-  {
-    id: 'tpl-3',
-    name: 'Meeting Request',
-    category: 'meeting',
-    subject: "15 min to discuss {{company}}'s {{initiative}} strategy",
-    body: `Hi {{firstName}},
-
-I've been following {{company}}'s work in {{space}} and I'm impressed by your recent {{achievement}}.
-
-I have a few ideas that might be relevant to your {{currentProject}} initiative. Rather than detail everything here, would a quick 15-minute call make sense?
-
-I have availability:
-• {{slot1}}
-• {{slot2}}
-• {{slot3}}
-
-If none of these work, feel free to suggest a time that's better for you.
-
-Looking forward to connecting,
-{{senderName}}`,
-    lastUsed: '2025-01-13T09:15:00Z',
-    useCount: 89,
-  },
-  {
-    id: 'tpl-4',
-    name: 'Proposal',
-    category: 'proposal',
-    subject: 'Proposal: {{solutionName}} for {{company}}',
-    body: `Hi {{firstName}},
-
-Thank you for the great conversation on {{callDate}}. As discussed, here's a summary of what we can deliver for {{company}}:
-
-**Proposed Solution:**
-{{solutionDescription}}
-
-**Expected Outcomes:**
-• {{outcome1}}
-• {{outcome2}}
-• {{outcome3}}
-
-**Timeline:** {{timeline}}
-**Investment:** {{pricing}}
-
-I've attached a detailed proposal document for your review. Happy to walk through any questions on a follow-up call.
-
-Best regards,
-{{senderName}}`,
-    lastUsed: '2025-01-12T16:45:00Z',
-    useCount: 56,
-  },
-  {
-    id: 'tpl-5',
-    name: 'Check-in',
-    category: 'check-in',
-    subject: 'Checking in — {{company}} + {{topic}}',
-    body: `Hi {{firstName}},
-
-It's been a while since we last connected. I hope everything is going well with {{project}} at {{company}}.
-
-I came across {{relevantContent}} and immediately thought of you — it touches on the {{topic}} challenge we discussed.
-
-Worth a quick read: {{contentLink}}
-
-No action needed — just wanted to share. Let me know if there's anything I can help with.
-
-Cheers,
-{{senderName}}`,
-    lastUsed: '2025-01-11T11:20:00Z',
-    useCount: 124,
-  },
-  {
-    id: 'tpl-6',
-    name: 'Re-engagement',
-    category: 're-engagement',
-    subject: "{{firstName}}, it's been a while — new developments at {{senderCompany}}",
-    body: `Hi {{firstName}},
-
-We spoke back in {{lastContactDate}} about {{previousTopic}}. A lot has changed since then, and I think you'll find our recent updates interesting.
-
-**What's new:**
-• {{newFeature1}}
-• {{newFeature2}}
-• {{newFeature3}}
-
-Several teams similar to {{company}} have recently seen {{improvement}} after implementing these updates.
-
-Would you be open to a quick catch-up call to see what's changed?
-
-Best,
-{{senderName}}`,
-    lastUsed: '2025-01-10T08:30:00Z',
-    useCount: 72,
-  },
-];
 
 /* ═══ Helpers ═══ */
 
@@ -248,10 +110,31 @@ export default function Templates() {
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState<TemplateCategory | 'all'>('all');
   const [previewTemplate, setPreviewTemplate] = useState<EmailTemplate | null>(null);
-  const [loading] = useState(false);
+  const [templates, setTemplates] = useState<EmailTemplate[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<Error | null>(null);
+
+  const fetchTemplates = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const res = await fetch('/api/templates');
+      if (!res.ok) throw new Error(`Failed to fetch templates (HTTP ${res.status})`);
+      const json = await res.json();
+      setTemplates(json.data ?? json.templates ?? json);
+    } catch (err) {
+      setError(err instanceof Error ? err : new Error('Unknown error loading templates'));
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchTemplates();
+  }, [fetchTemplates]);
 
   const filteredTemplates = useMemo(() => {
-    let result = MOCK_TEMPLATES;
+    let result = templates;
     if (categoryFilter !== 'all') {
       result = result.filter((t) => t.category === categoryFilter);
     }
@@ -265,7 +148,7 @@ export default function Templates() {
       );
     }
     return result;
-  }, [search, categoryFilter]);
+  }, [templates, search, categoryFilter]);
 
   return (
     <div className="p-6 flex flex-col gap-6">
@@ -281,7 +164,7 @@ export default function Templates() {
         </div>
         <div className="flex items-center gap-2 text-xs" style={{ color: tokens.text.muted }}>
           <LayoutTemplate className="w-4 h-4" />
-          {MOCK_TEMPLATES.length} templates
+          {templates.length} templates
         </div>
       </div>
 
@@ -328,47 +211,21 @@ export default function Templates() {
         </div>
       </div>
 
-      {/* ── Loading State ── */}
-      {loading && (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div
-              key={i}
-              className="rounded-xl p-5"
-              style={{
-                background: tokens.surface.card,
-                border: `1px solid ${tokens.border.default}`,
-              }}
-            >
-              <Skeleton
-                className="h-5 w-32 mb-3 rounded"
-                style={{ background: tokens.border.default }}
-              />
-              <Skeleton
-                className="h-3 w-full mb-2 rounded"
-                style={{ background: tokens.border.default }}
-              />
-              <Skeleton
-                className="h-3 w-3/4 mb-4 rounded"
-                style={{ background: tokens.border.default }}
-              />
-              <div className="flex gap-2">
-                <Skeleton
-                  className="h-8 w-20 rounded-lg"
-                  style={{ background: tokens.border.default }}
-                />
-                <Skeleton
-                  className="h-8 w-20 rounded-lg"
-                  style={{ background: tokens.border.default }}
-                />
-              </div>
-            </div>
-          ))}
-        </div>
+      {/* ── Error State ── */}
+      {error && (
+        <ErrorPanel
+          error={error}
+          message="Unable to load email templates from the Intelligence OS server."
+          onRetry={fetchTemplates}
+          variant="inline"
+        />
       )}
 
+      {/* ── Loading State ── */}
+      {loading && <LoadingSkeleton variant="cards" count={6} />}
+
       {/* ── Empty State ── */}
-      {!loading && filteredTemplates.length === 0 && (
+      {filteredTemplates.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 px-6">
           <div
             className="flex items-center justify-center w-16 h-16 rounded-2xl mb-5"
@@ -400,7 +257,7 @@ export default function Templates() {
       )}
 
       {/* ── Template Grid ── */}
-      {!loading && filteredTemplates.length > 0 && (
+      {filteredTemplates.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredTemplates.map((tpl) => {
             const catConfig = getCategoryConfig(tpl.category);

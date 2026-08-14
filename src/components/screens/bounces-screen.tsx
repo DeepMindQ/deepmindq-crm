@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
+import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { DataTable, type Column } from '@/components/enterprise/DataTable';
 import { AlertTriangle, XCircle, ShieldAlert, CheckCircle2 } from 'lucide-react';
 
@@ -110,8 +111,15 @@ const STATUS_COLORS = {
 
 // ── Component ──
 export default function Bounces() {
+  const [isLoading, setIsLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<BounceTypeFilter>('all');
-  const [loading] = useState(false);
+
+  useEffect(() => {
+    const t = setTimeout(() => setIsLoading(false), 600);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const filteredData = useMemo(() => {
     if (typeFilter === 'all') return MOCK_BOUNCES;
@@ -185,7 +193,7 @@ export default function Bounces() {
     { key: 'spam', label: 'Spam' },
   ];
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div
         className="p-6 space-y-6"

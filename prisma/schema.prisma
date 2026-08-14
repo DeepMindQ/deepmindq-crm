@@ -471,3 +471,26 @@ model AuditLog {
   @@index([action])
   @@index([createdAt(sort: Desc)])
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// AI Usage Logging (governance + cost tracking)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model AIUsageLog {
+  id              String    @id @default(cuid())
+  provider        String    // "OpenAI", "Anthropic", "Gemini", "zai-sdk", "unknown"
+  model           String    // "gpt-4o-mini", "claude-3-5-sonnet", etc.
+  feature         String?   // Feature that triggered the call (e.g., "reasoning", "briefing")
+  promptTokens    Int       @default(0)
+  completionTokens Int      @default(0)
+  totalTokens     Int       @default(0)
+  latencyMs       Int       @default(0)
+  costUSD         Float     @default(0)
+  qualityScore    Int?      // Quality gate score (0-100)
+  error           String?   // Error message if the call failed
+  createdAt       DateTime  @default(now())
+
+  @@index([provider])
+  @@index([feature])
+  @@index([createdAt(sort: Desc)])
+}

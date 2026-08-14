@@ -97,21 +97,30 @@ export async function logAIUsage(params: {
     logger.info('[AI-USAGE] LLM call completed', record);
   }
 
-  // DB persistence — TODO: create AIUsageLog Prisma model and uncomment
-  // try {
-  //   const { db } = await import('@/lib/db');
-  //   await db.aIUsageLog.create({
-  //     data: {
-  //       provider: params.provider,
-  //       model: params.model,
-  //       promptTokens: params.promptTokens,
-  //       completionTokens: params.completionTokens,
-  //       latencyMs: params.latencyMs,
-  //       cost,
-  //       error: params.errorMessage ?? null,
-  //     },
-  //   }).catch(() => {});
-  // } catch {
-  //   // DB not available — logger output is sufficient
-  // }
+  // DB persistence — write to AIUsageLog table
+  try {
+    const { db } = await import('@/lib/db');
+    await db.aIUsageLog
+      .create({
+        data: {
+          provider: params.provider,
+          model: params.model,
+          promptTokens: params.promptTokens,
+          completionTokens: params.completionTokens,
+          totalTokens: params.promptTokens + params.completionTokens,
+          latencyMs: params.latencyMs,
+          costUSD: cost,
+          qualityScore:
+            params.quality && typeof params.quality === 'object' && 'score' in params.quality
+              ? (params.quality as { score: number }).score
+              : null,
+          error: params.errorMessage ?? null,
+        },
+      })
+      .catch(() => {
+        // DB write failed — logger output is sufficient
+      });
+  } catch {
+    // DB not available — logger output is sufficient
+  }
 }

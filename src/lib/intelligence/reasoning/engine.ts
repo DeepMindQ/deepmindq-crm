@@ -9,6 +9,7 @@
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { callLLM } from '@/lib/llm-client';
+import { governedAICall } from '@/lib/ai-governance';
 
 export interface ReasoningResult {
   insight: {
@@ -96,19 +97,59 @@ export async function reasonAboutOrganization(orgId: string): Promise<ReasoningR
 
 /**
  * LLM-powered reasoning.
- * Sends organization context + signals to the LLM for analysis.
- * Routes through the unified llm-client for retry, timeout, and provider failover.
+ * Routes through the governance layer for rate limiting, caching,
+ * quality gates, and audit logging. Falls back to direct callLLM
+ * if governance fails (graceful degradation).
  */
 async function llmReason(context: OrganizationContext): Promise<ReasoningResult[]> {
   const systemPrompt = `You are DeepMindQ, an Enterprise Intelligence OS. Your job is to analyze business intelligence about organizations and produce actionable insights. Be specific, evidence-backed, and practical. Never fabricate data. If confidence is low, say so.`;
 
   const userPrompt = buildReasoningPrompt(context);
 
+  // Try governed path first (rate limiting, caching, quality gates, audit)
+  try {
+    const result = await governedAICall({
+      feature: 'reasoning',
+      systemPrompt,
+      userPrompt,
+      temperature: 0.3,
+      maxTokens: 1500,
+      runQualityGates: true,
+      cacheResponse: true,
+      cacheTTLSeconds: 1800, // 30 minutes — reasoning results become stale
+    });
+
+    if (result.rateLimited) {
+      logger.warn('[REASONING] Rate limited — falling back to direct callLLM');
+      return llmReasonDirect(systemPrompt, userPrompt, context);
+    }
+
+    if (result.text) {
+      return parseLLMResponse(result.text, context);
+    }
+  } catch (err) {
+    logger.warn('[REASONING] Governance layer failed, falling back to direct callLLM', {
+      error: err instanceof Error ? err.message : 'Unknown',
+    });
+  }
+
+  // Fallback: direct callLLM (still works, just without governance wrappers)
+  return llmReasonDirect(systemPrompt, userPrompt, context);
+}
+
+/**
+ * Direct LLM call without governance layer (fallback path).
+ * Used when governance is unavailable or rate-limited.
+ */
+async function llmReasonDirect(
+  systemPrompt: string,
+  userPrompt: string,
+  context: OrganizationContext,
+): Promise<ReasoningResult[]> {
   const content = await callLLM(systemPrompt, userPrompt, {
     temperature: 0.3,
     maxTokens: 1500,
   });
-
   return parseLLMResponse(content, context);
 }
 

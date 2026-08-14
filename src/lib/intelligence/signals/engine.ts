@@ -7,6 +7,7 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { getIntelligence, setIntelligence } from '@/lib/intelligence-cache';
 
 export interface DetectedSignal {
   organizationId: string;
@@ -38,6 +39,46 @@ export async function detectSignalsForOrganization(orgId: string): Promise<Detec
 
   if (!org) return [];
 
+  return detectSignalsForOrgData({
+    id: org.id,
+    name: org.name,
+    employeeCount: org.employeeCount,
+    industry: org.industry,
+    domain: org.domain,
+    revenue: org.revenue,
+    people: org.people.map((p) => ({
+      fullName: p.fullName,
+      title: p.title,
+      role: p.role,
+    })),
+    signals: org.signals.map((s) => ({
+      id: s.id,
+      detectedAt: s.detectedAt,
+    })),
+  });
+}
+
+/**
+ * Pure signal detection logic — operates on in-memory data, no DB queries.
+ * Extracted so it can be used by both single-org and batch detection paths.
+ */
+function detectSignalsForOrgData(org: {
+  id: string;
+  name: string;
+  employeeCount: number | null;
+  industry: string | null;
+  domain: string | null;
+  revenue: string | null;
+  people: Array<{
+    fullName: string;
+    title: string | null;
+    role: string;
+  }>;
+  signals: Array<{
+    id: string;
+    detectedAt: Date;
+  }>;
+}): DetectedSignal[] {
   const signals: DetectedSignal[] = [];
 
   // Rule 1: Large employee count suggests enterprise-scale operations
@@ -243,6 +284,8 @@ export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
 
 /**
  * Run signal detection across all active organizations.
+ * Uses batch loading to avoid N+1 queries — fetches all org data
+ * in a single query, then processes each org in memory.
  */
 export async function runSignalDetectionForAll(): Promise<{
   scanned: number;
@@ -250,21 +293,49 @@ export async function runSignalDetectionForAll(): Promise<{
 }> {
   const organizations = await db.organization.findMany({
     where: { trackingStatus: 'active' },
-    select: { id: true },
+    include: {
+      people: true,
+      signals: {
+        orderBy: { detectedAt: 'desc' },
+        take: 10,
+      },
+    },
   });
 
   let totalSignals = 0;
 
-  for (const org of organizations) {
-    try {
-      const signals = await detectSignalsForOrganization(org.id);
-      totalSignals += await storeSignals(signals);
-    } catch (error) {
-      logger.error(`[SIGNALS] Failed to detect signals for org ${org.id}`, {
-        error: error instanceof Error ? error.message : 'Unknown',
-      });
+  // Process organizations in parallel batches of 5
+  const BATCH_SIZE = 5;
+  for (let i = 0; i < organizations.length; i += BATCH_SIZE) {
+    const batch = organizations.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.allSettled(
+      batch.map(async (org) => {
+        // Check cache first
+        const cached = getIntelligence<DetectedSignal[]>(org.id, 'signals');
+        if (cached) return cached.length;
+
+        const signals = detectSignalsForOrgData(org);
+        const stored = await storeSignals(signals);
+
+        // Cache the detected signals
+        setIntelligence(org.id, 'signals', signals);
+
+        return stored;
+      }),
+    );
+
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled') {
+        totalSignals += result.value;
+      } else {
+        logger.error(`[SIGNALS] Batch failed`, {
+          error: result.reason instanceof Error ? result.reason.message : 'Unknown',
+        });
+      }
     }
   }
 
   return { scanned: organizations.length, signalsFound: totalSignals };
 }
+
+// ─── Industry Signal Helpers ───────────────────────────────────────────

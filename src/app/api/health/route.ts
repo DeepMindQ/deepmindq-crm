@@ -80,7 +80,7 @@ async function healthHandler(_request: Request) {
     try {
       const { getPersistenceAdapter } =
         await import('@/lib/persistence/intelligence-persistence-adapter');
-      poolMetrics = getPersistenceAdapter().getPoolMetrics();
+      poolMetrics = await getPersistenceAdapter().getPoolMetrics();
     } catch {
       // Pool metrics are optional enrichment — don't fail health check
     }

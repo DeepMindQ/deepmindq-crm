@@ -169,7 +169,7 @@ export async function GET() {
     try {
       const { getPersistenceAdapter } =
         await import('@/lib/persistence/intelligence-persistence-adapter');
-      const poolMetrics = getPersistenceAdapter().getPoolMetrics();
+      const poolMetrics = await getPersistenceAdapter().getPoolMetrics();
       if (poolMetrics) {
         activeConnections = poolMetrics.activeConnections;
         maxConnections = poolMetrics.totalConnections;

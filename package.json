@@ -1,6 +1,11 @@
 {
-  "name": "nextjs_tailwind_shadcn_ts",
-  "version": "0.2.0",
+  "name": "deepmindq-crm",
+  "version": "1.0.0",
+  "description": "DeepMindQ Intelligence OS — AI-powered sales CRM with signal intelligence, pipeline management, and revenue optimization",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/DeepMindQ/deepmindq-crm"
+  },
   "private": true,
   "engines": {
     "node": ">=20.0.0",
@@ -14,6 +19,10 @@
     "start": "unset DATABASE_URL && next start -p ${PORT:-3000} -H 0.0.0.0",
     "lint": "eslint .",
     "lint:strict": "eslint . --max-warnings=0",
+    "format": "prettier --write \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
+    "format:check": "prettier --check \"src/**/*.{ts,tsx}\" \"tests/**/*.{ts,tsx}\"",
+    "format:all": "prettier --write \"src/**/*.{ts,tsx,css,json,md}\" \"tests/**/*.{ts,tsx}\" *.mjs *.json *.md",
+    "check-all": "npm run lint && npm run format:check && npm run test",
     "db:push": "prisma db push",
     "db:generate": "prisma generate",
     "db:migrate:deploy": "prisma migrate deploy",
@@ -22,6 +31,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test --config=playwright.config.ts",
+    "test:e2e:ui": "playwright test --config=playwright.config.ts --ui",
+    "test:all": "vitest run && playwright test --config=playwright.config.ts",
+    "perf:budget": "node scripts/performance-budget.mjs",
+    "perf:budget:json": "node scripts/performance-budget.mjs --json",
+    "build:analyze": "npx prisma generate && ANALYZE=true npx next build && node scripts/performance-budget.mjs",
     "postinstall": "npx prisma generate",
     "vercel-build": "npx prisma generate && npx next build",
     "prepare": "husky"
@@ -109,7 +124,11 @@
   },
   "lint-staged": {
     "*.{ts,tsx}": [
-      "eslint --fix"
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,css,md}": [
+      "prettier --write"
     ]
   },
   "devDependencies": {
@@ -128,6 +147,7 @@
     "husky": "^9.1.7",
     "jsdom": "^29.1.1",
     "lint-staged": "^17.2.0",
+    "prettier": "^3.9.6",
     "typescript": "^5",
     "vitest": "^4.1.10",
     "wait-on": "^9.1.0"

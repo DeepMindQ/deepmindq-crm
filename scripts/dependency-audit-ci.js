@@ -46,6 +46,7 @@ const ACCEPTED_EXCEPTION_PACKAGES = new Set([
   'onnxruntime-web',
   '@xenova/transformers',
   'next',
+  'nanoid',
 ]);
 
 const EXCEPTION_DETAILS = {
@@ -76,6 +77,10 @@ const EXCEPTION_DETAILS = {
   'next': {
     via: 'next (direct)',
     reason: 'Next.js 16 is the framework. Transitive vulns (postcss, sharp) require Next.js downgrade to fix (unacceptable). postcss: no user-controlled CSS. sharp: no user-controlled images.',
+  },
+  'nanoid': {
+    via: 'next → postcss → nanoid',
+    reason: 'Transitive via postcss (Next.js + Tailwind CSS 4). nanoid 3.3.x has a theoretical DoS when size=0; no user-controlled input reaches nanoid in this pipeline. Fix requires Next.js postcss upgrade.',
   },
 };
 

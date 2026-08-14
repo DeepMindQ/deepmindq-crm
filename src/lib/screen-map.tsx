@@ -8,9 +8,11 @@
 
 'use client';
 
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { ErrorBoundary } from '@/components/error-boundary/error-boundary';
 import { LoadingSkeleton } from '@/components/ui/loading-skeleton';
+import { useAppStore } from '@/lib/store';
+import type { ViewId } from '@/lib/store';
 
 type ScreenComponent = React.LazyExoticComponent<React.ComponentType<any>> | React.FC<any>;
 
@@ -238,8 +240,6 @@ const AdminSettingsPanelScreen = lazy(() =>
 /* ── Bridge wrappers ── */
 
 export function ContactDetailBridge({ contactId }: { contactId: string }) {
-  const { useAppStore } = require('@/lib/store');
-  const { useEffect } = require('react');
   useEffect(() => {
     useAppStore.getState().setSelectedContactId(contactId);
   }, [contactId]);
@@ -250,7 +250,7 @@ export function ContactDetailBridge({ contactId }: { contactId: string }) {
    Screen Map — unified registry
    ═══════════════════════════════════════════════════ */
 
-export const SCREEN_MAP: Record<string, ScreenComponent> = {
+export const SCREEN_MAP: Record<ViewId, ScreenComponent> = {
   // ── Intelligence OS (new) — each wrapped with per-screen ErrorBoundary ──
   'intelligence-operations': withScreenErrorBoundary(
     IntelligenceOperationsScreen,

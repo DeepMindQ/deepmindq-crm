@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchApi } from '@/lib/fetchApi';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   PageTransition,
@@ -151,6 +152,36 @@ const QUICK_ACTIONS = [
 
 export function KnowledgeWorkspace() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [kgStats, setKgStats] = useState<any>(null);
+
+  // Fetch knowledge graph stats on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchData() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetchApi('/api/knowledge-graph/stats');
+        if (cancelled) return;
+        if (!res.error && res.data?.data) setKgStats(res.data.data);
+      } catch (err) {
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : 'Failed to load knowledge stats');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Derive stats from knowledge graph data
+  const articleCount = kgStats?.totalNodes ?? 342;
+  const briefingCount = kgStats?.totalEdges ?? 89;
 
   return (
     <PageTransition className="p-6 space-y-6">
@@ -169,8 +200,13 @@ export function KnowledgeWorkspace() {
 
       {/* ── Stats Row ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Knowledge Articles" value={342} icon={FileText} color="#3B82F6" />
-        <StatCard label="Briefings Generated" value={89} icon={BookOpen} color="#10B981" />
+        <StatCard label="Knowledge Articles" value={articleCount} icon={FileText} color="#3B82F6" />
+        <StatCard
+          label="Briefings Generated"
+          value={briefingCount}
+          icon={BookOpen}
+          color="#10B981"
+        />
         <StatCard label="Research Notes" value={1567} icon={StickyNote} color="#F59E0B" />
         <StatCard label="Contributors" value={24} icon={Users} color="#8B5CF6" />
       </div>

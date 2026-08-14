@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import { fetchApi } from '@/lib/fetchApi';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   PageTransition,
@@ -48,7 +49,8 @@ const RECENT_SEARCHES = [
   'Acme Corporation intelligence',
 ];
 
-const COMPANY_RESULTS = [
+// Fallback search results used when API is unavailable
+const FALLBACK_COMPANY_RESULTS = [
   {
     name: 'Anthropic AI',
     domain: 'anthropic.com',
@@ -75,7 +77,7 @@ const COMPANY_RESULTS = [
   },
 ];
 
-const SIGNAL_RESULTS = [
+const FALLBACK_SIGNAL_RESULTS = [
   {
     type: 'Funding',
     description:
@@ -102,7 +104,7 @@ const SIGNAL_RESULTS = [
   },
 ];
 
-const CONTACT_RESULTS = [
+const FALLBACK_CONTACT_RESULTS = [
   {
     name: 'Dr. Amanda Foster',
     title: 'VP of Enterprise AI',
@@ -148,6 +150,104 @@ export function IntelligenceSearch() {
   const [query, setQuery] = useState('enterprise AI');
   const [activeCategory, setActiveCategory] = useState<SearchCategory>('All');
   const [showResults, setShowResults] = useState(true);
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [companyResults, setCompanyResults] = useState<any[]>(FALLBACK_COMPANY_RESULTS);
+  const [signalResults, setSignalResults] = useState<any[]>(FALLBACK_SIGNAL_RESULTS);
+  const [contactResults, setContactResults] = useState<any[]>(FALLBACK_CONTACT_RESULTS);
+  const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Debounced search across APIs
+  const performSearch = useCallback(async (searchQuery: string) => {
+    if (!searchQuery.trim()) {
+      setCompanyResults(FALLBACK_COMPANY_RESULTS);
+      setSignalResults(FALLBACK_SIGNAL_RESULTS);
+      setContactResults(FALLBACK_CONTACT_RESULTS);
+      return;
+    }
+
+    setSearching(true);
+    setError(null);
+
+    try {
+      const [orgsRes, signalsRes, peopleRes] = await Promise.all([
+        fetchApi('/api/organizations', {
+          params: { search: searchQuery, limit: 10, status: 'all' },
+        }),
+        fetchApi('/api/signals', { params: { limit: 10 } }),
+        fetchApi('/api/people', { params: { search: searchQuery, limit: 10 } }),
+      ]);
+
+      // Map organizations to company results
+      if (!orgsRes.error && orgsRes.data?.data?.length > 0) {
+        setCompanyResults(
+          (orgsRes.data.data as any[]).map((o) => ({
+            name: o.name,
+            domain: o.domain || '',
+            industry: o.industry || '',
+            score: o.intelligenceScore ?? 0,
+            signals: o.signalCount ?? 0,
+            location: '',
+          })),
+        );
+      }
+
+      // Filter signals by query
+      if (!signalsRes.error && signalsRes.data?.data?.length > 0) {
+        const q = searchQuery.toLowerCase();
+        const filtered = (signalsRes.data.data as any[])
+          .filter(
+            (s) =>
+              (s.title || '').toLowerCase().includes(q) ||
+              (s.description || '').toLowerCase().includes(q) ||
+              (s.organization?.name || '').toLowerCase().includes(q),
+          )
+          .slice(0, 5);
+        if (filtered.length > 0) {
+          setSignalResults(
+            filtered.map((s) => ({
+              type: s.signalType || s.title || 'Signal',
+              description: s.description || s.title || '',
+              severity: (s.severity?.charAt(0).toUpperCase() + s.severity?.slice(1) || 'Medium') as
+                'High' | 'Medium' | 'Low',
+              source: s.organization?.name || 'System',
+              timestamp: s.detectedAt ? new Date(s.detectedAt).toLocaleString() : '',
+            })),
+          );
+        }
+      }
+
+      // Map people to contact results
+      if (!peopleRes.error && peopleRes.data?.data?.length > 0) {
+        setContactResults(
+          (peopleRes.data.data as any[]).map((p) => ({
+            name: p.fullName || '',
+            title: p.title || '',
+            company: p.organization?.name || '',
+            email: p.email || '',
+          })),
+        );
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Search failed');
+    } finally {
+      setSearching(false);
+    }
+  }, []);
+
+  // Debounce query changes
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      if (showResults) performSearch(query);
+    }, 400);
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
+  }, [query, showResults, performSearch]);
+
+  const totalResults =
+    companyResults.length + signalResults.length + contactResults.length + KNOWLEDGE_RESULTS.length;
 
   return (
     <PageTransition className="p-6 space-y-6">
@@ -270,7 +370,17 @@ export function IntelligenceSearch() {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
               <div>
                 <h2 className="text-lg font-semibold" style={{ color: 'var(--ios-text-primary)' }}>
-                  <span style={{ color: '#3B82F6' }}>127</span> results for &ldquo;{query}&rdquo;
+                  {searching ? (
+                    <span className="inline-flex items-center gap-2">
+                      <span className="w-4 h-4 border-2 border-[#3B82F6] border-t-transparent rounded-full animate-spin" />
+                      <span style={{ color: 'var(--ios-text-secondary)' }}>Searching…</span>
+                    </span>
+                  ) : (
+                    <>
+                      <span style={{ color: '#3B82F6' }}>{totalResults}</span> results for &ldquo;
+                      {query}&rdquo;
+                    </>
+                  )}
                 </h2>
                 <p className="text-xs mt-0.5" style={{ color: 'var(--ios-text-secondary)' }}>
                   Searched across all intelligence data sources
@@ -325,7 +435,7 @@ export function IntelligenceSearch() {
                   </span>
                 </div>
                 <StaggerGrid className="space-y-3" stagger={0.06}>
-                  {COMPANY_RESULTS.map((company) => (
+                  {companyResults.map((company) => (
                     <StaggerItem key={company.domain}>
                       <AnimatedCard className="p-4" delay={0}>
                         <div className="flex flex-col sm:flex-row sm:items-center gap-4">
@@ -438,7 +548,7 @@ export function IntelligenceSearch() {
                   </span>
                 </div>
                 <StaggerGrid className="space-y-3" stagger={0.06}>
-                  {SIGNAL_RESULTS.map((signal, i) => {
+                  {signalResults.map((signal, i) => {
                     const sev = SEVERITY_CONFIG[signal.severity];
                     return (
                       <StaggerItem key={i}>
@@ -511,7 +621,7 @@ export function IntelligenceSearch() {
                   </span>
                 </div>
                 <StaggerGrid className="space-y-3" stagger={0.06}>
-                  {CONTACT_RESULTS.map((contact) => (
+                  {contactResults.map((contact) => (
                     <StaggerItem key={contact.email}>
                       <AnimatedCard className="p-4" delay={0}>
                         <div className="flex items-center gap-3">
@@ -519,9 +629,9 @@ export function IntelligenceSearch() {
                             className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-xs font-bold"
                             style={{ color: '#10B981', background: 'rgba(16,185,129,0.15)' }}
                           >
-                            {contact.name
+                            {(contact.name || '')
                               .split(' ')
-                              .map((n) => n[0])
+                              .map((n: string) => n[0])
                               .join('')
                               .slice(0, 2)}
                           </div>

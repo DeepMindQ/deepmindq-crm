@@ -1,4 +1,4 @@
-import type { NextConfig } from "next";
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
   compress: true,
@@ -9,7 +9,9 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   images: {
-    unoptimized: true,
+    // unoptimized removed — enables Next.js image optimization
+    // (format conversion, sizing, caching) for better performance.
+    // Re-enable only if Docker/static-export requires it.
   },
   // Standalone output — enables Docker deployment (server.js entry point).
   // Compatible with Render, Railway, Fly.io, and self-hosted Docker.
@@ -17,32 +19,29 @@ const nextConfig: NextConfig = {
   output: process.env.VERCEL ? undefined : 'standalone',
   serverExternalPackages: ['nodemailer', '@upstash/redis'],
 
-  // Bundle optimization — enabled via ANALYZE=true or always for critical packages.
-  // optimizePackageImports enables automatic tree-shaking for the listed
-  // packages by converting deep imports to barrel-free paths at build time.
-  ...(process.env.ANALYZE === 'true' ? {
-    experimental: {
-      optimizePackageImports: [
-        'lucide-react',
-        'recharts',
-        '@radix-ui/react-icons',
-        'date-fns',
-        'lodash',
-        'framer-motion',
-        '@radix-ui/react-accordion',
-        '@radix-ui/react-alert-dialog',
-        '@radix-ui/react-dialog',
-        '@radix-ui/react-dropdown-menu',
-        '@radix-ui/react-popover',
-        '@radix-ui/react-select',
-        '@radix-ui/react-tabs',
-        '@radix-ui/react-toast',
-        '@radix-ui/react-tooltip',
-        '@radix-ui/react-checkbox',
-        '@radix-ui/react-switch',
-      ],
-    },
-  } : {}),
+  // Package import optimization — always-on tree-shaking for major bundle contributors.
+  // Converts deep imports to barrel-free paths at build time.
+  experimental: {
+    optimizePackageImports: [
+      'lucide-react',
+      'recharts',
+      '@radix-ui/react-icons',
+      'date-fns',
+      'lodash',
+      'framer-motion',
+      '@radix-ui/react-accordion',
+      '@radix-ui/react-alert-dialog',
+      '@radix-ui/react-dialog',
+      '@radix-ui/react-dropdown-menu',
+      '@radix-ui/react-popover',
+      '@radix-ui/react-select',
+      '@radix-ui/react-tabs',
+      '@radix-ui/react-toast',
+      '@radix-ui/react-tooltip',
+      '@radix-ui/react-checkbox',
+      '@radix-ui/react-switch',
+    ],
+  },
 
   // Modularize imports for common UI packages (additional tree-shaking).
   // This converts `import { X } from 'pkg'` → `import X from 'pkg/X'`

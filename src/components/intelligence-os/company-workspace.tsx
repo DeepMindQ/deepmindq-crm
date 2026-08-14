@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchApi } from '@/lib/fetchApi';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   PageTransition,
@@ -142,6 +143,88 @@ const SEVERITY_CONFIG = {
 
 export function CompanyWorkspace() {
   const [activeTab, setActiveTab] = useState<TabKey>('Overview');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [orgData, setOrgData] = useState<any>(null);
+  const [signalData, setSignalData] = useState<any[]>(SIGNALS_DATA);
+  const [contactData, setContactData] = useState(CONTACTS_DATA);
+
+  // Fetch organization data on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchData() {
+      try {
+        setLoading(true);
+        setError(null);
+        // Fetch a recent organization as the demo company
+        const orgsRes = await fetchApi('/api/organizations', {
+          params: { limit: 1, status: 'active' },
+        });
+        if (cancelled) return;
+        if (!orgsRes.error && orgsRes.data?.data?.length > 0) {
+          const org = orgsRes.data.data[0];
+          setOrgData(org);
+          // Fetch detail for this org
+          const detailRes = await fetchApi(`/api/organizations/${org.id}`);
+          if (!detailRes.error && detailRes.data?.data) {
+            const detail = detailRes.data.data;
+            setOrgData(detail);
+            // Map signals from detail
+            if (detail.signals?.length > 0) {
+              const sevIcons: Record<string, any> = {
+                funding: DollarSign,
+                hiring: Users,
+                technology: Zap,
+                market: MapPin,
+              };
+              setSignalData(
+                detail.signals.slice(0, 4).map((s: any) => ({
+                  type: s.signalType || s.title || 'Signal',
+                  description: s.description || s.title || '',
+                  timestamp: s.detectedAt ? new Date(s.detectedAt).toLocaleString() : '',
+                  severity: (s.severity || 'medium') as string as 'high' | 'medium' | 'low',
+                  icon: sevIcons[s.signalType] || Activity,
+                })),
+              );
+            }
+            // Map contacts from detail
+            if (detail.people?.length > 0) {
+              const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B'];
+              setContactData(
+                detail.people.slice(0, 4).map((p: any, i: number) => ({
+                  name: p.fullName || '',
+                  title: p.title || '',
+                  email: p.email || '',
+                  initials: (p.fullName || '')
+                    .split(' ')
+                    .map((n: string) => n[0])
+                    .join('')
+                    .slice(0, 2),
+                  color: colors[i % colors.length],
+                })),
+              );
+            }
+          }
+        }
+      } catch (err) {
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : 'Failed to load company data');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const companyName = orgData?.name || 'Acme Corporation';
+  const companyDomain = orgData?.domain || 'acme.com';
+  const companyIndustry = orgData?.industry || 'Enterprise SaaS';
+  const intelScore = orgData?.intelligenceScore;
+  const signalCount = orgData?._count?.signals ?? orgData?.signalCount ?? 14;
+  const peopleCount = orgData?._count?.people ?? 23;
 
   return (
     <PageTransition className="p-6 space-y-6">
@@ -162,18 +245,18 @@ export function CompanyWorkspace() {
                 className="text-2xl font-bold tracking-tight"
                 style={{ color: 'var(--ios-text-primary)' }}
               >
-                Acme Corporation
+                {companyName}
               </h1>
               <span
                 className="text-xs font-medium px-2.5 py-1 rounded-full"
                 style={{ color: '#3B82F6', background: 'rgba(59,130,246,0.12)' }}
               >
-                Enterprise SaaS
+                {companyIndustry}
               </span>
             </div>
             <div className="flex items-center gap-4 mt-1.5">
               <span className="text-sm" style={{ color: 'var(--ios-text-secondary)' }}>
-                acme.com
+                {companyDomain}
               </span>
               <span
                 className="flex items-center gap-1 text-sm"
@@ -195,9 +278,14 @@ export function CompanyWorkspace() {
 
       {/* ── Stats Row ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Intelligence Score" value="87/100" icon={Brain} color="#3B82F6" />
-        <StatCard label="Active Signals" value={14} icon={Activity} color="#F59E0B" />
-        <StatCard label="Contacts Tracked" value={23} icon={Users} color="#10B981" />
+        <StatCard
+          label="Intelligence Score"
+          value={intelScore ? `${intelScore}/100` : '87/100'}
+          icon={Brain}
+          color="#3B82F6"
+        />
+        <StatCard label="Active Signals" value={signalCount} icon={Activity} color="#F59E0B" />
+        <StatCard label="Contacts Tracked" value={peopleCount} icon={Users} color="#10B981" />
         <StatCard label="Last Scan" value="2h ago" icon={Clock} color="#8B5CF6" />
       </div>
 
@@ -346,9 +434,11 @@ export function CompanyWorkspace() {
                   Recent Signals
                 </h3>
                 <StaggerGrid className="space-y-3" stagger={0.06}>
-                  {SIGNALS_DATA.map((signal) => {
+                  {signalData.map((signal) => {
                     const Icon = signal.icon;
-                    const sev = SEVERITY_CONFIG[signal.severity];
+                    const sev =
+                      SEVERITY_CONFIG[signal.severity as keyof typeof SEVERITY_CONFIG] ||
+                      SEVERITY_CONFIG.medium;
                     return (
                       <StaggerItem key={signal.type}>
                         <AnimatedCard className="p-4" delay={0}>
@@ -404,7 +494,7 @@ export function CompanyWorkspace() {
                   Key Contacts
                 </h3>
                 <StaggerGrid className="space-y-3" stagger={0.06}>
-                  {CONTACTS_DATA.map((contact) => (
+                  {contactData.map((contact) => (
                     <StaggerItem key={contact.email}>
                       <AnimatedCard className="p-4" delay={0}>
                         <div className="flex items-center gap-3">

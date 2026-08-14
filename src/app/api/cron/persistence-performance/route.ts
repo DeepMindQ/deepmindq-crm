@@ -1,20 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCronSecret } from '@/lib/cron-auth';
 import { logger } from '@/lib/logger';
-
-function validateCronSecret(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const authHeader = request.headers.get('authorization');
-  return authHeader === `Bearer ${secret}`;
-}
+import { db, PrismaDiagnostics } from '@/lib/db';
+import { Prisma } from '@prisma/client';
 
 /**
  * GET /api/cron/persistence-performance — Monitor persistence layer metrics.
  *
- * Probes the persistence layer (database, cache, storage backends) and
- * records performance metrics such as read/write latencies, error rates,
- * and connection pool utilization into a time-series store for dashboards
- * and alerting.
+ * Probes the database and records performance metrics:
+ * - Database read latency via a timed lightweight query.
+ * - Prisma connection pool diagnostics (total queries, slow queries).
+ * - Table size health via count queries on core models.
  *
  * Authentication: Requires `Authorization: Bearer <CRON_SECRET>` header
  *                where CRON_SECRET matches the server-side env var.
@@ -31,16 +27,62 @@ export async function GET(request: NextRequest) {
   const start = Date.now();
   logger.info('cron/persistence-performance: started');
 
-  // TODO: Run synthetic probes against DB, cache, and storage; record metrics to time-series store
-  // Example:
-  //   const dbLatency = await measureDbLatency();
-  //   const cacheHitRate = await measureCacheHitRate();
-  //   await metricsStore.record({ dbLatency, cacheHitRate, timestamp: now });
-  //   const metricsRecorded = true;
-  const metricsRecorded = true;
+  try {
+    // Measure database read latency with a raw query
+    const dbQueryStart = Date.now();
+    await db.$queryRaw(Prisma.sql`SELECT 1`);
+    const dbLatencyMs = Date.now() - dbQueryStart;
 
-  const durationMs = Date.now() - start;
-  logger.info('cron/persistence-performance: completed', { metricsRecorded, durationMs });
+    // Measure a slightly heavier query (count with index)
+    const countQueryStart = Date.now();
+    const signalCount = await db.signal.count();
+    const countLatencyMs = Date.now() - countQueryStart;
 
-  return NextResponse.json({ metricsRecorded });
+    // Snapshot Prisma diagnostics
+    const diagnostics = PrismaDiagnostics.snapshot();
+
+    // Check connection pool by running multiple parallel queries
+    const parallelStart = Date.now();
+    await Promise.all([
+      db.organization.count(),
+      db.auditLog.count(),
+      db.evidence.count(),
+      db.insight.count(),
+    ]);
+    const parallelLatencyMs = Date.now() - parallelStart;
+
+    const metricsRecorded = true;
+    const durationMs = Date.now() - start;
+
+    logger.info('cron/persistence-performance: completed', {
+      metricsRecorded,
+      dbLatencyMs,
+      countLatencyMs,
+      parallelLatencyMs,
+      diagnostics,
+      durationMs,
+    });
+
+    return NextResponse.json({
+      metricsRecorded,
+      durationMs,
+      metrics: {
+        dbLatencyMs,
+        countLatencyMs,
+        parallelLatencyMs,
+        signalCount,
+        poolDiagnostics: {
+          totalQueries: diagnostics.totalQueries,
+          slowQueries: diagnostics.slowQueries,
+        },
+      },
+    });
+  } catch (error) {
+    const durationMs = Date.now() - start;
+    logger.error('cron/persistence-performance: failed', {
+      error: error instanceof Error ? error.message : String(error),
+      durationMs,
+    });
+    return NextResponse.json({ error: 'Database performance check failed' }, { status: 503 });
+  }
 }

@@ -1,20 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCronSecret } from '@/lib/cron-auth';
 import { logger } from '@/lib/logger';
+import { db } from '@/lib/db';
 
-function validateCronSecret(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const authHeader = request.headers.get('authorization');
-  return authHeader === `Bearer ${secret}`;
-}
+const AUDIT_LOG_RETENTION_DAYS = 90;
 
 /**
  * GET /api/cron/data-retention — Enforce data retention policies.
  *
  * Scans the persistence layer for expired records and purges them in
- * accordance with configured retention policies. Affected collections
- * include: intelligence signals, audit logs, user sessions, and
- * temporary evidence artifacts.
+ * accordance with configured retention policies:
+ * - AuditLog records older than 90 days are deleted.
+ * - Expired sessions (where expiresAt < now) are deleted.
  *
  * Authentication: Requires `Authorization: Bearer <CRON_SECRET>` header
  *                where CRON_SECRET matches the server-side env var.
@@ -31,19 +28,36 @@ export async function GET(request: NextRequest) {
   const start = Date.now();
   logger.info('cron/data-retention: started');
 
-  // TODO: Query retention policy config, then purge expired records from each collection
-  // Example:
-  //   const signalsPurged = await signalStore.purgeOlderThan(retention.signals.maxAge);
-  //   const auditLogsPurged = await auditLogStore.purgeOlderThan(retention.auditLogs.maxAge);
-  //   const sessionsPurged = await sessionStore.purgeOlderThan(retention.sessions.maxAge);
-  const purged = {
-    signals: 0,
-    auditLogs: 0,
-    sessions: 0,
-  };
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - AUDIT_LOG_RETENTION_DAYS);
 
-  const durationMs = Date.now() - start;
-  logger.info('cron/data-retention: completed', { purged, durationMs });
+    // Purge old audit logs
+    const auditLogsPurged = await db.auditLog.deleteMany({
+      where: { createdAt: { lt: cutoffDate } },
+    });
 
-  return NextResponse.json({ purged });
+    // Purge expired sessions
+    const sessionsPurged = await db.session.deleteMany({
+      where: { expiresAt: { lt: new Date() } },
+    });
+
+    const purged = {
+      signals: 0,
+      auditLogs: auditLogsPurged.count,
+      sessions: sessionsPurged.count,
+    };
+
+    const durationMs = Date.now() - start;
+    logger.info('cron/data-retention: completed', { purged, durationMs });
+
+    return NextResponse.json({ purged, durationMs });
+  } catch (error) {
+    const durationMs = Date.now() - start;
+    logger.error('cron/data-retention: failed', {
+      error: error instanceof Error ? error.message : String(error),
+      durationMs,
+    });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

@@ -1,6 +1,7 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { fetchApi } from '@/lib/fetchApi';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   PageTransition,
@@ -175,6 +176,47 @@ const SEVERITY_CONFIG: Record<string, { color: string; bg: string }> = {
 
 export function IntelligenceBriefing() {
   const [activeTab, setActiveTab] = useState<BriefingTab>('Daily Digest');
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [findings, setFindings] = useState(FINDINGS_DATA);
+
+  // Fetch signals for briefing findings
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchData() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetchApi('/api/signals', { params: { limit: 10, severity: 'critical' } });
+        if (cancelled) return;
+        if (!res.error && res.data?.data?.length > 0) {
+          const severityLabel = (s: string) => {
+            const u = s.toUpperCase();
+            if (u === 'CRITICAL') return 'Critical';
+            if (u === 'HIGH') return 'High';
+            return 'Medium';
+          };
+          const mapped = (res.data.data as any[]).slice(0, 4).map((s, i) => ({
+            id: s.id || i + 1,
+            severity: severityLabel(s.severity) as 'Critical' | 'High' | 'Medium' | 'Low',
+            title: s.title || s.description?.slice(0, 80) || 'Signal detected',
+            description: s.description || '',
+            source: `Signal Detection · ${s.organization?.name || 'Intelligence'}`,
+          }));
+          setFindings(mapped);
+        }
+      } catch (err) {
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : 'Failed to load briefing data');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <PageTransition className="p-6 space-y-6">
@@ -273,7 +315,7 @@ export function IntelligenceBriefing() {
                   Key Findings
                 </h3>
                 <div className="space-y-4">
-                  {FINDINGS_DATA.map((finding, i) => {
+                  {findings.map((finding, i) => {
                     const sev = SEVERITY_CONFIG[finding.severity];
                     return (
                       <motion.div
@@ -290,7 +332,7 @@ export function IntelligenceBriefing() {
                           >
                             {i + 1}
                           </span>
-                          {i < FINDINGS_DATA.length - 1 && (
+                          {i < findings.length - 1 && (
                             <div
                               className="w-px flex-1 mt-1"
                               style={{ background: 'var(--ios-border)' }}
@@ -301,7 +343,7 @@ export function IntelligenceBriefing() {
                           className="pb-4"
                           style={{
                             borderBottom:
-                              i < FINDINGS_DATA.length - 1 ? '1px solid var(--ios-border)' : 'none',
+                              i < findings.length - 1 ? '1px solid var(--ios-border)' : 'none',
                           }}
                         >
                           <div className="flex items-center gap-2 mb-1">

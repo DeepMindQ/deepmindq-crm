@@ -3,11 +3,12 @@ import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
 import { discoverRelationships } from '@/lib/intelligence/knowledge-graph';
 
-const discoverPostSchema = z
-  .object({
-    organizationId: z.string().optional(),
-  })
-  .passthrough();
+const discoverPostSchema = z.object({
+  organizationId: z.string().optional(),
+  maxDepth: z.number().int().min(1).max(5).optional(),
+  includeInactive: z.boolean().optional(),
+  sourceTypes: z.array(z.enum(['signal', 'enrichment', 'manual', 'imported'])).optional(),
+});
 
 export async function POST(request: NextRequest) {
   try {

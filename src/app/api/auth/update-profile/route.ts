@@ -15,9 +15,8 @@ const schema = z.object({
   updates: z
     .object({
       name: z.string().max(100).optional(),
-      phone: z.string().max(20).optional(),
-      company: z.string().max(100).optional(),
-      designation: z.string().max(100).optional(),
+      // NOTE: phone, company, designation removed — Prisma User model
+      // does not define these fields. Adding them causes runtime 500 errors.
       newEmail: z.string().email().optional(), // for change_email purpose
     })
     .optional(),
@@ -58,10 +57,6 @@ export const POST = withCsrf(async function POST(request: NextRequest) {
     if (purpose === 'update_profile' && updates) {
       const updateData: Record<string, string> = {};
       if (updates.name !== undefined) updateData.name = sanitizeString(updates.name);
-      if (updates.phone !== undefined) updateData.phone = sanitizeString(updates.phone);
-      if (updates.company !== undefined) updateData.company = sanitizeString(updates.company);
-      if (updates.designation !== undefined)
-        updateData.designation = sanitizeString(updates.designation);
 
       await db.user.update({
         where: { id: user.id },

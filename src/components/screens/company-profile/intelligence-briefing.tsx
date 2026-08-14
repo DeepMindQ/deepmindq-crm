@@ -19,6 +19,7 @@ import {
   ArrowRight,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { fetchApi } from '@/lib/fetchApi';
 
 // ── Types (mirror of AccountBrief from route) ──
 
@@ -119,7 +120,11 @@ function SignalPill({
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="group">
       <button
         onClick={() => setExpanded(!expanded)}
-        className="w-full text-left flex items-start gap-2.5 p-3 rounded-lg bg-white/[0.03] border border-white/[0.06] hover:bg-white/[0.06] hover:border-white/[0.1] transition-all"
+        className="w-full text-left flex items-start gap-2.5 p-3 rounded-lg hover:bg-[var(--ios-bg-card-hover)] hover:border-[var(--ios-border-hover)] transition-all"
+        style={{
+          background: 'var(--ios-bg-card)',
+          border: '1px solid var(--ios-border)',
+        }}
       >
         <div
           className="mt-0.5 size-2 rounded-full shrink-0"
@@ -129,7 +134,9 @@ function SignalPill({
           }}
         />
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] text-gray-200 leading-relaxed">{signal}</p>
+          <p className="text-[13px] leading-relaxed" style={{ color: 'var(--ios-text-primary)' }}>
+            {signal}
+          </p>
           <AnimatePresence>
             {expanded && (
               <motion.div
@@ -138,16 +145,29 @@ function SignalPill({
                 exit={{ height: 0, opacity: 0 }}
                 className="overflow-hidden"
               >
-                <p className="mt-1.5 text-[11px] text-gray-500 leading-relaxed">{evidence}</p>
-                <p className="mt-1 text-[10px] text-gray-600">Confidence: {confidence}%</p>
+                <p
+                  className="mt-1.5 text-[11px] leading-relaxed"
+                  style={{ color: 'var(--ios-text-muted)' }}
+                >
+                  {evidence}
+                </p>
+                <p className="mt-1 text-[10px]" style={{ color: 'var(--ios-text-muted)' }}>
+                  Confidence: {confidence}%
+                </p>
               </motion.div>
             )}
           </AnimatePresence>
         </div>
         {expanded ? (
-          <ChevronDown className="size-3.5 text-gray-500 shrink-0 mt-0.5" />
+          <ChevronDown
+            className="size-3.5 shrink-0 mt-0.5"
+            style={{ color: 'var(--ios-text-muted)' }}
+          />
         ) : (
-          <ChevronRight className="size-3.5 text-gray-500 shrink-0 mt-0.5" />
+          <ChevronRight
+            className="size-3.5 shrink-0 mt-0.5"
+            style={{ color: 'var(--ios-text-muted)' }}
+          />
         )}
       </button>
     </motion.div>
@@ -157,10 +177,22 @@ function SignalPill({
 function StakeholderCard({ s }: { s: TargetStakeholder }) {
   const priorityColor =
     s.priority === 'primary'
-      ? 'border-emerald-500/30 bg-emerald-500/[0.04]'
+      ? 'border-emerald-500/30'
       : s.priority === 'secondary'
-        ? 'border-amber-500/30 bg-amber-500/[0.04]'
-        : 'border-gray-500/30 bg-gray-500/[0.04]';
+        ? 'border-amber-500/30'
+        : '';
+  const priorityBg =
+    s.priority === 'primary'
+      ? 'rgba(16,185,129,0.04)'
+      : s.priority === 'secondary'
+        ? 'rgba(245,158,11,0.04)'
+        : 'var(--ios-bg-card)';
+  const priorityBorder =
+    s.priority === 'primary'
+      ? 'rgba(16,185,129,0.3)'
+      : s.priority === 'secondary'
+        ? 'rgba(245,158,11,0.3)'
+        : 'var(--ios-border)';
   const priorityLabel =
     s.priority === 'primary' ? 'Primary' : s.priority === 'secondary' ? 'Secondary' : 'Tertiary';
   return (
@@ -168,25 +200,47 @@ function StakeholderCard({ s }: { s: TargetStakeholder }) {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       className={`p-4 rounded-xl border ${priorityColor}`}
+      style={{ background: priorityBg, borderColor: priorityBorder }}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
-          <Users className="size-3.5 text-gray-400" />
-          <span className="text-[13px] font-semibold text-gray-100">{s.role}</span>
+          <Users className="size-3.5" style={{ color: 'var(--ios-text-secondary)' }} />
+          <span className="text-[13px] font-semibold" style={{ color: 'var(--ios-text-primary)' }}>
+            {s.role}
+          </span>
         </div>
-        <span className="text-[10px] font-medium text-gray-500 uppercase tracking-wider">
+        <span
+          className="text-[10px] font-medium uppercase tracking-wider"
+          style={{ color: 'var(--ios-text-muted)' }}
+        >
           {priorityLabel}
         </span>
       </div>
-      <p className="text-[12px] text-gray-400 mb-1.5">
-        <span className="text-gray-500 font-medium">Focus:</span> {s.focus}
+      <p className="text-[12px] mb-1.5" style={{ color: 'var(--ios-text-secondary)' }}>
+        <span style={{ color: 'var(--ios-text-muted)' }} className="font-medium">
+          Focus:
+        </span>{' '}
+        {s.focus}
       </p>
-      <p className="text-[12px] text-gray-400 mb-1.5">
-        <span className="text-gray-500 font-medium">Why approach:</span> {s.whyApproach}
+      <p className="text-[12px] mb-1.5" style={{ color: 'var(--ios-text-secondary)' }}>
+        <span style={{ color: 'var(--ios-text-muted)' }} className="font-medium">
+          Why approach:
+        </span>{' '}
+        {s.whyApproach}
       </p>
-      <div className="mt-2 p-2.5 rounded-lg bg-white/[0.03] border border-white/[0.06]">
-        <p className="text-[11px] text-gray-500 font-medium mb-1">Conversation angle</p>
-        <p className="text-[12px] text-gray-300 italic leading-relaxed">"{s.conversationAngle}"</p>
+      <div
+        className="mt-2 p-2.5 rounded-lg"
+        style={{ background: 'var(--ios-bg-card)', border: '1px solid var(--ios-border)' }}
+      >
+        <p className="text-[11px] mb-1" style={{ color: 'var(--ios-text-muted)' }}>
+          Conversation angle
+        </p>
+        <p
+          className="text-[12px] italic leading-relaxed"
+          style={{ color: 'var(--ios-text-secondary)' }}
+        >
+          "{s.conversationAngle}"
+        </p>
       </div>
     </motion.div>
   );
@@ -197,16 +251,27 @@ function ConversationCard({ c }: { c: ConversationStarter }) {
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]"
+      className="p-4 rounded-xl"
+      style={{ background: 'var(--ios-bg-card)', border: '1px solid var(--ios-border)' }}
     >
       <div className="flex items-center gap-1.5 mb-2">
-        <MessageSquare className="size-3.5 text-violet-400" />
-        <span className="text-[11px] text-violet-400 font-medium uppercase tracking-wider">
+        <MessageSquare className="size-3.5" style={{ color: 'var(--ios-accent)' }} />
+        <span
+          className="text-[11px] font-medium uppercase tracking-wider"
+          style={{ color: 'var(--ios-accent)' }}
+        >
           {c.context}
         </span>
       </div>
-      <p className="text-[13px] text-gray-200 leading-relaxed italic mb-2">"{c.opening}"</p>
-      <p className="text-[11px] text-gray-500">Expected: {c.expectedReaction}</p>
+      <p
+        className="text-[13px] leading-relaxed italic mb-2"
+        style={{ color: 'var(--ios-text-primary)' }}
+      >
+        "{c.opening}"
+      </p>
+      <p className="text-[11px]" style={{ color: 'var(--ios-text-muted)' }}>
+        Expected: {c.expectedReaction}
+      </p>
     </motion.div>
   );
 }
@@ -225,20 +290,29 @@ function SectionCard({
     <motion.div
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
-      className="p-4 rounded-xl bg-white/[0.03] border border-white/[0.06] hover:border-white/[0.1] transition-all"
+      className="p-4 rounded-xl hover:border-[var(--ios-border-hover)] transition-all"
+      style={{ background: 'var(--ios-bg-card)', border: '1px solid var(--ios-border)' }}
     >
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <Icon className={`size-3.5 ${accentColor}`} />
-          <span className="text-[13px] font-semibold text-gray-100">{section.title}</span>
+          <span className="text-[13px] font-semibold" style={{ color: 'var(--ios-text-primary)' }}>
+            {section.title}
+          </span>
         </div>
         <ConfidenceBadge confidence={section.confidence} />
       </div>
-      <p className="text-[13px] text-gray-300 leading-relaxed mb-3">{section.content}</p>
+      <p
+        className="text-[13px] leading-relaxed mb-3"
+        style={{ color: 'var(--ios-text-secondary)' }}
+      >
+        {section.content}
+      </p>
       {section.evidence && (
         <button
           onClick={() => setShowEvidence(!showEvidence)}
-          className="text-[11px] text-gray-500 hover:text-gray-400 flex items-center gap-1 transition-colors"
+          className="text-[11px] flex items-center gap-1 transition-colors hover:text-[var(--ios-text-secondary)]"
+          style={{ color: 'var(--ios-text-muted)' }}
         >
           {showEvidence ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
           {showEvidence ? 'Hide' : 'Show'} evidence
@@ -252,7 +326,10 @@ function SectionCard({
             exit={{ height: 0, opacity: 0 }}
             className="overflow-hidden"
           >
-            <p className="mt-2 text-[11px] text-gray-500 leading-relaxed pl-3 border-l-2 border-white/10">
+            <p
+              className="mt-2 text-[11px] leading-relaxed pl-3 border-l-2"
+              style={{ color: 'var(--ios-text-muted)', borderLeftColor: 'var(--ios-border)' }}
+            >
               {section.evidence}
             </p>
           </motion.div>
@@ -262,8 +339,13 @@ function SectionCard({
         <div className="mt-3 space-y-1">
           {section.actionItems.slice(0, 3).map((item, i) => (
             <div key={i} className="flex items-start gap-2">
-              <ArrowRight className="size-3 text-gray-500 shrink-0 mt-0.5" />
-              <p className="text-[11px] text-gray-400">{item}</p>
+              <ArrowRight
+                className="size-3 shrink-0 mt-0.5"
+                style={{ color: 'var(--ios-text-muted)' }}
+              />
+              <p className="text-[11px]" style={{ color: 'var(--ios-text-secondary)' }}>
+                {item}
+              </p>
             </div>
           ))}
         </div>
@@ -291,9 +373,10 @@ export function IntelligenceBriefing({ companyId }: IntelligenceBriefingProps) {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/ai/account-brief?companyId=${companyId}`);
-      if (!res.ok) throw new Error(`Failed to generate brief (${res.status})`);
-      const data = await res.json();
+      const { data, error: fetchError } = await fetchApi(`/api/ai/account-brief`, {
+        params: { companyId },
+      });
+      if (fetchError || !data) throw new Error(fetchError || 'Invalid response format');
       if (data.success && data.data?.brief) {
         setBrief(data.data.brief);
       } else {
@@ -314,28 +397,48 @@ export function IntelligenceBriefing({ companyId }: IntelligenceBriefingProps) {
   // Loading state
   if (loading) {
     return (
-      <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-violet-500/[0.06] via-indigo-500/[0.04] to-transparent p-6 space-y-4">
+      <div
+        className="rounded-2xl p-6 space-y-4"
+        style={{
+          background:
+            'linear-gradient(to bottom right, rgba(139,92,246,0.06), rgba(99,102,241,0.04), transparent)',
+          border: '1px solid var(--ios-border)',
+        }}
+      >
         <div className="flex items-center gap-3">
-          <div className="size-10 rounded-xl bg-white/[0.06] flex items-center justify-center">
-            <Brain className="size-5 text-violet-400 animate-pulse" />
+          <div
+            className="size-10 rounded-xl flex items-center justify-center"
+            style={{ background: 'var(--ios-bg-card)' }}
+          >
+            <Brain className="size-5 animate-pulse" style={{ color: 'var(--ios-accent)' }} />
           </div>
           <div>
-            <div className="h-4 w-48 bg-white/[0.06] rounded animate-pulse" />
-            <div className="h-3 w-32 bg-white/[0.06] rounded animate-pulse mt-1.5" />
+            <div
+              className="h-4 w-48 rounded animate-pulse"
+              style={{ background: 'var(--ios-bg-card)' }}
+            />
+            <div
+              className="h-3 w-32 rounded animate-pulse mt-1.5"
+              style={{ background: 'var(--ios-bg-card)' }}
+            />
           </div>
         </div>
         <div className="space-y-2 mt-6">
           {[1, 2, 3].map((i) => (
             <div
               key={i}
-              className="h-3 bg-white/[0.04] rounded animate-pulse"
-              style={{ width: `${90 - i * 15}%`, animationDelay: `${i * 200}ms` }}
+              className="h-3 rounded animate-pulse"
+              style={{
+                width: `${90 - i * 15}%`,
+                animationDelay: `${i * 200}ms`,
+                background: 'var(--ios-bg-card)',
+              }}
             />
           ))}
         </div>
         <div className="flex items-center gap-2 mt-4">
-          <Loader2 className="size-3.5 text-violet-400 animate-spin" />
-          <span className="text-[11px] text-violet-400/70">
+          <Loader2 className="size-3.5 animate-spin" style={{ color: 'var(--ios-accent)' }} />
+          <span className="text-[11px]" style={{ color: 'var(--ios-accent)', opacity: 0.7 }}>
             Generating intelligence briefing...
           </span>
         </div>
@@ -375,24 +478,43 @@ export function IntelligenceBriefing({ companyId }: IntelligenceBriefingProps) {
   ];
 
   return (
-    <div className="rounded-2xl border border-white/[0.06] bg-gradient-to-br from-violet-500/[0.06] via-indigo-500/[0.04] to-transparent overflow-hidden">
+    <div
+      className="rounded-2xl overflow-hidden"
+      style={{
+        background:
+          'linear-gradient(to bottom right, rgba(139,92,246,0.06), rgba(99,102,241,0.04), transparent)',
+        border: '1px solid var(--ios-border)',
+      }}
+    >
       {/* ── Header ── */}
       <div className="px-6 pt-5 pb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="size-10 rounded-xl bg-gradient-to-br from-violet-500/20 to-indigo-500/20 flex items-center justify-center border border-violet-500/20">
-              <Brain className="size-5 text-violet-400" />
+            <div
+              className="size-10 rounded-xl flex items-center justify-center"
+              style={{
+                background:
+                  'linear-gradient(to bottom right, rgba(139,92,246,0.2), rgba(99,102,241,0.2))',
+                border: '1px solid rgba(139,92,246,0.2)',
+              }}
+            >
+              <Brain className="size-5" style={{ color: 'var(--ios-accent)' }} />
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h2 className="text-[15px] font-semibold text-gray-100">
+                <h2
+                  className="text-[15px] font-semibold"
+                  style={{ color: 'var(--ios-text-primary)' }}
+                >
                   AI Intelligence Briefing
                 </h2>
                 <ConfidenceBadge confidence={brief.overallConfidence} />
               </div>
-              <p className="text-[12px] text-gray-500 mt-0.5">
+              <p className="text-[12px] mt-0.5" style={{ color: 'var(--ios-text-muted)' }}>
                 Generated by DeepMindQ Intelligence Engine
-                <span className="mx-1.5 text-gray-600">·</span>
+                <span className="mx-1.5" style={{ color: 'var(--ios-text-muted)' }}>
+                  ·
+                </span>
                 <PriorityBadge priority={brief.strategicPriority} />
               </p>
             </div>
@@ -400,7 +522,11 @@ export function IntelligenceBriefing({ companyId }: IntelligenceBriefingProps) {
           <div className="flex items-center gap-2">
             <button
               onClick={fetchBrief}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium text-gray-400 border border-white/[0.08] rounded-lg hover:bg-white/[0.06] hover:text-gray-300 transition-all"
+              className="flex items-center gap-1.5 px-3 py-1.5 text-[11px] font-medium rounded-lg transition-all hover:bg-[var(--ios-bg-card-hover)] hover:text-[var(--ios-text-secondary)]"
+              style={{
+                color: 'var(--ios-text-secondary)',
+                border: '1px solid var(--ios-border)',
+              }}
               title="Regenerate briefing"
             >
               <Sparkles className="size-3" />
@@ -410,19 +536,28 @@ export function IntelligenceBriefing({ companyId }: IntelligenceBriefingProps) {
         </div>
 
         {/* Executive Summary */}
-        <div className="mt-4 p-4 rounded-xl bg-white/[0.03] border border-white/[0.06]">
-          <p className="text-[13px] text-gray-200 leading-relaxed">{brief.executiveSummary}</p>
+        <div
+          className="mt-4 p-4 rounded-xl"
+          style={{ background: 'var(--ios-bg-card)', border: '1px solid var(--ios-border)' }}
+        >
+          <p className="text-[13px] leading-relaxed" style={{ color: 'var(--ios-text-primary)' }}>
+            {brief.executiveSummary}
+          </p>
         </div>
       </div>
 
       {/* ── Tabs ── */}
-      <div className="px-6 border-b border-white/[0.06]">
+      <div style={{ borderBottom: '1px solid var(--ios-border)' }}>
         <div className="flex gap-1">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`flex items-center gap-1.5 px-3 py-2.5 text-[12px] font-medium transition-all border-b-2 -mb-px ${activeTab === tab.key ? 'text-violet-400 border-violet-400' : 'text-gray-500 border-transparent hover:text-gray-400'}`}
+              className={`flex items-center gap-1.5 px-3 py-2.5 text-[12px] font-medium transition-all border-b-2 -mb-px ${activeTab === tab.key ? '' : 'border-transparent hover:text-[var(--ios-text-secondary)]'}`}
+              style={{
+                color: activeTab === tab.key ? 'var(--ios-accent)' : 'var(--ios-text-muted)',
+                borderBottomColor: activeTab === tab.key ? 'var(--ios-accent)' : 'transparent',
+              }}
             >
               <tab.icon className="size-3.5" />
               {tab.label}
@@ -445,7 +580,10 @@ export function IntelligenceBriefing({ companyId }: IntelligenceBriefingProps) {
               {/* Key Signals */}
               {brief.keySignals.length > 0 && (
                 <div>
-                  <h3 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <h3
+                    className="text-[12px] font-semibold uppercase tracking-wider mb-3 flex items-center gap-2"
+                    style={{ color: 'var(--ios-text-secondary)' }}
+                  >
                     <Zap className="size-3.5 text-amber-400" />
                     Key Signals ({brief.keySignals.length})
                   </h3>
@@ -482,7 +620,7 @@ export function IntelligenceBriefing({ companyId }: IntelligenceBriefingProps) {
                 <SectionCard
                   section={brief.currentState}
                   icon={Clock}
-                  accentColor="text-violet-400"
+                  accentColor="text-[var(--ios-accent)]"
                 />
               </div>
 
@@ -493,26 +631,42 @@ export function IntelligenceBriefing({ companyId }: IntelligenceBriefingProps) {
                     <Target className="size-3.5" />
                     Recommended Engagement
                   </h3>
-                  <p className="text-[13px] text-gray-300 leading-relaxed mb-2">
+                  <p
+                    className="text-[13px] leading-relaxed mb-2"
+                    style={{ color: 'var(--ios-text-secondary)' }}
+                  >
                     {brief.recommendedEngagement.approach}
                   </p>
                   <div className="grid grid-cols-2 gap-3 mt-3">
                     <div>
-                      <p className="text-[11px] text-gray-500 font-medium">Timeline</p>
-                      <p className="text-[12px] text-gray-300">
+                      <p
+                        className="text-[11px] font-medium"
+                        style={{ color: 'var(--ios-text-muted)' }}
+                      >
+                        Timeline
+                      </p>
+                      <p className="text-[12px]" style={{ color: 'var(--ios-text-secondary)' }}>
                         {brief.recommendedEngagement.timeline}
                       </p>
                     </div>
                     <div>
-                      <p className="text-[11px] text-gray-500 font-medium">First Meeting Goal</p>
-                      <p className="text-[12px] text-gray-300">
+                      <p
+                        className="text-[11px] font-medium"
+                        style={{ color: 'var(--ios-text-muted)' }}
+                      >
+                        First Meeting Goal
+                      </p>
+                      <p className="text-[12px]" style={{ color: 'var(--ios-text-secondary)' }}>
                         {brief.recommendedEngagement.firstMeetingGoal}
                       </p>
                     </div>
                   </div>
                   {brief.recommendedEngagement.successCriteria.length > 0 && (
                     <div className="mt-3">
-                      <p className="text-[11px] text-gray-500 font-medium mb-1.5">
+                      <p
+                        className="text-[11px] font-medium mb-1.5"
+                        style={{ color: 'var(--ios-text-muted)' }}
+                      >
                         Success Criteria
                       </p>
                       <div className="flex flex-wrap gap-1.5">
@@ -538,7 +692,8 @@ export function IntelligenceBriefing({ companyId }: IntelligenceBriefingProps) {
                       const el = e.currentTarget.nextElementSibling;
                       if (el) el.classList.toggle('hidden');
                     }}
-                    className="text-[11px] text-gray-500 hover:text-gray-400 flex items-center gap-1 transition-colors"
+                    className="text-[11px] flex items-center gap-1 transition-colors hover:text-[var(--ios-text-secondary)]"
+                    style={{ color: 'var(--ios-text-muted)' }}
                   >
                     <ExternalLink className="size-3" />
                     {brief.sources.length} intelligence sources
@@ -551,9 +706,10 @@ export function IntelligenceBriefing({ companyId }: IntelligenceBriefingProps) {
                         href={s.url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="block text-[11px] text-violet-400/70 hover:text-violet-400 truncate transition-colors"
+                        className="block text-[11px] truncate transition-colors hover:text-[var(--ios-accent)]"
+                        style={{ color: 'var(--ios-accent)', opacity: 0.7 }}
                       >
-                        {s.title} <span className="text-gray-600">— {s.url}</span>
+                        {s.title} <span style={{ color: 'var(--ios-text-muted)' }}>— {s.url}</span>
                       </a>
                     ))}
                   </div>
@@ -577,9 +733,14 @@ export function IntelligenceBriefing({ companyId }: IntelligenceBriefingProps) {
                 </div>
               ) : (
                 <div className="text-center py-12">
-                  <Users className="size-8 text-gray-600 mx-auto mb-3" />
-                  <p className="text-[13px] text-gray-500">No stakeholders identified yet</p>
-                  <p className="text-[11px] text-gray-600 mt-1">
+                  <Users
+                    className="size-8 mx-auto mb-3"
+                    style={{ color: 'var(--ios-text-muted)' }}
+                  />
+                  <p className="text-[13px]" style={{ color: 'var(--ios-text-muted)' }}>
+                    No stakeholders identified yet
+                  </p>
+                  <p className="text-[11px] mt-1" style={{ color: 'var(--ios-text-muted)' }}>
                     Add contacts to this company to generate stakeholder intelligence
                   </p>
                 </div>
@@ -595,8 +756,11 @@ export function IntelligenceBriefing({ companyId }: IntelligenceBriefingProps) {
               exit={{ opacity: 0, y: -8 }}
               className="space-y-4"
             >
-              <h3 className="text-[12px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-2">
-                <MessageSquare className="size-3.5 text-violet-400" />
+              <h3
+                className="text-[12px] font-semibold uppercase tracking-wider flex items-center gap-2"
+                style={{ color: 'var(--ios-text-secondary)' }}
+              >
+                <MessageSquare className="size-3.5" style={{ color: 'var(--ios-accent)' }} />
                 Conversation Starters
               </h3>
               {brief.conversationStarters.length > 0 ? (
@@ -606,7 +770,7 @@ export function IntelligenceBriefing({ companyId }: IntelligenceBriefingProps) {
                   ))}
                 </div>
               ) : (
-                <p className="text-[12px] text-gray-500 py-4">
+                <p className="text-[12px] py-4" style={{ color: 'var(--ios-text-muted)' }}>
                   No conversation starters generated. Regenerate the briefing for more data.
                 </p>
               )}

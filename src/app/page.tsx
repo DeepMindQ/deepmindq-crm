@@ -1,6 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
+import { fetchApi } from '@/lib/fetchApi';
 import { useAppStore, type ViewId } from '@/lib/store';
 import { SCREEN_MAP } from '@/lib/screen-map';
 import {
@@ -74,6 +76,7 @@ import {
   X,
   ChevronRight,
   ArrowRight,
+  Loader2,
   type LucideIcon,
 } from 'lucide-react';
 import { PageTransition, GlassPanel } from '@/components/ui/animated-components';
@@ -651,8 +654,29 @@ function AppHeader({ onOpenCommandPalette }: { onOpenCommandPalette: () => void 
 export default function Page() {
   const activeView = useAppStore((s) => s.activeView);
   const [cmdOpen, setCmdOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
   const openCmd = useCallback(() => setCmdOpen(true), []);
   const closeCmd = useCallback(() => setCmdOpen(false), []);
+
+  // Auth check
+  useEffect(() => {
+    fetchApi('/api/auth/me')
+      .then(({ error }) => {
+        if (error) {
+          // 401 or network error — treat as unauthenticated
+          setIsAuthenticated(false);
+        } else {
+          setIsAuthenticated(true);
+        }
+      })
+      .catch(() => {
+        setIsAuthenticated(false);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, []);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -664,6 +688,43 @@ export default function Page() {
     window.addEventListener('keydown', h);
     return () => window.removeEventListener('keydown', h);
   }, []);
+
+  // Loading state
+  if (isLoading) {
+    return (
+      <div
+        className="flex h-screen w-screen items-center justify-center"
+        style={{ background: 'var(--ios-bg-primary)' }}
+      >
+        <Loader2 className="size-6 animate-spin" style={{ color: 'var(--ios-accent)' }} />
+      </div>
+    );
+  }
+
+  // Unauthenticated state
+  if (!isAuthenticated) {
+    return (
+      <div
+        className="flex h-screen w-screen flex-col items-center justify-center gap-4"
+        style={{ background: 'var(--ios-bg-primary)' }}
+      >
+        <Brain className="size-12" style={{ color: 'var(--ios-accent)' }} />
+        <h1 className="text-xl font-semibold" style={{ color: 'var(--ios-text-primary)' }}>
+          DeepMindQ Intelligence OS
+        </h1>
+        <p className="text-sm" style={{ color: 'var(--ios-text-secondary)' }}>
+          Please sign in to access the Intelligence OS
+        </p>
+        <Link
+          href="/signup"
+          className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:opacity-90"
+          style={{ background: 'var(--ios-accent)' }}
+        >
+          Sign in <ArrowRight className="size-4" />
+        </Link>
+      </div>
+    );
+  }
 
   return (
     <SidebarProvider>

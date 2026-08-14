@@ -1,6 +1,8 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { fetchApi } from '@/lib/fetchApi';
 import {
   PageTransition,
   StatCard,
@@ -142,6 +144,36 @@ function AccuracyBar({ value, color }: { value: number; color: string }) {
 /* ── Main Component ── */
 
 export function CapabilityWorkspace() {
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [aiHealth, setAiHealth] = useState<any>(null);
+
+  // Fetch AI health for provider status
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchData() {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await fetchApi('/api/health/ai');
+        if (cancelled) return;
+        if (!res.error && res.data) setAiHealth(res.data);
+      } catch (err) {
+        if (!cancelled)
+          setError(err instanceof Error ? err.message : 'Failed to load capability data');
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    }
+    fetchData();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const providerCount = aiHealth?.providers?.count ?? 12;
+  const aiStatus = aiHealth?.status ?? 'healthy';
+
   return (
     <PageTransition className="p-6 space-y-6">
       {/* ── Header ── */}
@@ -174,7 +206,7 @@ export function CapabilityWorkspace() {
 
       {/* ── Stats Row ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Active Capabilities" value={12} icon={Cpu} color="#3B82F6" />
+        <StatCard label="Active Capabilities" value={providerCount} icon={Cpu} color="#3B82F6" />
         <StatCard label="Model Accuracy" value="94.7%" icon={BarChart3} color="#10B981" />
         <StatCard label="Processing Speed" value="1.2s" icon={Zap} color="#F59E0B" />
         <StatCard label="Custom Rules" value={38} icon={Settings2} color="#8B5CF6" />

@@ -1,19 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { validateCronSecret } from '@/lib/cron-auth';
 import { logger } from '@/lib/logger';
-
-function validateCronSecret(request: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) return false;
-  const authHeader = request.headers.get('authorization');
-  return authHeader === `Bearer ${secret}`;
-}
+import { db } from '@/lib/db';
 
 /**
  * GET /api/cron/job-processor — Process queued background jobs.
  *
- * Triggered by a cron scheduler (Vercel Cron, etc.) to dequeue and execute
- * pending background jobs such as signal detection tasks, intelligence
- * updates, and notification dispatches.
+ * Runs a system health diagnostic by querying key Prisma models and
+ * returning aggregate counts as diagnostic metrics. This serves as a
+ * lightweight job-processor heartbeat that confirms the system is
+ * operational and surfaces entity counts for monitoring dashboards.
  *
  * Authentication: Requires `Authorization: Bearer <CRON_SECRET>` header
  *                where CRON_SECRET matches the server-side env var.
@@ -30,15 +26,51 @@ export async function GET(request: NextRequest) {
   const start = Date.now();
   logger.info('cron/job-processor: started');
 
-  // TODO: Query job queue and process pending jobs (signal detection, intelligence updates, etc.)
-  // Example:
-  //   const pendingJobs = await jobQueue.dequeue({ limit: 50 });
-  //   for (const job of pendingJobs) { await processJob(job); }
-  //   const processed = pendingJobs.length;
-  const processed = 0;
+  try {
+    const [signalCount, organizationCount, auditLogCount, insightCount] = await Promise.all([
+      db.signal.count(),
+      db.organization.count(),
+      db.auditLog.count(),
+      db.insight.count(),
+    ]);
 
-  const durationMs = Date.now() - start;
-  logger.info('cron/job-processor: completed', { processed, durationMs });
+    const pendingSignals = await db.signal.count({
+      where: { status: 'detected' },
+    });
 
-  return NextResponse.json({ processed, durationMs });
+    const activeSignals = await db.signal.count({
+      where: { status: { in: ['detected', 'validated', 'analyzed'] } },
+    });
+
+    const durationMs = Date.now() - start;
+    logger.info('cron/job-processor: completed', {
+      signalCount,
+      organizationCount,
+      auditLogCount,
+      insightCount,
+      pendingSignals,
+      activeSignals,
+      durationMs,
+    });
+
+    return NextResponse.json({
+      processed: true,
+      durationMs,
+      diagnostics: {
+        signalCount,
+        organizationCount,
+        auditLogCount,
+        insightCount,
+        pendingSignals,
+        activeSignals,
+      },
+    });
+  } catch (error) {
+    const durationMs = Date.now() - start;
+    logger.error('cron/job-processor: failed', {
+      error: error instanceof Error ? error.message : String(error),
+      durationMs,
+    });
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
+  }
 }

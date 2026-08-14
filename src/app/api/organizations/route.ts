@@ -1,6 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+
+const organizationsQuerySchema = z.object({
+  search: z.string().max(200).default(''),
+  status: z.string().default('active'),
+  limit: z.coerce.number().int().min(1).max(200).default(50),
+  page: z.coerce.number().int().min(1).default(1),
+});
 
 export async function GET(request: NextRequest) {
   try {
@@ -8,10 +16,11 @@ export async function GET(request: NextRequest) {
     if (errorResponse) return errorResponse;
 
     const { searchParams } = new URL(request.url);
-    const page = parseInt(searchParams.get('page') || '1', 10);
-    const limit = Math.min(parseInt(searchParams.get('limit') || '50', 10), 200);
-    const search = searchParams.get('search') || '';
-    const status = searchParams.get('status') || 'active';
+    const parsed = organizationsQuerySchema.safeParse(Object.fromEntries(searchParams));
+    if (!parsed.success) {
+      return NextResponse.json({ error: 'Invalid parameters', details: parsed.error.flatten() }, { status: 400 });
+    }
+    const { page, limit, search, status } = parsed.data;
 
     const skip = (page - 1) * limit;
 

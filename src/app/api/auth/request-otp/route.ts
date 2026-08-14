@@ -1,10 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { tokens } from '@/lib/design-tokens';
 import { otpRateLimit } from '@/lib/auth-helpers';
 import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
 import { encryptUserFields } from '@/lib/encryption';
 import { getBrandName } from '@/lib/brand-helper';
+
+// ─── Zod Input Validation ────────────────────────────────────────
+
+const requestOtpSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+});
 
 // ═══════════════════════════════════════════════════════════════
 // Single-User OTP Login — DeepMindQ Enterprise
@@ -39,11 +46,14 @@ function generateOtpCode(): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const email = (body.email || '').trim().toLowerCase();
-
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: 'Please enter a valid email address' }, { status: 400 });
+    const parsed = requestOtpSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Please enter a valid email address', details: parsed.error.flatten() },
+        { status: 400 },
+      );
     }
+    const email = parsed.data.email.trim().toLowerCase();
 
     // Rate limit OTP requests
     const rateLimitResult = otpRateLimit(email);

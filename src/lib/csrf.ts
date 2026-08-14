@@ -21,8 +21,16 @@
 const CSRF_TOKEN_HEADER = 'x-csrf-token'
 const CSRF_COOKIE_NAME = 'csrf-token'
 
-// CSRF secret — from env or deterministic fallback for dev (Edge-compatible)
-const CSRF_SECRET = process.env.CSRF_SECRET || 'dmq-csrf-fallback-secret-v1'
+// CSRF secret — MUST be set in production via CSRF_SECRET env var
+const CSRF_SECRET = process.env.CSRF_SECRET || (() => {
+  if (process.env.NODE_ENV === 'production') {
+    throw new Error('CSRF_SECRET environment variable is required in production');
+  }
+  // Dev-only fallback: generates a stable random value per process
+  const bytes = new Uint8Array(32);
+  crypto.getRandomValues(bytes);
+  return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+})();
 
 /**
  * Derive a deterministic CSRF token from a session token using SHA-256.

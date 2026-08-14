@@ -1,4 +1,3 @@
-// @ts-nocheck — Legacy CRM session utility; references removed Prisma fields (userAgent, phone, .user on sessions)
 /* ═══════════════════════════════════════════════════
    Session Management Utility
    
@@ -15,15 +14,10 @@
 
 import { db } from './db';
 import { cookies } from 'next/headers';
-import { NextRequest } from 'next/server';
 import { logger } from './logger';
 import {
   shouldRotateSession,
   enforceSessionLimit,
-  assessLoginSecurity,
-  parseUserAgent,
-  generateDeviceFingerprint,
-  recordLoginEvent,
 } from './session-manager';
 
 const SESSION_COOKIE_NAME = 'dmq_session';
@@ -67,8 +61,6 @@ export interface CreateSessionResult {
  */
 export async function createSession(
   userId: string,
-  userAgent?: string,
-  ipAddress?: string,
 ): Promise<CreateSessionResult> {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
@@ -88,8 +80,6 @@ export async function createSession(
     data: {
       userId,
       token: tokenHash,
-      userAgent: userAgent || null,
-      ipAddress: ipAddress || null,
       expiresAt,
     },
   });
@@ -118,12 +108,7 @@ export interface SessionUser {
   id: string;
   email: string;
   name: string | null;
-  phone: string | null;
-  company: string | null;
-  designation: string | null;
   role: string;
-  hasPassword: boolean;
-  avatarUrl: string | null;
 }
 
 /**
@@ -150,19 +135,13 @@ export async function getCurrentSession(): Promise<SessionUser | null> {
             id: true,
             email: true,
             name: true,
-            phone: true,
-            company: true,
-            designation: true,
             role: true,
-            hasPassword: true,
-            avatarUrl: true,
-            isActive: true,
           },
         },
       },
     });
 
-    if (!session || session.expiresAt < new Date() || !session.user.isActive) {
+    if (!session || session.expiresAt < new Date()) {
       // Clean up expired/invalid session
       if (session) {
         await db.session.delete({ where: { id: session.id } });
@@ -196,12 +175,7 @@ export async function getCurrentSession(): Promise<SessionUser | null> {
       id: session.user.id,
       email: session.user.email,
       name: session.user.name,
-      phone: session.user.phone,
-      company: session.user.company,
-      designation: session.user.designation,
       role: session.user.role,
-      hasPassword: session.user.hasPassword,
-      avatarUrl: session.user.avatarUrl,
     };
   } catch {
     return null;
@@ -255,19 +229,13 @@ export async function validateSessionToken(token: string): Promise<SessionUser |
             id: true,
             email: true,
             name: true,
-            phone: true,
-            company: true,
-            designation: true,
             role: true,
-            hasPassword: true,
-            avatarUrl: true,
-            isActive: true,
           },
         },
       },
     });
 
-    if (!session || session.expiresAt < new Date() || !session.user.isActive) {
+    if (!session || session.expiresAt < new Date()) {
       return null;
     }
 
@@ -275,12 +243,7 @@ export async function validateSessionToken(token: string): Promise<SessionUser |
       id: session.user.id,
       email: session.user.email,
       name: session.user.name,
-      phone: session.user.phone,
-      company: session.user.company,
-      designation: session.user.designation,
       role: session.user.role,
-      hasPassword: session.user.hasPassword,
-      avatarUrl: session.user.avatarUrl,
     };
   } catch {
     return null;

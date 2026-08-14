@@ -1,11 +1,10 @@
-// @ts-nocheck — Depends on stub modules (ai-config, ai-copilot, token-counter, zai-config)
 /**
  * Unified LLM Client — The SINGLE entry point for all AI calls in DeepMindQ.
  *
  * Phase 1: Merges 3 competing callers into one module:
- *   - ai-caller.ts  → callAI, webSearch (Z.ai SDK), parallelWebSearch, getZAI
- *   - zai-helpers.ts → callLLM, webSearch (Tavily), extractJSON, tavilyAIAnswer
- *   - llm-helper.ts  → revenueLLMCall, generateExecutiveSummary, generateEngagementApproach
+ *   - ai-caller.ts  -> callAI, webSearch (Z.ai SDK), parallelWebSearch, getZAI
+ *   - zai-helpers.ts -> callLLM, webSearch (Tavily), extractJSON, tavilyAIAnswer
+ *   - llm-helper.ts  -> revenueLLMCall, generateExecutiveSummary, generateEngagementApproach
  *
  * DESIGN PRINCIPLES:
  *   1. Every function signature from all 3 callers is preserved exactly.
@@ -21,104 +20,104 @@
  *   - Use revenueLLMCall for internal narrative generation (never throws, returns '').
  */
 
-import { getLLMChain, getSearchProvider } from '@/lib/ai-config'
-import { runQualityGates, formatQualityReportForLog } from '@/lib/ai-copilot/quality-gates'
-import type { QualityReport } from '@/lib/ai-copilot/quality-gates'
-import { logger } from '@/lib/logger'
-import { countTokens } from '@/lib/token-counter'
+import { getLLMChain, getSearchProvider } from '@/lib/ai-config';
+import { runQualityGates, formatQualityReportForLog } from '@/lib/ai-copilot/quality-gates';
+import type { QualityReport } from '@/lib/ai-copilot/quality-gates';
+import { logger } from '@/lib/logger';
+import { countTokens } from '@/lib/token-counter';
 
 // ─── Type Exports (from zai-helpers.ts — consumed by 20+ files) ─────────────
 
 export interface WebSearchResult {
-  title: string
-  url: string
-  snippet: string
-  name?: string
-  host_name?: string
-  description?: string
-  date?: string
-  rank?: number
-  favicon?: string
+  title: string;
+  url: string;
+  snippet: string;
+  name?: string;
+  host_name?: string;
+  description?: string;
+  date?: string;
+  rank?: number;
+  favicon?: string;
 }
 
 export interface KeyPerson {
-  name: string
-  title: string
-  department?: string
-  linkedInUrl?: string
-  source?: string
+  name: string;
+  title: string;
+  department?: string;
+  linkedInUrl?: string;
+  source?: string;
 }
 
 export interface NewsSignal {
-  title: string
-  snippet: string
-  source: string
-  url: string
-  date?: string
-  signalType: 'funding' | 'hiring' | 'leadership' | 'expansion' | 'technology' | 'product' | 'partnership' | 'other'
-  impact: 'high' | 'medium' | 'low'
+  title: string;
+  snippet: string;
+  source: string;
+  url: string;
+  date?: string;
+  signalType: 'funding' | 'hiring' | 'leadership' | 'expansion' | 'technology' | 'product' | 'partnership' | 'other';
+  impact: 'high' | 'medium' | 'low';
 }
 
 export interface CompanyResearch {
-  businessOverview: string
-  revenue: string
-  employeeCount: string
-  fundingStage: string
-  techStack: string
-  socialProfiles: Record<string, string>
-  keyPeople: KeyPerson[]
-  recentNews: NewsSignal[]
-  industry: string
-  website: string
-  confidence: number
+  businessOverview: string;
+  revenue: string;
+  employeeCount: string;
+  fundingStage: string;
+  techStack: string;
+  socialProfiles: Record<string, string>;
+  keyPeople: KeyPerson[];
+  recentNews: NewsSignal[];
+  industry: string;
+  website: string;
+  confidence: number;
 }
 
 // ─── Z.ai SDK Singleton (from ai-caller.ts) ──────────────────────────────
 
-let _zaiInstance: any = null
-let _zaiCreatedAt = 0
-const SDK_INSTANCE_TTL_MS = 5 * 60 * 1000
+let _zaiInstance: any = null;
+let _zaiCreatedAt = 0;
+const SDK_INSTANCE_TTL_MS = 5 * 60 * 1000;
 
 export async function getZAI(): Promise<any> {
-  const now = Date.now()
-  if (_zaiInstance && (now - _zaiCreatedAt) < SDK_INSTANCE_TTL_MS) {
-    return _zaiInstance
+  const now = Date.now();
+  if (_zaiInstance && now - _zaiCreatedAt < SDK_INSTANCE_TTL_MS) {
+    return _zaiInstance;
   }
-  const { ensureZaiConfig } = await import('@/lib/zai-config')
-  await ensureZaiConfig()
-  const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default)
-  _zaiInstance = await ZAI.create()
-  _zaiCreatedAt = now
-  return _zaiInstance
+  const { ensureZaiConfig } = await import('@/lib/zai-config');
+  await ensureZaiConfig();
+  const ZAI = await import('z-ai-web-dev-sdk').then((m) => m.default);
+  _zaiInstance = await ZAI.create();
+  _zaiCreatedAt = now;
+  return _zaiInstance;
 }
 
 export function resetZAI(): void {
-  _zaiInstance = null
-  _zaiCreatedAt = 0
+  _zaiInstance = null;
+  _zaiCreatedAt = 0;
 }
 
 // ─── callAI — Z.ai SDK with quality gates (from ai-caller.ts) ─────────────
 
 interface CallAIOptions {
-  systemPrompt: string
-  userPrompt: string
-  feature: string
-  companyId?: string
-  contactId?: string
-  maxRetries?: number
-  timeoutMs?: number
-  temperature?: number
-  runQualityCheck?: boolean
-  previousVerdict?: boolean
+  systemPrompt: string;
+  userPrompt: string;
+  feature: string;
+  companyId?: string;
+  contactId?: string;
+  maxRetries?: number;
+  timeoutMs?: number;
+  temperature?: number;
+  runQualityCheck?: boolean;
+  previousVerdict?: boolean;
 }
 
 interface CallAIResult {
-  raw: string
-  parsed: Record<string, unknown> | null
-  quality?: QualityReport
-  success: boolean
-  error?: string
-  latencyMs: number
+  raw: string;
+  parsed: Record<string, unknown> | null;
+  quality?: QualityReport;
+  success: boolean;
+  error?: string;
+  latencyMs: number;
 }
 
 export async function callAI(options: CallAIOptions): Promise<CallAIResult> {
@@ -131,15 +130,14 @@ export async function callAI(options: CallAIOptions): Promise<CallAIResult> {
     maxRetries = 2,
     timeoutMs = 60000,
     runQualityCheck = true,
-    previousVerdict,
-  } = options
+  } = options;
 
-  const startTime = Date.now()
-  let lastError = ''
+  const startTime = Date.now();
+  let lastError = '';
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      const zai = await getZAI()
+      const zai = await getZAI();
 
       const completion = await Promise.race([
         zai.chat.completions.create({
@@ -150,55 +148,55 @@ export async function callAI(options: CallAIOptions): Promise<CallAIResult> {
           thinking: { type: 'disabled' },
         }),
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('LLM call timed out')), timeoutMs)
+          setTimeout(() => reject(new Error('LLM call timed out')), timeoutMs),
         ),
-      ])
+      ]);
 
-      const raw = completion.choices?.[0]?.message?.content ?? ''
-      const latencyMs = Date.now() - startTime
+      const raw = completion.choices?.[0]?.message?.content ?? '';
+      const latencyMs = Date.now() - startTime;
 
       // Parse JSON if possible
-      let parsed: Record<string, unknown> | null = null
+      let parsed: Record<string, unknown> | null = null;
       try {
-        const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
-        const jsonMatch = cleaned.match(/\{[\s\S]*\}/)
+        const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+        const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
-          parsed = JSON.parse(jsonMatch[0])
+          parsed = JSON.parse(jsonMatch[0]);
         }
       } catch {
         // Not JSON — that's ok
       }
 
       // Run quality gates on parsed output
-      let quality: QualityReport | undefined
+      let quality: QualityReport | undefined;
       if (runQualityCheck && parsed) {
-        quality = runQualityGates(parsed, previousVerdict)
-        logger.info(formatQualityReportForLog(quality))
-        if (quality?.overallStatus === 'fail') {
-          logger.warn(`[llm-client] Quality gate FAILED for feature="${feature}". Score: ${quality?.overallScore}`)
+        quality = await runQualityGates(JSON.stringify(parsed), '');
+        logger.info(formatQualityReportForLog(quality));
+        if (!quality.passed) {
+          logger.warn(`[llm-client] Quality gate FAILED for feature="${feature}". Score: ${quality.score}`);
         }
       }
 
       // Track usage (fire and forget)
-      trackUsage(feature, companyId, contactId, raw, latencyMs, quality).catch(() => {})
+      trackUsage(feature, companyId, contactId, raw, latencyMs, quality).catch(() => {});
 
-      return { raw, parsed, quality, success: true, latencyMs }
+      return { raw, parsed, quality, success: true, latencyMs };
     } catch (err) {
-      lastError = err instanceof Error ? err.message : String(err)
-      logger.error(`[llm-client] callAI attempt ${attempt + 1}/${maxRetries + 1} failed for feature="${feature}": ${lastError}`)
+      lastError = err instanceof Error ? err.message : String(err);
+      logger.error(`[llm-client] callAI attempt ${attempt + 1}/${maxRetries + 1} failed for feature="${feature}": ${lastError}`);
 
       if (attempt < maxRetries) {
-        const backoffMs = Math.min(1000 * Math.pow(2, attempt), 5000)
-        await new Promise(resolve => setTimeout(resolve, backoffMs))
-        resetZAI()
+        const backoffMs = Math.min(1000 * Math.pow(2, attempt), 5000);
+        await new Promise((resolve) => setTimeout(resolve, backoffMs));
+        resetZAI();
       }
     }
   }
 
-  const latencyMs = Date.now() - startTime
-  trackUsage(feature, companyId, contactId, '', latencyMs, undefined, lastError).catch(() => {})
+  const latencyMs = Date.now() - startTime;
+  trackUsage(feature, companyId, contactId, '', latencyMs, undefined, lastError).catch(() => {});
 
-  return { raw: '', parsed: null, success: false, error: lastError, latencyMs }
+  return { raw: '', parsed: null, success: false, error: lastError, latencyMs };
 }
 
 // ─── Token Usage Type ─────────────────────────────────────────────────
@@ -211,7 +209,7 @@ export interface TokenUsage {
 
 // ─── callLLM — Direct provider chain (from zai-helpers.ts) ───────────────
 
-const GEMINI_FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro']
+const GEMINI_FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro'];
 
 interface LLMProviderResult {
   text: string;
@@ -230,7 +228,7 @@ async function callLLMProvider(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
+      Authorization: `Bearer ${apiKey}`,
     },
     body: JSON.stringify({
       model,
@@ -238,28 +236,39 @@ async function callLLMProvider(
       temperature,
       max_tokens: maxTokens,
     }),
-  })
+  });
 
   if (!response.ok) {
-    const errorText = await response.text()
-    throw new Error(`${model}: ${response.status} — ${errorText.slice(0, 150)}`)
+    const errorText = await response.text();
+    throw new Error(`${model}: ${response.status} — ${errorText.slice(0, 150)}`);
   }
 
-  const data = await response.json()
-  const text = data.choices?.[0]?.message?.content ?? ''
+  const data = await response.json();
+  const text = data.choices?.[0]?.message?.content ?? '';
 
   // Extract usage from provider response if available
-  let usage: TokenUsage | null = null
+  let usage: TokenUsage | null = null;
   if (data.usage) {
-    const u = data.usage
+    const u = data.usage;
     usage = {
       promptTokens: u.prompt_tokens ?? 0,
       completionTokens: u.completion_tokens ?? 0,
       totalTokens: u.total_tokens ?? (u.prompt_tokens ?? 0) + (u.completion_tokens ?? 0),
-    }
+    };
   }
 
-  return { text, usage }
+  return { text, usage };
+}
+
+/**
+ * Type-safe wrapper around the ai-config LLM chain.
+ * Each provider in the chain must expose baseUrl, apiKey, model, label.
+ */
+interface LLMChainEntry {
+  baseUrl: string;
+  apiKey: string;
+  model: string;
+  label: string;
 }
 
 export async function callLLM(
@@ -267,8 +276,8 @@ export async function callLLM(
   userPrompt: string,
   options?: { temperature?: number; maxTokens?: number },
 ): Promise<string> {
-  const result = await callLLMWithUsage(systemPrompt, userPrompt, options)
-  return result.text
+  const result = await callLLMWithUsage(systemPrompt, userPrompt, options);
+  return result.text;
 }
 
 /**
@@ -280,70 +289,63 @@ export async function callLLMWithUsage(
   userPrompt: string,
   options?: { temperature?: number; maxTokens?: number },
 ): Promise<{ text: string; usage: TokenUsage | null }> {
-  const temperature = options?.temperature ?? 0.7
-  const maxTokens = options?.maxTokens ?? 8192
+  const temperature = options?.temperature ?? 0.7;
+  const maxTokens = options?.maxTokens ?? 8192;
 
   const messages = [
     { role: 'system', content: systemPrompt },
     { role: 'user', content: userPrompt },
-  ]
+  ];
 
-  const chain = await getLLMChain()
-  const errors: string[] = []
+  const chain = (await getLLMChain()) as LLMChainEntry[] | null;
+  const errors: string[] = [];
 
-  for (const provider of chain) {
-    try {
-      if (provider.label.includes('Gemini')) {
-        for (const model of GEMINI_FALLBACK_MODELS) {
-          try {
-            const result = await callLLMProvider(provider.baseUrl, provider.apiKey, model, messages, temperature, maxTokens)
-            if (result.text) return result
-          } catch (err) {
-            errors.push(`Gemini/${model}: ${err instanceof Error ? err.message : err}`)
+  if (chain && Array.isArray(chain) && chain.length > 0) {
+    for (const provider of chain) {
+      try {
+        if (provider.label.includes('Gemini')) {
+          for (const model of GEMINI_FALLBACK_MODELS) {
+            try {
+              const result = await callLLMProvider(provider.baseUrl, provider.apiKey, model, messages, temperature, maxTokens);
+              if (result.text) return result;
+            } catch (err) {
+              errors.push(`Gemini/${model}: ${err instanceof Error ? err.message : String(err)}`);
+            }
           }
+          continue;
         }
-        continue
+        const result = await callLLMProvider(provider.baseUrl, provider.apiKey, provider.model, messages, temperature, maxTokens);
+        return result;
+      } catch (err) {
+        errors.push(`${provider.label}: ${err instanceof Error ? err.message : String(err)}`);
       }
-      const result = await callLLMProvider(provider.baseUrl, provider.apiKey, provider.model, messages, temperature, maxTokens)
-      return result
-    } catch (err) {
-      errors.push(`${provider.label}: ${err instanceof Error ? err.message : err}`)
     }
   }
 
   // ── Z.ai SDK ULTIMATE FALLBACK ──
-  // When no external providers have keys, use the built-in z-ai-web-dev-sdk.
-  // This ensures AI ALWAYS works — even with zero configuration.
   try {
-    logger.info('[llm-client] No external providers available — falling back to Z.ai SDK')
-    const text = await callZaiSDK(systemPrompt, userPrompt, temperature, maxTokens)
-    if (text) return { text, usage: null }
+    logger.info('[llm-client] No external providers available — falling back to Z.ai SDK');
+    const text = await callZaiSDK(systemPrompt, userPrompt, temperature, maxTokens);
+    if (text) return { text, usage: null };
   } catch (zaiErr) {
-    logger.warn('[llm-client] Z.ai SDK fallback also failed:', { error: zaiErr instanceof Error ? zaiErr.message : zaiErr })
+    logger.warn('[llm-client] Z.ai SDK fallback also failed:', { error: zaiErr instanceof Error ? zaiErr.message : String(zaiErr) });
   }
 
   const msg = errors.length > 0
-    ? `All LLM providers failed:\n${errors.map(e => '  - ' + e).join('\n')}\nZ.ai SDK fallback also failed.`
-    : 'No LLM providers configured. Add API keys in Settings > AI Providers.'
-  throw new Error(msg)
+    ? `All LLM providers failed:\n${errors.map((e) => '  - ' + e).join('\n')}\nZ.ai SDK fallback also failed.`
+    : 'No LLM providers configured. Add API keys in Settings > AI Providers.';
+  throw new Error(msg);
 }
 
 // ─── Z.ai SDK Fallback Call ─────────────────────────────────────────────
 
-/**
- * Call the z-ai-web-dev-sdk directly. This is the ULTIMATE fallback that
- * ensures AI ALWAYS works even with zero external provider API keys.
- *
- * The z-ai-web-dev-sdk is pre-installed in the DeepMindQ environment and
- * requires NO configuration — it works out of the box.
- */
 async function callZaiSDK(
   systemPrompt: string,
   userPrompt: string,
   temperature: number = 0.7,
   maxTokens: number = 4096,
 ): Promise<string> {
-  const zai = await getZAI()
+  const zai = await getZAI();
   const completion = await zai.chat.completions.create({
     messages: [
       { role: 'system', content: systemPrompt },
@@ -352,8 +354,8 @@ async function callZaiSDK(
     thinking: { type: 'disabled' },
     temperature,
     max_tokens: maxTokens,
-  })
-  return completion.choices?.[0]?.message?.content ?? ''
+  });
+  return completion.choices?.[0]?.message?.content ?? '';
 }
 
 // ─── Revenue LLM Call — never throws, returns '' (from llm-helper.ts) ────
@@ -368,35 +370,44 @@ async function callProviderForRevenue(
     method: 'POST',
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
     body: JSON.stringify({ model, messages, temperature: 0.5, max_tokens: 2048 }),
-  })
-  if (!res.ok) throw new Error(`${model}: ${res.status}`)
-  const data = await res.json()
-  return data.choices?.[0]?.message?.content ?? ''
+  });
+  if (!res.ok) throw new Error(`${model}: ${res.status}`);
+  const data = await res.json();
+  return data.choices?.[0]?.message?.content ?? '';
 }
 
 export async function revenueLLMCall(systemPrompt: string, userPrompt: string): Promise<string> {
   try {
-    const chain = await getLLMChain()
+    const chain = (await getLLMChain()) as LLMChainEntry[] | null;
     const messages = [
       { role: 'system', content: systemPrompt },
       { role: 'user', content: userPrompt },
-    ]
-    for (const provider of chain) {
-      try {
-        if (provider.label.includes('Gemini')) {
-          for (const m of GEMINI_FALLBACK_MODELS) {
-            try { return await callProviderForRevenue(provider.baseUrl, provider.apiKey, m, messages) }
-            catch { continue }
+    ];
+
+    if (chain && Array.isArray(chain) && chain.length > 0) {
+      for (const provider of chain) {
+        try {
+          if (provider.label.includes('Gemini')) {
+            for (const m of GEMINI_FALLBACK_MODELS) {
+              try {
+                return await callProviderForRevenue(provider.baseUrl, provider.apiKey, m, messages);
+              } catch {
+                continue;
+              }
+            }
+            continue;
           }
-          continue
+          return await callProviderForRevenue(provider.baseUrl, provider.apiKey, provider.model, messages);
+        } catch {
+          continue;
         }
-        return await callProviderForRevenue(provider.baseUrl, provider.apiKey, provider.model, messages)
-      } catch { continue }
+      }
     }
+
     // Z.ai SDK fallback — ensures revenue intelligence works with zero config
-    return await callZaiSDK(systemPrompt, userPrompt, 0.5, 2048)
+    return await callZaiSDK(systemPrompt, userPrompt, 0.5, 2048);
   } catch {
-    return ''
+    return '';
   }
 }
 
@@ -407,7 +418,7 @@ CRITICAL RULES:
 - Do not add any facts not present in the input.
 - Write in a professional, executive tone (2-4 sentences).
 - Focus on what the facts mean for business opportunity.
-- Do not mention confidence scores or technical details in the narrative.`
+- Do not mention confidence scores or technical details in the narrative.`;
 
 const ENGAGEMENT_SYSTEM = `You are a revenue intelligence analyst. Convert STRUCTURED FACTS about a company's signals into a recommended engagement approach.
 
@@ -417,32 +428,32 @@ CRITICAL RULES:
 - Be specific about WHAT to discuss, not WHO to contact (no specific names/titles).
 - Write 1-3 sentences, action-oriented.
 - Good: "Engage technology leadership to discuss AI modernization opportunities."
-- Bad: "Contact CIO John Smith at jsmith@company.com."`
+- Bad: "Contact CIO John Smith at jsmith@company.com."`;
 
 export async function generateExecutiveSummary(structuredContext: string): Promise<string> {
-  return revenueLLMCall(BRIEF_SYSTEM, structuredContext)
+  return revenueLLMCall(BRIEF_SYSTEM, structuredContext);
 }
 
 export async function generateEngagementApproach(structuredContext: string): Promise<string> {
-  return revenueLLMCall(ENGAGEMENT_SYSTEM, structuredContext)
+  return revenueLLMCall(ENGAGEMENT_SYSTEM, structuredContext);
 }
 
 // ─── Web Search — Tavily (from zai-helpers.ts) ───────────────────────────
 
 interface TavilyResult {
-  title: string
-  url: string
-  content: string
-  score: number
-  raw_content?: string
-  answer?: string
+  title: string;
+  url: string;
+  content: string;
+  score: number;
+  raw_content?: string;
+  answer?: string;
 }
 
-const TAVILY_MAX_RETRIES = 3
-const TAVILY_BASE_DELAY_MS = 1000
+const TAVILY_MAX_RETRIES = 3;
+const TAVILY_BASE_DELAY_MS = 1000;
 
 async function tavilyFetchWithBackoff(body: Record<string, unknown>): Promise<Response | null> {
-  let lastError: Error | null = null
+  let lastError: Error | null = null;
 
   for (let attempt = 0; attempt < TAVILY_MAX_RETRIES; attempt++) {
     try {
@@ -450,34 +461,43 @@ async function tavilyFetchWithBackoff(body: Record<string, unknown>): Promise<Re
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
-      })
+      });
 
-      if (response.ok) return response
+      if (response.ok) return response;
 
       if (response.status === 429 || response.status >= 500) {
-        const delay = TAVILY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 200
-        logger.warn(`[tavily] ${response.status} on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}, retrying in ${Math.round(delay)}ms`)
-        await new Promise(resolve => setTimeout(resolve, delay))
-        continue
+        const delay = TAVILY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 200;
+        logger.warn(`[tavily] ${response.status} on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}, retrying in ${Math.round(delay)}ms`);
+        await new Promise((resolve) => setTimeout(resolve, delay));
+        continue;
       }
 
-      return response
+      return response;
     } catch (err) {
-      lastError = err instanceof Error ? err : new Error(String(err))
-      const delay = TAVILY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 200
-      logger.warn(`[tavily] network error on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}: ${lastError.message}, retrying in ${Math.round(delay)}ms`)
-      await new Promise(resolve => setTimeout(resolve, delay))
+      lastError = err instanceof Error ? err : new Error(String(err));
+      const delay = TAVILY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 200;
+      logger.warn(`[tavily] network error on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}: ${lastError.message}, retrying in ${Math.round(delay)}ms`);
+      await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
 
-  return null
+  return null;
+}
+
+interface SearchProviderConfig {
+  apiKey: string;
+  provider: string;
 }
 
 export async function webSearch(query: string, num = 10): Promise<WebSearchResult[]> {
-  const searchProvider = await getSearchProvider()
-  if (!searchProvider) {
-    logger.error('[webSearch] No search provider configured. Add Tavily API key in Settings > AI Providers.')
-    return []
+  const provider = (await getSearchProvider()) as SearchProviderConfig | string | null;
+  const searchProvider = typeof provider === 'object' && provider !== null && 'apiKey' in provider
+    ? provider
+    : null;
+
+  if (!searchProvider || !searchProvider.apiKey) {
+    logger.error('[webSearch] No search provider configured. Add Tavily API key in Settings > AI Providers.');
+    return [];
   }
 
   try {
@@ -487,56 +507,60 @@ export async function webSearch(query: string, num = 10): Promise<WebSearchResul
       max_results: Math.min(num, 10),
       search_depth: 'basic',
       include_answer: false,
-    })
+    });
 
     if (!response) {
-      logger.error('[webSearch] Tavily unavailable after retries')
-      return []
+      logger.error('[webSearch] Tavily unavailable after retries');
+      return [];
     }
     if (!response.ok) {
-      const errorText = await response.text()
-      logger.error('[webSearch] Tavily API error:', { response: response.status, errorText: errorText })
-      return []
+      const errorText = await response.text();
+      logger.error('[webSearch] Tavily API error:', { response: response.status, errorText });
+      return [];
     }
 
-    const data = await response.json()
-    const results: TavilyResult[] = data.results || []
+    const data = await response.json();
+    const results: TavilyResult[] = data.results || [];
 
-    return results.slice(0, num).map((r, i) => {
-      let hostName = ''
-      try { hostName = new URL(r.url).hostname } catch { /* ignore */ }
+    return results
+      .slice(0, num)
+      .map((r, i) => {
+        let hostName = '';
+        try {
+          hostName = new URL(r.url).hostname;
+        } catch {
+          /* ignore */
+        }
 
-      return {
-        title: r.title || '',
-        url: r.url || '',
-        snippet: r.content || '',
-        name: r.title || '',
-        host_name: hostName,
-        description: r.content || '',
-        date: '',
-        rank: i,
-        favicon: '',
-      }
-    }).filter(r => r.title || r.url || r.snippet)
+        return {
+          title: r.title || '',
+          url: r.url || '',
+          snippet: r.content || '',
+          name: r.title || '',
+          host_name: hostName,
+          description: r.content || '',
+          date: '',
+          rank: i,
+          favicon: '',
+        };
+      })
+      .filter((r) => r.title || r.url || r.snippet);
   } catch (err) {
-    logger.error('[webSearch] failed:', { error: err instanceof Error ? err.message : err })
-    return []
+    logger.error('[webSearch] failed:', { error: err instanceof Error ? err.message : err });
+    return [];
   }
 }
 
 // ─── Web Search — Z.ai SDK (from ai-caller.ts — parallelWebSearch) ───────
 
-/**
- * Search the web using the ZAI SDK. Returns deduplicated results.
- */
 export async function sdkWebSearch(query: string, num = 5): Promise<WebSearchResult[]> {
-  const zai = await getZAI()
+  const zai = await getZAI();
   try {
-    const results = await zai.functions.invoke('web_search', { query, num })
-    const items = results?.results ?? results?.data ?? results
-    if (!Array.isArray(items)) return []
+    const results = await zai.functions.invoke('web_search', { query, num });
+    const items = results?.results ?? results?.data ?? results;
+    if (!Array.isArray(items)) return [];
 
-    const seen = new Set<string>()
+    const seen = new Set<string>();
     return items
       .filter((r: Record<string, unknown>) => r.title || r.url)
       .map((r: Record<string, unknown>) => ({
@@ -544,15 +568,15 @@ export async function sdkWebSearch(query: string, num = 5): Promise<WebSearchRes
         url: String(r.url ?? ''),
         snippet: String(r.snippet ?? r.description ?? r.content ?? ''),
       }))
-      .filter(r => {
-        if (seen.has(r.url)) return false
-        seen.add(r.url)
-        return true
-      })
+      .filter((r) => {
+        if (seen.has(r.url)) return false;
+        seen.add(r.url);
+        return true;
+      });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : String(err)
-    logger.error(`[llm-client] SDK web search failed for "${query}": ${msg}`)
-    return []
+    const msg = err instanceof Error ? err.message : String(err);
+    logger.error(`[llm-client] SDK web search failed for "${query}": ${msg}`);
+    return [];
   }
 }
 
@@ -560,27 +584,30 @@ export async function sdkWebSearch(query: string, num = 5): Promise<WebSearchRes
  * Run multiple web searches in parallel via Z.ai SDK and deduplicate by URL.
  */
 export async function parallelWebSearch(queries: string[], numPerQuery = 5): Promise<WebSearchResult[]> {
-  const batches = await Promise.all(queries.map(q => sdkWebSearch(q, numPerQuery)))
-  const seen = new Set<string>()
-  const results: WebSearchResult[] = []
+  const batches = await Promise.all(queries.map((q) => sdkWebSearch(q, numPerQuery)));
+  const seen = new Set<string>();
+  const results: WebSearchResult[] = [];
 
   for (const batch of batches) {
     for (const item of batch) {
       if (item.url && !seen.has(item.url)) {
-        seen.add(item.url)
-        results.push(item)
+        seen.add(item.url);
+        results.push(item);
       }
     }
   }
 
-  return results
+  return results;
 }
 
 // ─── Tavily AI Answer (from zai-helpers.ts) ───────────────────────────────
 
 export async function tavilyAIAnswer(query: string): Promise<string> {
-  const searchProvider = await getSearchProvider()
-  if (!searchProvider) return ''
+  const provider = (await getSearchProvider()) as SearchProviderConfig | string | null;
+  const searchProvider = typeof provider === 'object' && provider !== null && 'apiKey' in provider
+    ? provider
+    : null;
+  if (!searchProvider || !searchProvider.apiKey) return '';
 
   try {
     const response = await tavilyFetchWithBackoff({
@@ -589,71 +616,83 @@ export async function tavilyAIAnswer(query: string): Promise<string> {
       max_results: 5,
       search_depth: 'advanced',
       include_answer: true,
-    })
+    });
 
-    if (!response || !response.ok) return ''
+    if (!response || !response.ok) return '';
 
-    const data = await response.json()
-    return data.answer || ''
+    const data = await response.json();
+    return data.answer || '';
   } catch (err) {
-    logger.warn('[tavilyAIAnswer] failed:', { error: err instanceof Error ? err.message : err })
-    return ''
+    logger.warn('[tavilyAIAnswer] failed:', { error: err instanceof Error ? err.message : err });
+    return '';
   }
 }
 
 // ─── JSON Extraction (from zai-helpers.ts) ──────────────────────────────────
 
 export function extractJSON(raw: string): unknown {
-  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
+  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
 
-  try { return JSON.parse(cleaned) } catch { /* fall through */ }
+  try {
+    return JSON.parse(cleaned);
+  } catch {
+    /* fall through */
+  }
 
-  const objMatch = cleaned.match(/\{[\s\S]*\}/)
+  const objMatch = cleaned.match(/\{[\s\S]*\}/);
   if (objMatch) {
-    try { return JSON.parse(objMatch[0]) } catch { /* fall through */ }
+    try {
+      return JSON.parse(objMatch[0]);
+    } catch {
+      /* fall through */
+    }
   }
 
-  const arrMatch = cleaned.match(/\[[\s\S]*\]/)
+  const arrMatch = cleaned.match(/\[[\s\S]*\]/);
   if (arrMatch) {
-    try { return JSON.parse(arrMatch[0]) } catch { /* fall through */ }
+    try {
+      return JSON.parse(arrMatch[0]);
+    } catch {
+      /* fall through */
+    }
   }
 
-  return null
+  return null;
 }
 
 // ─── Email Verification (from zai-helpers.ts) ──────────────────────────────
 
 export async function verifyEmailBasic(email: string): Promise<{ valid: boolean; reason: string; score: number }> {
   if (!email || !email.includes('@')) {
-    return { valid: false, reason: 'Invalid email format', score: 0 }
+    return { valid: false, reason: 'Invalid email format', score: 0 };
   }
 
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
-    return { valid: false, reason: 'Invalid email syntax', score: 10 }
+    return { valid: false, reason: 'Invalid email syntax', score: 10 };
   }
 
-  const domain = email.split('@')[1].toLowerCase()
+  const domain = email.split('@')[1]!.toLowerCase();
 
-  const disposableDomains = ['guerrillamail.com', 'mailinator.com', 'throwaway.email', 'yopmail.com', 'tempmail.com']
-  if (disposableDomains.some(d => domain.includes(d))) {
-    return { valid: false, reason: 'Disposable email provider', score: 5 }
+  const disposableDomains = ['guerrillamail.com', 'mailinator.com', 'throwaway.email', 'yopmail.com', 'tempmail.com'];
+  if (disposableDomains.some((d) => domain.includes(d))) {
+    return { valid: false, reason: 'Disposable email provider', score: 5 };
   }
 
-  const freeProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com', 'protonmail.com']
-  const isFree = freeProviders.includes(domain)
+  const freeProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com', 'protonmail.com'];
+  const isFree = freeProviders.includes(domain);
 
   try {
-    const dns = await import('dns/promises')
-    const records = await dns.resolveMx(domain)
+    const dns = await import('dns/promises');
+    const records = await dns.resolveMx(domain);
     if (records && records.length > 0) {
-      return { valid: true, reason: 'MX record found', score: isFree ? 60 : 85 }
+      return { valid: true, reason: 'MX record found', score: isFree ? 60 : 85 };
     }
   } catch {
     // No MX record
   }
 
-  return { valid: false, reason: 'No MX record found', score: 20 }
+  return { valid: false, reason: 'No MX record found', score: 20 };
 }
 
 // ─── Usage Tracking (from ai-caller.ts) ──────────────────────────────────
@@ -668,24 +707,20 @@ async function trackUsage(
   errorMessage?: string,
 ): Promise<void> {
   try {
-    const { logAIUsage, estimateCost } = await import('@/lib/ai-copilot/usage-tracker')
+    const { logAIUsage, estimateCost } = await import('@/lib/ai-copilot/usage-tracker');
 
-    // Estimate completion tokens via tiktoken (best-effort).
-    // We don't have the actual prompt text here, so prompt tokens stay 0.
-    const completionTokens = await countTokens(rawOutput)
-    const estimatedCost = estimateCost('unknown', 0, completionTokens)
+    const completionTokens = await countTokens(rawOutput);
+    const estimatedCost = estimateCost('unknown', 'unknown', 0, completionTokens);
 
     await logAIUsage({
-      feature: feature,
+      provider: 'unknown',
       model: 'unknown',
-      companyId: companyId ?? null,
       promptTokens: 0,
       completionTokens,
-      totalTokens: completionTokens,
-      estimatedCost,
-      status: errorMessage ? 'failed' : 'success',
+      latencyMs,
+      quality,
       errorMessage: errorMessage ?? undefined,
-    })
+    });
   } catch {
     // Usage tracking is best-effort — never throw
   }

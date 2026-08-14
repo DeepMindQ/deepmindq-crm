@@ -1,4 +1,3 @@
-// @ts-nocheck — Legacy CRM session manager; references removed Prisma fields (ipAddress, userAgent, lastLoginAt)
 /**
  * WI-18.5 Phase 5 — Enterprise Session Manager
  *
@@ -6,7 +5,7 @@
  *   - Session rotation (periodic re-authentication)
  *   - Session revocation (admin kill, security event trigger)
  *   - Device/session tracking with fingerprinting
- *   - Suspicious login detection (new device, new IP, rapid succession)
+ *   - Suspicious login detection (rapid succession)
  *   - Concurrent session limits
  *   - Session audit trail
  *
@@ -16,7 +15,7 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { audit, AuditCategory } from '@/lib/audit-logger';
+import { audit } from '@/lib/audit-logger';
 import { hashToken } from '@/lib/session';
 
 // ── Configuration ──────────────────────────────────────────────
@@ -25,7 +24,6 @@ const SESSION_ROTATION_DAYS = 7;            // Force re-auth after 7 days
 const MAX_CONCURRENT_SESSIONS = 5;          // Max active sessions per user
 const SUSPICIOUS_WINDOW_MS = 10 * 60_000;   // 10 min — flag rapid logins
 const NEW_DEVICE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
-const TRUSTED_IP_CACHE_SIZE = 1000;
 
 // ── Types ─────────────────────────────────────────────────────
 
@@ -49,15 +47,10 @@ export interface SessionSecurityAssessment {
 
 export interface ActiveSession {
   id: string;
-  token: string;
-  userAgent: string | null;
-  ipAddress: string | null;
+  token: string;         // Masked token (first 8 chars + ***)
   expiresAt: Date;
   createdAt: Date;
-  isCurrent: boolean;
-  deviceType?: string;
-  os?: string;
-  browser?: string;
+  isCurrent: boolean;    // Whether this is the caller's active session
 }
 
 // ── Device Parsing ────────────────────────────────────────────
@@ -104,7 +97,9 @@ function generateDeviceFingerprint(ua: string, ip: string): string {
 
 /**
  * Assess whether a login attempt is suspicious.
- * Checks for new device, new IP, rapid successive logins.
+ * Checks for rapid successive logins and first-time device.
+ * Note: IP/userAgent are not stored in the Session model,
+ * so device/location checks use simpler heuristics.
  */
 export async function assessLoginSecurity(
   userId: string,
@@ -118,7 +113,7 @@ export async function assessLoginSecurity(
   let isRapidLogin = false;
 
   try {
-    // 1. Check for recent sessions from this user
+    // 1. Check for recent sessions from this user (rapid login detection)
     const recentSessions = await db.session.findMany({
       where: {
         userId,
@@ -126,7 +121,7 @@ export async function assessLoginSecurity(
       },
       orderBy: { createdAt: 'desc' },
       take: 5,
-      select: { ipAddress: true, userAgent: true, createdAt: true },
+      select: { createdAt: true },
     });
 
     // 2. Check for rapid successive logins (multiple sessions in short window)
@@ -136,33 +131,22 @@ export async function assessLoginSecurity(
       riskScore += 30;
     }
 
-    // 3. Check for new device (no prior session with same fingerprint)
-    const matchingDevice = await db.session.findFirst({
+    // 3. Check for new device (no prior session from this user within threshold)
+    const priorSession = await db.session.findFirst({
       where: {
         userId,
-        ipAddress: deviceInfo.ip,
+        createdAt: { gte: new Date(Date.now() - NEW_DEVICE_THRESHOLD_MS) },
       },
       orderBy: { createdAt: 'desc' },
     });
 
-    if (!matchingDevice) {
+    if (!priorSession) {
       isNewDevice = true;
-      reasons.push('Login from unrecognized IP address');
+      reasons.push('First login from this account in 30 days');
       riskScore += 25;
     }
 
-    // 4. Check for new location (IP geo change — simplified: different IP class)
-    if (matchingDevice && matchingDevice.ipAddress && matchingDevice.ipAddress !== deviceInfo.ip) {
-      const oldParts = matchingDevice.ipAddress.split('.');
-      const newParts = deviceInfo.ip.split('.');
-      if (oldParts.length >= 2 && newParts.length >= 2 && oldParts[0] !== newParts[0]) {
-        isNewLocation = true;
-        reasons.push(`Location change: ${matchingDevice.ipAddress} → ${deviceInfo.ip}`);
-        riskScore += 15;
-      }
-    }
-
-    // 5. Elevated risk threshold
+    // 4. Elevated risk threshold
     if (riskScore >= 50) {
       isSuspicious = true;
     }
@@ -274,7 +258,7 @@ export async function enforceSessionLimit(userId: string): Promise<number> {
 // ── Session Listing ────────────────────────────────────────────
 
 /**
- * List all active sessions for a user with device info.
+ * List all active sessions for a user.
  * Milestone 1 C-02: Tokens are masked in the response.
  * Milestone 1 C-01: isCurrent comparison uses hashed token.
  */
@@ -286,8 +270,6 @@ export async function getUserSessions(userId: string, currentToken?: string): Pr
       select: {
         id: true,
         token: true,
-        userAgent: true,
-        ipAddress: true,
         expiresAt: true,
         createdAt: true,
       },
@@ -297,23 +279,16 @@ export async function getUserSessions(userId: string, currentToken?: string): Pr
     const currentTokenHash = currentToken ? await hashToken(currentToken) : null;
 
     return sessions.map(s => {
-      const ua = s.userAgent || '';
-      const parsed = parseUserAgent(ua);
       // Milestone 1 C-02: Never return full token to client.
       // Show only first 8 chars for identification; rest masked.
       const maskedToken = s.token ? s.token.substring(0, 8) + '***' : '***';
       return {
         id: s.id,
         token: maskedToken,
-        userAgent: s.userAgent,
-        ipAddress: s.ipAddress,
         expiresAt: s.expiresAt,
         createdAt: s.createdAt,
         // Milestone 1 C-01: Compare pre-computed hash against stored hash
         isCurrent: currentTokenHash ? s.token === currentTokenHash : false,
-        deviceType: parsed.deviceType,
-        os: parsed.os,
-        browser: parsed.browser,
       };
     });
   } catch (err) {
@@ -354,12 +329,6 @@ export async function recordLoginEvent(
         isSuspicious: assessment.isSuspicious,
         reasons: assessment.reasons,
       },
-    });
-
-    // Update user's last login
-    await db.user.update({
-      where: { id: userId },
-      data: { lastLoginAt: new Date() },
     });
   } catch (err) {
     logger.error('[SessionManager] Failed to record login event:', { error: err });

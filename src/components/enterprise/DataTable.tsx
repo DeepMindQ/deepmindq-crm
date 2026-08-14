@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-interface Column {
+export interface Column {
   key: string;
   label: string;
   sortable?: boolean;

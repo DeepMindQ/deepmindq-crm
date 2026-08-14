@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+
+const briefingIdSchema = z.string().min(1);
 
 export async function GET(
   request: NextRequest,
@@ -11,9 +14,14 @@ export async function GET(
     if (errorResponse) return errorResponse;
 
     const { id } = await params;
+    const idParsed = briefingIdSchema.safeParse(id);
+    if (!idParsed.success) {
+      return NextResponse.json({ error: 'Invalid briefing ID', details: idParsed.error.flatten() }, { status: 400 });
+    }
+    const validId = idParsed.data;
 
     const briefing = await db.briefing.findFirst({
-      where: { organizationId: id },
+      where: { organizationId: validId },
       orderBy: { generatedAt: 'desc' },
       include: {
         organization: {

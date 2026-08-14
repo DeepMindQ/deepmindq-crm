@@ -52,12 +52,8 @@ export const POST = withCsrf(async function POST(request: NextRequest) {
       },
     });
 
-    // Create a session
-    const userAgent = request.headers.get('user-agent') || undefined;
-    const forwarded = request.headers.get('x-forwarded-for');
-    const ipAddress = forwarded?.split(',')[0]?.trim() || undefined;
-
-    const session = await createSession(otpResult.userId, userAgent, ipAddress);
+    // Create a session (userAgent/ipAddress are logged via audit, not stored in session)
+    const session = await createSession(otpResult.userId);
 
     return NextResponse.json({
       success: true,

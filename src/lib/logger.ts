@@ -81,14 +81,17 @@ function formatEntry(entry: LogEntry): string {
  */
 function getRequestFields(): { correlationId?: string; requestId?: string; traceId?: string } {
   try {
-    const { getRequestContext } = require('@/lib/request-context')
-    const ctx = getRequestContext()
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('@/lib/request-context');
+    const getRequestContext = mod?.getRequestContext;
+    if (typeof getRequestContext !== 'function') return {};
+    const ctx = getRequestContext();
     if (ctx) {
       return {
         correlationId: ctx.correlationId,
         requestId: ctx.requestId,
         traceId: ctx.traceId,
-      }
+      };
     }
   } catch {
     // request-context module not available (Edge runtime, etc.)

@@ -293,13 +293,20 @@ export default function EmailGenerationScreen() {
 
   const handleSend = () => {
     setIsSending(true);
-    setTimeout(() => { setIsSending(false); setSent(true); }, 1000);
+    setTimeout(() => {
+      setIsSending(false);
+      setSent(true);
+    }, 1000);
   };
 
   const handleSchedule = () => {
     if (!scheduleDate) return;
     setIsScheduling(true);
-    setTimeout(() => { setIsScheduling(false); setSent(true); setShowSchedule(false); }, 1000);
+    setTimeout(() => {
+      setIsScheduling(false);
+      setSent(true);
+      setShowSchedule(false);
+    }, 1000);
   };
 
   const handleCopy = () => {
@@ -313,12 +320,19 @@ export default function EmailGenerationScreen() {
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b" style={{ borderColor: tokens.border.default }}>
+      <div
+        className="flex items-center justify-between px-6 py-4 border-b"
+        style={{ borderColor: tokens.border.default }}
+      >
         <div className="flex items-center gap-3">
           <Sparkles className="w-5 h-5" style={{ color: tokens.domain.reasoning }} />
           <div>
-            <h1 className="text-lg font-semibold" style={{ color: tokens.text.primary }}>AI Email Generator</h1>
-            <p className="text-xs" style={{ color: tokens.text.muted }}>Generate personalized outreach emails with AI</p>
+            <h1 className="text-lg font-semibold" style={{ color: tokens.text.primary }}>
+              AI Email Generator
+            </h1>
+            <p className="text-xs" style={{ color: tokens.text.muted }}>
+              Generate personalized outreach emails with AI
+            </p>
           </div>
         </div>
       </div>
@@ -329,26 +343,65 @@ export default function EmailGenerationScreen() {
             {/* Config Panel */}
             <div className="lg:col-span-2 space-y-5">
               {/* Company */}
-              <div className="rounded-xl border p-5" style={{ borderColor: tokens.border.default, backgroundColor: tokens.surface.primary }}>
-                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: tokens.text.primary }}>
-                  <Building2 className="w-4 h-4" style={{ color: tokens.accent.DEFAULT }} /> Recipient Details
+              <div
+                className="rounded-xl border p-5"
+                style={{
+                  borderColor: tokens.border.default,
+                  backgroundColor: tokens.surface.primary,
+                }}
+              >
+                <h3
+                  className="text-sm font-semibold mb-4 flex items-center gap-2"
+                  style={{ color: tokens.text.primary }}
+                >
+                  <Building2 className="w-4 h-4" style={{ color: tokens.accent.DEFAULT }} />{' '}
+                  Recipient Details
                 </h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-xs">Company</Label>
-                    <Select value={companyId} onValueChange={(v) => { setCompanyId(v); setContactId(''); setGeneratedEmail(''); setSent(false); }}>
-                      <SelectTrigger className="h-9 text-sm"><SelectValue placeholder="Select company..." /></SelectTrigger>
+                    <Select
+                      value={companyId}
+                      onValueChange={(v) => {
+                        setCompanyId(v);
+                        setContactId('');
+                        setGeneratedEmail('');
+                        setSent(false);
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue placeholder="Select company..." />
+                      </SelectTrigger>
                       <SelectContent>
-                        {COMPANIES.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                        {COMPANIES.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
                   <div className="space-y-2">
                     <Label className="text-xs">Contact</Label>
-                    <Select value={contactId} onValueChange={(v) => { setContactId(v); setGeneratedEmail(''); setSent(false); }}>
-                      <SelectTrigger className="h-9 text-sm" disabled={!companyId}><SelectValue placeholder={companyId ? 'Select contact...' : 'Select company first'} /></SelectTrigger>
+                    <Select
+                      value={contactId}
+                      onValueChange={(v) => {
+                        setContactId(v);
+                        setGeneratedEmail('');
+                        setSent(false);
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-sm" disabled={!companyId}>
+                        <SelectValue
+                          placeholder={companyId ? 'Select contact...' : 'Select company first'}
+                        />
+                      </SelectTrigger>
                       <SelectContent>
-                        {filteredContacts.map((c) => <SelectItem key={c.id} value={c.id}>{c.name} — {c.title}</SelectItem>)}
+                        {filteredContacts.map((c) => (
+                          <SelectItem key={c.id} value={c.id}>
+                            {c.name} — {c.title}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -356,17 +409,40 @@ export default function EmailGenerationScreen() {
               </div>
 
               {/* Email Settings */}
-              <div className="rounded-xl border p-5" style={{ borderColor: tokens.border.default, backgroundColor: tokens.surface.primary }}>
-                <h3 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: tokens.text.primary }}>
-                  <PenLine className="w-4 h-4" style={{ color: tokens.domain.reasoning }} /> Email Settings
+              <div
+                className="rounded-xl border p-5"
+                style={{
+                  borderColor: tokens.border.default,
+                  backgroundColor: tokens.surface.primary,
+                }}
+              >
+                <h3
+                  className="text-sm font-semibold mb-4 flex items-center gap-2"
+                  style={{ color: tokens.text.primary }}
+                >
+                  <PenLine className="w-4 h-4" style={{ color: tokens.domain.reasoning }} /> Email
+                  Settings
                 </h3>
                 <div className="space-y-4">
                   <div className="space-y-2">
                     <Label className="text-xs">Purpose</Label>
-                    <Select value={purpose} onValueChange={(v) => { setPurpose(v); setGeneratedEmail(''); setSent(false); }}>
-                      <SelectTrigger className="h-9 text-sm"><SelectValue /></SelectTrigger>
+                    <Select
+                      value={purpose}
+                      onValueChange={(v) => {
+                        setPurpose(v);
+                        setGeneratedEmail('');
+                        setSent(false);
+                      }}
+                    >
+                      <SelectTrigger className="h-9 text-sm">
+                        <SelectValue />
+                      </SelectTrigger>
                       <SelectContent>
-                        {PURPOSES.map((p) => <SelectItem key={p.value} value={p.value}>{p.label}</SelectItem>)}
+                        {PURPOSES.map((p) => (
+                          <SelectItem key={p.value} value={p.value}>
+                            {p.label}
+                          </SelectItem>
+                        ))}
                       </SelectContent>
                     </Select>
                   </div>
@@ -374,7 +450,17 @@ export default function EmailGenerationScreen() {
                     <Label className="text-xs">Tone</Label>
                     <div className="flex gap-2">
                       {TONES.map((t) => (
-                        <Button key={t.value} variant={tone === t.value ? 'default' : 'outline'} size="sm" className="h-8 text-xs flex-1" onClick={() => { setTone(t.value); setGeneratedEmail(''); setSent(false); }}>
+                        <Button
+                          key={t.value}
+                          variant={tone === t.value ? 'default' : 'outline'}
+                          size="sm"
+                          className="h-8 text-xs flex-1"
+                          onClick={() => {
+                            setTone(t.value);
+                            setGeneratedEmail('');
+                            setSent(false);
+                          }}
+                        >
                           {t.label}
                         </Button>
                       ))}
@@ -384,21 +470,54 @@ export default function EmailGenerationScreen() {
               </div>
 
               {/* Generate Button */}
-              <Button className="w-full" onClick={handleGenerate} disabled={!companyId || !contactId || isGenerating}>
-                {isGenerating ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...</> : <><Sparkles className="w-4 h-4 mr-2" /> Generate Email</>}
+              <Button
+                className="w-full"
+                onClick={handleGenerate}
+                disabled={!companyId || !contactId || isGenerating}
+              >
+                {isGenerating ? (
+                  <>
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Generating...
+                  </>
+                ) : (
+                  <>
+                    <Sparkles className="w-4 h-4 mr-2" /> Generate Email
+                  </>
+                )}
               </Button>
             </div>
 
             {/* Preview / Edit Panel */}
             <div className="lg:col-span-3">
-              <div className="rounded-xl border h-full flex flex-col" style={{ borderColor: tokens.border.default, backgroundColor: tokens.surface.primary }}>
-                <div className="px-5 py-4 border-b flex items-center justify-between" style={{ borderColor: tokens.border.default }}>
-                  <h3 className="text-sm font-semibold flex items-center gap-2" style={{ color: tokens.text.primary }}>
-                    <Mail className="w-4 h-4" style={{ color: tokens.accent.DEFAULT }} /> {generatedEmail ? 'Edit & Send' : 'Email Preview'}
+              <div
+                className="rounded-xl border h-full flex flex-col"
+                style={{
+                  borderColor: tokens.border.default,
+                  backgroundColor: tokens.surface.primary,
+                }}
+              >
+                <div
+                  className="px-5 py-4 border-b flex items-center justify-between"
+                  style={{ borderColor: tokens.border.default }}
+                >
+                  <h3
+                    className="text-sm font-semibold flex items-center gap-2"
+                    style={{ color: tokens.text.primary }}
+                  >
+                    <Mail className="w-4 h-4" style={{ color: tokens.accent.DEFAULT }} />{' '}
+                    {generatedEmail ? 'Edit & Send' : 'Email Preview'}
                   </h3>
                   {generatedEmail && !sent && (
                     <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={handleCopy}>
-                      {copied ? <><Check className="w-3 h-3 mr-1" /> Copied</> : <><Copy className="w-3 h-3 mr-1" /> Copy</>}
+                      {copied ? (
+                        <>
+                          <Check className="w-3 h-3 mr-1" /> Copied
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="w-3 h-3 mr-1" /> Copy
+                        </>
+                      )}
                     </Button>
                   )}
                 </div>
@@ -406,23 +525,49 @@ export default function EmailGenerationScreen() {
                 <div className="flex-1 p-5">
                   {sent ? (
                     <div className="flex flex-col items-center justify-center h-full text-center py-12">
-                      <div className="w-16 h-16 rounded-full flex items-center justify-center mb-4" style={{ backgroundColor: tokens.confidence.high.bg }}>
-                        <Check className="w-8 h-8" style={{ color: tokens.confidence.high.value }} />
+                      <div
+                        className="w-16 h-16 rounded-full flex items-center justify-center mb-4"
+                        style={{ backgroundColor: tokens.confidence.high.bg }}
+                      >
+                        <Check
+                          className="w-8 h-8"
+                          style={{ color: tokens.confidence.high.value }}
+                        />
                       </div>
-                      <h3 className="text-base font-semibold mb-1" style={{ color: tokens.text.primary }}>Email {showSchedule && scheduleDate ? 'Scheduled' : 'Sent'}!</h3>
+                      <h3
+                        className="text-base font-semibold mb-1"
+                        style={{ color: tokens.text.primary }}
+                      >
+                        Email {showSchedule && scheduleDate ? 'Scheduled' : 'Sent'}!
+                      </h3>
                       <p className="text-sm mb-4" style={{ color: tokens.text.muted }}>
-                        {showSchedule && scheduleDate ? `Scheduled for ${scheduleDate}` : 'Your email has been sent successfully'}
+                        {showSchedule && scheduleDate
+                          ? `Scheduled for ${scheduleDate}`
+                          : 'Your email has been sent successfully'}
                       </p>
-                      <Button variant="outline" size="sm" onClick={() => { setSent(false); setGeneratedEmail(''); setEditedEmail(''); }}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => {
+                          setSent(false);
+                          setGeneratedEmail('');
+                          setEditedEmail('');
+                        }}
+                      >
                         Generate Another
                       </Button>
                     </div>
                   ) : generatedEmail ? (
                     <div className="space-y-3">
                       {/* Recipient info */}
-                      <div className="flex items-center gap-2 p-3 rounded-lg" style={{ backgroundColor: tokens.surface.secondary }}>
+                      <div
+                        className="flex items-center gap-2 p-3 rounded-lg"
+                        style={{ backgroundColor: tokens.surface.secondary }}
+                      >
                         <User className="w-4 h-4" style={{ color: tokens.text.muted }} />
-                        <span className="text-xs" style={{ color: tokens.text.muted }}>To: {contact?.name} ({contact?.title}) at {company?.name}</span>
+                        <span className="text-xs" style={{ color: tokens.text.muted }}>
+                          To: {contact?.name} ({contact?.title}) at {company?.name}
+                        </span>
                       </div>
 
                       {/* Editable email */}
@@ -436,7 +581,15 @@ export default function EmailGenerationScreen() {
                       {/* Actions */}
                       <div className="flex items-center gap-2 pt-2">
                         <Button onClick={handleSend} disabled={isSending}>
-                          {isSending ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending...</> : <><Send className="w-4 h-4 mr-2" /> Send Now</>}
+                          {isSending ? (
+                            <>
+                              <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Sending...
+                            </>
+                          ) : (
+                            <>
+                              <Send className="w-4 h-4 mr-2" /> Send Now
+                            </>
+                          )}
                         </Button>
                         {showSchedule ? (
                           <div className="flex items-center gap-2">
@@ -445,12 +598,31 @@ export default function EmailGenerationScreen() {
                               value={scheduleDate}
                               onChange={(e) => setScheduleDate(e.target.value)}
                               className="h-9 rounded-md border bg-transparent px-3 text-sm"
-                              style={{ borderColor: tokens.border.default, color: tokens.text.primary }}
+                              style={{
+                                borderColor: tokens.border.default,
+                                color: tokens.text.primary,
+                              }}
                             />
-                            <Button variant="outline" onClick={handleSchedule} disabled={isScheduling || !scheduleDate}>
-                              {isScheduling ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" /> Scheduling...</> : 'Confirm'}
+                            <Button
+                              variant="outline"
+                              onClick={handleSchedule}
+                              disabled={isScheduling || !scheduleDate}
+                            >
+                              {isScheduling ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" /> Scheduling...
+                                </>
+                              ) : (
+                                'Confirm'
+                              )}
                             </Button>
-                            <Button variant="ghost" size="sm" onClick={() => setShowSchedule(false)}>Cancel</Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setShowSchedule(false)}
+                            >
+                              Cancel
+                            </Button>
                           </div>
                         ) : (
                           <Button variant="outline" onClick={() => setShowSchedule(true)}>
@@ -461,12 +633,21 @@ export default function EmailGenerationScreen() {
                     </div>
                   ) : (
                     <div className="flex flex-col items-center justify-center h-full text-center py-16">
-                      <div className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4" style={{ backgroundColor: tokens.surface.secondary }}>
+                      <div
+                        className="w-16 h-16 rounded-2xl flex items-center justify-center mb-4"
+                        style={{ backgroundColor: tokens.surface.secondary }}
+                      >
                         <Sparkles className="w-8 h-8" style={{ color: tokens.text.muted }} />
                       </div>
-                      <h3 className="text-sm font-medium mb-1" style={{ color: tokens.text.secondary }}>Ready to generate</h3>
+                      <h3
+                        className="text-sm font-medium mb-1"
+                        style={{ color: tokens.text.secondary }}
+                      >
+                        Ready to generate
+                      </h3>
                       <p className="text-xs max-w-xs" style={{ color: tokens.text.muted }}>
-                        Select a company, contact, purpose, and tone, then click Generate to create a personalized AI email.
+                        Select a company, contact, purpose, and tone, then click Generate to create
+                        a personalized AI email.
                       </p>
                     </div>
                   )}

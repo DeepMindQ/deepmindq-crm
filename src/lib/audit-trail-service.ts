@@ -33,10 +33,10 @@ export interface AuditEvent {
 }
 
 export interface RecordAuditParams {
-  action: string;        // 'enrichment', 'brief_generated', 'agent_invoked', etc.
-  actor: string;         // 'system', 'user', 'agent_name'
+  action: string; // 'enrichment', 'brief_generated', 'agent_invoked', etc.
+  actor: string; // 'system', 'user', 'agent_name'
   companyId?: string;
-  targetType: string;    // 'organization', 'person', 'brief', 'agent'
+  targetType: string; // 'organization', 'person', 'brief', 'agent'
   targetId?: string;
   details: Record<string, unknown>;
   result: 'success' | 'failure';
@@ -85,16 +85,17 @@ async function resolveOrgId(orgId?: string): Promise<string | null> {
  * Non-throwing: errors are logged but never propagated.
  * Returns the Evidence ID on success, null on failure.
  */
-export async function recordAuditEvent(
-  params: RecordAuditParams,
-): Promise<string | null> {
+export async function recordAuditEvent(params: RecordAuditParams): Promise<string | null> {
   try {
     const orgId = await resolveOrgId(params.companyId);
     if (!orgId) {
-      logger.warn('[audit-trail] Cannot record audit event: no organization available for anchoring', {
-        action: params.action,
-        targetType: params.targetType,
-      });
+      logger.warn(
+        '[audit-trail] Cannot record audit event: no organization available for anchoring',
+        {
+          action: params.action,
+          targetType: params.targetType,
+        },
+      );
       return null;
     }
 
@@ -127,9 +128,7 @@ export async function recordAuditEvent(
  * Query audit trail events from the Evidence model.
  * Filters by sourceType = 'audit' to separate from real evidence.
  */
-export async function queryAuditTrail(
-  params: QueryAuditParams,
-): Promise<AuditEvent[]> {
+export async function queryAuditTrail(params: QueryAuditParams): Promise<AuditEvent[]> {
   try {
     const where: Record<string, unknown> = {
       sourceType: AUDIT_SOURCE_TYPE,
@@ -170,7 +169,9 @@ export async function queryAuditTrail(
 
       // Extract result from claim: '[SUCCESS] enrichment' -> 'success'
       const resultMatch = r.claim?.match(/^\[(SUCCESS|FAILURE)\]/i);
-      const result = resultMatch ? (resultMatch[1]!.toLowerCase() as 'success' | 'failure') : 'success';
+      const result = resultMatch
+        ? (resultMatch[1]!.toLowerCase() as 'success' | 'failure')
+        : 'success';
 
       return {
         id: r.id,

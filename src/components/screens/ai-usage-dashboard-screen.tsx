@@ -2,14 +2,7 @@
 
 import { useState, useMemo } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
-import {
-  Coins,
-  Phone,
-  Clock,
-  DollarSign,
-  BarChart3,
-  TrendingUp,
-} from 'lucide-react';
+import { Coins, Phone, Clock, DollarSign, BarChart3, TrendingUp } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -39,18 +32,18 @@ interface ApiCallRecord {
 // ── Mock Data ──
 const MOCK_USAGE_OVER_TIME = [
   { date: 'Jan 9', calls: 342, tokens: 125000, cost: 6.25 },
-  { date: 'Jan 10', calls: 398, tokens: 148000, cost: 7.40 },
-  { date: 'Jan 11', calls: 367, tokens: 132000, cost: 6.60 },
+  { date: 'Jan 10', calls: 398, tokens: 148000, cost: 7.4 },
+  { date: 'Jan 11', calls: 367, tokens: 132000, cost: 6.6 },
   { date: 'Jan 12', calls: 478, tokens: 189000, cost: 9.45 },
   { date: 'Jan 13', calls: 421, tokens: 167000, cost: 8.35 },
-  { date: 'Jan 14', calls: 234, tokens: 78000, cost: 3.90 },
-  { date: 'Jan 15', calls: 189, tokens: 54000, cost: 2.70 },
-  { date: 'Jan 16', calls: 412, tokens: 156000, cost: 7.80 },
-  { date: 'Jan 17', calls: 467, tokens: 178000, cost: 8.90 },
+  { date: 'Jan 14', calls: 234, tokens: 78000, cost: 3.9 },
+  { date: 'Jan 15', calls: 189, tokens: 54000, cost: 2.7 },
+  { date: 'Jan 16', calls: 412, tokens: 156000, cost: 7.8 },
+  { date: 'Jan 17', calls: 467, tokens: 178000, cost: 8.9 },
   { date: 'Jan 18', calls: 389, tokens: 145000, cost: 7.25 },
-  { date: 'Jan 19', calls: 298, tokens: 112000, cost: 5.60 },
-  { date: 'Jan 20', calls: 156, tokens: 48000, cost: 2.40 },
-  { date: 'Jan 21', calls: 445, tokens: 172000, cost: 8.60 },
+  { date: 'Jan 19', calls: 298, tokens: 112000, cost: 5.6 },
+  { date: 'Jan 20', calls: 156, tokens: 48000, cost: 2.4 },
+  { date: 'Jan 21', calls: 445, tokens: 172000, cost: 8.6 },
   { date: 'Jan 22', calls: 501, tokens: 195000, cost: 9.75 },
 ];
 
@@ -62,26 +55,106 @@ const MOCK_TOKENS_BY_PROVIDER = [
 ];
 
 const MOCK_COST_BY_MODEL = [
-  { model: 'Gemini 1.5 Pro', cost: 124.50 },
-  { model: 'Gemini 1.5 Flash', cost: 42.30 },
-  { model: 'Llama 3.1 70B', cost: 98.70 },
-  { model: 'Mixtral 8x22B', cost: 56.20 },
-  { model: 'Qwen 2.5 72B', cost: 38.90 },
-  { model: 'Llama 3.1 8B', cost: 12.40 },
-  { model: 'Mixtral 8x7B', cost: 8.60 },
+  { model: 'Gemini 1.5 Pro', cost: 124.5 },
+  { model: 'Gemini 1.5 Flash', cost: 42.3 },
+  { model: 'Llama 3.1 70B', cost: 98.7 },
+  { model: 'Mixtral 8x22B', cost: 56.2 },
+  { model: 'Qwen 2.5 72B', cost: 38.9 },
+  { model: 'Llama 3.1 8B', cost: 12.4 },
+  { model: 'Mixtral 8x7B', cost: 8.6 },
 ];
 
 const MOCK_RECENT_CALLS: ApiCallRecord[] = [
-  { id: 'call-001', timestamp: '2025-01-22T14:32:00Z', provider: 'Gemini', model: 'gemini-1.5-pro', tokens: 2340, latency: 312, status: 'success' },
-  { id: 'call-002', timestamp: '2025-01-22T14:31:00Z', provider: 'NVIDIA', model: 'llama-3.1-70b', tokens: 4521, latency: 245, status: 'success' },
-  { id: 'call-003', timestamp: '2025-01-22T14:30:00Z', provider: 'Groq', model: 'llama-3.1-70b', tokens: 1890, latency: 520, status: 'timeout' },
-  { id: 'call-004', timestamp: '2025-01-22T14:29:00Z', provider: 'Fireworks', model: 'qwen-2.5-72b', tokens: 3102, latency: 189, status: 'success' },
-  { id: 'call-005', timestamp: '2025-01-22T14:28:00Z', provider: 'Gemini', model: 'gemini-1.5-flash', tokens: 890, latency: 145, status: 'success' },
-  { id: 'call-006', timestamp: '2025-01-22T14:27:00Z', provider: 'NVIDIA', model: 'mixtral-8x22b', tokens: 5670, latency: 380, status: 'error' },
-  { id: 'call-007', timestamp: '2025-01-22T14:26:00Z', provider: 'Fireworks', model: 'llama-3.1-8b', tokens: 445, latency: 78, status: 'success' },
-  { id: 'call-008', timestamp: '2025-01-22T14:25:00Z', provider: 'Gemini', model: 'gemini-1.5-pro', tokens: 6780, latency: 410, status: 'success' },
-  { id: 'call-009', timestamp: '2025-01-22T14:24:00Z', provider: 'Groq', model: 'mixtral-8x7b', tokens: 1230, latency: 95, status: 'success' },
-  { id: 'call-010', timestamp: '2025-01-22T14:23:00Z', provider: 'NVIDIA', model: 'llama-3.1-70b', tokens: 3890, latency: 267, status: 'success' },
+  {
+    id: 'call-001',
+    timestamp: '2025-01-22T14:32:00Z',
+    provider: 'Gemini',
+    model: 'gemini-1.5-pro',
+    tokens: 2340,
+    latency: 312,
+    status: 'success',
+  },
+  {
+    id: 'call-002',
+    timestamp: '2025-01-22T14:31:00Z',
+    provider: 'NVIDIA',
+    model: 'llama-3.1-70b',
+    tokens: 4521,
+    latency: 245,
+    status: 'success',
+  },
+  {
+    id: 'call-003',
+    timestamp: '2025-01-22T14:30:00Z',
+    provider: 'Groq',
+    model: 'llama-3.1-70b',
+    tokens: 1890,
+    latency: 520,
+    status: 'timeout',
+  },
+  {
+    id: 'call-004',
+    timestamp: '2025-01-22T14:29:00Z',
+    provider: 'Fireworks',
+    model: 'qwen-2.5-72b',
+    tokens: 3102,
+    latency: 189,
+    status: 'success',
+  },
+  {
+    id: 'call-005',
+    timestamp: '2025-01-22T14:28:00Z',
+    provider: 'Gemini',
+    model: 'gemini-1.5-flash',
+    tokens: 890,
+    latency: 145,
+    status: 'success',
+  },
+  {
+    id: 'call-006',
+    timestamp: '2025-01-22T14:27:00Z',
+    provider: 'NVIDIA',
+    model: 'mixtral-8x22b',
+    tokens: 5670,
+    latency: 380,
+    status: 'error',
+  },
+  {
+    id: 'call-007',
+    timestamp: '2025-01-22T14:26:00Z',
+    provider: 'Fireworks',
+    model: 'llama-3.1-8b',
+    tokens: 445,
+    latency: 78,
+    status: 'success',
+  },
+  {
+    id: 'call-008',
+    timestamp: '2025-01-22T14:25:00Z',
+    provider: 'Gemini',
+    model: 'gemini-1.5-pro',
+    tokens: 6780,
+    latency: 410,
+    status: 'success',
+  },
+  {
+    id: 'call-009',
+    timestamp: '2025-01-22T14:24:00Z',
+    provider: 'Groq',
+    model: 'mixtral-8x7b',
+    tokens: 1230,
+    latency: 95,
+    status: 'success',
+  },
+  {
+    id: 'call-010',
+    timestamp: '2025-01-22T14:23:00Z',
+    provider: 'NVIDIA',
+    model: 'llama-3.1-70b',
+    tokens: 3890,
+    latency: 267,
+    status: 'success',
+  },
 ];
 
 const PROVIDER_COLORS: Record<string, string> = {
@@ -112,7 +185,11 @@ export default function AiUsageDashboard() {
           const d = new Date(row.timestamp as string);
           return (
             <span className="text-xs tabular-nums" style={{ color: tokens.text.secondary }}>
-              {d.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+              {d.toLocaleTimeString('en-US', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit',
+              })}
             </span>
           );
         },
@@ -156,7 +233,10 @@ export default function AiUsageDashboard() {
         render: (_, row) => {
           const lat = row.latency as number;
           return (
-            <span className="text-sm tabular-nums" style={{ color: lat > 400 ? '#DC2626' : lat > 300 ? '#D97706' : '#16A34A' }}>
+            <span
+              className="text-sm tabular-nums"
+              style={{ color: lat > 400 ? '#DC2626' : lat > 300 ? '#D97706' : '#16A34A' }}
+            >
               {lat}ms
             </span>
           );
@@ -169,27 +249,36 @@ export default function AiUsageDashboard() {
           const status = row.status as string;
           if (status === 'success') {
             return (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{ color: '#16A34A', background: '#DCFCE7' }}>
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                style={{ color: '#16A34A', background: '#DCFCE7' }}
+              >
                 <CheckCircle2 className="h-3 w-3" /> Success
               </span>
             );
           }
           if (status === 'error') {
             return (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{ color: '#DC2626', background: '#FEE2E2' }}>
+              <span
+                className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                style={{ color: '#DC2626', background: '#FEE2E2' }}
+              >
                 <XCircle className="h-3 w-3" /> Error
               </span>
             );
           }
           return (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium" style={{ color: '#D97706', background: '#FEF3C7' }}>
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium"
+              style={{ color: '#D97706', background: '#FEF3C7' }}
+            >
               <Loader2 className="h-3 w-3" /> Timeout
             </span>
           );
         },
       },
     ],
-    []
+    [],
   );
 
   return (
@@ -197,7 +286,10 @@ export default function AiUsageDashboard() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: tokens.text.primary }}>
+          <h1
+            className="text-xl font-bold flex items-center gap-2"
+            style={{ color: tokens.text.primary }}
+          >
             <BarChart3 className="h-6 w-6" style={{ color: tokens.accent.primary }} />
             AI Usage Dashboard
           </h1>
@@ -205,7 +297,13 @@ export default function AiUsageDashboard() {
             Comprehensive AI usage analytics and cost tracking
           </p>
         </div>
-        <div className="flex items-center gap-1 rounded-lg p-1" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.border.default}` }}>
+        <div
+          className="flex items-center gap-1 rounded-lg p-1"
+          style={{
+            background: tokens.surface.secondary,
+            border: `1px solid ${tokens.border.default}`,
+          }}
+        >
           {(['7d', '14d', '30d'] as const).map((range) => (
             <button
               key={range}
@@ -225,20 +323,57 @@ export default function AiUsageDashboard() {
       {/* ── Stats ── */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { label: 'Total Tokens Used', value: (stats.totalTokens / 1000000).toFixed(1) + 'M', icon: Coins, color: tokens.accent.primary, bg: tokens.accent.ghost },
-          { label: 'Total API Calls', value: stats.totalCalls.toLocaleString(), icon: Phone, color: tokens.domain.opportunity, bg: '#ECFDF5' },
-          { label: 'Avg Response Time', value: `${stats.avgResponseTime}ms`, icon: Clock, color: tokens.domain.reasoning, bg: tokens.domain.bg },
-          { label: 'Cost Estimate', value: `$${stats.totalCost.toFixed(2)}`, icon: DollarSign, color: tokens.priority.medium, bg: tokens.gold.bgMedium },
+          {
+            label: 'Total Tokens Used',
+            value: (stats.totalTokens / 1000000).toFixed(1) + 'M',
+            icon: Coins,
+            color: tokens.accent.primary,
+            bg: tokens.accent.ghost,
+          },
+          {
+            label: 'Total API Calls',
+            value: stats.totalCalls.toLocaleString(),
+            icon: Phone,
+            color: tokens.domain.opportunity,
+            bg: '#ECFDF5',
+          },
+          {
+            label: 'Avg Response Time',
+            value: `${stats.avgResponseTime}ms`,
+            icon: Clock,
+            color: tokens.domain.reasoning,
+            bg: tokens.domain.bg,
+          },
+          {
+            label: 'Cost Estimate',
+            value: `$${stats.totalCost.toFixed(2)}`,
+            icon: DollarSign,
+            color: tokens.priority.medium,
+            bg: tokens.gold.bgMedium,
+          },
         ].map((stat) => (
           <div
             key={stat.label}
             className="rounded-xl p-4"
-            style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
+            style={{
+              background: tokens.surface.card,
+              border: `1px solid ${tokens.border.default}`,
+            }}
           >
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs font-medium uppercase tracking-wider" style={{ color: tokens.text.muted }}>{stat.label}</p>
-                <p className="text-2xl font-bold mt-1 tabular-nums" style={{ color: tokens.text.primary }}>{stat.value}</p>
+                <p
+                  className="text-xs font-medium uppercase tracking-wider"
+                  style={{ color: tokens.text.muted }}
+                >
+                  {stat.label}
+                </p>
+                <p
+                  className="text-2xl font-bold mt-1 tabular-nums"
+                  style={{ color: tokens.text.primary }}
+                >
+                  {stat.value}
+                </p>
               </div>
               <div className="rounded-lg p-2.5" style={{ background: stat.bg }}>
                 <stat.icon className="h-5 w-5" style={{ color: stat.color }} />
@@ -255,7 +390,10 @@ export default function AiUsageDashboard() {
           className="rounded-xl p-5"
           style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
         >
-          <h2 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: tokens.text.primary }}>
+          <h2
+            className="text-sm font-semibold mb-4 flex items-center gap-2"
+            style={{ color: tokens.text.primary }}
+          >
             <TrendingUp className="h-4 w-4" style={{ color: tokens.accent.primary }} />
             Usage Over Time
           </h2>
@@ -263,8 +401,15 @@ export default function AiUsageDashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={MOCK_USAGE_OVER_TIME}>
                 <CartesianGrid strokeDasharray="3 3" stroke={tokens.border.default} />
-                <XAxis dataKey="date" tick={{ fill: tokens.text.muted, fontSize: 11 }} axisLine={{ stroke: tokens.border.default }} />
-                <YAxis tick={{ fill: tokens.text.muted, fontSize: 11 }} axisLine={{ stroke: tokens.border.default }} />
+                <XAxis
+                  dataKey="date"
+                  tick={{ fill: tokens.text.muted, fontSize: 11 }}
+                  axisLine={{ stroke: tokens.border.default }}
+                />
+                <YAxis
+                  tick={{ fill: tokens.text.muted, fontSize: 11 }}
+                  axisLine={{ stroke: tokens.border.default }}
+                />
                 <Tooltip
                   contentStyle={{
                     background: tokens.surface.card,
@@ -273,8 +418,22 @@ export default function AiUsageDashboard() {
                     fontSize: '12px',
                   }}
                 />
-                <Line type="monotone" dataKey="calls" stroke={tokens.accent.primary} strokeWidth={2} dot={false} name="API Calls" />
-                <Line type="monotone" dataKey="tokens" stroke={tokens.domain.reasoning} strokeWidth={2} dot={false} name="Tokens" />
+                <Line
+                  type="monotone"
+                  dataKey="calls"
+                  stroke={tokens.accent.primary}
+                  strokeWidth={2}
+                  dot={false}
+                  name="API Calls"
+                />
+                <Line
+                  type="monotone"
+                  dataKey="tokens"
+                  stroke={tokens.domain.reasoning}
+                  strokeWidth={2}
+                  dot={false}
+                  name="Tokens"
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
@@ -285,7 +444,10 @@ export default function AiUsageDashboard() {
           className="rounded-xl p-5"
           style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
         >
-          <h2 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: tokens.text.primary }}>
+          <h2
+            className="text-sm font-semibold mb-4 flex items-center gap-2"
+            style={{ color: tokens.text.primary }}
+          >
             <Coins className="h-4 w-4" style={{ color: tokens.accent.primary }} />
             Tokens by Provider
           </h2>
@@ -293,8 +455,19 @@ export default function AiUsageDashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={MOCK_TOKENS_BY_PROVIDER} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke={tokens.border.default} />
-                <XAxis type="number" tick={{ fill: tokens.text.muted, fontSize: 11 }} axisLine={{ stroke: tokens.border.default }} tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`} />
-                <YAxis type="category" dataKey="provider" tick={{ fill: tokens.text.secondary, fontSize: 12 }} axisLine={{ stroke: tokens.border.default }} width={70} />
+                <XAxis
+                  type="number"
+                  tick={{ fill: tokens.text.muted, fontSize: 11 }}
+                  axisLine={{ stroke: tokens.border.default }}
+                  tickFormatter={(v) => `${(v / 1000000).toFixed(1)}M`}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="provider"
+                  tick={{ fill: tokens.text.secondary, fontSize: 12 }}
+                  axisLine={{ stroke: tokens.border.default }}
+                  width={70}
+                />
                 <Tooltip
                   contentStyle={{
                     background: tokens.surface.card,
@@ -306,7 +479,10 @@ export default function AiUsageDashboard() {
                 />
                 <Bar dataKey="tokens" radius={[0, 4, 4, 0]}>
                   {MOCK_TOKENS_BY_PROVIDER.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={PROVIDER_COLORS[entry.provider] || tokens.accent.primary} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={PROVIDER_COLORS[entry.provider] || tokens.accent.primary}
+                    />
                   ))}
                 </Bar>
               </BarChart>
@@ -320,7 +496,10 @@ export default function AiUsageDashboard() {
         className="rounded-xl p-5"
         style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
       >
-        <h2 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: tokens.text.primary }}>
+        <h2
+          className="text-sm font-semibold mb-4 flex items-center gap-2"
+          style={{ color: tokens.text.primary }}
+        >
           <DollarSign className="h-4 w-4" style={{ color: tokens.priority.medium }} />
           Cost by Model
         </h2>
@@ -328,8 +507,19 @@ export default function AiUsageDashboard() {
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={MOCK_COST_BY_MODEL}>
               <CartesianGrid strokeDasharray="3 3" stroke={tokens.border.default} />
-              <XAxis dataKey="model" tick={{ fill: tokens.text.muted, fontSize: 10 }} axisLine={{ stroke: tokens.border.default }} angle={-20} textAnchor="end" height={60} />
-              <YAxis tick={{ fill: tokens.text.muted, fontSize: 11 }} axisLine={{ stroke: tokens.border.default }} tickFormatter={(v) => `$${v}`} />
+              <XAxis
+                dataKey="model"
+                tick={{ fill: tokens.text.muted, fontSize: 10 }}
+                axisLine={{ stroke: tokens.border.default }}
+                angle={-20}
+                textAnchor="end"
+                height={60}
+              />
+              <YAxis
+                tick={{ fill: tokens.text.muted, fontSize: 11 }}
+                axisLine={{ stroke: tokens.border.default }}
+                tickFormatter={(v) => `$${v}`}
+              />
               <Tooltip
                 contentStyle={{
                   background: tokens.surface.card,

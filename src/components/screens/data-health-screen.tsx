@@ -55,14 +55,70 @@ const MOCK_HEALTH: DataHealthResponse = {
     insights: { total: 2564, withEvidence: 2390, evidencePct: 93 },
   },
   issues: [
-    { id: 'di-001', type: 'missing_email', severity: 'high', entity: 'Sarah Chen (Acme Corp)', description: 'Primary contact email is missing for VP of Engineering', detectedAt: '2025-01-22T14:00:00Z' },
-    { id: 'di-002', type: 'stale_signal', severity: 'medium', entity: 'TechStart Inc', description: '18 signals older than 90 days have not been refreshed', detectedAt: '2025-01-22T13:30:00Z' },
-    { id: 'di-003', type: 'incomplete_profile', severity: 'high', entity: 'GlobalFin', description: 'Organization profile missing industry, employee count, and revenue data', detectedAt: '2025-01-22T12:00:00Z' },
-    { id: 'di-004', type: 'missing_email', severity: 'medium', entity: '12 contacts (HealthPlus)', description: '12 out of 34 contacts lack email addresses', detectedAt: '2025-01-22T11:00:00Z' },
-    { id: 'di-005', type: 'duplicate', severity: 'low', entity: 'RetailMax', description: '2 potential duplicate organization records detected', detectedAt: '2025-01-22T10:00:00Z' },
-    { id: 'di-006', type: 'stale_signal', severity: 'medium', entity: 'CloudScale', description: 'Last signal received 67 days ago — may indicate tracking gap', detectedAt: '2025-01-22T09:00:00Z' },
-    { id: 'di-007', type: 'incomplete_profile', severity: 'low', entity: 'EduLearn', description: 'Missing technology stack information', detectedAt: '2025-01-22T08:00:00Z' },
-    { id: 'di-008', type: 'missing_email', severity: 'high', entity: 'James Rodriguez (AutoDrive AI)', description: 'CEO contact has no email — critical for outreach', detectedAt: '2025-01-22T07:00:00Z' },
+    {
+      id: 'di-001',
+      type: 'missing_email',
+      severity: 'high',
+      entity: 'Sarah Chen (Acme Corp)',
+      description: 'Primary contact email is missing for VP of Engineering',
+      detectedAt: '2025-01-22T14:00:00Z',
+    },
+    {
+      id: 'di-002',
+      type: 'stale_signal',
+      severity: 'medium',
+      entity: 'TechStart Inc',
+      description: '18 signals older than 90 days have not been refreshed',
+      detectedAt: '2025-01-22T13:30:00Z',
+    },
+    {
+      id: 'di-003',
+      type: 'incomplete_profile',
+      severity: 'high',
+      entity: 'GlobalFin',
+      description: 'Organization profile missing industry, employee count, and revenue data',
+      detectedAt: '2025-01-22T12:00:00Z',
+    },
+    {
+      id: 'di-004',
+      type: 'missing_email',
+      severity: 'medium',
+      entity: '12 contacts (HealthPlus)',
+      description: '12 out of 34 contacts lack email addresses',
+      detectedAt: '2025-01-22T11:00:00Z',
+    },
+    {
+      id: 'di-005',
+      type: 'duplicate',
+      severity: 'low',
+      entity: 'RetailMax',
+      description: '2 potential duplicate organization records detected',
+      detectedAt: '2025-01-22T10:00:00Z',
+    },
+    {
+      id: 'di-006',
+      type: 'stale_signal',
+      severity: 'medium',
+      entity: 'CloudScale',
+      description: 'Last signal received 67 days ago — may indicate tracking gap',
+      detectedAt: '2025-01-22T09:00:00Z',
+    },
+    {
+      id: 'di-007',
+      type: 'incomplete_profile',
+      severity: 'low',
+      entity: 'EduLearn',
+      description: 'Missing technology stack information',
+      detectedAt: '2025-01-22T08:00:00Z',
+    },
+    {
+      id: 'di-008',
+      type: 'missing_email',
+      severity: 'high',
+      entity: 'James Rodriguez (AutoDrive AI)',
+      description: 'CEO contact has no email — critical for outreach',
+      detectedAt: '2025-01-22T07:00:00Z',
+    },
   ],
 };
 
@@ -82,11 +138,16 @@ function getSeverityConfig(severity: string) {
 
 function getTypeIcon(type: string) {
   switch (type) {
-    case 'missing_email': return Users;
-    case 'stale_signal': return Clock;
-    case 'incomplete_profile': return AlertCircle;
-    case 'duplicate': return Copy;
-    default: return AlertTriangle;
+    case 'missing_email':
+      return Users;
+    case 'stale_signal':
+      return Clock;
+    case 'incomplete_profile':
+      return AlertCircle;
+    case 'duplicate':
+      return Copy;
+    default:
+      return AlertTriangle;
   }
 }
 
@@ -129,9 +190,20 @@ export default function DataHealth() {
   if (error) {
     return (
       <div className="p-6">
-        <div className="rounded-xl p-6 text-center" style={{ background: tokens.confidence.low.bg, border: `1px solid ${tokens.confidence.low.border}` }}>
-          <AlertTriangle className="h-8 w-8 mx-auto mb-2" style={{ color: tokens.confidence.low.value }} />
-          <p className="text-sm font-medium" style={{ color: tokens.confidence.low.value }}>{error}</p>
+        <div
+          className="rounded-xl p-6 text-center"
+          style={{
+            background: tokens.confidence.low.bg,
+            border: `1px solid ${tokens.confidence.low.border}`,
+          }}
+        >
+          <AlertTriangle
+            className="h-8 w-8 mx-auto mb-2"
+            style={{ color: tokens.confidence.low.value }}
+          />
+          <p className="text-sm font-medium" style={{ color: tokens.confidence.low.value }}>
+            {error}
+          </p>
         </div>
       </div>
     );
@@ -142,7 +214,10 @@ export default function DataHealth() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: tokens.text.primary }}>
+          <h1
+            className="text-xl font-bold flex items-center gap-2"
+            style={{ color: tokens.text.primary }}
+          >
             <Database className="h-6 w-6" style={{ color: tokens.accent.primary }} />
             Data Health
           </h1>
@@ -156,23 +231,68 @@ export default function DataHealth() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {loading
           ? Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-24 rounded-xl" style={{ background: tokens.border.default }} />
+              <Skeleton
+                key={i}
+                className="h-24 rounded-xl"
+                style={{ background: tokens.border.default }}
+              />
             ))
-          : health && [
-              { label: 'Total Records', value: health.totalRecords?.toLocaleString() ?? '0', icon: Database, color: tokens.accent.primary, bg: tokens.accent.ghost },
-              { label: 'Completeness Score', value: `${health.completenessScore ?? 0}%`, icon: CheckCircle2, color: getProgressColor(health.completenessScore ?? 0), bg: health.completenessScore && health.completenessScore >= 80 ? '#DCFCE7' : '#FEF3C7' },
-              { label: 'Duplicate Count', value: health.duplicateCount?.toLocaleString() ?? '0', icon: Copy, color: health.duplicateCount && health.duplicateCount > 100 ? '#DC2626' : '#D97706', bg: health.duplicateCount && health.duplicateCount > 100 ? '#FEE2E2' : '#FEF3C7' },
-              { label: 'Stale Records', value: health.staleRecords?.toLocaleString() ?? '0', icon: Clock, color: '#D97706', bg: '#FEF3C7' },
+          : health &&
+            [
+              {
+                label: 'Total Records',
+                value: health.totalRecords?.toLocaleString() ?? '0',
+                icon: Database,
+                color: tokens.accent.primary,
+                bg: tokens.accent.ghost,
+              },
+              {
+                label: 'Completeness Score',
+                value: `${health.completenessScore ?? 0}%`,
+                icon: CheckCircle2,
+                color: getProgressColor(health.completenessScore ?? 0),
+                bg:
+                  health.completenessScore && health.completenessScore >= 80
+                    ? '#DCFCE7'
+                    : '#FEF3C7',
+              },
+              {
+                label: 'Duplicate Count',
+                value: health.duplicateCount?.toLocaleString() ?? '0',
+                icon: Copy,
+                color: health.duplicateCount && health.duplicateCount > 100 ? '#DC2626' : '#D97706',
+                bg: health.duplicateCount && health.duplicateCount > 100 ? '#FEE2E2' : '#FEF3C7',
+              },
+              {
+                label: 'Stale Records',
+                value: health.staleRecords?.toLocaleString() ?? '0',
+                icon: Clock,
+                color: '#D97706',
+                bg: '#FEF3C7',
+              },
             ].map((stat) => (
               <div
                 key={stat.label}
                 className="rounded-xl p-4"
-                style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
+                style={{
+                  background: tokens.surface.card,
+                  border: `1px solid ${tokens.border.default}`,
+                }}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wider" style={{ color: tokens.text.muted }}>{stat.label}</p>
-                    <p className="text-2xl font-bold mt-1 tabular-nums" style={{ color: tokens.text.primary }}>{stat.value}</p>
+                    <p
+                      className="text-xs font-medium uppercase tracking-wider"
+                      style={{ color: tokens.text.muted }}
+                    >
+                      {stat.label}
+                    </p>
+                    <p
+                      className="text-2xl font-bold mt-1 tabular-nums"
+                      style={{ color: tokens.text.primary }}
+                    >
+                      {stat.value}
+                    </p>
                   </div>
                   <div className="rounded-lg p-2.5" style={{ background: stat.bg }}>
                     <stat.icon className="h-5 w-5" style={{ color: stat.color }} />
@@ -184,16 +304,24 @@ export default function DataHealth() {
 
       {/* ── Entity Quality Cards ── */}
       <div>
-        <h2 className="text-sm font-semibold mb-3 flex items-center gap-2" style={{ color: tokens.text.primary }}>
+        <h2
+          className="text-sm font-semibold mb-3 flex items-center gap-2"
+          style={{ color: tokens.text.primary }}
+        >
           <Sparkles className="h-4 w-4" style={{ color: tokens.accent.primary }} />
           Data Quality by Entity Type
         </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-36 rounded-xl" style={{ background: tokens.border.default }} />
+                <Skeleton
+                  key={i}
+                  className="h-36 rounded-xl"
+                  style={{ background: tokens.border.default }}
+                />
               ))
-            : health?.entityStats && [
+            : health?.entityStats &&
+              [
                 {
                   label: 'Organizations',
                   metric: 'Profile Completeness',
@@ -228,23 +356,37 @@ export default function DataHealth() {
                   <div
                     key={card.label}
                     className="rounded-xl p-5"
-                    style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
+                    style={{
+                      background: tokens.surface.card,
+                      border: `1px solid ${tokens.border.default}`,
+                    }}
                   >
                     <div className="flex items-center gap-2 mb-3">
                       <card.icon className="h-4 w-4" style={{ color: tokens.text.muted }} />
-                      <h3 className="text-sm font-semibold" style={{ color: tokens.text.primary }}>{card.label}</h3>
+                      <h3 className="text-sm font-semibold" style={{ color: tokens.text.primary }}>
+                        {card.label}
+                      </h3>
                     </div>
-                    <p className="text-xs mb-1" style={{ color: tokens.text.secondary }}>{card.metric}</p>
+                    <p className="text-xs mb-1" style={{ color: tokens.text.secondary }}>
+                      {card.metric}
+                    </p>
                     <div className="flex items-end justify-between mb-2">
-                      <span className="text-3xl font-bold tabular-nums" style={{ color }}>{card.pct}%</span>
+                      <span className="text-3xl font-bold tabular-nums" style={{ color }}>
+                        {card.pct}%
+                      </span>
                     </div>
-                    <div className="h-2 rounded-full overflow-hidden mb-1.5" style={{ background: tokens.border.default }}>
+                    <div
+                      className="h-2 rounded-full overflow-hidden mb-1.5"
+                      style={{ background: tokens.border.default }}
+                    >
                       <div
                         className="h-full rounded-full transition-all"
                         style={{ width: `${card.pct}%`, background: color }}
                       />
                     </div>
-                    <p className="text-[11px]" style={{ color: tokens.text.muted }}>{card.detail}</p>
+                    <p className="text-[11px]" style={{ color: tokens.text.muted }}>
+                      {card.detail}
+                    </p>
                   </div>
                 );
               })}
@@ -254,13 +396,19 @@ export default function DataHealth() {
       {/* ── Data Issues List ── */}
       <div>
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-semibold flex items-center gap-2" style={{ color: tokens.text.primary }}>
+          <h2
+            className="text-sm font-semibold flex items-center gap-2"
+            style={{ color: tokens.text.primary }}
+          >
             <AlertTriangle className="h-4 w-4" style={{ color: tokens.priority.medium }} />
             Recent Data Issues
             {!loading && health?.issues && (
               <span
                 className="px-2 py-0.5 rounded-full text-xs font-medium"
-                style={{ background: tokens.confidence.medium.bg, color: tokens.confidence.medium.value }}
+                style={{
+                  background: tokens.confidence.medium.bg,
+                  color: tokens.confidence.medium.value,
+                }}
               >
                 {health.issues.length}
               </span>
@@ -278,7 +426,11 @@ export default function DataHealth() {
         {loading ? (
           <div className="space-y-3">
             {Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-16 rounded-xl" style={{ background: tokens.border.default }} />
+              <Skeleton
+                key={i}
+                className="h-16 rounded-xl"
+                style={{ background: tokens.border.default }}
+              />
             ))}
           </div>
         ) : health?.issues && health.issues.length > 0 ? (
@@ -330,8 +482,14 @@ export default function DataHealth() {
                       {issue.description}
                     </p>
                   </div>
-                  <span className="text-[10px] shrink-0 tabular-nums" style={{ color: tokens.text.muted }}>
-                    {new Date(issue.detectedAt).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+                  <span
+                    className="text-[10px] shrink-0 tabular-nums"
+                    style={{ color: tokens.text.muted }}
+                  >
+                    {new Date(issue.detectedAt).toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
                   </span>
                 </div>
               );
@@ -340,10 +498,15 @@ export default function DataHealth() {
         ) : (
           <div
             className="rounded-xl p-8 text-center"
-            style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
+            style={{
+              background: tokens.surface.card,
+              border: `1px solid ${tokens.border.default}`,
+            }}
           >
             <CheckCircle2 className="h-8 w-8 mx-auto mb-2" style={{ color: '#16A34A' }} />
-            <p className="text-sm" style={{ color: tokens.text.secondary }}>No data issues detected — everything looks healthy!</p>
+            <p className="text-sm" style={{ color: tokens.text.secondary }}>
+              No data issues detected — everything looks healthy!
+            </p>
           </div>
         )}
       </div>

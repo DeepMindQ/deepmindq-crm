@@ -1,18 +1,28 @@
-'use client'
-import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+'use client';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 interface SkeletonCardProps {
-  className?: string
-  lines?: number
-  hasAvatar?: boolean
-  hasImage?: boolean
-  hasActions?: boolean
+  className?: string;
+  lines?: number;
+  hasAvatar?: boolean;
+  hasImage?: boolean;
+  hasActions?: boolean;
 }
 
-export function SkeletonCard({ className, lines = 3, hasAvatar, hasImage, hasActions }: SkeletonCardProps) {
+export function SkeletonCard({
+  className,
+  lines = 3,
+  hasAvatar,
+  hasImage,
+  hasActions,
+}: SkeletonCardProps) {
   return (
-    <div className={cn('rounded-xl border border-border bg-card p-5 space-y-3', className)} role="status" aria-label="Loading content">
+    <div
+      className={cn('rounded-xl border border-border bg-card p-5 space-y-3', className)}
+      role="status"
+      aria-label="Loading content"
+    >
       {hasImage && <Skeleton className="w-full h-32 rounded-lg" />}
       <div className="flex items-center gap-3">
         {hasAvatar && <Skeleton className="h-10 w-10 rounded-full" />}
@@ -32,5 +42,5 @@ export function SkeletonCard({ className, lines = 3, hasAvatar, hasImage, hasAct
       )}
       <span className="sr-only">Loading...</span>
     </div>
-  )
+  );
 }

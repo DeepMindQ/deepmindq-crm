@@ -77,12 +77,39 @@ const ACCEPTED_TYPES: Record<string, string[]> = {
 
 const ACCEPTED_EXTENSIONS = ['.csv', '.xlsx', '.xls', '.json'];
 
-const STATUS_CONFIG: Record<IngestionStatus, { label: string; color: string; bg: string; border: string; icon: React.ElementType }> = {
+const STATUS_CONFIG: Record<
+  IngestionStatus,
+  { label: string; color: string; bg: string; border: string; icon: React.ElementType }
+> = {
   pending: { label: 'Pending', color: '#D97706', bg: '#FEF3C7', border: '#FDE68A', icon: Clock },
-  processing: { label: 'Processing', color: '#2563EB', bg: '#DBEAFE', border: '#93C5FD', icon: Loader2 },
-  completed: { label: 'Completed', color: '#16A34A', bg: '#DCFCE7', border: '#BBF7D0', icon: CheckCircle2 },
-  failed: { label: 'Failed', color: '#DC2626', bg: '#FEE2E2', border: '#FECACA', icon: AlertCircle },
-  partial: { label: 'Partial', color: '#EA580C', bg: '#FFEDD5', border: '#FED7AA', icon: AlertTriangle },
+  processing: {
+    label: 'Processing',
+    color: '#2563EB',
+    bg: '#DBEAFE',
+    border: '#93C5FD',
+    icon: Loader2,
+  },
+  completed: {
+    label: 'Completed',
+    color: '#16A34A',
+    bg: '#DCFCE7',
+    border: '#BBF7D0',
+    icon: CheckCircle2,
+  },
+  failed: {
+    label: 'Failed',
+    color: '#DC2626',
+    bg: '#FEE2E2',
+    border: '#FECACA',
+    icon: AlertCircle,
+  },
+  partial: {
+    label: 'Partial',
+    color: '#EA580C',
+    bg: '#FFEDD5',
+    border: '#FED7AA',
+    icon: AlertTriangle,
+  },
 };
 
 const FILE_TYPE_ICONS: Record<string, React.ElementType> = {
@@ -145,7 +172,10 @@ function StatusBadge({ status }: { status: IngestionStatus }) {
         border: `1px solid ${cfg.border}`,
       }}
     >
-      <Icon className="h-3 w-3" style={isSpinning ? { animation: 'spin 1s linear infinite' } : undefined} />
+      <Icon
+        className="h-3 w-3"
+        style={isSpinning ? { animation: 'spin 1s linear infinite' } : undefined}
+      />
       {cfg.label}
     </span>
   );
@@ -216,15 +246,28 @@ function DetailPanel({
 
   const cfg = STATUS_CONFIG[record.status];
   const parsedColumnMap: Record<string, string> | null = record.columnMap
-    ? (() => { try { return JSON.parse(record.columnMap); } catch { return null; } })()
+    ? (() => {
+        try {
+          return JSON.parse(record.columnMap);
+        } catch {
+          return null;
+        }
+      })()
     : null;
   const parsedErrorDetails: Array<{ row: number; errors: string[] }> | null = record.errorDetails
-    ? (() => { try { return JSON.parse(record.errorDetails); } catch { return null; } })()
+    ? (() => {
+        try {
+          return JSON.parse(record.errorDetails);
+        } catch {
+          return null;
+        }
+      })()
     : null;
 
-  const progress = record.totalRows && record.totalRows > 0
-    ? Math.round(((record.processedRows ?? 0) / record.totalRows) * 100)
-    : 0;
+  const progress =
+    record.totalRows && record.totalRows > 0
+      ? Math.round(((record.processedRows ?? 0) / record.totalRows) * 100)
+      : 0;
 
   return (
     <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
@@ -246,13 +289,25 @@ function DetailPanel({
           </SheetDescription>
         </SheetHeader>
 
-        <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-6" style={{ maxHeight: 'calc(100vh - 120px)' }}>
+        <div
+          className="flex-1 overflow-y-auto px-4 pb-6 space-y-6"
+          style={{ maxHeight: 'calc(100vh - 120px)' }}
+        >
           {/* Status & Progress */}
           <section>
-            <h4 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: tokens.text.secondary }}>
+            <h4
+              className="text-xs font-semibold uppercase tracking-wider mb-3"
+              style={{ color: tokens.text.secondary }}
+            >
               Status & Progress
             </h4>
-            <div className="p-4 rounded-xl space-y-3" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.border.default}` }}>
+            <div
+              className="p-4 rounded-xl space-y-3"
+              style={{
+                background: tokens.surface.secondary,
+                border: `1px solid ${tokens.border.default}`,
+              }}
+            >
               <div className="flex items-center justify-between">
                 <StatusBadge status={record.status} />
                 <span className="text-xs" style={{ color: tokens.text.muted }}>
@@ -268,20 +323,42 @@ function DetailPanel({
               )}
               <div className="grid grid-cols-2 gap-3 pt-1">
                 <div>
-                  <p className="text-[11px] font-medium" style={{ color: tokens.text.muted }}>Total Rows</p>
-                  <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>{record.totalRows ?? '—'}</p>
+                  <p className="text-[11px] font-medium" style={{ color: tokens.text.muted }}>
+                    Total Rows
+                  </p>
+                  <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>
+                    {record.totalRows ?? '—'}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium" style={{ color: tokens.text.muted }}>Processed</p>
-                  <p className="text-sm font-semibold" style={{ color: STATUS_CONFIG.completed.color }}>{record.processedRows ?? '—'}</p>
+                  <p className="text-[11px] font-medium" style={{ color: tokens.text.muted }}>
+                    Processed
+                  </p>
+                  <p
+                    className="text-sm font-semibold"
+                    style={{ color: STATUS_CONFIG.completed.color }}
+                  >
+                    {record.processedRows ?? '—'}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium" style={{ color: tokens.text.muted }}>Failed Rows</p>
-                  <p className="text-sm font-semibold" style={{ color: STATUS_CONFIG.failed.color }}>{record.failedRows ?? '—'}</p>
+                  <p className="text-[11px] font-medium" style={{ color: tokens.text.muted }}>
+                    Failed Rows
+                  </p>
+                  <p
+                    className="text-sm font-semibold"
+                    style={{ color: STATUS_CONFIG.failed.color }}
+                  >
+                    {record.failedRows ?? '—'}
+                  </p>
                 </div>
                 <div>
-                  <p className="text-[11px] font-medium" style={{ color: tokens.text.muted }}>File Size</p>
-                  <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>{formatBytes(record.fileSize)}</p>
+                  <p className="text-[11px] font-medium" style={{ color: tokens.text.muted }}>
+                    File Size
+                  </p>
+                  <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>
+                    {formatBytes(record.fileSize)}
+                  </p>
                 </div>
               </div>
             </div>
@@ -290,19 +367,42 @@ function DetailPanel({
           {/* Created Entities */}
           {(record.organizationsCreated !== null || record.peopleCreated !== null) && (
             <section>
-              <h4 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: tokens.text.secondary }}>
+              <h4
+                className="text-xs font-semibold uppercase tracking-wider mb-3"
+                style={{ color: tokens.text.secondary }}
+              >
                 Created Entities
               </h4>
               <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.border.default}` }}>
+                <div
+                  className="p-3 rounded-xl"
+                  style={{
+                    background: tokens.surface.secondary,
+                    border: `1px solid ${tokens.border.default}`,
+                  }}
+                >
                   <Database className="h-4 w-4 mb-1" style={{ color: tokens.accent.DEFAULT }} />
-                  <p className="text-[11px] font-medium" style={{ color: tokens.text.muted }}>Organizations</p>
-                  <p className="text-lg font-bold" style={{ color: tokens.text.primary }}>{record.organizationsCreated ?? 0}</p>
+                  <p className="text-[11px] font-medium" style={{ color: tokens.text.muted }}>
+                    Organizations
+                  </p>
+                  <p className="text-lg font-bold" style={{ color: tokens.text.primary }}>
+                    {record.organizationsCreated ?? 0}
+                  </p>
                 </div>
-                <div className="p-3 rounded-xl" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.border.default}` }}>
+                <div
+                  className="p-3 rounded-xl"
+                  style={{
+                    background: tokens.surface.secondary,
+                    border: `1px solid ${tokens.border.default}`,
+                  }}
+                >
                   <ListOrdered className="h-4 w-4 mb-1" style={{ color: tokens.domain.value }} />
-                  <p className="text-[11px] font-medium" style={{ color: tokens.text.muted }}>People</p>
-                  <p className="text-lg font-bold" style={{ color: tokens.text.primary }}>{record.peopleCreated ?? 0}</p>
+                  <p className="text-[11px] font-medium" style={{ color: tokens.text.muted }}>
+                    People
+                  </p>
+                  <p className="text-lg font-bold" style={{ color: tokens.text.primary }}>
+                    {record.peopleCreated ?? 0}
+                  </p>
                 </div>
               </div>
             </section>
@@ -311,23 +411,39 @@ function DetailPanel({
           {/* Column Mapping */}
           {parsedColumnMap && Object.keys(parsedColumnMap).length > 0 && (
             <section>
-              <h4 className="text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: tokens.text.secondary }}>
+              <h4
+                className="text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2"
+                style={{ color: tokens.text.secondary }}
+              >
                 <MapPin className="h-3.5 w-3.5" />
                 Column Mapping
               </h4>
-              <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${tokens.border.default}` }}>
+              <div
+                className="rounded-xl overflow-hidden"
+                style={{ border: `1px solid ${tokens.border.default}` }}
+              >
                 {Object.entries(parsedColumnMap).map(([source, target], idx) => (
                   <div
                     key={source}
                     className="flex items-center justify-between px-4 py-2.5"
                     style={{
-                      borderBottom: idx < Object.keys(parsedColumnMap).length - 1 ? `1px solid ${tokens.border.default}` : 'none',
+                      borderBottom:
+                        idx < Object.keys(parsedColumnMap).length - 1
+                          ? `1px solid ${tokens.border.default}`
+                          : 'none',
                       background: idx % 2 === 0 ? tokens.surface.primary : tokens.surface.secondary,
                     }}
                   >
-                    <span className="text-xs font-medium" style={{ color: tokens.text.primary }}>{source}</span>
+                    <span className="text-xs font-medium" style={{ color: tokens.text.primary }}>
+                      {source}
+                    </span>
                     <ChevronRight className="h-3 w-3" style={{ color: tokens.text.muted }} />
-                    <span className="text-xs font-medium px-2 py-0.5 rounded" style={{ color: tokens.accent.DEFAULT, background: tokens.accent.ghost }}>{target}</span>
+                    <span
+                      className="text-xs font-medium px-2 py-0.5 rounded"
+                      style={{ color: tokens.accent.DEFAULT, background: tokens.accent.ghost }}
+                    >
+                      {target}
+                    </span>
                   </div>
                 ))}
               </div>
@@ -337,8 +453,14 @@ function DetailPanel({
           {/* Error Details */}
           {(record.errorMessage || (parsedErrorDetails && parsedErrorDetails.length > 0)) && (
             <section>
-              <h4 className="text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2" style={{ color: tokens.text.secondary }}>
-                <AlertOctagon className="h-3.5 w-3.5" style={{ color: STATUS_CONFIG.failed.color }} />
+              <h4
+                className="text-xs font-semibold uppercase tracking-wider mb-3 flex items-center gap-2"
+                style={{ color: tokens.text.secondary }}
+              >
+                <AlertOctagon
+                  className="h-3.5 w-3.5"
+                  style={{ color: STATUS_CONFIG.failed.color }}
+                />
                 Error Details
               </h4>
               <div
@@ -350,15 +472,23 @@ function DetailPanel({
               >
                 {record.errorMessage && (
                   <div>
-                    <p className="text-[11px] font-semibold uppercase mb-1" style={{ color: STATUS_CONFIG.failed.color }}>
+                    <p
+                      className="text-[11px] font-semibold uppercase mb-1"
+                      style={{ color: STATUS_CONFIG.failed.color }}
+                    >
                       Error Message
                     </p>
-                    <p className="text-sm" style={{ color: tokens.text.primary }}>{record.errorMessage}</p>
+                    <p className="text-sm" style={{ color: tokens.text.primary }}>
+                      {record.errorMessage}
+                    </p>
                   </div>
                 )}
                 {parsedErrorDetails && parsedErrorDetails.length > 0 && (
                   <div>
-                    <p className="text-[11px] font-semibold uppercase mb-2" style={{ color: STATUS_CONFIG.failed.color }}>
+                    <p
+                      className="text-[11px] font-semibold uppercase mb-2"
+                      style={{ color: STATUS_CONFIG.failed.color }}
+                    >
                       Row-Level Errors
                     </p>
                     <div className="max-h-48 overflow-y-auto space-y-2">
@@ -366,13 +496,23 @@ function DetailPanel({
                         <div
                           key={idx}
                           className="px-3 py-2 rounded-lg"
-                          style={{ background: tokens.surface.primary, border: `1px solid ${STATUS_CONFIG.failed.border}` }}
+                          style={{
+                            background: tokens.surface.primary,
+                            border: `1px solid ${STATUS_CONFIG.failed.border}`,
+                          }}
                         >
-                          <p className="text-[11px] font-semibold" style={{ color: STATUS_CONFIG.failed.color }}>
+                          <p
+                            className="text-[11px] font-semibold"
+                            style={{ color: STATUS_CONFIG.failed.color }}
+                          >
                             Row {err.row}
                           </p>
                           {err.errors.map((e, eIdx) => (
-                            <p key={eIdx} className="text-xs mt-0.5" style={{ color: tokens.text.secondary }}>
+                            <p
+                              key={eIdx}
+                              className="text-xs mt-0.5"
+                              style={{ color: tokens.text.secondary }}
+                            >
                               {e}
                             </p>
                           ))}
@@ -387,23 +527,47 @@ function DetailPanel({
 
           {/* Metadata */}
           <section>
-            <h4 className="text-xs font-semibold uppercase tracking-wider mb-3" style={{ color: tokens.text.secondary }}>
+            <h4
+              className="text-xs font-semibold uppercase tracking-wider mb-3"
+              style={{ color: tokens.text.secondary }}
+            >
               Metadata
             </h4>
-            <div className="p-4 rounded-xl space-y-2" style={{ background: tokens.surface.secondary, border: `1px solid ${tokens.border.default}` }}>
+            <div
+              className="p-4 rounded-xl space-y-2"
+              style={{
+                background: tokens.surface.secondary,
+                border: `1px solid ${tokens.border.default}`,
+              }}
+            >
               <div className="flex justify-between">
-                <span className="text-xs" style={{ color: tokens.text.muted }}>Uploaded</span>
-                <span className="text-xs font-medium" style={{ color: tokens.text.primary }}>{formatDateTime(record.uploadedAt)}</span>
+                <span className="text-xs" style={{ color: tokens.text.muted }}>
+                  Uploaded
+                </span>
+                <span className="text-xs font-medium" style={{ color: tokens.text.primary }}>
+                  {formatDateTime(record.uploadedAt)}
+                </span>
               </div>
               {record.completedAt && (
                 <div className="flex justify-between">
-                  <span className="text-xs" style={{ color: tokens.text.muted }}>Completed</span>
-                  <span className="text-xs font-medium" style={{ color: tokens.text.primary }}>{formatDateTime(record.completedAt)}</span>
+                  <span className="text-xs" style={{ color: tokens.text.muted }}>
+                    Completed
+                  </span>
+                  <span className="text-xs font-medium" style={{ color: tokens.text.primary }}>
+                    {formatDateTime(record.completedAt)}
+                  </span>
                 </div>
               )}
               <div className="flex justify-between">
-                <span className="text-xs" style={{ color: tokens.text.muted }}>File Type</span>
-                <span className="text-xs font-medium uppercase" style={{ color: tokens.text.primary }}>{record.fileType}</span>
+                <span className="text-xs" style={{ color: tokens.text.muted }}>
+                  File Type
+                </span>
+                <span
+                  className="text-xs font-medium uppercase"
+                  style={{ color: tokens.text.primary }}
+                >
+                  {record.fileType}
+                </span>
               </div>
             </div>
           </section>
@@ -512,73 +676,98 @@ export default function DataImport() {
   };
 
   /* ── Upload handler ── */
-  const uploadFile = useCallback(async (file: File) => {
-    const validationError = validateFile(file);
-    if (validationError) {
-      setUploadState({ status: 'error', progress: 0, fileName: file.name, error: validationError });
-      toast.error('Upload failed', { description: validationError });
-      return;
-    }
-
-    setUploadState({ status: 'uploading', progress: 0, fileName: file.name, error: '' });
-
-    const formData = new FormData();
-    formData.append('file', file);
-
-    try {
-      const xhr = new XMLHttpRequest();
-
-      // Track progress
-      xhr.upload.addEventListener('progress', (e) => {
-        if (e.lengthComputable) {
-          const pct = Math.round((e.loaded / e.total) * 90); // Cap at 90% — server processing takes the rest
-          setUploadState((prev) => ({ ...prev, progress: pct }));
-        }
-      });
-
-      const result = await new Promise<{ success: boolean; error?: string }>((resolve) => {
-        xhr.onload = () => {
-          try {
-            const body = JSON.parse(xhr.responseText);
-            if (xhr.status >= 200 && xhr.status < 300) {
-              resolve({ success: true });
-            } else {
-              resolve({ success: false, error: body.error || `Upload failed with status ${xhr.status}` });
-            }
-          } catch {
-            resolve({ success: false, error: 'Failed to parse server response.' });
-          }
-        };
-        xhr.onerror = () => resolve({ success: false, error: 'Network error during upload.' });
-        xhr.open('POST', '/api/ingestion');
-        xhr.withCredentials = true;
-
-        // CSRF token
-        const match = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
-        if (match) {
-          xhr.setRequestHeader('x-csrf-token', decodeURIComponent(match[1]));
-        }
-
-        xhr.send(formData);
-      });
-
-      if (result.success) {
-        setUploadState({ status: 'success', progress: 100, fileName: file.name, error: '' });
-        toast.success('File uploaded', { description: `${file.name} is being processed.` });
-        await fetchHistory();
-        // Reset success state after 3 seconds
-        setTimeout(() => {
-          setUploadState((prev) => (prev.status === 'success' ? { status: 'idle', progress: 0, fileName: '', error: '' } : prev));
-        }, 3000);
-      } else {
-        setUploadState({ status: 'error', progress: 0, fileName: file.name, error: result.error || 'Upload failed.' });
-        toast.error('Upload failed', { description: result.error });
+  const uploadFile = useCallback(
+    async (file: File) => {
+      const validationError = validateFile(file);
+      if (validationError) {
+        setUploadState({
+          status: 'error',
+          progress: 0,
+          fileName: file.name,
+          error: validationError,
+        });
+        toast.error('Upload failed', { description: validationError });
+        return;
       }
-    } catch {
-      setUploadState({ status: 'error', progress: 0, fileName: file.name, error: 'Unexpected error during upload.' });
-      toast.error('Upload failed', { description: 'Unexpected error.' });
-    }
-  }, [fetchHistory]);
+
+      setUploadState({ status: 'uploading', progress: 0, fileName: file.name, error: '' });
+
+      const formData = new FormData();
+      formData.append('file', file);
+
+      try {
+        const xhr = new XMLHttpRequest();
+
+        // Track progress
+        xhr.upload.addEventListener('progress', (e) => {
+          if (e.lengthComputable) {
+            const pct = Math.round((e.loaded / e.total) * 90); // Cap at 90% — server processing takes the rest
+            setUploadState((prev) => ({ ...prev, progress: pct }));
+          }
+        });
+
+        const result = await new Promise<{ success: boolean; error?: string }>((resolve) => {
+          xhr.onload = () => {
+            try {
+              const body = JSON.parse(xhr.responseText);
+              if (xhr.status >= 200 && xhr.status < 300) {
+                resolve({ success: true });
+              } else {
+                resolve({
+                  success: false,
+                  error: body.error || `Upload failed with status ${xhr.status}`,
+                });
+              }
+            } catch {
+              resolve({ success: false, error: 'Failed to parse server response.' });
+            }
+          };
+          xhr.onerror = () => resolve({ success: false, error: 'Network error during upload.' });
+          xhr.open('POST', '/api/ingestion');
+          xhr.withCredentials = true;
+
+          // CSRF token
+          const match = document.cookie.match(/(?:^|;\s*)csrf-token=([^;]*)/);
+          if (match) {
+            xhr.setRequestHeader('x-csrf-token', decodeURIComponent(match[1]));
+          }
+
+          xhr.send(formData);
+        });
+
+        if (result.success) {
+          setUploadState({ status: 'success', progress: 100, fileName: file.name, error: '' });
+          toast.success('File uploaded', { description: `${file.name} is being processed.` });
+          await fetchHistory();
+          // Reset success state after 3 seconds
+          setTimeout(() => {
+            setUploadState((prev) =>
+              prev.status === 'success'
+                ? { status: 'idle', progress: 0, fileName: '', error: '' }
+                : prev,
+            );
+          }, 3000);
+        } else {
+          setUploadState({
+            status: 'error',
+            progress: 0,
+            fileName: file.name,
+            error: result.error || 'Upload failed.',
+          });
+          toast.error('Upload failed', { description: result.error });
+        }
+      } catch {
+        setUploadState({
+          status: 'error',
+          progress: 0,
+          fileName: file.name,
+          error: 'Unexpected error during upload.',
+        });
+        toast.error('Upload failed', { description: 'Unexpected error.' });
+      }
+    },
+    [fetchHistory],
+  );
 
   /* ── Drag & Drop handlers ── */
   const handleDragEnter = useCallback((e: React.DragEvent) => {
@@ -615,7 +804,7 @@ export default function DataImport() {
         uploadFile(e.dataTransfer.files[0]);
       }
     },
-    [uploadFile]
+    [uploadFile],
   );
 
   const handleFileInput = useCallback(
@@ -626,7 +815,7 @@ export default function DataImport() {
       // Reset input so the same file can be re-selected
       e.target.value = '';
     },
-    [uploadFile]
+    [uploadFile],
   );
 
   /* ── Clear error state ── */
@@ -647,7 +836,7 @@ export default function DataImport() {
       }
       setRetryingId(null);
     },
-    [fetchHistory]
+    [fetchHistory],
   );
 
   /* ── Row click → detail panel ── */
@@ -662,7 +851,7 @@ export default function DataImport() {
       e.stopPropagation();
       handleRetry(id);
     },
-    [handleRetry]
+    [handleRetry],
   );
 
   /* ── DataTable columns ── */
@@ -694,7 +883,10 @@ export default function DataImport() {
       label: 'File Type',
       sortable: true,
       render: (value: unknown) => (
-        <span className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold uppercase" style={{ background: tokens.surfaceExtended, color: tokens.text.secondary }}>
+        <span
+          className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-semibold uppercase"
+          style={{ background: tokens.surfaceExtended, color: tokens.text.secondary }}
+        >
           {value as string}
         </span>
       ),
@@ -710,7 +902,10 @@ export default function DataImport() {
       label: 'Total Rows',
       sortable: true,
       render: (value: unknown) => (
-        <span className="tabular-nums" style={{ color: value ? tokens.text.primary : tokens.text.muted }}>
+        <span
+          className="tabular-nums"
+          style={{ color: value ? tokens.text.primary : tokens.text.muted }}
+        >
           {value != null ? (value as number).toLocaleString() : '—'}
         </span>
       ),
@@ -720,7 +915,10 @@ export default function DataImport() {
       label: 'Processed Rows',
       sortable: true,
       render: (value: unknown) => (
-        <span className="tabular-nums" style={{ color: value ? STATUS_CONFIG.completed.color : tokens.text.muted }}>
+        <span
+          className="tabular-nums"
+          style={{ color: value ? STATUS_CONFIG.completed.color : tokens.text.muted }}
+        >
           {value != null ? (value as number).toLocaleString() : '—'}
         </span>
       ),
@@ -746,9 +944,7 @@ export default function DataImport() {
       label: 'Uploaded At',
       sortable: true,
       render: (value: unknown) => (
-        <span style={{ color: tokens.text.secondary }}>
-          {formatDateTime(value as string)}
-        </span>
+        <span style={{ color: tokens.text.secondary }}>{formatDateTime(value as string)}</span>
       ),
     },
     {
@@ -801,7 +997,10 @@ export default function DataImport() {
         {/* ── Header ── */}
         <header className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2.5" style={{ color: tokens.text.primary }}>
+            <h1
+              className="text-2xl font-bold flex items-center gap-2.5"
+              style={{ color: tokens.text.primary }}
+            >
               <div
                 className="flex items-center justify-center w-9 h-9 rounded-xl"
                 style={{ background: tokens.accent.ghost }}
@@ -868,7 +1067,10 @@ export default function DataImport() {
 
         {/* ── Upload Zone ── */}
         <div
-          className={cn('relative rounded-xl transition-all duration-200', uploadState.status === 'uploading' && 'pointer-events-none')}
+          className={cn(
+            'relative rounded-xl transition-all duration-200',
+            uploadState.status === 'uploading' && 'pointer-events-none',
+          )}
           onDragEnter={handleDragEnter}
           onDragLeave={handleDragLeave}
           onDragOver={handleDragOver}
@@ -913,7 +1115,9 @@ export default function DataImport() {
                   <Upload className="h-8 w-8" style={{ color: tokens.text.muted }} />
                 </div>
                 <p className="text-base font-semibold mb-1" style={{ color: tokens.text.primary }}>
-                  {dragActive ? 'Drop your file here' : 'Drag & drop files here, or click to browse'}
+                  {dragActive
+                    ? 'Drop your file here'
+                    : 'Drag & drop files here, or click to browse'}
                 </p>
                 <p className="text-sm" style={{ color: tokens.text.muted }}>
                   Supports CSV, XLSX, XLS, and JSON files up to 50MB
@@ -928,7 +1132,10 @@ export default function DataImport() {
                   className="flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
                   style={{ background: tokens.accent.ghost }}
                 >
-                  <Loader2 className="h-8 w-8" style={{ color: tokens.accent.DEFAULT, animation: 'spin 1s linear infinite' }} />
+                  <Loader2
+                    className="h-8 w-8"
+                    style={{ color: tokens.accent.DEFAULT, animation: 'spin 1s linear infinite' }}
+                  />
                 </div>
                 <p className="text-base font-semibold mb-1" style={{ color: tokens.text.primary }}>
                   Uploading {uploadState.fileName}
@@ -949,9 +1156,15 @@ export default function DataImport() {
                   className="flex items-center justify-center w-16 h-16 rounded-2xl mb-4"
                   style={{ background: STATUS_CONFIG.completed.bg }}
                 >
-                  <CheckCircle2 className="h-8 w-8" style={{ color: STATUS_CONFIG.completed.color }} />
+                  <CheckCircle2
+                    className="h-8 w-8"
+                    style={{ color: STATUS_CONFIG.completed.color }}
+                  />
                 </div>
-                <p className="text-base font-semibold mb-1" style={{ color: STATUS_CONFIG.completed.color }}>
+                <p
+                  className="text-base font-semibold mb-1"
+                  style={{ color: STATUS_CONFIG.completed.color }}
+                >
                   Upload successful
                 </p>
                 <p className="text-sm" style={{ color: tokens.text.secondary }}>
@@ -969,7 +1182,10 @@ export default function DataImport() {
                 >
                   <AlertCircle className="h-8 w-8" style={{ color: STATUS_CONFIG.failed.color }} />
                 </div>
-                <p className="text-base font-semibold mb-1" style={{ color: STATUS_CONFIG.failed.color }}>
+                <p
+                  className="text-base font-semibold mb-1"
+                  style={{ color: STATUS_CONFIG.failed.color }}
+                >
                   Upload failed
                 </p>
                 <p className="text-sm mb-3 max-w-md" style={{ color: tokens.text.secondary }}>
@@ -998,7 +1214,10 @@ export default function DataImport() {
         {/* ── Ingestion History Table ── */}
         <section>
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-bold flex items-center gap-2" style={{ color: tokens.text.primary }}>
+            <h2
+              className="text-lg font-bold flex items-center gap-2"
+              style={{ color: tokens.text.primary }}
+            >
               <RefreshCw className="h-5 w-5" style={{ color: tokens.text.muted }} />
               Ingestion History
             </h2>

@@ -87,12 +87,12 @@ const MOCK_PROVIDERS: ProviderHealth[] = [
 
 const MOCK_TOKEN_USAGE = [
   { day: 'Mon', tokens: 125000, cost: 6.25 },
-  { day: 'Tue', tokens: 148000, cost: 7.40 },
-  { day: 'Wed', tokens: 132000, cost: 6.60 },
+  { day: 'Tue', tokens: 148000, cost: 7.4 },
+  { day: 'Wed', tokens: 132000, cost: 6.6 },
   { day: 'Thu', tokens: 189000, cost: 9.45 },
   { day: 'Fri', tokens: 167000, cost: 8.35 },
-  { day: 'Sat', tokens: 78000, cost: 3.90 },
-  { day: 'Sun', tokens: 54000, cost: 2.70 },
+  { day: 'Sat', tokens: 78000, cost: 3.9 },
+  { day: 'Sun', tokens: 54000, cost: 2.7 },
 ];
 
 const MOCK_MODEL_USAGE = [
@@ -178,9 +178,20 @@ export default function AiHealth() {
   if (error) {
     return (
       <div className="p-6">
-        <div className="rounded-xl p-6 text-center" style={{ background: tokens.confidence.low.bg, border: `1px solid ${tokens.confidence.low.border}` }}>
-          <AlertTriangle className="h-8 w-8 mx-auto mb-2" style={{ color: tokens.confidence.low.value }} />
-          <p className="text-sm font-medium" style={{ color: tokens.confidence.low.value }}>{error}</p>
+        <div
+          className="rounded-xl p-6 text-center"
+          style={{
+            background: tokens.confidence.low.bg,
+            border: `1px solid ${tokens.confidence.low.border}`,
+          }}
+        >
+          <AlertTriangle
+            className="h-8 w-8 mx-auto mb-2"
+            style={{ color: tokens.confidence.low.value }}
+          />
+          <p className="text-sm font-medium" style={{ color: tokens.confidence.low.value }}>
+            {error}
+          </p>
         </div>
       </div>
     );
@@ -191,7 +202,10 @@ export default function AiHealth() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold flex items-center gap-2" style={{ color: tokens.text.primary }}>
+          <h1
+            className="text-xl font-bold flex items-center gap-2"
+            style={{ color: tokens.text.primary }}
+          >
             <Activity className="h-6 w-6" style={{ color: tokens.accent.primary }} />
             AI System Health
           </h1>
@@ -205,23 +219,65 @@ export default function AiHealth() {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {loading
           ? Array.from({ length: 4 }).map((_, i) => (
-              <Skeleton key={i} className="h-24 rounded-xl" style={{ background: tokens.border.default }} />
+              <Skeleton
+                key={i}
+                className="h-24 rounded-xl"
+                style={{ background: tokens.border.default }}
+              />
             ))
           : [
-              { label: 'Overall Health', value: `${overallHealth}%`, icon: Gauge, color: overallHealth >= 80 ? '#16A34A' : overallHealth >= 60 ? '#D97706' : '#DC2626', bg: overallHealth >= 80 ? '#DCFCE7' : overallHealth >= 60 ? '#FEF3C7' : '#FEE2E2' },
-              { label: 'Total Tokens Used', value: (totalTokens / 1000000).toFixed(1) + 'M', icon: Coins, color: tokens.accent.primary, bg: tokens.accent.ghost },
-              { label: 'Avg Latency', value: `${avgLatency}ms`, icon: Clock, color: tokens.domain.reasoning, bg: tokens.domain.bg },
-              { label: 'Avg Error Rate', value: `${avgErrorRate}%`, icon: AlertTriangle, color: parseFloat(avgErrorRate) > 2 ? '#DC2626' : '#16A34A', bg: parseFloat(avgErrorRate) > 2 ? '#FEE2E2' : '#DCFCE7' },
+              {
+                label: 'Overall Health',
+                value: `${overallHealth}%`,
+                icon: Gauge,
+                color:
+                  overallHealth >= 80 ? '#16A34A' : overallHealth >= 60 ? '#D97706' : '#DC2626',
+                bg: overallHealth >= 80 ? '#DCFCE7' : overallHealth >= 60 ? '#FEF3C7' : '#FEE2E2',
+              },
+              {
+                label: 'Total Tokens Used',
+                value: (totalTokens / 1000000).toFixed(1) + 'M',
+                icon: Coins,
+                color: tokens.accent.primary,
+                bg: tokens.accent.ghost,
+              },
+              {
+                label: 'Avg Latency',
+                value: `${avgLatency}ms`,
+                icon: Clock,
+                color: tokens.domain.reasoning,
+                bg: tokens.domain.bg,
+              },
+              {
+                label: 'Avg Error Rate',
+                value: `${avgErrorRate}%`,
+                icon: AlertTriangle,
+                color: parseFloat(avgErrorRate) > 2 ? '#DC2626' : '#16A34A',
+                bg: parseFloat(avgErrorRate) > 2 ? '#FEE2E2' : '#DCFCE7',
+              },
             ].map((stat) => (
               <div
                 key={stat.label}
                 className="rounded-xl p-4"
-                style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
+                style={{
+                  background: tokens.surface.card,
+                  border: `1px solid ${tokens.border.default}`,
+                }}
               >
                 <div className="flex items-center justify-between">
                   <div>
-                    <p className="text-xs font-medium uppercase tracking-wider" style={{ color: tokens.text.muted }}>{stat.label}</p>
-                    <p className="text-2xl font-bold mt-1 tabular-nums" style={{ color: tokens.text.primary }}>{stat.value}</p>
+                    <p
+                      className="text-xs font-medium uppercase tracking-wider"
+                      style={{ color: tokens.text.muted }}
+                    >
+                      {stat.label}
+                    </p>
+                    <p
+                      className="text-2xl font-bold mt-1 tabular-nums"
+                      style={{ color: tokens.text.primary }}
+                    >
+                      {stat.value}
+                    </p>
                   </div>
                   <div className="rounded-lg p-2.5" style={{ background: stat.bg }}>
                     <stat.icon className="h-5 w-5" style={{ color: stat.color }} />
@@ -233,29 +289,48 @@ export default function AiHealth() {
 
       {/* ── Provider Cards ── */}
       <div>
-        <h2 className="text-sm font-semibold mb-3" style={{ color: tokens.text.primary }}>Provider Status</h2>
+        <h2 className="text-sm font-semibold mb-3" style={{ color: tokens.text.primary }}>
+          Provider Status
+        </h2>
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {loading
             ? Array.from({ length: 4 }).map((_, i) => (
-                <Skeleton key={i} className="h-44 rounded-xl" style={{ background: tokens.border.default }} />
+                <Skeleton
+                  key={i}
+                  className="h-44 rounded-xl"
+                  style={{ background: tokens.border.default }}
+                />
               ))
             : providers.map((provider) => {
                 const statusCfg = getStatusConfig(provider.status);
                 const StatusIcon = statusCfg.icon;
-                const ratePercent = Math.round((provider.rateLimitRemaining / provider.rateLimitTotal) * 100);
+                const ratePercent = Math.round(
+                  (provider.rateLimitRemaining / provider.rateLimitTotal) * 100,
+                );
                 return (
                   <div
                     key={provider.name}
                     className="rounded-xl p-5"
-                    style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
+                    style={{
+                      background: tokens.surface.card,
+                      border: `1px solid ${tokens.border.default}`,
+                    }}
                   >
                     <div className="flex items-start justify-between mb-4">
                       <div className="flex items-center gap-3">
-                        <div className="rounded-lg p-2" style={{ background: tokens.neutral['100'] }}>
+                        <div
+                          className="rounded-lg p-2"
+                          style={{ background: tokens.neutral['100'] }}
+                        >
                           <Server className="h-5 w-5" style={{ color: tokens.text.secondary }} />
                         </div>
                         <div>
-                          <h3 className="text-sm font-semibold" style={{ color: tokens.text.primary }}>{provider.name}</h3>
+                          <h3
+                            className="text-sm font-semibold"
+                            style={{ color: tokens.text.primary }}
+                          >
+                            {provider.name}
+                          </h3>
                           <p className="text-xs" style={{ color: tokens.text.muted }}>
                             {provider.models.join(', ')}
                           </p>
@@ -272,20 +347,46 @@ export default function AiHealth() {
 
                     <div className="grid grid-cols-3 gap-4">
                       <div>
-                        <p className="text-[10px] uppercase tracking-wider font-medium" style={{ color: tokens.text.muted }}>Latency</p>
-                        <p className="text-lg font-bold mt-0.5 tabular-nums" style={{ color: provider.latency > 400 ? '#DC2626' : tokens.text.primary }}>
+                        <p
+                          className="text-[10px] uppercase tracking-wider font-medium"
+                          style={{ color: tokens.text.muted }}
+                        >
+                          Latency
+                        </p>
+                        <p
+                          className="text-lg font-bold mt-0.5 tabular-nums"
+                          style={{
+                            color: provider.latency > 400 ? '#DC2626' : tokens.text.primary,
+                          }}
+                        >
                           {provider.latency}ms
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-wider font-medium" style={{ color: tokens.text.muted }}>Tokens Used</p>
-                        <p className="text-lg font-bold mt-0.5 tabular-nums" style={{ color: tokens.text.primary }}>
+                        <p
+                          className="text-[10px] uppercase tracking-wider font-medium"
+                          style={{ color: tokens.text.muted }}
+                        >
+                          Tokens Used
+                        </p>
+                        <p
+                          className="text-lg font-bold mt-0.5 tabular-nums"
+                          style={{ color: tokens.text.primary }}
+                        >
                           {(provider.tokensUsed / 1000).toFixed(0)}K
                         </p>
                       </div>
                       <div>
-                        <p className="text-[10px] uppercase tracking-wider font-medium" style={{ color: tokens.text.muted }}>Error Rate</p>
-                        <p className="text-lg font-bold mt-0.5 tabular-nums" style={{ color: provider.errorRate > 2 ? '#DC2626' : '#16A34A' }}>
+                        <p
+                          className="text-[10px] uppercase tracking-wider font-medium"
+                          style={{ color: tokens.text.muted }}
+                        >
+                          Error Rate
+                        </p>
+                        <p
+                          className="text-lg font-bold mt-0.5 tabular-nums"
+                          style={{ color: provider.errorRate > 2 ? '#DC2626' : '#16A34A' }}
+                        >
                           {provider.errorRate}%
                         </p>
                       </div>
@@ -294,17 +395,34 @@ export default function AiHealth() {
                     {/* Rate Limit Bar */}
                     <div className="mt-3">
                       <div className="flex items-center justify-between mb-1">
-                        <p className="text-[10px] uppercase tracking-wider font-medium" style={{ color: tokens.text.muted }}>Rate Limit</p>
-                        <p className="text-[10px] tabular-nums" style={{ color: tokens.text.secondary }}>
-                          {provider.rateLimitRemaining.toLocaleString()} / {provider.rateLimitTotal.toLocaleString()}
+                        <p
+                          className="text-[10px] uppercase tracking-wider font-medium"
+                          style={{ color: tokens.text.muted }}
+                        >
+                          Rate Limit
+                        </p>
+                        <p
+                          className="text-[10px] tabular-nums"
+                          style={{ color: tokens.text.secondary }}
+                        >
+                          {provider.rateLimitRemaining.toLocaleString()} /{' '}
+                          {provider.rateLimitTotal.toLocaleString()}
                         </p>
                       </div>
-                      <div className="h-1.5 rounded-full overflow-hidden" style={{ background: tokens.border.default }}>
+                      <div
+                        className="h-1.5 rounded-full overflow-hidden"
+                        style={{ background: tokens.border.default }}
+                      >
                         <div
                           className="h-full rounded-full transition-all"
                           style={{
                             width: `${ratePercent}%`,
-                            background: ratePercent > 50 ? '#16A34A' : ratePercent > 20 ? '#D97706' : '#DC2626',
+                            background:
+                              ratePercent > 50
+                                ? '#16A34A'
+                                : ratePercent > 20
+                                  ? '#D97706'
+                                  : '#DC2626',
                           }}
                         />
                       </div>
@@ -322,7 +440,10 @@ export default function AiHealth() {
           className="lg:col-span-2 rounded-xl p-5"
           style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
         >
-          <h2 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: tokens.text.primary }}>
+          <h2
+            className="text-sm font-semibold mb-4 flex items-center gap-2"
+            style={{ color: tokens.text.primary }}
+          >
             <BarChart3 className="h-4 w-4" style={{ color: tokens.accent.primary }} />
             Token Usage (Last 7 Days)
           </h2>
@@ -330,8 +451,16 @@ export default function AiHealth() {
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={tokenUsage}>
                 <CartesianGrid strokeDasharray="3 3" stroke={tokens.border.default} />
-                <XAxis dataKey="day" tick={{ fill: tokens.text.muted, fontSize: 12 }} axisLine={{ stroke: tokens.border.default }} />
-                <YAxis tick={{ fill: tokens.text.muted, fontSize: 12 }} axisLine={{ stroke: tokens.border.default }} tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`} />
+                <XAxis
+                  dataKey="day"
+                  tick={{ fill: tokens.text.muted, fontSize: 12 }}
+                  axisLine={{ stroke: tokens.border.default }}
+                />
+                <YAxis
+                  tick={{ fill: tokens.text.muted, fontSize: 12 }}
+                  axisLine={{ stroke: tokens.border.default }}
+                  tickFormatter={(v) => `${(v / 1000).toFixed(0)}K`}
+                />
                 <Tooltip
                   contentStyle={{
                     background: tokens.surface.card,
@@ -352,7 +481,10 @@ export default function AiHealth() {
           className="rounded-xl p-5"
           style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
         >
-          <h2 className="text-sm font-semibold mb-4 flex items-center gap-2" style={{ color: tokens.text.primary }}>
+          <h2
+            className="text-sm font-semibold mb-4 flex items-center gap-2"
+            style={{ color: tokens.text.primary }}
+          >
             <Zap className="h-4 w-4" style={{ color: tokens.accent.primary }} />
             Model Usage Breakdown
           </h2>
@@ -392,7 +524,9 @@ export default function AiHealth() {
                   <div className="w-2.5 h-2.5 rounded-sm" style={{ background: model.color }} />
                   <span style={{ color: tokens.text.secondary }}>{model.name}</span>
                 </div>
-                <span className="font-medium tabular-nums" style={{ color: tokens.text.primary }}>{model.value}%</span>
+                <span className="font-medium tabular-nums" style={{ color: tokens.text.primary }}>
+                  {model.value}%
+                </span>
               </div>
             ))}
           </div>
@@ -404,15 +538,37 @@ export default function AiHealth() {
         className="rounded-xl p-5"
         style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
       >
-        <h2 className="text-sm font-semibold mb-4" style={{ color: tokens.text.primary }}>Error Rate Tracking</h2>
+        <h2 className="text-sm font-semibold mb-4" style={{ color: tokens.text.primary }}>
+          Error Rate Tracking
+        </h2>
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr style={{ borderBottom: `1px solid ${tokens.border.default}` }}>
-                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: tokens.text.muted }}>Provider</th>
-                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: tokens.text.muted }}>Error Rate</th>
-                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: tokens.text.muted }}>Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium" style={{ color: tokens.text.muted }}>Trend</th>
+                <th
+                  className="px-4 py-3 text-left text-xs font-medium"
+                  style={{ color: tokens.text.muted }}
+                >
+                  Provider
+                </th>
+                <th
+                  className="px-4 py-3 text-left text-xs font-medium"
+                  style={{ color: tokens.text.muted }}
+                >
+                  Error Rate
+                </th>
+                <th
+                  className="px-4 py-3 text-left text-xs font-medium"
+                  style={{ color: tokens.text.muted }}
+                >
+                  Status
+                </th>
+                <th
+                  className="px-4 py-3 text-left text-xs font-medium"
+                  style={{ color: tokens.text.muted }}
+                >
+                  Trend
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -420,8 +576,18 @@ export default function AiHealth() {
                 const isHigh = p.errorRate > 2;
                 return (
                   <tr key={p.name} style={{ borderBottom: `1px solid ${tokens.border.default}` }}>
-                    <td className="px-4 py-3 text-sm font-medium" style={{ color: tokens.text.primary }}>{p.name}</td>
-                    <td className="px-4 py-3 text-sm tabular-nums" style={{ color: isHigh ? '#DC2626' : '#16A34A' }}>{p.errorRate}%</td>
+                    <td
+                      className="px-4 py-3 text-sm font-medium"
+                      style={{ color: tokens.text.primary }}
+                    >
+                      {p.name}
+                    </td>
+                    <td
+                      className="px-4 py-3 text-sm tabular-nums"
+                      style={{ color: isHigh ? '#DC2626' : '#16A34A' }}
+                    >
+                      {p.errorRate}%
+                    </td>
                     <td className="px-4 py-3">
                       <span
                         className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium"

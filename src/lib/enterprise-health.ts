@@ -42,7 +42,7 @@ export async function getReadinessCheck(): Promise<{
 
   // ── 2. Required environment variables ──
   const requiredEnvVars = ['DATABASE_URL', 'SESSION_TOKEN_HMAC_SECRET'];
-  const missingVars = requiredEnvVars.filter(v => !process.env[v]);
+  const missingVars = requiredEnvVars.filter((v) => !process.env[v]);
   checks.environment = {
     name: 'Environment',
     status: missingVars.length === 0 ? 'healthy' : 'unhealthy',
@@ -66,7 +66,7 @@ export async function getReadinessCheck(): Promise<{
     };
   }
 
-  const allHealthy = Object.values(checks).every(c => c.status === 'healthy');
+  const allHealthy = Object.values(checks).every((c) => c.status === 'healthy');
 
   return {
     ready: allHealthy,

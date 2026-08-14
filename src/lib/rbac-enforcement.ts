@@ -89,14 +89,29 @@ export const FIELD_PERMISSIONS: FieldPermissionRule[] = [
   { field: 'linkedinUrl', model: 'Contact', roles: ['admin', 'operator'], sensitive: false },
 
   // Opportunity/Deal sensitive fields
-  { field: 'opportunityScore', model: 'Opportunity', roles: ['admin', 'operator'], sensitive: false },
+  {
+    field: 'opportunityScore',
+    model: 'Opportunity',
+    roles: ['admin', 'operator'],
+    sensitive: false,
+  },
   { field: 'winProbability', model: 'Opportunity', roles: ['admin', 'operator'], sensitive: false },
   { field: 'estimatedValue', model: 'Opportunity', roles: ['admin', 'operator'], sensitive: true },
   { field: 'internalNotes', model: 'Opportunity', roles: ['admin'], sensitive: true },
 
   // Intelligence/AI sensitive fields
-  { field: 'confidenceScore', model: 'IntelligenceSignal', roles: ['admin', 'operator'], sensitive: false },
-  { field: 'sourceDetails', model: 'IntelligenceSignal', roles: ['admin', 'operator'], sensitive: true },
+  {
+    field: 'confidenceScore',
+    model: 'IntelligenceSignal',
+    roles: ['admin', 'operator'],
+    sensitive: false,
+  },
+  {
+    field: 'sourceDetails',
+    model: 'IntelligenceSignal',
+    roles: ['admin', 'operator'],
+    sensitive: true,
+  },
   { field: 'rawData', model: 'IntelligenceSignal', roles: ['admin'], sensitive: true },
 
   // Report sensitive fields
@@ -113,8 +128,18 @@ export const FIELD_PERMISSIONS: FieldPermissionRule[] = [
 
   // Scoring & Intelligence fields (P7.1)
   { field: 'intelligenceScore', model: 'Company', roles: ['admin', 'operator'], sensitive: false },
-  { field: 'accountPriorityScore', model: 'Company', roles: ['admin', 'operator'], sensitive: false },
-  { field: 'priorityTier', model: 'Company', roles: ['admin', 'operator', 'user'], sensitive: false },
+  {
+    field: 'accountPriorityScore',
+    model: 'Company',
+    roles: ['admin', 'operator'],
+    sensitive: false,
+  },
+  {
+    field: 'priorityTier',
+    model: 'Company',
+    roles: ['admin', 'operator', 'user'],
+    sensitive: false,
+  },
 ];
 
 /**
@@ -122,21 +147,15 @@ export const FIELD_PERMISSIONS: FieldPermissionRule[] = [
  * Used by admin UI to display/manage field-level permissions.
  */
 export function getFieldPermissionRules(model?: string): FieldPermissionRule[] {
-  if (model) return FIELD_PERMISSIONS.filter(r => r.model === model);
+  if (model) return FIELD_PERMISSIONS.filter((r) => r.model === model);
   return [...FIELD_PERMISSIONS];
 }
 
 /**
  * Check if a specific role has access to a specific field on a model.
  */
-export function hasFieldAccess(
-  role: string,
-  model: string,
-  field: string,
-): boolean {
-  const rule = FIELD_PERMISSIONS.find(
-    (r) => r.model === model && r.field === field,
-  );
+export function hasFieldAccess(role: string, model: string, field: string): boolean {
+  const rule = FIELD_PERMISSIONS.find((r) => r.model === model && r.field === field);
 
   // If no rule exists, field is accessible to all authenticated users
   if (!rule) return true;
@@ -148,10 +167,7 @@ export function hasFieldAccess(
 /**
  * Get all field names that should be filtered out for a given role on a model.
  */
-export function getRestrictedFields(
-  role: string,
-  model: string,
-): string[] {
+export function getRestrictedFields(role: string, model: string): string[] {
   return FIELD_PERMISSIONS.filter(
     (r) => r.model === model && !r.roles.includes(role as UserRole),
   ).map((r) => r.field);

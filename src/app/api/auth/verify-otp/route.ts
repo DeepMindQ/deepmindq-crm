@@ -49,7 +49,9 @@ async function hashOtp(code: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(`dmq:${code}`);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 /**
@@ -80,7 +82,12 @@ export async function POST(request: NextRequest) {
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: 'Too many verification attempts. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)) } }
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)),
+          },
+        },
       );
     }
     const normalizedEmail = email.trim().toLowerCase();
@@ -88,10 +95,7 @@ export async function POST(request: NextRequest) {
     const AUTHORIZED_EMAIL = getAuthorizedEmail();
 
     if (!AUTHORIZED_EMAIL) {
-      return NextResponse.json(
-        { error: 'Authentication is not configured.' },
-        { status: 503 }
-      );
+      return NextResponse.json({ error: 'Authentication is not configured.' }, { status: 503 });
     }
 
     if (normalizedEmail !== AUTHORIZED_EMAIL) {
@@ -105,14 +109,20 @@ export async function POST(request: NextRequest) {
     const attempts = attemptsStr ? parseInt(attemptsStr, 10) : 0;
 
     if (!storedHash) {
-      return NextResponse.json({ error: 'No verification code found. Please request a new one.' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'No verification code found. Please request a new one.' },
+        { status: 401 },
+      );
     }
 
     // Check attempts
     if (attempts >= MAX_ATTEMPTS) {
       cookieStore.delete('dmq_otp_hash');
       cookieStore.delete('dmq_otp_attempts');
-      return NextResponse.json({ error: 'Too many attempts. Please request a new code.' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Too many attempts. Please request a new code.' },
+        { status: 401 },
+      );
     }
 
     // Increment attempts
@@ -161,7 +171,9 @@ export async function POST(request: NextRequest) {
     // Resolve the actual user by email
     const user = await lookupUser(normalizedEmail);
     if (!user) {
-      logger.warn('[auth/verify-otp] OTP matched but no active user found', { email: normalizedEmail });
+      logger.warn('[auth/verify-otp] OTP matched but no active user found', {
+        email: normalizedEmail,
+      });
       return NextResponse.json({ error: 'User account not found or inactive' }, { status: 403 });
     }
 
@@ -170,10 +182,14 @@ export async function POST(request: NextRequest) {
     cookieStore.delete('dmq_otp_attempts');
 
     // Mark OTP as verified in DB by clearing the field
-    await db.user.update({
-      where: { id: user.id },
-      data: { otpCode: null, otpExpiresAt: null },
-    }).catch(() => { /* non-critical */ });
+    await db.user
+      .update({
+        where: { id: user.id },
+        data: { otpCode: null, otpExpiresAt: null },
+      })
+      .catch(() => {
+        /* non-critical */
+      });
 
     // Create valid session using the session abstraction
     await createSession(user.id);

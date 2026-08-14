@@ -4,7 +4,7 @@
    ═══════════════════════════════════════════════════ */
 
 interface FetchApiOptions extends RequestInit {
-  params?: Record<string, string | number | undefined>
+  params?: Record<string, string | number | undefined>;
 }
 
 /**
@@ -31,46 +31,46 @@ export async function fetchApi<T = any>(
   options: FetchApiOptions = {},
 ): Promise<{ data: T | null; error: string | null }> {
   try {
-    let fullUrl = url
+    let fullUrl = url;
 
     // Build query string from params
     if (options.params) {
-      const params = new URLSearchParams()
+      const params = new URLSearchParams();
       for (const [key, val] of Object.entries(options.params)) {
         if (val !== undefined && val !== null && val !== '') {
-          params.set(key, String(val))
+          params.set(key, String(val));
         }
       }
-      const qs = params.toString()
-      if (qs) fullUrl += (url.includes('?') ? '&' : '?') + qs
+      const qs = params.toString();
+      if (qs) fullUrl += (url.includes('?') ? '&' : '?') + qs;
     }
 
     // Destructure so params don't leak into fetch init
-    const { params: _params, ...fetchOpts } = options
+    const { params: _params, ...fetchOpts } = options;
 
     // Inject CSRF token for state-changing requests (WI-18.1-02)
-    const headers = new Headers(fetchOpts.headers)
+    const headers = new Headers(fetchOpts.headers);
     if (isStateChangingMethod(fetchOpts.method)) {
-      const csrfToken = getCsrfToken()
+      const csrfToken = getCsrfToken();
       if (csrfToken) {
-        headers.set('x-csrf-token', csrfToken)
+        headers.set('x-csrf-token', csrfToken);
       }
     }
 
-    const res = await fetch(fullUrl, { ...fetchOpts, credentials: 'include', headers })
+    const res = await fetch(fullUrl, { ...fetchOpts, credentials: 'include', headers });
 
     if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
+      const body = await res.json().catch(() => ({}));
       return {
         data: null,
         error: body.error || `Request failed with status ${res.status}`,
-      }
+      };
     }
 
-    const data = await res.json()
-    return { data, error: null }
+    const data = await res.json();
+    return { data, error: null };
   } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Network error'
-    return { data: null, error: msg }
+    const msg = err instanceof Error ? err.message : 'Network error';
+    return { data: null, error: msg };
   }
 }

@@ -19,24 +19,30 @@ export type TrustTier = 'verified' | 'high' | 'medium' | 'low' | 'unverified';
 
 /** Numeric ranges for each trust tier (0-100) */
 export const TRUST_TIER_THRESHOLDS = {
-  verified:  { min: 90, max: 100 },
-  high:      { min: 70, max: 89 },
-  medium:    { min: 45, max: 69 },
-  low:       { min: 25, max: 44 },
-  unverified:{ min: 0,  max: 24 },
+  verified: { min: 90, max: 100 },
+  high: { min: 70, max: 89 },
+  medium: { min: 45, max: 69 },
+  low: { min: 25, max: 44 },
+  unverified: { min: 0, max: 24 },
 } as const;
 
 /** Evidence quality levels — maps to existing ai-evidence-framework.EvidenceQuality */
-export type EvidenceQuality = 'verified' | 'corroborated' | 'inferred' | 'estimated' | 'speculative';
+export type EvidenceQuality =
+  'verified' | 'corroborated' | 'inferred' | 'estimated' | 'speculative';
 
 /** Map from EvidenceQuality → TrustTier for visual rendering */
 export function evidenceQualityToTrustTier(quality: EvidenceQuality): TrustTier {
   switch (quality) {
-    case 'verified':     return 'verified';
-    case 'corroborated': return 'high';
-    case 'inferred':     return 'medium';
-    case 'estimated':     return 'low';
-    case 'speculative':   return 'unverified';
+    case 'verified':
+      return 'verified';
+    case 'corroborated':
+      return 'high';
+    case 'inferred':
+      return 'medium';
+    case 'estimated':
+      return 'low';
+    case 'speculative':
+      return 'unverified';
   }
 }
 
@@ -50,30 +56,42 @@ export function evidenceQualityToTrustTier(quality: EvidenceQuality): TrustTier 
 
 /** Source provenance categories — determines icon, color, and trust baseline */
 export type SourceCategory =
-  | 'verified_official'   // SEC filings, regulatory documents, press releases
-  | 'verified_external'   // LinkedIn profiles, official company pages
-  | 'crm_internal'       // CRM data, contact records, deal history
-  | 'web_signal'          // Job postings, news articles, blog posts
-  | 'ai_inference'        // AI-generated insights, pattern matching
-  | 'crm_analytics'       // Computed from CRM data, historical patterns
-  | 'external_database';  // Clearbit, Apollo, third-party enrichment
+  | 'verified_official' // SEC filings, regulatory documents, press releases
+  | 'verified_external' // LinkedIn profiles, official company pages
+  | 'crm_internal' // CRM data, contact records, deal history
+  | 'web_signal' // Job postings, news articles, blog posts
+  | 'ai_inference' // AI-generated insights, pattern matching
+  | 'crm_analytics' // Computed from CRM data, historical patterns
+  | 'external_database'; // Clearbit, Apollo, third-party enrichment
 
 /** Color domain for each source category — maps to design-tokens.ts domain/trust keys */
-export type SourceColorDomain = 'action' | 'verified' | 'signal' | 'enrichment' | 'opportunity' | 'reasoning';
+export type SourceColorDomain =
+  'action' | 'verified' | 'signal' | 'enrichment' | 'opportunity' | 'reasoning';
 
 /** Configuration for each source category */
-export const SOURCE_CATEGORY_CONFIG: Record<SourceCategory, {
-  label: string;
-  trustBaseline: TrustTier;
-  colorDomain: SourceColorDomain;
-}> = {
-  verified_official: { label: 'Official Document', trustBaseline: 'verified', colorDomain: 'action' },
-  verified_external: { label: 'Verified Source',   trustBaseline: 'verified', colorDomain: 'verified' },
-  crm_internal:      { label: 'CRM Data',         trustBaseline: 'high',     colorDomain: 'signal' },
-  web_signal:        { label: 'Web Signal',       trustBaseline: 'high',     colorDomain: 'enrichment' },
-  ai_inference:      { label: 'AI Inference',     trustBaseline: 'medium',   colorDomain: 'opportunity' },
-  crm_analytics:     { label: 'CRM Analytics',    trustBaseline: 'medium',   colorDomain: 'reasoning' },
-  external_database:  { label: 'External Database', trustBaseline: 'high',     colorDomain: 'signal' },
+export const SOURCE_CATEGORY_CONFIG: Record<
+  SourceCategory,
+  {
+    label: string;
+    trustBaseline: TrustTier;
+    colorDomain: SourceColorDomain;
+  }
+> = {
+  verified_official: {
+    label: 'Official Document',
+    trustBaseline: 'verified',
+    colorDomain: 'action',
+  },
+  verified_external: {
+    label: 'Verified Source',
+    trustBaseline: 'verified',
+    colorDomain: 'verified',
+  },
+  crm_internal: { label: 'CRM Data', trustBaseline: 'high', colorDomain: 'signal' },
+  web_signal: { label: 'Web Signal', trustBaseline: 'high', colorDomain: 'enrichment' },
+  ai_inference: { label: 'AI Inference', trustBaseline: 'medium', colorDomain: 'opportunity' },
+  crm_analytics: { label: 'CRM Analytics', trustBaseline: 'medium', colorDomain: 'reasoning' },
+  external_database: { label: 'External Database', trustBaseline: 'high', colorDomain: 'signal' },
 } as const;
 
 // ─── Evidence Chain Item (Enriched) ─────────────────────────────────
@@ -84,43 +102,43 @@ export const SOURCE_CATEGORY_CONFIG: Record<SourceCategory, {
 export interface EvidenceChainItem {
   /** Unique identifier for this evidence item */
   id: string;
-  
+
   /** What the evidence shows (headline) */
   title: string;
-  
+
   /** Detailed description or excerpt */
   description: string;
-  
+
   /** Source category — determines visual treatment */
   sourceCategory: SourceCategory;
-  
+
   /** Human-readable source name (e.g., "SEC Filing", "LinkedIn", "Greenhouse") */
   sourceName: string;
-  
+
   /** Direct URL to source material (if available) */
   sourceUrl?: string;
-  
+
   /** When this evidence was detected/collected (ISO 8601) */
   detectedAt: string;
-  
+
   /** How old this evidence is, human-readable (e.g., "3 days ago") */
   freshnessLabel: string;
-  
+
   /** Trust tier for this specific evidence item */
   trustTier: TrustTier;
-  
+
   /** Trust score 0-100 for this evidence item */
   trustScore: number;
-  
+
   /** Evidence quality from the AI evidence framework */
   evidenceQuality: EvidenceQuality;
-  
+
   /** Relevance score 0-100 for the parent intelligence conclusion */
   relevanceScore: number;
-  
+
   /** Key data points extracted from this evidence */
   keyDataPoints?: string[];
-  
+
   /** Whether this evidence has been human-verified */
   humanVerified: boolean;
 }
@@ -132,25 +150,25 @@ export interface EvidenceChainItem {
 export interface EvidenceFootprint {
   /** Total number of evidence sources */
   totalSources: number;
-  
+
   /** Number of verified sources (trust score >= 90) */
   verifiedCount: number;
-  
+
   /** Number of high-confidence sources (trust score >= 70) */
   highConfidenceCount: number;
-  
+
   /** Most recent evidence timestamp (ISO 8601) */
   mostRecentAt: string | null;
-  
+
   /** Oldest evidence timestamp (ISO 8601) */
   oldestAt: string | null;
-  
+
   /** Aggregate freshness level */
   freshnessLevel: 'realtime' | 'fresh' | 'aging' | 'stale' | 'unknown';
-  
+
   /** Source category breakdown (counts per category) */
   sourceBreakdown: Partial<Record<SourceCategory, number>>;
-  
+
   /** Whether AI inference is a contributing source */
   hasAIInference: boolean;
 }
@@ -162,10 +180,10 @@ export interface EvidenceFootprint {
 
 /** Categories of factors contributing to a confidence score */
 export type ConfidenceFactorCategory =
-  | 'source_quality'    // How reliable are the underlying sources
-  | 'freshness'         // How recent is the intelligence
-  | 'evidence_strength'  // How much evidence supports the conclusion
-  | 'signal_convergence'// How many independent signals agree
+  | 'source_quality' // How reliable are the underlying sources
+  | 'freshness' // How recent is the intelligence
+  | 'evidence_strength' // How much evidence supports the conclusion
+  | 'signal_convergence' // How many independent signals agree
   | 'data_completeness' // How complete is the company profile
   | 'conflict_penalty'; // Unresolved conflicts reduce confidence
 
@@ -173,19 +191,19 @@ export type ConfidenceFactorCategory =
 export interface ConfidenceFactor {
   /** Human-readable factor label */
   label: string;
-  
+
   /** Category this factor belongs to */
   category: ConfidenceFactorCategory;
-  
+
   /** Points contributed (positive or negative) */
   points: number;
-  
+
   /** Maximum possible points for this factor */
   maxPoints: number;
-  
+
   /** Human-readable explanation of why this score */
   explanation: string;
-  
+
   /** Trust tier for this factor's contribution */
   tier: TrustTier;
 }
@@ -194,16 +212,16 @@ export interface ConfidenceFactor {
 export interface ConfidenceBreakdown {
   /** Overall confidence score 0-100 */
   overallScore: number;
-  
+
   /** Trust tier derived from overall score */
   overallTier: TrustTier;
-  
+
   /** Individual contributing factors */
   factors: ConfidenceFactor[];
-  
+
   /** Human-readable confidence rationale (1-2 sentences) */
   rationale: string;
-  
+
   /** When this breakdown was computed (ISO 8601) */
   computedAt: string;
 }
@@ -214,16 +232,16 @@ export interface ConfidenceBreakdown {
 export interface VerificationStatus {
   /** Whether this intelligence has been human-verified */
   isVerified: boolean;
-  
+
   /** Verified by whom (user name or "AI") */
   verifiedBy: string | null;
-  
+
   /** When it was verified (ISO 8601) */
   verifiedAt: string | null;
-  
+
   /** Verification method */
   method: 'human_review' | 'automated_check' | 'cross_reference' | 'not_verified';
-  
+
   /** Any notes from the verification process */
   notes: string | null;
 }
@@ -235,13 +253,13 @@ export interface VerificationStatus {
 export interface EvidenceLayerData {
   /** The evidence chain items to display */
   evidence: EvidenceChainItem[];
-  
+
   /** Summary footprint for compact display */
   footprint: EvidenceFootprint;
-  
+
   /** Impact statement connecting evidence to the conclusion */
   impactStatement: string;
-  
+
   /** Verification status of the overall conclusion */
   verification: VerificationStatus;
 }
@@ -253,16 +271,16 @@ export interface EvidenceLayerData {
 export interface ExplorationCard {
   /** Card label (e.g., "Estimated Budget Range") */
   label: string;
-  
+
   /** Primary value (e.g., "$2.4M — $8.1M") */
   value: string;
-  
+
   /** Supplementary context (e.g., "Based on company size, sector, and growth rate") */
   context: string;
-  
+
   /** Trust tier for this data point */
   trustTier: TrustTier;
-  
+
   /** Source category that produced this data */
   sourceCategory: SourceCategory;
 }
@@ -271,13 +289,13 @@ export interface ExplorationCard {
 export interface AIContextBox {
   /** AI context narrative — explicitly NOT a directive */
   narrative: string;
-  
+
   /** How many evidence sources contributed */
   sourceCount: number;
-  
+
   /** How many historical patterns analyzed */
   patternCount: number;
-  
+
   /** Confidence of the overall analysis */
   confidenceScore: number;
 }
@@ -286,13 +304,18 @@ export interface AIContextBox {
 export interface InvestigationPath {
   /** Suggested next investigation action */
   title: string;
-  
+
   /** Why this investigation is suggested */
   rationale: string;
-  
+
   /** What type of investigation this represents */
-  type: 'company_research' | 'contact_discovery' | 'competitive_analysis' | 'market_research' | 'signal_tracking';
-  
+  type:
+    | 'company_research'
+    | 'contact_discovery'
+    | 'competitive_analysis'
+    | 'market_research'
+    | 'signal_tracking';
+
   /** Estimated value of this investigation */
   priority: 'high' | 'medium' | 'low';
 }
@@ -301,13 +324,13 @@ export interface InvestigationPath {
 export interface ExplorationLayerData {
   /** Grid of exploration data cards */
   explorationCards: ExplorationCard[];
-  
+
   /** AI context box */
   aiContext: AIContextBox;
-  
+
   /** Suggested investigation paths */
   investigationPaths: InvestigationPath[];
-  
+
   /** Related signals from other companies or time periods */
   relatedSignals: Array<{
     title: string;
@@ -327,25 +350,25 @@ export type IntelligenceGrade = 'A' | 'B' | 'C' | 'D' | 'F';
 export interface AccountTrustData {
   /** Overall account trust score 0-100 */
   overallScore: number;
-  
+
   /** Overall trust tier */
   overallTier: TrustTier;
-  
+
   /** Intelligence grade */
   grade: IntelligenceGrade;
-  
+
   /** Confidence breakdown for this account */
   confidenceBreakdown: ConfidenceBreakdown;
-  
+
   /** Evidence footprint across all intelligence for this account */
   evidenceFootprint: EvidenceFootprint;
-  
+
   /** Number of active signals */
   activeSignalCount: number;
-  
+
   /** Number of verified intelligence items */
   verifiedItemCount: number;
-  
+
   /** Account-level verification status */
   verification: VerificationStatus;
 }
@@ -356,28 +379,28 @@ export type AccountIntelligenceTab = 'overview' | 'signals' | 'contacts' | 'reco
 /** Signal timeline entry for Account Intelligence */
 export interface AccountSignalEntry {
   id: string;
-  
+
   /** Signal headline */
   headline: string;
-  
+
   /** Signal type/category */
   signalType: string;
-  
+
   /** When the signal was detected */
   detectedAt: string;
-  
+
   /** Freshness label */
   freshnessLabel: string;
-  
+
   /** Signal impact level */
   impactLevel: 'critical' | 'high' | 'medium' | 'low';
-  
+
   /** Signal confidence 0-100 */
   confidenceScore: number;
-  
+
   /** Evidence supporting this signal */
   evidence: EvidenceChainItem[];
-  
+
   /** Whether this signal has an expandable evidence chain */
   hasEvidenceChain: boolean;
 }
@@ -417,7 +440,9 @@ export function computeFreshnessLevel(ISODate: string | null): EvidenceFootprint
 }
 
 /** Build a source category breakdown from evidence items */
-export function buildSourceBreakdown(items: EvidenceChainItem[]): EvidenceFootprint['sourceBreakdown'] {
+export function buildSourceBreakdown(
+  items: EvidenceChainItem[],
+): EvidenceFootprint['sourceBreakdown'] {
   const breakdown: EvidenceFootprint['sourceBreakdown'] = {};
   for (const item of items) {
     breakdown[item.sourceCategory] = (breakdown[item.sourceCategory] || 0) + 1;
@@ -440,24 +465,24 @@ export function buildEvidenceFootprint(items: EvidenceChainItem[]): EvidenceFoot
     };
   }
 
-  const dates = items
-    .map(i => new Date(i.detectedAt).getTime())
-    .sort((a, b) => b - a);
+  const dates = items.map((i) => new Date(i.detectedAt).getTime()).sort((a, b) => b - a);
 
   return {
     totalSources: items.length,
-    verifiedCount: items.filter(i => i.trustTier === 'verified').length,
-    highConfidenceCount: items.filter(i => {
-      const s = i.trustScore;
-      return s >= 90; // verified threshold
-    }).length + items.filter(i => {
-      const s = i.trustScore;
-      return s >= 70 && s < 90; // high threshold
-    }).length,
+    verifiedCount: items.filter((i) => i.trustTier === 'verified').length,
+    highConfidenceCount:
+      items.filter((i) => {
+        const s = i.trustScore;
+        return s >= 90; // verified threshold
+      }).length +
+      items.filter((i) => {
+        const s = i.trustScore;
+        return s >= 70 && s < 90; // high threshold
+      }).length,
     mostRecentAt: new Date(dates[0]).toISOString(),
     oldestAt: new Date(dates[dates.length - 1]).toISOString(),
     freshnessLevel: computeFreshnessLevel(new Date(dates[0]).toISOString()),
     sourceBreakdown: buildSourceBreakdown(items),
-    hasAIInference: items.some(i => i.sourceCategory === 'ai_inference'),
+    hasAIInference: items.some((i) => i.sourceCategory === 'ai_inference'),
   };
 }

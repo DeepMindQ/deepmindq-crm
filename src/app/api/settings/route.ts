@@ -13,11 +13,13 @@ const settingsUpdateSchema = z.object({
   timezone: z.string().max(50).optional(),
   language: z.string().max(10).optional(),
   // AI Providers (key validation only — keys are stored as env vars)
-  aiProviderTest: z.object({
-    name: z.string(),
-    apiKey: z.string().min(1),
-    baseUrl: z.string().url().optional(),
-  }).optional(),
+  aiProviderTest: z
+    .object({
+      name: z.string(),
+      apiKey: z.string().min(1),
+      baseUrl: z.string().url().optional(),
+    })
+    .optional(),
   // Email (validate SMTP config)
   emailTest: z.boolean().optional(),
   // Notifications
@@ -52,7 +54,10 @@ export async function GET(request: NextRequest) {
         // AI providers — only reveal masked status, never keys
         aiProviders: [
           { name: 'NVIDIA', status: !!process.env.NVIDIA_API_KEY ? 'connected' : 'disconnected' },
-          { name: 'Fireworks', status: !!process.env.FIREWORKS_API_KEY ? 'connected' : 'disconnected' },
+          {
+            name: 'Fireworks',
+            status: !!process.env.FIREWORKS_API_KEY ? 'connected' : 'disconnected',
+          },
           { name: 'Groq', status: !!process.env.GROQ_API_KEY ? 'connected' : 'disconnected' },
           { name: 'Gemini', status: !!process.env.GEMINI_API_KEY ? 'connected' : 'disconnected' },
         ],

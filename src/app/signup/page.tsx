@@ -1,81 +1,81 @@
-"use client"
+'use client';
 
-import { useState, useMemo } from "react"
-import Image from "next/image"
-import Link from "next/link"
-import { useRouter } from "next/navigation"
-import { Eye, EyeOff, ArrowLeft, Loader2, Check } from "lucide-react"
-import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
-import { Button } from "@/components/ui/button"
+import { useState, useMemo } from 'react';
+import Image from 'next/image';
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
+import { Eye, EyeOff, ArrowLeft, Loader2, Check } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Button } from '@/components/ui/button';
 
 interface PasswordStrength {
-  score: number
-  label: string
-  color: string
-  checks: { label: string; pass: boolean }[]
+  score: number;
+  label: string;
+  color: string;
+  checks: { label: string; pass: boolean }[];
 }
 
 function getPasswordStrength(password: string): PasswordStrength {
   const checks = [
-    { label: "At least 8 characters", pass: password.length >= 8 },
-    { label: "Uppercase letter", pass: /[A-Z]/.test(password) },
-    { label: "Number", pass: /[0-9]/.test(password) },
-    { label: "Lowercase letter", pass: /[a-z]/.test(password) },
-  ]
-  const score = checks.filter((c) => c.pass).length
+    { label: 'At least 8 characters', pass: password.length >= 8 },
+    { label: 'Uppercase letter', pass: /[A-Z]/.test(password) },
+    { label: 'Number', pass: /[0-9]/.test(password) },
+    { label: 'Lowercase letter', pass: /[a-z]/.test(password) },
+  ];
+  const score = checks.filter((c) => c.pass).length;
 
-  if (score <= 1) return { score, label: "Weak", color: "bg-red-500", checks }
-  if (score <= 2) return { score, label: "Fair", color: "bg-orange-500", checks }
-  if (score <= 3) return { score, label: "Good", color: "bg-amber-500", checks }
-  return { score, label: "Strong", color: "bg-green-500", checks }
+  if (score <= 1) return { score, label: 'Weak', color: 'bg-red-500', checks };
+  if (score <= 2) return { score, label: 'Fair', color: 'bg-orange-500', checks };
+  if (score <= 3) return { score, label: 'Good', color: 'bg-amber-500', checks };
+  return { score, label: 'Strong', color: 'bg-green-500', checks };
 }
 
 export default function SignupPage() {
-  const router = useRouter()
-  const [showPassword, setShowPassword] = useState(false)
-  const [name, setName] = useState("")
-  const [email, setEmail] = useState("")
-  const [password, setPassword] = useState("")
-  const [confirmPassword, setConfirmPassword] = useState("")
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const router = useRouter();
+  const [showPassword, setShowPassword] = useState(false);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
 
-  const strength = useMemo(() => getPasswordStrength(password), [password])
+  const strength = useMemo(() => getPasswordStrength(password), [password]);
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault()
-    setError("")
+    e.preventDefault();
+    setError('');
 
     if (password !== confirmPassword) {
-      setError("Passwords do not match")
-      return
+      setError('Passwords do not match');
+      return;
     }
 
-    setLoading(true)
+    setLoading(true);
 
     try {
-      const res = await fetch("/api/auth/register", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/auth/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password, confirmPassword }),
-      })
-      const data = await res.json()
+      });
+      const data = await res.json();
 
       if (!res.ok) {
-        setError(data.error || "Registration failed")
-        return
+        setError(data.error || 'Registration failed');
+        return;
       }
 
       // Mock sign-in: redirect to dashboard after successful registration
-      router.push("/")
-      router.refresh()
+      router.push('/');
+      router.refresh();
     } catch {
-      setError("An unexpected error occurred. Please try again.")
+      setError('An unexpected error occurred. Please try again.');
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   return (
     <div className="flex min-h-screen">
@@ -118,7 +118,7 @@ export default function SignupPage() {
 
           <button
             type="button"
-            onClick={() => router.push("/login")}
+            onClick={() => router.push('/login')}
             className="mb-6 flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 transition"
           >
             <ArrowLeft className="h-4 w-4" />
@@ -173,7 +173,7 @@ export default function SignupPage() {
               <div className="relative">
                 <Input
                   id="password"
-                  type={showPassword ? "text" : "password"}
+                  type={showPassword ? 'text' : 'password'}
                   placeholder="Create a strong password"
                   required
                   value={password}
@@ -186,7 +186,7 @@ export default function SignupPage() {
                   onClick={() => setShowPassword(!showPassword)}
                   className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
                   tabIndex={-1}
-                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  aria-label={showPassword ? 'Hide password' : 'Show password'}
                 >
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -201,7 +201,7 @@ export default function SignupPage() {
                         <div
                           key={i}
                           className={`h-1 flex-1 rounded-full transition-colors duration-200 ${
-                            i < strength.score ? strength.color : "bg-gray-200"
+                            i < strength.score ? strength.color : 'bg-gray-200'
                           }`}
                         />
                       ))}
@@ -213,10 +213,10 @@ export default function SignupPage() {
                       <li key={check.label} className="flex items-center gap-2 text-xs">
                         <Check
                           className={`h-3 w-3 transition-colors ${
-                            check.pass ? "text-green-500" : "text-gray-300"
+                            check.pass ? 'text-green-500' : 'text-gray-300'
                           }`}
                         />
-                        <span className={check.pass ? "text-green-700" : "text-gray-400"}>
+                        <span className={check.pass ? 'text-green-700' : 'text-gray-400'}>
                           {check.label}
                         </span>
                       </li>
@@ -231,7 +231,7 @@ export default function SignupPage() {
               <Label htmlFor="confirm-password">Confirm password</Label>
               <Input
                 id="confirm-password"
-                type={showPassword ? "text" : "password"}
+                type={showPassword ? 'text' : 'password'}
                 placeholder="Confirm your password"
                 required
                 value={confirmPassword}
@@ -256,14 +256,14 @@ export default function SignupPage() {
                   Creating account...
                 </>
               ) : (
-                "Create account"
+                'Create account'
               )}
             </Button>
           </form>
 
           {/* Sign in link */}
           <p className="mt-8 text-center text-sm text-gray-500">
-            Already have an account?{" "}
+            Already have an account?{' '}
             <Link href="/login" className="font-medium text-amber-600 hover:text-amber-500">
               Sign in
             </Link>
@@ -271,5 +271,5 @@ export default function SignupPage() {
         </div>
       </div>
     </div>
-  )
+  );
 }

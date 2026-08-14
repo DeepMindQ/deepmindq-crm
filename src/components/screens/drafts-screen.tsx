@@ -4,15 +4,7 @@ import { useState, useMemo, useCallback } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { DataTable } from '@/components/enterprise/DataTable';
 import { Skeleton } from '@/components/ui/skeleton';
-import {
-  FileEdit,
-  Plus,
-  X,
-  Send,
-  Mail,
-  CalendarClock,
-  Pencil,
-} from 'lucide-react';
+import { FileEdit, Plus, X, Send, Mail, CalendarClock, Pencil } from 'lucide-react';
 
 /* ═══ Types ═══ */
 
@@ -40,7 +32,7 @@ const MOCK_DRAFTS: Draft[] = [
     status: 'draft',
     lastModified: '2025-01-16T09:30:00Z',
     templateUsed: 'Introduction',
-    body: 'Hi David,\n\nI wanted to follow up on our conversation last week regarding the potential partnership between our teams. As discussed, I\'ve put together a brief overview of how we could collaborate on the data analytics initiative.\n\nWould you have 15 minutes this Thursday to review it together?\n\nBest,\nSarah',
+    body: "Hi David,\n\nI wanted to follow up on our conversation last week regarding the potential partnership between our teams. As discussed, I've put together a brief overview of how we could collaborate on the data analytics initiative.\n\nWould you have 15 minutes this Thursday to review it together?\n\nBest,\nSarah",
   },
   {
     id: 'd-2',
@@ -50,7 +42,7 @@ const MOCK_DRAFTS: Draft[] = [
     status: 'scheduled',
     lastModified: '2025-01-15T16:45:00Z',
     templateUsed: 'Proposal',
-    body: 'Hi Rachel,\n\nThank you for the productive demo session. I\'m excited about the fit between our platform and TechStart\'s requirements.\n\nHere are the key takeaways and proposed next steps:\n1. Integration timeline: 4 weeks\n2. Pilot program: 30-day trial with 10 users\n3. Expected ROI: 3x within 6 months\n\nI\'ve scheduled this email to arrive tomorrow morning for your convenience.\n\nBest regards,\nJames',
+    body: "Hi Rachel,\n\nThank you for the productive demo session. I'm excited about the fit between our platform and TechStart's requirements.\n\nHere are the key takeaways and proposed next steps:\n1. Integration timeline: 4 weeks\n2. Pilot program: 30-day trial with 10 users\n3. Expected ROI: 3x within 6 months\n\nI've scheduled this email to arrive tomorrow morning for your convenience.\n\nBest regards,\nJames",
   },
   {
     id: 'd-3',
@@ -70,7 +62,7 @@ const MOCK_DRAFTS: Draft[] = [
     status: 'draft',
     lastModified: '2025-01-16T08:15:00Z',
     templateUsed: 'Follow-up',
-    body: 'Hi Lisa,\n\nI hope the demo gave you a clear picture of how our platform works. I wanted to address the question you had about custom reporting.\n\nYes, we fully support custom report building with drag-and-drop widgets. I\'d love to show you this in more detail.\n\nAre you available this week?\n\nBest,\nSarah',
+    body: "Hi Lisa,\n\nI hope the demo gave you a clear picture of how our platform works. I wanted to address the question you had about custom reporting.\n\nYes, we fully support custom report building with drag-and-drop widgets. I'd love to show you this in more detail.\n\nAre you available this week?\n\nBest,\nSarah",
   },
   {
     id: 'd-5',
@@ -90,7 +82,7 @@ const MOCK_DRAFTS: Draft[] = [
     status: 'sent',
     lastModified: '2025-01-13T10:30:00Z',
     templateUsed: 'Proposal',
-    body: 'Hi Tom,\n\nAs discussed on our call, here\'s the formal partnership proposal for integrating CloudNova\'s cloud services with our intelligence platform.\n\nThe partnership would enable joint customers to leverage real-time cloud analytics alongside our intelligence scoring.\n\nLooking forward to your feedback.\n\nBest,\nJames',
+    body: "Hi Tom,\n\nAs discussed on our call, here's the formal partnership proposal for integrating CloudNova's cloud services with our intelligence platform.\n\nThe partnership would enable joint customers to leverage real-time cloud analytics alongside our intelligence scoring.\n\nLooking forward to your feedback.\n\nBest,\nJames",
   },
   {
     id: 'd-7',
@@ -100,7 +92,7 @@ const MOCK_DRAFTS: Draft[] = [
     status: 'scheduled',
     lastModified: '2025-01-16T07:00:00Z',
     templateUsed: 'Re-engagement',
-    body: 'Hi Patricia,\n\nIt\'s been a few months since we last connected about FinEdge\'s intelligence needs. Since then, we\'ve launched several features that directly address the challenges you mentioned:\n\n- Real-time financial signal detection\n- Enhanced risk scoring models\n- Automated regulatory compliance tracking\n\nWould love to give you a quick update.\n\nBest,\nMike',
+    body: "Hi Patricia,\n\nIt's been a few months since we last connected about FinEdge's intelligence needs. Since then, we've launched several features that directly address the challenges you mentioned:\n\n- Real-time financial signal detection\n- Enhanced risk scoring models\n- Automated regulatory compliance tracking\n\nWould love to give you a quick update.\n\nBest,\nMike",
   },
   {
     id: 'd-8',
@@ -110,7 +102,7 @@ const MOCK_DRAFTS: Draft[] = [
     status: 'draft',
     lastModified: '2025-01-16T10:45:00Z',
     templateUsed: 'Meeting Request',
-    body: 'Hi Alex,\n\nI\'ve been following NexGen\'s impressive growth in the robotics space and believe our intelligence platform could significantly accelerate your sales cycle.\n\nI\'d love to schedule a 30-minute product walkthrough to show you how we\'ve helped similar technology companies.\n\nMy availability this week:\n- Tue 2-4 PM ET\n- Wed 10-12 PM ET\n- Thu 1-3 PM ET\n\nBest,\nEmily',
+    body: "Hi Alex,\n\nI've been following NexGen's impressive growth in the robotics space and believe our intelligence platform could significantly accelerate your sales cycle.\n\nI'd love to schedule a 30-minute product walkthrough to show you how we've helped similar technology companies.\n\nMy availability this week:\n- Tue 2-4 PM ET\n- Wed 10-12 PM ET\n- Thu 1-3 PM ET\n\nBest,\nEmily",
   },
 ];
 
@@ -143,7 +135,12 @@ function getStatusConfig(status: DraftStatus) {
 
 /* ═══ Sub-components ═══ */
 
-function StatCard({ icon: Icon, label, value, accent }: {
+function StatCard({
+  icon: Icon,
+  label,
+  value,
+  accent,
+}: {
   icon: typeof FileEdit;
   label: string;
   value: string | number;
@@ -161,8 +158,15 @@ function StatCard({ icon: Icon, label, value, accent }: {
         <Icon className="w-5 h-5" />
       </div>
       <div className="min-w-0">
-        <p className="text-xs font-medium" style={{ color: tokens.text.secondary }}>{label}</p>
-        <p className="text-xl font-bold tracking-tight mt-0.5" style={{ color: tokens.text.primary }}>{value}</p>
+        <p className="text-xs font-medium" style={{ color: tokens.text.secondary }}>
+          {label}
+        </p>
+        <p
+          className="text-xl font-bold tracking-tight mt-0.5"
+          style={{ color: tokens.text.primary }}
+        >
+          {value}
+        </p>
       </div>
     </div>
   );
@@ -201,14 +205,20 @@ export default function Drafts() {
   // ── Filtered & sorted ──
   const filteredData = useMemo(() => {
     let result = [...drafts];
-    if (statusFilter !== 'all') result = result.filter(d => d.status === statusFilter);
+    if (statusFilter !== 'all') result = result.filter((d) => d.status === statusFilter);
     result.sort((a, b) => {
       let aVal: string;
       let bVal: string;
       switch (sortKey) {
-        case 'subject': aVal = a.subject.toLowerCase(); bVal = b.subject.toLowerCase(); break;
+        case 'subject':
+          aVal = a.subject.toLowerCase();
+          bVal = b.subject.toLowerCase();
+          break;
         case 'lastModified':
-        default: aVal = a.lastModified; bVal = b.lastModified; break;
+        default:
+          aVal = a.lastModified;
+          bVal = b.lastModified;
+          break;
       }
       if (aVal < bVal) return sortDir === 'asc' ? -1 : 1;
       if (aVal > bVal) return sortDir === 'asc' ? 1 : -1;
@@ -220,16 +230,22 @@ export default function Drafts() {
   // ── Stats ──
   const stats = useMemo(() => {
     const total = drafts.length;
-    const draftsCount = drafts.filter(d => d.status === 'draft').length;
-    const scheduled = drafts.filter(d => d.status === 'scheduled').length;
-    const sent = drafts.filter(d => d.status === 'sent').length;
+    const draftsCount = drafts.filter((d) => d.status === 'draft').length;
+    const scheduled = drafts.filter((d) => d.status === 'scheduled').length;
+    const sent = drafts.filter((d) => d.status === 'sent').length;
     return { total, draftsCount, scheduled, sent };
   }, [drafts]);
 
-  const handleSort = useCallback((key: string) => {
-    if (key === sortKey) setSortDir(d => d === 'asc' ? 'desc' : 'asc');
-    else { setSortKey(key); setSortDir('desc'); }
-  }, [sortKey]);
+  const handleSort = useCallback(
+    (key: string) => {
+      if (key === sortKey) setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+      else {
+        setSortKey(key);
+        setSortDir('desc');
+      }
+    },
+    [sortKey],
+  );
 
   const openEditor = useCallback((draft: Draft) => {
     setEditingDraft(draft);
@@ -238,11 +254,13 @@ export default function Drafts() {
 
   const saveDraft = useCallback(() => {
     if (!editingDraft) return;
-    setDrafts(prev => prev.map(d =>
-      d.id === editingDraft.id
-        ? { ...d, body: editBody, lastModified: new Date().toISOString() }
-        : d
-    ));
+    setDrafts((prev) =>
+      prev.map((d) =>
+        d.id === editingDraft.id
+          ? { ...d, body: editBody, lastModified: new Date().toISOString() }
+          : d,
+      ),
+    );
     setEditingDraft(null);
     setEditBody('');
   }, [editingDraft, editBody]);
@@ -259,7 +277,7 @@ export default function Drafts() {
       templateUsed: '—',
       body: composeBody,
     };
-    setDrafts(prev => [newDraft, ...prev]);
+    setDrafts((prev) => [newDraft, ...prev]);
     setShowCompose(false);
     setComposeSubject('');
     setComposeTo('');
@@ -268,102 +286,125 @@ export default function Drafts() {
   }, [composeSubject, composeTo, composeCompany, composeBody]);
 
   // ── Columns ──
-  const columns = useMemo(() => [
-    {
-      key: 'subject',
-      label: 'Subject',
-      sortable: true,
-      render: (_: unknown, row: Record<string, unknown>) => {
-        const draft = row as unknown as Draft;
-        return (
-          <div className="min-w-[200px]">
-            <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>{draft.subject}</p>
-          </div>
-        );
-      },
-    },
-    {
-      key: 'toContact',
-      label: 'To',
-      render: (value: unknown) => {
-        const name = value as string;
-        return (
-          <div className="flex items-center gap-2">
-            <div
-              className="flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0"
-              style={{ background: `${tokens.accent.primary}15`, color: tokens.accent.primary }}
-            >
-              {name.split(' ').map(n => n[0]).join('')}
+  const columns = useMemo(
+    () => [
+      {
+        key: 'subject',
+        label: 'Subject',
+        sortable: true,
+        render: (_: unknown, row: Record<string, unknown>) => {
+          const draft = row as unknown as Draft;
+          return (
+            <div className="min-w-[200px]">
+              <p className="text-sm font-semibold" style={{ color: tokens.text.primary }}>
+                {draft.subject}
+              </p>
             </div>
-            <span className="text-sm" style={{ color: tokens.text.secondary }}>{name}</span>
-          </div>
-        );
+          );
+        },
       },
-    },
-    {
-      key: 'relatedCompany',
-      label: 'Company',
-      render: (value: unknown) => {
-        const company = value as string;
-        if (company === '—') return <span style={{ color: tokens.text.muted }}>—</span>;
-        return (
-          <span
-            className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-            style={{ background: tokens.surfaceExtended, color: tokens.text.secondary }}
-          >
-            {company}
+      {
+        key: 'toContact',
+        label: 'To',
+        render: (value: unknown) => {
+          const name = value as string;
+          return (
+            <div className="flex items-center gap-2">
+              <div
+                className="flex items-center justify-center w-7 h-7 rounded-full text-xs font-bold shrink-0"
+                style={{ background: `${tokens.accent.primary}15`, color: tokens.accent.primary }}
+              >
+                {name
+                  .split(' ')
+                  .map((n) => n[0])
+                  .join('')}
+              </div>
+              <span className="text-sm" style={{ color: tokens.text.secondary }}>
+                {name}
+              </span>
+            </div>
+          );
+        },
+      },
+      {
+        key: 'relatedCompany',
+        label: 'Company',
+        render: (value: unknown) => {
+          const company = value as string;
+          if (company === '—') return <span style={{ color: tokens.text.muted }}>—</span>;
+          return (
+            <span
+              className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
+              style={{ background: tokens.surfaceExtended, color: tokens.text.secondary }}
+            >
+              {company}
+            </span>
+          );
+        },
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        render: (value: unknown) => <StatusBadge status={value as DraftStatus} />,
+      },
+      {
+        key: 'lastModified',
+        label: 'Last Modified',
+        sortable: true,
+        render: (value: unknown) => (
+          <span className="text-xs" style={{ color: tokens.text.secondary }}>
+            {formatRelativeDate(value as string)}
           </span>
-        );
+        ),
       },
-    },
-    {
-      key: 'status',
-      label: 'Status',
-      render: (value: unknown) => <StatusBadge status={value as DraftStatus} />,
-    },
-    {
-      key: 'lastModified',
-      label: 'Last Modified',
-      sortable: true,
-      render: (value: unknown) => (
-        <span className="text-xs" style={{ color: tokens.text.secondary }}>{formatRelativeDate(value as string)}</span>
-      ),
-    },
-    {
-      key: 'templateUsed',
-      label: 'Template',
-      render: (value: unknown) => {
-        const tpl = value as string;
-        if (tpl === '—') return <span style={{ color: tokens.text.muted }}>—</span>;
-        return (
-          <span
-            className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
-            style={{ background: `${tokens.domain.reasoning}15`, color: tokens.domain.reasoning }}
-          >
-            <Mail className="w-3 h-3" />
-            {tpl}
-          </span>
-        );
+      {
+        key: 'templateUsed',
+        label: 'Template',
+        render: (value: unknown) => {
+          const tpl = value as string;
+          if (tpl === '—') return <span style={{ color: tokens.text.muted }}>—</span>;
+          return (
+            <span
+              className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium"
+              style={{ background: `${tokens.domain.reasoning}15`, color: tokens.domain.reasoning }}
+            >
+              <Mail className="w-3 h-3" />
+              {tpl}
+            </span>
+          );
+        },
       },
-    },
-  ], []);
+    ],
+    [],
+  );
 
-  const tableData = useMemo(() => filteredData.map(d => ({ ...d })) as Record<string, unknown>[], [filteredData]);
+  const tableData = useMemo(
+    () => filteredData.map((d) => ({ ...d })) as Record<string, unknown>[],
+    [filteredData],
+  );
 
   return (
     <div className="p-6 flex flex-col gap-6">
       {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold tracking-tight" style={{ color: tokens.text.primary }}>Email Drafts</h1>
-          <p className="text-sm mt-0.5" style={{ color: tokens.text.secondary }}>Compose and manage email drafts</p>
+          <h1 className="text-xl font-bold tracking-tight" style={{ color: tokens.text.primary }}>
+            Email Drafts
+          </h1>
+          <p className="text-sm mt-0.5" style={{ color: tokens.text.secondary }}>
+            Compose and manage email drafts
+          </p>
         </div>
         <button
           onClick={() => setShowCompose(true)}
           className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors shrink-0"
           style={{ background: tokens.accent.primary, color: tokens.text.inverse }}
-          onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = tokens.accent.hover; }}
-          onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = tokens.accent.primary; }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLElement).style.background = tokens.accent.hover;
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLElement).style.background = tokens.accent.primary;
+          }}
         >
           <Plus className="w-4 h-4" />
           Compose New
@@ -374,28 +415,66 @@ export default function Drafts() {
       {loading ? (
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <div key={i} className="flex items-start gap-3 p-4 rounded-xl" style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}>
-              <Skeleton className="w-10 h-10 rounded-lg shrink-0" style={{ background: tokens.border.default }} />
+            <div
+              key={i}
+              className="flex items-start gap-3 p-4 rounded-xl"
+              style={{
+                background: tokens.surface.card,
+                border: `1px solid ${tokens.border.default}`,
+              }}
+            >
+              <Skeleton
+                className="w-10 h-10 rounded-lg shrink-0"
+                style={{ background: tokens.border.default }}
+              />
               <div className="flex-1">
-                <Skeleton className="h-3 w-20 mb-2 rounded" style={{ background: tokens.border.default }} />
-                <Skeleton className="h-6 w-12 rounded" style={{ background: tokens.border.default }} />
+                <Skeleton
+                  className="h-3 w-20 mb-2 rounded"
+                  style={{ background: tokens.border.default }}
+                />
+                <Skeleton
+                  className="h-6 w-12 rounded"
+                  style={{ background: tokens.border.default }}
+                />
               </div>
             </div>
           ))}
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <StatCard icon={FileEdit} label="Total Drafts" value={stats.total} accent={tokens.accent.primary} />
-          <StatCard icon={Pencil} label="Drafts" value={stats.draftsCount} accent={tokens.text.muted} />
-          <StatCard icon={CalendarClock} label="Scheduled" value={stats.scheduled} accent={tokens.confidence.medium.value} />
-          <StatCard icon={Send} label="Sent" value={stats.sent} accent={tokens.confidence.high.value} />
+          <StatCard
+            icon={FileEdit}
+            label="Total Drafts"
+            value={stats.total}
+            accent={tokens.accent.primary}
+          />
+          <StatCard
+            icon={Pencil}
+            label="Drafts"
+            value={stats.draftsCount}
+            accent={tokens.text.muted}
+          />
+          <StatCard
+            icon={CalendarClock}
+            label="Scheduled"
+            value={stats.scheduled}
+            accent={tokens.confidence.medium.value}
+          />
+          <StatCard
+            icon={Send}
+            label="Sent"
+            value={stats.sent}
+            accent={tokens.confidence.high.value}
+          />
         </div>
       )}
 
       {/* ── Status Filter ── */}
       <div className="flex items-center gap-2 flex-wrap">
-        <span className="text-xs font-medium" style={{ color: tokens.text.muted }}>Filter:</span>
-        {(['all', 'draft', 'scheduled', 'sent'] as const).map(s => {
+        <span className="text-xs font-medium" style={{ color: tokens.text.muted }}>
+          Filter:
+        </span>
+        {(['all', 'draft', 'scheduled', 'sent'] as const).map((s) => {
           const isActive = statusFilter === s;
           const label = s === 'all' ? 'All' : s.charAt(0).toUpperCase() + s.slice(1);
           return (
@@ -406,7 +485,9 @@ export default function Drafts() {
               style={{
                 background: isActive ? `${tokens.accent.primary}15` : 'transparent',
                 color: isActive ? tokens.accent.primary : tokens.text.secondary,
-                border: isActive ? `1px solid ${tokens.accent.primary}30` : `1px solid ${tokens.border.default}`,
+                border: isActive
+                  ? `1px solid ${tokens.accent.primary}30`
+                  : `1px solid ${tokens.border.default}`,
               }}
             >
               {label}
@@ -435,40 +516,79 @@ export default function Drafts() {
       {/* ── Edit Slide-over ── */}
       {editingDraft && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.4)' }} onClick={() => setEditingDraft(null)} />
+          <div
+            className="absolute inset-0"
+            style={{ background: 'rgba(0,0,0,0.4)' }}
+            onClick={() => setEditingDraft(null)}
+          />
           <div
             className="relative w-full max-w-lg flex flex-col"
-            style={{ background: tokens.surface.card, borderLeft: `1px solid ${tokens.border.default}` }}
+            style={{
+              background: tokens.surface.card,
+              borderLeft: `1px solid ${tokens.border.default}`,
+            }}
           >
-            <div className="flex items-center justify-between p-5" style={{ borderBottom: `1px solid ${tokens.border.default}` }}>
+            <div
+              className="flex items-center justify-between p-5"
+              style={{ borderBottom: `1px solid ${tokens.border.default}` }}
+            >
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-9 h-9 rounded-lg" style={{ background: `${tokens.accent.primary}15`, color: tokens.accent.primary }}>
+                <div
+                  className="flex items-center justify-center w-9 h-9 rounded-lg"
+                  style={{ background: `${tokens.accent.primary}15`, color: tokens.accent.primary }}
+                >
                   <Pencil className="w-5 h-5" />
                 </div>
                 <div className="min-w-0">
-                  <h2 className="text-base font-semibold truncate" style={{ color: tokens.text.primary }}>{editingDraft.subject}</h2>
-                  <p className="text-xs" style={{ color: tokens.text.muted }}>To: {editingDraft.toContact} · {editingDraft.relatedCompany}</p>
+                  <h2
+                    className="text-base font-semibold truncate"
+                    style={{ color: tokens.text.primary }}
+                  >
+                    {editingDraft.subject}
+                  </h2>
+                  <p className="text-xs" style={{ color: tokens.text.muted }}>
+                    To: {editingDraft.toContact} · {editingDraft.relatedCompany}
+                  </p>
                 </div>
               </div>
-              <button onClick={() => setEditingDraft(null)} className="p-1.5 rounded-lg transition-colors hover:bg-gray-100" style={{ color: tokens.text.muted }}>
+              <button
+                onClick={() => setEditingDraft(null)}
+                className="p-1.5 rounded-lg transition-colors hover:bg-gray-100"
+                style={{ color: tokens.text.muted }}
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-5">
-              <label className="text-xs font-medium block mb-1.5" style={{ color: tokens.text.muted }}>Email Body</label>
+              <label
+                className="text-xs font-medium block mb-1.5"
+                style={{ color: tokens.text.muted }}
+              >
+                Email Body
+              </label>
               <textarea
                 value={editBody}
                 onChange={(e) => setEditBody(e.target.value)}
                 rows={20}
                 className="w-full px-4 py-3 rounded-lg text-sm outline-none transition-colors resize-none font-mono leading-relaxed"
-                style={{ background: '#0d1117', border: `1px solid ${tokens.border.default}`, color: tokens.text.primary }}
+                style={{
+                  background: 'var(--ios-bg-card)',
+                  border: `1px solid ${tokens.border.default}`,
+                  color: tokens.text.primary,
+                }}
               />
             </div>
-            <div className="flex items-center justify-end gap-3 p-5" style={{ borderTop: `1px solid ${tokens.border.default}` }}>
+            <div
+              className="flex items-center justify-end gap-3 p-5"
+              style={{ borderTop: `1px solid ${tokens.border.default}` }}
+            >
               <button
                 onClick={() => setEditingDraft(null)}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                style={{ border: `1px solid ${tokens.border.default}`, color: tokens.text.secondary }}
+                style={{
+                  border: `1px solid ${tokens.border.default}`,
+                  color: tokens.text.secondary,
+                }}
               >
                 Cancel
               </button>
@@ -487,76 +607,127 @@ export default function Drafts() {
       {/* ── Compose Modal ── */}
       {showCompose && (
         <div className="fixed inset-0 z-50 flex justify-end">
-          <div className="absolute inset-0" style={{ background: 'rgba(0,0,0,0.4)' }} onClick={() => setShowCompose(false)} />
+          <div
+            className="absolute inset-0"
+            style={{ background: 'rgba(0,0,0,0.4)' }}
+            onClick={() => setShowCompose(false)}
+          />
           <div
             className="relative w-full max-w-lg flex flex-col"
-            style={{ background: tokens.surface.card, borderLeft: `1px solid ${tokens.border.default}` }}
+            style={{
+              background: tokens.surface.card,
+              borderLeft: `1px solid ${tokens.border.default}`,
+            }}
           >
-            <div className="flex items-center justify-between p-5" style={{ borderBottom: `1px solid ${tokens.border.default}` }}>
+            <div
+              className="flex items-center justify-between p-5"
+              style={{ borderBottom: `1px solid ${tokens.border.default}` }}
+            >
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-9 h-9 rounded-lg" style={{ background: `${tokens.accent.primary}15`, color: tokens.accent.primary }}>
+                <div
+                  className="flex items-center justify-center w-9 h-9 rounded-lg"
+                  style={{ background: `${tokens.accent.primary}15`, color: tokens.accent.primary }}
+                >
                   <Plus className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-semibold" style={{ color: tokens.text.primary }}>New Draft</h2>
-                  <p className="text-xs" style={{ color: tokens.text.muted }}>Compose a new email</p>
+                  <h2 className="text-base font-semibold" style={{ color: tokens.text.primary }}>
+                    New Draft
+                  </h2>
+                  <p className="text-xs" style={{ color: tokens.text.muted }}>
+                    Compose a new email
+                  </p>
                 </div>
               </div>
-              <button onClick={() => setShowCompose(false)} className="p-1.5 rounded-lg transition-colors hover:bg-gray-100" style={{ color: tokens.text.muted }}>
+              <button
+                onClick={() => setShowCompose(false)}
+                className="p-1.5 rounded-lg transition-colors hover:bg-gray-100"
+                style={{ color: tokens.text.muted }}
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
             <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-4">
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium" style={{ color: tokens.text.secondary }}>To</label>
+                <label className="text-xs font-medium" style={{ color: tokens.text.secondary }}>
+                  To
+                </label>
                 <input
                   type="text"
                   value={composeTo}
                   onChange={(e) => setComposeTo(e.target.value)}
                   placeholder="Contact name"
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                  style={{ background: '#0d1117', border: `1px solid ${tokens.border.default}`, color: tokens.text.primary }}
+                  style={{
+                    background: 'var(--ios-bg-card)',
+                    border: `1px solid ${tokens.border.default}`,
+                    color: tokens.text.primary,
+                  }}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium" style={{ color: tokens.text.secondary }}>Company</label>
+                <label className="text-xs font-medium" style={{ color: tokens.text.secondary }}>
+                  Company
+                </label>
                 <input
                   type="text"
                   value={composeCompany}
                   onChange={(e) => setComposeCompany(e.target.value)}
                   placeholder="Related company"
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                  style={{ background: '#0d1117', border: `1px solid ${tokens.border.default}`, color: tokens.text.primary }}
+                  style={{
+                    background: 'var(--ios-bg-card)',
+                    border: `1px solid ${tokens.border.default}`,
+                    color: tokens.text.primary,
+                  }}
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <label className="text-xs font-medium" style={{ color: tokens.text.secondary }}>Subject</label>
+                <label className="text-xs font-medium" style={{ color: tokens.text.secondary }}>
+                  Subject
+                </label>
                 <input
                   type="text"
                   value={composeSubject}
                   onChange={(e) => setComposeSubject(e.target.value)}
                   placeholder="Email subject"
                   className="w-full px-3 py-2 rounded-lg text-sm outline-none"
-                  style={{ background: '#0d1117', border: `1px solid ${tokens.border.default}`, color: tokens.text.primary }}
+                  style={{
+                    background: 'var(--ios-bg-card)',
+                    border: `1px solid ${tokens.border.default}`,
+                    color: tokens.text.primary,
+                  }}
                 />
               </div>
               <div className="flex flex-col gap-1.5 flex-1">
-                <label className="text-xs font-medium" style={{ color: tokens.text.secondary }}>Body</label>
+                <label className="text-xs font-medium" style={{ color: tokens.text.secondary }}>
+                  Body
+                </label>
                 <textarea
                   value={composeBody}
                   onChange={(e) => setComposeBody(e.target.value)}
                   placeholder="Write your email..."
                   rows={12}
                   className="w-full px-4 py-3 rounded-lg text-sm outline-none resize-none font-mono leading-relaxed"
-                  style={{ background: '#0d1117', border: `1px solid ${tokens.border.default}`, color: tokens.text.primary }}
+                  style={{
+                    background: 'var(--ios-bg-card)',
+                    border: `1px solid ${tokens.border.default}`,
+                    color: tokens.text.primary,
+                  }}
                 />
               </div>
             </div>
-            <div className="flex items-center justify-end gap-3 p-5" style={{ borderTop: `1px solid ${tokens.border.default}` }}>
+            <div
+              className="flex items-center justify-end gap-3 p-5"
+              style={{ borderTop: `1px solid ${tokens.border.default}` }}
+            >
               <button
                 onClick={() => setShowCompose(false)}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                style={{ border: `1px solid ${tokens.border.default}`, color: tokens.text.secondary }}
+                style={{
+                  border: `1px solid ${tokens.border.default}`,
+                  color: tokens.text.secondary,
+                }}
               >
                 Discard
               </button>
@@ -566,7 +737,9 @@ export default function Drafts() {
                 className="px-4 py-2 rounded-lg text-sm font-semibold transition-colors disabled:opacity-50"
                 style={{ background: tokens.accent.primary, color: tokens.text.inverse }}
               >
-                <span className="flex items-center gap-2"><FileEdit className="w-4 h-4" /> Save Draft</span>
+                <span className="flex items-center gap-2">
+                  <FileEdit className="w-4 h-4" /> Save Draft
+                </span>
               </button>
             </div>
           </div>

@@ -96,7 +96,7 @@ export async function proxy(request: NextRequest) {
 function handleApiRoute(
   request: NextRequest,
   _response: NextResponse,
-  pathname: string
+  pathname: string,
 ): NextResponse {
   // Check session token
   const token = getSessionToken(request);
@@ -104,7 +104,10 @@ function handleApiRoute(
   if (!token) {
     const ip = getClientIp(request);
     logger.warn(`[Middleware] No session token for ${request.method} ${pathname}`);
-    edgeAuditAuthFailure('Unauthenticated API access', ip, { path: pathname, method: request.method });
+    edgeAuditAuthFailure('Unauthenticated API access', ip, {
+      path: pathname,
+      method: request.method,
+    });
     return unauthorizedResponse();
   }
 
@@ -117,8 +120,8 @@ function handleApiRoute(
       return applySecurityHeaders(
         NextResponse.json(
           { success: false, error: 'CSRF validation failed' },
-          { status: 403, headers: { 'Content-Type': 'application/json' } }
-        )
+          { status: 403, headers: { 'Content-Type': 'application/json' } },
+        ),
       );
     }
   }
@@ -178,7 +181,7 @@ function handleApiRoute(
 async function handlePageRoute(
   request: NextRequest,
   _response: NextResponse,
-  pathname: string
+  pathname: string,
 ): Promise<NextResponse> {
   const token = getSessionToken(request);
 
@@ -205,7 +208,7 @@ async function handlePageRoute(
 function applyRateLimiting(
   request: NextRequest,
   _response: NextResponse,
-  pathname: string
+  pathname: string,
 ): NextResponse {
   const method = request.method.toUpperCase();
 
@@ -263,11 +266,9 @@ function applyRateLimiting(
  *   generated per request (original double-submit pattern for initial login).
  */
 async function injectCsrfCookie(response: NextResponse, sessionToken?: string): Promise<void> {
-  const csrfToken = sessionToken
-    ? await deriveCsrfFromSession(sessionToken)
-    : generateCsrfToken();
+  const csrfToken = sessionToken ? await deriveCsrfFromSession(sessionToken) : generateCsrfToken();
   response.cookies.set(CSRF_COOKIE_NAME, csrfToken, {
-    httpOnly: false,  // Must be readable by JS client
+    httpOnly: false, // Must be readable by JS client
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',
     path: '/',

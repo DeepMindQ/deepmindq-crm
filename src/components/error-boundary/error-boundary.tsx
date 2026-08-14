@@ -1,5 +1,5 @@
-'use client'
-import React from 'react'
+'use client';
+import React from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import {
   AlertTriangle,
@@ -11,28 +11,38 @@ import {
   RefreshCw,
   Copy,
   Check,
-} from 'lucide-react'
-import { logger } from '@/lib/logger'
+} from 'lucide-react';
+import { logger } from '@/lib/logger';
 
 // ── Error categorization ──
-type ErrorCategory = 'network' | 'auth' | 'validation' | 'timeout' | 'runtime' | 'unknown'
+type ErrorCategory = 'network' | 'auth' | 'validation' | 'timeout' | 'runtime' | 'unknown';
 
 function categorizeError(error: Error): ErrorCategory {
-  const msg = error.message.toLowerCase()
-  if (msg.includes('network') || msg.includes('fetch') || msg.includes('failed to fetch')) return 'network'
-  if (msg.includes('401') || msg.includes('403') || msg.includes('unauthorized') || msg.includes('forbidden')) return 'auth'
-  if (msg.includes('validation') || msg.includes('invalid')) return 'validation'
-  if (msg.includes('timeout') || msg.includes('abort')) return 'timeout'
-  return 'runtime'
+  const msg = error.message.toLowerCase();
+  if (msg.includes('network') || msg.includes('fetch') || msg.includes('failed to fetch'))
+    return 'network';
+  if (
+    msg.includes('401') ||
+    msg.includes('403') ||
+    msg.includes('unauthorized') ||
+    msg.includes('forbidden')
+  )
+    return 'auth';
+  if (msg.includes('validation') || msg.includes('invalid')) return 'validation';
+  if (msg.includes('timeout') || msg.includes('abort')) return 'timeout';
+  return 'runtime';
 }
 
-const categoryConfig: Record<ErrorCategory, {
-  icon: React.ElementType
-  label: string
-  color: string
-  bgColor: string
-  borderColor: string
-}> = {
+const categoryConfig: Record<
+  ErrorCategory,
+  {
+    icon: React.ElementType;
+    label: string;
+    color: string;
+    bgColor: string;
+    borderColor: string;
+  }
+> = {
   runtime: {
     icon: AlertTriangle,
     label: 'Runtime Error',
@@ -75,53 +85,53 @@ const categoryConfig: Record<ErrorCategory, {
     bgColor: tokens.priority.low.bg,
     borderColor: tokens.priority.low.border,
   },
-}
+};
 
 // ── Props & State ──
 interface ErrorBoundaryProps {
-  children: React.ReactNode
-  fallback?: React.ReactNode
+  children: React.ReactNode;
+  fallback?: React.ReactNode;
 }
 
 interface ErrorBoundaryState {
-  hasError: boolean
-  error: Error | null
-  errorId: string | null
-  copied: boolean
+  hasError: boolean;
+  error: Error | null;
+  errorId: string | null;
+  copied: boolean;
 }
 
 export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoundaryState> {
   constructor(props: ErrorBoundaryProps) {
-    super(props)
-    this.state = { hasError: false, error: null, errorId: null, copied: false }
+    super(props);
+    this.state = { hasError: false, error: null, errorId: null, copied: false };
   }
 
   static getDerivedStateFromError(error: Error) {
-    return { hasError: true, error, errorId: crypto.randomUUID?.() ?? `err-${Date.now()}` }
+    return { hasError: true, error, errorId: crypto.randomUUID?.() ?? `err-${Date.now()}` };
   }
 
   componentDidCatch(error: Error, errorInfo: React.ErrorInfo) {
-    const category = categorizeError(error)
+    const category = categorizeError(error);
     logger.error('[ErrorBoundary] Caught error:', {
       error: error.message,
       category,
       errorId: this.state.errorId,
-    })
-    logger.error('[ErrorBoundary] Component stack:', { error: errorInfo.componentStack })
+    });
+    logger.error('[ErrorBoundary] Component stack:', { error: errorInfo.componentStack });
   }
 
   handleRetry = () => {
-    this.setState({ hasError: false, error: null, errorId: null, copied: false })
-  }
+    this.setState({ hasError: false, error: null, errorId: null, copied: false });
+  };
 
   handleReload = () => {
-    this.setState({ hasError: false, error: null, errorId: null, copied: false })
-    window.location.reload()
-  }
+    this.setState({ hasError: false, error: null, errorId: null, copied: false });
+    window.location.reload();
+  };
 
   handleCopyDetails = async () => {
-    const { error, errorId } = this.state
-    if (!error || !errorId) return
+    const { error, errorId } = this.state;
+    if (!error || !errorId) return;
     const details = [
       `DeepMindQ Error Report`,
       `Error ID: ${errorId}`,
@@ -130,25 +140,25 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
       `Stack: ${error.stack || 'N/A'}`,
       `Timestamp: ${new Date().toISOString()}`,
       `URL: ${typeof window !== 'undefined' ? window.location.href : 'N/A'}`,
-    ].join('\n')
+    ].join('\n');
 
     try {
-      await navigator.clipboard.writeText(details)
-      this.setState({ copied: true })
-      setTimeout(() => this.setState({ copied: false }), 2000)
+      await navigator.clipboard.writeText(details);
+      this.setState({ copied: true });
+      setTimeout(() => this.setState({ copied: false }), 2000);
     } catch {
       // Fallback: do nothing
     }
-  }
+  };
 
   render() {
     if (this.state.hasError) {
-      if (this.props.fallback) return this.props.fallback
+      if (this.props.fallback) return this.props.fallback;
 
-      const error = this.state.error || new Error('Unknown error')
-      const category = categorizeError(error)
-      const config = categoryConfig[category]
-      const Icon = config.icon
+      const error = this.state.error || new Error('Unknown error');
+      const category = categorizeError(error);
+      const config = categoryConfig[category];
+      const Icon = config.icon;
 
       return (
         <div
@@ -196,9 +206,13 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
               aria-label="Copy error details to clipboard"
             >
               {this.state.copied ? (
-                <><Check className="size-3.5" /> Copied</>
+                <>
+                  <Check className="size-3.5" /> Copied
+                </>
               ) : (
-                <><Copy className="size-3.5" /> Copy Details</>
+                <>
+                  <Copy className="size-3.5" /> Copy Details
+                </>
               )}
             </button>
             <button
@@ -210,8 +224,8 @@ export class ErrorBoundary extends React.Component<ErrorBoundaryProps, ErrorBoun
             </button>
           </div>
         </div>
-      )
+      );
     }
-    return this.props.children
+    return this.props.children;
   }
 }

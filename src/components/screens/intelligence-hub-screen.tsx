@@ -42,12 +42,7 @@ import { fetchApi } from '@/lib/fetchApi';
 import { useAppStore } from '@/lib/store';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { toast } from 'sonner';
 
 // ═══════════════════════════════════════════════════════════════
@@ -109,8 +104,8 @@ interface StatCard {
 // ═══════════════════════════════════════════════════════════════
 
 const C = {
-  bg: '#0B0F19',
-  bgCard: '#111827',
+  bg: 'var(--ios-bg-primary)',
+  bgCard: 'var(--ios-bg-card)',
   bgCardHover: '#1a2236',
   border: '#1E293B',
   borderLight: '#334155',
@@ -136,7 +131,11 @@ const C = {
 
 const SEVERITY_CONFIG: Record<string, { color: string; bg: string; icon: React.ReactNode }> = {
   critical: { color: C.danger, bg: C.dangerGhost, icon: <AlertTriangle className="h-4 w-4" /> },
-  high: { color: '#F97316', bg: 'rgba(249, 115, 22, 0.1)', icon: <AlertTriangle className="h-4 w-4" /> },
+  high: {
+    color: '#F97316',
+    bg: 'rgba(249, 115, 22, 0.1)',
+    icon: <AlertTriangle className="h-4 w-4" />,
+  },
   medium: { color: C.warning, bg: C.warningGhost, icon: <CircleDot className="h-4 w-4" /> },
   low: { color: C.success, bg: C.successGhost, icon: <CheckCircle2 className="h-4 w-4" /> },
 };
@@ -188,42 +187,242 @@ function formatTimestamp(date: Date): string {
 function getMockSignals(): SignalFeedItem[] {
   const now = Date.now();
   return [
-    { id: 's1', signalType: 'risk', severity: 'critical', title: 'Executive leadership shakeup detected', description: 'CFO departure signals potential instability', confidenceScore: 92, detectedAt: new Date(now - 1000 * 60 * 12).toISOString(), organizationName: 'Acme Corp', organizationId: 'org-1' },
-    { id: 's2', signalType: 'opportunity', severity: 'high', title: 'Major funding round announced', description: 'Series C funding of $85M closed', confidenceScore: 88, detectedAt: new Date(now - 1000 * 60 * 45).toISOString(), organizationName: 'TechCo Industries', organizationId: 'org-2' },
-    { id: 's3', signalType: 'market', severity: 'medium', title: 'Market expansion into APAC region', description: 'New office openings in Singapore and Tokyo', confidenceScore: 76, detectedAt: new Date(now - 1000 * 60 * 60 * 2).toISOString(), organizationName: 'GlobalNet Solutions', organizationId: 'org-3' },
-    { id: 's4', signalType: 'technology', severity: 'high', title: 'AI platform launch announced', description: 'New enterprise AI product targeting Fortune 500', confidenceScore: 84, detectedAt: new Date(now - 1000 * 60 * 60 * 3).toISOString(), organizationName: 'NovaTech Solutions', organizationId: 'org-4' },
-    { id: 's5', signalType: 'financial', severity: 'medium', title: 'Revenue growth acceleration', description: 'Q3 revenue up 34% year-over-year', confidenceScore: 79, detectedAt: new Date(now - 1000 * 60 * 60 * 5).toISOString(), organizationName: 'Meridian Fintech', organizationId: 'org-5' },
-    { id: 's6', signalType: 'regulatory', severity: 'low', title: 'Compliance certification renewed', description: 'ISO 27001 and SOC 2 Type II renewed', confidenceScore: 95, detectedAt: new Date(now - 1000 * 60 * 60 * 8).toISOString(), organizationName: 'Atlas Cyberdefense', organizationId: 'org-6' },
-    { id: 's7', signalType: 'growth', severity: 'medium', title: 'Headcount surge in engineering', description: '42 new engineering hires in last 90 days', confidenceScore: 72, detectedAt: new Date(now - 1000 * 60 * 60 * 12).toISOString(), organizationName: 'Stratoscale AI', organizationId: 'org-7' },
-    { id: 's8', signalType: 'risk', severity: 'high', title: 'Patent infringement lawsuit filed', description: 'Competitor filed suit in Eastern District of Texas', confidenceScore: 81, detectedAt: new Date(now - 1000 * 60 * 60 * 18).toISOString(), organizationName: 'DataForge Inc', organizationId: 'org-8' },
-    { id: 's9', signalType: 'opportunity', severity: 'low', title: 'Partnership with major cloud provider', description: 'AWS Marketplace listing and co-sell agreement', confidenceScore: 90, detectedAt: new Date(now - 1000 * 60 * 60 * 24).toISOString(), organizationName: 'CloudPlex Systems', organizationId: 'org-9' },
-    { id: 's10', signalType: 'technology', severity: 'medium', title: 'Open source community contribution spike', description: 'GitHub stars grew 200% in last quarter', confidenceScore: 68, detectedAt: new Date(now - 1000 * 60 * 60 * 36).toISOString(), organizationName: 'DevStack Labs', organizationId: 'org-10' },
+    {
+      id: 's1',
+      signalType: 'risk',
+      severity: 'critical',
+      title: 'Executive leadership shakeup detected',
+      description: 'CFO departure signals potential instability',
+      confidenceScore: 92,
+      detectedAt: new Date(now - 1000 * 60 * 12).toISOString(),
+      organizationName: 'Acme Corp',
+      organizationId: 'org-1',
+    },
+    {
+      id: 's2',
+      signalType: 'opportunity',
+      severity: 'high',
+      title: 'Major funding round announced',
+      description: 'Series C funding of $85M closed',
+      confidenceScore: 88,
+      detectedAt: new Date(now - 1000 * 60 * 45).toISOString(),
+      organizationName: 'TechCo Industries',
+      organizationId: 'org-2',
+    },
+    {
+      id: 's3',
+      signalType: 'market',
+      severity: 'medium',
+      title: 'Market expansion into APAC region',
+      description: 'New office openings in Singapore and Tokyo',
+      confidenceScore: 76,
+      detectedAt: new Date(now - 1000 * 60 * 60 * 2).toISOString(),
+      organizationName: 'GlobalNet Solutions',
+      organizationId: 'org-3',
+    },
+    {
+      id: 's4',
+      signalType: 'technology',
+      severity: 'high',
+      title: 'AI platform launch announced',
+      description: 'New enterprise AI product targeting Fortune 500',
+      confidenceScore: 84,
+      detectedAt: new Date(now - 1000 * 60 * 60 * 3).toISOString(),
+      organizationName: 'NovaTech Solutions',
+      organizationId: 'org-4',
+    },
+    {
+      id: 's5',
+      signalType: 'financial',
+      severity: 'medium',
+      title: 'Revenue growth acceleration',
+      description: 'Q3 revenue up 34% year-over-year',
+      confidenceScore: 79,
+      detectedAt: new Date(now - 1000 * 60 * 60 * 5).toISOString(),
+      organizationName: 'Meridian Fintech',
+      organizationId: 'org-5',
+    },
+    {
+      id: 's6',
+      signalType: 'regulatory',
+      severity: 'low',
+      title: 'Compliance certification renewed',
+      description: 'ISO 27001 and SOC 2 Type II renewed',
+      confidenceScore: 95,
+      detectedAt: new Date(now - 1000 * 60 * 60 * 8).toISOString(),
+      organizationName: 'Atlas Cyberdefense',
+      organizationId: 'org-6',
+    },
+    {
+      id: 's7',
+      signalType: 'growth',
+      severity: 'medium',
+      title: 'Headcount surge in engineering',
+      description: '42 new engineering hires in last 90 days',
+      confidenceScore: 72,
+      detectedAt: new Date(now - 1000 * 60 * 60 * 12).toISOString(),
+      organizationName: 'Stratoscale AI',
+      organizationId: 'org-7',
+    },
+    {
+      id: 's8',
+      signalType: 'risk',
+      severity: 'high',
+      title: 'Patent infringement lawsuit filed',
+      description: 'Competitor filed suit in Eastern District of Texas',
+      confidenceScore: 81,
+      detectedAt: new Date(now - 1000 * 60 * 60 * 18).toISOString(),
+      organizationName: 'DataForge Inc',
+      organizationId: 'org-8',
+    },
+    {
+      id: 's9',
+      signalType: 'opportunity',
+      severity: 'low',
+      title: 'Partnership with major cloud provider',
+      description: 'AWS Marketplace listing and co-sell agreement',
+      confidenceScore: 90,
+      detectedAt: new Date(now - 1000 * 60 * 60 * 24).toISOString(),
+      organizationName: 'CloudPlex Systems',
+      organizationId: 'org-9',
+    },
+    {
+      id: 's10',
+      signalType: 'technology',
+      severity: 'medium',
+      title: 'Open source community contribution spike',
+      description: 'GitHub stars grew 200% in last quarter',
+      confidenceScore: 68,
+      detectedAt: new Date(now - 1000 * 60 * 60 * 36).toISOString(),
+      organizationName: 'DevStack Labs',
+      organizationId: 'org-10',
+    },
   ];
 }
 
 function getMockTopOrgs(): TopOrg[] {
   return [
-    { id: 'org-7', name: 'Stratoscale AI', industry: 'AI / Machine Learning', intelligenceScore: 92, signalCount: 14, trend: 'up', trendValue: 8 },
-    { id: 'org-2', name: 'TechCo Industries', industry: 'Enterprise Software', intelligenceScore: 87, signalCount: 11, trend: 'up', trendValue: 5 },
-    { id: 'org-3', name: 'GlobalNet Solutions', industry: 'Telecommunications', intelligenceScore: 84, signalCount: 9, trend: 'up', trendValue: 3 },
-    { id: 'org-5', name: 'Meridian Fintech', industry: 'FinTech', intelligenceScore: 79, signalCount: 7, trend: 'neutral', trendValue: 0 },
-    { id: 'org-4', name: 'NovaTech Solutions', industry: 'Cloud SaaS', intelligenceScore: 74, signalCount: 6, trend: 'down', trendValue: -2 },
+    {
+      id: 'org-7',
+      name: 'Stratoscale AI',
+      industry: 'AI / Machine Learning',
+      intelligenceScore: 92,
+      signalCount: 14,
+      trend: 'up',
+      trendValue: 8,
+    },
+    {
+      id: 'org-2',
+      name: 'TechCo Industries',
+      industry: 'Enterprise Software',
+      intelligenceScore: 87,
+      signalCount: 11,
+      trend: 'up',
+      trendValue: 5,
+    },
+    {
+      id: 'org-3',
+      name: 'GlobalNet Solutions',
+      industry: 'Telecommunications',
+      intelligenceScore: 84,
+      signalCount: 9,
+      trend: 'up',
+      trendValue: 3,
+    },
+    {
+      id: 'org-5',
+      name: 'Meridian Fintech',
+      industry: 'FinTech',
+      intelligenceScore: 79,
+      signalCount: 7,
+      trend: 'neutral',
+      trendValue: 0,
+    },
+    {
+      id: 'org-4',
+      name: 'NovaTech Solutions',
+      industry: 'Cloud SaaS',
+      intelligenceScore: 74,
+      signalCount: 6,
+      trend: 'down',
+      trendValue: -2,
+    },
   ];
 }
 
 function getMockTimeline(): TimelineEntry[] {
   const now = Date.now();
   return [
-    { id: 't1', type: 'signal', message: 'New signal detected for Acme Corp', detail: 'Executive leadership shakeup — severity: critical', timestamp: new Date(now - 1000 * 60 * 12) },
-    { id: 't2', type: 'insight', message: 'AI insight generated for TechCo', detail: 'Funding round analysis — confidence 88%', timestamp: new Date(now - 1000 * 60 * 45) },
-    { id: 't3', type: 'pipeline', message: 'Intelligence pipeline completed', detail: 'Processed 42 organizations, 156 signals', timestamp: new Date(now - 1000 * 60 * 60 * 2) },
-    { id: 't4', type: 'import', message: 'Data import completed — 150 rows', detail: 'CRM sync from Salesforce, 0 errors', timestamp: new Date(now - 1000 * 60 * 60 * 3) },
-    { id: 't5', type: 'signal', message: 'New signal detected for NovaTech', detail: 'AI platform launch — severity: high', timestamp: new Date(now - 1000 * 60 * 60 * 4) },
-    { id: 't6', type: 'briefing', message: 'Weekly intelligence briefing generated', detail: '12 actionable insights across 8 accounts', timestamp: new Date(now - 1000 * 60 * 60 * 6) },
-    { id: 't7', type: 'insight', message: 'AI insight generated for GlobalNet', detail: 'Market expansion analysis — confidence 76%', timestamp: new Date(now - 1000 * 60 * 60 * 8) },
-    { id: 't8', type: 'import', message: 'Data import completed — 320 rows', detail: 'Enrichment data from Apollo.io, 2 warnings', timestamp: new Date(now - 1000 * 60 * 60 * 12) },
-    { id: 't9', type: 'pipeline', message: 'Intelligence pipeline completed', detail: 'Processed 38 organizations, 142 signals', timestamp: new Date(now - 1000 * 60 * 60 * 18) },
-    { id: 't10', type: 'signal', message: 'New signal detected for DataForge', detail: 'Patent infringement lawsuit — severity: high', timestamp: new Date(now - 1000 * 60 * 60 * 20) },
+    {
+      id: 't1',
+      type: 'signal',
+      message: 'New signal detected for Acme Corp',
+      detail: 'Executive leadership shakeup — severity: critical',
+      timestamp: new Date(now - 1000 * 60 * 12),
+    },
+    {
+      id: 't2',
+      type: 'insight',
+      message: 'AI insight generated for TechCo',
+      detail: 'Funding round analysis — confidence 88%',
+      timestamp: new Date(now - 1000 * 60 * 45),
+    },
+    {
+      id: 't3',
+      type: 'pipeline',
+      message: 'Intelligence pipeline completed',
+      detail: 'Processed 42 organizations, 156 signals',
+      timestamp: new Date(now - 1000 * 60 * 60 * 2),
+    },
+    {
+      id: 't4',
+      type: 'import',
+      message: 'Data import completed — 150 rows',
+      detail: 'CRM sync from Salesforce, 0 errors',
+      timestamp: new Date(now - 1000 * 60 * 60 * 3),
+    },
+    {
+      id: 't5',
+      type: 'signal',
+      message: 'New signal detected for NovaTech',
+      detail: 'AI platform launch — severity: high',
+      timestamp: new Date(now - 1000 * 60 * 60 * 4),
+    },
+    {
+      id: 't6',
+      type: 'briefing',
+      message: 'Weekly intelligence briefing generated',
+      detail: '12 actionable insights across 8 accounts',
+      timestamp: new Date(now - 1000 * 60 * 60 * 6),
+    },
+    {
+      id: 't7',
+      type: 'insight',
+      message: 'AI insight generated for GlobalNet',
+      detail: 'Market expansion analysis — confidence 76%',
+      timestamp: new Date(now - 1000 * 60 * 60 * 8),
+    },
+    {
+      id: 't8',
+      type: 'import',
+      message: 'Data import completed — 320 rows',
+      detail: 'Enrichment data from Apollo.io, 2 warnings',
+      timestamp: new Date(now - 1000 * 60 * 60 * 12),
+    },
+    {
+      id: 't9',
+      type: 'pipeline',
+      message: 'Intelligence pipeline completed',
+      detail: 'Processed 38 organizations, 142 signals',
+      timestamp: new Date(now - 1000 * 60 * 60 * 18),
+    },
+    {
+      id: 't10',
+      type: 'signal',
+      message: 'New signal detected for DataForge',
+      detail: 'Patent infringement lawsuit — severity: high',
+      timestamp: new Date(now - 1000 * 60 * 60 * 20),
+    },
   ];
 }
 
@@ -305,7 +504,15 @@ function StatCardWidget({ stat }: { stat: StatCard }) {
   );
 }
 
-function CircularProgress({ value, size = 56, strokeWidth = 5 }: { value: number; size?: number; strokeWidth?: number }) {
+function CircularProgress({
+  value,
+  size = 56,
+  strokeWidth = 5,
+}: {
+  value: number;
+  size?: number;
+  strokeWidth?: number;
+}) {
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
   const offset = circumference - (value / 100) * circumference;
@@ -320,7 +527,10 @@ function CircularProgress({ value, size = 56, strokeWidth = 5 }: { value: number
   const color = getColor(value);
 
   return (
-    <div className="relative inline-flex items-center justify-center" style={{ width: size, height: size }}>
+    <div
+      className="relative inline-flex items-center justify-center"
+      style={{ width: size, height: size }}
+    >
       <svg width={size} height={size} className="-rotate-90">
         <circle
           cx={size / 2}
@@ -358,7 +568,10 @@ function SignalFeedCard({
   onClick: (_sig: SignalFeedItem) => void;
 }) {
   const severityCfg = SEVERITY_CONFIG[signal.severity] || SEVERITY_CONFIG.low;
-  const typeCfg = SIGNAL_TYPE_COLORS[signal.signalType] || { color: C.textSecondary, bg: C.accentGhost };
+  const typeCfg = SIGNAL_TYPE_COLORS[signal.signalType] || {
+    color: C.textSecondary,
+    bg: C.accentGhost,
+  };
 
   return (
     <div
@@ -388,7 +601,10 @@ function SignalFeedCard({
           <span className="text-sm font-medium truncate" style={{ color: C.textPrimary }}>
             {signal.title}
           </span>
-          <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: C.textMuted }} />
+          <ChevronRight
+            className="h-3.5 w-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+            style={{ color: C.textMuted }}
+          />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           {signal.organizationName && (
@@ -446,11 +662,34 @@ function TimelineItem({ entry }: { entry: TimelineEntry }) {
 }
 
 function HealthIndicator({ health, loading }: { health: HealthStatus | null; loading: boolean }) {
-  const statusMap: Record<string, { color: string; bg: string; icon: React.ReactNode; label: string }> = {
-    operational: { color: C.success, bg: C.successGhost, icon: <CheckCircle2 className="h-4 w-4" />, label: 'Operational' },
-    healthy: { color: C.success, bg: C.successGhost, icon: <ShieldCheck className="h-4 w-4" />, label: 'Healthy' },
-    degraded: { color: C.warning, bg: C.warningGhost, icon: <AlertTriangle className="h-4 w-4" />, label: 'Degraded' },
-    down: { color: C.danger, bg: C.dangerGhost, icon: <XCircle className="h-4 w-4" />, label: 'Down' },
+  const statusMap: Record<
+    string,
+    { color: string; bg: string; icon: React.ReactNode; label: string }
+  > = {
+    operational: {
+      color: C.success,
+      bg: C.successGhost,
+      icon: <CheckCircle2 className="h-4 w-4" />,
+      label: 'Operational',
+    },
+    healthy: {
+      color: C.success,
+      bg: C.successGhost,
+      icon: <ShieldCheck className="h-4 w-4" />,
+      label: 'Healthy',
+    },
+    degraded: {
+      color: C.warning,
+      bg: C.warningGhost,
+      icon: <AlertTriangle className="h-4 w-4" />,
+      label: 'Degraded',
+    },
+    down: {
+      color: C.danger,
+      bg: C.dangerGhost,
+      icon: <XCircle className="h-4 w-4" />,
+      label: 'Down',
+    },
   };
 
   const aiStatus = statusMap[health?.aiProvider || 'operational'];
@@ -473,8 +712,14 @@ function HealthIndicator({ health, loading }: { health: HealthStatus | null; loa
             System Health
           </span>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: overallStatus.bg }}>
-          <div className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: overallStatus.color }} />
+        <div
+          className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+          style={{ background: overallStatus.bg }}
+        >
+          <div
+            className="h-1.5 w-1.5 rounded-full animate-pulse"
+            style={{ background: overallStatus.color }}
+          />
           <span className="text-[11px] font-semibold" style={{ color: overallStatus.color }}>
             {overallStatus.label}
           </span>
@@ -492,50 +737,57 @@ function HealthIndicator({ health, loading }: { health: HealthStatus | null; loa
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Cpu className="h-3.5 w-3.5" style={{ color: C.textMuted }} />
-              <span className="text-xs" style={{ color: C.textSecondary }}>AI Provider</span>
+              <span className="text-xs" style={{ color: C.textSecondary }}>
+                AI Provider
+              </span>
             </div>
             <div className="flex items-center gap-1.5">
               {aiStatus.icon}
-              <span className="text-xs font-medium" style={{ color: aiStatus.color }}>{aiStatus.label}</span>
+              <span className="text-xs font-medium" style={{ color: aiStatus.color }}>
+                {aiStatus.label}
+              </span>
             </div>
           </div>
-          <div
-            className="w-full h-px"
-            style={{ background: C.border }}
-          />
+          <div className="w-full h-px" style={{ background: C.border }} />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Database className="h-3.5 w-3.5" style={{ color: C.textMuted }} />
-              <span className="text-xs" style={{ color: C.textSecondary }}>Database</span>
+              <span className="text-xs" style={{ color: C.textSecondary }}>
+                Database
+              </span>
             </div>
             <div className="flex items-center gap-1.5">
               {dbStatus.icon}
-              <span className="text-xs font-medium" style={{ color: dbStatus.color }}>{dbStatus.label}</span>
+              <span className="text-xs font-medium" style={{ color: dbStatus.color }}>
+                {dbStatus.label}
+              </span>
             </div>
           </div>
-          <div
-            className="w-full h-px"
-            style={{ background: C.border }}
-          />
+          <div className="w-full h-px" style={{ background: C.border }} />
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <RefreshCw className="h-3.5 w-3.5" style={{ color: C.textMuted }} />
-              <span className="text-xs" style={{ color: C.textSecondary }}>Last Pipeline Run</span>
+              <span className="text-xs" style={{ color: C.textSecondary }}>
+                Last Pipeline Run
+              </span>
             </div>
-            <span className="text-xs font-medium" style={{ color: C.textSecondary }}>{pipelineTime}</span>
+            <span className="text-xs font-medium" style={{ color: C.textSecondary }}>
+              {pipelineTime}
+            </span>
           </div>
           {health?.uptime !== undefined && (
             <>
-              <div
-                className="w-full h-px"
-                style={{ background: C.border }}
-              />
+              <div className="w-full h-px" style={{ background: C.border }} />
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <Zap className="h-3.5 w-3.5" style={{ color: C.textMuted }} />
-                  <span className="text-xs" style={{ color: C.textSecondary }}>Uptime (30d)</span>
+                  <span className="text-xs" style={{ color: C.textSecondary }}>
+                    Uptime (30d)
+                  </span>
                 </div>
-                <span className="text-xs font-medium" style={{ color: C.success }}>{health.uptime}%</span>
+                <span className="text-xs font-medium" style={{ color: C.success }}>
+                  {health.uptime}%
+                </span>
               </div>
             </>
           )}
@@ -582,17 +834,21 @@ function ChartTooltipContent({ active, payload, label }: any) {
         border: `1px solid ${C.border}`,
       }}
     >
-      <p className="text-xs font-medium mb-1.5" style={{ color: C.textSecondary }}>{label}</p>
+      <p className="text-xs font-medium mb-1.5" style={{ color: C.textSecondary }}>
+        {label}
+      </p>
       {payload.map((entry: any, idx: number) => (
         <div key={idx} className="flex items-center gap-2 text-xs">
           <div className="h-2 w-2 rounded-full" style={{ background: entry.color }} />
           <span style={{ color: C.textPrimary }}>{entry.name}: </span>
-          <span className="font-semibold" style={{ color: C.textPrimary }}>{entry.value}</span>
+          <span className="font-semibold" style={{ color: C.textPrimary }}>
+            {entry.value}
+          </span>
         </div>
       ))}
     </div>
   );
-}/* eslint-enable @typescript-eslint/no-explicit-any */
+} /* eslint-enable @typescript-eslint/no-explicit-any */
 
 // ═══════════════════════════════════════════════════════════════
 // Main Component
@@ -745,9 +1001,17 @@ export default function IntelligenceHub() {
               </p>
             </div>
             <div className="flex items-center gap-2">
-              <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full" style={{ background: C.successGhost }}>
-                <div className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: C.success }} />
-                <span className="text-[11px] font-semibold" style={{ color: C.success }}>Live</span>
+              <div
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-full"
+                style={{ background: C.successGhost }}
+              >
+                <div
+                  className="h-1.5 w-1.5 rounded-full animate-pulse"
+                  style={{ background: C.success }}
+                />
+                <span className="text-[11px] font-semibold" style={{ color: C.success }}>
+                  Live
+                </span>
               </div>
               <Tooltip>
                 <TooltipTrigger asChild>
@@ -764,8 +1028,13 @@ export default function IntelligenceHub() {
                     <RefreshCw className="h-4 w-4" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" style={{ background: C.bgCard, border: `1px solid ${C.border}` }}>
-                  <p className="text-xs" style={{ color: C.textPrimary }}>Refresh data</p>
+                <TooltipContent
+                  side="bottom"
+                  style={{ background: C.bgCard, border: `1px solid ${C.border}` }}
+                >
+                  <p className="text-xs" style={{ color: C.textPrimary }}>
+                    Refresh data
+                  </p>
                 </TooltipContent>
               </Tooltip>
             </div>
@@ -780,7 +1049,10 @@ export default function IntelligenceHub() {
                     <StatCardWidget stat={stat} />
                   </div>
                 </TooltipTrigger>
-                <TooltipContent side="bottom" style={{ background: C.bgCard, border: `1px solid ${C.border}` }}>
+                <TooltipContent
+                  side="bottom"
+                  style={{ background: C.bgCard, border: `1px solid ${C.border}` }}
+                >
                   <p className="text-xs" style={{ color: C.textSecondary }}>
                     {stat.changeLabel}
                   </p>
@@ -877,7 +1149,10 @@ export default function IntelligenceHub() {
                             className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold"
                             style={{ background: C.dangerGhost, color: C.danger }}
                           >
-                            <span className="h-1.5 w-1.5 rounded-full animate-pulse" style={{ background: C.danger }} />
+                            <span
+                              className="h-1.5 w-1.5 rounded-full animate-pulse"
+                              style={{ background: C.danger }}
+                            />
                             {criticalSignalCount} critical
                           </span>
                         )}
@@ -897,22 +1172,36 @@ export default function IntelligenceHub() {
                   />
                 </div>
 
-                <div className="px-3 pb-3 max-h-[480px] overflow-y-auto space-y-1" style={{ scrollbarWidth: 'thin', scrollbarColor: `${C.border} transparent` }}>
-                  {signalsLoading ? (
-                    Array.from({ length: 6 }).map((_, i) => (
-                      <div key={`skeleton-signal-${i}`} className="flex items-center gap-3 p-3">
-                        <Skeleton className="h-8 w-8 rounded-lg shrink-0" style={{ background: C.border }} />
-                        <div className="flex-1 space-y-2">
-                          <Skeleton className="h-3.5 w-3/4 rounded" style={{ background: C.border }} />
-                          <Skeleton className="h-3 w-1/2 rounded" style={{ background: C.border }} />
+                <div
+                  className="px-3 pb-3 max-h-[480px] overflow-y-auto space-y-1"
+                  style={{ scrollbarWidth: 'thin', scrollbarColor: `${C.border} transparent` }}
+                >
+                  {signalsLoading
+                    ? Array.from({ length: 6 }).map((_, i) => (
+                        <div key={`skeleton-signal-${i}`} className="flex items-center gap-3 p-3">
+                          <Skeleton
+                            className="h-8 w-8 rounded-lg shrink-0"
+                            style={{ background: C.border }}
+                          />
+                          <div className="flex-1 space-y-2">
+                            <Skeleton
+                              className="h-3.5 w-3/4 rounded"
+                              style={{ background: C.border }}
+                            />
+                            <Skeleton
+                              className="h-3 w-1/2 rounded"
+                              style={{ background: C.border }}
+                            />
+                          </div>
                         </div>
-                      </div>
-                    ))
-                  ) : (
-                    signals.map((signal) => (
-                      <SignalFeedCard key={signal.id} signal={signal} onClick={handleSignalClick} />
-                    ))
-                  )}
+                      ))
+                    : signals.map((signal) => (
+                        <SignalFeedCard
+                          key={signal.id}
+                          signal={signal}
+                          onClick={handleSignalClick}
+                        />
+                      ))}
                 </div>
               </div>
 
@@ -928,7 +1217,10 @@ export default function IntelligenceHub() {
                   title="Activity Timeline"
                   icon={<Activity className="h-4 w-4" style={{ color: C.success }} />}
                 />
-                <div className="max-h-[360px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: `${C.border} transparent` }}>
+                <div
+                  className="max-h-[360px] overflow-y-auto pr-1"
+                  style={{ scrollbarWidth: 'thin', scrollbarColor: `${C.border} transparent` }}
+                >
                   <div>
                     {timeline.map((entry, idx) => (
                       <div key={entry.id}>
@@ -976,7 +1268,10 @@ export default function IntelligenceHub() {
                   }
                 />
 
-                <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: `${C.border} transparent` }}>
+                <div
+                  className="space-y-3 max-h-[400px] overflow-y-auto pr-1"
+                  style={{ scrollbarWidth: 'thin', scrollbarColor: `${C.border} transparent` }}
+                >
                   {topOrgs.map((org, idx) => (
                     <div
                       key={org.id}
@@ -1008,10 +1303,16 @@ export default function IntelligenceHub() {
                       {/* Org Info */}
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <span className="text-sm font-medium truncate" style={{ color: C.textPrimary }}>
+                          <span
+                            className="text-sm font-medium truncate"
+                            style={{ color: C.textPrimary }}
+                          >
                             {org.name}
                           </span>
-                          <ChevronRight className="h-3.5 w-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity" style={{ color: C.textMuted }} />
+                          <ChevronRight
+                            className="h-3.5 w-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                            style={{ color: C.textMuted }}
+                          />
                         </div>
                         <div className="flex items-center gap-2 mt-0.5">
                           <span className="text-[11px]" style={{ color: C.textMuted }}>
@@ -1065,7 +1366,10 @@ export default function IntelligenceHub() {
                   title="Signals Over Time"
                   icon={<BarChart3 className="h-4 w-4" style={{ color: C.cyan }} />}
                   action={
-                    <span className="text-[11px] font-medium px-2 py-0.5 rounded-md" style={{ background: C.accentGhost, color: C.accent }}>
+                    <span
+                      className="text-[11px] font-medium px-2 py-0.5 rounded-md"
+                      style={{ background: C.accentGhost, color: C.accent }}
+                    >
                       Last 7 days
                     </span>
                   }
@@ -1127,11 +1431,15 @@ export default function IntelligenceHub() {
                 <div className="flex items-center justify-center gap-6 mt-3">
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full" style={{ background: C.accent }} />
-                    <span className="text-[11px]" style={{ color: C.textSecondary }}>All Signals</span>
+                    <span className="text-[11px]" style={{ color: C.textSecondary }}>
+                      All Signals
+                    </span>
                   </div>
                   <div className="flex items-center gap-2">
                     <div className="h-2 w-2 rounded-full" style={{ background: C.danger }} />
-                    <span className="text-[11px]" style={{ color: C.textSecondary }}>Critical</span>
+                    <span className="text-[11px]" style={{ color: C.textSecondary }}>
+                      Critical
+                    </span>
                   </div>
                 </div>
               </div>

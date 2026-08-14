@@ -44,7 +44,8 @@ export async function GET() {
 
     if (flags.useDbPersistence) {
       try {
-        const { getPersistenceHealthMonitor } = await import('@/lib/persistence/persistence-health-monitor');
+        const { getPersistenceHealthMonitor } =
+          await import('@/lib/persistence/persistence-health-monitor');
         const monitor = getPersistenceHealthMonitor();
         const report = monitor.generateHealthReport();
 
@@ -54,14 +55,14 @@ export async function GET() {
           totalFailures: report.totalFailures,
           unhealthyCount: report.unhealthyCount,
           criticalFailureExists: report.criticalFailureExists,
-          recentAlerts: report.alerts.slice(-20).map(a => ({
+          recentAlerts: report.alerts.slice(-20).map((a) => ({
             store: a.store,
             level: a.level,
             consecutiveFailures: a.consecutiveFailures,
             message: a.message,
             timestamp: new Date(a.timestamp).toISOString(),
           })),
-          stores: report.stores.map(s => ({
+          stores: report.stores.map((s) => ({
             store: s.store,
             healthy: s.healthy,
             totalWrites: s.totalWrites,
@@ -76,7 +77,8 @@ export async function GET() {
       }
 
       try {
-        const { getPersistenceFailureQueue } = await import('@/lib/persistence/persistence-failure-queue');
+        const { getPersistenceFailureQueue } =
+          await import('@/lib/persistence/persistence-failure-queue');
         const queue = getPersistenceFailureQueue();
         const [queueDepth, deadLetterCount] = await Promise.all([
           queue.getQueueDepth(),
@@ -92,9 +94,10 @@ export async function GET() {
           totalRecovered: stats.totalRecovered,
           totalDeadLettered: stats.totalDeadLettered,
           lastProcessAt: stats.lastProcessAt ? new Date(stats.lastProcessAt).toISOString() : null,
-          recoveryRate: stats.totalRetried > 0
-            ? ((stats.totalRecovered / stats.totalRetried) * 100).toFixed(1) + '%'
-            : '100%',
+          recoveryRate:
+            stats.totalRetried > 0
+              ? ((stats.totalRecovered / stats.totalRetried) * 100).toFixed(1) + '%'
+              : '100%',
         };
       } catch (err) {
         queueData = { error: 'Failed to load failure queue', message: String(err) };
@@ -133,7 +136,7 @@ export async function GET() {
         headers: {
           'Cache-Control': 'no-store, max-age=0',
         },
-      }
+      },
     );
   } catch (error) {
     return NextResponse.json(
@@ -143,7 +146,7 @@ export async function GET() {
         message: error instanceof Error ? error.message : String(error),
         timestamp: new Date().toISOString(),
       },
-      { status: 500 }
+      { status: 500 },
     );
   }
 }

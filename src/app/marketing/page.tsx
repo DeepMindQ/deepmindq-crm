@@ -55,8 +55,7 @@ export const metadata: Metadata = {
   twitter: {
     card: 'summary_large_image',
     title: 'DeepMindQ — Enterprise Intelligence OS',
-    description:
-      'AI-powered Enterprise Intelligence OS for enterprise teams.',
+    description: 'AI-powered Enterprise Intelligence OS for enterprise teams.',
     images: ['/og-image.png'],
   },
   robots: { index: true, follow: true },
@@ -89,8 +88,7 @@ async function getLandingPageHtml(): Promise<{
 
   // Extract Google Fonts <link> tags
   const fontMatches: string[] = [];
-  const fontRegex =
-    /<link[^>]*href=["']https:\/\/fonts\.googleapis\.com[^"']*["'][^>]*>/gi;
+  const fontRegex = /<link[^>]*href=["']https:\/\/fonts\.googleapis\.com[^"']*["'][^>]*>/gi;
   let fontMatch;
   while ((fontMatch = fontRegex.exec(raw)) !== null) {
     fontMatches.push(fontMatch[0]);
@@ -109,7 +107,8 @@ export default async function MarketingStaticPage() {
     name: 'DeepMindQ',
     applicationCategory: 'BusinessApplication',
     operatingSystem: 'Web',
-    description: 'Enterprise Intelligence OS — AI-powered platform for understanding companies, contacts, and revenue opportunities.',
+    description:
+      'Enterprise Intelligence OS — AI-powered platform for understanding companies, contacts, and revenue opportunities.',
     offers: {
       '@type': 'Offer',
       price: '0',

@@ -30,12 +30,66 @@ interface Capability {
 
 // ── Mock Data ──
 const MOCK_CAPABILITIES: Capability[] = [
-  { id: 'c1', name: 'Lead Scoring', description: 'AI-powered lead scoring based on firmographic, behavioral, and intent signals.', status: 'active', usageCount: 12847, lastUsed: '2 min ago', model: 'GPT-4o', icon: Target },
-  { id: 'c2', name: 'Email Generation', description: 'Generate personalized outreach emails using context-aware AI templates.', status: 'active', usageCount: 8932, lastUsed: '5 min ago', model: 'Claude 3.5', icon: MessageSquare },
-  { id: 'c3', name: 'Competitive Intelligence', description: 'Analyze competitor movements, positioning, and market strategies in real-time.', status: 'active', usageCount: 3456, lastUsed: '1 hour ago', model: 'GPT-4o', icon: Shield },
-  { id: 'c4', name: 'Conversation Planning', description: 'AI-driven conversation strategy with context-aware talking points.', status: 'experimental', usageCount: 892, lastUsed: '3 hours ago', model: 'Claude 3.5', icon: Brain },
-  { id: 'c5', name: 'Revenue Forecasting', description: 'Predictive revenue models using pipeline analysis and historical trends.', status: 'disabled', usageCount: 0, lastUsed: '2 weeks ago', model: 'GPT-4o', icon: BarChart3 },
-  { id: 'c6', name: 'Signal Processing', description: 'Process and categorize intelligence signals from web, social, and news sources.', status: 'active', usageCount: 45621, lastUsed: 'Just now', model: 'Custom NLP', icon: FlaskConical },
+  {
+    id: 'c1',
+    name: 'Lead Scoring',
+    description: 'AI-powered lead scoring based on firmographic, behavioral, and intent signals.',
+    status: 'active',
+    usageCount: 12847,
+    lastUsed: '2 min ago',
+    model: 'GPT-4o',
+    icon: Target,
+  },
+  {
+    id: 'c2',
+    name: 'Email Generation',
+    description: 'Generate personalized outreach emails using context-aware AI templates.',
+    status: 'active',
+    usageCount: 8932,
+    lastUsed: '5 min ago',
+    model: 'Claude 3.5',
+    icon: MessageSquare,
+  },
+  {
+    id: 'c3',
+    name: 'Competitive Intelligence',
+    description: 'Analyze competitor movements, positioning, and market strategies in real-time.',
+    status: 'active',
+    usageCount: 3456,
+    lastUsed: '1 hour ago',
+    model: 'GPT-4o',
+    icon: Shield,
+  },
+  {
+    id: 'c4',
+    name: 'Conversation Planning',
+    description: 'AI-driven conversation strategy with context-aware talking points.',
+    status: 'experimental',
+    usageCount: 892,
+    lastUsed: '3 hours ago',
+    model: 'Claude 3.5',
+    icon: Brain,
+  },
+  {
+    id: 'c5',
+    name: 'Revenue Forecasting',
+    description: 'Predictive revenue models using pipeline analysis and historical trends.',
+    status: 'disabled',
+    usageCount: 0,
+    lastUsed: '2 weeks ago',
+    model: 'GPT-4o',
+    icon: BarChart3,
+  },
+  {
+    id: 'c6',
+    name: 'Signal Processing',
+    description: 'Process and categorize intelligence signals from web, social, and news sources.',
+    status: 'active',
+    usageCount: 45621,
+    lastUsed: 'Just now',
+    model: 'Custom NLP',
+    icon: FlaskConical,
+  },
 ];
 
 const STATUS_CONFIG: Record<Capability['status'], { label: string; color: string; bg: string }> = {
@@ -56,7 +110,7 @@ export default function Capability() {
         const newStatus = c.status === 'disabled' ? 'active' : 'disabled';
         toast.success(`${c.name} ${newStatus === 'active' ? 'enabled' : 'disabled'}`);
         return { ...c, status: newStatus as Capability['status'] };
-      })
+      }),
     );
   }, []);
 
@@ -68,7 +122,10 @@ export default function Capability() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6" style={{ background: '#0a0e17', minHeight: '100%' }}>
+      <div
+        className="p-6 space-y-6"
+        style={{ background: 'var(--ios-bg-primary)', minHeight: '100%' }}
+      >
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
             <div key={i} className="h-52 rounded-xl animate-pulse" style={{ background: border }} />
@@ -79,19 +136,30 @@ export default function Capability() {
   }
 
   return (
-    <div className="p-6 space-y-6" style={{ background: '#0a0e17', minHeight: '100%' }}>
+    <div
+      className="p-6 space-y-6"
+      style={{ background: 'var(--ios-bg-primary)', minHeight: '100%' }}
+    >
       {/* ── Header ── */}
       <div>
-        <h1 className="text-xl font-bold" style={{ color: textPrimary }}>AI Capabilities</h1>
-        <p className="text-sm mt-1" style={{ color: textSecondary }}>Registry of AI-powered capabilities and their status</p>
+        <h1 className="text-xl font-bold" style={{ color: textPrimary }}>
+          AI Capabilities
+        </h1>
+        <p className="text-sm mt-1" style={{ color: textSecondary }}>
+          Registry of AI-powered capabilities and their status
+        </p>
       </div>
 
       {/* ── Capability Cards Grid ── */}
       {capabilities.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20">
           <Zap className="h-10 w-10 mb-3" style={{ color: textMuted }} />
-          <p className="text-sm font-medium" style={{ color: textSecondary }}>No capabilities configured</p>
-          <p className="text-xs mt-1" style={{ color: textMuted }}>Add AI capabilities to get started</p>
+          <p className="text-sm font-medium" style={{ color: textSecondary }}>
+            No capabilities configured
+          </p>
+          <p className="text-xs mt-1" style={{ color: textMuted }}>
+            Add AI capabilities to get started
+          </p>
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -117,11 +185,18 @@ export default function Capability() {
                       className="w-10 h-10 rounded-xl flex items-center justify-center"
                       style={{ background: `${isActive ? tokens.accent.primary : '#6B7280'}15` }}
                     >
-                      <Icon className="w-5 h-5" style={{ color: isActive ? tokens.accent.primary : '#6B7280' }} />
+                      <Icon
+                        className="w-5 h-5"
+                        style={{ color: isActive ? tokens.accent.primary : '#6B7280' }}
+                      />
                     </div>
                     <div>
-                      <h3 className="text-sm font-semibold" style={{ color: textPrimary }}>{cap.name}</h3>
-                      <p className="text-xs" style={{ color: textMuted }}>{cap.model}</p>
+                      <h3 className="text-sm font-semibold" style={{ color: textPrimary }}>
+                        {cap.name}
+                      </h3>
+                      <p className="text-xs" style={{ color: textMuted }}>
+                        {cap.model}
+                      </p>
                     </div>
                   </div>
                   <span
@@ -133,10 +208,15 @@ export default function Capability() {
                 </div>
 
                 {/* Description */}
-                <p className="text-xs leading-relaxed" style={{ color: textSecondary }}>{cap.description}</p>
+                <p className="text-xs leading-relaxed" style={{ color: textSecondary }}>
+                  {cap.description}
+                </p>
 
                 {/* Footer: usage + toggle */}
-                <div className="flex items-center justify-between mt-auto pt-3" style={{ borderTop: `1px solid ${border}` }}>
+                <div
+                  className="flex items-center justify-between mt-auto pt-3"
+                  style={{ borderTop: `1px solid ${border}` }}
+                >
                   <div className="flex items-center gap-4">
                     <div className="flex items-center gap-1">
                       <Zap className="w-3 h-3" style={{ color: textMuted }} />
@@ -146,7 +226,9 @@ export default function Capability() {
                     </div>
                     <div className="flex items-center gap-1">
                       <Clock className="w-3 h-3" style={{ color: textMuted }} />
-                      <span className="text-xs" style={{ color: textSecondary }}>{cap.lastUsed}</span>
+                      <span className="text-xs" style={{ color: textSecondary }}>
+                        {cap.lastUsed}
+                      </span>
                     </div>
                   </div>
                   <button
@@ -158,7 +240,11 @@ export default function Capability() {
                     }}
                     title={isActive ? 'Disable' : 'Enable'}
                   >
-                    {isActive ? <Power className="w-3.5 h-3.5" /> : <PowerOff className="w-3.5 h-3.5" />}
+                    {isActive ? (
+                      <Power className="w-3.5 h-3.5" />
+                    ) : (
+                      <PowerOff className="w-3.5 h-3.5" />
+                    )}
                   </button>
                 </div>
               </div>

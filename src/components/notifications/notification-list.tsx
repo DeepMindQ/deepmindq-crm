@@ -1,27 +1,27 @@
-'use client'
+'use client';
 
-import { useNotificationStore, type Notification } from './notification-store'
-import { getNotificationStyle, formatTimeAgo } from './notification-icon'
-import { X } from 'lucide-react'
-import { motion, AnimatePresence } from 'framer-motion'
+import { useNotificationStore, type Notification } from './notification-store';
+import { getNotificationStyle, formatTimeAgo } from './notification-icon';
+import { X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 
 function NotificationItem({ notification }: { notification: Notification }) {
-  const { markAsRead, removeNotification, setOpen } = useNotificationStore()
-  const style = getNotificationStyle(notification.type)
-  const Icon = style.icon
+  const { markAsRead, removeNotification, setOpen } = useNotificationStore();
+  const style = getNotificationStyle(notification.type);
+  const Icon = style.icon;
 
   const handleClick = () => {
-    if (!notification.read) markAsRead(notification.id)
+    if (!notification.read) markAsRead(notification.id);
     if (notification.link) {
-      window.location.hash = notification.link
+      window.location.hash = notification.link;
     }
-    setOpen(false)
-  }
+    setOpen(false);
+  };
 
   const handleDismiss = (e: React.MouseEvent) => {
-    e.stopPropagation()
-    removeNotification(notification.id)
-  }
+    e.stopPropagation();
+    removeNotification(notification.id);
+  };
 
   return (
     <motion.div
@@ -47,13 +47,9 @@ function NotificationItem({ notification }: { notification: Notification }) {
       <div className="flex-1 min-w-0">
         <div className="flex items-center gap-2">
           <p className="text-sm font-medium truncate">{notification.title}</p>
-          {!notification.read && (
-            <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-primary" />
-          )}
+          {!notification.read && <span className="shrink-0 w-1.5 h-1.5 rounded-full bg-primary" />}
         </div>
-        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">
-          {notification.message}
-        </p>
+        <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{notification.message}</p>
         <p className="text-[10px] text-muted-foreground mt-1">
           {formatTimeAgo(notification.createdAt)}
         </p>
@@ -66,19 +62,19 @@ function NotificationItem({ notification }: { notification: Notification }) {
         <X className="w-3 h-3 text-muted-foreground" />
       </button>
     </motion.div>
-  )
+  );
 }
 
 export function NotificationList() {
-  const { notifications } = useNotificationStore()
+  const { notifications } = useNotificationStore();
 
   return (
     <div role="list" aria-label="Notifications">
       <AnimatePresence mode="popLayout">
-        {notifications.map(notification => (
+        {notifications.map((notification) => (
           <NotificationItem key={notification.id} notification={notification} />
         ))}
       </AnimatePresence>
     </div>
-  )
+  );
 }

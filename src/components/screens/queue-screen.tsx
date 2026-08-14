@@ -3,15 +3,7 @@
 import { useState, useMemo, useCallback } from 'react';
 import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
 import { DataTable, type Column } from '@/components/enterprise/DataTable';
-import {
-  Send,
-  CheckCircle2,
-  XCircle,
-  Clock,
-  Pause,
-  RotateCcw,
-  AlertTriangle,
-} from 'lucide-react';
+import { Send, CheckCircle2, XCircle, Clock, Pause, RotateCcw, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 // ── Types ──
@@ -28,19 +20,112 @@ interface QueueItem {
 
 // ── Mock Data ──
 const MOCK_QUEUE: QueueItem[] = [
-  { id: 'q1', to: 'sarah.chen@acmecorp.com', subject: 'Re: Partnership Opportunity', company: 'Acme Corp', sequence: 'Enterprise Outreach', scheduledFor: '2025-01-22 14:00', status: 'queued', priority: 'high' },
-  { id: 'q2', to: 'jwilson@technova.io', subject: 'Quick Question About Your Stack', company: 'TechNova Inc', sequence: 'Cold Intro', scheduledFor: '2025-01-22 14:15', status: 'sending', priority: 'medium' },
-  { id: 'q3', to: 'm.garcia@dataflow.com', subject: 'DataFlow + DeepMindQ Integration', company: 'DataFlow Systems', sequence: 'Enterprise Outreach', scheduledFor: '2025-01-22 13:30', status: 'sent', priority: 'high' },
-  { id: 'q4', to: 'dkim@cloudpeak.co', subject: 'Scaling Your Cloud Infrastructure', company: 'CloudPeak', sequence: 'Product Demo', scheduledFor: '2025-01-22 12:00', status: 'failed', priority: 'low' },
-  { id: 'q5', to: 'emily.z@vertexai.com', subject: 'AI Capabilities Overview', company: 'Vertex AI', sequence: 'Cold Intro', scheduledFor: '2025-01-22 14:30', status: 'queued', priority: 'medium' },
-  { id: 'q6', to: 'mbrown@synthetica.dev', subject: 'Your Dev Workflow, Upgraded', company: 'Synthetica', sequence: 'Re-engagement', scheduledFor: '2025-01-22 11:00', status: 'sent', priority: 'low' },
-  { id: 'q7', to: 'priya@nexgenrobotics.com', subject: 'Automation Solutions for Robotics', company: 'NexGen Robotics', sequence: 'Enterprise Outreach', scheduledFor: '2025-01-22 15:00', status: 'queued', priority: 'high' },
-  { id: 'q8', to: 'arivera@quantumleap.io', subject: 'Following Up on Our Call', company: 'QuantumLeap', sequence: 'Follow-up', scheduledFor: '2025-01-22 10:30', status: 'failed', priority: 'medium' },
-  { id: 'q9', to: 'rthompson@biogenesis.com', subject: 'Biotech Intelligence Platform', company: 'BioGenesis Labs', sequence: 'Cold Intro', scheduledFor: '2025-01-22 14:45', status: 'queued', priority: 'medium' },
-  { id: 'q10', to: 'kobrien@stellardynamics.co', subject: 'Dynamics of Modern Sales', company: 'Stellar Dynamics', sequence: 'Product Demo', scheduledFor: '2025-01-22 09:00', status: 'sent', priority: 'low' },
+  {
+    id: 'q1',
+    to: 'sarah.chen@acmecorp.com',
+    subject: 'Re: Partnership Opportunity',
+    company: 'Acme Corp',
+    sequence: 'Enterprise Outreach',
+    scheduledFor: '2025-01-22 14:00',
+    status: 'queued',
+    priority: 'high',
+  },
+  {
+    id: 'q2',
+    to: 'jwilson@technova.io',
+    subject: 'Quick Question About Your Stack',
+    company: 'TechNova Inc',
+    sequence: 'Cold Intro',
+    scheduledFor: '2025-01-22 14:15',
+    status: 'sending',
+    priority: 'medium',
+  },
+  {
+    id: 'q3',
+    to: 'm.garcia@dataflow.com',
+    subject: 'DataFlow + DeepMindQ Integration',
+    company: 'DataFlow Systems',
+    sequence: 'Enterprise Outreach',
+    scheduledFor: '2025-01-22 13:30',
+    status: 'sent',
+    priority: 'high',
+  },
+  {
+    id: 'q4',
+    to: 'dkim@cloudpeak.co',
+    subject: 'Scaling Your Cloud Infrastructure',
+    company: 'CloudPeak',
+    sequence: 'Product Demo',
+    scheduledFor: '2025-01-22 12:00',
+    status: 'failed',
+    priority: 'low',
+  },
+  {
+    id: 'q5',
+    to: 'emily.z@vertexai.com',
+    subject: 'AI Capabilities Overview',
+    company: 'Vertex AI',
+    sequence: 'Cold Intro',
+    scheduledFor: '2025-01-22 14:30',
+    status: 'queued',
+    priority: 'medium',
+  },
+  {
+    id: 'q6',
+    to: 'mbrown@synthetica.dev',
+    subject: 'Your Dev Workflow, Upgraded',
+    company: 'Synthetica',
+    sequence: 'Re-engagement',
+    scheduledFor: '2025-01-22 11:00',
+    status: 'sent',
+    priority: 'low',
+  },
+  {
+    id: 'q7',
+    to: 'priya@nexgenrobotics.com',
+    subject: 'Automation Solutions for Robotics',
+    company: 'NexGen Robotics',
+    sequence: 'Enterprise Outreach',
+    scheduledFor: '2025-01-22 15:00',
+    status: 'queued',
+    priority: 'high',
+  },
+  {
+    id: 'q8',
+    to: 'arivera@quantumleap.io',
+    subject: 'Following Up on Our Call',
+    company: 'QuantumLeap',
+    sequence: 'Follow-up',
+    scheduledFor: '2025-01-22 10:30',
+    status: 'failed',
+    priority: 'medium',
+  },
+  {
+    id: 'q9',
+    to: 'rthompson@biogenesis.com',
+    subject: 'Biotech Intelligence Platform',
+    company: 'BioGenesis Labs',
+    sequence: 'Cold Intro',
+    scheduledFor: '2025-01-22 14:45',
+    status: 'queued',
+    priority: 'medium',
+  },
+  {
+    id: 'q10',
+    to: 'kobrien@stellardynamics.co',
+    subject: 'Dynamics of Modern Sales',
+    company: 'Stellar Dynamics',
+    sequence: 'Product Demo',
+    scheduledFor: '2025-01-22 09:00',
+    status: 'sent',
+    priority: 'low',
+  },
 ];
 
-const STATUS_CONFIG: Record<QueueItem['status'], { label: string; color: string; bg: string; icon: typeof Send }> = {
+const STATUS_CONFIG: Record<
+  QueueItem['status'],
+  { label: string; color: string; bg: string; icon: typeof Send }
+> = {
   queued: { label: 'Queued', color: '#2563EB', bg: '#DBEAFE', icon: Clock },
   sending: { label: 'Sending', color: '#D97706', bg: '#FEF3C7', icon: Send },
   sent: { label: 'Sent', color: '#16A34A', bg: '#DCFCE7', icon: CheckCircle2 },
@@ -58,7 +143,9 @@ export default function Queue() {
   const [loading] = useState(false);
 
   const stats = useMemo(() => {
-    const inQueue = MOCK_QUEUE.filter((q) => q.status === 'queued' || q.status === 'sending').length;
+    const inQueue = MOCK_QUEUE.filter(
+      (q) => q.status === 'queued' || q.status === 'sending',
+    ).length;
     const sentToday = MOCK_QUEUE.filter((q) => q.status === 'sent').length;
     const failed = MOCK_QUEUE.filter((q) => q.status === 'failed').length;
     return { inQueue, sentToday, failed };
@@ -112,7 +199,10 @@ export default function Queue() {
           const priority = value as string;
           const color = PRIORITY_COLORS[priority] || textMuted;
           return (
-            <span className="inline-flex items-center gap-1.5 text-xs font-medium" style={{ color }}>
+            <span
+              className="inline-flex items-center gap-1.5 text-xs font-medium"
+              style={{ color }}
+            >
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: color }} />
               {priority.charAt(0).toUpperCase() + priority.slice(1)}
             </span>
@@ -120,12 +210,15 @@ export default function Queue() {
         },
       },
     ],
-    [textMuted]
+    [textMuted],
   );
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6" style={{ background: '#0a0e17', minHeight: '100%' }}>
+      <div
+        className="p-6 space-y-6"
+        style={{ background: 'var(--ios-bg-primary)', minHeight: '100%' }}
+      >
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 3 }).map((_, i) => (
             <div key={i} className="h-24 rounded-xl animate-pulse" style={{ background: border }} />
@@ -137,12 +230,19 @@ export default function Queue() {
   }
 
   return (
-    <div className="p-6 space-y-6" style={{ background: '#0a0e17', minHeight: '100%' }}>
+    <div
+      className="p-6 space-y-6"
+      style={{ background: 'var(--ios-bg-primary)', minHeight: '100%' }}
+    >
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold" style={{ color: textPrimary }}>Outreach Queue</h1>
-          <p className="text-sm mt-1" style={{ color: textSecondary }}>Emails waiting to be sent or in progress</p>
+          <h1 className="text-xl font-bold" style={{ color: textPrimary }}>
+            Outreach Queue
+          </h1>
+          <p className="text-sm mt-1" style={{ color: textSecondary }}>
+            Emails waiting to be sent or in progress
+          </p>
         </div>
         <div className="flex items-center gap-2">
           {stats.failed > 0 && (
@@ -179,12 +279,19 @@ export default function Queue() {
             style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${stat.color}15` }}>
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center"
+                style={{ background: `${stat.color}15` }}
+              >
                 <stat.icon className="w-4.5 h-4.5" style={{ color: stat.color }} />
               </div>
               <div className="min-w-0">
-                <p className="text-xs truncate" style={{ color: textMuted }}>{stat.label}</p>
-                <p className="text-lg font-bold" style={{ color: textPrimary }}>{stat.value}</p>
+                <p className="text-xs truncate" style={{ color: textMuted }}>
+                  {stat.label}
+                </p>
+                <p className="text-lg font-bold" style={{ color: textPrimary }}>
+                  {stat.value}
+                </p>
               </div>
             </div>
           </div>

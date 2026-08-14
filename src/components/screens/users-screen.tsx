@@ -41,16 +41,96 @@ interface User {
 // ── Mock fallback data ──
 
 const MOCK_USERS: User[] = [
-  { id: 'usr-001', name: 'Sarah Chen', email: 'sarah.chen@deepmindq.ai', role: 'admin', lastActive: '2025-01-15T14:32:00Z', status: 'active', sessions: 3 },
-  { id: 'usr-002', name: 'Marcus Johnson', email: 'marcus.j@deepmindq.ai', role: 'admin', lastActive: '2025-01-15T13:10:00Z', status: 'active', sessions: 1 },
-  { id: 'usr-003', name: 'Emily Rodriguez', email: 'emily.r@deepmindq.ai', role: 'user', lastActive: '2025-01-15T10:45:00Z', status: 'active', sessions: 2 },
-  { id: 'usr-004', name: 'James Park', email: 'james.p@deepmindq.ai', role: 'user', lastActive: '2025-01-14T16:20:00Z', status: 'active', sessions: 1 },
-  { id: 'usr-005', name: 'Lisa Wang', email: 'lisa.w@deepmindq.ai', role: 'user', lastActive: '2025-01-15T09:05:00Z', status: 'active', sessions: 2 },
-  { id: 'usr-006', name: 'David Kim', email: 'david.k@deepmindq.ai', role: 'user', lastActive: '2025-01-13T11:30:00Z', status: 'suspended', sessions: 0 },
-  { id: 'usr-007', name: 'Rachel Foster', email: 'rachel.f@deepmindq.ai', role: 'user', lastActive: '2025-01-15T12:00:00Z', status: 'active', sessions: 1 },
-  { id: 'usr-008', name: 'Tom Bradley', email: 'tom.b@deepmindq.ai', role: 'user', lastActive: '2025-01-12T08:15:00Z', status: 'active', sessions: 1 },
-  { id: 'usr-009', name: 'Nina Patel', email: 'nina.p@deepmindq.ai', role: 'admin', lastActive: '2025-01-15T15:00:00Z', status: 'active', sessions: 2 },
-  { id: 'usr-010', name: 'Chris Martinez', email: 'chris.m@deepmindq.ai', role: 'user', lastActive: '2025-01-11T14:45:00Z', status: 'suspended', sessions: 0 },
+  {
+    id: 'usr-001',
+    name: 'Sarah Chen',
+    email: 'sarah.chen@deepmindq.ai',
+    role: 'admin',
+    lastActive: '2025-01-15T14:32:00Z',
+    status: 'active',
+    sessions: 3,
+  },
+  {
+    id: 'usr-002',
+    name: 'Marcus Johnson',
+    email: 'marcus.j@deepmindq.ai',
+    role: 'admin',
+    lastActive: '2025-01-15T13:10:00Z',
+    status: 'active',
+    sessions: 1,
+  },
+  {
+    id: 'usr-003',
+    name: 'Emily Rodriguez',
+    email: 'emily.r@deepmindq.ai',
+    role: 'user',
+    lastActive: '2025-01-15T10:45:00Z',
+    status: 'active',
+    sessions: 2,
+  },
+  {
+    id: 'usr-004',
+    name: 'James Park',
+    email: 'james.p@deepmindq.ai',
+    role: 'user',
+    lastActive: '2025-01-14T16:20:00Z',
+    status: 'active',
+    sessions: 1,
+  },
+  {
+    id: 'usr-005',
+    name: 'Lisa Wang',
+    email: 'lisa.w@deepmindq.ai',
+    role: 'user',
+    lastActive: '2025-01-15T09:05:00Z',
+    status: 'active',
+    sessions: 2,
+  },
+  {
+    id: 'usr-006',
+    name: 'David Kim',
+    email: 'david.k@deepmindq.ai',
+    role: 'user',
+    lastActive: '2025-01-13T11:30:00Z',
+    status: 'suspended',
+    sessions: 0,
+  },
+  {
+    id: 'usr-007',
+    name: 'Rachel Foster',
+    email: 'rachel.f@deepmindq.ai',
+    role: 'user',
+    lastActive: '2025-01-15T12:00:00Z',
+    status: 'active',
+    sessions: 1,
+  },
+  {
+    id: 'usr-008',
+    name: 'Tom Bradley',
+    email: 'tom.b@deepmindq.ai',
+    role: 'user',
+    lastActive: '2025-01-12T08:15:00Z',
+    status: 'active',
+    sessions: 1,
+  },
+  {
+    id: 'usr-009',
+    name: 'Nina Patel',
+    email: 'nina.p@deepmindq.ai',
+    role: 'admin',
+    lastActive: '2025-01-15T15:00:00Z',
+    status: 'active',
+    sessions: 2,
+  },
+  {
+    id: 'usr-010',
+    name: 'Chris Martinez',
+    email: 'chris.m@deepmindq.ai',
+    role: 'user',
+    lastActive: '2025-01-11T14:45:00Z',
+    status: 'suspended',
+    sessions: 0,
+  },
 ];
 
 // ── Helpers ──
@@ -98,7 +178,9 @@ export default function Users() {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const stats = useMemo(() => {
@@ -111,7 +193,15 @@ export default function Users() {
   const handleSuspendToggle = useCallback((userId: string, currentStatus: string) => {
     const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
     setUsers((prev) =>
-      prev.map((u) => (u.id === userId ? { ...u, status: newStatus as User['status'], sessions: newStatus === 'suspended' ? 0 : u.sessions } : u))
+      prev.map((u) =>
+        u.id === userId
+          ? {
+              ...u,
+              status: newStatus as User['status'],
+              sessions: newStatus === 'suspended' ? 0 : u.sessions,
+            }
+          : u,
+      ),
     );
     toast.success(`User ${newStatus === 'suspended' ? 'suspended' : 'activated'} successfully`);
   }, []);
@@ -142,70 +232,137 @@ export default function Users() {
     }, 1000);
   }, [inviteEmail]);
 
-  const columns = useMemo(() => [
-    { key: 'name', label: 'Name', sortable: true, render: (_v: unknown, row: Record<string, unknown>) => {
-      const name = row.name as string;
-      return (
-        <div className="flex items-center gap-2.5">
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0" style={{ background: tokens.accent.subtle, color: tokens.accent.primary }}>
-            {name.split(' ').map((n) => n[0]).join('')}
-          </div>
-          <span className="font-medium">{name}</span>
-        </div>
-      );
-    }},
-    { key: 'email', label: 'Email', sortable: true },
-    { key: 'role', label: 'Role', sortable: true, render: (v: unknown) => {
-      const role = v as 'admin' | 'user';
-      const isAdmin = role === 'admin';
-      return (
-        <span
-          className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold"
-          style={{
-            background: isAdmin ? '#FEE2E2' : '#DBEAFE',
-            color: isAdmin ? '#991B1B' : '#1D4ED8',
-            border: `1px solid ${isAdmin ? '#FECACA' : '#93C5FD'}`,
-          }}
-        >
-          {isAdmin ? <Shield className="w-3 h-3" /> : <UsersIcon className="w-3 h-3" />}
-          {role}
-        </span>
-      );
-    }},
-    { key: 'lastActive', label: 'Last Active', sortable: true, render: (v: unknown) => (
-      <span className="text-xs" style={{ color: tokens.text.secondary }}>{formatRelativeDate(v as string)}</span>
-    )},
-    { key: 'status', label: 'Status', sortable: true, render: (v: unknown) => {
-      const status = v as 'active' | 'suspended';
-      return (
-        <span className="inline-flex items-center gap-1.5 text-xs font-medium">
-          <div className="w-1.5 h-1.5 rounded-full" style={{ background: status === 'active' ? tokens.confidence.high.value : tokens.confidence.low.value }} />
-          <span style={{ color: status === 'active' ? tokens.confidence.high.value : tokens.confidence.low.value }}>
-            {status.charAt(0).toUpperCase() + status.slice(1)}
+  const columns = useMemo(
+    () => [
+      {
+        key: 'name',
+        label: 'Name',
+        sortable: true,
+        render: (_v: unknown, row: Record<string, unknown>) => {
+          const name = row.name as string;
+          return (
+            <div className="flex items-center gap-2.5">
+              <div
+                className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold shrink-0"
+                style={{ background: tokens.accent.subtle, color: tokens.accent.primary }}
+              >
+                {name
+                  .split(' ')
+                  .map((n) => n[0])
+                  .join('')}
+              </div>
+              <span className="font-medium">{name}</span>
+            </div>
+          );
+        },
+      },
+      { key: 'email', label: 'Email', sortable: true },
+      {
+        key: 'role',
+        label: 'Role',
+        sortable: true,
+        render: (v: unknown) => {
+          const role = v as 'admin' | 'user';
+          const isAdmin = role === 'admin';
+          return (
+            <span
+              className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold"
+              style={{
+                background: isAdmin ? '#FEE2E2' : '#DBEAFE',
+                color: isAdmin ? '#991B1B' : '#1D4ED8',
+                border: `1px solid ${isAdmin ? '#FECACA' : '#93C5FD'}`,
+              }}
+            >
+              {isAdmin ? <Shield className="w-3 h-3" /> : <UsersIcon className="w-3 h-3" />}
+              {role}
+            </span>
+          );
+        },
+      },
+      {
+        key: 'lastActive',
+        label: 'Last Active',
+        sortable: true,
+        render: (v: unknown) => (
+          <span className="text-xs" style={{ color: tokens.text.secondary }}>
+            {formatRelativeDate(v as string)}
           </span>
-        </span>
-      );
-    }},
-    { key: 'sessions', label: 'Sessions', sortable: true, render: (v: unknown) => (
-      <span className="text-xs" style={{ color: tokens.text.secondary }}>{v as number} active</span>
-    )},
-    { key: 'actions', label: '', render: (_v: unknown, row: Record<string, unknown>) => {
-      const u = row as unknown as User;
-      return (
-        <button
-          className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors hover:opacity-80"
-          style={{
-            color: u.status === 'active' ? tokens.confidence.low.value : tokens.confidence.high.value,
-            border: `1px solid ${u.status === 'active' ? tokens.confidence.low.bg : tokens.confidence.high.bg}`,
-          }}
-          onClick={(e) => { e.stopPropagation(); handleSuspendToggle(u.id, u.status); }}
-        >
-          {u.status === 'active' ? <Ban className="w-3 h-3" /> : <CheckCircle2 className="w-3 h-3" />}
-          {u.status === 'active' ? 'Suspend' : 'Activate'}
-        </button>
-      );
-    }},
-  ], [handleSuspendToggle]);
+        ),
+      },
+      {
+        key: 'status',
+        label: 'Status',
+        sortable: true,
+        render: (v: unknown) => {
+          const status = v as 'active' | 'suspended';
+          return (
+            <span className="inline-flex items-center gap-1.5 text-xs font-medium">
+              <div
+                className="w-1.5 h-1.5 rounded-full"
+                style={{
+                  background:
+                    status === 'active'
+                      ? tokens.confidence.high.value
+                      : tokens.confidence.low.value,
+                }}
+              />
+              <span
+                style={{
+                  color:
+                    status === 'active'
+                      ? tokens.confidence.high.value
+                      : tokens.confidence.low.value,
+                }}
+              >
+                {status.charAt(0).toUpperCase() + status.slice(1)}
+              </span>
+            </span>
+          );
+        },
+      },
+      {
+        key: 'sessions',
+        label: 'Sessions',
+        sortable: true,
+        render: (v: unknown) => (
+          <span className="text-xs" style={{ color: tokens.text.secondary }}>
+            {v as number} active
+          </span>
+        ),
+      },
+      {
+        key: 'actions',
+        label: '',
+        render: (_v: unknown, row: Record<string, unknown>) => {
+          const u = row as unknown as User;
+          return (
+            <button
+              className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-colors hover:opacity-80"
+              style={{
+                color:
+                  u.status === 'active'
+                    ? tokens.confidence.low.value
+                    : tokens.confidence.high.value,
+                border: `1px solid ${u.status === 'active' ? tokens.confidence.low.bg : tokens.confidence.high.bg}`,
+              }}
+              onClick={(e) => {
+                e.stopPropagation();
+                handleSuspendToggle(u.id, u.status);
+              }}
+            >
+              {u.status === 'active' ? (
+                <Ban className="w-3 h-3" />
+              ) : (
+                <CheckCircle2 className="w-3 h-3" />
+              )}
+              {u.status === 'active' ? 'Suspend' : 'Activate'}
+            </button>
+          );
+        },
+      },
+    ],
+    [handleSuspendToggle],
+  );
 
   const bg = tokens.surface.card;
   const border = tokens.border.default;
@@ -214,12 +371,19 @@ export default function Users() {
   const textMuted = tokens.text.muted;
 
   return (
-    <div className="p-6 space-y-6" style={{ background: '#0a0e17', minHeight: '100%' }}>
+    <div
+      className="p-6 space-y-6"
+      style={{ background: 'var(--ios-bg-primary)', minHeight: '100%' }}
+    >
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold" style={{ color: textPrimary }}>Users</h1>
-          <p className="text-sm mt-1" style={{ color: textSecondary }}>Manage team members and access control</p>
+          <h1 className="text-xl font-bold" style={{ color: textPrimary }}>
+            Users
+          </h1>
+          <p className="text-sm mt-1" style={{ color: textSecondary }}>
+            Manage team members and access control
+          </p>
         </div>
         <Button
           onClick={() => setInviteOpen(true)}
@@ -236,17 +400,38 @@ export default function Users() {
       <div className="grid grid-cols-3 gap-4">
         {[
           { label: 'Total Users', value: stats.total, icon: Users, color: tokens.accent.primary },
-          { label: 'Active Today', value: stats.activeToday, icon: UserCheck, color: tokens.confidence.high.value },
-          { label: 'Admin Count', value: stats.adminCount, icon: Shield, color: tokens.confidence.low.value },
+          {
+            label: 'Active Today',
+            value: stats.activeToday,
+            icon: UserCheck,
+            color: tokens.confidence.high.value,
+          },
+          {
+            label: 'Admin Count',
+            value: stats.adminCount,
+            icon: Shield,
+            color: tokens.confidence.low.value,
+          },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-xl p-4" style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}>
+          <div
+            key={stat.label}
+            className="rounded-xl p-4"
+            style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}
+          >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${stat.color}15` }}>
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center"
+                style={{ background: `${stat.color}15` }}
+              >
                 <stat.icon className="w-4.5 h-4.5" style={{ color: stat.color }} />
               </div>
               <div className="min-w-0">
-                <p className="text-xs truncate" style={{ color: textMuted }}>{stat.label}</p>
-                <p className="text-lg font-bold" style={{ color: textPrimary }}>{stat.value}</p>
+                <p className="text-xs truncate" style={{ color: textMuted }}>
+                  {stat.label}
+                </p>
+                <p className="text-lg font-bold" style={{ color: textPrimary }}>
+                  {stat.value}
+                </p>
               </div>
             </div>
           </div>
@@ -267,23 +452,34 @@ export default function Users() {
 
       {/* ── Invite Dialog ── */}
       <Dialog open={inviteOpen} onOpenChange={setInviteOpen}>
-        <DialogContent className="sm:max-w-md" style={{ background: '#0d1117', border: `1px solid ${border}` }}>
+        <DialogContent
+          className="sm:max-w-md"
+          style={{ background: 'var(--ios-bg-card)', border: `1px solid ${border}` }}
+        >
           <DialogHeader>
-            <DialogTitle className="text-base font-bold" style={{ color: textPrimary }}>Invite New User</DialogTitle>
+            <DialogTitle className="text-base font-bold" style={{ color: textPrimary }}>
+              Invite New User
+            </DialogTitle>
             <DialogDescription className="text-xs" style={{ color: textSecondary }}>
               Send an invitation email. The user will receive a link to set up their account.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 pt-2">
             <div className="space-y-1.5">
-              <Label className="text-xs font-medium" style={{ color: textPrimary }}>Email Address</Label>
+              <Label className="text-xs font-medium" style={{ color: textPrimary }}>
+                Email Address
+              </Label>
               <Input
                 type="email"
                 placeholder="colleague@company.com"
                 value={inviteEmail}
                 onChange={(e) => setInviteEmail(e.target.value)}
                 className="h-9 text-sm"
-                style={{ background: '#0a0e17', border: `1px solid ${border}`, color: textPrimary }}
+                style={{
+                  background: 'var(--ios-bg-primary)',
+                  border: `1px solid ${border}`,
+                  color: textPrimary,
+                }}
                 onKeyDown={(e) => e.key === 'Enter' && handleInvite()}
               />
             </div>

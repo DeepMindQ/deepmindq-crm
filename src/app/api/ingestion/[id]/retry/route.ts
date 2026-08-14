@@ -3,10 +3,7 @@ import { checkApiAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
-export async function POST(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { errorResponse } = await checkApiAuth(request);
     if (errorResponse) return errorResponse;
@@ -21,8 +18,10 @@ export async function POST(
 
     if (ingestion.status !== 'failed' && ingestion.status !== 'partial') {
       return NextResponse.json(
-        { error: `Cannot retry ingestion with status "${ingestion.status}". Only "failed" or "partial" imports can be retried.` },
-        { status: 400 }
+        {
+          error: `Cannot retry ingestion with status "${ingestion.status}". Only "failed" or "partial" imports can be retried.`,
+        },
+        { status: 400 },
       );
     }
 
@@ -43,7 +42,9 @@ export async function POST(
 
     return NextResponse.json({ data: updated, success: true });
   } catch (error) {
-    logger.error('[Ingestion] Retry failed', { error: error instanceof Error ? error.message : String(error) });
+    logger.error('[Ingestion] Retry failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: 'Failed to retry ingestion' }, { status: 500 });
   }
 }

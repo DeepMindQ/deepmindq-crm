@@ -42,39 +42,148 @@ import {
 } from 'lucide-react';
 
 const MOCK_SOURCES = [
-  { id: '1', name: 'Salesforce CRM', type: 'crm', status: 'active', lastSync: '2024-12-19 14:30', records: 245891, quality: 0.94 },
-  { id: '2', name: 'HubSpot CRM', type: 'crm', status: 'active', lastSync: '2024-12-19 14:15', records: 184203, quality: 0.91 },
-  { id: '3', name: 'LinkedIn Sales Nav', type: 'external', status: 'active', lastSync: '2024-12-19 13:45', records: 56721, quality: 0.87 },
-  { id: '4', name: 'Company CSV Upload', type: 'upload', status: 'active', lastSync: '2024-12-18 09:00', records: 12450, quality: 0.78 },
-  { id: '5', name: 'Market Intel AI Feed', type: 'ai', status: 'active', lastSync: '2024-12-19 14:00', records: 8934, quality: 0.82 },
-  { id: '6', name: 'Outreach.io', type: 'crm', status: 'error', lastSync: '2024-12-19 10:22', records: 45602, quality: 0.0 },
-  { id: '7', name: 'ZoomInfo Enrichment', type: 'external', status: 'disconnected', lastSync: '2024-12-10 16:00', records: 32100, quality: 0.85 },
-  { id: '8', name: 'GPT-4 Signal Analysis', type: 'ai', status: 'active', lastSync: '2024-12-19 14:32', records: 15678, quality: 0.89 },
+  {
+    id: '1',
+    name: 'Salesforce CRM',
+    type: 'crm',
+    status: 'active',
+    lastSync: '2024-12-19 14:30',
+    records: 245891,
+    quality: 0.94,
+  },
+  {
+    id: '2',
+    name: 'HubSpot CRM',
+    type: 'crm',
+    status: 'active',
+    lastSync: '2024-12-19 14:15',
+    records: 184203,
+    quality: 0.91,
+  },
+  {
+    id: '3',
+    name: 'LinkedIn Sales Nav',
+    type: 'external',
+    status: 'active',
+    lastSync: '2024-12-19 13:45',
+    records: 56721,
+    quality: 0.87,
+  },
+  {
+    id: '4',
+    name: 'Company CSV Upload',
+    type: 'upload',
+    status: 'active',
+    lastSync: '2024-12-18 09:00',
+    records: 12450,
+    quality: 0.78,
+  },
+  {
+    id: '5',
+    name: 'Market Intel AI Feed',
+    type: 'ai',
+    status: 'active',
+    lastSync: '2024-12-19 14:00',
+    records: 8934,
+    quality: 0.82,
+  },
+  {
+    id: '6',
+    name: 'Outreach.io',
+    type: 'crm',
+    status: 'error',
+    lastSync: '2024-12-19 10:22',
+    records: 45602,
+    quality: 0.0,
+  },
+  {
+    id: '7',
+    name: 'ZoomInfo Enrichment',
+    type: 'external',
+    status: 'disconnected',
+    lastSync: '2024-12-10 16:00',
+    records: 32100,
+    quality: 0.85,
+  },
+  {
+    id: '8',
+    name: 'GPT-4 Signal Analysis',
+    type: 'ai',
+    status: 'active',
+    lastSync: '2024-12-19 14:32',
+    records: 15678,
+    quality: 0.89,
+  },
 ];
 
 function getTypeIcon(type: string) {
   switch (type) {
-    case 'crm': return <Database className="size-4" style={{ color: tokens.accent.primary }} />;
-    case 'upload': return <Upload className="size-4" style={{ color: tokens.domain.value }} />;
-    case 'external': return <Cloud className="size-4" style={{ color: tokens.confidence.high.value }} />;
-    case 'ai': return <Cpu className="size-4" style={{ color: tokens.gold.dark }} />;
-    default: return <Database className="size-4" />;
+    case 'crm':
+      return <Database className="size-4" style={{ color: tokens.accent.primary }} />;
+    case 'upload':
+      return <Upload className="size-4" style={{ color: tokens.domain.value }} />;
+    case 'external':
+      return <Cloud className="size-4" style={{ color: tokens.confidence.high.value }} />;
+    case 'ai':
+      return <Cpu className="size-4" style={{ color: tokens.gold.dark }} />;
+    default:
+      return <Database className="size-4" />;
   }
 }
 
 function getStatusBadge(status: string) {
   switch (status) {
-    case 'active': return <Badge style={{ backgroundColor: tokens.confidence.high.bg, color: tokens.confidence.high.value, borderWidth: 1, borderColor: tokens.confidence.high.border }}>Active</Badge>;
-    case 'disconnected': return <Badge style={{ backgroundColor: tokens.neutral['100'], color: tokens.text.secondary, borderWidth: 1, borderColor: tokens.border.default }}>Disconnected</Badge>;
-    case 'error': return <Badge variant="destructive"><AlertCircle className="size-3 mr-1" />Error</Badge>;
-    default: return <Badge variant="secondary">Unknown</Badge>;
+    case 'active':
+      return (
+        <Badge
+          style={{
+            backgroundColor: tokens.confidence.high.bg,
+            color: tokens.confidence.high.value,
+            borderWidth: 1,
+            borderColor: tokens.confidence.high.border,
+          }}
+        >
+          Active
+        </Badge>
+      );
+    case 'disconnected':
+      return (
+        <Badge
+          style={{
+            backgroundColor: tokens.neutral['100'],
+            color: tokens.text.secondary,
+            borderWidth: 1,
+            borderColor: tokens.border.default,
+          }}
+        >
+          Disconnected
+        </Badge>
+      );
+    case 'error':
+      return (
+        <Badge variant="destructive">
+          <AlertCircle className="size-3 mr-1" />
+          Error
+        </Badge>
+      );
+    default:
+      return <Badge variant="secondary">Unknown</Badge>;
   }
 }
 
 function getQualityBadge(quality: number) {
   if (quality === 0) return <span style={{ color: tokens.text.muted }}>N/A</span>;
-  const color = quality >= 0.9 ? tokens.confidence.high.value : quality >= 0.75 ? tokens.confidence.medium.value : tokens.confidence.low.value;
-  return <span className="font-medium" style={{ color }}>{(quality * 100).toFixed(0)}%</span>;
+  const color =
+    quality >= 0.9
+      ? tokens.confidence.high.value
+      : quality >= 0.75
+        ? tokens.confidence.medium.value
+        : tokens.confidence.low.value;
+  return (
+    <span className="font-medium" style={{ color }}>
+      {(quality * 100).toFixed(0)}%
+    </span>
+  );
 }
 
 export default function IntelligenceSources() {
@@ -98,19 +207,28 @@ export default function IntelligenceSources() {
     setTimeout(() => setSyncing(null), 2000);
   };
 
-  const stats = useMemo(() => ({
-    total: MOCK_SOURCES.length,
-    active: MOCK_SOURCES.filter((s) => s.status === 'active').length,
-    totalRecords: MOCK_SOURCES.reduce((a, b) => a + b.records, 0),
-    avgQuality: (MOCK_SOURCES.filter((s) => s.quality > 0).reduce((a, b) => a + b.quality, 0) / MOCK_SOURCES.filter((s) => s.quality > 0).length * 100).toFixed(1),
-  }), []);
+  const stats = useMemo(
+    () => ({
+      total: MOCK_SOURCES.length,
+      active: MOCK_SOURCES.filter((s) => s.status === 'active').length,
+      totalRecords: MOCK_SOURCES.reduce((a, b) => a + b.records, 0),
+      avgQuality: (
+        (MOCK_SOURCES.filter((s) => s.quality > 0).reduce((a, b) => a + b.quality, 0) /
+          MOCK_SOURCES.filter((s) => s.quality > 0).length) *
+        100
+      ).toFixed(1),
+    }),
+    [],
+  );
 
   return (
     <div className="flex flex-col gap-6 p-6">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>Data Sources</h1>
+          <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+            Data Sources
+          </h1>
           <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
             Manage and monitor intelligence data source connections
           </p>
@@ -124,19 +242,50 @@ export default function IntelligenceSources() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Sources', value: stats.total, icon: Plug, color: tokens.accent.primary, bg: tokens.accent.subtle },
-          { label: 'Active', value: stats.active, icon: Cloud, color: tokens.confidence.high.value, bg: tokens.confidence.high.bg },
-          { label: 'Total Records', value: stats.totalRecords.toLocaleString(), icon: Database, color: tokens.domain.value, bg: tokens.domain.bg },
-          { label: 'Avg Quality', value: `${stats.avgQuality}%`, icon: Cpu, color: tokens.gold.dark, bg: tokens.gold.bgMedium },
+          {
+            label: 'Total Sources',
+            value: stats.total,
+            icon: Plug,
+            color: tokens.accent.primary,
+            bg: tokens.accent.subtle,
+          },
+          {
+            label: 'Active',
+            value: stats.active,
+            icon: Cloud,
+            color: tokens.confidence.high.value,
+            bg: tokens.confidence.high.bg,
+          },
+          {
+            label: 'Total Records',
+            value: stats.totalRecords.toLocaleString(),
+            icon: Database,
+            color: tokens.domain.value,
+            bg: tokens.domain.bg,
+          },
+          {
+            label: 'Avg Quality',
+            value: `${stats.avgQuality}%`,
+            icon: Cpu,
+            color: tokens.gold.dark,
+            bg: tokens.gold.bgMedium,
+          },
         ].map((stat) => (
           <Card key={stat.label} className="gap-4 py-4">
             <CardContent className="flex items-center gap-4">
-              <div className="size-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: stat.bg }}>
+              <div
+                className="size-10 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: stat.bg }}
+              >
                 <stat.icon className="size-5" style={{ color: stat.color }} />
               </div>
               <div>
-                <p className="text-xs font-medium" style={{ color: tokens.text.secondary }}>{stat.label}</p>
-                <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>{stat.value}</p>
+                <p className="text-xs font-medium" style={{ color: tokens.text.secondary }}>
+                  {stat.label}
+                </p>
+                <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+                  {stat.value}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -147,8 +296,16 @@ export default function IntelligenceSources() {
       <Card className="gap-4 py-4">
         <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
           <div className="relative flex-1 w-full sm:max-w-xs">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4" style={{ color: tokens.text.muted }} />
-            <Input placeholder="Search sources..." className="pl-9" value={search} onChange={(e) => setSearch(e.target.value)} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 size-4"
+              style={{ color: tokens.text.muted }}
+            />
+            <Input
+              placeholder="Search sources..."
+              className="pl-9"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
           </div>
           <Select value={typeFilter} onValueChange={setTypeFilter}>
             <SelectTrigger className="w-full sm:w-[150px]">
@@ -162,7 +319,9 @@ export default function IntelligenceSources() {
               <SelectItem value="ai">AI</SelectItem>
             </SelectContent>
           </Select>
-          <span className="text-xs" style={{ color: tokens.text.muted }}>{filtered.length} of {MOCK_SOURCES.length} sources</span>
+          <span className="text-xs" style={{ color: tokens.text.muted }}>
+            {filtered.length} of {MOCK_SOURCES.length} sources
+          </span>
         </CardContent>
       </Card>
 
@@ -184,7 +343,11 @@ export default function IntelligenceSources() {
             <TableBody>
               {filtered.length === 0 ? (
                 <TableRow>
-                  <TableCell colSpan={7} className="h-32 text-center" style={{ color: tokens.text.muted }}>
+                  <TableCell
+                    colSpan={7}
+                    className="h-32 text-center"
+                    style={{ color: tokens.text.muted }}
+                  >
                     No data sources match the current filters.
                   </TableCell>
                 </TableRow>
@@ -194,23 +357,41 @@ export default function IntelligenceSources() {
                     <TableCell>
                       <div className="flex items-center gap-2">
                         {getTypeIcon(source.type)}
-                        <span className="font-medium" style={{ color: tokens.text.primary }}>{source.name}</span>
+                        <span className="font-medium" style={{ color: tokens.text.primary }}>
+                          {source.name}
+                        </span>
                       </div>
                     </TableCell>
                     <TableCell>
-                      <span className="uppercase text-[10px] font-bold" style={{ color: tokens.text.secondary }}>{source.type}</span>
+                      <span
+                        className="uppercase text-[10px] font-bold"
+                        style={{ color: tokens.text.secondary }}
+                      >
+                        {source.type}
+                      </span>
                     </TableCell>
                     <TableCell>{getStatusBadge(source.status)}</TableCell>
-                    <TableCell className="text-xs" style={{ color: tokens.text.secondary }}>{source.lastSync}</TableCell>
-                    <TableCell className="text-xs font-mono text-right" style={{ color: tokens.text.primary }}>{source.records.toLocaleString()}</TableCell>
+                    <TableCell className="text-xs" style={{ color: tokens.text.secondary }}>
+                      {source.lastSync}
+                    </TableCell>
+                    <TableCell
+                      className="text-xs font-mono text-right"
+                      style={{ color: tokens.text.primary }}
+                    >
+                      {source.records.toLocaleString()}
+                    </TableCell>
                     <TableCell className="text-right">{getQualityBadge(source.quality)}</TableCell>
                     <TableCell className="text-right">
                       <Button
-                        variant="ghost" size="icon" className="size-8"
+                        variant="ghost"
+                        size="icon"
+                        className="size-8"
                         onClick={() => handleSync(source.id)}
                         disabled={source.status === 'disconnected'}
                       >
-                        <RefreshCw className={`size-3.5 ${syncing === source.id ? 'animate-spin' : ''}`} />
+                        <RefreshCw
+                          className={`size-3.5 ${syncing === source.id ? 'animate-spin' : ''}`}
+                        />
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -226,17 +407,29 @@ export default function IntelligenceSources() {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Connect New Data Source</DialogTitle>
-            <DialogDescription>Add a new intelligence data source to the platform.</DialogDescription>
+            <DialogDescription>
+              Add a new intelligence data source to the platform.
+            </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <div className="flex flex-col gap-2">
-              <span className="text-sm font-medium" style={{ color: tokens.text.secondary }}>Source Name</span>
-              <Input placeholder="e.g. Salesforce Production" value={newSourceName} onChange={(e) => setNewSourceName(e.target.value)} />
+              <span className="text-sm font-medium" style={{ color: tokens.text.secondary }}>
+                Source Name
+              </span>
+              <Input
+                placeholder="e.g. Salesforce Production"
+                value={newSourceName}
+                onChange={(e) => setNewSourceName(e.target.value)}
+              />
             </div>
             <div className="flex flex-col gap-2">
-              <span className="text-sm font-medium" style={{ color: tokens.text.secondary }}>Source Type</span>
+              <span className="text-sm font-medium" style={{ color: tokens.text.secondary }}>
+                Source Type
+              </span>
               <Select value={newSourceType} onValueChange={setNewSourceType}>
-                <SelectTrigger className="w-full"><SelectValue placeholder="Select type" /></SelectTrigger>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select type" />
+                </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="crm">CRM</SelectItem>
                   <SelectItem value="upload">File Upload</SelectItem>
@@ -247,7 +440,9 @@ export default function IntelligenceSources() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setConnectOpen(false)}>Cancel</Button>
+            <Button variant="outline" onClick={() => setConnectOpen(false)}>
+              Cancel
+            </Button>
             <Button onClick={() => setConnectOpen(false)}>Connect</Button>
           </DialogFooter>
         </DialogContent>

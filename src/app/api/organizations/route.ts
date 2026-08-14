@@ -18,7 +18,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const parsed = organizationsQuerySchema.safeParse(Object.fromEntries(searchParams));
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid parameters', details: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid parameters', details: parsed.error.flatten() },
+        { status: 400 },
+      );
     }
     const { page, limit, search, status } = parsed.data;
 
@@ -61,16 +64,16 @@ export async function GET(request: NextRequest) {
     const signalCounts = await db.signal.groupBy({
       by: ['organizationId'],
       where: {
-        organizationId: { in: organizations.map(o => o.id) },
+        organizationId: { in: organizations.map((o) => o.id) },
         status: { in: ['detected', 'validated', 'analyzed'] },
       },
       _count: true,
     });
 
-    const countMap = new Map(signalCounts.map(s => [s.organizationId, s._count]));
+    const countMap = new Map(signalCounts.map((s) => [s.organizationId, s._count]));
 
     return NextResponse.json({
-      data: organizations.map(org => ({
+      data: organizations.map((org) => ({
         ...org,
         signalCount: countMap.get(org.id) || 0,
       })),
@@ -82,9 +85,6 @@ export async function GET(request: NextRequest) {
       },
     });
   } catch (_error) {
-    return NextResponse.json(
-      { error: 'Failed to fetch organizations' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Failed to fetch organizations' }, { status: 500 });
   }
 }

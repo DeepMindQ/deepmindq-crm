@@ -2,7 +2,13 @@
 
 export function getPersistenceAdapter() {
   return {
-    getPoolMetrics(): { totalConnections: number; activeConnections: number; idleConnections: number; waitingRequests: number; poolUtilizationPercent: number } | null {
+    getPoolMetrics(): {
+      totalConnections: number;
+      activeConnections: number;
+      idleConnections: number;
+      waitingRequests: number;
+      poolUtilizationPercent: number;
+    } | null {
       return null;
     },
   };

@@ -20,9 +20,9 @@ import { hashToken } from '@/lib/session';
 
 // ── Configuration ──────────────────────────────────────────────
 
-const SESSION_ROTATION_DAYS = 7;            // Force re-auth after 7 days
-const MAX_CONCURRENT_SESSIONS = 5;          // Max active sessions per user
-const SUSPICIOUS_WINDOW_MS = 10 * 60_000;   // 10 min — flag rapid logins
+const SESSION_ROTATION_DAYS = 7; // Force re-auth after 7 days
+const MAX_CONCURRENT_SESSIONS = 5; // Max active sessions per user
+const SUSPICIOUS_WINDOW_MS = 10 * 60_000; // 10 min — flag rapid logins
 const NEW_DEVICE_THRESHOLD_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 
 // ── Types ─────────────────────────────────────────────────────
@@ -47,36 +47,50 @@ export interface SessionSecurityAssessment {
 
 export interface ActiveSession {
   id: string;
-  token: string;         // Masked token (first 8 chars + ***)
+  token: string; // Masked token (first 8 chars + ***)
   expiresAt: Date;
   createdAt: Date;
-  isCurrent: boolean;    // Whether this is the caller's active session
+  isCurrent: boolean; // Whether this is the caller's active session
 }
 
 // ── Device Parsing ────────────────────────────────────────────
 
-function parseUserAgent(ua: string): { deviceType: SessionDeviceInfo['deviceType']; os: string; browser: string } {
+function parseUserAgent(ua: string): {
+  deviceType: SessionDeviceInfo['deviceType'];
+  os: string;
+  browser: string;
+} {
   const lower = ua.toLowerCase();
 
-  const deviceType: SessionDeviceInfo['deviceType'] =
-    /mobile|android(?!.*tablet)|iphone|ipod/.test(lower) ? 'mobile' :
-    /tablet|ipad|android(.*tablet)/.test(lower) ? 'tablet' :
-    'desktop';
+  const deviceType: SessionDeviceInfo['deviceType'] = /mobile|android(?!.*tablet)|iphone|ipod/.test(
+    lower,
+  )
+    ? 'mobile'
+    : /tablet|ipad|android(.*tablet)/.test(lower)
+      ? 'tablet'
+      : 'desktop';
 
-  const os =
-    /windows/.test(lower) ? 'Windows' :
-    /macintosh|mac os/.test(lower) ? 'macOS' :
-    /linux/.test(lower) ? 'Linux' :
-    /android/.test(lower) ? 'Android' :
-    /ios|iphone|ipad/.test(lower) ? 'iOS' :
-    'Unknown';
+  const os = /windows/.test(lower)
+    ? 'Windows'
+    : /macintosh|mac os/.test(lower)
+      ? 'macOS'
+      : /linux/.test(lower)
+        ? 'Linux'
+        : /android/.test(lower)
+          ? 'Android'
+          : /ios|iphone|ipad/.test(lower)
+            ? 'iOS'
+            : 'Unknown';
 
-  const browser =
-    /edg\//.test(lower) ? 'Edge' :
-    /chrome\//.test(lower) ? 'Chrome' :
-    /firefox\//.test(lower) ? 'Firefox' :
-    /safari\//.test(lower) ? 'Safari' :
-    'Unknown';
+  const browser = /edg\//.test(lower)
+    ? 'Edge'
+    : /chrome\//.test(lower)
+      ? 'Chrome'
+      : /firefox\//.test(lower)
+        ? 'Firefox'
+        : /safari\//.test(lower)
+          ? 'Safari'
+          : 'Unknown';
 
   return { deviceType, os, browser };
 }
@@ -188,7 +202,10 @@ export async function rotateSession(sessionId: string): Promise<boolean> {
 /**
  * Revoke all sessions for a user (e.g., password change, security event).
  */
-export async function revokeAllUserSessions(userId: string, reason: string = 'Security event'): Promise<number> {
+export async function revokeAllUserSessions(
+  userId: string,
+  reason: string = 'Security event',
+): Promise<number> {
   try {
     const result = await db.session.deleteMany({ where: { userId } });
     logger.info(`[SessionManager] Revoked ${result.count} sessions for user ${userId}: ${reason}`);
@@ -208,7 +225,11 @@ export async function revokeAllUserSessions(userId: string, reason: string = 'Se
 /**
  * Revoke a specific session by ID.
  */
-export async function revokeSession(sessionId: string, actorId?: string, reason?: string): Promise<boolean> {
+export async function revokeSession(
+  sessionId: string,
+  actorId?: string,
+  reason?: string,
+): Promise<boolean> {
   try {
     await db.session.delete({ where: { id: sessionId } });
     logger.info(`[SessionManager] Session ${sessionId} revoked by ${actorId || 'system'}`);
@@ -241,7 +262,7 @@ export async function enforceSessionLimit(userId: string): Promise<number> {
     if (activeSessions.length <= MAX_CONCURRENT_SESSIONS) return 0;
 
     const toRemove = activeSessions.slice(MAX_CONCURRENT_SESSIONS);
-    const ids = toRemove.map(s => s.id);
+    const ids = toRemove.map((s) => s.id);
 
     await db.session.deleteMany({
       where: { id: { in: ids } },
@@ -262,7 +283,10 @@ export async function enforceSessionLimit(userId: string): Promise<number> {
  * Milestone 1 C-02: Tokens are masked in the response.
  * Milestone 1 C-01: isCurrent comparison uses hashed token.
  */
-export async function getUserSessions(userId: string, currentToken?: string): Promise<ActiveSession[]> {
+export async function getUserSessions(
+  userId: string,
+  currentToken?: string,
+): Promise<ActiveSession[]> {
   try {
     const sessions = await db.session.findMany({
       where: { userId, expiresAt: { gte: new Date() } },
@@ -278,7 +302,7 @@ export async function getUserSessions(userId: string, currentToken?: string): Pr
     // Milestone 1 C-01: Pre-compute hash of currentToken for comparison
     const currentTokenHash = currentToken ? await hashToken(currentToken) : null;
 
-    return sessions.map(s => {
+    return sessions.map((s) => {
       // Milestone 1 C-02: Never return full token to client.
       // Show only first 8 chars for identification; rest masked.
       const maskedToken = s.token ? s.token.substring(0, 8) + '***' : '***';
@@ -337,4 +361,9 @@ export async function recordLoginEvent(
 
 // ── Helpers (exported for use in session.ts integration) ────────
 
-export { parseUserAgent, generateDeviceFingerprint, SESSION_ROTATION_DAYS, MAX_CONCURRENT_SESSIONS };
+export {
+  parseUserAgent,
+  generateDeviceFingerprint,
+  SESSION_ROTATION_DAYS,
+  MAX_CONCURRENT_SESSIONS,
+};

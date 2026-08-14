@@ -120,7 +120,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  activeView: 'intelligence-operations',
+  activeView: 'dashboard',
   sidebarCollapsed: false,
   selectedContactId: null,
   selectedCompanyId: null,

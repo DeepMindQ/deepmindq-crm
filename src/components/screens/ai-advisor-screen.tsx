@@ -2,15 +2,7 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
-import {
-  Bot,
-  Send,
-  Trash2,
-  Sparkles,
-  User,
-  Loader2,
-  MessageSquare,
-} from 'lucide-react';
+import { Bot, Send, Trash2, Sparkles, User, Loader2, MessageSquare } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
@@ -200,8 +192,8 @@ export default function AiAdvisor() {
         prev.map((m) =>
           m.id === messageId
             ? { ...m, content: partial, isStreaming: currentIndex < words.length }
-            : m
-        )
+            : m,
+        ),
       );
     }, 40);
 
@@ -246,7 +238,7 @@ export default function AiAdvisor() {
         handleSend();
       }
     },
-    [handleSend]
+    [handleSend],
   );
 
   const handleSuggestedPrompt = useCallback(
@@ -280,7 +272,7 @@ export default function AiAdvisor() {
         }, 600);
       }, 100);
     },
-    [simulateStreaming]
+    [simulateStreaming],
   );
 
   const handleClear = useCallback(() => {
@@ -295,7 +287,11 @@ export default function AiAdvisor() {
       const boldParts = line.split(/\*\*(.*?)\*\*/g);
       const rendered = boldParts.map((part, j) => {
         if (j % 2 === 1) {
-          return <strong key={j} style={{ color: tokens.text.primary, fontWeight: 600 }}>{part}</strong>;
+          return (
+            <strong key={j} style={{ color: tokens.text.primary, fontWeight: 600 }}>
+              {part}
+            </strong>
+          );
         }
         // Italic
         const italicParts = part.split(/\*(.*?)\*/g);
@@ -309,7 +305,11 @@ export default function AiAdvisor() {
 
       // Headers / bullets
       if (line.startsWith('##')) {
-        return <p key={i} className="font-semibold mt-3 mb-1" style={{ color: tokens.text.primary }}>{rendered}</p>;
+        return (
+          <p key={i} className="font-semibold mt-3 mb-1" style={{ color: tokens.text.primary }}>
+            {rendered}
+          </p>
+        );
       }
       if (line.startsWith('|')) {
         // Skip table dividers
@@ -331,7 +331,11 @@ export default function AiAdvisor() {
       if (line.trim() === '') {
         return <div key={i} className="h-2" />;
       }
-      return <p key={i} style={{ color: tokens.text.primary }}>{rendered}</p>;
+      return (
+        <p key={i} style={{ color: tokens.text.primary }}>
+          {rendered}
+        </p>
+      );
     });
   };
 
@@ -346,10 +350,7 @@ export default function AiAdvisor() {
         }}
       >
         <div className="flex items-center gap-3">
-          <div
-            className="rounded-lg p-2"
-            style={{ background: tokens.accent.ghost }}
-          >
+          <div className="rounded-lg p-2" style={{ background: tokens.accent.ghost }}>
             <Bot className="h-5 w-5" style={{ color: tokens.accent.primary }} />
           </div>
           <div>
@@ -388,11 +389,18 @@ export default function AiAdvisor() {
               }}
             >
               <Sparkles className="h-10 w-10 mx-auto mb-3" style={{ color: tokens.accent.dim }} />
-              <h2 className="text-lg font-semibold text-center" style={{ color: tokens.text.primary }}>
+              <h2
+                className="text-lg font-semibold text-center"
+                style={{ color: tokens.text.primary }}
+              >
                 How can I help you today?
               </h2>
-              <p className="text-sm text-center mt-1 max-w-sm" style={{ color: tokens.text.secondary }}>
-                Ask me about your accounts, signals, pipeline, competitors, or any intelligence question.
+              <p
+                className="text-sm text-center mt-1 max-w-sm"
+                style={{ color: tokens.text.secondary }}
+              >
+                Ask me about your accounts, signals, pipeline, competitors, or any intelligence
+                question.
               </p>
             </div>
 
@@ -410,7 +418,10 @@ export default function AiAdvisor() {
                     boxShadow: elevation.sm,
                   }}
                 >
-                  <MessageSquare className="h-3.5 w-3.5 inline mr-1.5" style={{ color: tokens.accent.dim }} />
+                  <MessageSquare
+                    className="h-3.5 w-3.5 inline mr-1.5"
+                    style={{ color: tokens.accent.dim }}
+                  />
                   {prompt}
                 </button>
               ))}
@@ -434,10 +445,7 @@ export default function AiAdvisor() {
                 <div
                   className="max-w-[80%] rounded-2xl px-4 py-3"
                   style={{
-                    background:
-                      msg.role === 'user'
-                        ? tokens.accent.primary
-                        : tokens.surface.card,
+                    background: msg.role === 'user' ? tokens.accent.primary : tokens.surface.card,
                     color: msg.role === 'user' ? tokens.flat.white : tokens.text.primary,
                     border: msg.role === 'ai' ? `1px solid ${tokens.border.default}` : 'none',
                     boxShadow: msg.role === 'ai' ? elevation.sm : 'none',
@@ -451,12 +459,18 @@ export default function AiAdvisor() {
                         renderContent(msg.content)
                       ) : (
                         <div className="flex items-center gap-2">
-                          <Loader2 className="h-4 w-4 animate-spin" style={{ color: tokens.accent.dim }} />
+                          <Loader2
+                            className="h-4 w-4 animate-spin"
+                            style={{ color: tokens.accent.dim }}
+                          />
                           <span style={{ color: tokens.text.muted }}>Thinking...</span>
                         </div>
                       )}
                       {msg.isStreaming && (
-                        <span className="inline-block w-0.5 h-4 ml-0.5 animate-pulse" style={{ background: tokens.accent.dim, verticalAlign: 'text-bottom' }} />
+                        <span
+                          className="inline-block w-0.5 h-4 ml-0.5 animate-pulse"
+                          style={{ background: tokens.accent.dim, verticalAlign: 'text-bottom' }}
+                        />
                       )}
                     </div>
                   )}
@@ -529,7 +543,8 @@ export default function AiAdvisor() {
               disabled={!input.trim() || isStreaming}
               className="shrink-0 rounded-xl h-10 w-10 p-0 flex items-center justify-center"
               style={{
-                background: input.trim() && !isStreaming ? tokens.accent.primary : tokens.border.default,
+                background:
+                  input.trim() && !isStreaming ? tokens.accent.primary : tokens.border.default,
                 color: tokens.flat.white,
               }}
             >
@@ -541,7 +556,8 @@ export default function AiAdvisor() {
             </Button>
           </div>
           <p className="text-[10px] mt-2 text-center" style={{ color: tokens.text.muted }}>
-            AI Advisor uses your intelligence data to provide contextual insights. Press Enter to send, Shift+Enter for new line.
+            AI Advisor uses your intelligence data to provide contextual insights. Press Enter to
+            send, Shift+Enter for new line.
           </p>
         </div>
       </div>

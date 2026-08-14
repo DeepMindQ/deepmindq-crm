@@ -3,40 +3,90 @@
 import { useState, useMemo } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { Bar, BarChart, Line, LineChart, XAxis, YAxis, CartesianGrid } from 'recharts';
 import {
-  BrainCircuit, Layers, Clock, AlertTriangle, Play, Loader2, CheckCircle2, XCircle, RotateCcw, X,
-  BarChart3, TrendingDown, Inbox,
+  BrainCircuit,
+  Layers,
+  Clock,
+  AlertTriangle,
+  Play,
+  Loader2,
+  CheckCircle2,
+  XCircle,
+  RotateCcw,
+  X,
+  BarChart3,
+  TrendingDown,
+  Inbox,
 } from 'lucide-react';
 
-const TASK_TYPES = ['Enrichment', 'Scoring', 'Insight Generation', 'Signal Analysis', 'Research', 'Summarization'];
+const TASK_TYPES = [
+  'Enrichment',
+  'Scoring',
+  'Insight Generation',
+  'Signal Analysis',
+  'Research',
+  'Summarization',
+];
 const MODELS = ['gpt-4o', 'claude-3.5-sonnet', 'claude-3-haiku'];
 type TaskStatus = 'running' | 'queued' | 'completed' | 'failed';
 
 const mockTasks = Array.from({ length: 8 }, (_, i) => {
-  const status = (['running', 'queued', 'completed', 'completed', 'failed', 'running', 'queued', 'completed'] as TaskStatus[])[i];
+  const status = (
+    [
+      'running',
+      'queued',
+      'completed',
+      'completed',
+      'failed',
+      'running',
+      'queued',
+      'completed',
+    ] as TaskStatus[]
+  )[i];
   return {
     id: `AI-${String(10234 + i).padStart(5, '0')}`,
     type: TASK_TYPES[i % TASK_TYPES.length],
     model: MODELS[i % MODELS.length],
     status,
-    duration: status === 'running' ? `${Math.floor(Math.random() * 30) + 5}s` : status === 'queued' ? '—' : `${Math.floor(Math.random() * 12) + 2}s`,
+    duration:
+      status === 'running'
+        ? `${Math.floor(Math.random() * 30) + 5}s`
+        : status === 'queued'
+          ? '—'
+          : `${Math.floor(Math.random() * 12) + 2}s`,
     tokens: status === 'queued' ? '—' : `${Math.floor(Math.random() * 8000) + 500}`,
   };
 });
 
 const tasksOverTime = [
-  { time: '00:00', tasks: 4 }, { time: '04:00', tasks: 2 }, { time: '08:00', tasks: 12 },
-  { time: '12:00', tasks: 28 }, { time: '16:00', tasks: 19 }, { time: '20:00', tasks: 8 },
+  { time: '00:00', tasks: 4 },
+  { time: '04:00', tasks: 2 },
+  { time: '08:00', tasks: 12 },
+  { time: '12:00', tasks: 28 },
+  { time: '16:00', tasks: 19 },
+  { time: '20:00', tasks: 8 },
 ];
 
 const errorRateTrend = [
-  { time: 'Mon', rate: 2.1 }, { time: 'Tue', rate: 1.8 }, { time: 'Wed', rate: 3.4 },
-  { time: 'Thu', rate: 1.2 }, { time: 'Fri', rate: 0.9 }, { time: 'Sat', rate: 0.4 }, { time: 'Sun', rate: 0.6 },
+  { time: 'Mon', rate: 2.1 },
+  { time: 'Tue', rate: 1.8 },
+  { time: 'Wed', rate: 3.4 },
+  { time: 'Thu', rate: 1.2 },
+  { time: 'Fri', rate: 0.9 },
+  { time: 'Sat', rate: 0.4 },
+  { time: 'Sun', rate: 0.6 },
 ];
 
 const tasksChartConfig = { tasks: { label: 'Tasks', color: '#2563EB' } };
@@ -67,19 +117,28 @@ export default function AiCommandCenter() {
   const [loading] = useState(false);
   const [tasks, setTasks] = useState(mockTasks);
 
-  const stats = useMemo(() => ({
-    active: tasks.filter(t => t.status === 'running').length,
-    queueDepth: tasks.filter(t => t.status === 'queued').length,
-    avgLatency: '4.2s',
-    errorRate: '1.4%',
-  }), [tasks]);
+  const stats = useMemo(
+    () => ({
+      active: tasks.filter((t) => t.status === 'running').length,
+      queueDepth: tasks.filter((t) => t.status === 'queued').length,
+      avgLatency: '4.2s',
+      errorRate: '1.4%',
+    }),
+    [tasks],
+  );
 
   const handleCancel = (id: string) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'failed' as TaskStatus, duration: 'cancelled' } : t));
+    setTasks((prev) =>
+      prev.map((t) =>
+        t.id === id ? { ...t, status: 'failed' as TaskStatus, duration: 'cancelled' } : t,
+      ),
+    );
   };
 
   const handleRetry = (id: string) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status: 'queued' as TaskStatus, duration: '—' } : t));
+    setTasks((prev) =>
+      prev.map((t) => (t.id === id ? { ...t, status: 'queued' as TaskStatus, duration: '—' } : t)),
+    );
   };
 
   if (loading) {
@@ -114,19 +173,47 @@ export default function AiCommandCenter() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Active AI Tasks', value: stats.active, icon: Play, color: '#38bdf8', bg: 'rgba(56,189,248,0.12)' },
-          { label: 'Queue Depth', value: stats.queueDepth, icon: Layers, color: '#fbbf24', bg: 'rgba(251,191,36,0.12)' },
-          { label: 'Avg Latency', value: stats.avgLatency, icon: Clock, color: '#a78bfa', bg: 'rgba(167,139,250,0.12)' },
-          { label: 'Error Rate', value: stats.errorRate, icon: AlertTriangle, color: '#f87171', bg: 'rgba(248,113,113,0.12)' },
-        ].map(s => (
+          {
+            label: 'Active AI Tasks',
+            value: stats.active,
+            icon: Play,
+            color: '#38bdf8',
+            bg: 'rgba(56,189,248,0.12)',
+          },
+          {
+            label: 'Queue Depth',
+            value: stats.queueDepth,
+            icon: Layers,
+            color: '#fbbf24',
+            bg: 'rgba(251,191,36,0.12)',
+          },
+          {
+            label: 'Avg Latency',
+            value: stats.avgLatency,
+            icon: Clock,
+            color: '#a78bfa',
+            bg: 'rgba(167,139,250,0.12)',
+          },
+          {
+            label: 'Error Rate',
+            value: stats.errorRate,
+            icon: AlertTriangle,
+            color: '#f87171',
+            bg: 'rgba(248,113,113,0.12)',
+          },
+        ].map((s) => (
           <Card key={s.label} className="py-4 gap-4">
             <CardContent className="px-4 flex items-center gap-3">
               <div className="rounded-lg p-2.5" style={{ backgroundColor: s.bg }}>
                 <s.icon className="size-5" style={{ color: s.color }} />
               </div>
               <div>
-                <p className="text-sm" style={{ color: tokens.text.secondary }}>{s.label}</p>
-                <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>{s.value}</p>
+                <p className="text-sm" style={{ color: tokens.text.secondary }}>
+                  {s.label}
+                </p>
+                <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+                  {s.value}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -169,7 +256,13 @@ export default function AiCommandCenter() {
                 <XAxis dataKey="time" tick={{ fill: tokens.text.muted, fontSize: 12 }} />
                 <YAxis tick={{ fill: tokens.text.muted, fontSize: 12 }} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Line type="monotone" dataKey="rate" stroke="var(--color-rate)" strokeWidth={2} dot={{ r: 4 }} />
+                <Line
+                  type="monotone"
+                  dataKey="rate"
+                  stroke="var(--color-rate)"
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                />
               </LineChart>
             </ChartContainer>
           </CardContent>
@@ -199,24 +292,61 @@ export default function AiCommandCenter() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {tasks.map(task => (
+                {tasks.map((task) => (
                   <TableRow key={task.id}>
-                    <TableCell className="pl-6 font-mono text-xs" style={{ color: tokens.accent.primary }}>{task.id}</TableCell>
-                    <TableCell className="text-sm" style={{ color: tokens.text.primary }}>{task.type}</TableCell>
-                    <TableCell className="text-xs font-mono" style={{ color: tokens.text.secondary }}>{task.model}</TableCell>
-                    <TableCell><StatusBadge status={task.status} /></TableCell>
-                    <TableCell className="font-mono text-xs" style={{ color: tokens.text.secondary }}>{task.duration}</TableCell>
-                    <TableCell className="font-mono text-xs" style={{ color: tokens.text.secondary }}>{task.tokens}</TableCell>
+                    <TableCell
+                      className="pl-6 font-mono text-xs"
+                      style={{ color: tokens.accent.primary }}
+                    >
+                      {task.id}
+                    </TableCell>
+                    <TableCell className="text-sm" style={{ color: tokens.text.primary }}>
+                      {task.type}
+                    </TableCell>
+                    <TableCell
+                      className="text-xs font-mono"
+                      style={{ color: tokens.text.secondary }}
+                    >
+                      {task.model}
+                    </TableCell>
+                    <TableCell>
+                      <StatusBadge status={task.status} />
+                    </TableCell>
+                    <TableCell
+                      className="font-mono text-xs"
+                      style={{ color: tokens.text.secondary }}
+                    >
+                      {task.duration}
+                    </TableCell>
+                    <TableCell
+                      className="font-mono text-xs"
+                      style={{ color: tokens.text.secondary }}
+                    >
+                      {task.tokens}
+                    </TableCell>
                     <TableCell className="pr-6 text-right">
                       <div className="flex items-center justify-end gap-1">
                         {(task.status === 'running' || task.status === 'queued') && (
-                          <Button size="icon" variant="ghost" className="size-7" onClick={() => handleCancel(task.id)}>
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-7"
+                            onClick={() => handleCancel(task.id)}
+                          >
                             <X className="size-3.5 text-red-400" />
                           </Button>
                         )}
                         {task.status === 'failed' && (
-                          <Button size="icon" variant="ghost" className="size-7" onClick={() => handleRetry(task.id)}>
-                            <RotateCcw className="size-3.5" style={{ color: tokens.accent.primary }} />
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            className="size-7"
+                            onClick={() => handleRetry(task.id)}
+                          >
+                            <RotateCcw
+                              className="size-3.5"
+                              style={{ color: tokens.accent.primary }}
+                            />
                           </Button>
                         )}
                       </div>

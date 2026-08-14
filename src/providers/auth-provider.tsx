@@ -1,4 +1,4 @@
-"use client"
+'use client';
 
 /**
  * AuthProvider — WI-18.1-08
@@ -34,7 +34,9 @@ export function useSession() {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [session, setSession] = useState<{ userId: string; email: string; role: string } | null>(null);
+  const [session, setSession] = useState<{ userId: string; email: string; role: string } | null>(
+    null,
+  );
 
   const checkSession = useCallback(async () => {
     try {

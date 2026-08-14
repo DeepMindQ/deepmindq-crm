@@ -19,7 +19,7 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(
       { ready: false, error: String(error), timestamp: new Date().toISOString() },
-      { status: 503, headers: { 'Cache-Control': 'no-store, max-age=0' } }
+      { status: 503, headers: { 'Cache-Control': 'no-store, max-age=0' } },
     );
   }
 }

@@ -97,7 +97,9 @@ function wrapUpstash(upstash: any): RedisClientLike {
       // Upstash HTTP client doesn't support persistent subscriptions.
       // Pub/sub via Redis channels requires a separate subscriber connection.
       // Use redis-pubsub.ts for server-side SSE pub/sub with Upstash.
-      logger.debug('[redis-client] Upstash HTTP client does not support .on() — use redis-pubsub.ts');
+      logger.debug(
+        '[redis-client] Upstash HTTP client does not support .on() — use redis-pubsub.ts',
+      );
     },
   };
 }
@@ -193,10 +195,9 @@ export async function getRedisClient(): Promise<RedisClientLike | null> {
         logger.info('[redis-client] Connected via @upstash/redis (HTTP)');
         return _client;
       } catch (err) {
-        logger.warn(
-          '[redis-client] @upstash/redis failed, trying ioredis fallback',
-          { error: err instanceof Error ? err.message : String(err) },
-        );
+        logger.warn('[redis-client] @upstash/redis failed, trying ioredis fallback', {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
 
@@ -224,10 +225,9 @@ export async function getRedisClient(): Promise<RedisClientLike | null> {
         logger.info('[redis-client] Connected via ioredis (TCP)');
         return _client;
       } catch (err) {
-        logger.warn(
-          '[redis-client] ioredis failed, Redis unavailable',
-          { error: err instanceof Error ? err.message : String(err) },
-        );
+        logger.warn('[redis-client] ioredis failed, Redis unavailable', {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
 

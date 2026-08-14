@@ -3,12 +3,7 @@
 import { useState, useMemo } from 'react';
 import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
 import { DataTable, type Column } from '@/components/enterprise/DataTable';
-import {
-  DollarSign,
-  TrendingUp,
-  Target,
-  Percent,
-} from 'lucide-react';
+import { DollarSign, TrendingUp, Target, Percent } from 'lucide-react';
 import {
   LineChart,
   Line,
@@ -107,21 +102,32 @@ export default function RevOps() {
           const color = rate >= 35 ? '#16A34A' : rate >= 30 ? '#D97706' : '#DC2626';
           return (
             <div className="flex items-center gap-2">
-              <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: tokens.border.default }}>
-                <div className="h-full rounded-full" style={{ width: `${rate}%`, background: color }} />
+              <div
+                className="w-16 h-1.5 rounded-full overflow-hidden"
+                style={{ background: tokens.border.default }}
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${rate}%`, background: color }}
+                />
               </div>
-              <span className="text-xs font-medium" style={{ color }}>{rate}%</span>
+              <span className="text-xs font-medium" style={{ color }}>
+                {rate}%
+              </span>
             </div>
           );
         },
       },
     ],
-    []
+    [],
   );
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6" style={{ background: '#0a0e17', minHeight: '100%' }}>
+      <div
+        className="p-6 space-y-6"
+        style={{ background: 'var(--ios-bg-primary)', minHeight: '100%' }}
+      >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-24 rounded-xl animate-pulse" style={{ background: border }} />
@@ -137,11 +143,18 @@ export default function RevOps() {
   }
 
   return (
-    <div className="p-6 space-y-6" style={{ background: '#0a0e17', minHeight: '100%' }}>
+    <div
+      className="p-6 space-y-6"
+      style={{ background: 'var(--ios-bg-primary)', minHeight: '100%' }}
+    >
       {/* ── Header ── */}
       <div>
-        <h1 className="text-xl font-bold" style={{ color: textPrimary }}>Revenue Operations</h1>
-        <p className="text-sm mt-1" style={{ color: textSecondary }}>Pipeline metrics, revenue trends, and rep performance</p>
+        <h1 className="text-xl font-bold" style={{ color: textPrimary }}>
+          Revenue Operations
+        </h1>
+        <p className="text-sm mt-1" style={{ color: textSecondary }}>
+          Pipeline metrics, revenue trends, and rep performance
+        </p>
       </div>
 
       {/* ── Stats Cards ── */}
@@ -149,7 +162,12 @@ export default function RevOps() {
         {[
           { label: 'MRR', value: stats.mrr, icon: DollarSign, color: '#16A34A' },
           { label: 'ARR', value: stats.arr, icon: TrendingUp, color: tokens.accent.primary },
-          { label: 'Pipeline Coverage', value: stats.pipelineCoverage, icon: Target, color: '#7C3AED' },
+          {
+            label: 'Pipeline Coverage',
+            value: stats.pipelineCoverage,
+            icon: Target,
+            color: '#7C3AED',
+          },
           { label: 'Win Rate', value: stats.winRate, icon: Percent, color: '#D97706' },
         ].map((stat) => (
           <div
@@ -158,12 +176,19 @@ export default function RevOps() {
             style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${stat.color}15` }}>
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center"
+                style={{ background: `${stat.color}15` }}
+              >
                 <stat.icon className="w-4.5 h-4.5" style={{ color: stat.color }} />
               </div>
               <div className="min-w-0">
-                <p className="text-xs truncate" style={{ color: textMuted }}>{stat.label}</p>
-                <p className="text-lg font-bold" style={{ color: textPrimary }}>{stat.value}</p>
+                <p className="text-xs truncate" style={{ color: textMuted }}>
+                  {stat.label}
+                </p>
+                <p className="text-lg font-bold" style={{ color: textPrimary }}>
+                  {stat.value}
+                </p>
               </div>
             </div>
           </div>
@@ -173,27 +198,73 @@ export default function RevOps() {
       {/* ── Charts Row 1 ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Revenue Trend Line Chart */}
-        <div className="rounded-xl p-5" style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}>
-          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>Revenue Trend</h3>
+        <div
+          className="rounded-xl p-5"
+          style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}
+        >
+          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>
+            Revenue Trend
+          </h3>
           <ResponsiveContainer width="100%" height={260}>
             <LineChart data={REVENUE_TREND} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} />
-              <XAxis dataKey="month" tick={{ fill: chartTick, fontSize: 11 }} axisLine={{ stroke: chartGrid }} tickLine={false} />
-              <YAxis tick={{ fill: chartTick, fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}K`} />
-              <RechartsTooltip contentStyle={CustomTooltipStyle} formatter={(v: number) => [`$${(v / 1000).toFixed(0)}K`, undefined]} />
-              <Line type="monotone" dataKey="revenue" stroke={tokens.accent.primary} strokeWidth={2} dot={{ fill: tokens.accent.primary, r: 4 }} name="Revenue" />
-              <Line type="monotone" dataKey="target" stroke="#6B7280" strokeWidth={1.5} strokeDasharray="5 5" dot={false} name="Target" />
+              <XAxis
+                dataKey="month"
+                tick={{ fill: chartTick, fontSize: 11 }}
+                axisLine={{ stroke: chartGrid }}
+                tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: chartTick, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}K`}
+              />
+              <RechartsTooltip
+                contentStyle={CustomTooltipStyle}
+                formatter={(v: number) => [`$${(v / 1000).toFixed(0)}K`, undefined]}
+              />
+              <Line
+                type="monotone"
+                dataKey="revenue"
+                stroke={tokens.accent.primary}
+                strokeWidth={2}
+                dot={{ fill: tokens.accent.primary, r: 4 }}
+                name="Revenue"
+              />
+              <Line
+                type="monotone"
+                dataKey="target"
+                stroke="#6B7280"
+                strokeWidth={1.5}
+                strokeDasharray="5 5"
+                dot={false}
+                name="Target"
+              />
             </LineChart>
           </ResponsiveContainer>
         </div>
 
         {/* Deal Stage Conversion Funnel Bar Chart */}
-        <div className="rounded-xl p-5" style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}>
-          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>Deal Stage Conversion</h3>
+        <div
+          className="rounded-xl p-5"
+          style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}
+        >
+          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>
+            Deal Stage Conversion
+          </h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={DEAL_STAGE_CONVERSION} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+            <BarChart
+              data={DEAL_STAGE_CONVERSION}
+              margin={{ top: 5, right: 5, bottom: 5, left: -20 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} />
-              <XAxis dataKey="stage" tick={{ fill: chartTick, fontSize: 11 }} axisLine={{ stroke: chartGrid }} tickLine={false} />
+              <XAxis
+                dataKey="stage"
+                tick={{ fill: chartTick, fontSize: 11 }}
+                axisLine={{ stroke: chartGrid }}
+                tickLine={false}
+              />
               <YAxis tick={{ fill: chartTick, fontSize: 11 }} axisLine={false} tickLine={false} />
               <RechartsTooltip contentStyle={CustomTooltipStyle} />
               <Bar dataKey="count" fill="#7C3AED" radius={[4, 4, 0, 0]} name="Deals" />
@@ -205,14 +276,39 @@ export default function RevOps() {
       {/* ── Charts Row 2: Rep Performance + Top Performers Table ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Rep Performance Horizontal Bar Chart */}
-        <div className="rounded-xl p-5" style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}>
-          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>Rep Performance</h3>
+        <div
+          className="rounded-xl p-5"
+          style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}
+        >
+          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>
+            Rep Performance
+          </h3>
           <ResponsiveContainer width="100%" height={280}>
-            <BarChart data={REP_PERFORMANCE} layout="vertical" margin={{ top: 5, right: 20, bottom: 5, left: 5 }}>
+            <BarChart
+              data={REP_PERFORMANCE}
+              layout="vertical"
+              margin={{ top: 5, right: 20, bottom: 5, left: 5 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} horizontal={false} />
-              <XAxis type="number" tick={{ fill: chartTick, fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}K`} />
-              <YAxis type="category" dataKey="name" tick={{ fill: chartTick, fontSize: 11 }} axisLine={false} tickLine={false} width={90} />
-              <RechartsTooltip contentStyle={CustomTooltipStyle} formatter={(v: number) => [`$${v.toLocaleString()}`, 'Revenue']} />
+              <XAxis
+                type="number"
+                tick={{ fill: chartTick, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(v: number) => `$${(v / 1000).toFixed(0)}K`}
+              />
+              <YAxis
+                type="category"
+                dataKey="name"
+                tick={{ fill: chartTick, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                width={90}
+              />
+              <RechartsTooltip
+                contentStyle={CustomTooltipStyle}
+                formatter={(v: number) => [`$${v.toLocaleString()}`, 'Revenue']}
+              />
               <Bar dataKey="amount" fill="#059669" radius={[0, 4, 4, 0]} name="Revenue" />
             </BarChart>
           </ResponsiveContainer>

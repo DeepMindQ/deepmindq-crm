@@ -12,7 +12,7 @@ export async function parseCSV(csvText: string): Promise<ParsedRow[]> {
   // Remove BOM if present
   const cleanText = csvText.replace(/^\uFEFF/, '');
 
-  const lines = cleanText.split(/\r?\n/).filter(line => line.trim().length > 0);
+  const lines = cleanText.split(/\r?\n/).filter((line) => line.trim().length > 0);
   if (lines.length < 2) return [];
 
   // Parse header row
@@ -95,7 +95,9 @@ export async function parseExcelRow(buffer: ArrayBuffer | Buffer): Promise<Parse
   const headers: string[] = [];
 
   headerRow.eachCell((cell, colNumber) => {
-    headers[colNumber] = String(cell.value || '').trim().toLowerCase();
+    headers[colNumber] = String(cell.value || '')
+      .trim()
+      .toLowerCase();
   });
 
   for (let rowNumber = 2; rowNumber <= sheet.rowCount; rowNumber++) {

@@ -54,7 +54,15 @@ export interface NewsSignal {
   source: string;
   url: string;
   date?: string;
-  signalType: 'funding' | 'hiring' | 'leadership' | 'expansion' | 'technology' | 'product' | 'partnership' | 'other';
+  signalType:
+    | 'funding'
+    | 'hiring'
+    | 'leadership'
+    | 'expansion'
+    | 'technology'
+    | 'product'
+    | 'partnership'
+    | 'other';
   impact: 'high' | 'medium' | 'low';
 }
 
@@ -158,7 +166,10 @@ export async function callAI(options: CallAIOptions): Promise<CallAIResult> {
       // Parse JSON if possible
       let parsed: Record<string, unknown> | null = null;
       try {
-        const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+        const cleaned = raw
+          .replace(/```json\s*/gi, '')
+          .replace(/```\s*/g, '')
+          .trim();
         const jsonMatch = cleaned.match(/\{[\s\S]*\}/);
         if (jsonMatch) {
           parsed = JSON.parse(jsonMatch[0]);
@@ -173,7 +184,9 @@ export async function callAI(options: CallAIOptions): Promise<CallAIResult> {
         quality = await runQualityGates(JSON.stringify(parsed), '');
         logger.info(formatQualityReportForLog(quality));
         if (!quality.passed) {
-          logger.warn(`[llm-client] Quality gate FAILED for feature="${feature}". Score: ${quality.score}`);
+          logger.warn(
+            `[llm-client] Quality gate FAILED for feature="${feature}". Score: ${quality.score}`,
+          );
         }
       }
 
@@ -183,7 +196,9 @@ export async function callAI(options: CallAIOptions): Promise<CallAIResult> {
       return { raw, parsed, quality, success: true, latencyMs };
     } catch (err) {
       lastError = err instanceof Error ? err.message : String(err);
-      logger.error(`[llm-client] callAI attempt ${attempt + 1}/${maxRetries + 1} failed for feature="${feature}": ${lastError}`);
+      logger.error(
+        `[llm-client] callAI attempt ${attempt + 1}/${maxRetries + 1} failed for feature="${feature}": ${lastError}`,
+      );
 
       if (attempt < maxRetries) {
         const backoffMs = Math.min(1000 * Math.pow(2, attempt), 5000);
@@ -209,7 +224,12 @@ export interface TokenUsage {
 
 // ─── callLLM — Direct provider chain (from zai-helpers.ts) ───────────────
 
-const GEMINI_FALLBACK_MODELS = ['gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash', 'gemini-pro'];
+const GEMINI_FALLBACK_MODELS = [
+  'gemini-2.0-flash',
+  'gemini-1.5-pro',
+  'gemini-1.5-flash',
+  'gemini-pro',
+];
 
 interface LLMProviderResult {
   text: string;
@@ -306,7 +326,14 @@ export async function callLLMWithUsage(
         if (provider.label.includes('Gemini')) {
           for (const model of GEMINI_FALLBACK_MODELS) {
             try {
-              const result = await callLLMProvider(provider.baseUrl, provider.apiKey, model, messages, temperature, maxTokens);
+              const result = await callLLMProvider(
+                provider.baseUrl,
+                provider.apiKey,
+                model,
+                messages,
+                temperature,
+                maxTokens,
+              );
               if (result.text) return result;
             } catch (err) {
               errors.push(`Gemini/${model}: ${err instanceof Error ? err.message : String(err)}`);
@@ -314,7 +341,14 @@ export async function callLLMWithUsage(
           }
           continue;
         }
-        const result = await callLLMProvider(provider.baseUrl, provider.apiKey, provider.model, messages, temperature, maxTokens);
+        const result = await callLLMProvider(
+          provider.baseUrl,
+          provider.apiKey,
+          provider.model,
+          messages,
+          temperature,
+          maxTokens,
+        );
         return result;
       } catch (err) {
         errors.push(`${provider.label}: ${err instanceof Error ? err.message : String(err)}`);
@@ -328,12 +362,15 @@ export async function callLLMWithUsage(
     const text = await callZaiSDK(systemPrompt, userPrompt, temperature, maxTokens);
     if (text) return { text, usage: null };
   } catch (zaiErr) {
-    logger.warn('[llm-client] Z.ai SDK fallback also failed:', { error: zaiErr instanceof Error ? zaiErr.message : String(zaiErr) });
+    logger.warn('[llm-client] Z.ai SDK fallback also failed:', {
+      error: zaiErr instanceof Error ? zaiErr.message : String(zaiErr),
+    });
   }
 
-  const msg = errors.length > 0
-    ? `All LLM providers failed:\n${errors.map((e) => '  - ' + e).join('\n')}\nZ.ai SDK fallback also failed.`
-    : 'No LLM providers configured. Add API keys in Settings > AI Providers.';
+  const msg =
+    errors.length > 0
+      ? `All LLM providers failed:\n${errors.map((e) => '  - ' + e).join('\n')}\nZ.ai SDK fallback also failed.`
+      : 'No LLM providers configured. Add API keys in Settings > AI Providers.';
   throw new Error(msg);
 }
 
@@ -397,7 +434,12 @@ export async function revenueLLMCall(systemPrompt: string, userPrompt: string): 
             }
             continue;
           }
-          return await callProviderForRevenue(provider.baseUrl, provider.apiKey, provider.model, messages);
+          return await callProviderForRevenue(
+            provider.baseUrl,
+            provider.apiKey,
+            provider.model,
+            messages,
+          );
         } catch {
           continue;
         }
@@ -467,7 +509,9 @@ async function tavilyFetchWithBackoff(body: Record<string, unknown>): Promise<Re
 
       if (response.status === 429 || response.status >= 500) {
         const delay = TAVILY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 200;
-        logger.warn(`[tavily] ${response.status} on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}, retrying in ${Math.round(delay)}ms`);
+        logger.warn(
+          `[tavily] ${response.status} on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}, retrying in ${Math.round(delay)}ms`,
+        );
         await new Promise((resolve) => setTimeout(resolve, delay));
         continue;
       }
@@ -476,7 +520,9 @@ async function tavilyFetchWithBackoff(body: Record<string, unknown>): Promise<Re
     } catch (err) {
       lastError = err instanceof Error ? err : new Error(String(err));
       const delay = TAVILY_BASE_DELAY_MS * Math.pow(2, attempt) + Math.random() * 200;
-      logger.warn(`[tavily] network error on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}: ${lastError.message}, retrying in ${Math.round(delay)}ms`);
+      logger.warn(
+        `[tavily] network error on attempt ${attempt + 1}/${TAVILY_MAX_RETRIES}: ${lastError.message}, retrying in ${Math.round(delay)}ms`,
+      );
       await new Promise((resolve) => setTimeout(resolve, delay));
     }
   }
@@ -491,12 +537,13 @@ interface SearchProviderConfig {
 
 export async function webSearch(query: string, num = 10): Promise<WebSearchResult[]> {
   const provider = (await getSearchProvider()) as SearchProviderConfig | string | null;
-  const searchProvider = typeof provider === 'object' && provider !== null && 'apiKey' in provider
-    ? provider
-    : null;
+  const searchProvider =
+    typeof provider === 'object' && provider !== null && 'apiKey' in provider ? provider : null;
 
   if (!searchProvider || !searchProvider.apiKey) {
-    logger.error('[webSearch] No search provider configured. Add Tavily API key in Settings > AI Providers.');
+    logger.error(
+      '[webSearch] No search provider configured. Add Tavily API key in Settings > AI Providers.',
+    );
     return [];
   }
 
@@ -583,7 +630,10 @@ export async function sdkWebSearch(query: string, num = 5): Promise<WebSearchRes
 /**
  * Run multiple web searches in parallel via Z.ai SDK and deduplicate by URL.
  */
-export async function parallelWebSearch(queries: string[], numPerQuery = 5): Promise<WebSearchResult[]> {
+export async function parallelWebSearch(
+  queries: string[],
+  numPerQuery = 5,
+): Promise<WebSearchResult[]> {
   const batches = await Promise.all(queries.map((q) => sdkWebSearch(q, numPerQuery)));
   const seen = new Set<string>();
   const results: WebSearchResult[] = [];
@@ -604,9 +654,8 @@ export async function parallelWebSearch(queries: string[], numPerQuery = 5): Pro
 
 export async function tavilyAIAnswer(query: string): Promise<string> {
   const provider = (await getSearchProvider()) as SearchProviderConfig | string | null;
-  const searchProvider = typeof provider === 'object' && provider !== null && 'apiKey' in provider
-    ? provider
-    : null;
+  const searchProvider =
+    typeof provider === 'object' && provider !== null && 'apiKey' in provider ? provider : null;
   if (!searchProvider || !searchProvider.apiKey) return '';
 
   try {
@@ -631,7 +680,10 @@ export async function tavilyAIAnswer(query: string): Promise<string> {
 // ─── JSON Extraction (from zai-helpers.ts) ──────────────────────────────────
 
 export function extractJSON(raw: string): unknown {
-  const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim();
+  const cleaned = raw
+    .replace(/```json\s*/gi, '')
+    .replace(/```\s*/g, '')
+    .trim();
 
   try {
     return JSON.parse(cleaned);
@@ -662,7 +714,9 @@ export function extractJSON(raw: string): unknown {
 
 // ─── Email Verification (from zai-helpers.ts) ──────────────────────────────
 
-export async function verifyEmailBasic(email: string): Promise<{ valid: boolean; reason: string; score: number }> {
+export async function verifyEmailBasic(
+  email: string,
+): Promise<{ valid: boolean; reason: string; score: number }> {
   if (!email || !email.includes('@')) {
     return { valid: false, reason: 'Invalid email format', score: 0 };
   }
@@ -674,12 +728,26 @@ export async function verifyEmailBasic(email: string): Promise<{ valid: boolean;
 
   const domain = email.split('@')[1]!.toLowerCase();
 
-  const disposableDomains = ['guerrillamail.com', 'mailinator.com', 'throwaway.email', 'yopmail.com', 'tempmail.com'];
+  const disposableDomains = [
+    'guerrillamail.com',
+    'mailinator.com',
+    'throwaway.email',
+    'yopmail.com',
+    'tempmail.com',
+  ];
   if (disposableDomains.some((d) => domain.includes(d))) {
     return { valid: false, reason: 'Disposable email provider', score: 5 };
   }
 
-  const freeProviders = ['gmail.com', 'yahoo.com', 'hotmail.com', 'outlook.com', 'aol.com', 'icloud.com', 'protonmail.com'];
+  const freeProviders = [
+    'gmail.com',
+    'yahoo.com',
+    'hotmail.com',
+    'outlook.com',
+    'aol.com',
+    'icloud.com',
+    'protonmail.com',
+  ];
   const isFree = freeProviders.includes(domain);
 
   try {

@@ -29,13 +29,7 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import {
-  DollarSign,
-  TrendingUp,
-  ArrowUpRight,
-  ArrowDownRight,
-  BarChart3,
-} from 'lucide-react';
+import { DollarSign, TrendingUp, ArrowUpRight, ArrowDownRight, BarChart3 } from 'lucide-react';
 
 function formatCurrency(value: number) {
   if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
@@ -109,7 +103,9 @@ export default function RevenueIntelligence() {
     <div className="flex flex-col gap-6 p-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>Revenue Intelligence</h1>
+        <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+          Revenue Intelligence
+        </h1>
         <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
           Revenue metrics, trends, and account-level performance analysis
         </p>
@@ -118,22 +114,70 @@ export default function RevenueIntelligence() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'ARR', value: formatCurrency(currentARR), change: '+8.1%', up: true, icon: DollarSign, color: tokens.accent.primary, bg: tokens.accent.subtle },
-          { label: 'MRR', value: formatCurrency(currentMRR), change: '+5.3%', up: true, icon: BarChart3, color: tokens.domain.value, bg: tokens.domain.bg },
-          { label: 'Growth Rate (YoY)', value: `${growthRate}%`, change: '+4.2pp', up: true, icon: TrendingUp, color: tokens.confidence.high.value, bg: tokens.confidence.high.bg },
-          { label: 'Net Revenue Retention', value: `${nrr}%`, change: '+3pp', up: true, icon: ArrowUpRight, color: tokens.gold.dark, bg: tokens.gold.bgMedium },
+          {
+            label: 'ARR',
+            value: formatCurrency(currentARR),
+            change: '+8.1%',
+            up: true,
+            icon: DollarSign,
+            color: tokens.accent.primary,
+            bg: tokens.accent.subtle,
+          },
+          {
+            label: 'MRR',
+            value: formatCurrency(currentMRR),
+            change: '+5.3%',
+            up: true,
+            icon: BarChart3,
+            color: tokens.domain.value,
+            bg: tokens.domain.bg,
+          },
+          {
+            label: 'Growth Rate (YoY)',
+            value: `${growthRate}%`,
+            change: '+4.2pp',
+            up: true,
+            icon: TrendingUp,
+            color: tokens.confidence.high.value,
+            bg: tokens.confidence.high.bg,
+          },
+          {
+            label: 'Net Revenue Retention',
+            value: `${nrr}%`,
+            change: '+3pp',
+            up: true,
+            icon: ArrowUpRight,
+            color: tokens.gold.dark,
+            bg: tokens.gold.bgMedium,
+          },
         ].map((stat) => (
           <Card key={stat.label} className="gap-4 py-4">
             <CardContent className="flex items-center gap-4">
-              <div className="size-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: stat.bg }}>
+              <div
+                className="size-10 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: stat.bg }}
+              >
                 <stat.icon className="size-5" style={{ color: stat.color }} />
               </div>
               <div>
-                <p className="text-xs font-medium" style={{ color: tokens.text.secondary }}>{stat.label}</p>
+                <p className="text-xs font-medium" style={{ color: tokens.text.secondary }}>
+                  {stat.label}
+                </p>
                 <div className="flex items-center gap-2">
-                  <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>{stat.value}</p>
-                  <span className="text-xs font-medium flex items-center gap-0.5" style={{ color: stat.up ? tokens.confidence.high.value : tokens.confidence.low.value }}>
-                    {stat.up ? <ArrowUpRight className="size-3" /> : <ArrowDownRight className="size-3" />}
+                  <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+                    {stat.value}
+                  </p>
+                  <span
+                    className="text-xs font-medium flex items-center gap-0.5"
+                    style={{
+                      color: stat.up ? tokens.confidence.high.value : tokens.confidence.low.value,
+                    }}
+                  >
+                    {stat.up ? (
+                      <ArrowUpRight className="size-3" />
+                    ) : (
+                      <ArrowDownRight className="size-3" />
+                    )}
                     {stat.change}
                   </span>
                 </div>
@@ -153,11 +197,26 @@ export default function RevenueIntelligence() {
             <LineChart data={REVENUE_TREND}>
               <CartesianGrid strokeDasharray="3 3" stroke={tokens.border.default} />
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: tokens.text.secondary }} />
-              <YAxis tickFormatter={(v) => formatCurrency(v)} tick={{ fontSize: 12, fill: tokens.text.secondary }} />
+              <YAxis
+                tickFormatter={(v) => formatCurrency(v)}
+                tick={{ fontSize: 12, fill: tokens.text.secondary }}
+              />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
-              <Line type="monotone" dataKey="arr" stroke={tokens.accent.primary} strokeWidth={2} dot={{ r: 4, fill: tokens.accent.primary }} />
-              <Line type="monotone" dataKey="mrr" stroke={tokens.domain.value} strokeWidth={2} dot={{ r: 3, fill: tokens.domain.value }} />
+              <Line
+                type="monotone"
+                dataKey="arr"
+                stroke={tokens.accent.primary}
+                strokeWidth={2}
+                dot={{ r: 4, fill: tokens.accent.primary }}
+              />
+              <Line
+                type="monotone"
+                dataKey="mrr"
+                stroke={tokens.domain.value}
+                strokeWidth={2}
+                dot={{ r: 3, fill: tokens.domain.value }}
+              />
             </LineChart>
           </ChartContainer>
         </CardContent>
@@ -202,11 +261,22 @@ export default function RevenueIntelligence() {
               <BarChart data={EXPANSION_CONTRACTION}>
                 <CartesianGrid strokeDasharray="3 3" stroke={tokens.border.default} />
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: tokens.text.secondary }} />
-                <YAxis tickFormatter={(v) => formatCurrency(v)} tick={{ fontSize: 12, fill: tokens.text.secondary }} />
+                <YAxis
+                  tickFormatter={(v) => formatCurrency(v)}
+                  tick={{ fontSize: 12, fill: tokens.text.secondary }}
+                />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <ChartLegend content={<ChartLegendContent />} />
-                <Bar dataKey="expansion" fill={tokens.confidence.high.value} radius={[3, 3, 0, 0]} />
-                <Bar dataKey="contraction" fill={tokens.confidence.low.value} radius={[3, 3, 0, 0]} />
+                <Bar
+                  dataKey="expansion"
+                  fill={tokens.confidence.high.value}
+                  radius={[3, 3, 0, 0]}
+                />
+                <Bar
+                  dataKey="contraction"
+                  fill={tokens.confidence.low.value}
+                  radius={[3, 3, 0, 0]}
+                />
               </BarChart>
             </ChartContainer>
           </CardContent>
@@ -231,14 +301,41 @@ export default function RevenueIntelligence() {
             <TableBody>
               {TOP_ACCOUNTS.map((account) => (
                 <TableRow key={account.name} className="hover:bg-muted/50 transition-colors">
-                  <TableCell className="font-medium" style={{ color: tokens.text.primary }}>{account.name}</TableCell>
-                  <TableCell>
-                    <span className="text-xs px-2 py-0.5 rounded" style={{ backgroundColor: tokens.surface.secondary, color: tokens.text.secondary }}>{account.segment}</span>
+                  <TableCell className="font-medium" style={{ color: tokens.text.primary }}>
+                    {account.name}
                   </TableCell>
-                  <TableCell className="text-right font-mono font-medium" style={{ color: tokens.text.primary }}>{formatCurrency(account.arr)}</TableCell>
+                  <TableCell>
+                    <span
+                      className="text-xs px-2 py-0.5 rounded"
+                      style={{
+                        backgroundColor: tokens.surface.secondary,
+                        color: tokens.text.secondary,
+                      }}
+                    >
+                      {account.segment}
+                    </span>
+                  </TableCell>
+                  <TableCell
+                    className="text-right font-mono font-medium"
+                    style={{ color: tokens.text.primary }}
+                  >
+                    {formatCurrency(account.arr)}
+                  </TableCell>
                   <TableCell className="text-right">
-                    <span className="text-sm font-medium flex items-center justify-end gap-1" style={{ color: account.growth >= 0 ? tokens.confidence.high.value : tokens.confidence.low.value }}>
-                      {account.growth >= 0 ? <ArrowUpRight className="size-3.5" /> : <ArrowDownRight className="size-3.5" />}
+                    <span
+                      className="text-sm font-medium flex items-center justify-end gap-1"
+                      style={{
+                        color:
+                          account.growth >= 0
+                            ? tokens.confidence.high.value
+                            : tokens.confidence.low.value,
+                      }}
+                    >
+                      {account.growth >= 0 ? (
+                        <ArrowUpRight className="size-3.5" />
+                      ) : (
+                        <ArrowDownRight className="size-3.5" />
+                      )}
                       {Math.abs(account.growth)}%
                     </span>
                   </TableCell>

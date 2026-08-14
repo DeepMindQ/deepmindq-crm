@@ -16,17 +16,17 @@ import { logger } from '@/lib/logger';
 // ── Audit Event Types ──────────────────────────────────────
 
 export type AuditCategory =
-  | 'auth'           // Login, logout, OTP, session
-  | 'authorization'  // Access denied, RBAC failures
-  | 'csrf'           // CSRF validation failures
-  | 'rate_limit'     // Rate limit exceeded
-  | 'admin'          // Admin actions (seed, config changes)
-  | 'data_export'    // Data downloads, CSV/Excel exports
-  | 'data_import'    // Bulk data imports
-  | 'data_delete'    // Bulk deletions, purges
-  | 'config_change'  // Settings updates, ICP changes
-  | 'webhook'        // Incoming webhook processing
-  | 'security'       // Other security events
+  | 'auth' // Login, logout, OTP, session
+  | 'authorization' // Access denied, RBAC failures
+  | 'csrf' // CSRF validation failures
+  | 'rate_limit' // Rate limit exceeded
+  | 'admin' // Admin actions (seed, config changes)
+  | 'data_export' // Data downloads, CSV/Excel exports
+  | 'data_import' // Bulk data imports
+  | 'data_delete' // Bulk deletions, purges
+  | 'config_change' // Settings updates, ICP changes
+  | 'webhook' // Incoming webhook processing
+  | 'security'; // Other security events
 
 export type AuditSeverity = 'info' | 'warn' | 'critical';
 
@@ -34,7 +34,7 @@ export interface AuditEvent {
   action: string;
   category: AuditCategory;
   severity: AuditSeverity;
-  actor?: string;           // userId or email if available
+  actor?: string; // userId or email if available
   ip?: string;
   path?: string;
   method?: string;
@@ -161,7 +161,11 @@ export function auditDataDelete(action: string, actor: string, details?: Record<
 }
 
 /** Log a security-critical event (e.g. suspicious activity pattern) */
-export function auditSecurityCritical(action: string, ip: string, details?: Record<string, unknown>) {
+export function auditSecurityCritical(
+  action: string,
+  ip: string,
+  details?: Record<string, unknown>,
+) {
   return audit({
     action,
     category: 'security',

@@ -7,15 +7,17 @@ import { logger } from '@/lib/logger';
 import { generalApiRateLimit } from '@/lib/auth-helpers';
 import { encryptUserFields } from '@/lib/encryption';
 
-const schema = z.object({
-  name: z.string().min(1, 'Name is required').max(100),
-  email: z.string().email('Invalid email address'),
-  password: z.string().min(8, 'Password must be at least 8 characters'),
-  confirmPassword: z.string().min(1, 'Please confirm your password'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: 'Passwords do not match',
-  path: ['confirmPassword'],
-});
+const schema = z
+  .object({
+    name: z.string().min(1, 'Name is required').max(100),
+    email: z.string().email('Invalid email address'),
+    password: z.string().min(8, 'Password must be at least 8 characters'),
+    confirmPassword: z.string().min(1, 'Please confirm your password'),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
 
 /**
  * POST /api/auth/register
@@ -30,7 +32,12 @@ export async function POST(request: NextRequest) {
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: 'Too many registration attempts. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)) } }
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)),
+          },
+        },
       );
     }
 
@@ -50,13 +57,13 @@ export async function POST(request: NextRequest) {
     if (!AUTHORIZED_EMAIL) {
       return NextResponse.json(
         { error: 'Registration is not configured. AUTHORIZED_EMAIL must be set.' },
-        { status: 503 }
+        { status: 503 },
       );
     }
     if (normalizedEmail !== AUTHORIZED_EMAIL) {
       return NextResponse.json(
         { error: 'Registration is restricted to authorized personnel only.' },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -65,7 +72,7 @@ export async function POST(request: NextRequest) {
     if (existing) {
       return NextResponse.json(
         { error: 'An account with this email already exists' },
-        { status: 409 }
+        { status: 409 },
       );
     }
 
@@ -89,7 +96,8 @@ export async function POST(request: NextRequest) {
     const otpResult = await requestOtp(normalizedEmail, 'login');
 
     // Milestone 1 H-05: Dev OTP only in development, never staging
-    const devOtpAllowed = process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_OTP === 'true';
+    const devOtpAllowed =
+      process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_OTP === 'true';
     return NextResponse.json({
       success: true,
       data: {
@@ -97,16 +105,14 @@ export async function POST(request: NextRequest) {
         name: user.name,
         email: user.email,
       },
-      message: devOtpAllowed && otpResult.devCode
-        ? 'Account created. OTP generated (dev mode).'
-        : 'Account created. Please verify your email with the OTP sent.',
+      message:
+        devOtpAllowed && otpResult.devCode
+          ? 'Account created. OTP generated (dev mode).'
+          : 'Account created. Please verify your email with the OTP sent.',
       ...(devOtpAllowed && otpResult.devCode ? { devCode: otpResult.devCode } : {}),
     });
   } catch (error) {
     logger.error('[auth/register] Error:', { error: error });
-    return NextResponse.json(
-      { error: 'Internal server error' },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
   }
 }

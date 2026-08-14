@@ -1,18 +1,14 @@
-'use client'
+'use client';
 
-import { Bell, CheckCheck } from 'lucide-react'
-import { useNotificationStore } from './notification-store'
-import { Button } from '@/components/ui/button'
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from '@/components/ui/popover'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { NotificationList } from './notification-list'
+import { Bell, CheckCheck } from 'lucide-react';
+import { useNotificationStore } from './notification-store';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { NotificationList } from './notification-list';
 
 export function NotificationBell() {
-  const { unreadCount, notifications, markAllAsRead, isOpen, setOpen } = useNotificationStore()
+  const { unreadCount, notifications, markAllAsRead, isOpen, setOpen } = useNotificationStore();
 
   return (
     <Popover open={isOpen} onOpenChange={setOpen}>
@@ -35,12 +31,7 @@ export function NotificationBell() {
         <div className="flex items-center justify-between px-4 py-3 border-b border-border">
           <h3 className="text-sm font-semibold">Notifications</h3>
           {unreadCount > 0 && (
-            <Button
-              variant="ghost"
-              size="sm"
-              className="text-xs h-7"
-              onClick={markAllAsRead}
-            >
+            <Button variant="ghost" size="sm" className="text-xs h-7" onClick={markAllAsRead}>
               <CheckCheck className="h-3.5 w-3.5 mr-1" />
               Mark all read
             </Button>
@@ -58,5 +49,5 @@ export function NotificationBell() {
         </ScrollArea>
       </PopoverContent>
     </Popover>
-  )
+  );
 }

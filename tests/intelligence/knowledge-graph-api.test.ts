@@ -159,7 +159,7 @@ describe('resolveEntity', () => {
     const matches = await resolveEntity({ name: 'Acme Corp', fuzzy: true });
     expect(matches.length).toBeGreaterThanOrEqual(1);
     // Should match Acme Corp exactly → score 95
-    const orgMatch = matches.find(m => m.nodeId === 'org-1');
+    const orgMatch = matches.find((m) => m.nodeId === 'org-1');
     expect(orgMatch).toBeDefined();
     expect(orgMatch!.score).toBe(95);
   });
@@ -182,7 +182,7 @@ describe('resolveEntity', () => {
 
     const matches = await resolveEntity({ domain: 'acme.com', name: 'Acme Corp' });
     // Should only appear once (deduped)
-    const orgMatches = matches.filter(m => m.nodeId === 'org-1');
+    const orgMatches = matches.filter((m) => m.nodeId === 'org-1');
     expect(orgMatches).toHaveLength(1);
     expect(orgMatches[0].score).toBe(100); // domain match is highest
   });
@@ -252,7 +252,7 @@ describe('getSubgraph', () => {
 
     const subgraph = await getSubgraph('org-1', 1);
     expect(subgraph.nodes.length).toBeGreaterThanOrEqual(2); // org + person
-    const nodeIds = subgraph.nodes.map(n => n.id);
+    const nodeIds = subgraph.nodes.map((n) => n.id);
     expect(nodeIds).toContain('org-1');
     expect(nodeIds).toContain('person-1');
   });
@@ -260,21 +260,26 @@ describe('getSubgraph', () => {
   it('expands org-to-org relationships at depth >= 1', async () => {
     const peerOrg = { ...mockOrg, id: 'org-2', name: 'Beta Inc' };
     vi.mocked(db.organization.findUnique)
-      .mockResolvedValueOnce(mockOrg as any)  // center lookup
+      .mockResolvedValueOnce(mockOrg as any) // center lookup
       .mockResolvedValueOnce(peerOrg as any); // peer lookup
     vi.mocked(db.person.findUnique).mockResolvedValue(null);
     vi.mocked(db.person.findMany).mockResolvedValue([]);
     vi.mocked(db.relationship.findMany).mockResolvedValue([mockRelationship as any]);
 
     const subgraph = await getSubgraph('org-1', 2);
-    const nodeIds = subgraph.nodes.map(n => n.id);
+    const nodeIds = subgraph.nodes.map((n) => n.id);
     expect(nodeIds).toContain('org-2');
   });
 
   it('respects depth limits', async () => {
     const peerOrg = { ...mockOrg, id: 'org-2', name: 'Beta Inc' };
     const thirdOrg = { ...mockOrg, id: 'org-3', name: 'Gamma Ltd' };
-    const relToThird = { ...mockRelationship, id: 'rel-2', sourceOrgId: 'org-2', targetOrgId: 'org-3' };
+    const relToThird = {
+      ...mockRelationship,
+      id: 'rel-2',
+      sourceOrgId: 'org-2',
+      targetOrgId: 'org-3',
+    };
 
     let orgLookupCount = 0;
     vi.mocked(db.organization.findUnique).mockImplementation(async (args: any) => {
@@ -288,8 +293,8 @@ describe('getSubgraph', () => {
     vi.mocked(db.person.findUnique).mockResolvedValue(null);
     vi.mocked(db.person.findMany).mockResolvedValue([]);
     vi.mocked(db.relationship.findMany)
-      .mockResolvedValueOnce([mockRelationship])  // org-1's rels
-      .mockResolvedValueOnce([]);                // org-2's rels at depth 1
+      .mockResolvedValueOnce([mockRelationship]) // org-1's rels
+      .mockResolvedValueOnce([]); // org-2's rels at depth 1
 
     // At depth 1, we should NOT traverse to org-3
     await getSubgraph('org-1', 1);
@@ -313,8 +318,8 @@ describe('mergeOrganizations', () => {
 
   it('throws when source org does not exist', async () => {
     vi.mocked(db.organization.findUnique)
-      .mockResolvedValueOnce(mockOrg as any)   // target exists
-      .mockResolvedValueOnce(null);            // source doesn't
+      .mockResolvedValueOnce(mockOrg as any) // target exists
+      .mockResolvedValueOnce(null); // source doesn't
 
     await expect(mergeOrganizations('org-1', 'org-missing')).rejects.toThrow(
       'Both organizations must exist for merge',
@@ -323,8 +328,8 @@ describe('mergeOrganizations', () => {
 
   it('throws when target org does not exist', async () => {
     vi.mocked(db.organization.findUnique)
-      .mockResolvedValueOnce(null)             // target doesn't exist
-      .mockResolvedValueOnce(mockOrg as any);  // source exists
+      .mockResolvedValueOnce(null) // target doesn't exist
+      .mockResolvedValueOnce(mockOrg as any); // source exists
 
     await expect(mergeOrganizations('org-missing', 'org-1')).rejects.toThrow(
       'Both organizations must exist for merge',
@@ -334,7 +339,7 @@ describe('mergeOrganizations', () => {
   it('moves people from source to target', async () => {
     const sourceOrg = { ...mockOrg, id: 'org-2', name: 'Duplicate Corp' };
     vi.mocked(db.organization.findUnique)
-      .mockResolvedValueOnce(mockOrg as any)    // target
+      .mockResolvedValueOnce(mockOrg as any) // target
       .mockResolvedValueOnce(sourceOrg as any); // source
     vi.mocked(db.person.updateMany).mockResolvedValue({ count: 3 });
     vi.mocked(db.signal.updateMany).mockResolvedValue({ count: 5 });
@@ -453,10 +458,10 @@ describe('getConnections', () => {
   it('finds connected organizations via source relationships', async () => {
     const targetOrg = { ...mockOrg, id: 'org-2', name: 'Beta Inc' };
     vi.mocked(db.relationship.findMany)
-      .mockResolvedValueOnce([mockRelationship as any])  // asSource
-      .mockResolvedValueOnce([]);                        // asTarget
-    vi.mocked(db.organization.findUnique).mockResolvedValue(targetOrg as any);
-    vi.mocked(db.person.findUnique).mockResolvedValue(null);
+      .mockResolvedValueOnce([mockRelationship as any]) // asSource
+      .mockResolvedValueOnce([]); // asTarget
+    vi.mocked(db.organization.findMany).mockResolvedValue([targetOrg as any]);
+    vi.mocked(db.person.findMany).mockResolvedValue([]);
 
     const result = await getConnections('org-1');
     expect(result.organizations).toHaveLength(1);
@@ -474,10 +479,10 @@ describe('getConnections', () => {
       sourceOrgId: null,
     };
     vi.mocked(db.relationship.findMany)
-      .mockResolvedValueOnce([])               // asSource
+      .mockResolvedValueOnce([]) // asSource
       .mockResolvedValueOnce([personRel as any]); // asTarget
-    vi.mocked(db.organization.findUnique).mockResolvedValue(null);
-    vi.mocked(db.person.findUnique).mockResolvedValue(mockPerson as any);
+    vi.mocked(db.organization.findMany).mockResolvedValue([]);
+    vi.mocked(db.person.findMany).mockResolvedValue([mockPerson as any]);
 
     const result = await getConnections('org-1');
     expect(result.people).toHaveLength(1);
@@ -505,12 +510,10 @@ describe('getConnections', () => {
     const org3 = { ...mockOrg, id: 'org-3', name: 'Gamma' };
 
     vi.mocked(db.relationship.findMany)
-      .mockResolvedValueOnce([rel1 as any])  // asSource
+      .mockResolvedValueOnce([rel1 as any]) // asSource
       .mockResolvedValueOnce([rel2 as any]); // asTarget
-    vi.mocked(db.organization.findUnique)
-      .mockResolvedValueOnce(org2 as any)
-      .mockResolvedValueOnce(org3 as any);
-    vi.mocked(db.person.findUnique).mockResolvedValue(null);
+    vi.mocked(db.organization.findMany).mockResolvedValue([org2, org3] as any[]);
+    vi.mocked(db.person.findMany).mockResolvedValue([]);
 
     const result = await getConnections('org-1');
     expect(result.organizations).toHaveLength(2);
@@ -553,9 +556,7 @@ describe('getGraphStats', () => {
     vi.mocked(db.relationship.count).mockResolvedValue(20);
     vi.mocked(db.relationship.groupBy).mockResolvedValue([]);
     vi.mocked(db.relationship.findMany)
-      .mockResolvedValueOnce(
-        Array.from({ length: 5 }, (_, i) => ({ sourceOrgId: `org-${i}` })),
-      )
+      .mockResolvedValueOnce(Array.from({ length: 5 }, (_, i) => ({ sourceOrgId: `org-${i}` })))
       .mockResolvedValueOnce(
         Array.from({ length: 5 }, (_, i) => ({ sourcePersonId: `person-${i}` })),
       );
@@ -587,9 +588,7 @@ describe('getGraphStats', () => {
     vi.mocked(db.relationship.groupBy).mockResolvedValue([]);
     // 5 connected orgs, 3 connected people = 8 connected nodes
     vi.mocked(db.relationship.findMany)
-      .mockResolvedValueOnce(
-        Array.from({ length: 5 }, (_, i) => ({ sourceOrgId: `org-${i}` })),
-      )
+      .mockResolvedValueOnce(Array.from({ length: 5 }, (_, i) => ({ sourceOrgId: `org-${i}` })))
       .mockResolvedValueOnce(
         Array.from({ length: 3 }, (_, i) => ({ sourcePersonId: `person-${i}` })),
       );

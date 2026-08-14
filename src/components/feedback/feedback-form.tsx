@@ -1,6 +1,6 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
+import { useState } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -9,32 +9,33 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from '@/components/ui/dialog'
-import { Button } from '@/components/ui/button'
-import { Textarea } from '@/components/ui/textarea'
-import { Star, ThumbsUp, ThumbsDown, MessageSquare, Send } from 'lucide-react'
-import { cn } from '@/lib/utils'
-import { toast } from 'sonner'
+} from '@/components/ui/dialog';
+import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { Star, ThumbsUp, ThumbsDown, MessageSquare, Send } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
-type FeedbackType = 'rating' | 'thumbs' | 'detailed'
-type FeedbackCategory = 'general' | 'bug' | 'feature' | 'intelligence_quality' | 'ui_ux' | 'performance'
+type FeedbackType = 'rating' | 'thumbs' | 'detailed';
+type FeedbackCategory =
+  'general' | 'bug' | 'feature' | 'intelligence_quality' | 'ui_ux' | 'performance';
 
 interface FeedbackFormProps {
-  trigger?: React.ReactNode
-  title?: string
-  description?: string
-  type?: FeedbackType
-  context?: string
-  onSubmit?: (data: FeedbackData) => Promise<void> | void
+  trigger?: React.ReactNode;
+  title?: string;
+  description?: string;
+  type?: FeedbackType;
+  context?: string;
+  onSubmit?: (data: FeedbackData) => Promise<void> | void;
 }
 
 interface FeedbackData {
-  rating?: number
-  sentiment?: 'positive' | 'negative' | 'neutral'
-  category: FeedbackCategory
-  comment: string
-  context: string
-  timestamp: Date
+  rating?: number;
+  sentiment?: 'positive' | 'negative' | 'neutral';
+  category: FeedbackCategory;
+  comment: string;
+  context: string;
+  timestamp: Date;
 }
 
 const categories: { value: FeedbackCategory; label: string; emoji: string }[] = [
@@ -44,7 +45,7 @@ const categories: { value: FeedbackCategory; label: string; emoji: string }[] = 
   { value: 'intelligence_quality', label: 'AI Quality', emoji: '🧠' },
   { value: 'ui_ux', label: 'UI/UX', emoji: '🎨' },
   { value: 'performance', label: 'Performance', emoji: '⚡' },
-]
+];
 
 export function FeedbackForm({
   trigger,
@@ -54,19 +55,19 @@ export function FeedbackForm({
   context = 'unknown',
   onSubmit,
 }: FeedbackFormProps) {
-  const [open, setOpen] = useState(false)
-  const [sentiment, setSentiment] = useState<'positive' | 'negative' | null>(null)
-  const [rating, setRating] = useState(0)
-  const [hoverRating, setHoverRating] = useState(0)
-  const [category, setCategory] = useState<FeedbackCategory>('general')
-  const [comment, setComment] = useState('')
-  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [open, setOpen] = useState(false);
+  const [sentiment, setSentiment] = useState<'positive' | 'negative' | null>(null);
+  const [rating, setRating] = useState(0);
+  const [hoverRating, setHoverRating] = useState(0);
+  const [category, setCategory] = useState<FeedbackCategory>('general');
+  const [comment, setComment] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleSubmit = async () => {
-    if (type === 'thumbs' && !sentiment) return
-    if (type === 'rating' && rating === 0) return
+    if (type === 'thumbs' && !sentiment) return;
+    if (type === 'rating' && rating === 0) return;
 
-    setIsSubmitting(true)
+    setIsSubmitting(true);
     const data: FeedbackData = {
       rating: type === 'rating' ? rating : undefined,
       sentiment:
@@ -81,36 +82,42 @@ export function FeedbackForm({
       comment,
       context,
       timestamp: new Date(),
-    }
+    };
 
     try {
       await fetch('/api/feedback', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
-      }).catch(() => {})
+      }).catch(() => {});
 
-      if (onSubmit) await onSubmit(data)
-      toast.success('Thank you for your feedback!')
-      setOpen(false)
-      resetForm()
+      if (onSubmit) await onSubmit(data);
+      toast.success('Thank you for your feedback!');
+      setOpen(false);
+      resetForm();
     } catch {
-      toast.error('Failed to submit feedback')
+      toast.error('Failed to submit feedback');
     } finally {
-      setIsSubmitting(false)
+      setIsSubmitting(false);
     }
-  }
+  };
 
   const resetForm = () => {
-    setSentiment(null)
-    setRating(0)
-    setHoverRating(0)
-    setCategory('general')
-    setComment('')
-  }
+    setSentiment(null);
+    setRating(0);
+    setHoverRating(0);
+    setCategory('general');
+    setComment('');
+  };
 
   return (
-    <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) resetForm() }}>
+    <Dialog
+      open={open}
+      onOpenChange={(o) => {
+        setOpen(o);
+        if (!o) resetForm();
+      }}
+    >
       <DialogTrigger asChild>
         {trigger || (
           <Button variant="outline" size="sm" className="gap-1.5">
@@ -139,7 +146,7 @@ export function FeedbackForm({
                   'flex items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all',
                   sentiment === 'positive'
                     ? 'border-green-500/50 bg-green-500/10 text-green-400'
-                    : 'border-border hover:border-border-hover'
+                    : 'border-border hover:border-border-hover',
                 )}
                 role="radio"
                 aria-checked={sentiment === 'positive'}
@@ -154,7 +161,7 @@ export function FeedbackForm({
                   'flex items-center gap-2 px-4 py-3 rounded-xl border-2 transition-all',
                   sentiment === 'negative'
                     ? 'border-red-500/50 bg-red-500/10 text-red-400'
-                    : 'border-border hover:border-border-hover'
+                    : 'border-border hover:border-border-hover',
                 )}
                 role="radio"
                 aria-checked={sentiment === 'negative'}
@@ -188,7 +195,7 @@ export function FeedbackForm({
                       'h-7 w-7 transition-colors',
                       i < (hoverRating || rating)
                         ? 'fill-amber-400 text-amber-400'
-                        : 'text-muted-foreground'
+                        : 'text-muted-foreground',
                     )}
                   />
                 </button>
@@ -210,7 +217,7 @@ export function FeedbackForm({
                     'px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
                     category === cat.value
                       ? 'border-primary/50 bg-primary/10 text-primary'
-                      : 'border-border text-muted-foreground hover:border-border-hover'
+                      : 'border-border text-muted-foreground hover:border-border-hover',
                   )}
                 >
                   {cat.emoji} {cat.label}
@@ -225,8 +232,7 @@ export function FeedbackForm({
               htmlFor="feedback-comment"
               className="text-xs font-medium text-muted-foreground uppercase tracking-wider"
             >
-              Comment{' '}
-              <span className="text-muted-foreground/50">(optional)</span>
+              Comment <span className="text-muted-foreground/50">(optional)</span>
             </label>
             <Textarea
               id="feedback-comment"
@@ -263,5 +269,5 @@ export function FeedbackForm({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  )
+  );
 }

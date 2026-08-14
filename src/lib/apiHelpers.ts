@@ -18,14 +18,16 @@ export function createApiError(message: string, status?: number): ApiErrorRespon
 }
 
 export function isApiError(value: unknown): value is ApiErrorResponse {
-  return typeof value === 'object' && value !== null && (value as ApiErrorResponse).success === false;
+  return (
+    typeof value === 'object' && value !== null && (value as ApiErrorResponse).success === false
+  );
 }
 
 // Callable form used by api-error-handler.ts — returns Response directly
 export function apiErrorCode(code: string, message: string, status: number): Response {
   return new Response(
     JSON.stringify({ success: false, error: message, code, timestamp: new Date().toISOString() }),
-    { status, headers: { 'Content-Type': 'application/json' } }
+    { status, headers: { 'Content-Type': 'application/json' } },
   );
 }
 
@@ -33,6 +35,6 @@ export function apiErrorCode(code: string, message: string, status: number): Res
 export function apiError(message: string, status: number): Response {
   return new Response(
     JSON.stringify({ success: false, error: message, timestamp: new Date().toISOString() }),
-    { status, headers: { 'Content-Type': 'application/json' } }
+    { status, headers: { 'Content-Type': 'application/json' } },
   );
 }

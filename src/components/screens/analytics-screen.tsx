@@ -13,12 +13,7 @@ import {
   Tooltip as RechartsTooltip,
   ResponsiveContainer,
 } from 'recharts';
-import {
-  Database,
-  Target,
-  Lightbulb,
-  Zap,
-} from 'lucide-react';
+import { Database, Target, Lightbulb, Zap } from 'lucide-react';
 
 // ── Types ──
 
@@ -123,7 +118,10 @@ export default function Analytics() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6" style={{ background: '#0a0e17', minHeight: '100%' }}>
+      <div
+        className="p-6 space-y-6"
+        style={{ background: 'var(--ios-bg-primary)', minHeight: '100%' }}
+      >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-24 rounded-xl animate-pulse" style={{ background: border }} />
@@ -139,14 +137,24 @@ export default function Analytics() {
   }
 
   return (
-    <div className="p-6 space-y-6" style={{ background: '#0a0e17', minHeight: '100%' }}>
+    <div
+      className="p-6 space-y-6"
+      style={{ background: 'var(--ios-bg-primary)', minHeight: '100%' }}
+    >
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold" style={{ color: textPrimary }}>Analytics</h1>
-          <p className="text-sm mt-1" style={{ color: textSecondary }}>Intelligence signal trends and performance metrics</p>
+          <h1 className="text-xl font-bold" style={{ color: textPrimary }}>
+            Analytics
+          </h1>
+          <p className="text-sm mt-1" style={{ color: textSecondary }}>
+            Intelligence signal trends and performance metrics
+          </p>
         </div>
-        <div className="flex items-center gap-1.5 p-1 rounded-lg" style={{ background: tokens.surface.secondary, border: `1px solid ${border}` }}>
+        <div
+          className="flex items-center gap-1.5 p-1 rounded-lg"
+          style={{ background: tokens.surface.secondary, border: `1px solid ${border}` }}
+        >
           {RANGES.map((r) => (
             <button
               key={r.key}
@@ -166,19 +174,45 @@ export default function Analytics() {
       {/* ── Stats Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Data Points', value: stats.totalDataPoints, icon: Database, color: tokens.accent.primary },
+          {
+            label: 'Total Data Points',
+            value: stats.totalDataPoints,
+            icon: Database,
+            color: tokens.accent.primary,
+          },
           { label: 'Coverage Score', value: stats.coverageScore, icon: Target, color: '#059669' },
-          { label: 'Insights Generated', value: stats.insightsGenerated, icon: Lightbulb, color: '#D97706' },
-          { label: 'Avg Processing Time', value: stats.avgProcessingTime, icon: Zap, color: '#7C3AED' },
+          {
+            label: 'Insights Generated',
+            value: stats.insightsGenerated,
+            icon: Lightbulb,
+            color: '#D97706',
+          },
+          {
+            label: 'Avg Processing Time',
+            value: stats.avgProcessingTime,
+            icon: Zap,
+            color: '#7C3AED',
+          },
         ].map((stat) => (
-          <div key={stat.label} className="rounded-xl p-4" style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}>
+          <div
+            key={stat.label}
+            className="rounded-xl p-4"
+            style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}
+          >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${stat.color}15` }}>
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center"
+                style={{ background: `${stat.color}15` }}
+              >
                 <stat.icon className="w-4.5 h-4.5" style={{ color: stat.color }} />
               </div>
               <div className="min-w-0">
-                <p className="text-xs truncate" style={{ color: textMuted }}>{stat.label}</p>
-                <p className="text-lg font-bold" style={{ color: textPrimary }}>{stat.value}</p>
+                <p className="text-xs truncate" style={{ color: textMuted }}>
+                  {stat.label}
+                </p>
+                <p className="text-lg font-bold" style={{ color: textPrimary }}>
+                  {stat.value}
+                </p>
               </div>
             </div>
           </div>
@@ -188,8 +222,13 @@ export default function Analytics() {
       {/* ── Chart Grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Panel 1: Signals Over Time */}
-        <div className="rounded-xl p-5" style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}>
-          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>Signals Over Time</h3>
+        <div
+          className="rounded-xl p-5"
+          style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}
+        >
+          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>
+            Signals Over Time
+          </h3>
           <ResponsiveContainer width="100%" height={260}>
             <AreaChart data={signalsTimeData} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <defs>
@@ -203,36 +242,84 @@ export default function Analytics() {
                 </linearGradient>
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} />
-              <XAxis dataKey="date" tick={{ fill: chartTick, fontSize: 11 }} axisLine={{ stroke: chartGrid }} tickLine={false} interval={dateRange === '90d' ? 14 : dateRange === '30d' ? 4 : 0} />
+              <XAxis
+                dataKey="date"
+                tick={{ fill: chartTick, fontSize: 11 }}
+                axisLine={{ stroke: chartGrid }}
+                tickLine={false}
+                interval={dateRange === '90d' ? 14 : dateRange === '30d' ? 4 : 0}
+              />
               <YAxis tick={{ fill: chartTick, fontSize: 11 }} axisLine={false} tickLine={false} />
               <RechartsTooltip contentStyle={CustomTooltipStyle} />
-              <Area type="monotone" dataKey="signals" stroke={tokens.accent.primary} fill="url(#gradSignals)" strokeWidth={2} name="Detected" />
-              <Area type="monotone" dataKey="processed" stroke="#059669" fill="url(#gradProcessed)" strokeWidth={2} name="Processed" />
+              <Area
+                type="monotone"
+                dataKey="signals"
+                stroke={tokens.accent.primary}
+                fill="url(#gradSignals)"
+                strokeWidth={2}
+                name="Detected"
+              />
+              <Area
+                type="monotone"
+                dataKey="processed"
+                stroke="#059669"
+                fill="url(#gradProcessed)"
+                strokeWidth={2}
+                name="Processed"
+              />
             </AreaChart>
           </ResponsiveContainer>
         </div>
 
         {/* Panel 2: Signals by Type */}
-        <div className="rounded-xl p-5" style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}>
-          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>Signals by Type</h3>
+        <div
+          className="rounded-xl p-5"
+          style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}
+        >
+          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>
+            Signals by Type
+          </h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart data={SIGNALS_BY_TYPE} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} />
-              <XAxis dataKey="type" tick={{ fill: chartTick, fontSize: 11 }} axisLine={{ stroke: chartGrid }} tickLine={false} />
+              <XAxis
+                dataKey="type"
+                tick={{ fill: chartTick, fontSize: 11 }}
+                axisLine={{ stroke: chartGrid }}
+                tickLine={false}
+              />
               <YAxis tick={{ fill: chartTick, fontSize: 11 }} axisLine={false} tickLine={false} />
               <RechartsTooltip contentStyle={CustomTooltipStyle} />
-              <Bar dataKey="count" fill={tokens.accent.primary} radius={[4, 4, 0, 0]} name="Signals" />
+              <Bar
+                dataKey="count"
+                fill={tokens.accent.primary}
+                radius={[4, 4, 0, 0]}
+                name="Signals"
+              />
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Panel 3: Intelligence Score Distribution */}
-        <div className="rounded-xl p-5" style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}>
-          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>Intelligence Score Distribution</h3>
+        <div
+          className="rounded-xl p-5"
+          style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}
+        >
+          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>
+            Intelligence Score Distribution
+          </h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={INTELLIGENCE_SCORES} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+            <BarChart
+              data={INTELLIGENCE_SCORES}
+              margin={{ top: 5, right: 5, bottom: 5, left: -20 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} />
-              <XAxis dataKey="range" tick={{ fill: chartTick, fontSize: 11 }} axisLine={{ stroke: chartGrid }} tickLine={false} />
+              <XAxis
+                dataKey="range"
+                tick={{ fill: chartTick, fontSize: 11 }}
+                axisLine={{ stroke: chartGrid }}
+                tickLine={false}
+              />
               <YAxis tick={{ fill: chartTick, fontSize: 11 }} axisLine={false} tickLine={false} />
               <RechartsTooltip contentStyle={CustomTooltipStyle} />
               <Bar dataKey="count" fill="#7C3AED" radius={[4, 4, 0, 0]} name="Companies" />
@@ -241,13 +328,35 @@ export default function Analytics() {
         </div>
 
         {/* Panel 4: Top Industries (horizontal) */}
-        <div className="rounded-xl p-5" style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}>
-          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>Top Industries by Intelligence Score</h3>
+        <div
+          className="rounded-xl p-5"
+          style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}
+        >
+          <h3 className="text-sm font-semibold mb-4" style={{ color: textPrimary }}>
+            Top Industries by Intelligence Score
+          </h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={TOP_INDUSTRIES} layout="vertical" margin={{ top: 5, right: 20, bottom: 5, left: 5 }}>
+            <BarChart
+              data={TOP_INDUSTRIES}
+              layout="vertical"
+              margin={{ top: 5, right: 20, bottom: 5, left: 5 }}
+            >
               <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} horizontal={false} />
-              <XAxis type="number" domain={[0, 100]} tick={{ fill: chartTick, fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis type="category" dataKey="industry" tick={{ fill: chartTick, fontSize: 11 }} axisLine={false} tickLine={false} width={85} />
+              <XAxis
+                type="number"
+                domain={[0, 100]}
+                tick={{ fill: chartTick, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="industry"
+                tick={{ fill: chartTick, fontSize: 11 }}
+                axisLine={false}
+                tickLine={false}
+                width={85}
+              />
               <RechartsTooltip contentStyle={CustomTooltipStyle} />
               <Bar dataKey="score" fill="#059669" radius={[0, 4, 4, 0]} name="Score" />
             </BarChart>

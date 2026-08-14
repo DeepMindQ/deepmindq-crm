@@ -15,11 +15,11 @@
    Fully Edge Runtime compatible.
    ═══════════════════════════════════════════════════ */
 
-import { neon } from '@neondatabase/serverless'
-import { logger } from '@/lib/logger'
+import { neon } from '@neondatabase/serverless';
+import { logger } from '@/lib/logger';
 
 // Re-use the same DATABASE_URL as Prisma
-const databaseUrl = process.env.DATABASE_URL ?? ''
+const databaseUrl = process.env.DATABASE_URL ?? '';
 
 /**
  * SHA-256 hash a session token.
@@ -27,42 +27,42 @@ const databaseUrl = process.env.DATABASE_URL ?? ''
  * Identical logic to session.ts hashToken().
  */
 async function hashTokenEdge(token: string): Promise<string> {
-  const encoder = new TextEncoder()
-  const data = encoder.encode(`dmq_session:${token}`)
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
+  const encoder = new TextEncoder();
+  const data = encoder.encode(`dmq_session:${token}`);
+  const hashBuffer = await crypto.subtle.digest('SHA-256', data);
   return Array.from(new Uint8Array(hashBuffer))
-    .map(b => b.toString(16).padStart(2, '0'))
-    .join('')
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 export interface EdgeSessionUser {
-  id: string
-  email: string
-  name: string | null
-  phone: string | null
-  company: string | null
-  designation: string | null
-  role: string
-  hasPassword: boolean
-  avatarUrl: string | null
+  id: string;
+  email: string;
+  name: string | null;
+  phone: string | null;
+  company: string | null;
+  designation: string | null;
+  role: string;
+  hasPassword: boolean;
+  avatarUrl: string | null;
 }
 
 /**
  * Validate a session token in Edge Runtime.
  * Uses @neondatabase/serverless for HTTP-based DB access.
- * 
+ *
  * Returns the user if session is valid, null otherwise.
  * Does NOT set cookies.
  * Conditionally extends expiry when < 7 days remaining (P0 Audit #3 fix).
  */
 export async function validateSessionEdge(token: string): Promise<EdgeSessionUser | null> {
-  if (!token || token.length < 16) return null
+  if (!token || token.length < 16) return null;
 
   // ── CRITICAL: Session lookup — failure = deny access ──
-  let rows
+  let rows;
   try {
-    const sql = neon(databaseUrl)
-    const tokenHash = await hashTokenEdge(token)
+    const sql = neon(databaseUrl);
+    const tokenHash = await hashTokenEdge(token);
 
     rows = await sql`
       SELECT 
@@ -75,15 +75,15 @@ export async function validateSessionEdge(token: string): Promise<EdgeSessionUse
         AND s."expiresAt" > NOW()
         AND u."isActive" = true
       LIMIT 1
-    `
+    `;
   } catch (error) {
-    logger.error('[EdgeSession] SELECT failed', { error })
-    return null
+    logger.error('[EdgeSession] SELECT failed', { error });
+    return null;
   }
 
-  if (!rows || rows.length === 0) return null
+  if (!rows || rows.length === 0) return null;
 
-  const row = rows[0]
+  const row = rows[0];
 
   // ── NON-CRITICAL: Rolling expiry extension (conditional) ──
   // P0 Deep Audit #3 FIX: Only update expiry when < 7 days remaining.
@@ -91,20 +91,20 @@ export async function validateSessionEdge(token: string): Promise<EdgeSessionUse
   // Now skips the UPDATE for ~70% of requests (those with > 7 days left).
   // Failure here must NOT deny an authenticated user.
   try {
-    const expiresAt = new Date(row.expiresAt)
-    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000
-    const remainingMs = expiresAt.getTime() - Date.now()
+    const expiresAt = new Date(row.expiresAt);
+    const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+    const remainingMs = expiresAt.getTime() - Date.now();
 
     if (remainingMs < sevenDaysMs) {
-      const sql = neon(databaseUrl)
+      const sql = neon(databaseUrl);
       await sql`
         UPDATE "Session"
         SET "expiresAt" = NOW() + INTERVAL '30 days'
         WHERE id = ${row.session_id}
-      `
+      `;
     }
   } catch (error) {
-    logger.error('[EdgeSession] UPDATE failed (non-critical, session still valid)', { error })
+    logger.error('[EdgeSession] UPDATE failed (non-critical, session still valid)', { error });
     // Swallow — session is valid, just couldn't extend
   }
 
@@ -118,5 +118,5 @@ export async function validateSessionEdge(token: string): Promise<EdgeSessionUse
     role: row.role,
     hasPassword: row.hasPassword,
     avatarUrl: row.avatarUrl,
-  }
+  };
 }

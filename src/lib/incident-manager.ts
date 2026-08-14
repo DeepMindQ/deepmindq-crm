@@ -36,9 +36,7 @@ export const incidentManager = {
       severity,
       status: 'active',
       startedAt: new Date(),
-      slaBreachAt: slaMinutes
-        ? new Date(Date.now() + slaMinutes * 60 * 1000)
-        : undefined,
+      slaBreachAt: slaMinutes ? new Date(Date.now() + slaMinutes * 60 * 1000) : undefined,
     };
     incidents.set(id, incident);
     logger.warn(`[Incident] Created: ${id} — ${title} (${severity})`);
@@ -89,7 +87,7 @@ export const incidentManager = {
 
   list(): Incident[] {
     return Array.from(incidents.values()).sort(
-      (a, b) => b.startedAt.getTime() - a.startedAt.getTime()
+      (a, b) => b.startedAt.getTime() - a.startedAt.getTime(),
     );
   },
 };

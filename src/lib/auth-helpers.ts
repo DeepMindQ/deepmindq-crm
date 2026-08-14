@@ -14,11 +14,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { registerTimer } from '@/lib/timer-registry';
-import {
-  validateCsrf as csrfValidateCsrf,
-  CSRF_COOKIE_NAME,
-  CSRF_TOKEN_HEADER,
-} from '@/lib/csrf';
+import { validateCsrf as csrfValidateCsrf, CSRF_COOKIE_NAME, CSRF_TOKEN_HEADER } from '@/lib/csrf';
 
 // ── Constants ───────────────────────────────────────────
 export const SESSION_COOKIE_NAME = 'dmq_session';
@@ -32,25 +28,25 @@ export { CSRF_COOKIE_NAME, CSRF_TOKEN_HEADER };
 // NOTE: /api/intelligence/* requires auth — intelligence is premium data.
 export const PUBLIC_PATH_PREFIXES: string[] = [
   '/api/auth/',
-  '/api/webhooks/crm/',    // Inbound CRM webhooks (HubSpot, Salesforce) — verified via HMAC signatures
-  '/api/webhooks/bounce',  // Inbound email bounce notifications — verified via provider signatures
-  '/api/webhooks/reply',   // Inbound email reply webhooks — verified via provider signatures
+  '/api/webhooks/crm/', // Inbound CRM webhooks (HubSpot, Salesforce) — verified via HMAC signatures
+  '/api/webhooks/bounce', // Inbound email bounce notifications — verified via provider signatures
+  '/api/webhooks/reply', // Inbound email reply webhooks — verified via provider signatures
   '/api/tracking/',
   '/api/unsubscribe',
   '/api/cron/',
   '/api/health/',
-  '/api/health',               // Health endpoint (exact match, no trailing slash)
+  '/api/health', // Health endpoint (exact match, no trailing slash)
   '/api/ping',
   '/api/ready',
   '/api/version',
   '/api/verify-email',
   '/api/verify-queue',
-  '/api/brand',                  // Public brand config endpoint
-  '/api/docs',                   // Public API documentation
-  '/api/integrations/slack',     // Webhook endpoint (Slack events, verified via webhook secret)
-  '/api/integrations/zapier',    // Webhook endpoint (Zapier events, verified via webhook secret)
+  '/api/brand', // Public brand config endpoint
+  '/api/docs', // Public API documentation
+  '/api/integrations/slack', // Webhook endpoint (Slack events, verified via webhook secret)
+  '/api/integrations/zapier', // Webhook endpoint (Zapier events, verified via webhook secret)
   // '/api/monitoring' — REMOVED (P0.2): Requires auth. Exposes process internals.
-  '/api/v1',                     // Public API v1 proxy and index
+  '/api/v1', // Public API v1 proxy and index
   '/login',
   '/demo',
   '/marketing',
@@ -76,9 +72,7 @@ export const RATE_LIMITED_PUBLIC_APIS: string[] = [
  */
 export function getSessionToken(request: NextRequest): string | null {
   const cookieHeader = request.headers.get('cookie') || '';
-  const match = cookieHeader.match(
-    new RegExp(`(?:^|;\\s*)${SESSION_COOKIE_NAME}=([^;]*)`)
-  );
+  const match = cookieHeader.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE_NAME}=([^;]*)`));
   return match ? decodeURIComponent(match[1]) : null;
 }
 
@@ -87,9 +81,11 @@ export function getSessionToken(request: NextRequest): string | null {
  * Check if a request path matches any of the given prefixes.
  */
 export function isPublicPath(pathname: string): boolean {
-  return PUBLIC_PATH_PREFIXES.some(
-    (prefix) => pathname === prefix || pathname.startsWith(prefix) || pathname === prefix + '/'
-  ) || pathname === '/';
+  return (
+    PUBLIC_PATH_PREFIXES.some(
+      (prefix) => pathname === prefix || pathname.startsWith(prefix) || pathname === prefix + '/',
+    ) || pathname === '/'
+  );
 }
 
 /**
@@ -104,7 +100,7 @@ export function isApiRoute(pathname: string): boolean {
  */
 export function isRateLimitedPublicApi(pathname: string): boolean {
   return RATE_LIMITED_PUBLIC_APIS.some(
-    (prefix) => pathname === prefix || pathname.startsWith(prefix) || pathname === prefix + '/'
+    (prefix) => pathname === prefix || pathname.startsWith(prefix) || pathname === prefix + '/',
   );
 }
 
@@ -134,7 +130,7 @@ export function csrfCheck(request: NextRequest): { valid: boolean; response?: Ne
       ? undefined
       : NextResponse.json(
           { success: false, error: 'CSRF validation failed' },
-          { status: 403, headers: { 'Content-Type': 'application/json' } }
+          { status: 403, headers: { 'Content-Type': 'application/json' } },
         ),
   };
 }
@@ -146,12 +142,19 @@ export function csrfCheck(request: NextRequest): { valid: boolean; response?: Ne
  * 16 bytes → 24 base64 characters — sufficient entropy for per-request nonce.
  */
 export function generateCspNonce(): string {
-  const bytes = new Uint8Array(16)
-  crypto.getRandomValues(bytes)
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
   // Base64url encoding using btoa (Edge-compatible via globalThis.btoa)
   // 16 bytes → 24 base64 characters (no padding)
-  const binary = Array.from(bytes).map(b => String.fromCharCode(b)).join('')
-  return globalThis.btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '').slice(0, 24)
+  const binary = Array.from(bytes)
+    .map((b) => String.fromCharCode(b))
+    .join('');
+  return globalThis
+    .btoa(binary)
+    .replace(/\+/g, '-')
+    .replace(/\//g, '_')
+    .replace(/=+$/, '')
+    .slice(0, 24);
 }
 
 // ── Security Headers ───────────────────────────────────
@@ -160,7 +163,7 @@ export function generateCspNonce(): string {
  * @param nonce - Optional CSP nonce. When provided, added to script-src as 'nonce-<value>'.
  */
 export function getSecurityHeaders(nonce?: string): Record<string, string> {
-  const nonceDirective = nonce ? ` 'nonce-${nonce}'` : ''
+  const nonceDirective = nonce ? ` 'nonce-${nonce}'` : '';
   const csp = [
     "default-src 'self'",
     // Level 5 — Nonce-based CSP for scripts.
@@ -220,12 +223,17 @@ const rateLimitStore = new Map<string, RateLimitEntry>();
 
 // Cleanup every 5 minutes
 if (typeof setInterval !== 'undefined') {
-  registerTimer(setInterval(() => {
-    const now = Date.now();
-    for (const [key, entry] of rateLimitStore.entries()) {
-      if (entry.resetAt <= now) rateLimitStore.delete(key);
-    }
-  }, 5 * 60 * 1000));
+  registerTimer(
+    setInterval(
+      () => {
+        const now = Date.now();
+        for (const [key, entry] of rateLimitStore.entries()) {
+          if (entry.resetAt <= now) rateLimitStore.delete(key);
+        }
+      },
+      5 * 60 * 1000,
+    ),
+  );
 }
 
 /** Evict oldest entries when store exceeds max size */
@@ -241,7 +249,9 @@ function evictAuthRateLimitEntries(): void {
   }
   // If still over limit, delete oldest by resetAt
   if (rateLimitStore.size > AUTH_RATE_LIMIT_MAX) {
-    const entries = Array.from(rateLimitStore.entries()).sort((a, b) => a[1].resetAt - b[1].resetAt);
+    const entries = Array.from(rateLimitStore.entries()).sort(
+      (a, b) => a[1].resetAt - b[1].resetAt,
+    );
     const remaining = rateLimitStore.size - AUTH_RATE_LIMIT_MAX;
     for (let i = 0; i < remaining; i++) {
       rateLimitStore.delete(entries[i][0]);
@@ -256,7 +266,7 @@ function evictAuthRateLimitEntries(): void {
 export function edgeRateLimit(
   key: string,
   limit: number,
-  windowMs: number
+  windowMs: number,
 ): { success: boolean; remaining: number; resetAt: number } {
   const now = Date.now();
   let entry = rateLimitStore.get(key);
@@ -282,7 +292,11 @@ export function edgeRateLimit(
  * Rate limit configuration for OTP endpoints.
  * 5 OTP requests per email per minute.
  */
-export function otpRateLimit(email: string): { success: boolean; remaining: number; resetAt: number } {
+export function otpRateLimit(email: string): {
+  success: boolean;
+  remaining: number;
+  resetAt: number;
+} {
   return edgeRateLimit(`otp:${email.toLowerCase()}`, 5, 60_000);
 }
 
@@ -291,7 +305,10 @@ export function otpRateLimit(email: string): { success: boolean; remaining: numb
  * Used by proxy.ts (Edge Runtime) for per-request rate limiting.
  * For distributed rate limiting in Node.js API routes, use distributedApiRateLimit().
  */
-export function generalApiRateLimit(ip: string, path: string): { success: boolean; remaining: number; resetAt: number } {
+export function generalApiRateLimit(
+  ip: string,
+  path: string,
+): { success: boolean; remaining: number; resetAt: number } {
   return edgeRateLimit(`api:${ip}:${path}`, 100, 60_000);
 }
 
@@ -357,8 +374,8 @@ export function unauthorizedResponse(): NextResponse {
   return applySecurityHeaders(
     NextResponse.json(
       { success: false, error: 'Authentication required', timestamp: new Date().toISOString() },
-      { status: 401 }
-    )
+      { status: 401 },
+    ),
   );
 }
 
@@ -373,8 +390,8 @@ export function rateLimitedResponse(retryAfter?: number): NextResponse {
   return applySecurityHeaders(
     new NextResponse(
       JSON.stringify({ success: false, error: 'Too many requests. Please try again later.' }),
-      { status: 429, headers }
-    )
+      { status: 429, headers },
+    ),
   );
 }
 
@@ -385,8 +402,8 @@ export function forbiddenResponse(message = 'Forbidden'): NextResponse {
   return applySecurityHeaders(
     NextResponse.json(
       { success: false, error: message, timestamp: new Date().toISOString() },
-      { status: 403 }
-    )
+      { status: 403 },
+    ),
   );
 }
 
@@ -405,7 +422,11 @@ export function forbiddenResponse(message = 'Forbidden'): NextResponse {
 /**
  * Edge-safe auth failure audit log (no DB write, logger only).
  */
-export function edgeAuditAuthFailure(action: string, ip: string, extras?: Record<string, unknown>): void {
+export function edgeAuditAuthFailure(
+  action: string,
+  ip: string,
+  extras?: Record<string, unknown>,
+): void {
   const meta: Record<string, unknown> = { ip, action, ...(extras || {}) };
   console.warn(`[AUDIT:AUTH] ${action}`, meta);
 }

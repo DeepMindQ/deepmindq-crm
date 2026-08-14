@@ -16,7 +16,10 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const parsed = pipelinePostSchema.safeParse(body);
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid request body', details: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid request body', details: parsed.error.flatten() },
+        { status: 400 },
+      );
     }
     const { organizationId } = parsed.data;
 
@@ -29,7 +32,9 @@ export async function POST(request: NextRequest) {
       data: result,
     });
   } catch (error) {
-    logger.error('[PIPELINE] Pipeline failed', { error: error instanceof Error ? error.message : 'Unknown' });
+    logger.error('[PIPELINE] Pipeline failed', {
+      error: error instanceof Error ? error.message : 'Unknown',
+    });
     return NextResponse.json({ error: 'Intelligence pipeline failed' }, { status: 500 });
   }
 }

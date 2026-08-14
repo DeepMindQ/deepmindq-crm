@@ -22,16 +22,106 @@ type StatusFilter = 'all' | 'new' | 'contacted' | 'qualified' | 'disqualified';
 
 // ── Mock Data ──
 const MOCK_LEADS: Lead[] = [
-  { id: 'l1', company: 'Acme Corp', contact: 'Sarah Chen', email: 'sarah.chen@acmecorp.com', source: 'LinkedIn', score: 87, status: 'qualified', created: '2025-01-15' },
-  { id: 'l2', company: 'TechNova Inc', contact: 'James Wilson', email: 'jwilson@technova.io', source: 'Website', score: 72, status: 'new', created: '2025-01-18' },
-  { id: 'l3', company: 'DataFlow Systems', contact: 'Maria Garcia', email: 'm.garcia@dataflow.com', source: 'Referral', score: 94, status: 'qualified', created: '2025-01-10' },
-  { id: 'l4', company: 'CloudPeak', contact: 'David Kim', email: 'dkim@cloudpeak.co', source: 'Outreach', score: 45, status: 'contacted', created: '2025-01-20' },
-  { id: 'l5', company: 'Vertex AI', contact: 'Emily Zhang', email: 'emily.z@vertexai.com', source: 'Conference', score: 63, status: 'new', created: '2025-01-22' },
-  { id: 'l6', company: 'Synthetica', contact: 'Michael Brown', email: 'mbrown@synthetica.dev', source: 'LinkedIn', score: 28, status: 'disqualified', created: '2025-01-08' },
-  { id: 'l7', company: 'NexGen Robotics', contact: 'Priya Patel', email: 'priya@nexgenrobotics.com', source: 'Website', score: 81, status: 'contacted', created: '2025-01-19' },
-  { id: 'l8', company: 'QuantumLeap', contact: 'Alex Rivera', email: 'arivera@quantumleap.io', source: 'Partner', score: 56, status: 'new', created: '2025-01-21' },
-  { id: 'l9', company: 'BioGenesis Labs', contact: 'Rachel Thompson', email: 'rthompson@biogenesis.com', source: 'Outreach', score: 91, status: 'qualified', created: '2025-01-12' },
-  { id: 'l10', company: 'Stellar Dynamics', contact: 'Kevin O\'Brien', email: 'kobrien@stellardynamics.co', source: 'Referral', score: 39, status: 'disqualified', created: '2025-01-05' },
+  {
+    id: 'l1',
+    company: 'Acme Corp',
+    contact: 'Sarah Chen',
+    email: 'sarah.chen@acmecorp.com',
+    source: 'LinkedIn',
+    score: 87,
+    status: 'qualified',
+    created: '2025-01-15',
+  },
+  {
+    id: 'l2',
+    company: 'TechNova Inc',
+    contact: 'James Wilson',
+    email: 'jwilson@technova.io',
+    source: 'Website',
+    score: 72,
+    status: 'new',
+    created: '2025-01-18',
+  },
+  {
+    id: 'l3',
+    company: 'DataFlow Systems',
+    contact: 'Maria Garcia',
+    email: 'm.garcia@dataflow.com',
+    source: 'Referral',
+    score: 94,
+    status: 'qualified',
+    created: '2025-01-10',
+  },
+  {
+    id: 'l4',
+    company: 'CloudPeak',
+    contact: 'David Kim',
+    email: 'dkim@cloudpeak.co',
+    source: 'Outreach',
+    score: 45,
+    status: 'contacted',
+    created: '2025-01-20',
+  },
+  {
+    id: 'l5',
+    company: 'Vertex AI',
+    contact: 'Emily Zhang',
+    email: 'emily.z@vertexai.com',
+    source: 'Conference',
+    score: 63,
+    status: 'new',
+    created: '2025-01-22',
+  },
+  {
+    id: 'l6',
+    company: 'Synthetica',
+    contact: 'Michael Brown',
+    email: 'mbrown@synthetica.dev',
+    source: 'LinkedIn',
+    score: 28,
+    status: 'disqualified',
+    created: '2025-01-08',
+  },
+  {
+    id: 'l7',
+    company: 'NexGen Robotics',
+    contact: 'Priya Patel',
+    email: 'priya@nexgenrobotics.com',
+    source: 'Website',
+    score: 81,
+    status: 'contacted',
+    created: '2025-01-19',
+  },
+  {
+    id: 'l8',
+    company: 'QuantumLeap',
+    contact: 'Alex Rivera',
+    email: 'arivera@quantumleap.io',
+    source: 'Partner',
+    score: 56,
+    status: 'new',
+    created: '2025-01-21',
+  },
+  {
+    id: 'l9',
+    company: 'BioGenesis Labs',
+    contact: 'Rachel Thompson',
+    email: 'rthompson@biogenesis.com',
+    source: 'Outreach',
+    score: 91,
+    status: 'qualified',
+    created: '2025-01-12',
+  },
+  {
+    id: 'l10',
+    company: 'Stellar Dynamics',
+    contact: "Kevin O'Brien",
+    email: 'kobrien@stellardynamics.co',
+    source: 'Referral',
+    score: 39,
+    status: 'disqualified',
+    created: '2025-01-05',
+  },
 ];
 
 const STATUS_CONFIG: Record<Lead['status'], { label: string; color: string; bg: string }> = {
@@ -84,10 +174,18 @@ export default function Leads() {
           const color = score >= 70 ? '#16A34A' : score >= 40 ? '#D97706' : '#DC2626';
           return (
             <div className="flex items-center gap-2">
-              <div className="w-16 h-1.5 rounded-full overflow-hidden" style={{ background: tokens.border.default }}>
-                <div className="h-full rounded-full" style={{ width: `${score}%`, background: color }} />
+              <div
+                className="w-16 h-1.5 rounded-full overflow-hidden"
+                style={{ background: tokens.border.default }}
+              >
+                <div
+                  className="h-full rounded-full"
+                  style={{ width: `${score}%`, background: color }}
+                />
               </div>
-              <span className="text-xs font-medium" style={{ color }}>{score}</span>
+              <span className="text-xs font-medium" style={{ color }}>
+                {score}
+              </span>
             </div>
           );
         },
@@ -111,7 +209,7 @@ export default function Leads() {
       },
       { key: 'created', label: 'Created', sortable: true },
     ],
-    []
+    [],
   );
 
   const statusFilters: { key: StatusFilter; label: string }[] = [
@@ -124,7 +222,10 @@ export default function Leads() {
 
   if (loading) {
     return (
-      <div className="p-6 space-y-6" style={{ background: '#0a0e17', minHeight: '100%' }}>
+      <div
+        className="p-6 space-y-6"
+        style={{ background: 'var(--ios-bg-primary)', minHeight: '100%' }}
+      >
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
             <div key={i} className="h-24 rounded-xl animate-pulse" style={{ background: border }} />
@@ -136,12 +237,19 @@ export default function Leads() {
   }
 
   return (
-    <div className="p-6 space-y-6" style={{ background: '#0a0e17', minHeight: '100%' }}>
+    <div
+      className="p-6 space-y-6"
+      style={{ background: 'var(--ios-bg-primary)', minHeight: '100%' }}
+    >
       {/* ── Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold" style={{ color: textPrimary }}>Leads</h1>
-          <p className="text-sm mt-1" style={{ color: textSecondary }}>Manage and track your sales pipeline leads</p>
+          <h1 className="text-xl font-bold" style={{ color: textPrimary }}>
+            Leads
+          </h1>
+          <p className="text-sm mt-1" style={{ color: textSecondary }}>
+            Manage and track your sales pipeline leads
+          </p>
         </div>
         <button
           onClick={handleImport}
@@ -159,7 +267,12 @@ export default function Leads() {
           { label: 'Total Leads', value: stats.total, icon: Users, color: tokens.accent.primary },
           { label: 'New Leads', value: stats.newCount, icon: UserPlus, color: '#2563EB' },
           { label: 'Qualified', value: stats.qualifiedCount, icon: Sparkles, color: '#16A34A' },
-          { label: 'Conversion Rate', value: `${stats.conversionRate}%`, icon: Target, color: '#D97706' },
+          {
+            label: 'Conversion Rate',
+            value: `${stats.conversionRate}%`,
+            icon: Target,
+            color: '#D97706',
+          },
         ].map((stat) => (
           <div
             key={stat.label}
@@ -167,12 +280,19 @@ export default function Leads() {
             style={{ background: bg, border: `1px solid ${border}`, boxShadow: elevation.sm }}
           >
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: `${stat.color}15` }}>
+              <div
+                className="w-9 h-9 rounded-lg flex items-center justify-center"
+                style={{ background: `${stat.color}15` }}
+              >
                 <stat.icon className="w-4.5 h-4.5" style={{ color: stat.color }} />
               </div>
               <div className="min-w-0">
-                <p className="text-xs truncate" style={{ color: textMuted }}>{stat.label}</p>
-                <p className="text-lg font-bold" style={{ color: textPrimary }}>{stat.value}</p>
+                <p className="text-xs truncate" style={{ color: textMuted }}>
+                  {stat.label}
+                </p>
+                <p className="text-lg font-bold" style={{ color: textPrimary }}>
+                  {stat.value}
+                </p>
               </div>
             </div>
           </div>
@@ -180,7 +300,10 @@ export default function Leads() {
       </div>
 
       {/* ── Status Filters ── */}
-      <div className="flex items-center gap-1.5 p-1 rounded-lg w-fit" style={{ background: tokens.surface.secondary, border: `1px solid ${border}` }}>
+      <div
+        className="flex items-center gap-1.5 p-1 rounded-lg w-fit"
+        style={{ background: tokens.surface.secondary, border: `1px solid ${border}` }}
+      >
         {statusFilters.map((f) => (
           <button
             key={f.key}

@@ -19,7 +19,8 @@ import {
 
 /* ═══ Types ═══ */
 
-type TemplateCategory = 'introduction' | 'follow-up' | 'meeting' | 'proposal' | 'check-in' | 're-engagement';
+type TemplateCategory =
+  'introduction' | 'follow-up' | 'meeting' | 'proposal' | 'check-in' | 're-engagement';
 
 interface EmailTemplate {
   id: string;
@@ -78,7 +79,7 @@ Best,
     id: 'tpl-3',
     name: 'Meeting Request',
     category: 'meeting',
-    subject: '15 min to discuss {{company}}\'s {{initiative}} strategy',
+    subject: "15 min to discuss {{company}}'s {{initiative}} strategy",
     body: `Hi {{firstName}},
 
 I've been following {{company}}'s work in {{space}} and I'm impressed by your recent {{achievement}}.
@@ -148,7 +149,7 @@ Cheers,
     id: 'tpl-6',
     name: 'Re-engagement',
     category: 're-engagement',
-    subject: '{{firstName}}, it\'s been a while — new developments at {{senderCompany}}',
+    subject: "{{firstName}}, it's been a while — new developments at {{senderCompany}}",
     body: `Hi {{firstName}},
 
 We spoke back in {{lastContactDate}} about {{previousTopic}}. A lot has changed since then, and I think you'll find our recent updates interesting.
@@ -194,9 +195,17 @@ function getCategoryConfig(cat: TemplateCategory) {
     case 'meeting':
       return { label: 'Meeting', color: tokens.domain.reasoning, bg: '#EDE9FE' };
     case 'proposal':
-      return { label: 'Proposal', color: tokens.confidence.high.value, bg: tokens.confidence.high.bg };
+      return {
+        label: 'Proposal',
+        color: tokens.confidence.high.value,
+        bg: tokens.confidence.high.bg,
+      };
     case 'check-in':
-      return { label: 'Check-in', color: tokens.confidence.medium.value, bg: tokens.confidence.medium.bg };
+      return {
+        label: 'Check-in',
+        color: tokens.confidence.medium.value,
+        bg: tokens.confidence.medium.bg,
+      };
     case 're-engagement':
       return { label: 'Re-engagement', color: tokens.domain.action, bg: '#DBEAFE' };
     default:
@@ -206,13 +215,20 @@ function getCategoryConfig(cat: TemplateCategory) {
 
 function getCategoryIcon(cat: TemplateCategory) {
   switch (cat) {
-    case 'introduction': return Mail;
-    case 'follow-up': return RotateCcw;
-    case 'meeting': return CalendarCheck;
-    case 'proposal': return FileBarChart;
-    case 'check-in': return Clock;
-    case 're-engagement': return RotateCcw;
-    default: return FileText;
+    case 'introduction':
+      return Mail;
+    case 'follow-up':
+      return RotateCcw;
+    case 'meeting':
+      return CalendarCheck;
+    case 'proposal':
+      return FileBarChart;
+    case 'check-in':
+      return Clock;
+    case 're-engagement':
+      return RotateCcw;
+    default:
+      return FileText;
   }
 }
 
@@ -237,14 +253,15 @@ export default function Templates() {
   const filteredTemplates = useMemo(() => {
     let result = MOCK_TEMPLATES;
     if (categoryFilter !== 'all') {
-      result = result.filter(t => t.category === categoryFilter);
+      result = result.filter((t) => t.category === categoryFilter);
     }
     if (search.trim()) {
       const q = search.toLowerCase();
-      result = result.filter(t =>
-        t.name.toLowerCase().includes(q) ||
-        t.subject.toLowerCase().includes(q) ||
-        t.category.toLowerCase().includes(q)
+      result = result.filter(
+        (t) =>
+          t.name.toLowerCase().includes(q) ||
+          t.subject.toLowerCase().includes(q) ||
+          t.category.toLowerCase().includes(q),
       );
     }
     return result;
@@ -271,18 +288,25 @@ export default function Templates() {
       {/* ── Search & Filter Bar ── */}
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1 max-w-sm">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" style={{ color: tokens.text.muted }} />
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4"
+            style={{ color: tokens.text.muted }}
+          />
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search templates by name or subject..."
             className="w-full pl-10 pr-3 py-2 rounded-lg text-sm outline-none transition-colors"
-            style={{ background: '#0d1117', border: `1px solid ${tokens.border.default}`, color: tokens.text.primary }}
+            style={{
+              background: 'var(--ios-bg-card)',
+              border: `1px solid ${tokens.border.default}`,
+              color: tokens.text.primary,
+            }}
           />
         </div>
         <div className="flex items-center gap-2 flex-wrap">
-          {CATEGORIES.map(cat => {
+          {CATEGORIES.map((cat) => {
             const isActive = categoryFilter === cat.value;
             return (
               <button
@@ -292,7 +316,9 @@ export default function Templates() {
                 style={{
                   background: isActive ? `${tokens.accent.primary}15` : 'transparent',
                   color: isActive ? tokens.accent.primary : tokens.text.secondary,
-                  border: isActive ? `1px solid ${tokens.accent.primary}30` : `1px solid ${tokens.border.default}`,
+                  border: isActive
+                    ? `1px solid ${tokens.accent.primary}30`
+                    : `1px solid ${tokens.border.default}`,
                 }}
               >
                 {cat.label}
@@ -306,13 +332,35 @@ export default function Templates() {
       {loading && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="rounded-xl p-5" style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}>
-              <Skeleton className="h-5 w-32 mb-3 rounded" style={{ background: tokens.border.default }} />
-              <Skeleton className="h-3 w-full mb-2 rounded" style={{ background: tokens.border.default }} />
-              <Skeleton className="h-3 w-3/4 mb-4 rounded" style={{ background: tokens.border.default }} />
+            <div
+              key={i}
+              className="rounded-xl p-5"
+              style={{
+                background: tokens.surface.card,
+                border: `1px solid ${tokens.border.default}`,
+              }}
+            >
+              <Skeleton
+                className="h-5 w-32 mb-3 rounded"
+                style={{ background: tokens.border.default }}
+              />
+              <Skeleton
+                className="h-3 w-full mb-2 rounded"
+                style={{ background: tokens.border.default }}
+              />
+              <Skeleton
+                className="h-3 w-3/4 mb-4 rounded"
+                style={{ background: tokens.border.default }}
+              />
               <div className="flex gap-2">
-                <Skeleton className="h-8 w-20 rounded-lg" style={{ background: tokens.border.default }} />
-                <Skeleton className="h-8 w-20 rounded-lg" style={{ background: tokens.border.default }} />
+                <Skeleton
+                  className="h-8 w-20 rounded-lg"
+                  style={{ background: tokens.border.default }}
+                />
+                <Skeleton
+                  className="h-8 w-20 rounded-lg"
+                  style={{ background: tokens.border.default }}
+                />
               </div>
             </div>
           ))}
@@ -322,10 +370,15 @@ export default function Templates() {
       {/* ── Empty State ── */}
       {!loading && filteredTemplates.length === 0 && (
         <div className="flex flex-col items-center justify-center py-20 px-6">
-          <div className="flex items-center justify-center w-16 h-16 rounded-2xl mb-5" style={{ background: `${tokens.accent.primary}12` }}>
+          <div
+            className="flex items-center justify-center w-16 h-16 rounded-2xl mb-5"
+            style={{ background: `${tokens.accent.primary}12` }}
+          >
             <LayoutTemplate className="w-8 h-8" style={{ color: tokens.accent.primary }} />
           </div>
-          <h3 className="text-base font-semibold mb-1.5" style={{ color: tokens.text.primary }}>No templates found</h3>
+          <h3 className="text-base font-semibold mb-1.5" style={{ color: tokens.text.primary }}>
+            No templates found
+          </h3>
           <p className="text-sm text-center max-w-sm" style={{ color: tokens.text.secondary }}>
             {search || categoryFilter !== 'all'
               ? 'Try adjusting your search or filter criteria.'
@@ -333,7 +386,10 @@ export default function Templates() {
           </p>
           {(search || categoryFilter !== 'all') && (
             <button
-              onClick={() => { setSearch(''); setCategoryFilter('all'); }}
+              onClick={() => {
+                setSearch('');
+                setCategoryFilter('all');
+              }}
               className="text-xs font-medium mt-3"
               style={{ color: tokens.accent.primary }}
             >
@@ -346,14 +402,17 @@ export default function Templates() {
       {/* ── Template Grid ── */}
       {!loading && filteredTemplates.length > 0 && (
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredTemplates.map(tpl => {
+          {filteredTemplates.map((tpl) => {
             const catConfig = getCategoryConfig(tpl.category);
             const CatIcon = getCategoryIcon(tpl.category);
             return (
               <div
                 key={tpl.id}
                 className="rounded-xl p-5 flex flex-col gap-3 transition-all hover:shadow-lg"
-                style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
+                style={{
+                  background: tokens.surface.card,
+                  border: `1px solid ${tokens.border.default}`,
+                }}
               >
                 {/* Header */}
                 <div className="flex items-start justify-between gap-2">
@@ -365,7 +424,12 @@ export default function Templates() {
                       <CatIcon className="w-5 h-5" />
                     </div>
                     <div className="min-w-0">
-                      <h3 className="text-sm font-semibold truncate" style={{ color: tokens.text.primary }}>{tpl.name}</h3>
+                      <h3
+                        className="text-sm font-semibold truncate"
+                        style={{ color: tokens.text.primary }}
+                      >
+                        {tpl.name}
+                      </h3>
                       <span
                         className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium mt-0.5"
                         style={{ background: catConfig.bg, color: catConfig.color }}
@@ -378,12 +442,19 @@ export default function Templates() {
 
                 {/* Subject Preview */}
                 <div className="min-w-0">
-                  <p className="text-xs font-medium mb-1" style={{ color: tokens.text.muted }}>Subject</p>
-                  <p className="text-sm truncate" style={{ color: tokens.text.secondary }}>{tpl.subject}</p>
+                  <p className="text-xs font-medium mb-1" style={{ color: tokens.text.muted }}>
+                    Subject
+                  </p>
+                  <p className="text-sm truncate" style={{ color: tokens.text.secondary }}>
+                    {tpl.subject}
+                  </p>
                 </div>
 
                 {/* Meta */}
-                <div className="flex items-center justify-between text-xs" style={{ color: tokens.text.muted }}>
+                <div
+                  className="flex items-center justify-between text-xs"
+                  style={{ color: tokens.text.muted }}
+                >
                   <span>{tpl.useCount} uses</span>
                   <span>Last used {formatRelativeDate(tpl.lastUsed)}</span>
                 </div>
@@ -393,17 +464,28 @@ export default function Templates() {
                   <button
                     onClick={() => setPreviewTemplate(tpl)}
                     className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium transition-colors"
-                    style={{ border: `1px solid ${tokens.border.default}`, color: tokens.text.secondary }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = tokens.surfaceExtended; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                    style={{
+                      border: `1px solid ${tokens.border.default}`,
+                      color: tokens.text.secondary,
+                    }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = tokens.surfaceExtended;
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = 'transparent';
+                    }}
                   >
                     <Eye className="w-3.5 h-3.5" /> Preview
                   </button>
                   <button
                     className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold transition-colors"
                     style={{ background: tokens.accent.primary, color: tokens.text.inverse }}
-                    onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = tokens.accent.hover; }}
-                    onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = tokens.accent.primary; }}
+                    onMouseEnter={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = tokens.accent.hover;
+                    }}
+                    onMouseLeave={(e) => {
+                      (e.currentTarget as HTMLElement).style.background = tokens.accent.primary;
+                    }}
                   >
                     <Copy className="w-3.5 h-3.5" /> Use Template
                   </button>
@@ -426,17 +508,30 @@ export default function Templates() {
           {/* Panel */}
           <div
             className="relative w-full max-w-lg flex flex-col"
-            style={{ background: tokens.surface.card, borderLeft: `1px solid ${tokens.border.default}` }}
+            style={{
+              background: tokens.surface.card,
+              borderLeft: `1px solid ${tokens.border.default}`,
+            }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-5" style={{ borderBottom: `1px solid ${tokens.border.default}` }}>
+            <div
+              className="flex items-center justify-between p-5"
+              style={{ borderBottom: `1px solid ${tokens.border.default}` }}
+            >
               <div className="flex items-center gap-3">
-                <div className="flex items-center justify-center w-9 h-9 rounded-lg" style={{ background: `${tokens.accent.primary}15`, color: tokens.accent.primary }}>
+                <div
+                  className="flex items-center justify-center w-9 h-9 rounded-lg"
+                  style={{ background: `${tokens.accent.primary}15`, color: tokens.accent.primary }}
+                >
                   <FileText className="w-5 h-5" />
                 </div>
                 <div>
-                  <h2 className="text-base font-semibold" style={{ color: tokens.text.primary }}>{previewTemplate.name}</h2>
-                  <p className="text-xs" style={{ color: tokens.text.muted }}>Template Preview</p>
+                  <h2 className="text-base font-semibold" style={{ color: tokens.text.primary }}>
+                    {previewTemplate.name}
+                  </h2>
+                  <p className="text-xs" style={{ color: tokens.text.muted }}>
+                    Template Preview
+                  </p>
                 </div>
               </div>
               <button
@@ -452,35 +547,66 @@ export default function Templates() {
             <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5">
               {/* Subject */}
               <div>
-                <label className="text-xs font-medium block mb-1.5" style={{ color: tokens.text.muted }}>Subject Line</label>
-                <div className="px-4 py-3 rounded-lg" style={{ background: tokens.surfaceExtended, border: `1px solid ${tokens.border.default}` }}>
-                  <p className="text-sm" style={{ color: tokens.text.primary }}>{previewTemplate.subject}</p>
+                <label
+                  className="text-xs font-medium block mb-1.5"
+                  style={{ color: tokens.text.muted }}
+                >
+                  Subject Line
+                </label>
+                <div
+                  className="px-4 py-3 rounded-lg"
+                  style={{
+                    background: tokens.surfaceExtended,
+                    border: `1px solid ${tokens.border.default}`,
+                  }}
+                >
+                  <p className="text-sm" style={{ color: tokens.text.primary }}>
+                    {previewTemplate.subject}
+                  </p>
                 </div>
               </div>
 
               {/* Category & Usage */}
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
-                  <span className="text-xs" style={{ color: tokens.text.muted }}>Category:</span>
+                  <span className="text-xs" style={{ color: tokens.text.muted }}>
+                    Category:
+                  </span>
                   <span
                     className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
-                    style={{ background: getCategoryConfig(previewTemplate.category).bg, color: getCategoryConfig(previewTemplate.category).color }}
+                    style={{
+                      background: getCategoryConfig(previewTemplate.category).bg,
+                      color: getCategoryConfig(previewTemplate.category).color,
+                    }}
                   >
                     {getCategoryConfig(previewTemplate.category).label}
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <span className="text-xs" style={{ color: tokens.text.muted }}>Used:</span>
-                  <span className="text-xs font-medium" style={{ color: tokens.text.primary }}>{previewTemplate.useCount} times</span>
+                  <span className="text-xs" style={{ color: tokens.text.muted }}>
+                    Used:
+                  </span>
+                  <span className="text-xs font-medium" style={{ color: tokens.text.primary }}>
+                    {previewTemplate.useCount} times
+                  </span>
                 </div>
               </div>
 
               {/* Body Preview */}
               <div>
-                <label className="text-xs font-medium block mb-1.5" style={{ color: tokens.text.muted }}>Email Body</label>
+                <label
+                  className="text-xs font-medium block mb-1.5"
+                  style={{ color: tokens.text.muted }}
+                >
+                  Email Body
+                </label>
                 <div
                   className="px-4 py-4 rounded-lg whitespace-pre-wrap font-mono text-sm leading-relaxed"
-                  style={{ background: '#0d1117', border: `1px solid ${tokens.border.default}`, color: tokens.text.secondary }}
+                  style={{
+                    background: 'var(--ios-bg-card)',
+                    border: `1px solid ${tokens.border.default}`,
+                    color: tokens.text.secondary,
+                  }}
                 >
                   {previewTemplate.body}
                 </div>
@@ -488,35 +614,55 @@ export default function Templates() {
 
               {/* Variables Used */}
               <div>
-                <label className="text-xs font-medium block mb-1.5" style={{ color: tokens.text.muted }}>Variables</label>
+                <label
+                  className="text-xs font-medium block mb-1.5"
+                  style={{ color: tokens.text.muted }}
+                >
+                  Variables
+                </label>
                 <div className="flex flex-wrap gap-2">
-                  {[...new Set(previewTemplate.body.match(/\{\{[^}]+\}\}/g) || [])].map(variable => (
-                    <span
-                      key={variable}
-                      className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono"
-                      style={{ background: `${tokens.domain.reasoning}15`, color: tokens.domain.reasoning }}
-                    >
-                      {variable}
-                    </span>
-                  ))}
+                  {[...new Set(previewTemplate.body.match(/\{\{[^}]+\}\}/g) || [])].map(
+                    (variable) => (
+                      <span
+                        key={variable}
+                        className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-mono"
+                        style={{
+                          background: `${tokens.domain.reasoning}15`,
+                          color: tokens.domain.reasoning,
+                        }}
+                      >
+                        {variable}
+                      </span>
+                    ),
+                  )}
                 </div>
               </div>
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-end gap-3 p-5" style={{ borderTop: `1px solid ${tokens.border.default}` }}>
+            <div
+              className="flex items-center justify-end gap-3 p-5"
+              style={{ borderTop: `1px solid ${tokens.border.default}` }}
+            >
               <button
                 onClick={() => setPreviewTemplate(null)}
                 className="px-4 py-2 rounded-lg text-sm font-medium transition-colors"
-                style={{ border: `1px solid ${tokens.border.default}`, color: tokens.text.secondary }}
+                style={{
+                  border: `1px solid ${tokens.border.default}`,
+                  color: tokens.text.secondary,
+                }}
               >
                 Close
               </button>
               <button
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-colors"
                 style={{ background: tokens.accent.primary, color: tokens.text.inverse }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.background = tokens.accent.hover; }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.background = tokens.accent.primary; }}
+                onMouseEnter={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = tokens.accent.hover;
+                }}
+                onMouseLeave={(e) => {
+                  (e.currentTarget as HTMLElement).style.background = tokens.accent.primary;
+                }}
               >
                 <Copy className="w-4 h-4" /> Use Template
               </button>

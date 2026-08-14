@@ -67,7 +67,8 @@ function formatRelativeDate(dateStr: string | null): string {
 function getScoreColor(score: number | null): { color: string; bg: string } {
   if (score == null) return { color: tokens.text.muted, bg: tokens.neutral['100'] };
   if (score >= 80) return { color: tokens.confidence.high.value, bg: tokens.confidence.high.bg };
-  if (score >= 50) return { color: tokens.confidence.medium.value, bg: tokens.confidence.medium.bg };
+  if (score >= 50)
+    return { color: tokens.confidence.medium.value, bg: tokens.confidence.medium.bg };
   return { color: tokens.confidence.low.value, bg: tokens.confidence.low.bg };
 }
 
@@ -207,15 +208,12 @@ function EmptyState({ onImport }: { onImport: () => void }) {
       >
         <Building2 className="w-8 h-8" style={{ color: tokens.accent.primary }} />
       </div>
-      <h3
-        className="text-base font-semibold mb-1.5"
-        style={{ color: tokens.text.primary }}
-      >
+      <h3 className="text-base font-semibold mb-1.5" style={{ color: tokens.text.primary }}>
         No organizations yet
       </h3>
       <p className="text-sm text-center max-w-sm mb-6" style={{ color: tokens.text.secondary }}>
-        Start building your intelligence database by importing organizations.
-        You can import from CSV, connect a CRM, or add them manually.
+        Start building your intelligence database by importing organizations. You can import from
+        CSV, connect a CRM, or add them manually.
       </p>
       <div className="flex items-center gap-3">
         <button
@@ -334,18 +332,11 @@ export default function Companies() {
   // ── Computed stats ──
   const stats = useMemo(() => {
     const total = totalCount;
-    const active = organizations.filter(
-      (o) => o.trackingStatus === 'active'
-    ).length;
-    const scored = organizations.filter(
-      (o) => o.intelligenceScore != null
-    );
+    const active = organizations.filter((o) => o.trackingStatus === 'active').length;
+    const scored = organizations.filter((o) => o.intelligenceScore != null);
     const avgScore =
       scored.length > 0
-        ? Math.round(
-            scored.reduce((sum, o) => sum + (o.intelligenceScore ?? 0), 0) /
-              scored.length
-          )
+        ? Math.round(scored.reduce((sum, o) => sum + (o.intelligenceScore ?? 0), 0) / scored.length)
         : 0;
 
     return { total, active, avgScore };
@@ -361,7 +352,7 @@ export default function Companies() {
         setSortDir('desc');
       }
     },
-    [sortKey]
+    [sortKey],
   );
 
   const handleRowClick = useCallback(
@@ -370,7 +361,7 @@ export default function Companies() {
       setSelectedCompanyId(org.id);
       setActiveView('company-detail');
     },
-    [setSelectedCompanyId, setActiveView]
+    [setSelectedCompanyId, setActiveView],
   );
 
   const handleImport = useCallback(() => {
@@ -405,10 +396,7 @@ export default function Companies() {
                   {org.name}
                 </p>
                 {org.domain && (
-                  <p
-                    className="text-xs truncate"
-                    style={{ color: tokens.text.muted }}
-                  >
+                  <p className="text-xs truncate" style={{ color: tokens.text.muted }}>
                     {org.domain}
                   </p>
                 )}
@@ -439,8 +427,7 @@ export default function Companies() {
         label: 'Industry',
         render: (value: unknown) => {
           const industry = value as string | null;
-          if (!industry)
-            return <span style={{ color: tokens.text.muted }}>—</span>;
+          if (!industry) return <span style={{ color: tokens.text.muted }}>—</span>;
           return (
             <span
               className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium"
@@ -494,13 +481,13 @@ export default function Companies() {
         ),
       },
     ],
-    []
+    [],
   );
 
   // ── Transform data for DataTable ──
   const tableData = useMemo(
     () => sortedData.map((o) => ({ ...o })) as Record<string, unknown>[],
-    [sortedData]
+    [sortedData],
   );
 
   // ── Loading skeleton for stats ──
@@ -524,10 +511,7 @@ export default function Companies() {
               className="h-3 w-20 mb-2 rounded"
               style={{ background: tokens.border.default }}
             />
-            <Skeleton
-              className="h-6 w-16 rounded"
-              style={{ background: tokens.border.default }}
-            />
+            <Skeleton className="h-6 w-16 rounded" style={{ background: tokens.border.default }} />
           </div>
         </div>
       ))}
@@ -543,21 +527,12 @@ export default function Companies() {
             className="flex items-center justify-center w-16 h-16 rounded-2xl mb-5"
             style={{ background: `${tokens.confidence.low.bg}` }}
           >
-            <Building2
-              className="w-8 h-8"
-              style={{ color: tokens.confidence.low.value }}
-            />
+            <Building2 className="w-8 h-8" style={{ color: tokens.confidence.low.value }} />
           </div>
-          <h3
-            className="text-base font-semibold mb-1.5"
-            style={{ color: tokens.text.primary }}
-          >
+          <h3 className="text-base font-semibold mb-1.5" style={{ color: tokens.text.primary }}>
             Failed to load organizations
           </h3>
-          <p
-            className="text-sm text-center max-w-sm mb-6"
-            style={{ color: tokens.text.secondary }}
-          >
+          <p className="text-sm text-center max-w-sm mb-6" style={{ color: tokens.text.secondary }}>
             {error}
           </p>
           <button
@@ -568,12 +543,10 @@ export default function Companies() {
               color: tokens.text.inverse,
             }}
             onMouseEnter={(e) => {
-              (e.currentTarget as HTMLElement).style.background =
-                tokens.accent.hover;
+              (e.currentTarget as HTMLElement).style.background = tokens.accent.hover;
             }}
             onMouseLeave={(e) => {
-              (e.currentTarget as HTMLElement).style.background =
-                tokens.accent.primary;
+              (e.currentTarget as HTMLElement).style.background = tokens.accent.primary;
             }}
           >
             <ArrowUpDown className="w-4 h-4" />
@@ -598,10 +571,7 @@ export default function Companies() {
       {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
-          <h1
-            className="text-xl font-bold tracking-tight"
-            style={{ color: tokens.text.primary }}
-          >
+          <h1 className="text-xl font-bold tracking-tight" style={{ color: tokens.text.primary }}>
             Organizations
           </h1>
           <p className="text-sm mt-0.5" style={{ color: tokens.text.secondary }}>
@@ -616,12 +586,10 @@ export default function Companies() {
             color: tokens.text.inverse,
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLElement).style.background =
-              tokens.accent.hover;
+            (e.currentTarget as HTMLElement).style.background = tokens.accent.hover;
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLElement).style.background =
-              tokens.accent.primary;
+            (e.currentTarget as HTMLElement).style.background = tokens.accent.primary;
           }}
         >
           <Upload className="w-4 h-4" />

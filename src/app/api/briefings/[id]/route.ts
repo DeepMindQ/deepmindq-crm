@@ -5,10 +5,7 @@ import { db } from '@/lib/db';
 
 const briefingIdSchema = z.string().min(1);
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { errorResponse } = await checkApiAuth(request);
     if (errorResponse) return errorResponse;
@@ -16,7 +13,10 @@ export async function GET(
     const { id } = await params;
     const idParsed = briefingIdSchema.safeParse(id);
     if (!idParsed.success) {
-      return NextResponse.json({ error: 'Invalid briefing ID', details: idParsed.error.flatten() }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid briefing ID', details: idParsed.error.flatten() },
+        { status: 400 },
+      );
     }
     const validId = idParsed.data;
 
@@ -43,7 +43,10 @@ export async function GET(
     });
 
     if (!briefing) {
-      return NextResponse.json({ error: 'No briefing found for this organization' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'No briefing found for this organization' },
+        { status: 404 },
+      );
     }
 
     return NextResponse.json({ data: briefing });

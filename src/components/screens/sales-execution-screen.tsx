@@ -10,26 +10,9 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import {
-  ChartContainer,
-  ChartTooltip,
-  ChartTooltipContent,
-} from '@/components/ui/chart';
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-} from 'recharts';
-import {
-  Phone,
-  Mail,
-  Calendar,
-  Trophy,
-  Users,
-  ArrowRight,
-} from 'lucide-react';
+import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
+import { Phone, Mail, Calendar, Trophy, Users, ArrowRight } from 'lucide-react';
 
 const ACTIVITY_BY_DAY = [
   { day: 'Mon', calls: 42, emails: 87, meetings: 8 },
@@ -55,8 +38,24 @@ const FUNNEL_DATA = [
 const REP_LEADERBOARD = [
   { name: 'Alex Kim', role: 'AE', calls: 67, emails: 142, meetings: 18, wins: 5, value: 320000 },
   { name: 'Jordan Lee', role: 'AE', calls: 58, emails: 128, meetings: 15, wins: 4, value: 285000 },
-  { name: 'Casey Morgan', role: 'AE', calls: 52, emails: 118, meetings: 12, wins: 3, value: 210000 },
-  { name: 'Taylor Brooks', role: 'SDR', calls: 45, emails: 96, meetings: 6, wins: 2, value: 140000 },
+  {
+    name: 'Casey Morgan',
+    role: 'AE',
+    calls: 52,
+    emails: 118,
+    meetings: 12,
+    wins: 3,
+    value: 210000,
+  },
+  {
+    name: 'Taylor Brooks',
+    role: 'SDR',
+    calls: 45,
+    emails: 96,
+    meetings: 6,
+    wins: 2,
+    value: 140000,
+  },
   { name: 'Reese Patel', role: 'SDR', calls: 38, emails: 84, meetings: 4, wins: 1, value: 85000 },
   { name: 'Dakota Chen', role: 'SDR', calls: 32, emails: 72, meetings: 3, wins: 1, value: 64000 },
 ];
@@ -87,7 +86,9 @@ export default function SalesExecution() {
     <div className="flex flex-col gap-6 p-6">
       {/* Header */}
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>Sales Execution</h1>
+        <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+          Sales Execution
+        </h1>
         <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
           Track sales team activity, conversion funnel, and rep performance
         </p>
@@ -96,19 +97,50 @@ export default function SalesExecution() {
       {/* Stats */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Calls Made (Week)', value: totalCalls, icon: Phone, color: tokens.accent.primary, bg: tokens.accent.subtle },
-          { label: 'Emails Sent (Week)', value: totalEmails, icon: Mail, color: tokens.domain.value, bg: tokens.domain.bg },
-          { label: 'Meetings Booked (Week)', value: totalMeetings, icon: Calendar, color: tokens.confidence.high.value, bg: tokens.confidence.high.bg },
-          { label: 'Deals Won (Week)', value: totalWins, icon: Trophy, color: tokens.gold.dark, bg: tokens.gold.bgMedium },
+          {
+            label: 'Calls Made (Week)',
+            value: totalCalls,
+            icon: Phone,
+            color: tokens.accent.primary,
+            bg: tokens.accent.subtle,
+          },
+          {
+            label: 'Emails Sent (Week)',
+            value: totalEmails,
+            icon: Mail,
+            color: tokens.domain.value,
+            bg: tokens.domain.bg,
+          },
+          {
+            label: 'Meetings Booked (Week)',
+            value: totalMeetings,
+            icon: Calendar,
+            color: tokens.confidence.high.value,
+            bg: tokens.confidence.high.bg,
+          },
+          {
+            label: 'Deals Won (Week)',
+            value: totalWins,
+            icon: Trophy,
+            color: tokens.gold.dark,
+            bg: tokens.gold.bgMedium,
+          },
         ].map((stat) => (
           <Card key={stat.label} className="gap-4 py-4">
             <CardContent className="flex items-center gap-4">
-              <div className="size-10 rounded-lg flex items-center justify-center" style={{ backgroundColor: stat.bg }}>
+              <div
+                className="size-10 rounded-lg flex items-center justify-center"
+                style={{ backgroundColor: stat.bg }}
+              >
                 <stat.icon className="size-5" style={{ color: stat.color }} />
               </div>
               <div>
-                <p className="text-xs font-medium" style={{ color: tokens.text.secondary }}>{stat.label}</p>
-                <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>{stat.value}</p>
+                <p className="text-xs font-medium" style={{ color: tokens.text.secondary }}>
+                  {stat.label}
+                </p>
+                <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+                  {stat.value}
+                </p>
               </div>
             </CardContent>
           </Card>
@@ -145,7 +177,9 @@ export default function SalesExecution() {
             {FUNNEL_DATA.map((step) => (
               <div key={step.stage} className="flex items-center gap-3">
                 <div className="w-32 shrink-0">
-                  <p className="text-xs font-medium" style={{ color: tokens.text.primary }}>{step.stage}</p>
+                  <p className="text-xs font-medium" style={{ color: tokens.text.primary }}>
+                    {step.stage}
+                  </p>
                 </div>
                 <div className="flex-1 flex flex-col gap-1">
                   <div
@@ -159,7 +193,12 @@ export default function SalesExecution() {
                     <span className="text-xs font-medium text-white font-mono">{step.value}</span>
                   </div>
                 </div>
-                <span className="text-xs font-mono w-14 text-right" style={{ color: tokens.text.secondary }}>{step.pct}%</span>
+                <span
+                  className="text-xs font-mono w-14 text-right"
+                  style={{ color: tokens.text.secondary }}
+                >
+                  {step.pct}%
+                </span>
               </div>
             ))}
           </CardContent>
@@ -190,20 +229,59 @@ export default function SalesExecution() {
                   <TableRow key={rep.name} className="hover:bg-muted/50 transition-colors">
                     <TableCell>
                       <div className="flex items-center gap-2">
-                        <span className="size-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white" style={{ backgroundColor: idx === 0 ? tokens.gold.dark : idx === 1 ? tokens.neutral.zinc : tokens.accent.primary }}>
+                        <span
+                          className="size-5 rounded-full flex items-center justify-center text-[10px] font-bold text-white"
+                          style={{
+                            backgroundColor:
+                              idx === 0
+                                ? tokens.gold.dark
+                                : idx === 1
+                                  ? tokens.neutral.zinc
+                                  : tokens.accent.primary,
+                          }}
+                        >
                           {idx + 1}
                         </span>
                         <div>
-                          <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>{rep.name}</p>
-                          <p className="text-[10px]" style={{ color: tokens.text.muted }}>{rep.role}</p>
+                          <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>
+                            {rep.name}
+                          </p>
+                          <p className="text-[10px]" style={{ color: tokens.text.muted }}>
+                            {rep.role}
+                          </p>
                         </div>
                       </div>
                     </TableCell>
-                    <TableCell className="text-right font-mono text-xs" style={{ color: tokens.text.secondary }}>{rep.calls}</TableCell>
-                    <TableCell className="text-right font-mono text-xs" style={{ color: tokens.text.secondary }}>{rep.emails}</TableCell>
-                    <TableCell className="text-right font-mono text-xs" style={{ color: tokens.text.secondary }}>{rep.meetings}</TableCell>
-                    <TableCell className="text-right font-mono text-xs font-medium" style={{ color: tokens.confidence.high.value }}>{rep.wins}</TableCell>
-                    <TableCell className="text-right font-mono text-xs font-medium" style={{ color: tokens.text.primary }}>{formatCurrency(rep.value)}</TableCell>
+                    <TableCell
+                      className="text-right font-mono text-xs"
+                      style={{ color: tokens.text.secondary }}
+                    >
+                      {rep.calls}
+                    </TableCell>
+                    <TableCell
+                      className="text-right font-mono text-xs"
+                      style={{ color: tokens.text.secondary }}
+                    >
+                      {rep.emails}
+                    </TableCell>
+                    <TableCell
+                      className="text-right font-mono text-xs"
+                      style={{ color: tokens.text.secondary }}
+                    >
+                      {rep.meetings}
+                    </TableCell>
+                    <TableCell
+                      className="text-right font-mono text-xs font-medium"
+                      style={{ color: tokens.confidence.high.value }}
+                    >
+                      {rep.wins}
+                    </TableCell>
+                    <TableCell
+                      className="text-right font-mono text-xs font-medium"
+                      style={{ color: tokens.text.primary }}
+                    >
+                      {formatCurrency(rep.value)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>

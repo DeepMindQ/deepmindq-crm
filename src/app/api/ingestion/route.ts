@@ -44,7 +44,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const parsed = ingestionGetQuerySchema.safeParse(Object.fromEntries(searchParams));
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid parameters', details: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid parameters', details: parsed.error.flatten() },
+        { status: 400 },
+      );
     }
     const { limit } = parsed.data;
 
@@ -68,7 +71,10 @@ export async function POST(request: NextRequest) {
     const file = formData.get('file') as File | null;
 
     if (!file) {
-      return NextResponse.json({ error: 'No file provided. Use FormData with a "file" field.' }, { status: 400 });
+      return NextResponse.json(
+        { error: 'No file provided. Use FormData with a "file" field.' },
+        { status: 400 },
+      );
     }
 
     // Zod validation for file metadata
@@ -78,7 +84,10 @@ export async function POST(request: NextRequest) {
       type: file.type,
     });
     if (!fileParsed.success) {
-      return NextResponse.json({ error: 'Invalid file', details: fileParsed.error.flatten() }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid file', details: fileParsed.error.flatten() },
+        { status: 400 },
+      );
     }
 
     // Validate file extension
@@ -86,7 +95,7 @@ export async function POST(request: NextRequest) {
     if (!ACCEPTED_EXTENSIONS.includes(ext)) {
       return NextResponse.json(
         { error: `Unsupported file type "${ext}". Accepted: ${ACCEPTED_EXTENSIONS.join(', ')}` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -94,7 +103,7 @@ export async function POST(request: NextRequest) {
     if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
         { error: `File too large (${(file.size / 1024 / 1024).toFixed(1)}MB). Maximum is 50MB.` },
-        { status: 400 }
+        { status: 400 },
       );
     }
 
@@ -124,11 +133,15 @@ export async function POST(request: NextRequest) {
       },
     });
 
-    logger.info(`[Ingestion] File uploaded: ${safeName} (${fileType}, ${file.size} bytes) — id=${ingestion.id}`);
+    logger.info(
+      `[Ingestion] File uploaded: ${safeName} (${fileType}, ${file.size} bytes) — id=${ingestion.id}`,
+    );
 
     return NextResponse.json({ data: ingestion, success: true });
   } catch (error) {
-    logger.error('[Ingestion] Upload failed', { error: error instanceof Error ? error.message : String(error) });
+    logger.error('[Ingestion] Upload failed', {
+      error: error instanceof Error ? error.message : String(error),
+    });
     return NextResponse.json({ error: 'Failed to upload file' }, { status: 500 });
   }
 }

@@ -26,11 +26,7 @@ async function hashOtp(code: string): Promise<string> {
 }
 
 export type OtpPurpose =
-  | 'login'
-  | 'set_password'
-  | 'change_email'
-  | 'change_password'
-  | 'update_profile';
+  'login' | 'set_password' | 'change_email' | 'change_password' | 'update_profile';
 
 const OTP_EXPIRY_MINUTES = 10;
 const MAX_ATTEMPTS = 5;
@@ -117,10 +113,7 @@ export interface RequestOtpResult {
  *
  * Rate limiting uses in-memory tracking since there's no dedicated OTP table.
  */
-export async function requestOtp(
-  email: string,
-  purpose: OtpPurpose,
-): Promise<RequestOtpResult> {
+export async function requestOtp(email: string, purpose: OtpPurpose): Promise<RequestOtpResult> {
   const normalizedEmail = email.trim().toLowerCase();
 
   // Validate email format
@@ -199,7 +192,9 @@ export async function requestOtp(
         logger.error(`[OTP] Email send failed for ${normalizedEmail}`);
       }
     } catch (emailErr) {
-      logger.error('[OTP] Email exception:', { error: emailErr instanceof Error ? emailErr.message : emailErr });
+      logger.error('[OTP] Email exception:', {
+        error: emailErr instanceof Error ? emailErr.message : emailErr,
+      });
     }
   } else {
     logger.warn('[OTP] No EMAIL_API_KEY configured.');
@@ -213,13 +208,17 @@ export async function requestOtp(
 
   // If email was NOT sent
   if (!emailSent) {
-    const devOtpAllowed = process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_OTP === 'true';
+    const devOtpAllowed =
+      process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_OTP === 'true';
     if (devOtpAllowed) {
       logger.info(`[OTP] DEV — ALLOW_DEV_OTP enabled. Returning code: ${code}`);
       return { success: true, devCode: code };
     }
     logger.error('[OTP] PRODUCTION — Email send failed. EMAIL_API_KEY must be configured.');
-    return { success: false, error: 'Authentication service is temporarily unavailable. Please try again later.' };
+    return {
+      success: false,
+      error: 'Authentication service is temporarily unavailable. Please try again later.',
+    };
   }
 
   return { success: true };
@@ -260,7 +259,11 @@ export async function verifyOtp(
 
   // Check expiry
   if (user.otpExpiresAt && user.otpExpiresAt < new Date()) {
-    return { success: false, error: 'Code expired. Please request a new one.', needsPassword: false };
+    return {
+      success: false,
+      error: 'Code expired. Please request a new one.',
+      needsPassword: false,
+    };
   }
 
   // Compare hashes (timing-safe comparison not needed since SHA-256 hash comparison is safe)

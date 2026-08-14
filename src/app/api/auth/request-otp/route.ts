@@ -34,7 +34,9 @@ async function hashOtp(code: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(`dmq:${code}`);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 function generateOtpCode(): string {
@@ -60,21 +62,26 @@ export async function POST(request: NextRequest) {
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: 'Too many OTP requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)) } }
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)),
+          },
+        },
       );
     }
 
     if (!AUTHORIZED_EMAIL) {
       return NextResponse.json(
         { error: 'Authentication is not configured. AUTHORIZED_EMAIL must be set.' },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
     if (email !== AUTHORIZED_EMAIL) {
       return NextResponse.json(
         { error: 'This workspace is restricted to authorized personnel only.' },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -91,7 +98,7 @@ export async function POST(request: NextRequest) {
         const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
+            Authorization: `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -124,7 +131,9 @@ export async function POST(request: NextRequest) {
           logger.error('[auth/request-otp] Resend error:', { res: res.status, errData: errData });
         }
       } catch (emailErr) {
-        logger.error('[auth/request-otp] Email failed:', { error: emailErr instanceof Error ? emailErr.message : emailErr });
+        logger.error('[auth/request-otp] Email failed:', {
+          error: emailErr instanceof Error ? emailErr.message : emailErr,
+        });
       }
     } else {
       logger.error('[auth/request-otp] No EMAIL_API_KEY!');
@@ -133,7 +142,7 @@ export async function POST(request: NextRequest) {
     if (!emailSent) {
       return NextResponse.json(
         { error: 'Failed to send verification email. Please try again later.' },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -160,10 +169,18 @@ export async function POST(request: NextRequest) {
       const user = await db.user.findUnique({ where: { email } });
       if (!user) {
         const encryptedData = await encryptUserFields({ email });
-        await db.user.create({ data: { email: encryptedData.email as string, name: AUTHORIZED_EMAIL ? AUTHORIZED_EMAIL.split('@')[0] : 'Admin', role: 'admin' } });
+        await db.user.create({
+          data: {
+            email: encryptedData.email as string,
+            name: AUTHORIZED_EMAIL ? AUTHORIZED_EMAIL.split('@')[0] : 'Admin',
+            role: 'admin',
+          },
+        });
       }
     } catch (dbErr) {
-      logger.warn('[auth/request-otp] DB failed (cookie is primary):', { error: dbErr instanceof Error ? dbErr.message : dbErr });
+      logger.warn('[auth/request-otp] DB failed (cookie is primary):', {
+        error: dbErr instanceof Error ? dbErr.message : dbErr,
+      });
     }
 
     return NextResponse.json({

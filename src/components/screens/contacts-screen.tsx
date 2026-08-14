@@ -48,14 +48,14 @@ interface Person {
 // ── Role badge colors ──────────────────────────────────
 
 const ROLE_BADGES: Record<string, { bg: string; color: string; border: string }> = {
-  executive:       { bg: '#F3E8FF', color: '#7C3AED', border: '#DDD6FE' },
-  vice_president:  { bg: '#DBEAFE', color: '#2563EB', border: '#BFDBFE' },
-  director:        { bg: '#E0E7FF', color: '#4F46E5', border: '#C7D2FE' },
-  manager:         { bg: '#CCFBF1', color: '#0D9488', border: '#99F6E4' },
-  individual:      { bg: '#F3F4F6', color: '#6B7280', border: '#E5E7EB' },
-  advisor:         { bg: '#FEF3C7', color: '#D97706', border: '#FDE68A' },
-  partner:         { bg: '#DCFCE7', color: '#16A34A', border: '#BBF7D0' },
-  unknown:         { bg: '#F3F4F6', color: '#9CA3AF', border: '#E5E7EB' },
+  executive: { bg: '#F3E8FF', color: '#7C3AED', border: '#DDD6FE' },
+  vice_president: { bg: '#DBEAFE', color: '#2563EB', border: '#BFDBFE' },
+  director: { bg: '#E0E7FF', color: '#4F46E5', border: '#C7D2FE' },
+  manager: { bg: '#CCFBF1', color: '#0D9488', border: '#99F6E4' },
+  individual: { bg: '#F3F4F6', color: '#6B7280', border: '#E5E7EB' },
+  advisor: { bg: '#FEF3C7', color: '#D97706', border: '#FDE68A' },
+  partner: { bg: '#DCFCE7', color: '#16A34A', border: '#BBF7D0' },
+  unknown: { bg: '#F3F4F6', color: '#9CA3AF', border: '#E5E7EB' },
 };
 
 function formatRole(role: string): string {
@@ -172,7 +172,9 @@ export default function Contacts() {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ── Filter + search ──
@@ -188,12 +190,7 @@ export default function Contacts() {
     if (search.trim()) {
       const q = search.toLowerCase();
       result = result.filter((p) => {
-        const haystack = [
-          p.fullName,
-          p.email,
-          p.title,
-          p.department,
-        ]
+        const haystack = [p.fullName, p.email, p.title, p.department]
           .filter(Boolean)
           .join(' ')
           .toLowerCase();
@@ -251,7 +248,16 @@ export default function Contacts() {
 
   const handleExport = useCallback(() => {
     if (sortedPeople.length === 0) return;
-    const headers = ['Name', 'Email', 'Title', 'Role', 'Department', 'Organization', 'Seniority', 'Source'];
+    const headers = [
+      'Name',
+      'Email',
+      'Title',
+      'Role',
+      'Department',
+      'Organization',
+      'Seniority',
+      'Source',
+    ];
     const rows = sortedPeople.map((p) => [
       p.fullName,
       p.email ?? '',
@@ -262,7 +268,9 @@ export default function Contacts() {
       p.seniority ?? '',
       p.source ?? '',
     ]);
-    const csv = [headers, ...rows].map((r) => r.map((c) => `"${String(c).replace(/"/g, '""') }"`).join(',')).join('\n');
+    const csv = [headers, ...rows]
+      .map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(','))
+      .join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -293,7 +301,10 @@ export default function Contacts() {
           val ? (
             <span className="flex items-center gap-1.5">
               <Mail className="w-3 h-3 shrink-0" style={{ color: tokens.text.muted }} />
-              <span className="truncate" style={{ color: tokens.text.secondary, maxWidth: 200, display: 'inline-block' }}>
+              <span
+                className="truncate"
+                style={{ color: tokens.text.secondary, maxWidth: 200, display: 'inline-block' }}
+              >
                 {String(val)}
               </span>
             </span>
@@ -306,7 +317,10 @@ export default function Contacts() {
         label: 'Title',
         sortable: true,
         render: (val: unknown) => (
-          <span className="truncate" style={{ color: tokens.text.secondary, maxWidth: 220, display: 'inline-block' }}>
+          <span
+            className="truncate"
+            style={{ color: tokens.text.secondary, maxWidth: 220, display: 'inline-block' }}
+          >
             {val ? String(val) : '—'}
           </span>
         ),
@@ -322,9 +336,7 @@ export default function Contacts() {
         label: 'Department',
         sortable: true,
         render: (val: unknown) => (
-          <span style={{ color: tokens.text.secondary }}>
-            {val ? String(val) : '—'}
-          </span>
+          <span style={{ color: tokens.text.secondary }}>{val ? String(val) : '—'}</span>
         ),
       },
       {
@@ -339,7 +351,10 @@ export default function Contacts() {
           return (
             <span className="flex items-center gap-1.5">
               <Building2 className="w-3 h-3 shrink-0" style={{ color: tokens.text.muted }} />
-              <span className="truncate" style={{ color: tokens.text.secondary, maxWidth: 180, display: 'inline-block' }}>
+              <span
+                className="truncate"
+                style={{ color: tokens.text.secondary, maxWidth: 180, display: 'inline-block' }}
+              >
                 {org.name}
               </span>
             </span>
@@ -351,9 +366,7 @@ export default function Contacts() {
         label: 'Seniority',
         sortable: true,
         render: (val: unknown) => (
-          <span style={{ color: tokens.text.secondary }}>
-            {val ? String(val) : '—'}
-          </span>
+          <span style={{ color: tokens.text.secondary }}>{val ? String(val) : '—'}</span>
         ),
       },
       {
@@ -392,7 +405,11 @@ export default function Contacts() {
         {/* Stats skeleton */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-20 rounded-xl" style={{ background: tokens.border.default }} />
+            <Skeleton
+              key={i}
+              className="h-20 rounded-xl"
+              style={{ background: tokens.border.default }}
+            />
           ))}
         </div>
 
@@ -434,8 +451,8 @@ export default function Contacts() {
             Contacts will be available when data is imported
           </h2>
           <p className="text-sm max-w-md mb-6" style={{ color: tokens.text.secondary }}>
-            Import your CRM data, CSV files, or connect an enrichment source to populate
-            your contacts directory with people and decision-makers.
+            Import your CRM data, CSV files, or connect an enrichment source to populate your
+            contacts directory with people and decision-makers.
           </p>
           <button
             onClick={() => setActiveView('import')}
@@ -505,7 +522,12 @@ export default function Contacts() {
 
       {/* ── Stats cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard icon={Users} label="Total Contacts" value={stats.total} accent={tokens.accent.primary} />
+        <StatCard
+          icon={Users}
+          label="Total Contacts"
+          value={stats.total}
+          accent={tokens.accent.primary}
+        />
         <StatCard icon={Crown} label="Executives" value={stats.executives} accent="#7C3AED" />
         <StatCard icon={Mail} label="With Email" value={stats.withEmail} accent="#0D9488" />
         <StatCard icon={Building2} label="Organizations" value={stats.orgs} accent="#D97706" />
@@ -521,14 +543,17 @@ export default function Contacts() {
       >
         {/* Search */}
         <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: tokens.text.muted }} />
+          <Search
+            className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4"
+            style={{ color: tokens.text.muted }}
+          />
           <Input
             placeholder="Search by name, email, title, department…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             className="h-9 pl-9 text-sm"
             style={{
-              background: '#0d1117',
+              background: 'var(--ios-bg-card)',
               border: `1px solid ${tokens.border.default}`,
               color: tokens.text.primary,
             }}
@@ -542,7 +567,7 @@ export default function Contacts() {
             <SelectTrigger
               className="h-9 w-[180px] text-sm"
               style={{
-                background: '#0d1117',
+                background: 'var(--ios-bg-card)',
                 border: `1px solid ${tokens.border.default}`,
                 color: tokens.text.primary,
               }}
@@ -568,7 +593,10 @@ export default function Contacts() {
         </div>
 
         {/* Result count */}
-        <span className="text-xs whitespace-nowrap self-center" style={{ color: tokens.text.muted }}>
+        <span
+          className="text-xs whitespace-nowrap self-center"
+          style={{ color: tokens.text.muted }}
+        >
           {filteredPeople.length} contact{filteredPeople.length !== 1 ? 's' : ''}
         </span>
       </div>

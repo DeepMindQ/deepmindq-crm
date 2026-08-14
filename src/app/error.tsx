@@ -15,15 +15,19 @@ export default function Error({
 
   useEffect(() => {
     console.error('[DeepMindQ] Unhandled error:', error);
-    import('@sentry/nextjs').then((mod) => {
-      mod.default.captureException(error);
-    }).catch(() => { /* Sentry not configured */ });
+    import('@sentry/nextjs')
+      .then((mod) => {
+        mod.default.captureException(error);
+      })
+      .catch(() => {
+        /* Sentry not configured */
+      });
   }, [error]);
 
   const handleCopyId = async () => {
     try {
       await navigator.clipboard.writeText(
-        `DeepMindQ Error Report\nError ID: ${errorId}\nDigest: ${error.digest ?? 'N/A'}\nMessage: ${error.message}\nStack: ${error.stack ?? 'N/A'}\nTimestamp: ${new Date().toISOString()}`
+        `DeepMindQ Error Report\nError ID: ${errorId}\nDigest: ${error.digest ?? 'N/A'}\nMessage: ${error.message}\nStack: ${error.stack ?? 'N/A'}\nTimestamp: ${new Date().toISOString()}`,
       );
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
@@ -45,23 +49,28 @@ export default function Error({
           Something went wrong
         </h1>
         <p className="text-[15px] font-light mb-4 text-zinc-400">
-          An unexpected error occurred. This has been logged for investigation.
-          You can try again or return to the dashboard.
+          An unexpected error occurred. This has been logged for investigation. You can try again or
+          return to the dashboard.
         </p>
 
-        <div className="inline-flex items-center gap-3 rounded-lg px-4 py-2.5 mb-8 bg-zinc-900/60 border border-zinc-800/60" aria-live="polite">
-          <span className="text-[11px] font-mono text-zinc-500">
-            ID: {errorId}
-          </span>
+        <div
+          className="inline-flex items-center gap-3 rounded-lg px-4 py-2.5 mb-8 bg-zinc-900/60 border border-zinc-800/60"
+          aria-live="polite"
+        >
+          <span className="text-[11px] font-mono text-zinc-500">ID: {errorId}</span>
           <button
             onClick={handleCopyId}
             className="inline-flex items-center gap-1.5 text-[11px] font-medium transition-colors text-emerald-400"
             aria-label="Copy error ID"
           >
             {copied ? (
-              <><Check className="w-3 h-3" /> Copied</>
+              <>
+                <Check className="w-3 h-3" /> Copied
+              </>
             ) : (
-              <><Copy className="w-3 h-3" /> Copy</>
+              <>
+                <Copy className="w-3 h-3" /> Copy
+              </>
             )}
           </button>
         </div>

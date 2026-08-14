@@ -31,7 +31,9 @@ export async function GET() {
         return NextResponse.json({ user });
       }
     } catch (dbErr) {
-      logger.warn('[auth/me] DB session check failed, using cookie-based auth:', { error: dbErr instanceof Error ? dbErr.message : dbErr });
+      logger.warn('[auth/me] DB session check failed, using cookie-based auth:', {
+        error: dbErr instanceof Error ? dbErr.message : dbErr,
+      });
     }
 
     // If DB session lookup fails, we cannot authenticate the user.

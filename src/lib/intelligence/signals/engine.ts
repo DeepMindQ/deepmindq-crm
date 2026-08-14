@@ -75,9 +75,11 @@ export async function detectSignalsForOrganization(orgId: string): Promise<Detec
   }
 
   // Rule 4: Multiple executives = buying influence
-  const executives = org.people.filter(p =>
-    p.role === 'executive' || p.role === 'vice_president' ||
-    (p.title && /vp|c-level|chief|head|president/i.test(p.title))
+  const executives = org.people.filter(
+    (p) =>
+      p.role === 'executive' ||
+      p.role === 'vice_president' ||
+      (p.title && /vp|c-level|chief|head|president/i.test(p.title)),
   );
   if (executives.length >= 2) {
     signals.push({
@@ -85,7 +87,7 @@ export async function detectSignalsForOrganization(orgId: string): Promise<Detec
       signalType: 'leadership_change',
       severity: 'medium',
       title: `${executives.length} executive-level contacts identified`,
-      description: `${org.name} has ${executives.length} known executives (${executives.map(e => e.fullName).join(', ')}). This suggests established access to decision-makers and potential for multi-threaded engagement.`,
+      description: `${org.name} has ${executives.length} known executives (${executives.map((e) => e.fullName).join(', ')}). This suggests established access to decision-makers and potential for multi-threaded engagement.`,
       confidenceScore: 80,
       impactScore: 70,
       sourceLabel: 'contact_analysis',
@@ -94,7 +96,7 @@ export async function detectSignalsForOrganization(orgId: string): Promise<Detec
 
   // Rule 5: No recent signals = intelligence gap
   const recentSignals = org.signals.filter(
-    s => s.detectedAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    (s) => s.detectedAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
   );
   if (recentSignals.length === 0 && org.people.length > 0) {
     signals.push({
@@ -132,14 +134,36 @@ export async function detectSignalsForOrganization(orgId: string): Promise<Detec
 /**
  * Detect industry-specific signals.
  */
-function detectIndustrySignals(org: { name: string; industry: string | null; domain?: string | null; id?: string }): DetectedSignal[] {
+function detectIndustrySignals(org: {
+  name: string;
+  industry: string | null;
+  domain?: string | null;
+  id?: string;
+}): DetectedSignal[] {
   const signals: DetectedSignal[] = [];
   const industry = (org.industry || '').toLowerCase();
 
-  const highGrowthIndustries = ['ai', 'machine learning', 'fintech', 'cybersecurity', 'cloud', 'saas', 'healthtech', 'cleantech', 'biotech'];
-  const techHeavyIndustries = ['software', 'technology', 'information technology', 'tech', 'data', 'analytics'];
+  const highGrowthIndustries = [
+    'ai',
+    'machine learning',
+    'fintech',
+    'cybersecurity',
+    'cloud',
+    'saas',
+    'healthtech',
+    'cleantech',
+    'biotech',
+  ];
+  const techHeavyIndustries = [
+    'software',
+    'technology',
+    'information technology',
+    'tech',
+    'data',
+    'analytics',
+  ];
 
-  if (highGrowthIndustries.some(hi => industry.includes(hi))) {
+  if (highGrowthIndustries.some((hi) => industry.includes(hi))) {
     signals.push({
       organizationId: org.id || '',
       signalType: 'market_expansion',
@@ -152,7 +176,7 @@ function detectIndustrySignals(org: { name: string; industry: string | null; dom
     });
   }
 
-  if (techHeavyIndustries.some(ti => industry.includes(ti))) {
+  if (techHeavyIndustries.some((ti) => industry.includes(ti))) {
     signals.push({
       organizationId: org.id || '',
       signalType: 'technology_change',
@@ -174,9 +198,9 @@ function parseRevenue(revenue: string): number | null {
   const num = parseFloat(cleaned);
   if (!Number.isFinite(num)) return null;
 
-  if (/billion|b/i.test(revenue)) return num * 1_000_000_000;
-  if (/million|m/i.test(revenue)) return num * 1_000_000;
-  if (/thousand|k/i.test(revenue)) return num * 1_000;
+  if (/billion|\bb\b/i.test(revenue)) return num * 1_000_000_000;
+  if (/million|\bm\b/i.test(revenue)) return num * 1_000_000;
+  if (/thousand|\bk\b/i.test(revenue)) return num * 1_000;
   return num;
 }
 
@@ -189,7 +213,19 @@ export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
     await db.signal.create({
       data: {
         organizationId: signal.organizationId,
-        signalType: signal.signalType as 'hiring_change' | 'leadership_change' | 'technology_change' | 'funding_event' | 'market_expansion' | 'partnership' | 'competitor_move' | 'financial_indicator' | 'product_launch' | 'regulatory' | 'customer_signal' | 'social_mention',
+        signalType: signal.signalType as
+          | 'hiring_change'
+          | 'leadership_change'
+          | 'technology_change'
+          | 'funding_event'
+          | 'market_expansion'
+          | 'partnership'
+          | 'competitor_move'
+          | 'financial_indicator'
+          | 'product_launch'
+          | 'regulatory'
+          | 'customer_signal'
+          | 'social_mention',
         severity: signal.severity as 'critical' | 'high' | 'medium' | 'low',
         title: signal.title,
         description: signal.description,
@@ -208,7 +244,10 @@ export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
 /**
  * Run signal detection across all active organizations.
  */
-export async function runSignalDetectionForAll(): Promise<{ scanned: number; signalsFound: number }> {
+export async function runSignalDetectionForAll(): Promise<{
+  scanned: number;
+  signalsFound: number;
+}> {
   const organizations = await db.organization.findMany({
     where: { trackingStatus: 'active' },
     select: { id: true },

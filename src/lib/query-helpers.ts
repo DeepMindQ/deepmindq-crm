@@ -1,6 +1,6 @@
 /**
  * WI-18.3 Query Safety Helpers
- * 
+ *
  * Prevents unbounded findMany queries in production.
  * Every findMany MUST use safeFindMany() or explicitly bypass with unsafeFindMany().
  */
@@ -24,17 +24,17 @@ export interface QueryBounds {
 export function safeQueryBounds(
   requestedLimit?: number,
   requestedPage?: number,
-  requestedCursor?: string
+  requestedCursor?: string,
 ): QueryBounds {
   const limit = Math.min(
     ABSOLUTE_MAX,
-    Math.max(1, Math.min(MAX_QUERY_LIMIT, requestedLimit ?? DEFAULT_QUERY_LIMIT))
+    Math.max(1, Math.min(MAX_QUERY_LIMIT, requestedLimit ?? DEFAULT_QUERY_LIMIT)),
   );
-  
+
   if (requestedCursor) {
     return { take: limit, cursor: { id: requestedCursor } };
   }
-  
+
   const page = Math.max(1, requestedPage ?? 1);
   return { take: limit, skip: (page - 1) * limit };
 }
@@ -46,7 +46,7 @@ export function safeQueryBounds(
 export async function safeFindMany<T>(
   queryFn: (args: any) => Promise<T[]>,
   prismaArgs: Record<string, any>,
-  bounds?: { limit?: number; page?: number; cursor?: string }
+  bounds?: { limit?: number; page?: number; cursor?: string },
 ): Promise<T[]> {
   const qb = safeQueryBounds(bounds?.limit, bounds?.page, bounds?.cursor);
   return queryFn({
@@ -65,7 +65,7 @@ export async function safeFindMany<T>(
 export async function unsafeFindMany<T>(
   queryFn: (args: any) => Promise<T[]>,
   prismaArgs: Record<string, any>,
-  reason: string
+  reason: string,
 ): Promise<T[]> {
   if (process.env.NODE_ENV === 'production') {
     logger.warn(`[QUERY-SAFETY] Unbounded findMany executed: ${reason}`);

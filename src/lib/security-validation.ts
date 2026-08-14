@@ -90,7 +90,8 @@ function checkApiKeyValidation(): SecurityCheck {
     return {
       name: 'API Key Validation',
       status: 'warning',
-      details: 'Clearbit API key is set. Apollo API key is not configured — Apollo enrichment will be unavailable.',
+      details:
+        'Clearbit API key is set. Apollo API key is not configured — Apollo enrichment will be unavailable.',
       severity: 'medium',
     };
   }
@@ -217,7 +218,7 @@ function checkSQLInjectionProtection(): SecurityCheck {
 
   const intelFiles = getFilesRecursive(intelDir);
   const libIntelFiles = getFilesRecursive(libDir).filter(
-    f =>
+    (f) =>
       f.includes('intelligence') ||
       f.includes('evidence') ||
       f.includes('enrich') ||
@@ -269,9 +270,7 @@ function checkSQLInjectionProtection(): SecurityCheck {
 
 /** 5. Data Exposure Check — Verify AI enrichment doesn't expose API keys in responses */
 function checkDataExposure(): SecurityCheck {
-  const enrichRoute = join(
-    process.cwd(), 'src', 'app', 'api', 'companies', 'enrich', 'route.ts',
-  );
+  const enrichRoute = join(process.cwd(), 'src', 'app', 'api', 'companies', 'enrich', 'route.ts');
   const content = readFileSafe(enrichRoute);
 
   // Check for error logging that might expose keys
@@ -303,7 +302,8 @@ function checkDataExposure(): SecurityCheck {
     return {
       name: 'Data Exposure Check',
       status: 'pass',
-      details: 'Enrichment responses use generic error messages, sensitive data scrubbing is active, and TRUST metadata labels data provenance.',
+      details:
+        'Enrichment responses use generic error messages, sensitive data scrubbing is active, and TRUST metadata labels data provenance.',
       severity: 'high',
     };
   }
@@ -480,7 +480,12 @@ function checkHallucinationGuard(): SecurityCheck {
     content.includes('TRUST') ||
     content.includes('confidence');
 
-  const hallucinationModulePath = join(process.cwd(), 'src', 'lib', 'ai-hallucination-prevention.ts');
+  const hallucinationModulePath = join(
+    process.cwd(),
+    'src',
+    'lib',
+    'ai-hallucination-prevention.ts',
+  );
   const hallucinationModuleExists = existsSync(hallucinationModulePath);
 
   const indicators: string[] = [];
@@ -522,7 +527,13 @@ function checkTrustMetadata(): SecurityCheck {
   let totalRoutes = 0;
 
   // Also check key library files
-  const trustLibPath = join(process.cwd(), 'src', 'lib', 'intelligence-sources', 'trust-metadata.ts');
+  const trustLibPath = join(
+    process.cwd(),
+    'src',
+    'lib',
+    'intelligence-sources',
+    'trust-metadata.ts',
+  );
   const trustModuleExists = existsSync(trustLibPath);
 
   for (const file of files) {
@@ -546,7 +557,8 @@ function checkTrustMetadata(): SecurityCheck {
     return {
       name: 'Trust Metadata',
       status: 'fail',
-      details: 'TRUST metadata module (trust-metadata.ts) not found. Intelligence outputs may lack provenance tracking.',
+      details:
+        'TRUST metadata module (trust-metadata.ts) not found. Intelligence outputs may lack provenance tracking.',
       severity: 'high',
     };
   }
@@ -669,9 +681,9 @@ export function runSecurityAudit(): SecurityAuditResult {
   ];
 
   // Determine overall status
-  const hasCritical = checks.some(c => c.status === 'fail' && c.severity === 'critical');
-  const hasFails = checks.some(c => c.status === 'fail');
-  const hasWarnings = checks.some(c => c.status === 'warning');
+  const hasCritical = checks.some((c) => c.status === 'fail' && c.severity === 'critical');
+  const hasFails = checks.some((c) => c.status === 'fail');
+  const hasWarnings = checks.some((c) => c.status === 'warning');
 
   let overallStatus: SecurityAuditResult['overallStatus'];
   if (hasCritical || hasFails) {
@@ -682,9 +694,9 @@ export function runSecurityAudit(): SecurityAuditResult {
     overallStatus = 'secure';
   }
 
-  const passCount = checks.filter(c => c.status === 'pass').length;
-  const failCount = checks.filter(c => c.status === 'fail').length;
-  const warnCount = checks.filter(c => c.status === 'warning').length;
+  const passCount = checks.filter((c) => c.status === 'pass').length;
+  const failCount = checks.filter((c) => c.status === 'fail').length;
+  const warnCount = checks.filter((c) => c.status === 'warning').length;
 
   logger.info('[security-audit] Audit complete', {
     overallStatus,

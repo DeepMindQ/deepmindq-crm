@@ -18,7 +18,10 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const parsed = signalsQuerySchema.safeParse(Object.fromEntries(searchParams));
     if (!parsed.success) {
-      return NextResponse.json({ error: 'Invalid parameters', details: parsed.error.flatten() }, { status: 400 });
+      return NextResponse.json(
+        { error: 'Invalid parameters', details: parsed.error.flatten() },
+        { status: 400 },
+      );
     }
     const { limit, severity, status, organizationId } = parsed.data;
 

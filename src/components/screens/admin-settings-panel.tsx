@@ -9,8 +9,24 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import {
-  Activity, Users, Settings, ScrollText, Server, Database, Cpu, Wifi, WifiOff,
-  Shield, Globe, Bell, Loader2, ArrowRight, CircleDot, CircleCheck, CircleX, CircleAlert,
+  Activity,
+  Users,
+  Settings,
+  ScrollText,
+  Server,
+  Database,
+  Cpu,
+  Wifi,
+  WifiOff,
+  Shield,
+  Globe,
+  Bell,
+  Loader2,
+  ArrowRight,
+  CircleDot,
+  CircleCheck,
+  CircleX,
+  CircleAlert,
 } from 'lucide-react';
 
 const systemStats = [
@@ -34,7 +50,12 @@ const configSettings = [
   { key: 'ai_model_primary', label: 'Primary AI Model', value: 'gpt-4o', type: 'text' },
   { key: 'ai_model_fallback', label: 'Fallback AI Model', value: 'claude-3-haiku', type: 'text' },
   { key: 'max_concurrent_tasks', label: 'Max Concurrent Tasks', value: '10', type: 'text' },
-  { key: 'signal_refresh_interval', label: 'Signal Refresh Interval', value: '5 min', type: 'text' },
+  {
+    key: 'signal_refresh_interval',
+    label: 'Signal Refresh Interval',
+    value: '5 min',
+    type: 'text',
+  },
   { key: 'enable_real_time', label: 'Real-time Updates', value: 'true', type: 'toggle' },
   { key: 'data_retention_days', label: 'Data Retention (days)', value: '365', type: 'text' },
   { key: 'audit_log_level', label: 'Audit Log Level', value: 'verbose', type: 'text' },
@@ -67,7 +88,7 @@ export function AdminSettingsPanel() {
   });
 
   const handleToggle = (key: string) => {
-    setToggles(prev => ({ ...prev, [key]: !prev[key] }));
+    setToggles((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   if (loading) {
@@ -111,12 +132,19 @@ export function AdminSettingsPanel() {
             {systemStats.map((stat) => (
               <Card key={stat.label} className="py-4 gap-4">
                 <CardContent className="px-4 flex items-center gap-3">
-                  <div className="rounded-lg p-2.5" style={{ backgroundColor: tokens.accent.subtle }}>
+                  <div
+                    className="rounded-lg p-2.5"
+                    style={{ backgroundColor: tokens.accent.subtle }}
+                  >
                     <stat.icon className="size-5" style={{ color: tokens.accent.primary }} />
                   </div>
                   <div>
-                    <p className="text-sm" style={{ color: tokens.text.secondary }}>{stat.label}</p>
-                    <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>{stat.value}</p>
+                    <p className="text-sm" style={{ color: tokens.text.secondary }}>
+                      {stat.label}
+                    </p>
+                    <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+                      {stat.value}
+                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -133,13 +161,21 @@ export function AdminSettingsPanel() {
             <CardContent className="px-0 pb-4">
               <div className="px-6 space-y-3">
                 {services.map((svc) => (
-                  <div key={svc.name} className="flex items-center justify-between py-2 border-b last:border-0" style={{ borderColor: tokens.border.default }}>
+                  <div
+                    key={svc.name}
+                    className="flex items-center justify-between py-2 border-b last:border-0"
+                    style={{ borderColor: tokens.border.default }}
+                  >
                     <div className="flex items-center gap-3">
                       <StatusIcon status={svc.status} />
-                      <span className="text-sm font-medium" style={{ color: tokens.text.primary }}>{svc.name}</span>
+                      <span className="text-sm font-medium" style={{ color: tokens.text.primary }}>
+                        {svc.name}
+                      </span>
                     </div>
                     <div className="flex items-center gap-3">
-                      <span className="text-xs font-mono" style={{ color: tokens.text.muted }}>{svc.latency}</span>
+                      <span className="text-xs font-mono" style={{ color: tokens.text.muted }}>
+                        {svc.latency}
+                      </span>
                       <StatusBadge status={svc.status} />
                     </div>
                   </div>
@@ -160,42 +196,76 @@ export function AdminSettingsPanel() {
               <CardDescription>Manage users, roles, and permissions</CardDescription>
             </CardHeader>
             <CardContent className="px-6 pb-6 space-y-4">
-              <div className="rounded-lg border p-4 space-y-3" style={{ borderColor: tokens.border.default, backgroundColor: tokens.surface.secondary }}>
+              <div
+                className="rounded-lg border p-4 space-y-3"
+                style={{
+                  borderColor: tokens.border.default,
+                  backgroundColor: tokens.surface.secondary,
+                }}
+              >
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: tokens.accent.subtle, color: tokens.accent.primary }}>
+                    <div
+                      className="size-10 rounded-full flex items-center justify-center text-sm font-bold"
+                      style={{
+                        backgroundColor: tokens.accent.subtle,
+                        color: tokens.accent.primary,
+                      }}
+                    >
                       JD
                     </div>
                     <div>
-                      <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>Jane Doe</p>
-                      <p className="text-xs" style={{ color: tokens.text.muted }}>jane@deepmindq.com</p>
+                      <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>
+                        Jane Doe
+                      </p>
+                      <p className="text-xs" style={{ color: tokens.text.muted }}>
+                        jane@deepmindq.com
+                      </p>
                     </div>
                   </div>
-                  <Badge className="border-emerald-500/40 bg-emerald-500/15 text-emerald-400">Admin</Badge>
+                  <Badge className="border-emerald-500/40 bg-emerald-500/15 text-emerald-400">
+                    Admin
+                  </Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: tokens.gold.bgMedium, color: tokens.gold.dark }}>
+                    <div
+                      className="size-10 rounded-full flex items-center justify-center text-sm font-bold"
+                      style={{ backgroundColor: tokens.gold.bgMedium, color: tokens.gold.dark }}
+                    >
                       MS
                     </div>
                     <div>
-                      <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>Mark Smith</p>
-                      <p className="text-xs" style={{ color: tokens.text.muted }}>mark@deepmindq.com</p>
+                      <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>
+                        Mark Smith
+                      </p>
+                      <p className="text-xs" style={{ color: tokens.text.muted }}>
+                        mark@deepmindq.com
+                      </p>
                     </div>
                   </div>
                   <Badge className="border-sky-500/40 bg-sky-500/15 text-sky-400">Editor</Badge>
                 </div>
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
-                    <div className="size-10 rounded-full flex items-center justify-center text-sm font-bold" style={{ backgroundColor: 'rgba(168,85,247,0.15)', color: '#a855f7' }}>
+                    <div
+                      className="size-10 rounded-full flex items-center justify-center text-sm font-bold"
+                      style={{ backgroundColor: 'rgba(168,85,247,0.15)', color: '#a855f7' }}
+                    >
                       AL
                     </div>
                     <div>
-                      <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>Alice Lee</p>
-                      <p className="text-xs" style={{ color: tokens.text.muted }}>alice@deepmindq.com</p>
+                      <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>
+                        Alice Lee
+                      </p>
+                      <p className="text-xs" style={{ color: tokens.text.muted }}>
+                        alice@deepmindq.com
+                      </p>
                     </div>
                   </div>
-                  <Badge className="border-slate-400/40 bg-slate-400/15 text-slate-300">Viewer</Badge>
+                  <Badge className="border-slate-400/40 bg-slate-400/15 text-slate-300">
+                    Viewer
+                  </Badge>
                 </div>
               </div>
               <Button variant="outline" onClick={() => setActiveView('users')} className="gap-2">
@@ -217,10 +287,18 @@ export function AdminSettingsPanel() {
             </CardHeader>
             <CardContent className="px-6 pb-6 space-y-4">
               {configSettings.map((setting) => (
-                <div key={setting.key} className="flex items-center justify-between py-2 border-b last:border-0" style={{ borderColor: tokens.borderFaint }}>
+                <div
+                  key={setting.key}
+                  className="flex items-center justify-between py-2 border-b last:border-0"
+                  style={{ borderColor: tokens.borderFaint }}
+                >
                   <div>
-                    <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>{setting.label}</p>
-                    <p className="text-xs" style={{ color: tokens.text.muted }}>{setting.key}</p>
+                    <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>
+                      {setting.label}
+                    </p>
+                    <p className="text-xs" style={{ color: tokens.text.muted }}>
+                      {setting.key}
+                    </p>
                   </div>
                   {setting.type === 'toggle' ? (
                     <Switch
@@ -228,7 +306,14 @@ export function AdminSettingsPanel() {
                       onCheckedChange={() => handleToggle(setting.key)}
                     />
                   ) : (
-                    <span className="text-sm font-mono px-3 py-1 rounded-md border" style={{ color: tokens.text.secondary, borderColor: tokens.border.default, backgroundColor: tokens.surface.secondary }}>
+                    <span
+                      className="text-sm font-mono px-3 py-1 rounded-md border"
+                      style={{
+                        color: tokens.text.secondary,
+                        borderColor: tokens.border.default,
+                        backgroundColor: tokens.surface.secondary,
+                      }}
+                    >
                       {setting.value}
                     </span>
                   )}
@@ -250,20 +335,41 @@ export function AdminSettingsPanel() {
             </CardHeader>
             <CardContent className="px-6 pb-6 space-y-4">
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                <div className="rounded-lg border p-4" style={{ borderColor: tokens.border.default }}>
-                  <p className="text-xs" style={{ color: tokens.text.muted }}>Events Today</p>
-                  <p className="text-xl font-bold mt-1" style={{ color: tokens.text.primary }}>847</p>
+                <div
+                  className="rounded-lg border p-4"
+                  style={{ borderColor: tokens.border.default }}
+                >
+                  <p className="text-xs" style={{ color: tokens.text.muted }}>
+                    Events Today
+                  </p>
+                  <p className="text-xl font-bold mt-1" style={{ color: tokens.text.primary }}>
+                    847
+                  </p>
                 </div>
-                <div className="rounded-lg border p-4" style={{ borderColor: tokens.border.default }}>
-                  <p className="text-xs" style={{ color: tokens.text.muted }}>Errors</p>
+                <div
+                  className="rounded-lg border p-4"
+                  style={{ borderColor: tokens.border.default }}
+                >
+                  <p className="text-xs" style={{ color: tokens.text.muted }}>
+                    Errors
+                  </p>
                   <p className="text-xl font-bold mt-1 text-red-400">12</p>
                 </div>
-                <div className="rounded-lg border p-4" style={{ borderColor: tokens.border.default }}>
-                  <p className="text-xs" style={{ color: tokens.text.muted }}>Security Events</p>
+                <div
+                  className="rounded-lg border p-4"
+                  style={{ borderColor: tokens.border.default }}
+                >
+                  <p className="text-xs" style={{ color: tokens.text.muted }}>
+                    Security Events
+                  </p>
                   <p className="text-xl font-bold mt-1 text-amber-400">3</p>
                 </div>
               </div>
-              <Button variant="outline" onClick={() => setActiveView('audit-logs')} className="gap-2">
+              <Button
+                variant="outline"
+                onClick={() => setActiveView('audit-logs')}
+                className="gap-2"
+              >
                 View Full Audit Logs <ArrowRight className="size-3.5" />
               </Button>
             </CardContent>

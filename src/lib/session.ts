@@ -15,10 +15,7 @@
 import { db } from './db';
 import { cookies } from 'next/headers';
 import { logger } from './logger';
-import {
-  shouldRotateSession,
-  enforceSessionLimit,
-} from './session-manager';
+import { shouldRotateSession, enforceSessionLimit } from './session-manager';
 
 const SESSION_COOKIE_NAME = 'dmq_session';
 const SESSION_EXPIRY_DAYS = 30;
@@ -32,7 +29,9 @@ async function hashToken(token: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(`dmq_session:${token}`);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 /**
@@ -59,9 +58,7 @@ export interface CreateSessionResult {
  * Milestone 1 C-01: Stores SHA-256 hash of token in DB, not plaintext.
  * Phase 5: Includes security assessment and session limit enforcement.
  */
-export async function createSession(
-  userId: string,
-): Promise<CreateSessionResult> {
+export async function createSession(userId: string): Promise<CreateSessionResult> {
   const token = generateToken();
   const expiresAt = new Date(Date.now() + SESSION_EXPIRY_DAYS * 24 * 60 * 60 * 1000);
 
@@ -151,7 +148,9 @@ export async function getCurrentSession(): Promise<SessionUser | null> {
 
     // Phase 5: Check if session needs rotation
     if (shouldRotateSession(session.createdAt)) {
-      logger.info(`[Session] Session ${session.id} eligible for rotation (age: ${Math.round((Date.now() - session.createdAt.getTime()) / (24 * 60 * 60 * 1000))}d)`);
+      logger.info(
+        `[Session] Session ${session.id} eligible for rotation (age: ${Math.round((Date.now() - session.createdAt.getTime()) / (24 * 60 * 60 * 1000))}d)`,
+      );
     }
 
     // Extend session expiry (rolling expiry)

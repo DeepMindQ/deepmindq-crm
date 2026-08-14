@@ -88,20 +88,32 @@ const SIGNAL_TYPE_LABELS: Record<string, string> = {
   social_mention: 'Social Mention',
 };
 
-const SEVERITY_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
+const SEVERITY_CONFIG: Record<
+  string,
+  { label: string; color: string; bg: string; border: string }
+> = {
   critical: { label: 'Critical', color: '#DC2626', bg: '#FEE2E2', border: '#FECACA' },
   high: { label: 'High', color: '#EA580C', bg: '#FFEDD5', border: '#FED7AA' },
   medium: { label: 'Medium', color: '#CA8A04', bg: '#FEF9C3', border: '#FDE68A' },
   low: { label: 'Low', color: '#16A34A', bg: '#DCFCE7', border: '#BBF7D0' },
 };
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string; strikethrough?: boolean }> = {
+const STATUS_CONFIG: Record<
+  string,
+  { label: string; color: string; bg: string; border: string; strikethrough?: boolean }
+> = {
   detected: { label: 'Detected', color: '#2563EB', bg: '#DBEAFE', border: '#BFDBFE' },
   validated: { label: 'Validated', color: '#16A34A', bg: '#DCFCE7', border: '#BBF7D0' },
   analyzed: { label: 'Analyzed', color: '#7C3AED', bg: '#EDE9FE', border: '#DDD6FE' },
   acted_upon: { label: 'Acted Upon', color: '#059669', bg: '#D1FAE5', border: '#A7F3D0' },
   expired: { label: 'Expired', color: '#6B7280', bg: '#F3F4F6', border: '#E5E7EB' },
-  dismissed: { label: 'Dismissed', color: '#9CA3AF', bg: '#F9FAFB', border: '#F3F4F6', strikethrough: true },
+  dismissed: {
+    label: 'Dismissed',
+    color: '#9CA3AF',
+    bg: '#F9FAFB',
+    border: '#F3F4F6',
+    strikethrough: true,
+  },
 };
 
 // ── Helpers ──
@@ -161,9 +173,11 @@ function StatusBadge({ status }: { status: string }) {
 function ConfidenceBar({ score }: { score: number | null }) {
   const value = score ?? 0;
   const barColor =
-    value >= 75 ? tokens.confidence.high.value :
-    value >= 50 ? tokens.confidence.medium.value :
-    tokens.confidence.low.value;
+    value >= 75
+      ? tokens.confidence.high.value
+      : value >= 50
+        ? tokens.confidence.medium.value
+        : tokens.confidence.low.value;
 
   return (
     <div className="flex items-center gap-2 min-w-[100px]">
@@ -176,7 +190,10 @@ function ConfidenceBar({ score }: { score: number | null }) {
           style={{ width: `${value}%`, background: barColor }}
         />
       </div>
-      <span className="text-xs font-medium tabular-nums" style={{ color: barColor, minWidth: '28px', textAlign: 'right' }}>
+      <span
+        className="text-xs font-medium tabular-nums"
+        style={{ color: barColor, minWidth: '28px', textAlign: 'right' }}
+      >
         {value > 0 ? value.toFixed(0) : '—'}
       </span>
     </div>
@@ -208,9 +225,17 @@ function StatCard({
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex flex-col gap-1">
-          <span className="text-xs font-medium" style={{ color: tokens.text.secondary }}>{label}</span>
-          <span className="text-2xl font-bold tabular-nums" style={{ color: tokens.text.primary }}>{value}</span>
-          {sub && <span className="text-xs" style={{ color: tokens.text.muted }}>{sub}</span>}
+          <span className="text-xs font-medium" style={{ color: tokens.text.secondary }}>
+            {label}
+          </span>
+          <span className="text-2xl font-bold tabular-nums" style={{ color: tokens.text.primary }}>
+            {value}
+          </span>
+          {sub && (
+            <span className="text-xs" style={{ color: tokens.text.muted }}>
+              {sub}
+            </span>
+          )}
         </div>
         <div
           className="flex items-center justify-center w-9 h-9 rounded-lg shrink-0"
@@ -266,12 +291,18 @@ function SignalDetailPanel({
           borderLeft: `1px solid ${tokens.border.default}`,
         }}
       >
-        <SheetHeader className="p-5 pb-0" style={{ borderBottom: `1px solid ${tokens.border.default}` }}>
+        <SheetHeader
+          className="p-5 pb-0"
+          style={{ borderBottom: `1px solid ${tokens.border.default}` }}
+        >
           <div className="flex items-center gap-2 mb-2">
             <SeverityBadge severity={signal.severity} />
             <StatusBadge status={signal.status} />
           </div>
-          <SheetTitle className="text-base font-semibold leading-snug" style={{ color: tokens.text.primary }}>
+          <SheetTitle
+            className="text-base font-semibold leading-snug"
+            style={{ color: tokens.text.primary }}
+          >
             {signal.title}
           </SheetTitle>
           <SheetDescription className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
@@ -281,9 +312,11 @@ function SignalDetailPanel({
 
         <ScrollArea className="flex-1 h-[calc(100vh-180px)]">
           <div className="p-5 flex flex-col gap-5">
-
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium uppercase tracking-wider" style={{ color: tokens.text.muted }}>
+              <span
+                className="text-xs font-medium uppercase tracking-wider"
+                style={{ color: tokens.text.muted }}
+              >
                 Organization
               </span>
               <div className="flex items-center gap-2">
@@ -316,7 +349,10 @@ function SignalDetailPanel({
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium uppercase tracking-wider" style={{ color: tokens.text.muted }}>
+              <span
+                className="text-xs font-medium uppercase tracking-wider"
+                style={{ color: tokens.text.muted }}
+              >
                 Signal Type
               </span>
               <span className="text-sm" style={{ color: tokens.text.primary }}>
@@ -327,36 +363,54 @@ function SignalDetailPanel({
             <div className="grid grid-cols-2 gap-3">
               <div
                 className="rounded-lg p-3"
-                style={{ background: tokens.surfaceExtended, border: `1px solid ${tokens.border.default}` }}
+                style={{
+                  background: tokens.surfaceExtended,
+                  border: `1px solid ${tokens.border.default}`,
+                }}
               >
-                <span className="text-xs font-medium" style={{ color: tokens.text.muted }}>Confidence</span>
+                <span className="text-xs font-medium" style={{ color: tokens.text.muted }}>
+                  Confidence
+                </span>
                 <div className="mt-1">
                   <ConfidenceBar score={signal.confidenceScore} />
                 </div>
               </div>
               <div
                 className="rounded-lg p-3"
-                style={{ background: tokens.surfaceExtended, border: `1px solid ${tokens.border.default}` }}
+                style={{
+                  background: tokens.surfaceExtended,
+                  border: `1px solid ${tokens.border.default}`,
+                }}
               >
-                <span className="text-xs font-medium" style={{ color: tokens.text.muted }}>Impact Score</span>
+                <span className="text-xs font-medium" style={{ color: tokens.text.muted }}>
+                  Impact Score
+                </span>
                 <div className="mt-1 flex items-baseline gap-1">
                   <span
                     className="text-lg font-bold tabular-nums"
                     style={{
-                      color: (signal.impactScore ?? 0) >= 70 ? tokens.confidence.high.value :
-                             (signal.impactScore ?? 0) >= 40 ? tokens.confidence.medium.value :
-                             tokens.confidence.low.value
+                      color:
+                        (signal.impactScore ?? 0) >= 70
+                          ? tokens.confidence.high.value
+                          : (signal.impactScore ?? 0) >= 40
+                            ? tokens.confidence.medium.value
+                            : tokens.confidence.low.value,
                     }}
                   >
                     {signal.impactScore != null ? signal.impactScore.toFixed(0) : '—'}
                   </span>
-                  <span className="text-xs" style={{ color: tokens.text.muted }}>/ 100</span>
+                  <span className="text-xs" style={{ color: tokens.text.muted }}>
+                    / 100
+                  </span>
                 </div>
               </div>
             </div>
 
             <div className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium uppercase tracking-wider" style={{ color: tokens.text.muted }}>
+              <span
+                className="text-xs font-medium uppercase tracking-wider"
+                style={{ color: tokens.text.muted }}
+              >
                 Description
               </span>
               <p className="text-sm leading-relaxed" style={{ color: tokens.text.secondary }}>
@@ -366,7 +420,10 @@ function SignalDetailPanel({
 
             {(signal.sourceUrl || signal.sourceLabel) && (
               <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: tokens.text.muted }}>
+                <span
+                  className="text-xs font-medium uppercase tracking-wider"
+                  style={{ color: tokens.text.muted }}
+                >
                   Source
                 </span>
                 {signal.sourceUrl ? (
@@ -391,7 +448,10 @@ function SignalDetailPanel({
 
             {signal.eventDate && (
               <div className="flex flex-col gap-1.5">
-                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: tokens.text.muted }}>
+                <span
+                  className="text-xs font-medium uppercase tracking-wider"
+                  style={{ color: tokens.text.muted }}
+                >
                   Event Date
                 </span>
                 <div className="flex items-center gap-1.5">
@@ -405,7 +465,10 @@ function SignalDetailPanel({
 
             {signal.evidence.length > 0 && (
               <div className="flex flex-col gap-2.5">
-                <span className="text-xs font-medium uppercase tracking-wider" style={{ color: tokens.text.muted }}>
+                <span
+                  className="text-xs font-medium uppercase tracking-wider"
+                  style={{ color: tokens.text.muted }}
+                >
                   Evidence ({signal.evidence.length})
                 </span>
                 <div className="flex flex-col gap-2">
@@ -421,19 +484,31 @@ function SignalDetailPanel({
                       <div className="flex items-start justify-between gap-2">
                         <div className="flex flex-col gap-1 flex-1 min-w-0">
                           {ev.sourceTitle && (
-                            <span className="text-xs font-semibold truncate" style={{ color: tokens.text.primary }}>
+                            <span
+                              className="text-xs font-semibold truncate"
+                              style={{ color: tokens.text.primary }}
+                            >
                               {ev.sourceTitle}
                             </span>
                           )}
-                          <p className="text-xs leading-relaxed line-clamp-3" style={{ color: tokens.text.secondary }}>
+                          <p
+                            className="text-xs leading-relaxed line-clamp-3"
+                            style={{ color: tokens.text.secondary }}
+                          >
                             {ev.excerpt || ev.claim}
                           </p>
                         </div>
                         <span
                           className="shrink-0 text-[10px] font-medium px-1.5 py-0.5 rounded"
                           style={{
-                            color: ev.reliability === 'verified' ? tokens.trust.verified : tokens.text.muted,
-                            background: ev.reliability === 'verified' ? tokens.trust.high.bg : tokens.surfaceExtended,
+                            color:
+                              ev.reliability === 'verified'
+                                ? tokens.trust.verified
+                                : tokens.text.muted,
+                            background:
+                              ev.reliability === 'verified'
+                                ? tokens.trust.high.bg
+                                : tokens.surfaceExtended,
                           }}
                         >
                           {ev.reliability}
@@ -499,7 +574,9 @@ export default function SignalIntelligence() {
     }
 
     load();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // ── Filtering & Sorting ──
@@ -525,9 +602,7 @@ export default function SignalIntelligence() {
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
       result = result.filter(
-        (s) =>
-          s.title.toLowerCase().includes(q) ||
-          s.organization?.name?.toLowerCase().includes(q)
+        (s) => s.title.toLowerCase().includes(q) || s.organization?.name?.toLowerCase().includes(q),
       );
     }
 
@@ -559,7 +634,8 @@ export default function SignalIntelligence() {
     const withConfidence = signals.filter((s) => s.confidenceScore != null);
     const avgConfidence =
       withConfidence.length > 0
-        ? withConfidence.reduce((sum, s) => sum + (s.confidenceScore ?? 0), 0) / withConfidence.length
+        ? withConfidence.reduce((sum, s) => sum + (s.confidenceScore ?? 0), 0) /
+          withConfidence.length
         : 0;
 
     return { total, critical, analyzed, avgConfidence };
@@ -609,9 +685,13 @@ export default function SignalIntelligence() {
           if (!org) return <span style={{ color: tokens.text.muted }}>—</span>;
           return (
             <div className="flex flex-col gap-0.5">
-              <span className="text-sm font-medium" style={{ color: tokens.text.primary }}>{org.name}</span>
+              <span className="text-sm font-medium" style={{ color: tokens.text.primary }}>
+                {org.name}
+              </span>
               {org.industry && (
-                <span className="text-xs" style={{ color: tokens.text.muted }}>{org.industry}</span>
+                <span className="text-xs" style={{ color: tokens.text.muted }}>
+                  {org.industry}
+                </span>
               )}
             </div>
           );
@@ -622,7 +702,10 @@ export default function SignalIntelligence() {
         label: 'Type',
         sortable: true,
         render: (val) => (
-          <span className="text-xs font-medium whitespace-nowrap" style={{ color: tokens.text.secondary }}>
+          <span
+            className="text-xs font-medium whitespace-nowrap"
+            style={{ color: tokens.text.secondary }}
+          >
             {SIGNAL_TYPE_LABELS[String(val)] ?? String(val)}
           </span>
         ),
@@ -650,19 +733,24 @@ export default function SignalIntelligence() {
         label: 'Detected At',
         sortable: true,
         render: (val) => (
-          <span className="text-xs tabular-nums whitespace-nowrap" style={{ color: tokens.text.muted }}>
+          <span
+            className="text-xs tabular-nums whitespace-nowrap"
+            style={{ color: tokens.text.muted }}
+          >
             {val ? formatRelativeTime(String(val)) : '—'}
           </span>
         ),
       },
     ],
-    []
+    [],
   );
 
   // ── Render ──
   return (
-    <main className="flex flex-col gap-5 p-6" style={{ background: tokens.surface.secondary, minHeight: '100%' }}>
-
+    <main
+      className="flex flex-col gap-5 p-6"
+      style={{ background: tokens.surface.secondary, minHeight: '100%' }}
+    >
       <div className="flex flex-col gap-1">
         <div className="flex items-center gap-2.5">
           <div
@@ -701,14 +789,22 @@ export default function SignalIntelligence() {
               icon={AlertTriangle}
               label="Critical"
               value={stats.critical}
-              sub={stats.total > 0 ? `${((stats.critical / stats.total) * 100).toFixed(0)}% of all signals` : undefined}
+              sub={
+                stats.total > 0
+                  ? `${((stats.critical / stats.total) * 100).toFixed(0)}% of all signals`
+                  : undefined
+              }
               color={SEVERITY_CONFIG.critical.color}
             />
             <StatCard
               icon={Brain}
               label="Analyzed"
               value={stats.analyzed}
-              sub={stats.total > 0 ? `${((stats.analyzed / stats.total) * 100).toFixed(0)}% analyzed` : undefined}
+              sub={
+                stats.total > 0
+                  ? `${((stats.analyzed / stats.total) * 100).toFixed(0)}% analyzed`
+                  : undefined
+              }
               color={STATUS_CONFIG.analyzed.color}
             />
             <StatCard
@@ -729,7 +825,6 @@ export default function SignalIntelligence() {
           border: `1px solid ${tokens.border.default}`,
         }}
       >
-
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <input
             type="text"
@@ -738,7 +833,7 @@ export default function SignalIntelligence() {
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full h-8 pl-8 pr-3 rounded-lg text-xs outline-none transition-colors"
             style={{
-              background: '#0d1117',
+              background: 'var(--ios-bg-card)',
               border: `1px solid ${tokens.border.default}`,
               color: tokens.text.primary,
             }}
@@ -751,7 +846,11 @@ export default function SignalIntelligence() {
             stroke="currentColor"
             strokeWidth={2}
           >
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z"
+            />
           </svg>
           {searchQuery && (
             <button
@@ -770,7 +869,7 @@ export default function SignalIntelligence() {
             size="sm"
             className="w-[170px]"
             style={{
-              background: '#0d1117',
+              background: 'var(--ios-bg-card)',
               border: `1px solid ${tokens.border.default}`,
               color: tokens.text.primary,
             }}
@@ -778,7 +877,10 @@ export default function SignalIntelligence() {
             <SelectValue placeholder="Signal Type" />
           </SelectTrigger>
           <SelectContent
-            style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
+            style={{
+              background: tokens.surface.card,
+              border: `1px solid ${tokens.border.default}`,
+            }}
           >
             <SelectItem value="all">All Types</SelectItem>
             {Object.entries(SIGNAL_TYPE_LABELS).map(([val, label]) => (
@@ -794,7 +896,7 @@ export default function SignalIntelligence() {
             size="sm"
             className="w-[140px]"
             style={{
-              background: '#0d1117',
+              background: 'var(--ios-bg-card)',
               border: `1px solid ${tokens.border.default}`,
               color: tokens.text.primary,
             }}
@@ -802,9 +904,14 @@ export default function SignalIntelligence() {
             <SelectValue placeholder="Severity" />
           </SelectTrigger>
           <SelectContent
-            style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
+            style={{
+              background: tokens.surface.card,
+              border: `1px solid ${tokens.border.default}`,
+            }}
           >
-            <SelectItem value="all" style={{ color: tokens.text.primary }}>All Severity</SelectItem>
+            <SelectItem value="all" style={{ color: tokens.text.primary }}>
+              All Severity
+            </SelectItem>
             {Object.entries(SEVERITY_CONFIG).map(([val, cfg]) => (
               <SelectItem key={val} value={val} style={{ color: cfg.color }}>
                 {cfg.label}
@@ -818,7 +925,7 @@ export default function SignalIntelligence() {
             size="sm"
             className="w-[150px]"
             style={{
-              background: '#0d1117',
+              background: 'var(--ios-bg-card)',
               border: `1px solid ${tokens.border.default}`,
               color: tokens.text.primary,
             }}
@@ -826,9 +933,14 @@ export default function SignalIntelligence() {
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent
-            style={{ background: tokens.surface.card, border: `1px solid ${tokens.border.default}` }}
+            style={{
+              background: tokens.surface.card,
+              border: `1px solid ${tokens.border.default}`,
+            }}
           >
-            <SelectItem value="all" style={{ color: tokens.text.primary }}>All Status</SelectItem>
+            <SelectItem value="all" style={{ color: tokens.text.primary }}>
+              All Status
+            </SelectItem>
             {Object.entries(STATUS_CONFIG).map(([val, cfg]) => (
               <SelectItem key={val} value={val} style={{ color: cfg.color }}>
                 {cfg.label}
@@ -893,11 +1005,7 @@ export default function SignalIntelligence() {
         />
       )}
 
-      <SignalDetailPanel
-        signal={selectedSignal}
-        open={detailOpen}
-        onOpenChange={setDetailOpen}
-      />
+      <SignalDetailPanel signal={selectedSignal} open={detailOpen} onOpenChange={setDetailOpen} />
     </main>
   );
 }

@@ -638,6 +638,7 @@ jobs:
           API_KEY_ENCRYPTION_KEY: ${{ secrets.API_KEY_ENCRYPTION_KEY || 'ci-test-encryption-key-min-32-bytes-ok!' }}
           TRACKING_SECRET: ${{ secrets.TRACKING_SECRET || 'ci-test-tracking-secret-min16!!' }}
           AUTHORIZED_EMAIL: ${{ secrets.AUTHORIZED_EMAIL || 'ci-test@deepmindq.com' }}
+          CSRF_SECRET: ${{ secrets.CSRF_SECRET || 'ci-test-csrf-secret-for-build-only!!' }}
 
       - name: Start Next.js server
         run: |
@@ -727,6 +728,7 @@ jobs:
           API_KEY_ENCRYPTION_KEY: ${{ secrets.API_KEY_ENCRYPTION_KEY || 'ci-test-encryption-key-min-32-bytes-ok!' }}
           TRACKING_SECRET: ${{ secrets.TRACKING_SECRET || 'ci-test-tracking-secret-min16!!' }}
           AUTHORIZED_EMAIL: ${{ secrets.AUTHORIZED_EMAIL || 'ci-test@deepmindq.com' }}
+          CSRF_SECRET: ${{ secrets.CSRF_SECRET || 'ci-test-csrf-secret-for-build-only!!' }}
 
   # ═══════════════════════════════════════════════════
   # NON-BLOCKING: Infrastructure-as-Code Validation

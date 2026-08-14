@@ -82,7 +82,7 @@ export function AnimatedCard({
   const inView = useInView(ref, { once: true, margin: '-20px' });
   const [hovered, setHovered] = useState(false);
 
-  const glowColor = glow || 'rgba(212, 175, 55, 0.08)';
+  const glowColor = glow || 'rgba(59, 130, 246, 0.08)';
 
   return (
     <motion.div
@@ -261,9 +261,8 @@ export function SectionHeader({
         <div
           className="h-6 w-1.5 rounded-full shadow-lg"
           style={{
-            background:
-              'linear-gradient(180deg, {tokens.gold.light}, {tokens.gold.DEFAULT}, {tokens.gold.deep})',
-            boxShadow: '0 0 12px rgba(212, 175, 55, 0.3)',
+            background: 'linear-gradient(180deg, #93C5FD, #3B82F6, #1E40AF)',
+            boxShadow: '0 0 12px rgba(59, 130, 246, 0.3)',
           }}
         />
         <h2 className="text-lg font-bold text-foreground tracking-tight">{title}</h2>
@@ -294,7 +293,10 @@ export function AnimatedBar({
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
 
   return (
-    <div ref={ref} className={`h-2.5 rounded-full overflow-hidden bg-gray-200 ${className}`}>
+    <div
+      ref={ref}
+      className={`h-2.5 rounded-full overflow-hidden bg-[var(--ios-bg-elevated)] ${className}`}
+    >
       <motion.div
         className="h-full rounded-full relative"
         style={{ background: `linear-gradient(90deg, ${color}, ${color}DD)` }}
@@ -357,7 +359,7 @@ export function TabBar({
   onChange: (key: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-1 p-1.5 rounded-xl bg-gray-100 border border-gray-200 backdrop-blur-sm overflow-x-auto scrollbar-hide">
+    <div className="flex items-center gap-1 p-1.5 rounded-xl bg-[var(--ios-bg-secondary)] border border-[var(--ios-border)] backdrop-blur-sm overflow-x-auto scrollbar-hide">
       {tabs.map((tab) => {
         const isActive = tab.key === active;
         return (
@@ -375,9 +377,9 @@ export function TabBar({
                 className="absolute inset-0 rounded-lg"
                 style={{
                   background:
-                    'linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(212, 175, 55, 0.06))',
-                  border: '1px solid rgba(212, 175, 55, 0.25)',
-                  boxShadow: '0 0 12px rgba(212, 175, 55, 0.08)',
+                    'linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0.06))',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  boxShadow: '0 0 12px rgba(59, 130, 246, 0.08)',
                 }}
                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
               />
@@ -388,7 +390,7 @@ export function TabBar({
                 className={`relative z-10 text-xs px-1.5 py-0.5 rounded-full ${
                   isActive
                     ? 'bg-primary/20 text-primary font-semibold'
-                    : 'bg-gray-200 text-muted-foreground'
+                    : 'bg-[var(--ios-bg-elevated)] text-muted-foreground'
                 }`}
               >
                 {tab.count}
@@ -469,9 +471,9 @@ export function GlassPanel({
 }) {
   return (
     <div
-      className={`rounded-xl border border-gray-200 bg-white backdrop-blur-xl ${className}`}
+      className={`rounded-xl border border-[var(--ios-border)] bg-[var(--ios-bg-card)] backdrop-blur-xl ${className}`}
       style={{
-        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)',
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2)',
         ...style,
       }}
     >

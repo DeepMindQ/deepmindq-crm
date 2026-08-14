@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useAppStore, type ViewId } from '@/lib/store';
 import { SCREEN_MAP } from '@/lib/screen-map';
 import {
@@ -71,20 +71,22 @@ import {
   Zap,
   Bell,
   LogOut,
+  X,
+  ChevronRight,
+  ArrowRight,
   type LucideIcon,
 } from 'lucide-react';
-import { PageTransition } from '@/components/ui/animated-components';
+import { PageTransition, GlassPanel } from '@/components/ui/animated-components';
 
-/* ═══════════════════════════════════════════════════════
-   Navigation Data Model
-   ═══════════════════════════════════════════════════════ */
+/* ── Navigation Data ── */
 
 interface NavItem {
   label: string;
   viewId: ViewId;
   icon: LucideIcon;
+  badge?: string;
+  shortcut?: string;
 }
-
 interface NavGroup {
   label: string;
   items: NavItem[];
@@ -95,10 +97,16 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: 'INTELLIGENCE',
     items: [
-      { label: 'Intelligence Ops', viewId: 'intelligence-operations', icon: Radar },
-      { label: 'Command Center', viewId: 'command-center', icon: Monitor },
-      { label: 'AI Advisor', viewId: 'ai-advisor', icon: Sparkles },
-      { label: 'Intelligence Search', viewId: 'intelligence-search', icon: Search },
+      {
+        label: 'Intelligence Ops',
+        viewId: 'intelligence-operations',
+        icon: Radar,
+        badge: 'New',
+        shortcut: '⌘1',
+      },
+      { label: 'Command Center', viewId: 'command-center', icon: Monitor, shortcut: '⌘2' },
+      { label: 'AI Advisor', viewId: 'ai-advisor', icon: Sparkles, shortcut: '⌘3' },
+      { label: 'Intelligence Search', viewId: 'intelligence-search', icon: Search, shortcut: '⌘K' },
       { label: 'Intelligence Briefing', viewId: 'intelligence-briefing', icon: FileText },
     ],
   },
@@ -167,27 +175,150 @@ const NAV_GROUPS: NavGroup[] = [
   },
 ];
 
-/* Flat lookup map for display names — built from nav groups */
 const VIEW_LABEL_MAP: Record<string, string> = NAV_GROUPS.reduce(
-  (acc, group) => {
-    for (const item of group.items) {
-      acc[item.viewId] = item.label;
-    }
+  (acc, g) => {
+    for (const item of g.items) acc[item.viewId] = item.label;
     return acc;
   },
   {} as Record<string, string>,
 );
 
-/* ═══════════════════════════════════════════════════════
-   UserNav — Avatar dropdown in the top header bar
-   ═══════════════════════════════════════════════════════ */
+/* ── Command Palette ── */
+
+const COMMANDS = [
+  { label: 'Go to Command Center', icon: Monitor, shortcut: '⌘2', action: 'command-center' },
+  { label: 'Search Intelligence', icon: Search, shortcut: '⌘K', action: 'intelligence-search' },
+  { label: 'Open AI Advisor', icon: Sparkles, shortcut: '⌘3', action: 'ai-advisor' },
+  {
+    label: 'View Intelligence Ops',
+    icon: Radar,
+    shortcut: '⌘1',
+    action: 'intelligence-operations',
+  },
+  { label: 'New Sequence', icon: Mail, action: 'sequences' },
+  { label: 'View Pipeline', icon: GitBranch, action: 'pipeline' },
+  { label: 'Company Search', icon: Building2, action: 'companies' },
+  { label: 'Revenue Intelligence', icon: TrendingUp, action: 'revenue-intelligence' },
+  { label: 'Settings', icon: Settings, action: 'settings' },
+  { label: 'View Inbox', icon: Inbox, action: 'inbox' },
+];
+
+function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [query, setQuery] = useState('');
+  const setActiveView = useAppStore((s) => s.setActiveView);
+  const filtered = COMMANDS.filter((c) => c.label.toLowerCase().includes(query.toLowerCase()));
+
+  const exec = useCallback(
+    (action: string) => {
+      setActiveView(action as ViewId);
+      setQuery('');
+      onClose();
+    },
+    [setActiveView, onClose],
+  );
+
+  useEffect(() => {
+    if (!open) setQuery('');
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [open, onClose]);
+
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative w-full max-w-lg rounded-xl border overflow-hidden shadow-2xl"
+        style={{ background: 'var(--ios-bg-elevated)', borderColor: 'var(--ios-border)' }}
+      >
+        <div
+          className="flex items-center gap-3 border-b px-4 py-3"
+          style={{ borderBottomColor: 'var(--ios-border)' }}
+        >
+          <Search className="h-4 w-4 shrink-0" style={{ color: 'var(--ios-text-muted)' }} />
+          <input
+            autoFocus
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Type a command or search..."
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--ios-text-muted)]"
+            style={{ color: 'var(--ios-text-primary)' }}
+          />
+          <kbd
+            className="hidden sm:inline-flex h-5 items-center rounded border px-1.5 text-[10px] font-medium"
+            style={{ borderColor: 'var(--ios-border)', color: 'var(--ios-text-muted)' }}
+          >
+            ESC
+          </kbd>
+        </div>
+        <div className="max-h-72 overflow-y-auto p-2">
+          {filtered.length === 0 && (
+            <p className="px-3 py-6 text-center text-sm" style={{ color: 'var(--ios-text-muted)' }}>
+              No results found
+            </p>
+          )}
+          {filtered.map((cmd) => (
+            <button
+              key={cmd.label}
+              onClick={() => exec(cmd.action)}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-all duration-200 hover:bg-[var(--ios-bg-card-hover)]"
+              style={{ color: 'var(--ios-text-primary)' }}
+            >
+              <cmd.icon
+                className="h-4 w-4 shrink-0"
+                style={{ color: 'var(--ios-text-secondary)' }}
+              />
+              <span className="flex-1">{cmd.label}</span>
+              {cmd.shortcut && (
+                <kbd
+                  className="hidden sm:inline-flex h-5 items-center rounded border px-1.5 text-[10px] font-medium"
+                  style={{ borderColor: 'var(--ios-border)', color: 'var(--ios-text-muted)' }}
+                >
+                  {cmd.shortcut}
+                </kbd>
+              )}
+              <ChevronRight className="h-3 w-3 opacity-40" />
+            </button>
+          ))}
+        </div>
+        <div
+          className="border-t px-4 py-2 flex items-center gap-4 text-[11px]"
+          style={{ borderTopColor: 'var(--ios-border)', color: 'var(--ios-text-muted)' }}
+        >
+          <span className="flex items-center gap-1">
+            <kbd className="rounded border px-1" style={{ borderColor: 'var(--ios-border)' }}>
+              ↵
+            </kbd>{' '}
+            Open
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="rounded border px-1" style={{ borderColor: 'var(--ios-border)' }}>
+              esc
+            </kbd>{' '}
+            Close
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── UserNav ── */
 
 function UserNav() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <button
-          className="flex items-center gap-2 rounded-full p-1 transition-colors hover:bg-[var(--ios-bg-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+          className="flex items-center gap-2 rounded-full p-1 transition-all duration-200 hover:bg-[var(--ios-bg-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
           aria-label="User menu"
         >
           <Avatar className="h-8 w-8">
@@ -210,61 +341,87 @@ function UserNav() {
             className="cursor-pointer"
             onClick={() => useAppStore.getState().setActiveView('settings')}
           >
-            <Settings className="mr-2 h-4 w-4" />
-            Profile &amp; Settings
+            <Settings className="mr-2 h-4 w-4" /> Profile &amp; Settings
           </DropdownMenuItem>
           <DropdownMenuItem className="cursor-pointer">
-            <Bell className="mr-2 h-4 w-4" />
-            Notifications
+            <Bell className="mr-2 h-4 w-4" /> Notifications
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive">
-          <LogOut className="mr-2 h-4 w-4" />
-          Sign out
+          <LogOut className="mr-2 h-4 w-4" /> Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   );
 }
 
-/* ═══════════════════════════════════════════════════════
-   NavGroupSection — A single nav group in the sidebar
-   ═══════════════════════════════════════════════════════ */
+/* ── NavGroupSection ── */
 
-const NavGroupSection = React.memo(function NavGroupSection({ group }: { group: NavGroup }) {
+const NavGroupSection = React.memo(function NavGroupSection({
+  group,
+  idx,
+}: {
+  group: NavGroup;
+  idx: number;
+}) {
   const activeView = useAppStore((s) => s.activeView);
   const setActiveView = useAppStore((s) => s.setActiveView);
-
   return (
-    <SidebarGroup>
-      <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
-      <SidebarMenu>
-        {group.items.map((item) => (
-          <SidebarMenuItem key={item.viewId}>
-            <SidebarMenuButton
-              isActive={activeView === item.viewId}
-              tooltip={item.label}
-              size="lg"
-              onClick={() => setActiveView(item.viewId)}
-            >
-              <item.icon className="h-4 w-4" />
-              <span>{item.label}</span>
-            </SidebarMenuButton>
-          </SidebarMenuItem>
-        ))}
-      </SidebarMenu>
-    </SidebarGroup>
+    <React.Fragment>
+      {idx > 0 && (
+        <div
+          className="mx-3 my-1 h-px"
+          style={{
+            background: 'linear-gradient(to right, transparent, var(--ios-border), transparent)',
+          }}
+        />
+      )}
+      <SidebarGroup>
+        <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+        <SidebarMenu>
+          {group.items.map((item) => {
+            const isActive = activeView === item.viewId;
+            return (
+              <SidebarMenuItem key={item.viewId}>
+                <SidebarMenuButton
+                  isActive={isActive}
+                  tooltip={item.label}
+                  size="lg"
+                  onClick={() => setActiveView(item.viewId)}
+                  className={`group/item transition-all duration-200 hover:translate-x-0.5 ${isActive ? '[box-shadow:0_0_12px_rgba(59,130,246,0.15),inset_0_0_0_1px_rgba(59,130,246,0.2)]' : ''}`}
+                >
+                  <item.icon
+                    className={`h-4 w-4 transition-all duration-200 ${isActive ? 'text-[var(--ios-accent)]' : ''}`}
+                  />
+                  <span className="flex-1">{item.label}</span>
+                  {item.badge && (
+                    <span className="ml-auto rounded-md bg-[var(--ios-accent)] px-1.5 py-0.5 text-[10px] font-semibold text-white leading-none">
+                      {item.badge}
+                    </span>
+                  )}
+                  {item.shortcut && (
+                    <kbd
+                      className="ml-auto hidden lg:inline-flex h-5 items-center rounded border px-1 text-[10px] font-medium opacity-40 group-hover/item:opacity-70 transition-opacity duration-200"
+                      style={{ borderColor: 'var(--ios-border)', color: 'var(--ios-text-muted)' }}
+                    >
+                      {item.shortcut}
+                    </kbd>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroup>
+    </React.Fragment>
   );
 });
 
-/* ═══════════════════════════════════════════════════════
-   ActiveScreen — Memoized screen renderer
-   ═══════════════════════════════════════════════════════ */
+/* ── ActiveScreen ── */
 
 const ActiveScreen = React.memo(function ActiveScreen({ viewId }: { viewId: ViewId }) {
   const ScreenComponent = SCREEN_MAP[viewId];
-
   if (!ScreenComponent) {
     return (
       <div className="flex h-full items-center justify-center">
@@ -277,7 +434,6 @@ const ActiveScreen = React.memo(function ActiveScreen({ viewId }: { viewId: View
       </div>
     );
   }
-
   return (
     <PageTransition className="h-full">
       <ScreenComponent />
@@ -285,14 +441,74 @@ const ActiveScreen = React.memo(function ActiveScreen({ viewId }: { viewId: View
   );
 });
 
-/* ═══════════════════════════════════════════════════════
-   AppSidebar — The left sidebar with all navigation
-   ═══════════════════════════════════════════════════════ */
+/* ── Welcome Banner ── */
+
+function WelcomeBanner() {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+  return (
+    <GlassPanel
+      className="mx-4 mt-4 overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, var(--ios-bg-card) 0%, rgba(59,130,246,0.06) 100%)',
+      }}
+    >
+      <div className="flex items-start justify-between gap-4 p-5">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="h-4 w-4 text-[var(--ios-accent)]" />
+            <h2 className="text-base font-semibold" style={{ color: 'var(--ios-text-primary)' }}>
+              Welcome back, Admin
+            </h2>
+          </div>
+          <p className="text-sm mb-4" style={{ color: 'var(--ios-text-secondary)' }}>
+            Here&apos;s your intelligence briefing for today
+          </p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {[
+              { label: '12 New Signals', color: 'var(--ios-confidence-high)' },
+              { label: '5 Opportunities', color: 'var(--ios-accent)' },
+              { label: '3 Pending Reviews', color: 'var(--ios-confidence-medium)' },
+            ].map((pill) => (
+              <span
+                key={pill.label}
+                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+                style={{
+                  borderColor: 'var(--ios-border)',
+                  background: 'var(--ios-bg-secondary)',
+                  color: 'var(--ios-text-primary)',
+                }}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: pill.color }} />
+                {pill.label}
+              </span>
+            ))}
+          </div>
+          <button
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--ios-accent)] px-3.5 py-2 text-xs font-medium text-white transition-all duration-200 hover:bg-[var(--ios-accent-dim)] hover:shadow-lg hover:shadow-[var(--ios-accent)]/20"
+            onClick={() => useAppStore.getState().setActiveView('intelligence-briefing')}
+          >
+            View Full Briefing <ArrowRight className="h-3 w-3" />
+          </button>
+        </div>
+        <button
+          onClick={() => setDismissed(true)}
+          className="shrink-0 rounded-md p-1 transition-all duration-200 hover:bg-[var(--ios-bg-card-hover)]"
+          style={{ color: 'var(--ios-text-muted)' }}
+          aria-label="Dismiss banner"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </GlassPanel>
+  );
+}
+
+/* ── AppSidebar ── */
 
 function AppSidebar() {
   return (
     <Sidebar collapsible="icon" variant="sidebar">
-      {/* ── Header: Logo ── */}
       <SidebarHeader>
         <SidebarMenu>
           <SidebarMenuItem>
@@ -308,17 +524,12 @@ function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-
       <SidebarSeparator />
-
-      {/* ── Navigation Groups ── */}
       <SidebarContent>
-        {NAV_GROUPS.map((group) => (
-          <NavGroupSection key={group.label} group={group} />
+        {NAV_GROUPS.map((group, idx) => (
+          <NavGroupSection key={group.label} group={group} idx={idx} />
         ))}
       </SidebarContent>
-
-      {/* ── Footer: User ── */}
       <SidebarFooter>
         <SidebarSeparator />
         <SidebarMenu>
@@ -341,17 +552,14 @@ function AppSidebar() {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>
-
       <SidebarRail />
     </Sidebar>
   );
 }
 
-/* ═══════════════════════════════════════════════════════
-   Header — Sticky top bar inside SidebarInset
-   ═══════════════════════════════════════════════════════ */
+/* ── AppHeader ── */
 
-function AppHeader() {
+function AppHeader({ onOpenCommandPalette }: { onOpenCommandPalette: () => void }) {
   const activeView = useAppStore((s) => s.activeView);
   const viewLabel = VIEW_LABEL_MAP[activeView] ?? activeView;
 
@@ -359,14 +567,11 @@ function AppHeader() {
     <header
       className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b px-4"
       style={{
-        background: 'var(--ios-bg-card)',
+        background: 'linear-gradient(180deg, var(--ios-bg-card) 0%, var(--ios-bg-card-hover) 100%)',
         borderBottomColor: 'var(--ios-border)',
       }}
     >
-      {/* Sidebar toggle */}
-      <SidebarTrigger className="-ml-1" />
-
-      {/* Breadcrumb */}
+      <SidebarTrigger className="-ml-1 transition-all duration-200" />
       <Breadcrumb>
         <BreadcrumbList>
           <BreadcrumbItem>
@@ -374,56 +579,103 @@ function AppHeader() {
           </BreadcrumbItem>
         </BreadcrumbList>
       </Breadcrumb>
-
-      {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Decorative search */}
-      <div className="relative hidden sm:block">
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground/60" />
-        <input
-          type="text"
-          readOnly
-          placeholder="Search anything... (Ctrl+K)"
-          className="h-9 w-64 rounded-lg border bg-[var(--ios-bg-secondary)] pl-9 pr-3 text-sm text-muted-foreground placeholder:text-muted-foreground/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-          style={{ borderColor: 'var(--ios-border)' }}
-        />
+      {/* AI Status */}
+      <div
+        className="hidden md:flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all duration-200"
+        style={{
+          borderColor: 'var(--ios-border)',
+          background: 'var(--ios-bg-secondary)',
+          color: 'var(--ios-text-secondary)',
+        }}
+      >
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--ios-confidence-high)] opacity-75" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--ios-confidence-high)]" />
+        </span>
+        AI Systems: Online
       </div>
 
-      {/* Notification bell */}
+      {/* Search */}
       <button
-        className="relative inline-flex size-9 items-center justify-center rounded-lg transition-colors hover:bg-[var(--ios-bg-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-        aria-label="Notifications"
+        onClick={onOpenCommandPalette}
+        className="hidden sm:flex relative items-center h-9 w-64 rounded-lg border pl-9 pr-12 text-left text-sm transition-all duration-200 hover:border-[var(--ios-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        style={{
+          borderColor: 'var(--ios-border)',
+          background: 'var(--ios-bg-secondary)',
+          color: 'var(--ios-text-muted)',
+        }}
       >
-        <Bell className="h-4 w-4 text-muted-foreground" />
-        {/* Notification dot indicator */}
-        <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-[var(--destructive)]" />
+        <Search className="absolute left-3 h-4 w-4" style={{ color: 'var(--ios-text-muted)' }} />
+        <span className="truncate">Search anything...</span>
+        <kbd
+          className="ml-auto inline-flex h-5 items-center rounded border px-1.5 text-[10px] font-medium"
+          style={{ borderColor: 'var(--ios-border)', color: 'var(--ios-text-muted)' }}
+        >
+          ⌘K
+        </kbd>
       </button>
 
-      {/* User avatar dropdown */}
+      {/* Command Center */}
+      <button
+        onClick={() => useAppStore.getState().setActiveView('command-center')}
+        className="hidden lg:inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 hover:bg-[var(--ios-bg-card-hover)] hover:border-[var(--ios-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        style={{
+          borderColor: 'var(--ios-border)',
+          background: 'var(--ios-bg-secondary)',
+          color: 'var(--ios-text-secondary)',
+        }}
+      >
+        <Monitor className="h-3.5 w-3.5" /> Command Center
+      </button>
+
+      {/* Notifications */}
+      <button
+        className="relative inline-flex size-9 items-center justify-center rounded-lg transition-all duration-200 hover:bg-[var(--ios-bg-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        aria-label="Notifications"
+      >
+        <Bell className="h-4 w-4" style={{ color: 'var(--ios-text-secondary)' }} />
+        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--destructive)] px-1 text-[10px] font-bold text-white">
+          3
+        </span>
+      </button>
+
       <UserNav />
     </header>
   );
 }
 
-/* ═══════════════════════════════════════════════════════
-   Page — Root app shell
-   ═══════════════════════════════════════════════════════ */
+/* ── Page ── */
 
 export default function Page() {
   const activeView = useAppStore((s) => s.activeView);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const openCmd = useCallback(() => setCmdOpen(true), []);
+  const closeCmd = useCallback(() => setCmdOpen(false), []);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCmdOpen((p) => !p);
+      }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
 
   return (
     <SidebarProvider>
       <AppSidebar />
-
       <SidebarInset className="overflow-hidden" style={{ background: 'var(--ios-bg-primary)' }}>
-        <AppHeader />
-
+        <AppHeader onOpenCommandPalette={openCmd} />
         <div className="flex-1 overflow-auto">
+          {activeView === 'dashboard' && <WelcomeBanner />}
           <ActiveScreen viewId={activeView} />
         </div>
       </SidebarInset>
+      <CommandPalette open={cmdOpen} onClose={closeCmd} />
     </SidebarProvider>
   );
 }

@@ -488,9 +488,50 @@ model AIUsageLog {
   costUSD         Float     @default(0)
   qualityScore    Int?      // Quality gate score (0-100)
   error           String?   // Error message if the call failed
+  promptTemplateId String?  // Which prompt template version was used (if any)
   createdAt       DateTime  @default(now())
+
+  // Relations
+  promptTemplate  PromptTemplate? @relation(fields: [promptTemplateId], references: [id])
 
   @@index([provider])
   @@index([feature])
   @@index([createdAt(sort: Desc)])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Prompt Template Registry (versioned system prompts for A/B testing)
+// ═══════════════════════════════════════════════════════════════════════════
+
+model PromptTemplate {
+  id            String   @id @default(cuid())
+  key           String   @unique  // Machine-readable key (e.g., "brief_summary", "engagement_approach", "reasoning_analyst")
+  label         String              // Human-readable name (e.g., "Executive Brief Summary")
+  description   String?             // What this prompt is used for
+
+  // Prompt content
+  systemPrompt  String              // The actual system prompt text
+  userPromptTemplate String?        // Optional template with {{variables}} for user prompt
+
+  // Versioning & A/B testing
+  version       Int      @default(1)
+  isActive      Boolean  @default(true)   // Only active versions are used by default
+  isDefault     Boolean  @default(false)  // The default version for this key
+
+  // Targeting
+  feature       String?             // Feature that uses this prompt (e.g., "reasoning", "briefing")
+  model         String?             // Recommended model for this prompt (optional)
+
+  // Metadata
+  createdBy     String?             // User ID who created/modified
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  usageLogs     AIUsageLog[]        // Which AI calls used this prompt
+
+  @@index([key])
+  @@index([feature])
+  @@index([isActive])
+  @@unique([key, version])          // Each key+version combination must be unique
 }

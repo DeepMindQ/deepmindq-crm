@@ -17,6 +17,7 @@
 
 import { createHash } from 'crypto';
 import { logger } from '@/lib/logger';
+import { redisCacheGet, redisCacheSet, isRedisAvailable } from '@/lib/redis-cache-backend';
 
 // ─── Cache Entry ───────────────────────────────────────────────────────
 
@@ -59,6 +60,7 @@ function generateCacheKey(feature: string, systemPrompt: string, userPrompt: str
 
 /**
  * Get a cached response if it exists and hasn't expired.
+ * Checks Redis first (if available), then in-memory LRU cache.
  */
 export async function get(
   feature: string,
@@ -66,6 +68,29 @@ export async function get(
   userPrompt: string,
 ): Promise<CacheEntry | null> {
   const key = generateCacheKey(feature, systemPrompt, userPrompt);
+
+  // Try Redis first (persistent, shared across instances)
+  const redisAvailable = await isRedisAvailable();
+  if (redisAvailable) {
+    const redisEntry = await redisCacheGet(feature, key);
+    if (redisEntry) {
+      totalHits++;
+      // Promote to local cache too
+      const cacheEntry: CacheEntry = {
+        text: (redisEntry.data as { text?: string }).text || String(redisEntry.data),
+        usage: (redisEntry.data as { usage?: CacheEntry['usage'] }).usage || null,
+        quality: (redisEntry.data as { quality?: CacheEntry['quality'] }).quality || null,
+        provider: (redisEntry.data as { provider?: string }).provider || 'redis',
+        model: (redisEntry.data as { model?: string }).model || 'redis',
+        createdAt: redisEntry.createdAt,
+        expiresAt: redisEntry.createdAt + DEFAULT_TTL_SECONDS * 1000,
+      };
+      cacheStore.set(key, cacheEntry);
+      return cacheEntry;
+    }
+  }
+
+  // Fallback to in-memory LRU cache
   const entry = cacheStore.get(key);
 
   if (!entry) {
@@ -97,6 +122,7 @@ export async function get(
 
 /**
  * Store a response in the cache.
+ * Writes to both Redis (if available) and in-memory LRU.
  * Evicts least-recently-used entries if at capacity.
  */
 export async function set(
@@ -125,10 +151,19 @@ export async function set(
   }
 
   const now = Date.now();
-  cacheStore.set(key, {
+  const entry: CacheEntry = {
     ...value,
     createdAt: now,
     expiresAt: now + ttlSeconds * 1000,
+  };
+
+  // Store in memory
+  cacheStore.set(key, entry);
+
+  // Also store in Redis (fire-and-forget, don't block on Redis)
+  const ttlMs = ttlSeconds * 1000;
+  redisCacheSet(feature, key, value, ttlMs).catch(() => {
+    // Redis write failure is acceptable — memory cache is the primary
   });
 }
 

@@ -10,9 +10,9 @@ import { type StageKey, STAGES } from './pipeline-types';
 
 export interface PipelineFiltersProps {
   searchQuery: string;
-  onSearchChange: (query: string) => void;
+  onSearchChange: (_query: string) => void;
   stageFilter: StageKey | 'all';
-  onStageFilterChange: (filter: StageKey | 'all') => void;
+  onStageFilterChange: (_filter: StageKey | 'all') => void;
   deals: { stage: StageKey }[];
 }
 

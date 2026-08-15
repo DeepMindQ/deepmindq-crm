@@ -53,10 +53,10 @@ export default function Analytics() {
     loadOverview();
   }, []);
 
-  const signalsTimeData = overview?.signalsOverTime ?? [];
-  const signalsByType = overview?.signalsByType ?? [];
-  const intelligenceScores = overview?.intelligenceScores ?? [];
-  const topIndustries = overview?.topIndustries ?? [];
+  const signalsTimeData = useMemo(() => overview?.signalsOverTime ?? [], [overview]);
+  const signalsByType = useMemo(() => overview?.signalsByType ?? [], [overview]);
+  const intelligenceScores = useMemo(() => overview?.intelligenceScores ?? [], [overview]);
+  const topIndustries = useMemo(() => overview?.topIndustries ?? [], [overview]);
 
   const stats = useMemo(() => {
     if (overview) {

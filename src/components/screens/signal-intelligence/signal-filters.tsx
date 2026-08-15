@@ -15,13 +15,13 @@ import { SIGNAL_TYPE_LABELS, SEVERITY_CONFIG, STATUS_CONFIG } from './signal-typ
 
 export interface SignalFiltersProps {
   searchQuery: string;
-  onSearchChange: (q: string) => void;
+  onSearchChange: (_q: string) => void;
   typeFilter: string;
-  onTypeFilterChange: (v: string) => void;
+  onTypeFilterChange: (_v: string) => void;
   severityFilter: string;
-  onSeverityFilterChange: (v: string) => void;
+  onSeverityFilterChange: (_v: string) => void;
   statusFilter: string;
-  onStatusFilterChange: (v: string) => void;
+  onStatusFilterChange: (_v: string) => void;
   onClearFilters: () => void;
 }
 

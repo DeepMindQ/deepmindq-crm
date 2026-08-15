@@ -89,7 +89,7 @@ export function SignalDetailPanel({
 }: {
   signal: Signal | null;
   open: boolean;
-  onOpenChange: (open: boolean) => void;
+  onOpenChange: (_open: boolean) => void;
 }) {
   if (!signal) return null;
 

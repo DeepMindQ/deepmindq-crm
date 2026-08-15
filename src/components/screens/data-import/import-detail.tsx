@@ -42,9 +42,9 @@ export interface DetailPanelProps {
   record: IngestionRecord | null;
   open: boolean;
   onClose: () => void;
-  onRetry: (id: string) => void;
-  onDelete: (id: string) => void;
-  onCancel: (id: string) => void;
+  onRetry: (_id: string) => void;
+  onDelete: (_id: string) => void;
+  onCancel: (_id: string) => void;
   isRetrying: boolean;
 }
 

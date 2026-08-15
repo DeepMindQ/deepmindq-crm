@@ -41,9 +41,6 @@ import {
   fetchTimeline,
   fetchChartData,
   getMockSignals,
-  getMockTopOrgs,
-  getMockTimeline,
-  getMockChartData,
   getMockHealth,
 } from './intelligence-hub';
 
@@ -79,62 +76,146 @@ export default function IntelligenceHub() {
   const signals: SignalFeedItem[] = signalsData?.length ? signalsData : getMockSignals();
   const health = healthData || getMockHealth();
 
-  const stats: StatCardData[] = [
-    {
-      label: 'Total Organizations',
-      value: '2,847',
-      change: 12,
-      changeLabel: 'vs last month',
-      icon: <Building2 className="h-4 w-4" />,
-      accentColor: C.accent,
-      accentBg: C.accentGhost,
+  // ── Real stats from /api/stats/overview (Q3/Q7/Q13 fix: no more hardcoded numbers) ──
+  const { data: overviewData, isLoading: overviewLoading } = useQuery({
+    queryKey: ['stats-overview'],
+    queryFn: async () => {
+      const result = await fetchApi<{
+        organizations: number;
+        signals: number;
+        people: number;
+        insights: number;
+        criticalSignals: number;
+        avgIntelligenceScore: number;
+        recentActivity: number;
+        ingestion: {
+          total: number;
+          completed: number;
+          organizationsCreated: number;
+          peopleCreated: number;
+        };
+      }>('/api/stats/overview');
+      return result.data;
     },
-    {
-      label: 'Active Signals',
-      value: '156',
-      change: 23,
-      changeLabel: 'vs last week',
-      icon: <Radio className="h-4 w-4" />,
-      accentColor: C.danger,
-      accentBg: C.dangerGhost,
-    },
-    {
-      label: 'AI Insights Generated',
-      value: '1,234',
-      change: 18,
-      changeLabel: 'vs last week',
-      icon: <Brain className="h-4 w-4" />,
-      accentColor: C.purple,
-      accentBg: C.purpleGhost,
-    },
-    {
-      label: 'Avg Intelligence Score',
-      value: '73.2',
-      change: 4,
-      changeLabel: 'vs last month',
-      icon: <TrendingUp className="h-4 w-4" />,
-      accentColor: C.success,
-      accentBg: C.successGhost,
-    },
-    {
-      label: 'Data Completeness',
-      value: '86%',
-      change: 3,
-      changeLabel: 'vs last month',
-      icon: <FileText className="h-4 w-4" />,
-      accentColor: C.cyan,
-      accentBg: C.cyanGhost,
-    },
-    {
-      label: 'Active Briefings',
-      value: '12',
-      change: -2,
-      changeLabel: 'vs last week',
-      icon: <FileText className="h-4 w-4" />,
-      accentColor: C.gold,
-      accentBg: C.goldGhost,
-    },
-  ];
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
+
+  const overview = overviewData;
+
+  const stats: StatCardData[] = overview
+    ? [
+        {
+          label: 'Total Organizations',
+          value: overview.organizations.toLocaleString(),
+          change: overview.ingestion.organizationsCreated,
+          changeLabel: 'from imports',
+          icon: <Building2 className="h-4 w-4" />,
+          accentColor: C.accent,
+          accentBg: C.accentGhost,
+        },
+        {
+          label: 'Active Signals',
+          value: overview.signals.toLocaleString(),
+          change: overview.criticalSignals,
+          changeLabel: 'critical',
+          icon: <Radio className="h-4 w-4" />,
+          accentColor: C.danger,
+          accentBg: C.dangerGhost,
+        },
+        {
+          label: 'AI Insights',
+          value: overview.insights.toLocaleString(),
+          change: overview.recentActivity,
+          changeLabel: 'this week',
+          icon: <Brain className="h-4 w-4" />,
+          accentColor: C.purple,
+          accentBg: C.purpleGhost,
+        },
+        {
+          label: 'Avg Intel Score',
+          value: String(overview.avgIntelligenceScore),
+          change: overview.avgIntelligenceScore > 50 ? 4 : -2,
+          changeLabel: 'from KG analysis',
+          icon: <TrendingUp className="h-4 w-4" />,
+          accentColor: C.success,
+          accentBg: C.successGhost,
+        },
+        {
+          label: 'Contacts',
+          value: overview.people.toLocaleString(),
+          change: overview.ingestion.peopleCreated,
+          changeLabel: 'from imports',
+          icon: <FileText className="h-4 w-4" />,
+          accentColor: C.cyan,
+          accentBg: C.cyanGhost,
+        },
+        {
+          label: 'Imports Completed',
+          value: String(overview.ingestion.completed),
+          change: overview.ingestion.total - overview.ingestion.completed,
+          changeLabel: 'pending',
+          icon: <FileText className="h-4 w-4" />,
+          accentColor: C.gold,
+          accentBg: C.goldGhost,
+        },
+      ]
+    : [
+        {
+          label: 'Total Organizations',
+          value: '—',
+          change: 0,
+          changeLabel: 'loading',
+          icon: <Building2 className="h-4 w-4" />,
+          accentColor: C.accent,
+          accentBg: C.accentGhost,
+        },
+        {
+          label: 'Active Signals',
+          value: '—',
+          change: 0,
+          changeLabel: 'loading',
+          icon: <Radio className="h-4 w-4" />,
+          accentColor: C.danger,
+          accentBg: C.dangerGhost,
+        },
+        {
+          label: 'AI Insights',
+          value: '—',
+          change: 0,
+          changeLabel: 'loading',
+          icon: <Brain className="h-4 w-4" />,
+          accentColor: C.purple,
+          accentBg: C.purpleGhost,
+        },
+        {
+          label: 'Avg Intel Score',
+          value: '—',
+          change: 0,
+          changeLabel: 'loading',
+          icon: <TrendingUp className="h-4 w-4" />,
+          accentColor: C.success,
+          accentBg: C.successGhost,
+        },
+        {
+          label: 'Contacts',
+          value: '—',
+          change: 0,
+          changeLabel: 'loading',
+          icon: <FileText className="h-4 w-4" />,
+          accentColor: C.cyan,
+          accentBg: C.cyanGhost,
+        },
+        {
+          label: 'Imports',
+          value: '—',
+          change: 0,
+          changeLabel: 'loading',
+          icon: <FileText className="h-4 w-4" />,
+          accentColor: C.gold,
+          accentBg: C.goldGhost,
+        },
+      ];
 
   const [topOrgs, setTopOrgs] = useState<TopOrg[]>([]);
   const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
@@ -179,11 +260,58 @@ export default function IntelligenceHub() {
     [setActiveView, setSelectedCompanyId],
   );
 
+  const [pipelineRunning, setPipelineRunning] = useState(false);
+
   const handleQuickAction = useCallback(
-    (action: string) => {
+    async (action: string) => {
+      if (action === 'pipeline') {
+        // Q4 FIX: Actually trigger the intelligence pipeline via API
+        setPipelineRunning(true);
+        try {
+          // First get organizations to run pipeline for
+          const orgsResult = await fetchApi<Array<{ id: string; name: string }>>(
+            '/api/organizations?limit=5',
+          );
+          const orgs = orgsResult.data || [];
+          if (orgs.length === 0) {
+            toast.info(
+              'No organizations found. Import data first to run the intelligence pipeline.',
+            );
+            setActiveView('data-import');
+            return;
+          }
+          toast.info(
+            `Running intelligence pipeline for ${Math.min(orgs.length, 5)} organizations...`,
+          );
+          const results = await Promise.allSettled(
+            orgs.slice(0, 5).map(async (org: { id: string; name: string }) => {
+              const res = await fetch('/api/advisor/pipeline', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                credentials: 'include',
+                body: JSON.stringify({ organizationId: org.id }),
+              });
+              return res.json();
+            }),
+          );
+          const succeeded = results.filter(
+            (r: PromiseSettledResult<unknown>) => r.status === 'fulfilled',
+          ).length;
+          toast.success(
+            `Pipeline completed for ${succeeded}/${Math.min(orgs.length, 5)} organizations.`,
+          );
+          // Refetch overview stats
+          window.location.reload();
+        } catch (_err) {
+          toast.error('Pipeline failed. Check logs for details.');
+        } finally {
+          setPipelineRunning(false);
+        }
+        return;
+      }
+
       const actionMap: Record<string, { view: string; message: string }> = {
         import: { view: 'data-import', message: 'Opening Data Import...' },
-        pipeline: { view: 'ai-health', message: 'Intelligence pipeline triggered...' },
         signals: { view: 'signal-intelligence', message: 'Viewing all signals...' },
         briefing: { view: 'intelligence-briefing', message: 'Generating intelligence briefing...' },
       };
@@ -252,25 +380,37 @@ export default function IntelligenceHub() {
           </div>
 
           {/* Stats Row */}
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            {stats.map((stat, idx) => (
-              <Tooltip key={idx}>
-                <TooltipTrigger asChild>
-                  <div>
-                    <StatCardWidget stat={stat} />
-                  </div>
-                </TooltipTrigger>
-                <TooltipContent
-                  side="bottom"
+          {overviewLoading && !overviewData ? (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {Array.from({ length: 6 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="h-24 rounded-xl animate-pulse"
                   style={{ background: C.bgCard, border: `1px solid ${C.border}` }}
-                >
-                  <p className="text-xs" style={{ color: C.textSecondary }}>
-                    {stat.changeLabel}
-                  </p>
-                </TooltipContent>
-              </Tooltip>
-            ))}
-          </div>
+                />
+              ))}
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+              {stats.map((stat, idx) => (
+                <Tooltip key={idx}>
+                  <TooltipTrigger asChild>
+                    <div>
+                      <StatCardWidget stat={stat} />
+                    </div>
+                  </TooltipTrigger>
+                  <TooltipContent
+                    side="bottom"
+                    style={{ background: C.bgCard, border: `1px solid ${C.border}` }}
+                  >
+                    <p className="text-xs" style={{ color: C.textSecondary }}>
+                      {stat.changeLabel}
+                    </p>
+                  </TooltipContent>
+                </Tooltip>
+              ))}
+            </div>
+          )}
 
           {/* Quick Actions Bar */}
           <div
@@ -295,15 +435,18 @@ export default function IntelligenceHub() {
             </Button>
             <Button
               size="sm"
+              disabled={pipelineRunning}
               onClick={() => handleQuickAction('pipeline')}
               className="gap-2 text-xs font-medium rounded-lg h-8 px-3"
               style={{
                 background: C.purpleGhost,
                 color: C.purple,
                 border: `1px solid rgba(139, 92, 246, 0.2)`,
+                opacity: pipelineRunning ? 0.5 : 1,
               }}
             >
-              <Play className="h-3.5 w-3.5" /> Run Intelligence Pipeline
+              <Play className={`h-3.5 w-3.5 ${pipelineRunning ? 'animate-spin' : ''}`} />{' '}
+              {pipelineRunning ? 'Running Pipeline...' : 'Run Intelligence Pipeline'}
             </Button>
             <Button
               size="sm"

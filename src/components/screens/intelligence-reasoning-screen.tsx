@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { tokens } from '@/components/intelligence-os/design-tokens';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -21,111 +22,44 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Activity, Brain, AlertTriangle, BarChart3, Filter, RefreshCw } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import {
+  Activity,
+  Brain,
+  AlertTriangle,
+  BarChart3,
+  Filter,
+  RefreshCw,
+  MessageSquare,
+  Lightbulb,
+} from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
+import { toast } from 'sonner';
 
-const MOCK_RUNS = [
-  {
-    id: '1',
-    input: 'Evaluate competitor pricing strategy for Q3',
-    method: 'llm',
-    model: 'GPT-4o',
-    confidence: 0.92,
-    duration: 3200,
-    output:
-      'Pricing pressure from Competitor A is increasing; recommend value-based positioning with ROI bundling.',
-  },
-  {
-    id: '2',
-    input: 'Score lead Acme Corp for enterprise tier',
-    method: 'hybrid',
-    model: 'Claude-3.5',
-    confidence: 0.87,
-    duration: 4800,
-    output:
-      'Acme Corp scores 84/100. Strong fit based on employee count, industry, and technology stack.',
-  },
-  {
-    id: '3',
-    input: 'Determine risk level for stalled deal #4451',
-    method: 'rule',
-    model: 'Rule Engine v2',
-    confidence: 0.95,
-    duration: 120,
-    output: 'HIGH RISK: Deal stalled 42 days, no contact in 14 days, competitor activity detected.',
-  },
-  {
-    id: '4',
-    input: 'Predict close probability for Nexus deal',
-    method: 'llm',
-    model: 'GPT-4o',
-    confidence: 0.78,
-    duration: 2900,
-    output:
-      '65% close probability. Key concern: budget approval timeline. Strength: executive sponsor alignment.',
-  },
-  {
-    id: '5',
-    input: 'Extract entity relationships from quarterly filing',
-    method: 'hybrid',
-    model: 'Claude-3.5',
-    confidence: 0.91,
-    duration: 6100,
-    output:
-      'Identified 12 new entity relationships including 3 board member connections to target accounts.',
-  },
-  {
-    id: '6',
-    input: 'Validate contact email deliverability',
-    method: 'rule',
-    model: 'Validation Engine',
-    confidence: 0.99,
-    duration: 85,
-    output: 'Email valid. MX records verified, SPF/DKIM/DMARC all passing.',
-  },
-  {
-    id: '7',
-    input: 'Generate account expansion opportunity analysis',
-    method: 'llm',
-    model: 'GPT-4o',
-    confidence: 0.83,
-    duration: 5400,
-    output:
-      'Expansion opportunity detected: Customer uses 3 of 8 modules. Security and Analytics modules are next best fit.',
-  },
-  {
-    id: '8',
-    input: 'Classify incoming support ticket severity',
-    method: 'rule',
-    model: 'Classification v3',
-    confidence: 0.96,
-    duration: 45,
-    output:
-      'SEVERITY: P2. Keywords match escalation pattern. Recommended: assign to senior support within 2hrs.',
-  },
-  {
-    id: '9',
-    input: 'Synthesize market signals for fintech vertical',
-    method: 'hybrid',
-    model: 'Claude-3.5',
-    confidence: 0.74,
-    duration: 7200,
-    output:
-      'Market trending toward embedded finance. 3 target accounts show hiring signals in payments division.',
-  },
-  {
-    id: '10',
-    input: 'Error: timeout on knowledge graph traversal',
-    method: 'hybrid',
-    model: 'Graph Engine',
-    confidence: 0,
-    duration: 30000,
-    output: 'ERROR: Query exceeded 30s timeout. Graph partition may need reindexing.',
-  },
-];
+// ─── Types ────────────────────────────────────────────────────────
 
-function getConfidenceBadge(confidence: number) {
-  if (confidence === 0) return <Badge variant="destructive">Error</Badge>;
-  if (confidence >= 0.85)
+interface InsightRow {
+  id: string;
+  organizationId: string;
+  organizationName: string;
+  organizationDomain: string | null;
+  signalType: string | null;
+  signalSeverity: string | null;
+  category: string;
+  title: string;
+  narrative: string;
+  recommendation: string | null;
+  suggestedMessage: string | null;
+  confidence: string;
+  confidenceScore: number | null;
+  reasoningMethod: string;
+  modelUsed: string | null;
+  createdAt: string;
+}
+
+function getConfidenceBadge(confidence: string, score: number | null) {
+  const numScore = score ?? 0;
+  if (confidence === 'very_high' || numScore >= 85)
     return (
       <Badge
         style={{
@@ -135,10 +69,11 @@ function getConfidenceBadge(confidence: number) {
           borderWidth: 1,
         }}
       >
-        {(confidence * 100).toFixed(0)}%
+        {confidence}
+        {score ? ` (${score}%)` : ''}
       </Badge>
     );
-  if (confidence >= 0.7)
+  if (confidence === 'high' || numScore >= 70)
     return (
       <Badge
         style={{
@@ -148,7 +83,8 @@ function getConfidenceBadge(confidence: number) {
           borderWidth: 1,
         }}
       >
-        {(confidence * 100).toFixed(0)}%
+        {confidence}
+        {score ? ` (${score}%)` : ''}
       </Badge>
     );
   return (
@@ -160,7 +96,8 @@ function getConfidenceBadge(confidence: number) {
         borderWidth: 1,
       }}
     >
-      {(confidence * 100).toFixed(0)}%
+      {confidence}
+      {score ? ` (${score}%)` : ''}
     </Badge>
   );
 }
@@ -170,8 +107,9 @@ function getMethodBadge(method: string) {
     llm: { bg: tokens.domain.bg, color: tokens.domain.value },
     rule: { bg: tokens.confidence.high.bg, color: tokens.confidence.high.value },
     hybrid: { bg: tokens.gold.bgMedium, color: tokens.gold.dark },
+    template: { bg: tokens.accent.subtle, color: tokens.accent.primary },
   };
-  const style = map[method] || map.llm;
+  const style = map[method] || map.template;
   return (
     <Badge
       className="uppercase text-[10px] font-bold"
@@ -185,33 +123,60 @@ function getMethodBadge(method: string) {
 export default function IntelligenceReasoning() {
   const [methodFilter, setMethodFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [selectedInsight, setSelectedInsight] = useState<InsightRow | null>(null);
+
+  // Q12 FIX: Fetch real insights from API
+  const {
+    data: insightsData,
+    isLoading,
+    refetch,
+    isFetching,
+  } = useQuery({
+    queryKey: ['insights-reasoning', methodFilter, search],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: '50' });
+      if (methodFilter !== 'all') {
+        params.set('category', methodFilter);
+      }
+      const result = await fetchApi<InsightRow[]>('/api/insights?' + params.toString());
+      return result.data;
+    },
+    staleTime: 1000 * 60 * 2,
+    retry: 1,
+  });
+
+  const insights = insightsData || [];
 
   const filteredRuns = useMemo(() => {
-    return MOCK_RUNS.filter((r) => {
-      if (methodFilter !== 'all' && r.method !== methodFilter) return false;
-      if (search && !r.input.toLowerCase().includes(search.toLowerCase())) return false;
+    return insights.filter((r) => {
+      if (
+        search &&
+        !r.title.toLowerCase().includes(search.toLowerCase()) &&
+        !r.narrative.toLowerCase().includes(search.toLowerCase()) &&
+        !r.organizationName.toLowerCase().includes(search.toLowerCase())
+      ) {
+        return false;
+      }
       return true;
     });
-  }, [methodFilter, search]);
+  }, [insights, search]);
 
   const stats = useMemo(() => {
-    const today = MOCK_RUNS.filter((r) => r.confidence > 0);
-    const errors = MOCK_RUNS.filter((r) => r.confidence === 0);
-    const models = new Set(MOCK_RUNS.map((r) => r.model));
-    const avgConf = today.reduce((a, b) => a + b.confidence, 0) / today.length;
+    const totalRuns = insights.length;
+    const errors = insights.filter((r) => r.confidence === 'very_low');
+    const models = new Set(insights.map((r) => r.modelUsed).filter(Boolean));
+    const avgScore = insights.reduce((a, b) => a + (b.confidenceScore ?? 0), 0) / (totalRuns || 1);
+    const withRecommendation = insights.filter((r) => r.recommendation).length;
+    const withMessage = insights.filter((r) => r.suggestedMessage).length;
     return {
-      runsToday: MOCK_RUNS.length,
-      avgConfidence: (avgConf * 100).toFixed(1),
+      runsTotal: totalRuns,
+      avgConfidence: avgScore.toFixed(1),
       modelsUsed: models.size,
       errors: errors.length,
+      withRecommendation,
+      withMessage,
     };
-  }, []);
-
-  const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 1500);
-  };
+  }, [insights]);
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -222,11 +187,11 @@ export default function IntelligenceReasoning() {
             Intelligence Reasoning Engine
           </h1>
           <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
-            Monitor AI reasoning runs, model performance, and inference logs
+            AI-generated insights with recommendations and suggested messages
           </p>
         </div>
-        <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
-          <RefreshCw className={`size-4 ${loading ? 'animate-spin' : ''}`} />
+        <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
+          <RefreshCw className={`size-4 ${isFetching ? 'animate-spin' : ''}`} />
           Refresh
         </Button>
       </div>
@@ -235,8 +200,8 @@ export default function IntelligenceReasoning() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
-            label: 'Reasoning Runs Today',
-            value: stats.runsToday,
+            label: 'Total Insights',
+            value: stats.runsTotal,
             icon: Brain,
             color: tokens.domain.value,
             bg: tokens.domain.bg,
@@ -249,18 +214,18 @@ export default function IntelligenceReasoning() {
             bg: tokens.confidence.high.bg,
           },
           {
-            label: 'Models Used',
-            value: stats.modelsUsed,
-            icon: Activity,
-            color: tokens.accent.primary,
-            bg: tokens.accent.subtle,
+            label: 'With Recommendations',
+            value: stats.withRecommendation,
+            icon: Lightbulb,
+            color: tokens.gold.dark,
+            bg: tokens.gold.bgMedium,
           },
           {
-            label: 'Errors',
-            value: stats.errors,
-            icon: AlertTriangle,
-            color: tokens.confidence.low.value,
-            bg: tokens.confidence.low.bg,
+            label: 'With Suggested Messages',
+            value: stats.withMessage,
+            icon: MessageSquare,
+            color: tokens.accent.primary,
+            bg: tokens.accent.subtle,
           },
         ].map((stat) => (
           <Card key={stat.label} className="gap-4 py-4">
@@ -293,7 +258,7 @@ export default function IntelligenceReasoning() {
               style={{ color: tokens.text.muted }}
             />
             <Input
-              placeholder="Search reasoning inputs..."
+              placeholder="Search insights, narratives, orgs..."
               className="pl-9"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -301,85 +266,112 @@ export default function IntelligenceReasoning() {
           </div>
           <Select value={methodFilter} onValueChange={setMethodFilter}>
             <SelectTrigger className="w-full sm:w-[160px]">
-              <SelectValue placeholder="Filter by method" />
+              <SelectValue placeholder="Filter by category" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="all">All Methods</SelectItem>
-              <SelectItem value="llm">LLM</SelectItem>
-              <SelectItem value="rule">Rule</SelectItem>
-              <SelectItem value="hybrid">Hybrid</SelectItem>
+              <SelectItem value="all">All Categories</SelectItem>
+              <SelectItem value="opportunity">Opportunity</SelectItem>
+              <SelectItem value="risk">Risk</SelectItem>
+              <SelectItem value="growth">Growth</SelectItem>
+              <SelectItem value="competitive">Competitive</SelectItem>
             </SelectContent>
           </Select>
           <span className="text-xs" style={{ color: tokens.text.muted }}>
-            {filteredRuns.length} of {MOCK_RUNS.length} runs
+            {filteredRuns.length} of {insights.length} insights
           </span>
         </CardContent>
       </Card>
 
       {/* Data Table */}
       <Card className="gap-0 py-0 overflow-hidden">
-        <CardContent className="p-0 max-h-[480px] overflow-y-auto">
+        <CardContent className="p-0 max-h-[520px] overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow style={{ backgroundColor: tokens.surface.secondary }}>
-                <TableHead className="w-[200px]">Input</TableHead>
+                <TableHead className="w-[180px]">Organization</TableHead>
+                <TableHead className="w-[150px]">Title</TableHead>
                 <TableHead className="w-[90px]">Method</TableHead>
-                <TableHead className="w-[120px]">Model</TableHead>
                 <TableHead className="w-[100px]">Confidence</TableHead>
-                <TableHead className="w-[90px]">Duration</TableHead>
-                <TableHead>Output Summary</TableHead>
+                <TableHead className="w-[80px]">Model</TableHead>
+                <TableHead className="w-[100px]">Has Rec.</TableHead>
+                <TableHead>Recommendation Preview</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {loading ? (
+              {isLoading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center">
+                  <TableCell colSpan={7} className="h-32 text-center">
                     <div
                       className="flex items-center justify-center gap-2"
                       style={{ color: tokens.text.muted }}
                     >
                       <RefreshCw className="size-4 animate-spin" />
-                      Loading reasoning runs...
+                      Loading insights from database...
                     </div>
                   </TableCell>
                 </TableRow>
               ) : filteredRuns.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="h-32 text-center"
                     style={{ color: tokens.text.muted }}
                   >
-                    No reasoning runs match the current filters.
+                    {insights.length === 0
+                      ? 'No insights generated yet. Run the intelligence pipeline to generate insights.'
+                      : 'No insights match the current filters.'}
                   </TableCell>
                 </TableRow>
               ) : (
-                filteredRuns.map((run) => (
-                  <TableRow key={run.id} className="hover:bg-muted/50 transition-colors">
+                filteredRuns.map((insight) => (
+                  <TableRow
+                    key={insight.id}
+                    className="hover:bg-muted/50 transition-colors cursor-pointer"
+                    onClick={() => setSelectedInsight(insight)}
+                  >
                     <TableCell
-                      className="font-medium max-w-[200px] truncate"
+                      className="font-medium max-w-[180px] truncate"
                       style={{ color: tokens.text.primary }}
                     >
-                      {run.input}
+                      {insight.organizationName}
                     </TableCell>
-                    <TableCell>{getMethodBadge(run.method)}</TableCell>
-                    <TableCell className="text-xs" style={{ color: tokens.text.secondary }}>
-                      {run.model}
-                    </TableCell>
-                    <TableCell>{getConfidenceBadge(run.confidence)}</TableCell>
                     <TableCell
-                      className="text-xs font-mono"
+                      className="text-xs max-w-[150px] truncate"
                       style={{ color: tokens.text.secondary }}
                     >
-                      {run.duration >= 1000
-                        ? `${(run.duration / 1000).toFixed(1)}s`
-                        : `${run.duration}ms`}
+                      {insight.title}
+                    </TableCell>
+                    <TableCell>{getMethodBadge(insight.reasoningMethod)}</TableCell>
+                    <TableCell>
+                      {getConfidenceBadge(insight.confidence, insight.confidenceScore)}
+                    </TableCell>
+                    <TableCell className="text-xs" style={{ color: tokens.text.secondary }}>
+                      {insight.modelUsed || '—'}
+                    </TableCell>
+                    <TableCell>
+                      {insight.recommendation ? (
+                        <Badge
+                          style={{
+                            backgroundColor: tokens.confidence.high.bg,
+                            color: tokens.confidence.high.value,
+                            borderWidth: 1,
+                          }}
+                        >
+                          <Lightbulb className="size-3 mr-1" /> Yes
+                        </Badge>
+                      ) : (
+                        <span style={{ color: tokens.text.muted }}>—</span>
+                      )}
                     </TableCell>
                     <TableCell
                       className="text-xs max-w-[300px] truncate"
                       style={{ color: tokens.text.secondary }}
                     >
-                      {run.output}
+                      {insight.recommendation
+                        ? insight.recommendation.slice(0, 80) +
+                          (insight.recommendation.length > 80 ? '...' : '')
+                        : insight.narrative.slice(0, 80) +
+                          (insight.narrative.length > 80 ? '...' : '')}
                     </TableCell>
                   </TableRow>
                 ))
@@ -388,6 +380,104 @@ export default function IntelligenceReasoning() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Q12 FIX: Insight Detail Dialog showing recommendation + suggestedMessage */}
+      <Dialog open={!!selectedInsight} onOpenChange={() => setSelectedInsight(null)}>
+        <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Brain className="size-5" style={{ color: tokens.domain.value }} />
+              {selectedInsight?.title || 'Insight Detail'}
+            </DialogTitle>
+          </DialogHeader>
+          {selectedInsight && (
+            <div className="space-y-4">
+              {/* Meta info */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <Badge variant="outline">{selectedInsight.organizationName}</Badge>
+                {getMethodBadge(selectedInsight.reasoningMethod)}
+                {getConfidenceBadge(selectedInsight.confidence, selectedInsight.confidenceScore)}
+                {selectedInsight.modelUsed && (
+                  <span className="text-xs" style={{ color: tokens.text.muted }}>
+                    Model: {selectedInsight.modelUsed}
+                  </span>
+                )}
+              </div>
+
+              {/* Narrative */}
+              <div>
+                <h3 className="text-sm font-semibold mb-1" style={{ color: tokens.text.primary }}>
+                  Analysis
+                </h3>
+                <p className="text-sm leading-relaxed" style={{ color: tokens.text.secondary }}>
+                  {selectedInsight.narrative}
+                </p>
+              </div>
+
+              {/* Q12 FIX: Recommendation */}
+              {selectedInsight.recommendation && (
+                <div
+                  className="rounded-lg p-4"
+                  style={{
+                    backgroundColor: tokens.gold.bgLight,
+                    border: `1px solid ${tokens.gold.medium}`,
+                  }}
+                >
+                  <h3
+                    className="text-sm font-semibold mb-2 flex items-center gap-2"
+                    style={{ color: tokens.gold.dark }}
+                  >
+                    <Lightbulb className="size-4" /> Recommendation
+                  </h3>
+                  <p className="text-sm leading-relaxed" style={{ color: tokens.text.primary }}>
+                    {selectedInsight.recommendation}
+                  </p>
+                </div>
+              )}
+
+              {/* Q12 FIX: Suggested Message */}
+              {selectedInsight.suggestedMessage && (
+                <div
+                  className="rounded-lg p-4"
+                  style={{
+                    backgroundColor: tokens.accent.subtle,
+                    border: `1px solid ${tokens.accent.primary}33`,
+                  }}
+                >
+                  <h3
+                    className="text-sm font-semibold mb-2 flex items-center gap-2"
+                    style={{ color: tokens.accent.primary }}
+                  >
+                    <MessageSquare className="size-4" /> Suggested Message
+                  </h3>
+                  <p className="text-sm leading-relaxed" style={{ color: tokens.text.primary }}>
+                    {selectedInsight.suggestedMessage}
+                  </p>
+                  <Button
+                    size="sm"
+                    className="mt-3 gap-2"
+                    variant="outline"
+                    onClick={() => {
+                      navigator.clipboard.writeText(selectedInsight.suggestedMessage || '');
+                      toast.success('Message copied to clipboard');
+                    }}
+                  >
+                    Copy Message
+                  </Button>
+                </div>
+              )}
+
+              {/* Category */}
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-medium" style={{ color: tokens.text.muted }}>
+                  Category:
+                </span>
+                <Badge variant="secondary">{selectedInsight.category}</Badge>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

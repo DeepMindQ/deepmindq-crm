@@ -565,18 +565,33 @@ export function IntelligenceOperationsCenter() {
             />
             <StatCard
               label="Intel Generated"
-              value={1284}
+              value={signals.length}
               icon={TrendingUp}
               color="#10B981"
-              trend={{ value: '18%', up: true }}
+              trend={{ value: `${signals.length} active`, up: true }}
               delay={0.16}
             />
             <StatCard
               label="Threat Level"
-              value="MODERATE"
+              value={
+                signals.filter((s) => s.severity === 'CRITICAL').length >= 4
+                  ? 'HIGH'
+                  : signals.filter((s) => s.severity === 'CRITICAL').length >= 1
+                    ? 'MODERATE'
+                    : 'LOW'
+              }
               icon={AlertTriangle}
-              color="#F59E0B"
-              trend={{ value: 'Stable', up: false }}
+              color={
+                signals.filter((s) => s.severity === 'CRITICAL').length >= 4
+                  ? '#EF4444'
+                  : signals.filter((s) => s.severity === 'CRITICAL').length >= 1
+                    ? '#F59E0B'
+                    : '#10B981'
+              }
+              trend={{
+                value: `${signals.filter((s) => s.severity === 'CRITICAL').length} critical`,
+                up: false,
+              }}
               delay={0.24}
             />
           </div>

@@ -140,10 +140,12 @@ export function formatTimestamp(date: Date): string {
 }
 
 // ═══════════════════════════════════════════════════════════════
-// Mock Data
+// Data Fetching (API-backed with mock fallbacks)
 // ═══════════════════════════════════════════════════════════════
 
-export function getMockSignals(): SignalFeedItem[] {
+// ── Fallback mock data ──
+
+const _fallbackSignals: SignalFeedItem[] = (() => {
   const now = Date.now();
   return [
     {
@@ -201,115 +203,58 @@ export function getMockSignals(): SignalFeedItem[] {
       organizationName: 'Meridian Fintech',
       organizationId: 'org-5',
     },
-    {
-      id: 's6',
-      signalType: 'regulatory',
-      severity: 'low',
-      title: 'Compliance certification renewed',
-      description: 'ISO 27001 and SOC 2 Type II renewed',
-      confidenceScore: 95,
-      detectedAt: new Date(now - 1000 * 60 * 60 * 8).toISOString(),
-      organizationName: 'Atlas Cyberdefense',
-      organizationId: 'org-6',
-    },
-    {
-      id: 's7',
-      signalType: 'growth',
-      severity: 'medium',
-      title: 'Headcount surge in engineering',
-      description: '42 new engineering hires in last 90 days',
-      confidenceScore: 72,
-      detectedAt: new Date(now - 1000 * 60 * 60 * 12).toISOString(),
-      organizationName: 'Stratoscale AI',
-      organizationId: 'org-7',
-    },
-    {
-      id: 's8',
-      signalType: 'risk',
-      severity: 'high',
-      title: 'Patent infringement lawsuit filed',
-      description: 'Competitor filed suit in Eastern District of Texas',
-      confidenceScore: 81,
-      detectedAt: new Date(now - 1000 * 60 * 60 * 18).toISOString(),
-      organizationName: 'DataForge Inc',
-      organizationId: 'org-8',
-    },
-    {
-      id: 's9',
-      signalType: 'opportunity',
-      severity: 'low',
-      title: 'Partnership with major cloud provider',
-      description: 'AWS Marketplace listing and co-sell agreement',
-      confidenceScore: 90,
-      detectedAt: new Date(now - 1000 * 60 * 60 * 24).toISOString(),
-      organizationName: 'CloudPlex Systems',
-      organizationId: 'org-9',
-    },
-    {
-      id: 's10',
-      signalType: 'technology',
-      severity: 'medium',
-      title: 'Open source community contribution spike',
-      description: 'GitHub stars grew 200% in last quarter',
-      confidenceScore: 68,
-      detectedAt: new Date(now - 1000 * 60 * 60 * 36).toISOString(),
-      organizationName: 'DevStack Labs',
-      organizationId: 'org-10',
-    },
   ];
-}
+})();
 
-export function getMockTopOrgs(): TopOrg[] {
-  return [
-    {
-      id: 'org-7',
-      name: 'Stratoscale AI',
-      industry: 'AI / Machine Learning',
-      intelligenceScore: 92,
-      signalCount: 14,
-      trend: 'up',
-      trendValue: 8,
-    },
-    {
-      id: 'org-2',
-      name: 'TechCo Industries',
-      industry: 'Enterprise Software',
-      intelligenceScore: 87,
-      signalCount: 11,
-      trend: 'up',
-      trendValue: 5,
-    },
-    {
-      id: 'org-3',
-      name: 'GlobalNet Solutions',
-      industry: 'Telecommunications',
-      intelligenceScore: 84,
-      signalCount: 9,
-      trend: 'up',
-      trendValue: 3,
-    },
-    {
-      id: 'org-5',
-      name: 'Meridian Fintech',
-      industry: 'FinTech',
-      intelligenceScore: 79,
-      signalCount: 7,
-      trend: 'neutral',
-      trendValue: 0,
-    },
-    {
-      id: 'org-4',
-      name: 'NovaTech Solutions',
-      industry: 'Cloud SaaS',
-      intelligenceScore: 74,
-      signalCount: 6,
-      trend: 'down',
-      trendValue: -2,
-    },
-  ];
-}
+const _fallbackTopOrgs: TopOrg[] = [
+  {
+    id: 'org-7',
+    name: 'Stratoscale AI',
+    industry: 'AI / Machine Learning',
+    intelligenceScore: 92,
+    signalCount: 14,
+    trend: 'up',
+    trendValue: 8,
+  },
+  {
+    id: 'org-2',
+    name: 'TechCo Industries',
+    industry: 'Enterprise Software',
+    intelligenceScore: 87,
+    signalCount: 11,
+    trend: 'up',
+    trendValue: 5,
+  },
+  {
+    id: 'org-3',
+    name: 'GlobalNet Solutions',
+    industry: 'Telecommunications',
+    intelligenceScore: 84,
+    signalCount: 9,
+    trend: 'up',
+    trendValue: 3,
+  },
+  {
+    id: 'org-5',
+    name: 'Meridian Fintech',
+    industry: 'FinTech',
+    intelligenceScore: 79,
+    signalCount: 7,
+    trend: 'neutral',
+    trendValue: 0,
+  },
+  {
+    id: 'org-4',
+    name: 'NovaTech Solutions',
+    industry: 'Cloud SaaS',
+    intelligenceScore: 74,
+    signalCount: 6,
+    trend: 'down',
+    trendValue: -2,
+  },
+];
 
-export function getMockTimeline(): TimelineEntry[] {
+const _fallbackTimeline: TimelineEntry[] = (() => {
   const now = Date.now();
   return [
     {
@@ -347,51 +292,128 @@ export function getMockTimeline(): TimelineEntry[] {
       detail: 'AI platform launch — severity: high',
       timestamp: new Date(now - 1000 * 60 * 60 * 4),
     },
-    {
-      id: 't6',
-      type: 'briefing',
-      message: 'Weekly intelligence briefing generated',
-      detail: '12 actionable insights across 8 accounts',
-      timestamp: new Date(now - 1000 * 60 * 60 * 6),
-    },
-    {
-      id: 't7',
-      type: 'insight',
-      message: 'AI insight generated for GlobalNet',
-      detail: 'Market expansion analysis — confidence 76%',
-      timestamp: new Date(now - 1000 * 60 * 60 * 8),
-    },
-    {
-      id: 't8',
-      type: 'import',
-      message: 'Data import completed — 320 rows',
-      detail: 'Enrichment data from Apollo.io, 2 warnings',
-      timestamp: new Date(now - 1000 * 60 * 60 * 12),
-    },
-    {
-      id: 't9',
-      type: 'pipeline',
-      message: 'Intelligence pipeline completed',
-      detail: 'Processed 38 organizations, 142 signals',
-      timestamp: new Date(now - 1000 * 60 * 60 * 18),
-    },
-    {
-      id: 't10',
-      type: 'signal',
-      message: 'New signal detected for DataForge',
-      detail: 'Patent infringement lawsuit — severity: high',
-      timestamp: new Date(now - 1000 * 60 * 60 * 20),
-    },
   ];
-}
+})();
 
-export function getMockChartData() {
+const _fallbackChartData = (() => {
   const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   return days.map((day, i) => ({
     day,
     signals: Math.floor(Math.random() * 20) + 8 + (i === 5 ? -5 : 0),
     criticals: Math.floor(Math.random() * 5) + 1,
   }));
+})();
+
+// ── API-backed fetchers (fallback to mock on error) ──
+
+export async function fetchSignals(limit = 10): Promise<SignalFeedItem[]> {
+  try {
+    const res = await fetch('/api/signals?limit=' + limit, { credentials: 'include' });
+    if (!res.ok) return _fallbackSignals;
+    const json = await res.json();
+    const data: SignalFeedItem[] = (json.data || []).map((s: Record<string, unknown>) => ({
+      id: s.id,
+      signalType: (s.signalType as string) || 'unknown',
+      severity: (s.severity as string) || 'medium',
+      title: (s.title as string) || '',
+      description: (s.description as string) || '',
+      confidenceScore: (s.confidenceScore as number) ?? 0,
+      detectedAt: (s.detectedAt as string) || new Date().toISOString(),
+      organizationName: (s.organization as Record<string, string> | null)?.name,
+      organizationId: (s.organizationId as string) || undefined,
+    }));
+    return data.length > 0 ? data : _fallbackSignals;
+  } catch {
+    return _fallbackSignals;
+  }
+}
+
+export async function fetchTopOrgs(limit = 5): Promise<TopOrg[]> {
+  try {
+    const res = await fetch('/api/organizations?limit=' + limit, { credentials: 'include' });
+    if (!res.ok) return _fallbackTopOrgs;
+    const json = await res.json();
+    const orgs = json.data || [];
+    if (!Array.isArray(orgs) || orgs.length === 0) return _fallbackTopOrgs;
+    // Sort by intelligenceScore descending
+    const sorted = [...orgs]
+      .sort(
+        (a: Record<string, unknown>, b: Record<string, unknown>) =>
+          ((b.intelligenceScore as number) || 0) - ((a.intelligenceScore as number) || 0),
+      )
+      .slice(0, limit);
+    return sorted.map((o: Record<string, unknown>) => ({
+      id: o.id as string,
+      name: (o.name as string) || 'Unknown',
+      industry: (o.industry as string) || 'Unknown',
+      intelligenceScore: (o.intelligenceScore as number) || 0,
+      signalCount: (o.signalCount as number) || 0,
+      trend: 'neutral' as const,
+      trendValue: 0,
+    }));
+  } catch {
+    return _fallbackTopOrgs;
+  }
+}
+
+export async function fetchTimeline(limit = 10): Promise<TimelineEntry[]> {
+  try {
+    const res = await fetch('/api/signals?limit=' + limit, { credentials: 'include' });
+    if (!res.ok) return _fallbackTimeline;
+    const json = await res.json();
+    const signals = json.data || [];
+    if (!Array.isArray(signals) || signals.length === 0) return _fallbackTimeline;
+    return signals.map((s: Record<string, unknown>, i: number) => ({
+      id: `t-${s.id}`,
+      type: 'signal' as const,
+      message: `New signal: ${(s.title as string) || 'Unknown'}`,
+      detail: `${(s.signalType as string) || 'signal'} — severity: ${(s.severity as string) || 'medium'}`,
+      timestamp: new Date((s.detectedAt as string) || Date.now() - i * 1000 * 60 * 30),
+    }));
+  } catch {
+    return _fallbackTimeline;
+  }
+}
+
+export async function fetchChartData(): Promise<
+  Array<{ day: string; signals: number; criticals: number }>
+> {
+  try {
+    const res = await fetch('/api/signals/stats?period=7d', { credentials: 'include' });
+    if (!res.ok) return _fallbackChartData;
+    const json = await res.json();
+    const dailyTrend = json.data?.dailyTrend;
+    if (!Array.isArray(dailyTrend) || dailyTrend.length === 0) return _fallbackChartData;
+    const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    return dailyTrend.map((d: { date: string; count: number }) => {
+      const date = new Date(d.date);
+      return {
+        day: dayNames[date.getDay()],
+        signals: d.count,
+        criticals: 0,
+      };
+    });
+  } catch {
+    return _fallbackChartData;
+  }
+}
+
+// ── Synchronous mock functions (kept for backward compat) ──
+
+export function getMockSignals(): SignalFeedItem[] {
+  return _fallbackSignals;
+}
+
+export function getMockTopOrgs(): TopOrg[] {
+  return _fallbackTopOrgs;
+}
+
+export function getMockTimeline(): TimelineEntry[] {
+  return _fallbackTimeline;
+}
+
+export function getMockChartData() {
+  return _fallbackChartData;
 }
 
 export function getMockHealth(): HealthStatus {

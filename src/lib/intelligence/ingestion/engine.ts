@@ -164,6 +164,29 @@ export async function ingestFile(
       }
     }
 
+    // Trigger signal detection for newly created organizations
+    if (result.organizationsCreated > 0) {
+      try {
+        const { detectSignalsForOrganization } = await import('@/lib/intelligence/signals');
+        // Get the org IDs that were created during this ingestion
+        const newOrgs = await db.organization.findMany({
+          where: { sourceIngestionId: ingestion.id },
+          select: { id: true },
+        });
+        for (const org of newOrgs) {
+          await detectSignalsForOrganization(org.id);
+        }
+        logger.info('[INGEST] Signal detection triggered for imported organizations', {
+          ingestionId: ingestion.id,
+          orgCount: newOrgs.length,
+        });
+      } catch (sigErr) {
+        logger.warn('[INGEST] Signal detection failed after ingestion (non-blocking)', {
+          error: sigErr instanceof Error ? sigErr.message : String(sigErr),
+        });
+      }
+    }
+
     // 7. Log to AIUsageLog for pipeline metrics (#13)
     const durationMs = Date.now() - startTime;
     const successRate =

@@ -83,6 +83,18 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // ── Signal Detection: Run across all active organizations ──
+    let signalDetectionResult = { scanned: 0, signalsFound: 0 };
+    try {
+      const { runSignalDetectionForAll } = await import('@/lib/intelligence/signals');
+      signalDetectionResult = await runSignalDetectionForAll();
+      logger.info('cron/job-processor: signal detection complete', signalDetectionResult);
+    } catch (sigError) {
+      logger.warn('cron/job-processor: signal detection failed (non-blocking)', {
+        error: sigError instanceof Error ? sigError.message : 'Unknown',
+      });
+    }
+
     // ── NEW: Ingestion diagnostics ──
     const [ingestionTotal, ingestionPending, ingestionCompleted, ingestionFailed] =
       await Promise.all([
@@ -125,6 +137,7 @@ export async function GET(request: NextRequest) {
         errorsThisRun: ingestionResult.errors,
       },
       entityResolution: entityResolutionStats,
+      signalDetection: signalDetectionResult,
     });
   } catch (error) {
     const durationMs = Date.now() - start;

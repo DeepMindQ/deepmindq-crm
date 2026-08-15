@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Building2,
@@ -35,7 +35,11 @@ import {
   type HealthStatus,
   type TopOrg,
   type StatCardData,
+  type TimelineEntry,
   C,
+  fetchTopOrgs,
+  fetchTimeline,
+  fetchChartData,
   getMockSignals,
   getMockTopOrgs,
   getMockTimeline,
@@ -72,7 +76,7 @@ export default function IntelligenceHub() {
     retry: 1,
   });
 
-  const signals = signalsData || getMockSignals();
+  const signals: SignalFeedItem[] = signalsData?.length ? signalsData : getMockSignals();
   const health = healthData || getMockHealth();
 
   const stats: StatCardData[] = [
@@ -132,9 +136,27 @@ export default function IntelligenceHub() {
     },
   ];
 
-  const topOrgs = getMockTopOrgs();
-  const timeline = getMockTimeline();
-  const [chartData] = useState(getMockChartData);
+  const [topOrgs, setTopOrgs] = useState<TopOrg[]>([]);
+  const [timeline, setTimeline] = useState<TimelineEntry[]>([]);
+  const [chartData, setChartData] = useState<
+    Array<{ day: string; signals: number; criticals: number }>
+  >([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    Promise.all([fetchTopOrgs(5), fetchTimeline(10), fetchChartData()]).then(
+      ([orgs, tl, chart]) => {
+        if (!cancelled) {
+          setTopOrgs(orgs);
+          setTimeline(tl);
+          setChartData(chart);
+        }
+      },
+    );
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const criticalSignalCount = signals.filter((s) => s.severity === 'critical').length;
 
   const handleSignalClick = useCallback(

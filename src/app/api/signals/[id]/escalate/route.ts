@@ -8,7 +8,7 @@ const paramsSchema = z.object({
   id: z.string().min(1),
 });
 
-const INVESTIGATABLE_STATUSES = ['detected', 'validated'];
+const ESCALATABLE_STATUSES = ['validated', 'analyzed'];
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -22,39 +22,32 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       return NextResponse.json({ success: false, error: 'Signal not found' }, { status: 404 });
     }
 
-    if (!INVESTIGATABLE_STATUSES.includes(signal.status)) {
+    if (!ESCALATABLE_STATUSES.includes(signal.status)) {
       return NextResponse.json(
-        { success: false, error: `Cannot investigate a signal with status '${signal.status}'` },
+        {
+          success: false,
+          error: `Cannot escalate a signal with status '${signal.status}'. Only 'validated' or 'analyzed' signals can be escalated.`,
+        },
         { status: 409 },
       );
     }
 
+    const body = await request.json().catch(() => ({}));
+    const reason = body?.reason || null;
+
     const fromStatus = signal.status;
     const updated = await db.signal.update({
       where: { id },
-      data: { status: 'analyzed', analyzedAt: new Date() },
-    });
-
-    // Create an insight for this investigation
-    await db.insight.create({
-      data: {
-        organizationId: signal.organizationId,
-        signalId: signal.id,
-        category: 'pattern',
-        title: `Investigation: ${signal.title}`,
-        narrative: signal.description,
-        reasoningMethod: 'manual_investigation',
-        confidence: 'medium',
-      },
+      data: { status: 'acted_upon' },
     });
 
     await db.signalEvent.create({
       data: {
         signalId: id,
         fromStatus,
-        toStatus: 'analyzed',
+        toStatus: 'acted_upon',
         userId: session?.id ?? null,
-        reason: null,
+        reason,
       },
     });
 
@@ -66,7 +59,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         { status: 400 },
       );
     }
-    logger.error('[signals/investigate] Error:', { error });
+    logger.error('[signals/escalate] Error:', { error });
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

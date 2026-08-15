@@ -147,6 +147,7 @@ model Organization {
   dataIngestions  DataIngestionRow[]
   relationships   Relationship[]       @relation("OrgSourceRelationships")
   relationships2  Relationship[]       @relation("OrgTargetRelationships")
+  signalRules      SignalRule[]
 
   @@index([domain])
   @@index([trackingStatus])
@@ -250,6 +251,7 @@ model Signal {
 
   evidence        Evidence[]
   insights        Insight[]
+  events          SignalEvent[]
 
   @@index([organizationId])
   @@index([signalType])
@@ -257,6 +259,24 @@ model Signal {
   @@index([status])
   @@index([detectedAt])
   @@index([organizationId, detectedAt])
+}
+
+/// SignalRule — Configuration for signal detection filtering
+model SignalRule {
+  id                  String   @id @default(cuid())
+  name                String
+  signalType          String
+  enabled             Boolean  @default(true)
+  severityThreshold   Int      @default(0)    // 0=all, 50=medium+, 70=high+
+  customConditions    String?                     // JSON: custom rule conditions
+  organizationId      String?                     // null = global rule
+  organization        Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  createdBy           String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  @@index([signalType])
+  @@index([organizationId])
 }
 
 /// Evidence — Source backing an intelligence claim
@@ -281,6 +301,21 @@ model Evidence {
   @@index([signalId])
   @@index([organizationId])
   @@index([reliability])
+}
+
+/// SignalEvent — Audit trail for signal status transitions
+model SignalEvent {
+  id          String   @id @default(cuid())
+  signalId    String
+  signal      Signal   @relation(fields: [signalId], references: [id], onDelete: Cascade)
+  fromStatus  String
+  toStatus    String
+  userId      String?
+  reason      String?
+  createdAt   DateTime @default(now())
+
+  @@index([signalId])
+  @@index([createdAt])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

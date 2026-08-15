@@ -105,6 +105,16 @@ export async function GET(request: NextRequest) {
     }
     results.orphanRowsCleaned = orphanCleanupCount;
 
+    // ── Signal Expiry: Expire old detected signals (90 days) ──
+    const expiredSignals = await db.signal.updateMany({
+      where: {
+        status: 'detected',
+        detectedAt: { lt: cutoff },
+      },
+      data: { status: 'expired' },
+    });
+    results.expiredSignals = expiredSignals.count;
+
     const durationMs = Date.now() - start;
     logger.info('cron/data-retention: completed', { results, durationMs });
 

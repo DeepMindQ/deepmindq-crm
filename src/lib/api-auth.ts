@@ -41,7 +41,7 @@ export async function checkApiAuth(request?: Request): Promise<{
         session: null,
         errorResponse: NextResponse.json(
           { success: false, error: 'Authentication required', timestamp: new Date().toISOString() },
-          { status: 401 }
+          { status: 401 },
         ),
       };
     }
@@ -59,7 +59,7 @@ export async function checkApiAuth(request?: Request): Promise<{
       const authResult = authorizeRoute(pathname, method, session.role);
       if (!authResult.authorized) {
         logger.warn(
-          `[RBAC] Access denied: role=${session.role} method=${method} path=${pathname} reason=${authResult.reason}`
+          `[RBAC] Access denied: role=${session.role} method=${method} path=${pathname} reason=${authResult.reason}`,
         );
         return {
           session: null,
@@ -71,7 +71,7 @@ export async function checkApiAuth(request?: Request): Promise<{
               requiredPermissions: authResult.requiredPermissions,
               timestamp: new Date().toISOString(),
             },
-            { status: 403 }
+            { status: 403 },
           ),
         };
       }
@@ -83,7 +83,7 @@ export async function checkApiAuth(request?: Request): Promise<{
       session: null,
       errorResponse: NextResponse.json(
         { success: false, error: 'Authentication required', timestamp: new Date().toISOString() },
-        { status: 401 }
+        { status: 401 },
       ),
     };
   }
@@ -95,8 +95,12 @@ export async function checkApiAuth(request?: Request): Promise<{
 export function requireAdminRole(session: SessionUser): Response | null {
   if (session.role !== 'admin') {
     return NextResponse.json(
-      { success: false, error: 'Forbidden: Admin access required', timestamp: new Date().toISOString() },
-      { status: 403 }
+      {
+        success: false,
+        error: 'Forbidden: Admin access required',
+        timestamp: new Date().toISOString(),
+      },
+      { status: 403 },
     );
   }
   return null;

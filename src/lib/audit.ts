@@ -11,7 +11,7 @@ export async function logAction(
   entity: string,
   entityId: string,
   details?: Record<string, unknown>,
-  userId?: string
+  userId?: string,
 ): Promise<void> {
   try {
     await db.auditLog.create({

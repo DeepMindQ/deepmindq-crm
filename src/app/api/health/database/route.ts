@@ -20,7 +20,7 @@ export async function GET() {
   } catch (error) {
     return NextResponse.json(
       { status: 'unhealthy', error: 'Database health check failed', details: String(error) },
-      { status: 503, headers: { 'Cache-Control': 'no-store, max-age=0' } }
+      { status: 503, headers: { 'Cache-Control': 'no-store, max-age=0' } },
     );
   }
 }

@@ -246,9 +246,7 @@ export function decodeCursor(cursor: string): Record<string, unknown> | null {
  * @param params - Keyset pagination parameters.
  * @returns A Prisma `where` clause fragment (empty object if no cursor).
  */
-export function buildKeysetWhere<T>(
-  params: KeysetPaginationParams<T>,
-): PrismaWhereClause {
+export function buildKeysetWhere<T>(params: KeysetPaginationParams<T>): PrismaWhereClause {
   const { cursor, sortBy, sortOrder, additionalCursorFields } = params;
 
   // No cursor → first page, no filter needed.
@@ -262,9 +260,7 @@ export function buildKeysetWhere<T>(
 
   // Collect tiebreaker fields: keys from additionalCursorFields (in order),
   // defaulting to ['id'] if none are provided.
-  const tiebreakerKeys = additionalCursorFields
-    ? Object.keys(additionalCursorFields)
-    : ['id'];
+  const tiebreakerKeys = additionalCursorFields ? Object.keys(additionalCursorFields) : ['id'];
 
   const isAsc = sortOrder === 'asc';
   const primaryOp = isAsc ? 'gt' : 'lt';
@@ -343,14 +339,7 @@ export function buildKeysetWhere<T>(
 export function buildPaginationResponse<T>(
   params: PaginationResponseParams<T>,
 ): PaginationResponse<T> {
-  const {
-    items,
-    limit,
-    sortBy,
-    additionalCursorFields,
-    nextCursorItem,
-    nextCursorValue,
-  } = params;
+  const { items, limit, sortBy, additionalCursorFields, nextCursorItem, nextCursorValue } = params;
 
   let nextCursor: string | null = null;
   let hasMore = false;
@@ -438,16 +427,13 @@ export function parsePaginationParams(
   // --- sortBy ---
   // Only allow alphanumeric characters plus underscores to prevent injection.
   const rawSortBy = searchParams.get('sortBy');
-  const sortBy = rawSortBy && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(rawSortBy)
-    ? rawSortBy
-    : defaultSortBy;
+  const sortBy =
+    rawSortBy && /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(rawSortBy) ? rawSortBy : defaultSortBy;
 
   // --- sortOrder ---
   const rawSortOrder = searchParams.get('sortOrder');
   const sortOrder: 'asc' | 'desc' =
-    rawSortOrder === 'asc' || rawSortOrder === 'desc'
-      ? rawSortOrder
-      : defaultSortOrder;
+    rawSortOrder === 'asc' || rawSortOrder === 'desc' ? rawSortOrder : defaultSortOrder;
 
   return { cursor, limit, sortBy, sortOrder };
 }

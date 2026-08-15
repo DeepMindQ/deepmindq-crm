@@ -1,7 +1,7 @@
-import { formatDistanceToNow } from 'date-fns'
+import { formatDistanceToNow } from 'date-fns';
 
 export function relativeDate(dateStr: string | Date): string {
-  return formatDistanceToNow(new Date(dateStr), { addSuffix: true })
+  return formatDistanceToNow(new Date(dateStr), { addSuffix: true });
 }
 
 export function formatDate(dateStr: string | Date, _format = 'MMM d, yyyy'): string {
@@ -9,5 +9,5 @@ export function formatDate(dateStr: string | Date, _format = 'MMM d, yyyy'): str
     month: 'short',
     day: 'numeric',
     year: 'numeric',
-  })
+  });
 }

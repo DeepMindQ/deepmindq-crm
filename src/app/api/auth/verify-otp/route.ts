@@ -49,7 +49,9 @@ async function hashOtp(code: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(`dmq:${code}`);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 /**
@@ -57,6 +59,8 @@ async function hashOtp(code: string): Promise<string> {
  * Returns null if no active user found — session creation must be aborted.
  */
 async function lookupUser(email: string) {
+  // passwordHash is needed server-side only to determine if the user has set a password.
+  // It is NEVER included in the response payload sent to the client.
   return db.user.findUnique({
     where: { email },
     select: { id: true, email: true, name: true, role: true, passwordHash: true },
@@ -80,7 +84,12 @@ export async function POST(request: NextRequest) {
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: 'Too many verification attempts. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)) } }
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)),
+          },
+        },
       );
     }
     const normalizedEmail = email.trim().toLowerCase();
@@ -88,10 +97,7 @@ export async function POST(request: NextRequest) {
     const AUTHORIZED_EMAIL = getAuthorizedEmail();
 
     if (!AUTHORIZED_EMAIL) {
-      return NextResponse.json(
-        { error: 'Authentication is not configured.' },
-        { status: 503 }
-      );
+      return NextResponse.json({ error: 'Authentication is not configured.' }, { status: 503 });
     }
 
     if (normalizedEmail !== AUTHORIZED_EMAIL) {
@@ -105,14 +111,20 @@ export async function POST(request: NextRequest) {
     const attempts = attemptsStr ? parseInt(attemptsStr, 10) : 0;
 
     if (!storedHash) {
-      return NextResponse.json({ error: 'No verification code found. Please request a new one.' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'No verification code found. Please request a new one.' },
+        { status: 401 },
+      );
     }
 
     // Check attempts
     if (attempts >= MAX_ATTEMPTS) {
       cookieStore.delete('dmq_otp_hash');
       cookieStore.delete('dmq_otp_attempts');
-      return NextResponse.json({ error: 'Too many attempts. Please request a new code.' }, { status: 401 });
+      return NextResponse.json(
+        { error: 'Too many attempts. Please request a new code.' },
+        { status: 401 },
+      );
     }
 
     // Increment attempts
@@ -129,39 +141,16 @@ export async function POST(request: NextRequest) {
 
     // Milestone 1 C-03: Use constant-time comparison to prevent timing attacks
     if (!timingSafeCompare(submittedHash, storedHash)) {
-      // Also try DB as secondary check (PATH B: database OTP fallback)
-      try {
-        // Check user's stored OTP hash directly
-        const user = await lookupUser(normalizedEmail);
-        if (user) {
-          // Mark OTP as used by clearing the field
-          await db.user.update({
-            where: { id: user.id },
-            data: { otpCode: null, otpExpiresAt: null },
-          });
-          // Clear OTP cookies
-          cookieStore.delete('dmq_otp_hash');
-          cookieStore.delete('dmq_otp_attempts');
-          // Create valid session using the session abstraction
-          await createSession(user.id);
-          return NextResponse.json({
-            success: true,
-            needsPassword: !user.passwordHash,
-            user: { id: user.id, email: user.email },
-          });
-        }
-      } catch (dbErr) {
-        logger.error('[auth/verify-otp] DB fallback lookup failed', { error: dbErr });
-      }
-
       return NextResponse.json({ error: 'Invalid or expired code' }, { status: 401 });
     }
 
-    // === CODE MATCHES — create session (PATH A: cookie hash validation) ===
+    // === CODE MATCHES — create session ===
     // Resolve the actual user by email
     const user = await lookupUser(normalizedEmail);
     if (!user) {
-      logger.warn('[auth/verify-otp] OTP matched but no active user found', { email: normalizedEmail });
+      logger.warn('[auth/verify-otp] OTP matched but no active user found', {
+        email: normalizedEmail,
+      });
       return NextResponse.json({ error: 'User account not found or inactive' }, { status: 403 });
     }
 
@@ -170,10 +159,14 @@ export async function POST(request: NextRequest) {
     cookieStore.delete('dmq_otp_attempts');
 
     // Mark OTP as verified in DB by clearing the field
-    await db.user.update({
-      where: { id: user.id },
-      data: { otpCode: null, otpExpiresAt: null },
-    }).catch(() => { /* non-critical */ });
+    await db.user
+      .update({
+        where: { id: user.id },
+        data: { otpCode: null, otpExpiresAt: null },
+      })
+      .catch((err) => {
+        logger.warn('[auth/verify-otp] Failed to clear OTP in DB', { error: err });
+      });
 
     // Create valid session using the session abstraction
     await createSession(user.id);

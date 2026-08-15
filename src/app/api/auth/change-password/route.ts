@@ -19,7 +19,10 @@ export const POST = withCsrf(async function POST(request: NextRequest) {
     const ip = request.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     const rl = generalApiRateLimit(ip, 'change-password');
     if (!rl.success) {
-      return NextResponse.json({ error: 'Too many attempts. Please try again later.' }, { status: 429 });
+      return NextResponse.json(
+        { error: 'Too many attempts. Please try again later.' },
+        { status: 429 },
+      );
     }
 
     const user = await requireAuth();
@@ -38,7 +41,10 @@ export const POST = withCsrf(async function POST(request: NextRequest) {
     const otpResult = await verifyOtp(email, otpCode, 'change_password');
 
     if (!otpResult.success) {
-      return NextResponse.json({ error: otpResult.error || 'OTP verification failed' }, { status: 401 });
+      return NextResponse.json(
+        { error: otpResult.error || 'OTP verification failed' },
+        { status: 401 },
+      );
     }
 
     if (otpResult.userId !== user.id) {

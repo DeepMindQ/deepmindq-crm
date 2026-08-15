@@ -1,16 +1,20 @@
-'use client'
-import { Skeleton } from '@/components/ui/skeleton'
-import { cn } from '@/lib/utils'
+'use client';
+import { Skeleton } from '@/components/ui/skeleton';
+import { cn } from '@/lib/utils';
 
 interface SkeletonTableProps {
-  rows?: number
-  columns?: number
-  className?: string
+  rows?: number;
+  columns?: number;
+  className?: string;
 }
 
 export function SkeletonTable({ rows = 5, columns = 4, className }: SkeletonTableProps) {
   return (
-    <div className={cn('rounded-xl border border-border bg-card overflow-hidden', className)} role="status" aria-label="Loading table data">
+    <div
+      className={cn('rounded-xl border border-border bg-card overflow-hidden', className)}
+      role="status"
+      aria-label="Loading table data"
+    >
       {/* Header */}
       <div className="flex items-center gap-4 px-4 py-3 border-b border-border bg-elevated">
         {Array.from({ length: columns }).map((_, i) => (
@@ -29,5 +33,5 @@ export function SkeletonTable({ rows = 5, columns = 4, className }: SkeletonTabl
       </div>
       <span className="sr-only">Loading table data...</span>
     </div>
-  )
+  );
 }

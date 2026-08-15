@@ -1,19 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+const briefingIdSchema = z.string().min(1);
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { errorResponse } = await checkApiAuth(request);
     if (errorResponse) return errorResponse;
 
     const { id } = await params;
+    const idParsed = briefingIdSchema.safeParse(id);
+    if (!idParsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid briefing ID', details: idParsed.error.flatten() },
+        { status: 400 },
+      );
+    }
+    const validId = idParsed.data;
 
     const briefing = await db.briefing.findFirst({
-      where: { organizationId: id },
+      where: { organizationId: validId },
       orderBy: { generatedAt: 'desc' },
       include: {
         organization: {
@@ -35,7 +43,10 @@ export async function GET(
     });
 
     if (!briefing) {
-      return NextResponse.json({ error: 'No briefing found for this organization' }, { status: 404 });
+      return NextResponse.json(
+        { error: 'No briefing found for this organization' },
+        { status: 404 },
+      );
     }
 
     return NextResponse.json({ data: briefing });

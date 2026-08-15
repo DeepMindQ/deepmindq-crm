@@ -20,7 +20,8 @@ import { cn } from '@/lib/utils';
    
    ═══════════════════════════════════════════════════ */
 
-export type SkeletonVariant = 'dashboard' | 'table' | 'detail' | 'cards' | 'list' | 'form' | 'chat' | 'kanban' | 'stats';
+export type SkeletonVariant =
+  'dashboard' | 'table' | 'detail' | 'cards' | 'list' | 'form' | 'chat' | 'kanban' | 'stats';
 
 interface LoadingSkeletonProps {
   variant?: SkeletonVariant;
@@ -46,7 +47,11 @@ export function LoadingSkeleton({
   label,
 }: LoadingSkeletonProps) {
   return (
-    <div className={cn('space-y-6 animate-in fade-in duration-300', className)} role="status" aria-label={label || 'Loading content'}>
+    <div
+      className={cn('space-y-6 animate-in fade-in duration-300', className)}
+      role="status"
+      aria-label={label || 'Loading content'}
+    >
       {variant === 'dashboard' && <DashboardSkeleton />}
       {variant === 'table' && <TableSkeleton rows={count} columns={columns} />}
       {variant === 'detail' && <DetailSkeleton />}
@@ -289,7 +294,10 @@ function ChatSkeleton() {
       {/* Messages */}
       <div className="flex-1 space-y-4 p-4 overflow-hidden">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className={cn('flex gap-3 max-w-[80%]', i % 2 === 0 ? '' : 'ml-auto flex-row-reverse')}>
+          <div
+            key={i}
+            className={cn('flex gap-3 max-w-[80%]', i % 2 === 0 ? '' : 'ml-auto flex-row-reverse')}
+          >
             <Skeleton className="h-7 w-7 rounded-full shrink-0" />
             <div className="space-y-1.5">
               <Skeleton className={cn('h-4 w-48', i % 2 === 0 ? '' : 'w-40')} />

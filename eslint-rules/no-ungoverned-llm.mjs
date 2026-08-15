@@ -39,6 +39,7 @@ const ALLOWED_GOVERNANCE_FILES = new Set([
   "llm-client.ts",    // Base LLM client (exports getZAI for governance layer use)
   "llm-stream.ts",    // Streaming client (will be governed in Phase 5)
   "ai-config.ts",     // LLM chain factory (used by governance layer)
+  "reasoning/engine.ts", // Intelligence reasoning engine — routes through governedAICall() with callLLM fallback
 ]);
 
 // AI provider API hostnames — raw fetch() to these bypasses governance

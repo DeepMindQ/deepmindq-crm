@@ -1,7 +1,19 @@
 'use client';
 
 import { cn } from '@/lib/utils';
-import { Search, FileX, Inbox, Building2, Users, Mail, Target, BarChart3, FolderOpen, Lightbulb, type LucideIcon } from 'lucide-react';
+import {
+  Search,
+  FileX,
+  Inbox,
+  Building2,
+  Users,
+  Mail,
+  Target,
+  BarChart3,
+  FolderOpen,
+  Lightbulb,
+  type LucideIcon,
+} from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════
    EmptyState — Reusable empty/no-data display component
@@ -16,7 +28,17 @@ import { Search, FileX, Inbox, Building2, Users, Mail, Target, BarChart3, Folder
    
    ═══════════════════════════════════════════════════ */
 
-export type PresetIcon = 'building' | 'users' | 'mail' | 'target' | 'chart' | 'folder' | 'lightbulb' | 'inbox' | 'search' | 'file';
+export type PresetIcon =
+  | 'building'
+  | 'users'
+  | 'mail'
+  | 'target'
+  | 'chart'
+  | 'folder'
+  | 'lightbulb'
+  | 'inbox'
+  | 'search'
+  | 'file';
 
 const PRESET_ICONS: Record<PresetIcon, LucideIcon> = {
   building: Building2,
@@ -98,7 +120,7 @@ export function EmptyState({
 }: EmptyStateProps) {
   const IconComponent = customIcon || (icon ? PRESET_ICONS[icon] : FileX);
   const displayTitle = title || (icon ? DEFAULT_TITLES[icon] : 'No data found');
-  
+
   let displayDescription = description;
   if (!displayDescription && icon) {
     displayDescription = DEFAULT_DESCRIPTIONS[icon];
@@ -110,9 +132,7 @@ export function EmptyState({
   if (variant === 'inline') {
     return (
       <div className={cn('flex items-center gap-3 py-8 text-center justify-center', className)}>
-        {!hideIcon && (
-          <IconComponent className="w-8 h-8 text-muted-foreground/40 shrink-0" />
-        )}
+        {!hideIcon && <IconComponent className="w-8 h-8 text-muted-foreground/40 shrink-0" />}
         <div>
           <p className="text-sm text-muted-foreground">{displayTitle}</p>
           {displayDescription && (

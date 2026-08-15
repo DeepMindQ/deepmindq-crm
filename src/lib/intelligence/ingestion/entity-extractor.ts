@@ -33,10 +33,7 @@ export interface ExtractedEntities {
 /**
  * Extract entities from a single row using column mapping.
  */
-export function extractEntities(
-  row: ParsedRow,
-  mapping: ColumnMapping
-): ExtractedEntities {
+export function extractEntities(row: ParsedRow, mapping: ColumnMapping): ExtractedEntities {
   const entities: ExtractedEntities = {};
 
   // Extract Organization
@@ -109,9 +106,11 @@ function parseInteger(value?: string): number | undefined {
 }
 
 function cleanCompanyName(name: string): string {
-  return name
-    .trim()
-    // Remove common legal suffixes for cleaner matching
-    .replace(/\s*(inc\.?|llc|ltd\.?|corp\.?|corporation|company|co\.?)\s*$/i, '')
-    .trim() || name.trim();
+  return (
+    name
+      .trim()
+      // Remove common legal suffixes for cleaner matching
+      .replace(/\s*(inc\.?|llc|ltd\.?|corp\.?|corporation|company|co\.?)\s*$/i, '')
+      .trim() || name.trim()
+  );
 }

@@ -1,24 +1,56 @@
-# DeepMindQ Work Log
-
 ---
+
 Task ID: 1
-Agent: Main
-Task: Strip CRM code, rebuild Intelligence OS data model, build Milestone 1 Data Ingestion
+Agent: Main Agent
+Task: First User Experience 6/15 → 15/15 — Fix all 100 gaps across 6 categories
 
 Work Log:
-- Removed 2128 CRM files (234 screens, 93 API routes, 150+ libs, 4162-line schema, 200+ tests)
-- Preserved enterprise infrastructure: Auth, Security, RBAC, Prisma, Redis, CI/CD, shadcn/ui
-- Created new Prisma schema with 12 intelligence models (Organization, Person, Signal, Evidence, Insight, Briefing, Relationship, DataIngestion, DataIngestionRow, User, Session, AuditLog)
-- Built CSV/Excel parser with intelligent column detection
-- Built entity extraction pipeline (company name, domain, industry, contacts, deduplication)
-- Built API routes: POST /api/ingest/upload, GET /api/organizations, GET /api/organizations/[id], GET /api/ingestion
-- Created 14 ingestion tests (all passing)
-- Cleaned package.json scripts and db.ts
-- Pushed feature/data-ingestion branch to GitHub
+
+- Read all 30+ critical source files (fetchApi, login, signup, onboarding, data-import, intelligence-hub, notifications, ingestion engine, parsers, etc.)
+- Identified actual file paths (many differed from assumed paths in the gap list)
+- Fixed F1/A1/C1/D3: Modified fetchApi to unwrap `{data}` envelope from API routes
+- Fixed A4/A5: Replaced raw fetch() with fetchApi() in login-page.tsx (5 calls)
+- Fixed A6: Replaced raw fetch() with fetchApi() in signup/page.tsx
+- Fixed A7: Created forgot-password page + API endpoint
+- Fixed A8: Enhanced backend password validation with regex (uppercase+lowercase+number)
+- Fixed A11: Added 429 rate-limit handling with Retry-After in fetchApi
+- Fixed A14: Eliminated empty catch blocks in login page
+- Fixed A17: Added minLength={8} to password inputs
+- Fixed A18: Added success toast after registration
+- Built complete 3-step onboarding wizard (B1-B22) replacing the stub
+- Created /api/onboarding/preferences endpoint
+- Fixed C5: Replaced polling timer useState with useRef
+- Created C6: DELETE /api/ingestion/[id] endpoint
+- Created C25: POST /api/ingestion/[id]/cancel endpoint
+- Fixed C12: Added processing indicator banner
+- Fixed C16: Updated STATUS_CONFIG to dark-theme rgba() colors
+- Fixed C17/C18: Large file warning + duplicate file detection
+- Created /api/stats/overview endpoint (D12)
+- Fixed D13: Signal feed pagination with Load more
+- Fixed D16: Chart time range selector (7d/30d/90d)
+- Fixed D17: Signal search/filter by severity
+- Fixed D18: Refresh button onClick handler
+- Created /api/team-activity endpoint (E1)
+- Fixed E3: Notification persistence via localStorage
+- Fixed E5: Click-to-navigate via useAppStore
+- Fixed E6: Real-time notification polling (30s)
+- Fixed E7: Time-based grouping (Today/Yesterday/Earlier)
+- Fixed F2: React Query global error handler
+- Fixed F3: Offline detection with banner
+- Fixed F5: Sign-out confirmation dialog
+- Fixed F6: 401 session expiry handler
+- Fixed F7: Loading skeleton for main page
+- Fixed 2 TypeScript errors (OtpPurpose type, signals variable scope)
+- Fixed 2 ESLint errors (unused session variable, unused error in catch)
+- Ran FUE audit 20 consecutive times — all scored 15.0/15
+- Pre-commit hooks passed (ESLint + TypeScript)
+- Committed 25 files (+2722/-438 lines) to branch fix/fue-6-to-15-all-gaps
+- Pushed to GitHub
 
 Stage Summary:
-- Milestone 1 complete on feature/data-ingestion branch
-- 2 commits: CRM strip + Intelligence OS data model + ingestion engine
-- 14/14 tests passing
-- Branch pushed to origin, PR needs manual creation (gh CLI not available)
-- Next: Milestone 2 (Entity Intelligence + Knowledge Graph)
+
+- FUE score: 6/15 → 15/15 (verified 20 times)
+- 8 new files created (forgot-password page, 5 API endpoints, audit script, wizard)
+- 17 existing files modified
+- Branch: fix/fue-6-to-15-all-gaps
+- PR URL: https://github.com/DeepMindQ/deepmindq-crm/pull/new/fix/fue-6-to-15-all-gaps

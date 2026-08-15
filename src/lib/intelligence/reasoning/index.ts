@@ -1,1 +1,6 @@
-export { reasonAboutOrganization, runIntelligencePipeline, storeInsights, type ReasoningResult } from './engine';
+export {
+  reasonAboutOrganization,
+  runIntelligencePipeline,
+  storeInsights,
+  type ReasoningResult,
+} from './engine';

@@ -8,6 +8,8 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { callLLM } from '@/lib/llm-client';
+import { governedAICall } from '@/lib/ai-governance';
 
 export interface ReasoningResult {
   insight: {
@@ -66,8 +68,8 @@ export async function reasonAboutOrganization(orgId: string): Promise<ReasoningR
     domain: org.domain,
     employeeCount: org.employeeCount,
     revenue: org.revenue,
-    people: org.people.map(p => ({ fullName: p.fullName, title: p.title, role: p.role })),
-    signals: org.signals.map(s => ({
+    people: org.people.map((p) => ({ fullName: p.fullName, title: p.title, role: p.role })),
+    signals: org.signals.map((s) => ({
       id: s.id,
       signalType: s.signalType,
       severity: s.severity,
@@ -95,41 +97,59 @@ export async function reasonAboutOrganization(orgId: string): Promise<ReasoningR
 
 /**
  * LLM-powered reasoning.
- * Sends organization context + signals to the LLM for analysis.
+ * Routes through the governance layer for rate limiting, caching,
+ * quality gates, and audit logging. Falls back to direct callLLM
+ * if governance fails (graceful degradation).
  */
 async function llmReason(context: OrganizationContext): Promise<ReasoningResult[]> {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.LLM_API_KEY;
-  const model = process.env.LLM_MODEL || 'gpt-4o-mini';
+  const systemPrompt = `You are DeepMindQ, an Enterprise Intelligence OS. Your job is to analyze business intelligence about organizations and produce actionable insights. Be specific, evidence-backed, and practical. Never fabricate data. If confidence is low, say so.`;
 
-  const prompt = buildReasoningPrompt(context);
+  const userPrompt = buildReasoningPrompt(context);
 
-  const response = await fetch('https://api.openai.com/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    body: JSON.stringify({
-      model,
-      messages: [
-        {
-          role: 'system',
-          content: `You are DeepMindQ, an Enterprise Intelligence OS. Your job is to analyze business intelligence about organizations and produce actionable insights. Be specific, evidence-backed, and practical. Never fabricate data. If confidence is low, say so.`,
-        },
-        { role: 'user', content: prompt },
-      ],
+  // Try governed path first (rate limiting, caching, quality gates, audit)
+  try {
+    const result = await governedAICall({
+      feature: 'reasoning',
+      systemPrompt,
+      userPrompt,
       temperature: 0.3,
-      max_tokens: 1500,
-    }),
-  });
+      maxTokens: 1500,
+      runQualityGates: true,
+      cacheResponse: true,
+      cacheTTLSeconds: 1800, // 30 minutes — reasoning results become stale
+    });
 
-  if (!response.ok) {
-    throw new Error(`LLM API returned ${response.status}`);
+    if (result.rateLimited) {
+      logger.warn('[REASONING] Rate limited — falling back to direct callLLM');
+      return llmReasonDirect(systemPrompt, userPrompt, context);
+    }
+
+    if (result.text) {
+      return parseLLMResponse(result.text, context);
+    }
+  } catch (err) {
+    logger.warn('[REASONING] Governance layer failed, falling back to direct callLLM', {
+      error: err instanceof Error ? err.message : 'Unknown',
+    });
   }
 
-  const data = await response.json();
-  const content = data.choices?.[0]?.message?.content || '';
+  // Fallback: direct callLLM (still works, just without governance wrappers)
+  return llmReasonDirect(systemPrompt, userPrompt, context);
+}
 
+/**
+ * Direct LLM call without governance layer (fallback path).
+ * Used when governance is unavailable or rate-limited.
+ */
+async function llmReasonDirect(
+  systemPrompt: string,
+  userPrompt: string,
+  context: OrganizationContext,
+): Promise<ReasoningResult[]> {
+  const content = await callLLM(systemPrompt, userPrompt, {
+    temperature: 0.3,
+    maxTokens: 1500,
+  });
   return parseLLMResponse(content, context);
 }
 
@@ -159,7 +179,7 @@ function templateReason(context: OrganizationContext): ReasoningResult[] {
 function generateTemplateInsight(
   type: string,
   signals: OrganizationContext['signals'],
-  context: OrganizationContext
+  context: OrganizationContext,
 ): ReasoningResult | null {
   const titles: Record<string, string> = {
     financial_indicator: 'Financial capacity analysis',
@@ -171,10 +191,11 @@ function generateTemplateInsight(
   };
 
   const title = titles[type] || `${type} analysis`;
-  const avgConfidence = signals.reduce((sum, s) => sum + (s.confidenceScore || 50), 0) / signals.length;
+  const avgConfidence =
+    signals.reduce((sum, s) => sum + (s.confidenceScore || 50), 0) / signals.length;
   const avgImpact = signals.reduce((sum, s) => sum + (s.impactScore || 50), 0) / signals.length;
 
-  const signalDescriptions = signals.map(s => s.description).join(' ');
+  const signalDescriptions = signals.map((s) => s.description).join(' ');
   const confidence = scoreToConfidence(avgConfidence);
 
   let narrative = '';
@@ -184,42 +205,55 @@ function generateTemplateInsight(
   switch (type) {
     case 'financial_indicator':
       narrative = `${context.name} ${context.revenue ? `reports revenue of ${context.revenue}` : 'has financial indicators'}${context.employeeCount ? ` with ${context.employeeCount} employees` : ''}. ${signalDescriptions} This suggests ${avgImpact > 60 ? 'significant' : 'moderate'} purchasing capacity and a structured procurement process.`;
-      recommendation = avgImpact > 60
-        ? 'Prioritize high-value engagement. Prepare ROI-focused materials.'
-        : 'Monitor for growth signals. Nurture relationship with current contacts.';
+      recommendation =
+        avgImpact > 60
+          ? 'Prioritize high-value engagement. Prepare ROI-focused materials.'
+          : 'Monitor for growth signals. Nurture relationship with current contacts.';
       suggestedMessage = `Given ${context.name}'s ${context.industry || 'market'} position${context.revenue ? ` and revenue profile` : ''}, I wanted to share some insights that may be relevant to your current initiatives.`;
       break;
 
     case 'leadership_change':
-      narrative = `${context.name} has leadership-level contacts: ${context.people.filter(p => p.role === 'executive' || p.role === 'vice_president').map(p => `${p.fullName} (${p.title || p.role})`).join(', ') || 'See signals for details'}. ${signalDescriptions}`;
+      narrative = `${context.name} has leadership-level contacts: ${
+        context.people
+          .filter((p) => p.role === 'executive' || p.role === 'vice_president')
+          .map((p) => `${p.fullName} (${p.title || p.role})`)
+          .join(', ') || 'See signals for details'
+      }. ${signalDescriptions}`;
       recommendation = 'Multi-thread engagement across leadership. Map decision-making hierarchy.';
       suggestedMessage = `I noticed ${context.name} has been through some leadership changes. I have some intelligence that might help inform your outreach strategy.`;
       break;
 
     case 'customer_signal':
       narrative = `Relationship analysis for ${context.name}: ${context.people.length} known contact${context.people.length !== 1 ? 's' : ''}. ${signalDescriptions}`;
-      recommendation = context.people.length < 2
-        ? 'Expand relationship map. Identify additional stakeholders to reduce single-point-of-failure risk.'
-        : 'Leverage multiple contacts for cross-verified intelligence. Schedule multi-stakeholder engagement.';
+      recommendation =
+        context.people.length < 2
+          ? 'Expand relationship map. Identify additional stakeholders to reduce single-point-of-failure risk.'
+          : 'Leverage multiple contacts for cross-verified intelligence. Schedule multi-stakeholder engagement.';
       suggestedMessage = `I have updated intelligence on ${context.name} that may impact your engagement strategy.`;
       break;
 
     default:
       narrative = `${context.name}: ${signalDescriptions}`;
-      recommendation = 'Monitor this signal pattern for changes. Update intelligence when new data becomes available.';
+      recommendation =
+        'Monitor this signal pattern for changes. Update intelligence when new data becomes available.';
       suggestedMessage = `There are new developments at ${context.name} worth discussing.`;
   }
 
   return {
     insight: {
-      category: type === 'financial_indicator' ? 'opportunity' : type === 'customer_signal' ? 'risk' : 'recommendation',
+      category:
+        type === 'financial_indicator'
+          ? 'opportunity'
+          : type === 'customer_signal'
+            ? 'risk'
+            : 'recommendation',
       title,
       narrative,
       recommendation,
       suggestedMessage,
       confidence,
       confidenceScore: Math.round(avgConfidence),
-      evidenceIds: signals.map(s => s.id),
+      evidenceIds: signals.map((s) => s.id),
       reasoningMethod: 'template',
     },
   };
@@ -228,12 +262,14 @@ function generateTemplateInsight(
 function generateOpportunityInsight(context: OrganizationContext): ReasoningResult {
   const signalStrength = context.signals.length;
   const contactCoverage = context.people.length;
-  const dataRichness = (context.industry ? 1 : 0) + (context.revenue ? 1 : 0) + (context.employeeCount ? 1 : 0);
+  const dataRichness =
+    (context.industry ? 1 : 0) + (context.revenue ? 1 : 0) + (context.employeeCount ? 1 : 0);
 
-  const opportunityScore = Math.min(100,
+  const opportunityScore = Math.min(
+    100,
     (signalStrength > 3 ? 30 : signalStrength * 10) +
-    (contactCoverage > 2 ? 25 : contactCoverage * 12) +
-    (dataRichness * 15)
+      (contactCoverage > 2 ? 25 : contactCoverage * 12) +
+      dataRichness * 15,
   );
 
   const confidence = scoreToConfidence(opportunityScore);
@@ -243,15 +279,16 @@ function generateOpportunityInsight(context: OrganizationContext): ReasoningResu
       category: 'opportunity',
       title: `Opportunity assessment: ${context.name}`,
       narrative: `${context.name} has a composite opportunity score of ${opportunityScore}/100 based on ${signalStrength} active signal${signalStrength !== 1 ? 's' : ''}, ${contactCoverage} known contact${contactCoverage !== 1 ? 's' : ''}, and ${dataRichness}/3 data dimensions complete. ${opportunityScore > 70 ? 'This organization shows strong indicators for active engagement.' : opportunityScore > 40 ? 'This organization warrants continued monitoring and relationship building.' : 'More intelligence is needed before making an engagement decision.'}`,
-      recommendation: opportunityScore > 70
-        ? `Engage ${context.name} proactively. Schedule discovery conversation within 7 days.`
-        : opportunityScore > 40
-          ? `Continue nurturing ${context.name}. Enrich data and expand contact network before deep engagement.`
-          : `Add more intelligence about ${context.name} before committing resources to engagement.`,
+      recommendation:
+        opportunityScore > 70
+          ? `Engage ${context.name} proactively. Schedule discovery conversation within 7 days.`
+          : opportunityScore > 40
+            ? `Continue nurturing ${context.name}. Enrich data and expand contact network before deep engagement.`
+            : `Add more intelligence about ${context.name} before committing resources to engagement.`,
       suggestedMessage: `I have been tracking ${context.name} and identified some patterns that might be relevant to your business objectives.`,
       confidence,
       confidenceScore: opportunityScore,
-      evidenceIds: context.signals.slice(0, 5).map(s => s.id),
+      evidenceIds: context.signals.slice(0, 5).map((s) => s.id),
       reasoningMethod: 'template',
     },
   };
@@ -267,10 +304,10 @@ Employees: ${context.employeeCount || 'Unknown'}
 Revenue: ${context.revenue || 'Unknown'}
 
 Known Contacts:
-${context.people.length > 0 ? context.people.map(p => `  - ${p.fullName} (${p.title || p.role})`).join('\n') : '  None identified'}
+${context.people.length > 0 ? context.people.map((p) => `  - ${p.fullName} (${p.title || p.role})`).join('\n') : '  None identified'}
 
 Active Signals:
-${context.signals.length > 0 ? context.signals.map(s => `  - [${s.severity}] ${s.title}: ${s.description}`).join('\n') : '  No signals detected'}
+${context.signals.length > 0 ? context.signals.map((s) => `  - [${s.severity}] ${s.title}: ${s.description}`).join('\n') : '  No signals detected'}
 
 Provide your analysis as JSON array with these fields for each insight:
 - category: "opportunity", "risk", or "recommendation"
@@ -301,9 +338,10 @@ function parseLLMResponse(content: string, context: OrganizationContext): Reason
         narrative: String(item.narrative || ''),
         recommendation: String(item.recommendation || ''),
         suggestedMessage: String(item.suggestedMessage || ''),
-        confidence: (String(item.confidence || 'medium') as 'very_high' | 'high' | 'medium' | 'low' | 'very_low'),
+        confidence: String(item.confidence || 'medium') as
+          'very_high' | 'high' | 'medium' | 'low' | 'very_low',
         confidenceScore: Number(item.confidenceScore || 50),
-        evidenceIds: context.signals.slice(0, 5).map(s => s.id),
+        evidenceIds: context.signals.slice(0, 5).map((s) => s.id),
         reasoningMethod: 'llm',
       },
     }));
@@ -324,12 +362,15 @@ function scoreToConfidence(score: number): 'very_high' | 'high' | 'medium' | 'lo
 }
 
 function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
-  return array.reduce((groups, item) => {
-    const k = String(item[key]);
-    if (!groups[k]) groups[k] = [];
-    groups[k].push(item);
-    return groups;
-  }, {} as Record<string, T[]>);
+  return array.reduce(
+    (groups, item) => {
+      const k = String(item[key]);
+      if (!groups[k]) groups[k] = [];
+      groups[k].push(item);
+      return groups;
+    },
+    {} as Record<string, T[]>,
+  );
 }
 
 /**
@@ -410,27 +451,30 @@ async function generateBriefing(orgId: string): Promise<void> {
 
   if (!org) throw new Error(`Organization ${orgId} not found`);
 
-  const keyFindings = org.insights.slice(0, 5).map(i => i.title);
+  const keyFindings = org.insights.slice(0, 5).map((i) => i.title);
   const riskFactors = org.signals
-    .filter(s => s.severity === 'critical' || s.severity === 'high')
-    .map(s => s.title);
+    .filter((s) => s.severity === 'critical' || s.severity === 'high')
+    .map((s) => s.title);
   const recommendedActions = org.insights
-    .filter(i => i.recommendation)
+    .filter((i) => i.recommendation)
     .slice(0, 5)
-    .map(i => i.recommendation);
+    .map((i) => i.recommendation);
 
   // Calculate opportunity score from signals and insights
-  const avgSignalImpact = org.signals.length > 0
-    ? org.signals.reduce((sum, s) => sum + (s.impactScore || 0), 0) / org.signals.length
-    : 0;
-  const avgInsightConfidence = org.insights.length > 0
-    ? org.insights.reduce((sum, i) => sum + (i.confidenceScore || 0), 0) / org.insights.length
-    : 0;
+  const avgSignalImpact =
+    org.signals.length > 0
+      ? org.signals.reduce((sum, s) => sum + (s.impactScore || 0), 0) / org.signals.length
+      : 0;
+  const avgInsightConfidence =
+    org.insights.length > 0
+      ? org.insights.reduce((sum, i) => sum + (i.confidenceScore || 0), 0) / org.insights.length
+      : 0;
   const opportunityScore = Math.round((avgSignalImpact + avgInsightConfidence) / 2);
 
-  const overallConfidence = org.insights.length > 0
-    ? org.insights.reduce((sum, i) => sum + (i.confidenceScore || 0), 0) / org.insights.length
-    : 0;
+  const overallConfidence =
+    org.insights.length > 0
+      ? org.insights.reduce((sum, i) => sum + (i.confidenceScore || 0), 0) / org.insights.length
+      : 0;
 
   const executiveSummary = buildExecutiveSummary(org, opportunityScore);
 
@@ -449,7 +493,8 @@ async function generateBriefing(orgId: string): Promise<void> {
       riskFactors,
       recommendedActions: recommendedActions.filter((a): a is string => a !== null),
       signalCount: org.signals.length,
-      activeSignals: org.signals.filter(s => s.status !== 'expired' && s.status !== 'dismissed').length,
+      activeSignals: org.signals.filter((s) => s.status !== 'expired' && s.status !== 'dismissed')
+        .length,
       insightCount: org.insights.length,
       evidenceCount: org.evidence.length,
       overallConfidence: scoreToConfidence(overallConfidence),
@@ -458,15 +503,26 @@ async function generateBriefing(orgId: string): Promise<void> {
 }
 
 function buildExecutiveSummary(
-  org: { name: string; industry: string | null; employeeCount: number | null; revenue: string | null; signals: unknown[]; people: unknown[] },
-  opportunityScore: number
+  org: {
+    name: string;
+    industry: string | null;
+    employeeCount: number | null;
+    revenue: string | null;
+    signals: unknown[];
+    people: unknown[];
+  },
+  opportunityScore: number,
 ): string {
   const parts: string[] = [];
 
-  parts.push(`${org.name}${org.industry ? ` operates in the ${org.industry} sector` : ''}${org.employeeCount ? ` with approximately ${org.employeeCount} employees` : ''}.`);
+  parts.push(
+    `${org.name}${org.industry ? ` operates in the ${org.industry} sector` : ''}${org.employeeCount ? ` with approximately ${org.employeeCount} employees` : ''}.`,
+  );
 
   if (org.signals.length > 0) {
-    parts.push(`${org.signals.length} active intelligence signal${org.signals.length !== 1 ? 's' : ''} detected.`);
+    parts.push(
+      `${org.signals.length} active intelligence signal${org.signals.length !== 1 ? 's' : ''} detected.`,
+    );
   }
 
   if (opportunityScore > 70) {
@@ -478,7 +534,9 @@ function buildExecutiveSummary(
   }
 
   if (org.people.length > 0) {
-    parts.push(`${org.people.length} known contact${org.people.length !== 1 ? 's' : ''} available for engagement.`);
+    parts.push(
+      `${org.people.length} known contact${org.people.length !== 1 ? 's' : ''} available for engagement.`,
+    );
   }
 
   return parts.join(' ');

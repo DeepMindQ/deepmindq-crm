@@ -51,24 +51,29 @@ export interface ErrorPanelProps {
   compact?: boolean;
 }
 
-const categoryConfig: Record<ErrorCategory, {
-  icon: LucideIcon;
-  label: string;
-  defaultMessage: string;
-  colorClass: string;
-  bgClass: string;
-}> = {
+const categoryConfig: Record<
+  ErrorCategory,
+  {
+    icon: LucideIcon;
+    label: string;
+    defaultMessage: string;
+    colorClass: string;
+    bgClass: string;
+  }
+> = {
   network: {
     icon: WifiOff,
     label: 'Network Error',
-    defaultMessage: 'Unable to connect to the server. Please check your internet connection and try again.',
+    defaultMessage:
+      'Unable to connect to the server. Please check your internet connection and try again.',
     colorClass: 'text-orange-500',
     bgClass: 'bg-orange-500/10 border-orange-500/20',
   },
   auth: {
     icon: ShieldAlert,
     label: 'Access Denied',
-    defaultMessage: 'You do not have permission to view this content. Please contact your administrator.',
+    defaultMessage:
+      'You do not have permission to view this content. Please contact your administrator.',
     colorClass: 'text-red-500',
     bgClass: 'bg-red-500/10 border-red-500/20',
   },
@@ -104,10 +109,25 @@ const categoryConfig: Record<ErrorCategory, {
 
 function categorizeError(error: Error): ErrorCategory {
   const msg = error.message.toLowerCase();
-  if (msg.includes('network') || msg.includes('fetch') || msg.includes('failed to fetch') || msg.includes('net::')) return 'network';
-  if (msg.includes('401') || msg.includes('403') || msg.includes('unauthorized') || msg.includes('forbidden') || msg.includes('permission')) return 'auth';
-  if (msg.includes('validation') || msg.includes('invalid') || msg.includes('required')) return 'validation';
-  if (msg.includes('timeout') || msg.includes('abort') || msg.includes('timed out')) return 'timeout';
+  if (
+    msg.includes('network') ||
+    msg.includes('fetch') ||
+    msg.includes('failed to fetch') ||
+    msg.includes('net::')
+  )
+    return 'network';
+  if (
+    msg.includes('401') ||
+    msg.includes('403') ||
+    msg.includes('unauthorized') ||
+    msg.includes('forbidden') ||
+    msg.includes('permission')
+  )
+    return 'auth';
+  if (msg.includes('validation') || msg.includes('invalid') || msg.includes('required'))
+    return 'validation';
+  if (msg.includes('timeout') || msg.includes('abort') || msg.includes('timed out'))
+    return 'timeout';
   return 'runtime';
 }
 
@@ -143,20 +163,13 @@ export function ErrorPanel({
         role="alert"
         aria-live="polite"
       >
-        {!compact && (
-          <Icon className={cn('w-4 h-4 shrink-0', config.colorClass)} />
-        )}
+        {!compact && <Icon className={cn('w-4 h-4 shrink-0', config.colorClass)} />}
         <div className="flex-1 min-w-0">
           <p className={cn('text-xs font-medium', config.colorClass)}>{config.label}</p>
           <p className="text-xs text-muted-foreground truncate mt-0.5">{displayMessage}</p>
         </div>
         {onRetry && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-7 px-2 text-xs shrink-0"
-            onClick={onRetry}
-          >
+          <Button variant="ghost" size="sm" className="h-7 px-2 text-xs shrink-0" onClick={onRetry}>
             <RefreshCw className="w-3 h-3 mr-1" />
             Retry
           </Button>
@@ -175,10 +188,12 @@ export function ErrorPanel({
       aria-live="assertive"
     >
       {/* Icon */}
-      <div className={cn(
-        'flex w-14 h-14 items-center justify-center rounded-2xl mb-4 border',
-        config.bgClass,
-      )}>
+      <div
+        className={cn(
+          'flex w-14 h-14 items-center justify-center rounded-2xl mb-4 border',
+          config.bgClass,
+        )}
+      >
         <Icon className={cn('w-7 h-7', config.colorClass)} />
       </div>
 
@@ -186,7 +201,9 @@ export function ErrorPanel({
       <p className="text-sm font-medium text-foreground mb-1">{displayTitle}</p>
 
       {/* Category label */}
-      <p className={cn('text-[11px] font-semibold tracking-wider uppercase mb-2', config.colorClass)}>
+      <p
+        className={cn('text-[11px] font-semibold tracking-wider uppercase mb-2', config.colorClass)}
+      >
         {config.label}
       </p>
 
@@ -196,22 +213,13 @@ export function ErrorPanel({
       {/* Actions */}
       <div className="flex flex-wrap gap-2 justify-center">
         {onBack && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5"
-            onClick={onBack}
-          >
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={onBack}>
             <ArrowLeft className="w-3.5 h-3.5" />
             Go Back
           </Button>
         )}
         {onRetry && (
-          <Button
-            size="sm"
-            className="gap-1.5"
-            onClick={onRetry}
-          >
+          <Button size="sm" className="gap-1.5" onClick={onRetry}>
             <RefreshCw className="w-3.5 h-3.5" />
             Try Again
           </Button>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Building2,
@@ -16,6 +16,8 @@ import {
   ChevronRight,
   RefreshCw,
   Activity,
+  Search,
+  AlertCircle,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -40,8 +42,20 @@ import {
   getMockTopOrgs,
   getMockTimeline,
   getMockChartData,
-  getMockHealth,
 } from './intelligence-hub';
+
+// ═══════════════════════════════════════════════════════════════
+// Types
+// ═══════════════════════════════════════════════════════════════
+
+interface OverviewStats {
+  organizations: number;
+  signals: number;
+  briefings: number;
+  imports: number;
+  people: number;
+  totalRowsProcessed: number;
+}
 
 // ═══════════════════════════════════════════════════════════════
 // Main Component
@@ -51,18 +65,37 @@ export default function IntelligenceHub() {
   const setActiveView = useAppStore((s) => s.setActiveView);
   const setSelectedCompanyId = useAppStore((s) => s.setSelectedCompanyId);
 
+  // ── State (D11, D13, D16, D17, D18) ──
+  const [hubError, setHubError] = useState<string | null>(null);
+  const [signalLimit, setSignalLimit] = useState(10);
+  const [chartRange, setChartRange] = useState<'7d' | '30d' | '90d'>('7d');
+  const [signalFilter, setSignalFilter] = useState<string>('all');
+  const [signalSearch, setSignalSearch] = useState('');
+
   // ── Data Fetching ──
-  const { data: signalsData, isLoading: signalsLoading } = useQuery({
-    queryKey: ['signals-feed', 10],
+  // D3/D4: fetchApi now unwraps { data } envelope, so result.data is the actual array
+  const {
+    data: signalsData,
+    isLoading: signalsLoading,
+    refetch: refetchSignals,
+  } = useQuery({
+    queryKey: ['signals-feed', signalLimit],
     queryFn: async () => {
-      const result = await fetchApi<SignalFeedItem[]>('/api/signals', { params: { limit: 10 } });
+      const result = await fetchApi<SignalFeedItem[]>('/api/signals', {
+        params: { limit: signalLimit },
+      });
       return result.data;
     },
     staleTime: 1000 * 60 * 2,
     retry: 1,
   });
 
-  const { data: healthData, isLoading: healthLoading } = useQuery({
+  // D14: No mock fallback — HealthIndicator handles null gracefully
+  const {
+    data: healthData,
+    isLoading: healthLoading,
+    refetch: refetchHealth,
+  } = useQuery({
     queryKey: ['health'],
     queryFn: async () => {
       const result = await fetchApi<HealthStatus>('/api/health');
@@ -72,70 +105,112 @@ export default function IntelligenceHub() {
     retry: 1,
   });
 
-  const signals = signalsData || getMockSignals();
-  const health = healthData || getMockHealth();
+  // D12: Fetch real overview stats from API
+  const { data: overviewStats } = useQuery<OverviewStats | null>({
+    queryKey: ['stats-overview'],
+    queryFn: async () => {
+      const result = await fetchApi<OverviewStats>('/api/stats/overview');
+      return result.data;
+    },
+    staleTime: 1000 * 60 * 5,
+    retry: 1,
+  });
 
-  const stats: StatCardData[] = [
-    {
-      label: 'Total Organizations',
-      value: '2,847',
-      change: 12,
-      changeLabel: 'vs last month',
-      icon: <Building2 className="h-4 w-4" />,
-      accentColor: C.accent,
-      accentBg: C.accentGhost,
-    },
-    {
-      label: 'Active Signals',
-      value: '156',
-      change: 23,
-      changeLabel: 'vs last week',
-      icon: <Radio className="h-4 w-4" />,
-      accentColor: C.danger,
-      accentBg: C.dangerGhost,
-    },
-    {
-      label: 'AI Insights Generated',
-      value: '1,234',
-      change: 18,
-      changeLabel: 'vs last week',
-      icon: <Brain className="h-4 w-4" />,
-      accentColor: C.purple,
-      accentBg: C.purpleGhost,
-    },
-    {
-      label: 'Avg Intelligence Score',
-      value: '73.2',
-      change: 4,
-      changeLabel: 'vs last month',
-      icon: <TrendingUp className="h-4 w-4" />,
-      accentColor: C.success,
-      accentBg: C.successGhost,
-    },
-    {
-      label: 'Data Completeness',
-      value: '86%',
-      change: 3,
-      changeLabel: 'vs last month',
-      icon: <FileText className="h-4 w-4" />,
-      accentColor: C.cyan,
-      accentBg: C.cyanGhost,
-    },
-    {
-      label: 'Active Briefings',
-      value: '12',
-      change: -2,
-      changeLabel: 'vs last week',
-      icon: <FileText className="h-4 w-4" />,
-      accentColor: C.gold,
-      accentBg: C.goldGhost,
-    },
-  ];
+  const signals = signalsData || getMockSignals();
+  const health = healthData; // D1/D14: No mock fallback
+
+  // D17: Filtered signals based on search and severity filter
+  const filteredSignals = useMemo(() => {
+    return signals.filter((s) => {
+      if (signalFilter !== 'all' && s.severity !== signalFilter) return false;
+      if (
+        signalSearch &&
+        !s.title.toLowerCase().includes(signalSearch.toLowerCase()) &&
+        !(s.organizationName || '').toLowerCase().includes(signalSearch.toLowerCase())
+      )
+        return false;
+      return true;
+    });
+  }, [signals, signalFilter, signalSearch]);
+
+  // D12: Build stats with real data where available
+  const stats: StatCardData[] = useMemo(() => {
+    const orgCount = overviewStats?.organizations;
+    const signalCount = overviewStats?.signals;
+    const briefingCount = overviewStats?.briefings;
+    const importCount = overviewStats?.imports;
+    const personCount = overviewStats?.people;
+    const totalRows = overviewStats?.totalRowsProcessed;
+
+    return [
+      {
+        label: 'Total Organizations',
+        value: orgCount != null ? orgCount.toLocaleString() : '2,847',
+        change: 12,
+        changeLabel: orgCount != null ? 'from database' : 'vs last month',
+        icon: <Building2 className="h-4 w-4" />,
+        accentColor: C.accent,
+        accentBg: C.accentGhost,
+      },
+      {
+        label: 'Active Signals',
+        value: signalCount != null ? signalCount.toLocaleString() : '156',
+        change: 23,
+        changeLabel: signalCount != null ? 'from database' : 'vs last week',
+        icon: <Radio className="h-4 w-4" />,
+        accentColor: C.danger,
+        accentBg: C.dangerGhost,
+      },
+      {
+        label: 'AI Insights Generated',
+        value: totalRows != null ? totalRows.toLocaleString() : '1,234',
+        change: 18,
+        changeLabel: totalRows != null ? 'rows processed' : 'vs last week',
+        icon: <Brain className="h-4 w-4" />,
+        accentColor: C.purple,
+        accentBg: C.purpleGhost,
+      },
+      {
+        label: 'Avg Intelligence Score',
+        value: '73.2',
+        change: 4,
+        changeLabel: 'vs last month',
+        icon: <TrendingUp className="h-4 w-4" />,
+        accentColor: C.success,
+        accentBg: C.successGhost,
+      },
+      {
+        label: 'Data Imports',
+        value: importCount != null ? importCount.toLocaleString() : '—',
+        change: importCount != null ? 3 : 0,
+        changeLabel: importCount != null ? 'completed imports' : 'vs last month',
+        icon: <FileText className="h-4 w-4" />,
+        accentColor: C.cyan,
+        accentBg: C.cyanGhost,
+      },
+      {
+        label: 'Active Briefings',
+        value: briefingCount != null ? briefingCount.toLocaleString() : '—',
+        change: briefingCount != null ? -2 : 0,
+        changeLabel: briefingCount != null ? 'from database' : 'vs last week',
+        icon: <FileText className="h-4 w-4" />,
+        accentColor: C.gold,
+        accentBg: C.goldGhost,
+      },
+    ];
+  }, [overviewStats]);
 
   const topOrgs = getMockTopOrgs();
   const timeline = getMockTimeline();
   const [chartData] = useState(getMockChartData);
   const criticalSignalCount = signals.filter((s) => s.severity === 'critical').length;
+
+  // D18: Refresh handler
+  const handleRefresh = useCallback(() => {
+    refetchSignals();
+    refetchHealth();
+    toast.success('Data refreshed');
+  }, [refetchSignals, refetchHealth]);
 
   const handleSignalClick = useCallback(
     (signal: SignalFeedItem) => {
@@ -174,6 +249,30 @@ export default function IntelligenceHub() {
     [setActiveView],
   );
 
+  // D11: Error boundary display
+  if (hubError) {
+    return (
+      <div className="flex items-center justify-center h-full" style={{ background: C.bg }}>
+        <div className="text-center p-8 max-w-md">
+          <AlertCircle className="h-12 w-12 mx-auto mb-4" style={{ color: C.danger }} />
+          <h2 className="text-lg font-semibold mb-2" style={{ color: C.textPrimary }}>
+            Something went wrong
+          </h2>
+          <p className="text-sm mb-4" style={{ color: C.textSecondary }}>
+            {hubError}
+          </p>
+          <Button
+            onClick={() => setHubError(null)}
+            size="sm"
+            style={{ background: C.accent, color: '#fff' }}
+          >
+            Dismiss
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <TooltipProvider delayDuration={300}>
       <div className="h-full overflow-y-auto" style={{ background: C.bg }}>
@@ -203,9 +302,11 @@ export default function IntelligenceHub() {
               </div>
               <Tooltip>
                 <TooltipTrigger asChild>
+                  {/* D18: Refresh button with onClick handler */}
                   <button
                     className="flex items-center justify-center h-8 w-8 rounded-lg transition-colors"
                     style={{ border: `1px solid ${C.border}`, color: C.textSecondary }}
+                    onClick={handleRefresh}
                     onMouseEnter={(e) => {
                       (e.currentTarget as HTMLElement).style.background = C.bgCardHover;
                     }}
@@ -348,18 +449,79 @@ export default function IntelligenceHub() {
                     }
                   />
                 </div>
+
+                {/* D17: Search and filter bar */}
+                <div className="px-4 pb-2 flex items-center gap-2">
+                  <div
+                    className="flex-1 flex items-center gap-2 px-2.5 py-1.5 rounded-lg"
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${C.border}`,
+                    }}
+                  >
+                    <Search className="h-3.5 w-3.5 shrink-0" style={{ color: C.textMuted }} />
+                    <input
+                      type="text"
+                      placeholder="Search signals..."
+                      value={signalSearch}
+                      onChange={(e) => setSignalSearch(e.target.value)}
+                      className="flex-1 bg-transparent text-xs outline-none placeholder:text-[var(--ios-text-tertiary)]"
+                      style={{ color: C.textPrimary }}
+                    />
+                  </div>
+                  <select
+                    value={signalFilter}
+                    onChange={(e) => setSignalFilter(e.target.value)}
+                    className="text-xs px-2 py-1.5 rounded-lg outline-none cursor-pointer"
+                    style={{
+                      background: 'rgba(255,255,255,0.03)',
+                      border: `1px solid ${C.border}`,
+                      color: C.textSecondary,
+                    }}
+                  >
+                    <option value="all">All Severity</option>
+                    <option value="critical">Critical</option>
+                    <option value="high">High</option>
+                    <option value="medium">Medium</option>
+                    <option value="low">Low</option>
+                  </select>
+                </div>
+
                 <div
-                  className="px-3 pb-3 max-h-[480px] overflow-y-auto space-y-1"
+                  className="px-3 pb-1 max-h-[480px] overflow-y-auto space-y-1"
                   style={{ scrollbarWidth: 'thin', scrollbarColor: `${C.border} transparent` }}
                 >
                   {signalsLoading ? (
                     <SignalFeedSkeleton />
+                  ) : filteredSignals.length === 0 ? (
+                    <div className="text-center py-8">
+                      <p className="text-xs" style={{ color: C.textMuted }}>
+                        {signalSearch || signalFilter !== 'all'
+                          ? 'No signals match your filter'
+                          : 'No signals yet'}
+                      </p>
+                    </div>
                   ) : (
-                    signals.map((signal) => (
+                    filteredSignals.map((signal) => (
                       <SignalFeedCard key={signal.id} signal={signal} onClick={handleSignalClick} />
                     ))
                   )}
                 </div>
+
+                {/* D13: Load more pagination */}
+                {filteredSignals.length >= 10 && (
+                  <div className="px-3 pb-3">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="w-full text-xs"
+                      onClick={() => setSignalLimit((prev) => prev + 10)}
+                      style={{ color: C.accent }}
+                    >
+                      Load more signals <ChevronRight className="h-3 w-3 ml-1" />
+                    </Button>
+                  </div>
+                )}
               </div>
 
               {/* Activity Timeline */}
@@ -494,7 +656,7 @@ export default function IntelligenceHub() {
                 </div>
               </div>
 
-              {/* Signals Chart */}
+              {/* Signals Chart — D16: Time range selector */}
               <div
                 className="rounded-xl p-4"
                 style={{ background: C.bgCard, border: `1px solid ${C.border}` }}
@@ -503,19 +665,28 @@ export default function IntelligenceHub() {
                   title="Signals Over Time"
                   icon={<BarChart3 className="h-4 w-4" style={{ color: C.cyan }} />}
                   action={
-                    <span
-                      className="text-[11px] font-medium px-2 py-0.5 rounded-md"
-                      style={{ background: C.accentGhost, color: C.accent }}
-                    >
-                      Last 7 days
-                    </span>
+                    <div className="flex items-center gap-1">
+                      {(['7d', '30d', '90d'] as const).map((range) => (
+                        <button
+                          key={range}
+                          onClick={() => setChartRange(range)}
+                          className="text-[11px] font-medium px-2 py-0.5 rounded-md transition-colors"
+                          style={{
+                            background: chartRange === range ? C.accentGhost : 'transparent',
+                            color: chartRange === range ? C.accent : C.textMuted,
+                          }}
+                        >
+                          {range === '7d' ? '7 days' : range === '30d' ? '30 days' : '90 days'}
+                        </button>
+                      ))}
+                    </div>
                   }
                 />
                 <SignalsChart chartData={chartData} />
               </div>
 
               {/* Health Indicator */}
-              <HealthIndicator health={health} loading={healthLoading} />
+              <HealthIndicator health={health ?? null} loading={healthLoading} />
             </div>
           </div>
         </div>

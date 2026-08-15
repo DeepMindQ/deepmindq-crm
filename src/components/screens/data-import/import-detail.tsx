@@ -9,7 +9,7 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
-import { Eye, MapPin, ListOrdered, AlertOctagon, RotateCcw, Loader2 } from 'lucide-react';
+import { Eye, MapPin, ListOrdered, AlertOctagon, RotateCcw, Loader2, Trash2 } from 'lucide-react';
 import { type IngestionRecord, STATUS_CONFIG, formatBytes, formatDateTime } from './import-types';
 
 /* ══════════════════════════════════════════════════════════════
@@ -43,10 +43,20 @@ export interface DetailPanelProps {
   open: boolean;
   onClose: () => void;
   onRetry: (id: string) => void;
+  onDelete: (id: string) => void;
+  onCancel: (id: string) => void;
   isRetrying: boolean;
 }
 
-export function DetailPanel({ record, open, onClose, onRetry, isRetrying }: DetailPanelProps) {
+export function DetailPanel({
+  record,
+  open,
+  onClose,
+  onRetry,
+  onDelete,
+  onCancel,
+  isRetrying,
+}: DetailPanelProps) {
   if (!record) return null;
 
   const cfg = STATUS_CONFIG[record.status];
@@ -379,7 +389,21 @@ export function DetailPanel({ record, open, onClose, onRetry, isRetrying }: Deta
           </section>
         </div>
 
-        {(record.status === 'failed' || record.status === 'partial') && (
+        {record.status === 'pending' || record.status === 'processing' ? (
+          <div className="px-4 pb-4">
+            <button
+              onClick={() => onCancel(record.id)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              style={{
+                background: 'rgba(245, 158, 11, 0.15)',
+                color: '#F59E0B',
+                border: '1px solid rgba(245, 158, 11, 0.3)',
+              }}
+            >
+              Cancel Import
+            </button>
+          </div>
+        ) : record.status === 'failed' || record.status === 'partial' ? (
           <div className="px-4 pb-4">
             <button
               onClick={() => onRetry(record.id)}
@@ -399,7 +423,22 @@ export function DetailPanel({ record, open, onClose, onRetry, isRetrying }: Deta
               {isRetrying ? 'Retrying...' : 'Retry Import'}
             </button>
           </div>
-        )}
+        ) : record.status === 'completed' ? (
+          <div className="px-4 pb-4">
+            <button
+              onClick={() => onDelete(record.id)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              style={{
+                background: 'rgba(239, 68, 68, 0.15)',
+                color: '#EF4444',
+                border: '1px solid rgba(239, 68, 68, 0.3)',
+              }}
+            >
+              <Trash2 className="h-4 w-4" />
+              Delete Import
+            </button>
+          </div>
+        ) : null}
       </SheetContent>
     </Sheet>
   );

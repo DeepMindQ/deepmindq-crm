@@ -8,6 +8,8 @@ import { Eye, EyeOff, ArrowLeft, Loader2, Check } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
+import { fetchApi } from '@/lib/fetchApi';
+import { toast } from 'sonner';
 
 interface PasswordStrength {
   score: number;
@@ -54,27 +56,26 @@ export default function SignupPage() {
 
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/auth/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password, confirmPassword }),
-      });
-      const data = await res.json();
+    const { error } = await fetchApi<{
+      success: boolean;
+      data: { id: string; name: string; email: string };
+      message: string;
+      devCode?: string;
+    }>('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name, email, password, confirmPassword }),
+    });
 
-      if (!res.ok) {
-        setError(data.error || 'Registration failed');
-        return;
-      }
-
-      // Mock sign-in: redirect to dashboard after successful registration
-      router.push('/');
-      router.refresh();
-    } catch {
-      setError('An unexpected error occurred. Please try again.');
-    } finally {
+    if (error) {
+      setError(error);
       setLoading(false);
+      return;
     }
+
+    toast.success('Account created successfully! Please check your email to verify.');
+    setLoading(false);
+    router.push('/login');
   };
 
   return (
@@ -193,6 +194,7 @@ export default function SignupPage() {
                   type={showPassword ? 'text' : 'password'}
                   placeholder="Create a strong password"
                   required
+                  minLength={8}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="h-11 pr-10 border-[#1e2535] bg-[#0f1219] text-[#e8ecf4] placeholder:text-[#5a6478] focus:border-blue-500/50 focus:ring-blue-500/20"

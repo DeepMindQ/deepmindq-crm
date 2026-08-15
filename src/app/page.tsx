@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { toast } from 'sonner';
 import { fetchApi } from '@/lib/fetchApi';
 import { useAppStore, type ViewId } from '@/lib/store';
 import { SCREEN_MAP } from '@/lib/screen-map';
@@ -77,6 +78,7 @@ import {
   ChevronRight,
   ArrowRight,
   Loader2,
+  WifiOff,
   type LucideIcon,
 } from 'lucide-react';
 import { PageTransition, GlassPanel } from '@/components/ui/animated-components';
@@ -317,6 +319,14 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
 /* ── UserNav ── */
 
 function UserNav() {
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
+
+  const handleLogout = useCallback(() => {
+    setShowLogoutConfirm(false);
+    // Navigate to the unauthenticated state by clearing the session
+    window.location.href = '/api/auth/logout';
+  }, []);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -351,9 +361,29 @@ function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive">
-          <LogOut className="mr-2 h-4 w-4" /> Sign out
-        </DropdownMenuItem>
+        {showLogoutConfirm ? (
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <button
+              onClick={handleLogout}
+              className="flex-1 rounded-md bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20"
+            >
+              Confirm
+            </button>
+            <button
+              onClick={() => setShowLogoutConfirm(false)}
+              className="flex-1 rounded-md bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <DropdownMenuItem
+            className="cursor-pointer text-destructive focus:text-destructive"
+            onClick={() => setShowLogoutConfirm(true)}
+          >
+            <LogOut className="mr-2 h-4 w-4" /> Sign out
+          </DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
@@ -656,8 +686,28 @@ export default function Page() {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
   const openCmd = useCallback(() => setCmdOpen(true), []);
   const closeCmd = useCallback(() => setCmdOpen(false), []);
+
+  // Offline detection (F3)
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      toast.success('Back online');
+    };
+    const handleOffline = () => {
+      setIsOffline(true);
+      toast.error('You are offline', { description: 'Check your internet connection' });
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    setIsOffline(!navigator.onLine);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Auth check
   useEffect(() => {
@@ -689,14 +739,25 @@ export default function Page() {
     return () => window.removeEventListener('keydown', h);
   }, []);
 
-  // Loading state
+  // Loading state (F7: polished skeleton)
   if (isLoading) {
     return (
       <div
-        className="flex h-screen w-screen items-center justify-center"
+        className="h-screen w-screen flex items-center justify-center"
         style={{ background: 'var(--ios-bg-primary)' }}
       >
-        <Loader2 className="size-6 animate-spin" style={{ color: 'var(--ios-accent)' }} />
+        <div className="text-center">
+          <div
+            className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4"
+            style={{ background: 'linear-gradient(135deg, #EAB308, #F59E0B)' }}
+          >
+            <Brain className="w-7 h-7 text-white" />
+          </div>
+          <p className="text-sm" style={{ color: '#94A3B8' }}>
+            Loading DeepMindQ...
+          </p>
+          <Loader2 className="h-4 w-4 mx-auto mt-3 animate-spin" style={{ color: '#EAB308' }} />
+        </div>
       </div>
     );
   }
@@ -728,6 +789,15 @@ export default function Page() {
 
   return (
     <SidebarProvider>
+      {isOffline && (
+        <div
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium"
+          style={{ background: '#DC2626', color: '#fff' }}
+        >
+          <WifiOff className="h-4 w-4" />
+          You are currently offline. Some features may be unavailable.
+        </div>
+      )}
       <AppSidebar />
       <SidebarInset className="overflow-hidden" style={{ background: 'var(--ios-bg-primary)' }}>
         <AppHeader onOpenCommandPalette={openCmd} />

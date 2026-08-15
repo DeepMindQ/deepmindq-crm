@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import Link from 'next/link';
+import { fetchApi } from '@/lib/fetchApi';
+import { toast } from 'sonner';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from '@/components/ui/input';
@@ -96,30 +99,23 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/auth/request-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.toLowerCase().trim(), purpose: 'login' }),
-      });
-      const data = await res.json();
+    const { data, error } = await fetchApi<{ devCode?: string }>('/api/auth/request-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.toLowerCase().trim(), purpose: 'login' }),
+    });
 
-      if (!res.ok) {
-        setError(data.error || 'Failed to send OTP');
-        setLoading(false);
-        return;
-      }
-
-      // Only capture devCode in development mode
-      if (data.devCode) setDevCode(data.devCode);
-      setOtpSentTo(email.toLowerCase().trim());
-      setStep('otp');
-      startCountdown();
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
+    if (error) {
+      setError(error);
       setLoading(false);
+      return;
     }
+
+    if (data?.devCode) setDevCode(data.devCode);
+    setOtpSentTo(email.toLowerCase().trim());
+    setStep('otp');
+    startCountdown();
+    setLoading(false);
   };
 
   /* ── Step: Login with Password → sends OTP ── */
@@ -131,37 +127,35 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/auth/login', {
+    const { data, error } = await fetchApi<{ devCode?: string; needsOtpLogin?: boolean }>(
+      '/api/auth/login',
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.toLowerCase().trim(), password }),
-      });
-      const data = await res.json();
+      },
+    );
 
-      if (!res.ok) {
-        if (data.needsOtpLogin) {
-          // No password set yet — switch to OTP mode
-          setError('');
-          setMode('otp');
-          handleRequestOtp();
-          return;
-        }
-        setError(data.error || 'Invalid credentials');
-        setLoading(false);
-        return;
-      }
-
-      // Only capture devCode in development mode
-      if (data.devCode) setDevCode(data.devCode);
-      setOtpSentTo(email.toLowerCase().trim());
-      setStep('otp');
-      startCountdown();
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
+    if (error) {
+      setError(error);
       setLoading(false);
+      return;
     }
+
+    // Check if user needs OTP-based login (no password set yet)
+    if (data?.needsOtpLogin) {
+      setError('');
+      setMode('otp');
+      setLoading(false);
+      handleRequestOtp();
+      return;
+    }
+
+    if (data?.devCode) setDevCode(data.devCode);
+    setOtpSentTo(email.toLowerCase().trim());
+    setStep('otp');
+    startCountdown();
+    setLoading(false);
   };
 
   /* ── Step 2: Verify OTP ── */
@@ -173,39 +167,33 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: otpSentTo,
-          code: otp,
-          purpose: 'login',
-        }),
-      });
-      const data = await res.json();
+    const { data, error } = await fetchApi<{ needsPassword?: boolean }>('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: otpSentTo,
+        code: otp,
+        purpose: 'login',
+      }),
+    });
 
-      if (!res.ok) {
-        setError(data.error || 'Verification failed');
-        setLoading(false);
-        return;
-      }
-
-      if (data.needsPassword) {
-        setNeedsPassword(true);
-        setStep('set_password');
-        setLoading(false);
-        return;
-      }
-
-      // Success — logged in
-      setStep('success');
-      setTimeout(() => onLogin(), 600);
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
+    if (error) {
+      setError(error);
       setLoading(false);
+      return;
     }
+
+    if (data?.needsPassword) {
+      setNeedsPassword(true);
+      setStep('set_password');
+      setLoading(false);
+      return;
+    }
+
+    // Success — logged in
+    setStep('success');
+    setTimeout(() => onLogin(), 600);
+    setLoading(false);
   };
 
   /* ── Step 3: Set Password (first time) ── */
@@ -221,31 +209,25 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/auth/set-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: otpSentTo,
-          otpCode: otp,
-          password: newPassword,
-        }),
-      });
-      const data = await res.json();
+    const { error } = await fetchApi('/api/auth/set-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: otpSentTo,
+        otpCode: otp,
+        password: newPassword,
+      }),
+    });
 
-      if (!res.ok) {
-        setError(data.error || 'Failed to set password');
-        setLoading(false);
-        return;
-      }
-
-      setStep('success');
-      setTimeout(() => onLogin(), 600);
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
+    if (error) {
+      setError(error);
       setLoading(false);
+      return;
     }
+
+    setStep('success');
+    setTimeout(() => onLogin(), 600);
+    setLoading(false);
   };
 
   /* ── Resend OTP ── */
@@ -255,25 +237,20 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/auth/request-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: otpSentTo, purpose: 'login' }),
-      });
-      const data = await res.json();
+    const { data, error } = await fetchApi<{ devCode?: string }>('/api/auth/request-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: otpSentTo, purpose: 'login' }),
+    });
 
-      if (!res.ok) {
-        setError(data.error || 'Failed to resend OTP');
-      } else {
-        if (data.devCode) setDevCode(data.devCode);
-        startCountdown();
-      }
-    } catch {
-      setError('Network error');
-    } finally {
-      setLoading(false);
+    if (error) {
+      setError(error);
+    } else {
+      if (data?.devCode) setDevCode(data.devCode);
+      toast.success('OTP resent successfully');
+      startCountdown();
     }
+    setLoading(false);
   };
 
   const backToEmail = () => {
@@ -433,6 +410,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                           onChange={(e) => setPassword(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
                           placeholder="Enter your password"
+                          minLength={8}
                           className="pl-10 pr-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-amber-500/50 focus:ring-amber-500/20 rounded-xl"
                         />
                         <button
@@ -479,6 +457,13 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                       </span>
                     )}
                   </Button>
+
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-amber-400/70 hover:text-amber-400 transition-colors"
+                  >
+                    Forgot your password?
+                  </Link>
                 </div>
               </motion.div>
             )}
@@ -686,6 +671,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Min. 8 characters"
+                        minLength={8}
                         className="pl-10 pr-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-amber-500/50 focus:ring-amber-500/20 rounded-xl"
                         autoFocus
                       />

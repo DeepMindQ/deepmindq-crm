@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   AlertCircle,
   BarChart3,
+  Loader2,
 } from 'lucide-react';
 import {
   ImportStatCard,
@@ -40,7 +41,7 @@ export default function DataImport() {
   const [selectedRecord, setSelectedRecord] = useState<IngestionRecord | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
-  const [pollingTimer, setPollingTimer] = useState<ReturnType<typeof setInterval> | null>(null);
+  const pollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
@@ -60,17 +61,19 @@ export default function DataImport() {
 
   useEffect(() => {
     const hasActive = ingestions.some((i) => i.status === 'pending' || i.status === 'processing');
-    if (hasActive && !pollingTimer) {
-      const timer = setInterval(fetchHistory, 5000);
-      setPollingTimer(timer);
-    } else if (!hasActive && pollingTimer) {
-      clearInterval(pollingTimer);
-      setPollingTimer(null);
+    if (hasActive && !pollingTimerRef.current) {
+      pollingTimerRef.current = setInterval(fetchHistory, 5000);
+    } else if (!hasActive && pollingTimerRef.current) {
+      clearInterval(pollingTimerRef.current);
+      pollingTimerRef.current = null;
     }
     return () => {
-      if (pollingTimer) clearInterval(pollingTimer);
+      if (pollingTimerRef.current) {
+        clearInterval(pollingTimerRef.current);
+        pollingTimerRef.current = null;
+      }
     };
-  }, [ingestions, fetchHistory, pollingTimer]);
+  }, [ingestions, fetchHistory]);
 
   const stats = {
     total: ingestions.length,
@@ -84,6 +87,16 @@ export default function DataImport() {
     if (!ACCEPTED_EXTENSIONS.includes(ext))
       return `Unsupported file type "${ext}". Accepted: ${ACCEPTED_EXTENSIONS.join(', ')}`;
     if (file.size > 50 * 1024 * 1024) return 'File is too large. Maximum size is 50MB.';
+    // C18: Duplicate file detection
+    if (ingestions.some((i) => i.fileName === file.name && i.status === 'processing')) {
+      return 'This file is already being processed.';
+    }
+    // C17: Warn about large files
+    if (file.size > 10 * 1024 * 1024) {
+      toast.warning('Large file detected', {
+        description: 'Files over 10MB may take longer to process. Max 50MB allowed.',
+      });
+    }
     return null;
   };
 
@@ -220,6 +233,34 @@ export default function DataImport() {
     [fetchHistory],
   );
 
+  const handleDelete = useCallback(
+    async (id: string) => {
+      const { error } = await fetchApi(`/api/ingestion/${id}`, { method: 'DELETE' });
+      if (error) toast.error('Delete failed', { description: error });
+      else {
+        toast.success('Import deleted');
+        await fetchHistory();
+        if (selectedRecord?.id === id) {
+          setSelectedRecord(null);
+          setDetailOpen(false);
+        }
+      }
+    },
+    [fetchHistory, selectedRecord],
+  );
+
+  const handleCancel = useCallback(
+    async (id: string) => {
+      const { error } = await fetchApi(`/api/ingestion/${id}/cancel`, { method: 'POST' });
+      if (error) toast.error('Cancel failed', { description: error });
+      else {
+        toast.success('Import cancelled');
+        await fetchHistory();
+      }
+    },
+    [fetchHistory],
+  );
+
   const handleRowClick = useCallback((row: Record<string, unknown>) => {
     setSelectedRecord(row as unknown as IngestionRecord);
     setDetailOpen(true);
@@ -303,6 +344,21 @@ export default function DataImport() {
           />
         </div>
 
+        {ingestions.some((i) => i.status === 'processing') && (
+          <div
+            className="flex items-center gap-3 px-4 py-3 rounded-xl"
+            style={{
+              background: 'rgba(59, 130, 246, 0.08)',
+              border: '1px solid rgba(59, 130, 246, 0.2)',
+            }}
+          >
+            <Loader2 className="h-4 w-4 animate-spin" style={{ color: '#3B82F6' }} />
+            <span className="text-sm" style={{ color: tokens.text.secondary }}>
+              Processing imports... Polling for updates every 5 seconds.
+            </span>
+          </div>
+        )}
+
         <UploadZone
           fileInputRef={fileInputRef}
           dragActive={dragActive}
@@ -330,6 +386,8 @@ export default function DataImport() {
         open={detailOpen}
         onClose={() => setDetailOpen(false)}
         onRetry={handleRetry}
+        onDelete={handleDelete}
+        onCancel={handleCancel}
         isRetrying={retryingId !== null && retryingId === selectedRecord?.id}
       />
     </div>

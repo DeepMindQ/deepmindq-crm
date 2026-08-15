@@ -1,19 +1,22 @@
 'use client';
 
+import { useMemo } from 'react';
 import { useNotificationStore, type Notification } from './notification-store';
 import { getNotificationStyle, formatTimeAgo } from './notification-icon';
 import { X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAppStore, type ViewId } from '@/lib/store';
 
 function NotificationItem({ notification }: { notification: Notification }) {
   const { markAsRead, removeNotification, setOpen } = useNotificationStore();
+  const setActiveView = useAppStore((s) => s.setActiveView);
   const style = getNotificationStyle(notification.type);
   const Icon = style.icon;
 
   const handleClick = () => {
     if (!notification.read) markAsRead(notification.id);
     if (notification.link) {
-      window.location.hash = notification.link;
+      setActiveView(notification.link as ViewId);
     }
     setOpen(false);
   };
@@ -68,11 +71,44 @@ function NotificationItem({ notification }: { notification: Notification }) {
 export function NotificationList() {
   const { notifications } = useNotificationStore();
 
+  const groups = useMemo(() => {
+    const now = new Date();
+    const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    const yesterday = new Date(today.getTime() - 86400000);
+
+    const todayItems: Notification[] = [];
+    const yesterdayItems: Notification[] = [];
+    const olderItems: Notification[] = [];
+
+    for (const n of notifications) {
+      const date = new Date(n.createdAt);
+      if (date >= today) todayItems.push(n);
+      else if (date >= yesterday) yesterdayItems.push(n);
+      else olderItems.push(n);
+    }
+
+    const result: { label: string; items: Notification[] }[] = [];
+    if (todayItems.length) result.push({ label: 'Today', items: todayItems });
+    if (yesterdayItems.length) result.push({ label: 'Yesterday', items: yesterdayItems });
+    if (olderItems.length) result.push({ label: 'Earlier', items: olderItems });
+    return result;
+  }, [notifications]);
+
   return (
     <div role="list" aria-label="Notifications">
       <AnimatePresence mode="popLayout">
-        {notifications.map((notification) => (
-          <NotificationItem key={notification.id} notification={notification} />
+        {groups.map((group) => (
+          <div key={group.label}>
+            <div
+              className="px-4 py-1.5 text-[10px] font-semibold uppercase tracking-wider"
+              style={{ color: '#64748B' }}
+            >
+              {group.label}
+            </div>
+            {group.items.map((notification) => (
+              <NotificationItem key={notification.id} notification={notification} />
+            ))}
+          </div>
         ))}
       </AnimatePresence>
     </div>

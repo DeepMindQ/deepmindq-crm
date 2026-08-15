@@ -380,6 +380,16 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
     description: 'AI reasoning',
   },
   {
+    path: '/api/insights',
+    methods: { GET: ['ai:read'] },
+    description: 'AI-generated insights',
+  },
+  {
+    path: '/api/briefings',
+    methods: { GET: ['ai:read'] },
+    description: 'AI-generated briefings',
+  },
+  {
     path: '/api/orchestration',
     methods: { GET: ['ai:read'], POST: ['ai:write'] },
     description: 'Multi-agent orchestration',

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -22,156 +22,40 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Activity, Brain, AlertTriangle, BarChart3, Filter, RefreshCw } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
 
-const MOCK_RUNS = [
-  {
-    id: '1',
-    input: 'Evaluate competitor pricing strategy for Q3',
-    method: 'llm',
-    model: 'GPT-4o',
-    confidence: 0.92,
-    duration: 3200,
-    output:
-      'Pricing pressure from Competitor A is increasing; recommend value-based positioning with ROI bundling.',
-  },
-  {
-    id: '2',
-    input: 'Score lead Acme Corp for enterprise tier',
-    method: 'hybrid',
-    model: 'Claude-3.5',
-    confidence: 0.87,
-    duration: 4800,
-    output:
-      'Acme Corp scores 84/100. Strong fit based on employee count, industry, and technology stack.',
-  },
-  {
-    id: '3',
-    input: 'Determine risk level for stalled deal #4451',
-    method: 'rule',
-    model: 'Rule Engine v2',
-    confidence: 0.95,
-    duration: 120,
-    output: 'HIGH RISK: Deal stalled 42 days, no contact in 14 days, competitor activity detected.',
-  },
-  {
-    id: '4',
-    input: 'Predict close probability for Nexus deal',
-    method: 'llm',
-    model: 'GPT-4o',
-    confidence: 0.78,
-    duration: 2900,
-    output:
-      '65% close probability. Key concern: budget approval timeline. Strength: executive sponsor alignment.',
-  },
-  {
-    id: '5',
-    input: 'Extract entity relationships from quarterly filing',
-    method: 'hybrid',
-    model: 'Claude-3.5',
-    confidence: 0.91,
-    duration: 6100,
-    output:
-      'Identified 12 new entity relationships including 3 board member connections to target accounts.',
-  },
-  {
-    id: '6',
-    input: 'Validate contact email deliverability',
-    method: 'rule',
-    model: 'Validation Engine',
-    confidence: 0.99,
-    duration: 85,
-    output: 'Email valid. MX records verified, SPF/DKIM/DMARC all passing.',
-  },
-  {
-    id: '7',
-    input: 'Generate account expansion opportunity analysis',
-    method: 'llm',
-    model: 'GPT-4o',
-    confidence: 0.83,
-    duration: 5400,
-    output:
-      'Expansion opportunity detected: Customer uses 3 of 8 modules. Security and Analytics modules are next best fit.',
-  },
-  {
-    id: '8',
-    input: 'Classify incoming support ticket severity',
-    method: 'rule',
-    model: 'Classification v3',
-    confidence: 0.96,
-    duration: 45,
-    output:
-      'SEVERITY: P2. Keywords match escalation pattern. Recommended: assign to senior support within 2hrs.',
-  },
-  {
-    id: '9',
-    input: 'Synthesize market signals for fintech vertical',
-    method: 'hybrid',
-    model: 'Claude-3.5',
-    confidence: 0.74,
-    duration: 7200,
-    output:
-      'Market trending toward embedded finance. 3 target accounts show hiring signals in payments division.',
-  },
-  {
-    id: '10',
-    input: 'Error: timeout on knowledge graph traversal',
-    method: 'hybrid',
-    model: 'Graph Engine',
-    confidence: 0,
-    duration: 30000,
-    output: 'ERROR: Query exceeded 30s timeout. Graph partition may need reindexing.',
-  },
-];
+// ─── Types ───────────────────────────────────────────────────────────────
 
-function getConfidenceBadge(confidence: number) {
-  if (confidence === 0) return <Badge variant="destructive">Error</Badge>;
-  if (confidence >= 0.85)
-    return (
-      <Badge
-        style={{
-          backgroundColor: tokens.confidence.high.bg,
-          color: tokens.confidence.high.value,
-          borderColor: tokens.confidence.high.border,
-          borderWidth: 1,
-        }}
-      >
-        {(confidence * 100).toFixed(0)}%
-      </Badge>
-    );
-  if (confidence >= 0.7)
-    return (
-      <Badge
-        style={{
-          backgroundColor: tokens.confidence.medium.bg,
-          color: tokens.confidence.medium.value,
-          borderColor: tokens.confidence.medium.border,
-          borderWidth: 1,
-        }}
-      >
-        {(confidence * 100).toFixed(0)}%
-      </Badge>
-    );
-  return (
-    <Badge
-      style={{
-        backgroundColor: tokens.confidence.low.bg,
-        color: tokens.confidence.low.value,
-        borderColor: tokens.confidence.low.border,
-        borderWidth: 1,
-      }}
-    >
-      {(confidence * 100).toFixed(0)}%
-    </Badge>
-  );
+interface ReasoningHistoryEntry {
+  id: string;
+  triggerSource: string;
+  insightsGenerated: number;
+  reasoningMethod: string;
+  modelUsed: string | null;
+  durationMs: number | null;
+  hadNewInsights: boolean;
+  createdAt: string;
 }
+
+interface ReasoningStats {
+  totalSessions: number;
+  sessionsToday: number;
+  sessionsThisWeek: number;
+  avgDurationMs: number;
+  topTriggerSources: Array<{ triggerSource: string; count: number }>;
+  llmVsTemplateRatio: { llm: number; template: number };
+}
+
+// ─── Helpers ─────────────────────────────────────────────────────────────
 
 function getMethodBadge(method: string) {
   const map: Record<string, { bg: string; color: string }> = {
     llm: { bg: tokens.domain.bg, color: tokens.domain.value },
-    rule: { bg: tokens.confidence.high.bg, color: tokens.confidence.high.value },
+    template: { bg: tokens.confidence.high.bg, color: tokens.confidence.high.value },
     hybrid: { bg: tokens.gold.bgMedium, color: tokens.gold.dark },
+    unknown: { bg: tokens.confidence.medium.bg, color: tokens.confidence.medium.value },
   };
-  const style = map[method] || map.llm;
+  const style = map[method] || map.unknown;
   return (
     <Badge
       className="uppercase text-[10px] font-bold"
@@ -182,36 +66,166 @@ function getMethodBadge(method: string) {
   );
 }
 
+function getTriggerBadge(trigger: string) {
+  const map: Record<string, { bg: string; color: string; label: string }> = {
+    manual: { bg: tokens.domain.bg, color: tokens.domain.value, label: 'Manual' },
+    signal_created: {
+      bg: tokens.confidence.high.bg,
+      color: tokens.confidence.high.value,
+      label: 'Signal',
+    },
+    ingestion_complete: { bg: tokens.gold.bgMedium, color: tokens.gold.dark, label: 'Ingestion' },
+    scheduled: { bg: tokens.accent.subtle, color: tokens.accent.primary, label: 'Cron' },
+    pipeline: {
+      bg: tokens.confidence.medium.bg,
+      color: tokens.confidence.medium.value,
+      label: 'Pipeline',
+    },
+  };
+  const info = map[trigger] || {
+    bg: tokens.confidence.low.bg,
+    color: tokens.confidence.low.value,
+    label: trigger,
+  };
+  return (
+    <Badge
+      className="uppercase text-[10px] font-bold"
+      style={{ backgroundColor: info.bg, color: info.color }}
+    >
+      {info.label}
+    </Badge>
+  );
+}
+
+function formatDuration(ms: number | null): string {
+  if (ms === null || ms === undefined) return '-';
+  if (ms >= 1000) return `${(ms / 1000).toFixed(1)}s`;
+  return `${ms}ms`;
+}
+
+function formatDate(iso: string): string {
+  try {
+    return new Date(iso).toLocaleString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+  } catch {
+    return iso;
+  }
+}
+
+// ─── Component ────────────────────────────────────────────────────────────
+
 export default function IntelligenceReasoning() {
   const [methodFilter, setMethodFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [statsLoading, setStatsLoading] = useState(true);
+  const [history, setHistory] = useState<ReasoningHistoryEntry[]>([]);
+  const [stats, setStats] = useState<ReasoningStats | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredRuns = useMemo(() => {
-    return MOCK_RUNS.filter((r) => {
-      if (methodFilter !== 'all' && r.method !== methodFilter) return false;
-      if (search && !r.input.toLowerCase().includes(search.toLowerCase())) return false;
-      return true;
-    });
-  }, [methodFilter, search]);
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      // Fetch reasoning stats
+      setStatsLoading(true);
+      const statsRes = await fetchApi<ReasoningStats>('/api/reasoning/stats');
+      if (statsRes.data && !statsRes.error) {
+        setStats(statsRes.data);
+      }
+      setStatsLoading(false);
 
-  const stats = useMemo(() => {
-    const today = MOCK_RUNS.filter((r) => r.confidence > 0);
-    const errors = MOCK_RUNS.filter((r) => r.confidence === 0);
-    const models = new Set(MOCK_RUNS.map((r) => r.model));
-    const avgConf = today.reduce((a, b) => a + b.confidence, 0) / today.length;
-    return {
-      runsToday: MOCK_RUNS.length,
-      avgConfidence: (avgConf * 100).toFixed(1),
-      modelsUsed: models.size,
-      errors: errors.length,
-    };
+      // Fetch reasoning history — use all organizations via stats
+      // We get the history from the stats endpoint since reasoning is per-org
+      // For the table, we show the trigger-level data from stats
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to fetch reasoning data');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Also fetch all recent reasoning memories for the table
+  useEffect(() => {
+    async function fetchHistory() {
+      try {
+        // Fetch all organizations first, then get reasoning history for each
+        const orgsRes = await fetchApi<Array<{ id: string }>>('/api/organizations?limit=50');
+        if (!orgsRes.error && Array.isArray(orgsRes.data)) {
+          const orgIds = orgsRes.data.map((o) => o.id);
+          // Fetch history for up to 10 orgs (to avoid too many requests)
+          const batch = orgIds.slice(0, 10);
+          const allHistory: ReasoningHistoryEntry[] = [];
+          await Promise.allSettled(
+            batch.map(async (orgId) => {
+              try {
+                const res = await fetchApi<ReasoningHistoryEntry[]>(
+                  `/api/reasoning/history/${orgId}?limit=5`,
+                );
+                if (!res.error && Array.isArray(res.data)) {
+                  allHistory.push(...res.data);
+                }
+              } catch {
+                // Skip failed orgs
+              }
+            }),
+          );
+          // Sort by createdAt desc
+          allHistory.sort(
+            (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+          );
+          setHistory(allHistory);
+        }
+      } catch {
+        // History fetch is best-effort
+      }
+    }
+    fetchHistory();
+  }, []);
+
+  const filteredRuns = useMemo(() => {
+    return history.filter((r) => {
+      if (methodFilter !== 'all' && r.reasoningMethod !== methodFilter) return false;
+      if (search) {
+        const searchLower = search.toLowerCase();
+        return (
+          r.triggerSource.toLowerCase().includes(searchLower) ||
+          r.reasoningMethod.toLowerCase().includes(searchLower) ||
+          (r.modelUsed || '').toLowerCase().includes(searchLower)
+        );
+      }
+      return true;
+    });
+  }, [methodFilter, search, history]);
+
   const handleRefresh = () => {
-    setLoading(true);
-    setTimeout(() => setLoading(false), 1500);
+    fetchData();
   };
+
+  const computedStats = useMemo(() => {
+    if (stats) {
+      return {
+        runsToday: stats.sessionsToday,
+        avgDuration: formatDuration(stats.avgDurationMs),
+        modelsUsed:
+          stats.llmVsTemplateRatio.llm > 0
+            ? stats.llmVsTemplateRatio.llm + 1
+            : stats.llmVsTemplateRatio.template > 0
+              ? 1
+              : 0,
+        errors: history.filter((h) => !h.hadNewInsights && h.insightsGenerated === 0).length,
+      };
+    }
+    return { runsToday: 0, avgDuration: '-', modelsUsed: 0, errors: 0 };
+  }, [stats, history]);
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -222,7 +236,7 @@ export default function IntelligenceReasoning() {
             Intelligence Reasoning Engine
           </h1>
           <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
-            Monitor AI reasoning runs, model performance, and inference logs
+            Monitor AI reasoning sessions, trigger sources, and persistent memory recall
           </p>
         </div>
         <Button variant="outline" size="sm" onClick={handleRefresh} disabled={loading}>
@@ -235,32 +249,38 @@ export default function IntelligenceReasoning() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
-            label: 'Reasoning Runs Today',
-            value: stats.runsToday,
+            label: 'Reasoning Sessions',
+            value: computedStats.runsToday,
             icon: Brain,
             color: tokens.domain.value,
             bg: tokens.domain.bg,
           },
           {
-            label: 'Avg Confidence',
-            value: `${stats.avgConfidence}%`,
+            label: 'Avg Duration',
+            value: computedStats.avgDuration,
             icon: BarChart3,
             color: tokens.confidence.high.value,
             bg: tokens.confidence.high.bg,
           },
           {
-            label: 'Models Used',
-            value: stats.modelsUsed,
+            label: 'Total Sessions',
+            value: stats?.totalSessions ?? 0,
             icon: Activity,
             color: tokens.accent.primary,
             bg: tokens.accent.subtle,
           },
           {
-            label: 'Errors',
-            value: stats.errors,
+            label: 'Sessions This Week',
+            value: stats?.sessionsThisWeek ?? 0,
             icon: AlertTriangle,
-            color: tokens.confidence.low.value,
-            bg: tokens.confidence.low.bg,
+            color:
+              (stats?.sessionsThisWeek ?? 0 > 0)
+                ? tokens.confidence.high.value
+                : tokens.confidence.low.value,
+            bg:
+              (stats?.sessionsThisWeek ?? 0 > 0)
+                ? tokens.confidence.high.bg
+                : tokens.confidence.low.bg,
           },
         ].map((stat) => (
           <Card key={stat.label} className="gap-4 py-4">
@@ -284,6 +304,35 @@ export default function IntelligenceReasoning() {
         ))}
       </div>
 
+      {/* Trigger Source Distribution */}
+      {stats && stats.topTriggerSources.length > 0 && (
+        <Card className="gap-4 py-4">
+          <CardContent>
+            <p className="text-xs font-medium mb-3" style={{ color: tokens.text.secondary }}>
+              Trigger Sources
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {stats.topTriggerSources.map((ts) => (
+                <div key={ts.triggerSource} className="flex items-center gap-2">
+                  {getTriggerBadge(ts.triggerSource)}
+                  <span className="text-xs font-mono" style={{ color: tokens.text.secondary }}>
+                    {ts.count}
+                  </span>
+                </div>
+              ))}
+            </div>
+            <div className="flex gap-4 mt-3">
+              <span className="text-xs" style={{ color: tokens.text.muted }}>
+                LLM: {stats.llmVsTemplateRatio.llm} sessions
+              </span>
+              <span className="text-xs" style={{ color: tokens.text.muted }}>
+                Template: {stats.llmVsTemplateRatio.template} sessions
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Filters */}
       <Card className="gap-4 py-4">
         <CardContent className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
@@ -293,7 +342,7 @@ export default function IntelligenceReasoning() {
               style={{ color: tokens.text.muted }}
             />
             <Input
-              placeholder="Search reasoning inputs..."
+              placeholder="Search by trigger, method, model..."
               className="pl-9"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -306,15 +355,24 @@ export default function IntelligenceReasoning() {
             <SelectContent>
               <SelectItem value="all">All Methods</SelectItem>
               <SelectItem value="llm">LLM</SelectItem>
-              <SelectItem value="rule">Rule</SelectItem>
+              <SelectItem value="template">Template</SelectItem>
               <SelectItem value="hybrid">Hybrid</SelectItem>
             </SelectContent>
           </Select>
           <span className="text-xs" style={{ color: tokens.text.muted }}>
-            {filteredRuns.length} of {MOCK_RUNS.length} runs
+            {filteredRuns.length} of {history.length} sessions
           </span>
         </CardContent>
       </Card>
+
+      {/* Error state */}
+      {error && (
+        <Card className="gap-4 py-4 border-destructive/50">
+          <CardContent>
+            <p className="text-sm text-destructive">{error}</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Data Table */}
       <Card className="gap-0 py-0 overflow-hidden">
@@ -322,64 +380,67 @@ export default function IntelligenceReasoning() {
           <Table>
             <TableHeader>
               <TableRow style={{ backgroundColor: tokens.surface.secondary }}>
-                <TableHead className="w-[200px]">Input</TableHead>
+                <TableHead className="w-[100px]">Trigger</TableHead>
                 <TableHead className="w-[90px]">Method</TableHead>
                 <TableHead className="w-[120px]">Model</TableHead>
-                <TableHead className="w-[100px]">Confidence</TableHead>
+                <TableHead className="w-[80px]">Insights</TableHead>
                 <TableHead className="w-[90px]">Duration</TableHead>
-                <TableHead>Output Summary</TableHead>
+                <TableHead className="w-[100px]">New?</TableHead>
+                <TableHead className="w-[140px]">Time</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {loading ? (
                 <TableRow>
-                  <TableCell colSpan={6} className="h-32 text-center">
+                  <TableCell colSpan={7} className="h-32 text-center">
                     <div
                       className="flex items-center justify-center gap-2"
                       style={{ color: tokens.text.muted }}
                     >
                       <RefreshCw className="size-4 animate-spin" />
-                      Loading reasoning runs...
+                      Loading reasoning sessions...
                     </div>
                   </TableCell>
                 </TableRow>
               ) : filteredRuns.length === 0 ? (
                 <TableRow>
                   <TableCell
-                    colSpan={6}
+                    colSpan={7}
                     className="h-32 text-center"
                     style={{ color: tokens.text.muted }}
                   >
-                    No reasoning runs match the current filters.
+                    {history.length === 0
+                      ? 'No reasoning sessions recorded yet. Reasoning is triggered automatically by signal detection, data ingestion, and scheduled cron jobs.'
+                      : 'No reasoning sessions match the current filters.'}
                   </TableCell>
                 </TableRow>
               ) : (
                 filteredRuns.map((run) => (
                   <TableRow key={run.id} className="hover:bg-muted/50 transition-colors">
-                    <TableCell
-                      className="font-medium max-w-[200px] truncate"
-                      style={{ color: tokens.text.primary }}
-                    >
-                      {run.input}
-                    </TableCell>
-                    <TableCell>{getMethodBadge(run.method)}</TableCell>
+                    <TableCell>{getTriggerBadge(run.triggerSource)}</TableCell>
+                    <TableCell>{getMethodBadge(run.reasoningMethod)}</TableCell>
                     <TableCell className="text-xs" style={{ color: tokens.text.secondary }}>
-                      {run.model}
+                      {run.modelUsed || '-'}
                     </TableCell>
-                    <TableCell>{getConfidenceBadge(run.confidence)}</TableCell>
+                    <TableCell className="text-xs font-mono" style={{ color: tokens.text.primary }}>
+                      {run.insightsGenerated}
+                    </TableCell>
                     <TableCell
                       className="text-xs font-mono"
                       style={{ color: tokens.text.secondary }}
                     >
-                      {run.duration >= 1000
-                        ? `${(run.duration / 1000).toFixed(1)}s`
-                        : `${run.duration}ms`}
+                      {formatDuration(run.durationMs)}
                     </TableCell>
-                    <TableCell
-                      className="text-xs max-w-[300px] truncate"
-                      style={{ color: tokens.text.secondary }}
-                    >
-                      {run.output}
+                    <TableCell>
+                      <Badge
+                        variant={run.hadNewInsights ? 'default' : 'secondary'}
+                        className="text-[10px]"
+                      >
+                        {run.hadNewInsights ? 'Yes' : 'Dedup'}
+                      </Badge>
+                    </TableCell>
+                    <TableCell className="text-xs" style={{ color: tokens.text.muted }}>
+                      {formatDate(run.createdAt)}
                     </TableCell>
                   </TableRow>
                 ))

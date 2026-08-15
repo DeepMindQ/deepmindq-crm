@@ -95,6 +95,18 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // ── NEW: Scheduled AI Reasoning for stale organizations ──
+    let reasoningResult = { processed: 0, insightsGenerated: 0, errors: 0 };
+    try {
+      const { runScheduledReasoning } = await import('@/lib/intelligence/reasoning');
+      reasoningResult = await runScheduledReasoning();
+      logger.info('cron/job-processor: scheduled reasoning complete', reasoningResult);
+    } catch (reasoningError) {
+      logger.warn('cron/job-processor: scheduled reasoning failed (non-blocking)', {
+        error: reasoningError instanceof Error ? reasoningError.message : 'Unknown',
+      });
+    }
+
     // ── NEW: Ingestion diagnostics ──
     const [ingestionTotal, ingestionPending, ingestionCompleted, ingestionFailed] =
       await Promise.all([
@@ -138,6 +150,7 @@ export async function GET(request: NextRequest) {
       },
       entityResolution: entityResolutionStats,
       signalDetection: signalDetectionResult,
+      reasoning: reasoningResult,
     });
   } catch (error) {
     const durationMs = Date.now() - start;

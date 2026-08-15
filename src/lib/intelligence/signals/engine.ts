@@ -615,6 +615,7 @@ export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
   if (signals.length === 0) return 0;
 
   let stored = 0;
+  const newSignalOrgIds = new Set<string>();
   await db.$transaction(async (tx) => {
     for (const signal of signals) {
       // ── Dedup: Check for existing signal of same type for this org in last 7 days ──
@@ -668,6 +669,7 @@ export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
         },
       });
       stored++;
+      newSignalOrgIds.add(signal.organizationId);
 
       // ── Auto-create evidence record for detection provenance ──
       try {
@@ -736,6 +738,24 @@ export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
       }
     }
   });
+
+  // After the transaction, auto-trigger reasoning for affected organizations (fire-and-forget)
+  if (newSignalOrgIds.size > 0) {
+    for (const affectedOrgId of newSignalOrgIds) {
+      (async () => {
+        try {
+          const { onSignalCreated } = await import('@/lib/intelligence/reasoning');
+          await onSignalCreated(affectedOrgId);
+        } catch (hookError) {
+          logger.warn('[SIGNALS] Post-store reasoning hook failed (non-blocking)', {
+            orgId: affectedOrgId,
+            error: hookError instanceof Error ? hookError.message : 'Unknown',
+          });
+        }
+      })();
+    }
+  }
+
   return stored;
 }
 

@@ -486,6 +486,21 @@ async function finalizeIngestion(
     },
   });
 
+  // Auto-trigger reasoning for completed ingestions (fire-and-forget)
+  if (status === 'completed') {
+    (async () => {
+      try {
+        const { onIngestionComplete } = await import('@/lib/intelligence/reasoning');
+        await onIngestionComplete(ingestionId);
+      } catch (hookError) {
+        logger.warn('[INGESTION] Post-ingestion reasoning hook failed (non-blocking)', {
+          ingestionId,
+          error: hookError instanceof Error ? hookError.message : 'Unknown',
+        });
+      }
+    })();
+  }
+
   logger.info('[INGEST] Finalized', { ingestionId, status, durationMs });
 }
 

@@ -148,6 +148,7 @@ model Organization {
   relationships   Relationship[]       @relation("OrgSourceRelationships")
   relationships2  Relationship[]       @relation("OrgTargetRelationships")
   signalRules      SignalRule[]
+  reasoningMemories ReasoningMemory[]
 
   @@index([domain])
   @@index([trackingStatus])
@@ -516,6 +517,45 @@ model AuditLog {
   @@index([userId])
   @@index([action])
   @@index([createdAt])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Reasoning Memory — Persistent reasoning history & context recall
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// ReasoningMemory — Stores reasoning sessions, decisions, and recall context.
+/// Survives server restarts. Enables "memory" for the AI reasoning engine.
+model ReasoningMemory {
+  id              String   @id @default(cuid())
+  organizationId  String
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  /// The reasoning trigger: 'manual' | 'signal_created' | 'ingestion_complete' | 'scheduled' | 'pipeline'
+  triggerSource   String
+  /// Snapshot of signals/insights context at reasoning time (JSON)
+  contextSnapshot String   @default("{}")
+  /// Number of insights generated in this session
+  insightsGenerated Int    @default(0)
+  /// Reasoning method used: 'llm' | 'template' | 'hybrid'
+  reasoningMethod String   @default("template")
+  /// Model used (null for template reasoning)
+  modelUsed       String?
+  /// LLM prompt version hash for reproducibility
+  promptVersion   String?
+  /// Duration of the reasoning session in ms
+  durationMs      Int?
+  /// Whether the session produced new insights (vs dedup updates)
+  hadNewInsights  Boolean  @default(false)
+  /// Error message if reasoning failed
+  errorMessage    String?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([organizationId])
+  @@index([triggerSource])
+  @@index([createdAt])
+  @@index([organizationId, createdAt])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

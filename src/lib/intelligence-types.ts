@@ -11,18 +11,20 @@ export type TrustLevel = 'verified' | 'corroborated' | 'unverified' | 'untrusted
 /** Signal priority */
 export type PriorityLevel = 'critical' | 'high' | 'medium' | 'low' | 'info';
 
-/** Type of intelligence signal detected */
+/** Type of intelligence signal detected — aligned with Prisma SignalType enum */
 export type SignalType =
-  | 'hiring_surge'
-  | 'funding_round'
-  | 'tech_stack_change'
-  | 'market_expansion'
+  | 'hiring_change'
   | 'leadership_change'
+  | 'technology_change'
+  | 'funding_event'
+  | 'market_expansion'
   | 'partnership'
-  | 'acquisition'
+  | 'competitor_move'
+  | 'financial_indicator'
   | 'product_launch'
-  | 'regulatory_filing'
-  | 'custom';
+  | 'regulatory'
+  | 'customer_signal'
+  | 'social_mention';
 
 /** Status of a recommendation */
 export type RecommendationStatus = 'pending' | 'accepted' | 'dismissed' | 'expired';

@@ -67,8 +67,8 @@ export default function SignupPage() {
         return;
       }
 
-      // Mock sign-in: redirect to dashboard after successful registration
-      router.push('/');
+      // Registration successful — navigate to login for OTP verification
+      router.push('/login');
       router.refresh();
     } catch {
       setError('An unexpected error occurred. Please try again.');

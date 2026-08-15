@@ -240,6 +240,11 @@ export default function IntelligenceHub() {
   }, []);
   const criticalSignalCount = signals.filter((s) => s.severity === 'critical').length;
 
+  // ── Empty state detection ──
+  const isEmptyUser = overview
+    ? overview.organizations === 0 && overview.signals === 0 && overview.insights === 0
+    : false;
+
   const handleSignalClick = useCallback(
     (signal: SignalFeedItem) => {
       if (signal.organizationId) {
@@ -474,6 +479,42 @@ export default function IntelligenceHub() {
             </Button>
           </div>
 
+          {/* ── Empty State CTA (shown when user has zero data) ── */}
+          {isEmptyUser && (
+            <div
+              className="rounded-xl p-8 text-center"
+              style={{
+                background:
+                  'linear-gradient(135deg, rgba(59, 130, 246, 0.05), rgba(139, 92, 246, 0.03))',
+                border: '1px dashed rgba(59, 130, 246, 0.25)',
+              }}
+            >
+              <div
+                className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full"
+                style={{ background: 'rgba(59, 130, 246, 0.1)' }}
+              >
+                <Upload className="h-6 w-6" style={{ color: C.accent }} />
+              </div>
+              <h3 className="text-lg font-semibold mb-2" style={{ color: C.textPrimary }}>
+                Welcome to Intelligence OS
+              </h3>
+              <p className="text-sm mb-6 max-w-md mx-auto" style={{ color: C.textSecondary }}>
+                Your intelligence dashboard is ready. Upload your first data file to start detecting
+                signals, generating insights, and building your knowledge graph.
+              </p>
+              <Button
+                onClick={() => handleQuickAction('import')}
+                className="gap-2 text-sm font-medium rounded-lg h-10 px-5"
+                style={{
+                  background: C.accent,
+                  color: '#ffffff',
+                }}
+              >
+                <Upload className="h-4 w-4" /> Upload Your First File
+              </Button>
+            </div>
+          )}
+
           {/* Main Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
             {/* Left Column */}
@@ -520,10 +561,20 @@ export default function IntelligenceHub() {
                 >
                   {signalsLoading ? (
                     <SignalFeedSkeleton />
-                  ) : (
+                  ) : signals.length > 0 ? (
                     signals.map((signal) => (
                       <SignalFeedCard key={signal.id} signal={signal} onClick={handleSignalClick} />
                     ))
+                  ) : (
+                    <div className="py-12 text-center">
+                      <Radio
+                        className="h-8 w-8 mx-auto mb-3"
+                        style={{ color: C.textMuted, opacity: 0.4 }}
+                      />
+                      <p className="text-sm" style={{ color: C.textMuted }}>
+                        No signals yet. Upload data to start detecting intelligence signals.
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
@@ -542,22 +593,34 @@ export default function IntelligenceHub() {
                   style={{ scrollbarWidth: 'thin', scrollbarColor: `${C.border} transparent` }}
                 >
                   <div>
-                    {timeline.map((entry, idx) => (
-                      <div key={entry.id}>
-                        {idx > 0 && (
-                          <div className="flex items-center gap-3">
-                            <div className="w-7 flex justify-center">
-                              <div className="w-px h-2" style={{ background: C.border }} />
+                    {timeline.length > 0 ? (
+                      timeline.map((entry, idx) => (
+                        <div key={entry.id}>
+                          {idx > 0 && (
+                            <div className="flex items-center gap-3">
+                              <div className="w-7 flex justify-center">
+                                <div className="w-px h-2" style={{ background: C.border }} />
+                              </div>
+                              <div className="flex-1">
+                                <div className="h-px" style={{ background: C.border }} />
+                              </div>
+                              <div className="w-16" />
                             </div>
-                            <div className="flex-1">
-                              <div className="h-px" style={{ background: C.border }} />
-                            </div>
-                            <div className="w-16" />
-                          </div>
-                        )}
-                        <TimelineItem entry={entry} />
+                          )}
+                          <TimelineItem entry={entry} />
+                        </div>
+                      ))
+                    ) : (
+                      <div className="py-10 text-center">
+                        <Activity
+                          className="h-8 w-8 mx-auto mb-3"
+                          style={{ color: C.textMuted, opacity: 0.4 }}
+                        />
+                        <p className="text-sm" style={{ color: C.textMuted }}>
+                          No activity yet. Start by importing your data.
+                        </p>
                       </div>
-                    ))}
+                    )}
                   </div>
                 </div>
               </div>
@@ -587,76 +650,88 @@ export default function IntelligenceHub() {
                   className="space-y-3 max-h-[400px] overflow-y-auto pr-1"
                   style={{ scrollbarWidth: 'thin', scrollbarColor: `${C.border} transparent` }}
                 >
-                  {topOrgs.map((org, idx) => (
-                    <div
-                      key={org.id}
-                      className="flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-150 group"
-                      style={{ border: `1px solid transparent` }}
-                      onClick={() => handleOrgClick(org)}
-                      onMouseEnter={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = C.bgCardHover;
-                        (e.currentTarget as HTMLElement).style.borderColor = C.border;
-                      }}
-                      onMouseLeave={(e) => {
-                        (e.currentTarget as HTMLElement).style.background = 'transparent';
-                        (e.currentTarget as HTMLElement).style.borderColor = 'transparent';
-                      }}
-                    >
+                  {topOrgs.length > 0 ? (
+                    topOrgs.map((org, idx) => (
                       <div
-                        className="flex items-center justify-center h-7 w-7 rounded-lg text-xs font-bold shrink-0"
-                        style={{
-                          background: idx === 0 ? C.goldGhost : C.accentGhost,
-                          color: idx === 0 ? C.gold : C.textMuted,
+                        key={org.id}
+                        className="flex items-center gap-4 p-3 rounded-lg cursor-pointer transition-all duration-150 group"
+                        style={{ border: `1px solid transparent` }}
+                        onClick={() => handleOrgClick(org)}
+                        onMouseEnter={(e) => {
+                          (e.currentTarget as HTMLElement).style.background = C.bgCardHover;
+                          (e.currentTarget as HTMLElement).style.borderColor = C.border;
+                        }}
+                        onMouseLeave={(e) => {
+                          (e.currentTarget as HTMLElement).style.background = 'transparent';
+                          (e.currentTarget as HTMLElement).style.borderColor = 'transparent';
                         }}
                       >
-                        {idx + 1}
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className="text-sm font-medium truncate"
-                            style={{ color: C.textPrimary }}
-                          >
-                            {org.name}
-                          </span>
-                          <ChevronRight
-                            className="h-3.5 w-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                            style={{ color: C.textMuted }}
-                          />
+                        <div
+                          className="flex items-center justify-center h-7 w-7 rounded-lg text-xs font-bold shrink-0"
+                          style={{
+                            background: idx === 0 ? C.goldGhost : C.accentGhost,
+                            color: idx === 0 ? C.gold : C.textMuted,
+                          }}
+                        >
+                          {idx + 1}
                         </div>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[11px]" style={{ color: C.textMuted }}>
-                            {org.industry}
-                          </span>
-                          <span className="text-[11px]" style={{ color: C.textMuted }}>
-                            ·
-                          </span>
-                          <span className="text-[11px]" style={{ color: C.textMuted }}>
-                            {org.signalCount} signals
-                          </span>
-                          {org.trend !== 'neutral' && (
-                            <>
-                              <span className="text-[11px]" style={{ color: C.textMuted }}>
-                                ·
-                              </span>
-                              <span
-                                className="flex items-center gap-0.5 text-[11px] font-medium"
-                                style={{ color: org.trend === 'up' ? C.success : C.danger }}
-                              >
-                                {org.trend === 'up' ? (
-                                  <ChevronRight className="h-3 w-3" />
-                                ) : (
-                                  <ChevronRight className="h-3 w-3 rotate-90" />
-                                )}
-                                {Math.abs(org.trendValue)}%
-                              </span>
-                            </>
-                          )}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2">
+                            <span
+                              className="text-sm font-medium truncate"
+                              style={{ color: C.textPrimary }}
+                            >
+                              {org.name}
+                            </span>
+                            <ChevronRight
+                              className="h-3.5 w-3.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                              style={{ color: C.textMuted }}
+                            />
+                          </div>
+                          <div className="flex items-center gap-2 mt-0.5">
+                            <span className="text-[11px]" style={{ color: C.textMuted }}>
+                              {org.industry}
+                            </span>
+                            <span className="text-[11px]" style={{ color: C.textMuted }}>
+                              ·
+                            </span>
+                            <span className="text-[11px]" style={{ color: C.textMuted }}>
+                              {org.signalCount} signals
+                            </span>
+                            {org.trend !== 'neutral' && (
+                              <>
+                                <span className="text-[11px]" style={{ color: C.textMuted }}>
+                                  ·
+                                </span>
+                                <span
+                                  className="flex items-center gap-0.5 text-[11px] font-medium"
+                                  style={{ color: org.trend === 'up' ? C.success : C.danger }}
+                                >
+                                  {org.trend === 'up' ? (
+                                    <ChevronRight className="h-3 w-3" />
+                                  ) : (
+                                    <ChevronRight className="h-3 w-3 rotate-90" />
+                                  )}
+                                  {Math.abs(org.trendValue)}%
+                                </span>
+                              </>
+                            )}
+                          </div>
                         </div>
+                        <CircularProgress value={org.intelligenceScore} size={48} strokeWidth={4} />
                       </div>
-                      <CircularProgress value={org.intelligenceScore} size={48} strokeWidth={4} />
+                    ))
+                  ) : (
+                    <div className="py-10 text-center">
+                      <Building2
+                        className="h-8 w-8 mx-auto mb-3"
+                        style={{ color: C.textMuted, opacity: 0.4 }}
+                      />
+                      <p className="text-sm" style={{ color: C.textMuted }}>
+                        No organizations yet. Import data to populate your intelligence workspace.
+                      </p>
                     </div>
-                  ))}
+                  )}
                 </div>
               </div>
 

@@ -304,12 +304,12 @@ const _fallbackChartData = (() => {
   }));
 })();
 
-// ── API-backed fetchers (fallback to mock on error) ──
+// ── API-backed fetchers (return empty arrays on error — no fake data) ──
 
 export async function fetchSignals(limit = 10): Promise<SignalFeedItem[]> {
   try {
     const res = await fetch('/api/signals?limit=' + limit, { credentials: 'include' });
-    if (!res.ok) return _fallbackSignals;
+    if (!res.ok) return [];
     const json = await res.json();
     const data: SignalFeedItem[] = (json.data || []).map((s: Record<string, unknown>) => ({
       id: s.id,
@@ -322,19 +322,19 @@ export async function fetchSignals(limit = 10): Promise<SignalFeedItem[]> {
       organizationName: (s.organization as Record<string, string> | null)?.name,
       organizationId: (s.organizationId as string) || undefined,
     }));
-    return data.length > 0 ? data : _fallbackSignals;
+    return data;
   } catch {
-    return _fallbackSignals;
+    return [];
   }
 }
 
 export async function fetchTopOrgs(limit = 5): Promise<TopOrg[]> {
   try {
     const res = await fetch('/api/organizations?limit=' + limit, { credentials: 'include' });
-    if (!res.ok) return _fallbackTopOrgs;
+    if (!res.ok) return [];
     const json = await res.json();
     const orgs = json.data || [];
-    if (!Array.isArray(orgs) || orgs.length === 0) return _fallbackTopOrgs;
+    if (!Array.isArray(orgs) || orgs.length === 0) return [];
     // Sort by intelligenceScore descending
     const sorted = [...orgs]
       .sort(
@@ -352,17 +352,17 @@ export async function fetchTopOrgs(limit = 5): Promise<TopOrg[]> {
       trendValue: 0,
     }));
   } catch {
-    return _fallbackTopOrgs;
+    return [];
   }
 }
 
 export async function fetchTimeline(limit = 10): Promise<TimelineEntry[]> {
   try {
     const res = await fetch('/api/signals?limit=' + limit, { credentials: 'include' });
-    if (!res.ok) return _fallbackTimeline;
+    if (!res.ok) return [];
     const json = await res.json();
     const signals = json.data || [];
-    if (!Array.isArray(signals) || signals.length === 0) return _fallbackTimeline;
+    if (!Array.isArray(signals) || signals.length === 0) return [];
     return signals.map((s: Record<string, unknown>, i: number) => ({
       id: `t-${s.id}`,
       type: 'signal' as const,
@@ -371,7 +371,7 @@ export async function fetchTimeline(limit = 10): Promise<TimelineEntry[]> {
       timestamp: new Date((s.detectedAt as string) || Date.now() - i * 1000 * 60 * 30),
     }));
   } catch {
-    return _fallbackTimeline;
+    return [];
   }
 }
 
@@ -380,10 +380,10 @@ export async function fetchChartData(): Promise<
 > {
   try {
     const res = await fetch('/api/signals/stats?period=7d', { credentials: 'include' });
-    if (!res.ok) return _fallbackChartData;
+    if (!res.ok) return [];
     const json = await res.json();
     const dailyTrend = json.data?.dailyTrend;
-    if (!Array.isArray(dailyTrend) || dailyTrend.length === 0) return _fallbackChartData;
+    if (!Array.isArray(dailyTrend) || dailyTrend.length === 0) return [];
     const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     return dailyTrend.map((d: { date: string; count: number }) => {
       const date = new Date(d.date);
@@ -394,36 +394,36 @@ export async function fetchChartData(): Promise<
       };
     });
   } catch {
-    return _fallbackChartData;
+    return [];
   }
 }
 
-// ── Synchronous mock functions (kept for backward compat) ──
+// ── Synchronous empty-data helpers (no fake data — real empty state) ──
 
 export function getMockSignals(): SignalFeedItem[] {
-  return _fallbackSignals;
+  return [];
 }
 
 export function getMockTopOrgs(): TopOrg[] {
-  return _fallbackTopOrgs;
+  return [];
 }
 
 export function getMockTimeline(): TimelineEntry[] {
-  return _fallbackTimeline;
+  return [];
 }
 
 export function getMockChartData() {
-  return _fallbackChartData;
+  return [];
 }
 
 export function getMockHealth(): HealthStatus {
   return {
-    aiProvider: 'operational',
+    aiProvider: 'unknown',
     database: 'operational',
-    lastPipelineRun: new Date(Date.now() - 1000 * 60 * 32).toISOString(),
-    pipelineStatus: 'completed',
-    overallStatus: 'healthy',
-    uptime: 99.97,
+    lastPipelineRun: '',
+    pipelineStatus: 'idle',
+    overallStatus: 'initializing',
+    uptime: 0,
     errors: 0,
   };
 }

@@ -14,7 +14,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { CheckCircle2, User, Sparkles, Rocket } from 'lucide-react';
+import { CheckCircle2, User, Sparkles, Rocket, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
 
 /* ═══════════════════════════════════════════════════
@@ -126,8 +126,23 @@ export function UserOnboardingWizard() {
   const goBack = () => {
     if (step > 0) setStep(step - 1);
   };
-  const goToDashboard = () => {
-    setActiveView('dashboard');
+  const [saving, setSaving] = useState(false);
+
+  const goToDashboard = async () => {
+    setSaving(true);
+    try {
+      await fetch('/api/onboarding/preferences', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(formData),
+      });
+    } catch {
+      // Non-blocking — continue to dashboard even if save fails
+    } finally {
+      setSaving(false);
+      setActiveView('dashboard');
+    }
   };
 
   const steps = [
@@ -207,6 +222,7 @@ export function UserOnboardingWizard() {
               formData={formData}
               enabledSignals={enabledSignals}
               onGoToDashboard={goToDashboard}
+              saving={saving}
             />
           )}
         </motion.div>
@@ -441,10 +457,12 @@ function StepComplete({
   formData,
   enabledSignals,
   onGoToDashboard,
+  saving,
 }: {
   formData: FormData;
   enabledSignals: typeof INTELLIGENCE_SIGNALS;
   onGoToDashboard: () => void;
+  saving: boolean;
 }) {
   return (
     <div
@@ -580,10 +598,15 @@ function StepComplete({
       >
         <Button
           onClick={onGoToDashboard}
-          className="h-12 px-8 rounded-lg bg-[#3B82F6] hover:bg-[#2563EB] text-white font-semibold transition-all shadow-[0_0_24px_rgba(59,130,246,0.3)] hover:shadow-[0_0_32px_rgba(59,130,246,0.4)]"
+          disabled={saving}
+          className="h-12 px-8 rounded-lg bg-[#3B82F6] hover:bg-[#2563EB] text-white font-semibold transition-all shadow-[0_0_24px_rgba(59,130,246,0.3)] hover:shadow-[0_0_32px_rgba(59,130,246,0.4)] disabled:opacity-60"
         >
-          <Rocket className="w-4 h-4 mr-2" />
-          Go to Dashboard
+          {saving ? (
+            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Rocket className="w-4 h-4 mr-2" />
+          )}
+          {saving ? 'Saving...' : 'Go to Dashboard'}
         </Button>
       </motion.div>
     </div>

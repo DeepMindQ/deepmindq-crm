@@ -147,6 +147,20 @@ export async function POST(request: NextRequest) {
       `[Ingestion] File uploaded: ${safeName} (${fileType}, ${file.size} bytes) — id=${ingestion.id}`,
     );
 
+    // Log ingestion upload event for notification bell
+    await db.auditLog.create({
+      data: {
+        userId: session?.id ?? null,
+        action: 'ingestion_upload',
+        resource: 'data_ingestion',
+        details: JSON.stringify({
+          ingestionId: ingestion.id,
+          fileName: safeName,
+          fileSize: file.size,
+        }),
+      },
+    });
+
     // ── Fire-and-forget: trigger ingestion engine ──
     // This processes the file in the background without blocking the response.
     // The cron job-processor picks up any 'pending' jobs that fail here.

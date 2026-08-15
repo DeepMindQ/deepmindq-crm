@@ -16,6 +16,13 @@ const ACTION_LABELS: Record<string, string> = {
   export_data: 'Exported data',
   update_settings: 'Updated settings',
   dismiss_signal: 'Dismissed signal',
+  onboarding_completed: 'Completed onboarding setup',
+  ingestion_upload: 'Uploaded data file',
+  ingestion_completed: 'Data ingestion completed',
+  ingestion_failed: 'Data ingestion failed',
+  pipeline_run: 'Intelligence pipeline executed',
+  signal_detected: 'New signal detected',
+  insight_generated: 'AI insight generated',
 };
 
 const ACTION_ICONS: Record<string, string> = {
@@ -27,6 +34,13 @@ const ACTION_ICONS: Record<string, string> = {
   export_data: 'download',
   update_settings: 'settings',
   dismiss_signal: 'x_circle',
+  onboarding_completed: 'check_circle',
+  ingestion_upload: 'upload',
+  ingestion_completed: 'database',
+  ingestion_failed: 'alert_circle',
+  pipeline_run: 'bolt',
+  signal_detected: 'radio',
+  insight_generated: 'brain',
 };
 
 export async function GET(request: NextRequest) {

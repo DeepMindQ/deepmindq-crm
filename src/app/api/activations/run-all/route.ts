@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { checkApiAuth } from '@/lib/api-auth';
+import { logger } from '@/lib/logger';
 
 export async function POST(request: NextRequest) {
   try {
@@ -17,7 +18,7 @@ export async function POST(request: NextRequest) {
       activatedCount: result.count,
     });
   } catch (error) {
-    console.error('[activations/run-all] Error:', error);
+    logger.error('[activations/run-all] Error:', { error });
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

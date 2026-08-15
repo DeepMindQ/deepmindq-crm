@@ -36,6 +36,21 @@ export interface ApiClientConfig {
 //  Re-exported domain types (from @/lib/types)
 // ═══════════════════════════════════════════════════════════════════════
 
+import type {
+  Company,
+  Contact,
+  Opportunity,
+  User,
+  DashboardStats,
+  DataQualityReport,
+  CompanyStatus,
+  ContactStatus,
+  OpportunityStatus,
+  EmailHealthStatus,
+  RoleBucket,
+  RevenueForecast,
+} from './types';
+
 export type {
   Company,
   Contact,
@@ -48,6 +63,7 @@ export type {
   OpportunityStatus,
   EmailHealthStatus,
   RoleBucket,
+  RevenueForecast,
 } from './types';
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -242,6 +258,45 @@ export interface PipelineStage {
   color: string;
 }
 
+/** Signal list item as returned by the signals list endpoint. */
+export interface SignalListItem {
+  id: string;
+  signalType: string;
+  severity: string;
+  status?: string;
+  title: string;
+  description: string;
+  detectedAt: string;
+  companyId?: string;
+  confidenceScore: number | null;
+  meaningCategory?: string;
+  evidence?: unknown[];
+}
+
+/** Recommendation list item as returned by the recommendations endpoint. */
+export interface RecommendationListItem {
+  id: string;
+  companyId: string;
+  title: string;
+  description: string;
+  action: string;
+  priority: string;
+  opportunityScore: number;
+  confidenceScore: number;
+  signalCount: number;
+  status?: string;
+  explanation?: string;
+  createdAt?: string;
+}
+
+/** Scoring configuration shape. */
+export interface ScoringConfig {
+  weights: Record<string, number>;
+  thresholds: Record<string, number>;
+  recencyDecayDays?: number;
+  [key: string]: unknown;
+}
+
 /** Full pipeline response. */
 export interface PipelineData {
   stages: PipelineStage[];
@@ -420,12 +475,12 @@ export class DeepMindQClient {
   }
 
   /** Get a single contact by ID. */
-  async getContact(id: string): Promise<any> {
+  async getContact(id: string): Promise<{ contact: Contact }> {
     return this.request(`/contacts/${id}`);
   }
 
   /** Create a new contact. */
-  async createContact(data: CreateContactInput): Promise<{ contact: any }> {
+  async createContact(data: CreateContactInput): Promise<{ contact: Contact }> {
     return this.request('/contacts', { method: 'POST', body: data });
   }
 
@@ -433,7 +488,7 @@ export class DeepMindQClient {
 
   /** List sales opportunities with optional filtering. */
   async listOpportunities(params?: ListOpportunitiesParams): Promise<{
-    data: any[];
+    data: Opportunity[];
     pagination: PaginationMeta;
   }> {
     const qp: Record<string, string | number | undefined> = {};
@@ -445,12 +500,12 @@ export class DeepMindQClient {
   }
 
   /** Get a single opportunity by ID. */
-  async getOpportunity(id: string): Promise<{ data: any }> {
+  async getOpportunity(id: string): Promise<{ data: Opportunity }> {
     return this.request(`/opportunities/${id}`);
   }
 
   /** Create a new sales opportunity. */
-  async createOpportunity(data: CreateOpportunityInput): Promise<{ data: any }> {
+  async createOpportunity(data: CreateOpportunityInput): Promise<{ data: Opportunity }> {
     return this.request('/opportunities', { method: 'POST', body: data });
   }
 
@@ -461,7 +516,7 @@ export class DeepMindQClient {
    * Filter by company, type, severity, and status.
    */
   async listSignals(params?: ListSignalsParams): Promise<{
-    signals: any[];
+    signals: SignalListItem[];
     evidenceCounts: Record<string, number>;
     categories: string[];
   }> {
@@ -476,7 +531,7 @@ export class DeepMindQClient {
   }
 
   /** Get signal details including evidence. */
-  async getSignal(id: string): Promise<any> {
+  async getSignal(id: string): Promise<SignalListItem> {
     return this.request(`/signals/${id}`);
   }
 
@@ -487,7 +542,7 @@ export class DeepMindQClient {
    * Supports tier filtering, minimum score threshold, and explainability.
    */
   async listRecommendations(params?: ListRecommendationsParams): Promise<{
-    recommendations: any[];
+    recommendations: RecommendationListItem[];
     meta?: { total: number; returned: number };
   }> {
     const qp: Record<string, string | number | boolean | undefined> = {};
@@ -502,7 +557,7 @@ export class DeepMindQClient {
   }
 
   /** Get recommendation details. */
-  async getRecommendation(id: string): Promise<any> {
+  async getRecommendation(id: string): Promise<RecommendationListItem> {
     return this.request(`/recommendations/${id}`);
   }
 
@@ -519,26 +574,26 @@ export class DeepMindQClient {
   }
 
   /** Get revenue forecast with conservative, projected, and optimistic scenarios. */
-  async getForecast(): Promise<any> {
+  async getForecast(): Promise<RevenueForecast> {
     return this.request('/pipeline/forecast');
   }
 
   // ── Dashboard ──────────────────────────────────────────────────
 
   /** Get dashboard statistics and KPIs. */
-  async getDashboard(): Promise<any> {
+  async getDashboard(): Promise<DashboardStats> {
     return this.request('/dashboard');
   }
 
   // ── Scoring Configuration ──────────────────────────────────────
 
   /** Get the current scoring configuration (weights, thresholds, recency). */
-  async getScoringConfig(): Promise<ApiResponse<any>> {
+  async getScoringConfig(): Promise<ApiResponse<ScoringConfig>> {
     return this.request('/scoring-config');
   }
 
   /** Update scoring configuration. Validates weight sums and threshold ordering. */
-  async updateScoringConfig(config: Record<string, unknown>): Promise<ApiResponse<any>> {
+  async updateScoringConfig(config: Record<string, unknown>): Promise<ApiResponse<ScoringConfig>> {
     return this.request('/scoring-config', { method: 'PUT', body: config });
   }
 
@@ -697,25 +752,35 @@ export class DeepMindQClient {
       // Handle 401 — invoke callback before throwing
       if (res.status === 401) {
         this.onUnauthorized?.();
-        const body = await res.json().catch(() => ({}));
+        const body = await res.json().catch((): Record<string, unknown> => ({}));
+        const errorRecord = body as Record<string, unknown>;
         throw new ApiError(
           401,
           'UNAUTHORIZED',
-          (body as any)?.error || 'Authentication required',
-          (body as any)?.details,
+          typeof errorRecord.error === 'string' ? errorRecord.error : 'Authentication required',
+          typeof errorRecord.details === 'object' && errorRecord.details !== null
+            ? (errorRecord.details as Record<string, unknown>)
+            : undefined,
         );
       }
 
       // Parse response body
-      const data = await res.json().catch(() => ({ error: 'Invalid JSON response' }));
+      const data = await res
+        .json()
+        .catch((): Record<string, unknown> => ({ error: 'Invalid JSON response' }));
 
       // Non-OK responses
       if (!res.ok) {
+        const errRecord = data as Record<string, unknown>;
         throw new ApiError(
           res.status,
-          (data as any)?.code || 'API_ERROR',
-          (data as any)?.error || `Request failed with status ${res.status}`,
-          (data as any)?.details,
+          typeof errRecord.code === 'string' ? errRecord.code : 'API_ERROR',
+          typeof errRecord.error === 'string'
+            ? errRecord.error
+            : `Request failed with status ${res.status}`,
+          typeof errRecord.details === 'object' && errRecord.details !== null
+            ? (errRecord.details as Record<string, unknown>)
+            : undefined,
         );
       }
 

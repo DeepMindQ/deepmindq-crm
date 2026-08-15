@@ -249,36 +249,40 @@ function parseRevenue(revenue: string): number | null {
  * Store detected signals in the database.
  */
 export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
+  if (signals.length === 0) return 0;
+
   let stored = 0;
-  for (const signal of signals) {
-    await db.signal.create({
-      data: {
-        organizationId: signal.organizationId,
-        signalType: signal.signalType as
-          | 'hiring_change'
-          | 'leadership_change'
-          | 'technology_change'
-          | 'funding_event'
-          | 'market_expansion'
-          | 'partnership'
-          | 'competitor_move'
-          | 'financial_indicator'
-          | 'product_launch'
-          | 'regulatory'
-          | 'customer_signal'
-          | 'social_mention',
-        severity: signal.severity as 'critical' | 'high' | 'medium' | 'low',
-        title: signal.title,
-        description: signal.description,
-        confidenceScore: signal.confidenceScore,
-        impactScore: signal.impactScore,
-        source: 'signal_detected',
-        sourceLabel: signal.sourceLabel,
-        sourceUrl: signal.sourceUrl,
-      },
-    });
-    stored++;
-  }
+  await db.$transaction(async (tx) => {
+    for (const signal of signals) {
+      await tx.signal.create({
+        data: {
+          organizationId: signal.organizationId,
+          signalType: signal.signalType as
+            | 'hiring_change'
+            | 'leadership_change'
+            | 'technology_change'
+            | 'funding_event'
+            | 'market_expansion'
+            | 'partnership'
+            | 'competitor_move'
+            | 'financial_indicator'
+            | 'product_launch'
+            | 'regulatory'
+            | 'customer_signal'
+            | 'social_mention',
+          severity: signal.severity as 'critical' | 'high' | 'medium' | 'low',
+          title: signal.title,
+          description: signal.description,
+          confidenceScore: signal.confidenceScore,
+          impactScore: signal.impactScore,
+          source: 'signal_detected',
+          sourceLabel: signal.sourceLabel,
+          sourceUrl: signal.sourceUrl,
+        },
+      });
+      stored++;
+    }
+  });
   return stored;
 }
 

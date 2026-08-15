@@ -54,6 +54,7 @@ export async function countTokens(text: string): Promise<number> {
     const tiktoken = await import('tiktoken');
     // Dynamic import may fail if tiktoken isn't installed or doesn't bundle for this env
     if (typeof tiktoken.encoding_for_model === 'function') {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const encoder = tiktoken.encoding_for_model('gpt-4o' as any);
       return encoder.encode(text).length;
     }

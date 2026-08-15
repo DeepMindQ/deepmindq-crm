@@ -24,9 +24,20 @@ export function isApiError(value: unknown): value is ApiErrorResponse {
 }
 
 // Callable form used by api-error-handler.ts — returns Response directly
-export function apiErrorCode(code: string, message: string, status: number): Response {
+export function apiErrorCode(
+  code: string,
+  message: string,
+  status: number,
+  correlationId?: string,
+): Response {
   return new Response(
-    JSON.stringify({ success: false, error: message, code, timestamp: new Date().toISOString() }),
+    JSON.stringify({
+      success: false,
+      error: message,
+      code,
+      timestamp: new Date().toISOString(),
+      ...(correlationId ? { correlationId } : {}),
+    }),
     { status, headers: { 'Content-Type': 'application/json' } },
   );
 }
@@ -36,5 +47,18 @@ export function apiError(message: string, status: number): Response {
   return new Response(
     JSON.stringify({ success: false, error: message, timestamp: new Date().toISOString() }),
     { status, headers: { 'Content-Type': 'application/json' } },
+  );
+}
+
+// Standard success envelope for consistent API responses
+export function apiSuccess<T>(data: T, meta?: Record<string, unknown>): Response {
+  return new Response(
+    JSON.stringify({
+      success: true,
+      data,
+      timestamp: new Date().toISOString(),
+      ...(meta ? { meta } : {}),
+    }),
+    { status: 200, headers: { 'Content-Type': 'application/json' } },
   );
 }

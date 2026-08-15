@@ -160,7 +160,7 @@ async function redisRateLimit(
 
   try {
     // Atomic INCR + PSETEX via Lua script (single round-trip)
-    const count = await (client as any).eval(RATE_LIMIT_LUA, 1, fullKey, windowMs);
+    const count = (await client.eval(RATE_LIMIT_LUA, 1, fullKey, windowMs)) as number;
 
     return {
       success: count <= limit,

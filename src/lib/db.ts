@@ -58,3 +58,19 @@ const prisma = createClient();
 if (!globalForPrisma.prisma) globalForPrisma.prisma = prisma;
 
 export const db = globalForPrisma.prisma;
+
+// Async initialization for SQLite WAL mode
+async function initDb() {
+  if (process.env.DATABASE_URL?.startsWith('file:')) {
+    try {
+      await db.$executeRaw`PRAGMA journal_mode=WAL`;
+      await db.$executeRaw`PRAGMA busy_timeout=5000`;
+      logger.info('[DB] SQLite WAL mode enabled');
+    } catch (e) {
+      logger.warn('[DB] Failed to set WAL mode', {
+        error: e instanceof Error ? e.message : String(e),
+      });
+    }
+  }
+}
+initDb().catch(() => {});

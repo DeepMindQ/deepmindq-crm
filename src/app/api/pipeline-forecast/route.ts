@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { checkApiAuth } from '@/lib/api-auth';
+import { logger } from '@/lib/logger';
 
 export async function GET(request: NextRequest) {
   try {
@@ -61,7 +62,7 @@ export async function GET(request: NextRequest) {
       projectedGrowth,
     });
   } catch (error) {
-    console.error('[pipeline-forecast] Error:', error);
+    logger.error('[pipeline-forecast] Error:', { error });
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

@@ -167,6 +167,7 @@ export default function IntelligenceHub() {
       };
       const cfg = actionMap[action];
       if (cfg) {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setActiveView(cfg.view as any);
         toast.success(cfg.message);
       }

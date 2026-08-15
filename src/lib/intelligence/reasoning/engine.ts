@@ -377,27 +377,31 @@ function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
  * Store reasoning results as Insights in the database.
  */
 export async function storeInsights(orgId: string, results: ReasoningResult[]): Promise<number> {
+  if (results.length === 0) return 0;
+
   let stored = 0;
-  for (const result of results) {
-    await db.insight.create({
-      data: {
-        organizationId: orgId,
-        category: result.insight.category,
-        title: result.insight.title,
-        narrative: result.insight.narrative,
-        recommendation: result.insight.recommendation,
-        suggestedMessage: result.insight.suggestedMessage,
-        confidence: result.insight.confidence,
-        confidenceScore: result.insight.confidenceScore,
-        evidenceIds: Array.isArray(result.insight.evidenceIds)
-          ? JSON.stringify(result.insight.evidenceIds)
-          : result.insight.evidenceIds || '[]',
-        reasoningMethod: result.insight.reasoningMethod,
-        status: 'active',
-      },
-    });
-    stored++;
-  }
+  await db.$transaction(async (tx) => {
+    for (const result of results) {
+      await tx.insight.create({
+        data: {
+          organizationId: orgId,
+          category: result.insight.category,
+          title: result.insight.title,
+          narrative: result.insight.narrative,
+          recommendation: result.insight.recommendation,
+          suggestedMessage: result.insight.suggestedMessage,
+          confidence: result.insight.confidence,
+          confidenceScore: result.insight.confidenceScore,
+          evidenceIds: Array.isArray(result.insight.evidenceIds)
+            ? JSON.stringify(result.insight.evidenceIds)
+            : result.insight.evidenceIds || '[]',
+          reasoningMethod: result.insight.reasoningMethod,
+          status: 'active',
+        },
+      });
+      stored++;
+    }
+  });
   return stored;
 }
 

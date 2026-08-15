@@ -197,57 +197,59 @@ export async function mergeOrganizations(
     mergedBy,
   });
 
-  // Move people from source to target
-  await db.person.updateMany({
-    where: { organizationId: sourceId },
-    data: { organizationId: targetId },
-  });
-
-  // Move signals
-  await db.signal.updateMany({
-    where: { organizationId: sourceId },
-    data: { organizationId: targetId },
-  });
-
-  // Move evidence
-  await db.evidence.updateMany({
-    where: { organizationId: sourceId },
-    data: { organizationId: targetId },
-  });
-
-  // Move insights
-  await db.insight.updateMany({
-    where: { organizationId: sourceId },
-    data: { organizationId: targetId },
-  });
-
-  // Move briefings
-  await db.briefing.updateMany({
-    where: { organizationId: sourceId },
-    data: { organizationId: targetId },
-  });
-
-  // Re-point relationships (source → target)
-  await db.relationship.updateMany({
-    where: { sourceOrgId: sourceId },
-    data: { sourceOrgId: targetId },
-  });
-  await db.relationship.updateMany({
-    where: { targetOrgId: sourceId },
-    data: { targetOrgId: targetId },
-  });
-
-  // Add source name as alias to target
-  const currentAliases: string[] = safeJsonParse(target.aliases);
-  if (source.name && !currentAliases.includes(source.name)) {
-    await db.organization.update({
-      where: { id: targetId },
-      data: { aliases: JSON.stringify([...currentAliases, source.name]) },
+  await db.$transaction(async (tx) => {
+    // Move people from source to target
+    await tx.person.updateMany({
+      where: { organizationId: sourceId },
+      data: { organizationId: targetId },
     });
-  }
 
-  // Delete the source
-  await db.organization.delete({ where: { id: sourceId } });
+    // Move signals
+    await tx.signal.updateMany({
+      where: { organizationId: sourceId },
+      data: { organizationId: targetId },
+    });
+
+    // Move evidence
+    await tx.evidence.updateMany({
+      where: { organizationId: sourceId },
+      data: { organizationId: targetId },
+    });
+
+    // Move insights
+    await tx.insight.updateMany({
+      where: { organizationId: sourceId },
+      data: { organizationId: targetId },
+    });
+
+    // Move briefings
+    await tx.briefing.updateMany({
+      where: { organizationId: sourceId },
+      data: { organizationId: targetId },
+    });
+
+    // Re-point relationships (source → target)
+    await tx.relationship.updateMany({
+      where: { sourceOrgId: sourceId },
+      data: { sourceOrgId: targetId },
+    });
+    await tx.relationship.updateMany({
+      where: { targetOrgId: sourceId },
+      data: { targetOrgId: targetId },
+    });
+
+    // Add source name as alias to target
+    const currentAliases: string[] = safeJsonParse(target.aliases);
+    if (source.name && !currentAliases.includes(source.name)) {
+      await tx.organization.update({
+        where: { id: targetId },
+        data: { aliases: JSON.stringify([...currentAliases, source.name]) },
+      });
+    }
+
+    // Delete the source
+    await tx.organization.delete({ where: { id: sourceId } });
+  });
 }
 
 // ─── Relationship Extraction ──────────────────────────────────────────────
@@ -771,8 +773,8 @@ export async function computeIntelligenceScores(orgId?: string): Promise<number>
   });
 
   // Batch update (Prisma doesn't have bulk update with per-row data,
-  // so we run updates in parallel with Promise.all)
-  await Promise.all(updates.map((u) => db.organization.update(u)));
+  // so we run updates in a transaction for atomicity)
+  await db.$transaction(updates.map((u) => db.organization.update(u)));
 
   logger.info('[KG] Intelligence scores computed', { updated: orgs.length });
   return orgs.length;

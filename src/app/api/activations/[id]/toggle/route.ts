@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { checkApiAuth } from '@/lib/api-auth';
+import { logger } from '@/lib/logger';
 import { z } from 'zod';
 
 const paramsSchema = z.object({
@@ -43,7 +44,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
         { status: 400 },
       );
     }
-    console.error('[activations/toggle] Error:', error);
+    logger.error('[activations/toggle] Error:', { error });
     return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
   }
 }

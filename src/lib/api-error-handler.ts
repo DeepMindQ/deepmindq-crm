@@ -20,13 +20,20 @@ export function withErrorHandler(handler: ApiHandler): ApiHandler {
     try {
       return await handler(request, context);
     } catch (error) {
+      const correlationId = crypto.randomUUID();
+
       // Handle specific error types
       if (error instanceof SyntaxError) {
-        return apiErrorCode('INVALID_JSON', 'Malformed JSON in request body', 400);
+        logger.error('[API Error Handler] Invalid JSON', { correlationId, error: String(error) });
+        return apiErrorCode('INVALID_JSON', 'Malformed JSON in request body', 400, correlationId);
       }
 
       if (error instanceof TypeError && error.message.includes('invalid')) {
-        return apiErrorCode('INVALID_PARAMS', 'Invalid parameters provided', 400);
+        logger.error('[API Error Handler] Invalid parameters', {
+          correlationId,
+          error: String(error),
+        });
+        return apiErrorCode('INVALID_PARAMS', 'Invalid parameters provided', 400, correlationId);
       }
 
       // Prisma not found
@@ -36,12 +43,14 @@ export function withErrorHandler(handler: ApiHandler): ApiHandler {
         msg.includes('Record to update not found') ||
         msg.includes('Record to delete not found')
       ) {
-        return apiErrorCode('NOT_FOUND', 'Requested resource not found', 404);
+        logger.error('[API Error Handler] Resource not found', { correlationId, error: msg });
+        return apiErrorCode('NOT_FOUND', 'Requested resource not found', 404, correlationId);
       }
 
       // Prisma unique constraint
       if (msg.includes('P2002') || msg.includes('Unique constraint')) {
-        return apiErrorCode('DUPLICATE', 'Resource already exists', 409);
+        logger.error('[API Error Handler] Duplicate resource', { correlationId, error: msg });
+        return apiErrorCode('DUPLICATE', 'Resource already exists', 409, correlationId);
       }
 
       // Prisma connection errors
@@ -50,16 +59,25 @@ export function withErrorHandler(handler: ApiHandler): ApiHandler {
         msg.includes("Can't reach database") ||
         msg.includes('Connection')
       ) {
-        logger.error('[API Error Handler] Database connection error', { error: msg });
-        return apiErrorCode('DB_UNAVAILABLE', 'Database temporarily unavailable', 503);
+        logger.error('[API Error Handler] Database connection error', {
+          correlationId,
+          error: msg,
+        });
+        return apiErrorCode(
+          'DB_UNAVAILABLE',
+          'Database temporarily unavailable',
+          503,
+          correlationId,
+        );
       }
 
       // Unexpected errors
       logger.error('[API Error Handler] Unhandled error', {
+        correlationId,
         error: msg,
         stack: error instanceof Error ? error.stack : undefined,
       });
-      return apiErrorCode('INTERNAL_ERROR', 'An unexpected error occurred', 500);
+      return apiErrorCode('INTERNAL_ERROR', 'An unexpected error occurred', 500, correlationId);
     }
   };
 }

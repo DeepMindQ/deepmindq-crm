@@ -1,23 +1,17 @@
-import { NextRequest, NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { checkApiAuth } from '@/lib/api-auth';
+import { withErrorHandler } from '@/lib/api-error-handler';
 
-export async function POST(request: NextRequest) {
-  try {
-    const { errorResponse } = await checkApiAuth(request);
-    if (errorResponse) return errorResponse;
+async function _postHandler(request: Request) {
+  const { errorResponse } = await checkApiAuth(request);
+  if (errorResponse) return errorResponse;
 
-    return NextResponse.json({
-      success: true,
-      message: 'Pipeline optimization completed',
-      improvements: [
-        'Query cache refreshed',
-        'Index optimization applied',
-        'Memory usage optimized',
-      ],
-      timestamp: new Date().toISOString(),
-    });
-  } catch (error) {
-    console.error('[system/optimize] Error:', error);
-    return NextResponse.json({ success: false, error: 'Internal server error' }, { status: 500 });
-  }
+  return NextResponse.json({
+    success: true,
+    message: 'Pipeline optimization completed',
+    improvements: ['Query cache refreshed', 'Index optimization applied', 'Memory usage optimized'],
+    timestamp: new Date().toISOString(),
+  });
 }
+
+export const POST = withErrorHandler(_postHandler);

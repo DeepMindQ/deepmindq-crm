@@ -11,6 +11,32 @@ export interface Notification {
   category?: string;
 }
 
+// FIX E3: Persist read notification IDs in localStorage
+const READ_IDS_STORAGE_KEY = 'dmq_notification_read_ids';
+
+function loadReadIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const stored = localStorage.getItem(READ_IDS_STORAGE_KEY);
+    if (stored) return new Set(JSON.parse(stored) as string[]);
+  } catch {
+    /* ignore */
+  }
+  return new Set();
+}
+
+function saveReadIds(ids: Set<string>) {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(READ_IDS_STORAGE_KEY, JSON.stringify([...ids]));
+  } catch {
+    /* storage full */
+  }
+}
+
+// Initialize persisted read IDs on module load (client-side only)
+let persistedReadIds = typeof window !== 'undefined' ? loadReadIds() : new Set<string>();
+
 interface NotificationState {
   notifications: Notification[];
   unreadCount: number;
@@ -35,8 +61,14 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
 
   setNotifications: (notifications) =>
     set({
-      notifications,
-      unreadCount: notifications.filter((n) => !n.read).length,
+      // Apply persisted read state to incoming notifications
+      notifications: notifications.map((n) => ({
+        ...n,
+        read: n.read || persistedReadIds.has(n.id),
+      })),
+      unreadCount: notifications.filter((n) =>
+        n.read || persistedReadIds.has(n.id) ? false : !n.read,
+      ).length,
     }),
 
   addNotification: (notification) => {
@@ -56,6 +88,10 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     set((state) => {
       const n = state.notifications.find((n) => n.id === id);
       const wasUnread = n && !n.read;
+      if (wasUnread) {
+        persistedReadIds.add(id);
+        saveReadIds(persistedReadIds);
+      }
       return {
         notifications: state.notifications.map((n) => (n.id === id ? { ...n, read: true } : n)),
         unreadCount: wasUnread ? state.unreadCount - 1 : state.unreadCount,
@@ -63,10 +99,16 @@ export const useNotificationStore = create<NotificationState>((set, get) => ({
     }),
 
   markAllAsRead: () =>
-    set((state) => ({
-      notifications: state.notifications.map((n) => ({ ...n, read: true })),
-      unreadCount: 0,
-    })),
+    set((state) => {
+      for (const n of state.notifications) {
+        persistedReadIds.add(n.id);
+      }
+      saveReadIds(persistedReadIds);
+      return {
+        notifications: state.notifications.map((n) => ({ ...n, read: true })),
+        unreadCount: 0,
+      };
+    }),
 
   removeNotification: (id) =>
     set((state) => {

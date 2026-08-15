@@ -126,13 +126,13 @@ export function CompanyWorkspace() {
           params: { limit: 1, status: 'active' },
         });
         if (cancelled) return;
-        if (!orgsRes.error && orgsRes.data?.data?.length > 0) {
-          const org = orgsRes.data.data[0];
+        if (!orgsRes.error && orgsRes.data?.length > 0) {
+          const org = orgsRes.data[0];
           setOrgData(org);
           // Fetch detail for this org
           const detailRes = await fetchApi(`/api/organizations/${org.id}`);
-          if (!detailRes.error && detailRes.data?.data) {
-            const detail = detailRes.data.data;
+          if (!detailRes.error && detailRes.data) {
+            const detail = detailRes.data;
             setOrgData(detail);
             // Map signals from detail
             if (detail.signals?.length > 0) {
@@ -195,10 +195,10 @@ export function CompanyWorkspace() {
           params: { organizationId: orgData!.id },
         });
         if (cancelled) return;
-        if (!res.error && res.data?.data?.length > 0) {
+        if (!res.error && res.data?.length > 0) {
           const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B'];
           setContactData(
-            (res.data.data as Record<string, unknown>[]).map((p, i) => ({
+            (res.data as Record<string, unknown>[]).map((p, i) => ({
               name: (p.fullName as string) || '',
               title: (p.title as string) || '',
               email: (p.email as string) || '',
@@ -235,9 +235,9 @@ export function CompanyWorkspace() {
           params: { organizationId: orgData!.id },
         });
         if (cancelled) return;
-        if (!res.error && res.data?.data?.length > 0) {
+        if (!res.error && res.data?.length > 0) {
           setNoteData(
-            (res.data.data as Record<string, unknown>[]).map((n) => ({
+            (res.data as Record<string, unknown>[]).map((n) => ({
               id: (n.id as string) || '',
               author: 'Team',
               timestamp: n.createdAt ? new Date(n.createdAt as string).toLocaleString() : '',
@@ -272,8 +272,8 @@ export function CompanyWorkspace() {
           narrative: newNoteText.trim(),
         }),
       });
-      if (!res.error && res.data?.data) {
-        const created = res.data.data;
+      if (!res.error && res.data) {
+        const created = res.data;
         setNoteData((prev) => [
           {
             id: created.id,

@@ -52,6 +52,18 @@ export async function POST(request: NextRequest) {
     const { name, email, password } = parsed.data;
     const normalizedEmail = email.trim().toLowerCase();
 
+    // Password complexity validation (must match frontend requirements)
+    const passwordValidation = z
+      .string()
+      .regex(/[A-Z]/, 'Password must contain an uppercase letter')
+      .regex(/[a-z]/, 'Password must contain a lowercase letter')
+      .regex(/[0-9]/, 'Password must contain a number');
+    const pwdResult = passwordValidation.safeParse(password);
+    if (!pwdResult.success) {
+      const msg = pwdResult.error.issues[0]?.message || 'Password too weak';
+      return NextResponse.json({ error: msg }, { status: 400 });
+    }
+
     // Single-user enforcement: reject registration for unauthorized emails
     const AUTHORIZED_EMAIL = process.env.AUTHORIZED_EMAIL;
     if (!AUTHORIZED_EMAIL) {

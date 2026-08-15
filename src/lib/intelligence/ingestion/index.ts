@@ -1,6 +1,7 @@
 export {
   ingestFile,
   processPendingIngestions,
+  recoverStuckIngestions,
   type IngestionResult,
   type IngestionOptions,
 } from './engine';

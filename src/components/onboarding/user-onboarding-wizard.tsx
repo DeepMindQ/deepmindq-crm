@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PageTransition } from '@/components/ui/animated-components';
 import { Input } from '@/components/ui/input';
@@ -16,6 +16,7 @@ import {
 } from '@/components/ui/select';
 import { CheckCircle2, User, Sparkles, Rocket, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/lib/store';
+import { toast } from 'sonner';
 
 /* ═══════════════════════════════════════════════════
    Onboarding Wizard — 3-Step Setup
@@ -83,6 +84,13 @@ interface FormData {
   signals: Record<string, boolean>;
 }
 
+const ONBOARDING_STORAGE_KEY = 'dmq_onboarding_progress';
+
+interface StoredProgress {
+  step: number;
+  formData: FormData;
+}
+
 const stepVariants = {
   enter: { opacity: 0, x: 40 },
   center: { opacity: 1, x: 0 },
@@ -90,14 +98,63 @@ const stepVariants = {
 };
 
 export function UserOnboardingWizard() {
-  const [step, setStep] = useState(0);
-  const [formData, setFormData] = useState<FormData>({
-    fullName: '',
-    role: '',
-    companyName: '',
-    industry: '',
-    signals: Object.fromEntries(INTELLIGENCE_SIGNALS.map((s) => [s.key, s.default])),
+  // Try restoring progress from localStorage (FIX B8)
+  const [step, setStep] = useState(() => {
+    if (typeof window === 'undefined') return 0;
+    try {
+      const stored = localStorage.getItem(ONBOARDING_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as StoredProgress;
+        if (parsed.step != null && parsed.formData) return parsed.step;
+      }
+    } catch {
+      /* ignore parse errors */
+    }
+    return 0;
   });
+  const [formData, setFormData] = useState<FormData>(() => {
+    if (typeof window === 'undefined') {
+      return {
+        fullName: '',
+        role: '',
+        companyName: '',
+        industry: '',
+        signals: Object.fromEntries(INTELLIGENCE_SIGNALS.map((s) => [s.key, s.default])),
+      };
+    }
+    try {
+      const stored = localStorage.getItem(ONBOARDING_STORAGE_KEY);
+      if (stored) {
+        const parsed = JSON.parse(stored) as StoredProgress;
+        if (parsed.formData) return parsed.formData;
+      }
+    } catch {
+      /* ignore parse errors */
+    }
+    return {
+      fullName: '',
+      role: '',
+      companyName: '',
+      industry: '',
+      signals: Object.fromEntries(INTELLIGENCE_SIGNALS.map((s) => [s.key, s.default])),
+    };
+  });
+
+  // Persist onboarding progress to localStorage on step/form changes
+  const persistProgress = useCallback((currentStep: number, currentFormData: FormData) => {
+    try {
+      localStorage.setItem(
+        ONBOARDING_STORAGE_KEY,
+        JSON.stringify({ step: currentStep, formData: currentFormData } as StoredProgress),
+      );
+    } catch {
+      /* storage full or unavailable */
+    }
+  }, []);
+
+  useEffect(() => {
+    persistProgress(step, formData);
+  }, [step, formData, persistProgress]);
 
   const setActiveView = useAppStore((s) => s.setActiveView);
 
@@ -126,23 +183,42 @@ export function UserOnboardingWizard() {
   const goBack = () => {
     if (step > 0) setStep(step - 1);
   };
+
+  const clearPersistedProgress = useCallback(() => {
+    try {
+      localStorage.removeItem(ONBOARDING_STORAGE_KEY);
+    } catch {
+      /* ignore */
+    }
+  }, []);
   const [saving, setSaving] = useState(false);
 
   const goToDashboard = async () => {
     setSaving(true);
-    try {
-      await fetch('/api/onboarding/preferences', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(formData),
-      });
-    } catch {
-      // Non-blocking — continue to dashboard even if save fails
-    } finally {
-      setSaving(false);
-      setActiveView('dashboard');
+    let saved = false;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        await fetch('/api/onboarding/preferences', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify(formData),
+        });
+        saved = true;
+        break;
+      } catch {
+        // Retry once after 1 second
+        if (attempt === 0) {
+          await new Promise((r) => setTimeout(r, 1000));
+        }
+      }
     }
+    if (!saved) {
+      toast.error('Failed to save preferences. They will be lost.');
+    }
+    setSaving(false);
+    clearPersistedProgress();
+    setActiveView('dashboard');
   };
 
   const steps = [

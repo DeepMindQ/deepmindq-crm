@@ -143,167 +143,6 @@ export function formatTimestamp(date: Date): string {
 // Data Fetching (API-backed with mock fallbacks)
 // ═══════════════════════════════════════════════════════════════
 
-// ── Fallback mock data ──
-
-const _fallbackSignals: SignalFeedItem[] = (() => {
-  const now = Date.now();
-  return [
-    {
-      id: 's1',
-      signalType: 'risk',
-      severity: 'critical',
-      title: 'Executive leadership shakeup detected',
-      description: 'CFO departure signals potential instability',
-      confidenceScore: 92,
-      detectedAt: new Date(now - 1000 * 60 * 12).toISOString(),
-      organizationName: 'Acme Corp',
-      organizationId: 'org-1',
-    },
-    {
-      id: 's2',
-      signalType: 'opportunity',
-      severity: 'high',
-      title: 'Major funding round announced',
-      description: 'Series C funding of $85M closed',
-      confidenceScore: 88,
-      detectedAt: new Date(now - 1000 * 60 * 45).toISOString(),
-      organizationName: 'TechCo Industries',
-      organizationId: 'org-2',
-    },
-    {
-      id: 's3',
-      signalType: 'market',
-      severity: 'medium',
-      title: 'Market expansion into APAC region',
-      description: 'New office openings in Singapore and Tokyo',
-      confidenceScore: 76,
-      detectedAt: new Date(now - 1000 * 60 * 60 * 2).toISOString(),
-      organizationName: 'GlobalNet Solutions',
-      organizationId: 'org-3',
-    },
-    {
-      id: 's4',
-      signalType: 'technology',
-      severity: 'high',
-      title: 'AI platform launch announced',
-      description: 'New enterprise AI product targeting Fortune 500',
-      confidenceScore: 84,
-      detectedAt: new Date(now - 1000 * 60 * 60 * 3).toISOString(),
-      organizationName: 'NovaTech Solutions',
-      organizationId: 'org-4',
-    },
-    {
-      id: 's5',
-      signalType: 'financial',
-      severity: 'medium',
-      title: 'Revenue growth acceleration',
-      description: 'Q3 revenue up 34% year-over-year',
-      confidenceScore: 79,
-      detectedAt: new Date(now - 1000 * 60 * 60 * 5).toISOString(),
-      organizationName: 'Meridian Fintech',
-      organizationId: 'org-5',
-    },
-  ];
-})();
-
-const _fallbackTopOrgs: TopOrg[] = [
-  {
-    id: 'org-7',
-    name: 'Stratoscale AI',
-    industry: 'AI / Machine Learning',
-    intelligenceScore: 92,
-    signalCount: 14,
-    trend: 'up',
-    trendValue: 8,
-  },
-  {
-    id: 'org-2',
-    name: 'TechCo Industries',
-    industry: 'Enterprise Software',
-    intelligenceScore: 87,
-    signalCount: 11,
-    trend: 'up',
-    trendValue: 5,
-  },
-  {
-    id: 'org-3',
-    name: 'GlobalNet Solutions',
-    industry: 'Telecommunications',
-    intelligenceScore: 84,
-    signalCount: 9,
-    trend: 'up',
-    trendValue: 3,
-  },
-  {
-    id: 'org-5',
-    name: 'Meridian Fintech',
-    industry: 'FinTech',
-    intelligenceScore: 79,
-    signalCount: 7,
-    trend: 'neutral',
-    trendValue: 0,
-  },
-  {
-    id: 'org-4',
-    name: 'NovaTech Solutions',
-    industry: 'Cloud SaaS',
-    intelligenceScore: 74,
-    signalCount: 6,
-    trend: 'down',
-    trendValue: -2,
-  },
-];
-
-const _fallbackTimeline: TimelineEntry[] = (() => {
-  const now = Date.now();
-  return [
-    {
-      id: 't1',
-      type: 'signal',
-      message: 'New signal detected for Acme Corp',
-      detail: 'Executive leadership shakeup — severity: critical',
-      timestamp: new Date(now - 1000 * 60 * 12),
-    },
-    {
-      id: 't2',
-      type: 'insight',
-      message: 'AI insight generated for TechCo',
-      detail: 'Funding round analysis — confidence 88%',
-      timestamp: new Date(now - 1000 * 60 * 45),
-    },
-    {
-      id: 't3',
-      type: 'pipeline',
-      message: 'Intelligence pipeline completed',
-      detail: 'Processed 42 organizations, 156 signals',
-      timestamp: new Date(now - 1000 * 60 * 60 * 2),
-    },
-    {
-      id: 't4',
-      type: 'import',
-      message: 'Data import completed — 150 rows',
-      detail: 'CRM sync from Salesforce, 0 errors',
-      timestamp: new Date(now - 1000 * 60 * 60 * 3),
-    },
-    {
-      id: 't5',
-      type: 'signal',
-      message: 'New signal detected for NovaTech',
-      detail: 'AI platform launch — severity: high',
-      timestamp: new Date(now - 1000 * 60 * 60 * 4),
-    },
-  ];
-})();
-
-const _fallbackChartData = (() => {
-  const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  return days.map((day, i) => ({
-    day,
-    signals: Math.floor(Math.random() * 20) + 8 + (i === 5 ? -5 : 0),
-    criticals: Math.floor(Math.random() * 5) + 1,
-  }));
-})();
-
 // ── API-backed fetchers (return empty arrays on error — no fake data) ──
 
 export async function fetchSignals(limit = 10): Promise<SignalFeedItem[]> {
@@ -348,6 +187,8 @@ export async function fetchTopOrgs(limit = 5): Promise<TopOrg[]> {
       industry: (o.industry as string) || 'Unknown',
       intelligenceScore: (o.intelligenceScore as number) || 0,
       signalCount: (o.signalCount as number) || 0,
+      // TODO: No trend/historical API available yet — hardcoded to neutral intentionally.
+      // When a trend API exists (e.g. /api/organizations/trends), replace with real data.
       trend: 'neutral' as const,
       trendValue: 0,
     }));
@@ -358,18 +199,55 @@ export async function fetchTopOrgs(limit = 5): Promise<TopOrg[]> {
 
 export async function fetchTimeline(limit = 10): Promise<TimelineEntry[]> {
   try {
-    const res = await fetch('/api/signals?limit=' + limit, { credentials: 'include' });
-    if (!res.ok) return [];
-    const json = await res.json();
-    const signals = json.data || [];
-    if (!Array.isArray(signals) || signals.length === 0) return [];
-    return signals.map((s: Record<string, unknown>, i: number) => ({
-      id: `t-${s.id}`,
-      type: 'signal' as const,
-      message: `New signal: ${(s.title as string) || 'Unknown'}`,
-      detail: `${(s.signalType as string) || 'signal'} — severity: ${(s.severity as string) || 'medium'}`,
-      timestamp: new Date((s.detectedAt as string) || Date.now() - i * 1000 * 60 * 30),
-    }));
+    const [signalsRes, activityRes] = await Promise.all([
+      fetch('/api/signals?limit=' + limit, { credentials: 'include' }),
+      fetch('/api/team-activity?limit=' + limit, { credentials: 'include' }),
+    ]);
+
+    const entries: TimelineEntry[] = [];
+
+    if (signalsRes.ok) {
+      const json = await signalsRes.json();
+      const signals = json.data || [];
+      if (Array.isArray(signals)) {
+        signals.forEach((s: Record<string, unknown>) => {
+          entries.push({
+            id: `t-${s.id}`,
+            type: 'signal' as const,
+            message: `New signal: ${(s.title as string) || 'Unknown'}`,
+            detail: `${(s.signalType as string) || 'signal'} — severity: ${(s.severity as string) || 'medium'}`,
+            timestamp: new Date((s.detectedAt as string) || Date.now()),
+          });
+        });
+      }
+    }
+
+    if (activityRes.ok) {
+      const json = await activityRes.json();
+      const activities = json.data || [];
+      if (Array.isArray(activities)) {
+        activities.forEach((a: Record<string, unknown>) => {
+          const action = (a.action as string) || '';
+          let type: TimelineEntry['type'] = 'insight';
+          if (action.includes('ingestion') || action.includes('import')) type = 'import';
+          else if (action.includes('pipeline')) type = 'pipeline';
+          else if (action.includes('briefing')) type = 'briefing';
+
+          entries.push({
+            id: `ta-${a.id}`,
+            type,
+            message: (a.actionLabel as string) || action,
+            detail: (a.details as string) || (a.resource as string) || '',
+            timestamp: new Date((a.timestamp as string) || Date.now()),
+          });
+        });
+      }
+    }
+
+    if (entries.length === 0) return [];
+
+    entries.sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime());
+    return entries.slice(0, limit);
   } catch {
     return [];
   }
@@ -416,14 +294,6 @@ export function getMockChartData() {
   return [];
 }
 
-export function getMockHealth(): HealthStatus {
-  return {
-    aiProvider: 'unknown',
-    database: 'operational',
-    lastPipelineRun: '',
-    pipelineStatus: 'idle',
-    overallStatus: 'initializing',
-    uptime: 0,
-    errors: 0,
-  };
+export function getMockHealth(): HealthStatus | null {
+  return null;
 }

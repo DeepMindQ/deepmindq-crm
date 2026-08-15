@@ -11,6 +11,82 @@ import { getIntelligence, setIntelligence } from '@/lib/intelligence-cache';
 import { governedAICall } from '@/lib/ai-governance';
 import { webSearch } from '@/lib/llm-client';
 
+// ─── User Signal Preference Helpers (FIX B4) ─────────────────────────────
+
+/**
+ * Maps onboarding preference keys to engine signal types.
+ * Onboarding keys are user-friendly labels; engine uses internal types.
+ */
+const PREFERENCE_KEY_TO_SIGNAL_TYPES: Record<string, string[]> = {
+  funding: ['funding_event', 'financial_indicator'],
+  hiring: ['hiring_change'],
+  technology: ['technology_change', 'product_launch'],
+  expansion: ['market_expansion'],
+  competitive: ['competitor_move', 'partnership'],
+  leadership: ['leadership_change'],
+};
+
+/**
+ * Read a user's onboarding signal preferences from the audit log.
+ * Returns a Set of enabled signal type strings, or null if no preferences are set
+ * (meaning all signals should be detected — backward compatible).
+ */
+export async function getUserSignalPreferences(userId: string): Promise<Set<string> | null> {
+  try {
+    const entry = await db.auditLog.findFirst({
+      where: {
+        userId,
+        action: 'onboarding_completed',
+        resource: 'user_preferences',
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+
+    if (!entry?.details) return null;
+
+    const prefs = JSON.parse(entry.details);
+    const signals = prefs.signals as Record<string, boolean> | undefined;
+
+    // If no signal preferences recorded, detect all (backward compatible)
+    if (!signals || typeof signals !== 'object') return null;
+
+    // Build the set of enabled signal types from the preference mapping
+    const enabledTypes = new Set<string>();
+
+    // Signal types not controlled by onboarding preferences (always enabled)
+    const alwaysEnabled = ['regulatory', 'customer_signal', 'social_mention'];
+    for (const t of alwaysEnabled) enabledTypes.add(t);
+
+    // Map each preference key to its signal types, include if enabled
+    for (const [prefKey, enabled] of Object.entries(signals)) {
+      if (enabled) {
+        const types = PREFERENCE_KEY_TO_SIGNAL_TYPES[prefKey];
+        if (types) types.forEach((t) => enabledTypes.add(t));
+      }
+    }
+
+    return enabledTypes;
+  } catch (err) {
+    logger.warn('[SIGNALS] Failed to read user signal preferences (non-blocking)', {
+      userId,
+      error: err instanceof Error ? err.message : 'Unknown',
+    });
+    return null; // On error, detect all signals
+  }
+}
+
+/**
+ * Filter an array of detected signals by user preference.
+ * If enabledTypes is null, all signals pass through (no preferences set).
+ */
+export function filterSignalsByUserPreferences(
+  signals: DetectedSignal[],
+  enabledTypes: Set<string> | null,
+): DetectedSignal[] {
+  if (!enabledTypes) return signals; // No preferences → all signals
+  return signals.filter((s) => enabledTypes.has(s.signalType));
+}
+
 export interface DetectedSignal {
   organizationId: string;
   signalType: string;
@@ -103,7 +179,10 @@ export function computeEvidenceConfidence(evidenceReliabilities: string[]): numb
  * Run signal detection on a single organization.
  * Checks for patterns in the organization's data, people, and recent changes.
  */
-export async function detectSignalsForOrganization(orgId: string): Promise<DetectedSignal[]> {
+export async function detectSignalsForOrganization(
+  orgId: string,
+  userId?: string,
+): Promise<DetectedSignal[]> {
   const org = await db.organization.findUnique({
     where: { id: orgId },
     include: {
@@ -117,7 +196,7 @@ export async function detectSignalsForOrganization(orgId: string): Promise<Detec
 
   if (!org) return [];
 
-  return detectSignalsForOrgData({
+  let signals = detectSignalsForOrgData({
     id: org.id,
     name: org.name,
     employeeCount: org.employeeCount,
@@ -137,6 +216,14 @@ export async function detectSignalsForOrganization(orgId: string): Promise<Detec
       detectedAt: s.detectedAt,
     })),
   });
+
+  // Apply user signal preferences if a userId is provided
+  if (userId) {
+    const enabledTypes = await getUserSignalPreferences(userId);
+    signals = filterSignalsByUserPreferences(signals, enabledTypes);
+  }
+
+  return signals;
 }
 
 /**

@@ -92,8 +92,7 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     });
 
     // Return the reset record immediately
-    const updated = await db.dataIngestion.findUnique({ where: { id } });
-    return NextResponse.json({ data: updated, success: true });
+    return NextResponse.json({ success: true, message: 'Retry initiated' });
   } catch (_error) {
     logger.error('[Ingestion Retry] Unexpected error', { error: _error });
     return NextResponse.json({ error: 'Failed to retry ingestion' }, { status: 500 });

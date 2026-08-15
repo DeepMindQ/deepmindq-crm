@@ -21,7 +21,7 @@ FONT_DIR = '/usr/share/fonts'
 
 # Register fonts
 pdfmetrics.registerFont(TTFont('NotoSerifSC', f'{FONT_DIR}/truetype/noto-serif-sc/NotoSerifSC-Regular.ttf'))
-pdfmetrics.registerFont(TTFont('NotoSansSC', f'{FONT_DIR}/truetype/chinese/NotoSansSC-Regular.ttf'))
+pdfmetrics.registerFont(TTFont('NotoSansSC', f'{FONT_DIR}/truetype/chinese/SarasaMonoSC-Regular.ttf'))
 pdfmetrics.registerFont(TTFont('DejaVuSans', f'{FONT_DIR}/truetype/dejavu/DejaVuSans.ttf'))
 pdfmetrics.registerFont(TTFont('DejaVuSansMono', f'{FONT_DIR}/truetype/dejavu/DejaVuSansMono.ttf'))
 pdfmetrics.registerFontFamily('NotoSansSC', normal='NotoSansSC', bold='NotoSansSC')
@@ -41,17 +41,19 @@ YELLOW = HexColor('#EAB308')
 PURPLE = HexColor('#8B5CF6')
 LIGHT_RED = HexColor('#FEE2E2')
 LIGHT_GREEN = HexColor('#DCFCE7')
-LIGHT_ORANGE = HexFile('#FEF3C7')
+LIGHT_ORANGE = HexColor('#FEF3C7')
 LIGHT_BLUE = HexColor('#DBEAFE')
 
 FULLY_WORKING = 'FULLY WORKING'
 PARTIAL = 'PARTIALLY IMPLEMENTED'
+PARTIALLY = PARTIAL
 MOCKED = 'MOCKED'
 UI_ONLY = 'UI ONLY'
 BACKEND_ONLY = 'BACKEND ONLY'
 DEAD_CODE = 'DEAD CODE'
 BROKEN = 'BROKEN'
 NOT_IMPL = 'NOT IMPLEMENTED'
+NOT_IMPLEMENTED = NOT_IMPL
 
 def verdict_color(v):
     colors = {

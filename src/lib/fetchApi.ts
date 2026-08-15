@@ -59,6 +59,16 @@ export async function fetchApi<T = any>(
 
     const res = await fetch(fullUrl, { ...fetchOpts, credentials: 'include', headers });
 
+    // FIX F6: Handle session expiry (401) — dispatch event and redirect
+    if (res.status === 401) {
+      document.dispatchEvent(new CustomEvent('session-expired', { detail: { status: 401 } }));
+      // Redirect to login page (only if not already there)
+      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+        window.location.href = '/login';
+      }
+      return { data: null, error: 'Session expired. Please log in again.' };
+    }
+
     if (!res.ok) {
       const body = await res.json().catch(() => ({}));
       return {
@@ -67,7 +77,11 @@ export async function fetchApi<T = any>(
       };
     }
 
-    const data = await res.json();
+    const body = await res.json();
+    // Unwrap the standard API envelope: most routes return { data: <payload> }
+    // or { success: true, data: <payload>, timestamp: "..." } (apiSuccess).
+    // We unwrap so callers get the inner payload directly.
+    const data = body?.data !== undefined ? body.data : body;
     return { data, error: null };
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Network error';

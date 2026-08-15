@@ -73,13 +73,13 @@ export default function IntelligenceKnowledge() {
       ]);
 
       // Parse stats
-      if (!statsRes.error && statsRes.data?.data) {
-        setStats(statsRes.data.data as GraphStats);
+      if (!statsRes.error && statsRes.data) {
+        setStats(statsRes.data as GraphStats);
       }
 
       // Parse top entities from nodes returned by knowledge-folders
-      if (!nodesRes.error && nodesRes.data?.data?.nodes) {
-        const nodes = nodesRes.data.data.nodes as Array<{
+      if (!nodesRes.error && nodesRes.data?.nodes) {
+        const nodes = nodesRes.data.nodes as Array<{
           id: string;
           name?: string;
           label?: string;
@@ -112,8 +112,8 @@ export default function IntelligenceKnowledge() {
     setConnectionsLoading(true);
     try {
       const res = await fetchApi(`/api/knowledge-graph/connections/${entityId}`);
-      if (!res.error && res.data?.data) {
-        const data = res.data.data as {
+      if (!res.error && res.data) {
+        const data = res.data as {
           organizations?: Array<{
             org: Record<string, unknown>;
             relationship: { type: string; label: string | null };

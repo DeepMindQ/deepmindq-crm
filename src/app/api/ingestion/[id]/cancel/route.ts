@@ -6,7 +6,7 @@ import { logger } from '@/lib/logger';
 /**
  * POST /api/ingestion/[id]/cancel — Cancel an in-progress or pending ingestion.
  *
- * Sets status to 'failed' with a cancellation message.
+ * Sets status to 'cancelled' and sets completedAt.
  * Only allows cancellation of 'pending' or 'processing' ingestions.
  *
  * Authentication: Session-based via checkApiAuth.
@@ -28,26 +28,24 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
 
     // Only allow cancellation of pending or processing
     if (ingestion.status !== 'pending' && ingestion.status !== 'processing') {
-      return NextResponse.json(
-        {
-          error: `Cannot cancel ingestion with status '${ingestion.status}'. Only 'pending' or 'processing' can be cancelled.`,
-        },
-        { status: 400 },
-      );
+      const msg =
+        ingestion.status === 'cancelled'
+          ? 'Ingestion is already cancelled'
+          : `Cannot cancel ingestion with status '${ingestion.status}'. Only 'pending' or 'processing' can be cancelled.`;
+      return NextResponse.json({ error: msg }, { status: 400 });
     }
 
-    const updated = await db.dataIngestion.update({
+    await db.dataIngestion.update({
       where: { id },
       data: {
-        status: 'failed',
-        errorMessage: 'Cancelled by user',
+        status: 'cancelled',
         completedAt: new Date(),
       },
     });
 
     logger.info('[Ingestion] Cancelled', { id, fileName: ingestion.fileName });
 
-    return NextResponse.json({ data: updated, success: true });
+    return NextResponse.json({ success: true, message: 'Import cancelled' });
   } catch (_error) {
     logger.error('[Ingestion] Cancel failed', { error: _error });
     return NextResponse.json({ error: 'Failed to cancel ingestion' }, { status: 500 });

@@ -653,8 +653,8 @@ function NotificationBell() {
     setLoading(true);
     try {
       const res = await fetchApi('/api/team-activity', { params: { limit: 5 } });
-      if (!res.error && res.data?.data?.length > 0) {
-        setActivities(res.data.data as TeamActivity[]);
+      if (!res.error && res.data?.length > 0) {
+        setActivities(res.data as TeamActivity[]);
       } else {
         setActivities([]);
       }
@@ -899,6 +899,20 @@ export default function Page() {
       })
       .catch(() => {
         // silently fail
+      });
+  }, [isAuthenticated]);
+
+  // Check onboarding completion — redirect to wizard if not done
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetchApi<{ completed: boolean }>('/api/onboarding/preferences')
+      .then(({ data }) => {
+        if (data && !data.completed) {
+          useAppStore.getState().setActiveView('onboarding-wizard');
+        }
+      })
+      .catch(() => {
+        // If the check fails, let the user through to dashboard
       });
   }, [isAuthenticated]);
 

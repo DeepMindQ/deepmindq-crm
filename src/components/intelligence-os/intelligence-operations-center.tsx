@@ -250,17 +250,17 @@ export function IntelligenceOperationsCenter() {
         setError(null);
 
         const [signalsRes, orgsRes, pipelineRes, teamRes] = await Promise.all([
-          fetchApi<{ data: ApiSignal[] }>('/api/signals', { params: { limit: 50 } }),
-          fetchApi<{ data: ApiOrganization[] }>('/api/organizations', { params: { limit: 10 } }),
-          fetchApi<{ data: ApiPipelineEngine[] }>('/api/pipeline-engines'),
-          fetchApi<{ data: ApiTeamActivity[] }>('/api/team-activity', { params: { limit: 15 } }),
+          fetchApi<ApiSignal[]>('/api/signals', { params: { limit: 50 } }),
+          fetchApi<ApiOrganization[]>('/api/organizations', { params: { limit: 10 } }),
+          fetchApi<ApiPipelineEngine[]>('/api/pipeline-engines'),
+          fetchApi<ApiTeamActivity[]>('/api/team-activity', { params: { limit: 15 } }),
         ]);
 
         if (cancelled) return;
 
         // Map API signals to local IntelligenceSignal type
-        if (!signalsRes.error && signalsRes.data?.data?.length) {
-          const mapped: IntelligenceSignal[] = signalsRes.data.data.map((s) => ({
+        if (!signalsRes.error && signalsRes.data?.length) {
+          const mapped: IntelligenceSignal[] = signalsRes.data.map((s: ApiSignal) => ({
             id: s.id,
             type: s.title || s.signalType || 'Signal',
             icon: signalIconMap[s.signalType] || Radar,
@@ -274,8 +274,8 @@ export function IntelligenceOperationsCenter() {
         }
 
         // Derive coverage domains from organization industries
-        if (!orgsRes.error && orgsRes.data?.data?.length) {
-          const orgs = orgsRes.data.data;
+        if (!orgsRes.error && orgsRes.data?.length) {
+          const orgs = orgsRes.data;
           const industryMap = new Map<string, number[]>();
           orgs.forEach((o) => {
             const ind = o.industry || 'Other';
@@ -294,12 +294,12 @@ export function IntelligenceOperationsCenter() {
         }
 
         // Map pipeline engines from API
-        if (!pipelineRes.error && pipelineRes.data?.data?.length) {
-          const engines: PipelineEngine[] = pipelineRes.data.data.map((e) => {
+        if (!pipelineRes.error && pipelineRes.data?.length) {
+          const engines: PipelineEngine[] = (pipelineRes.data ?? []).map((e: ApiPipelineEngine) => {
             const words = e.name.split(' ');
             const shortName = words
-              .filter((w) => !['and', 'the', 'of', 'for'].includes(w.toLowerCase()))
-              .map((w) => w[0])
+              .filter((w: string) => !['and', 'the', 'of', 'for'].includes(w.toLowerCase()))
+              .map((w: string) => w[0])
               .join('')
               .toUpperCase()
               .slice(0, 3);
@@ -316,8 +316,8 @@ export function IntelligenceOperationsCenter() {
         }
 
         // Map team activity from API
-        if (!teamRes.error && teamRes.data?.data?.length) {
-          const actions: TeamAction[] = teamRes.data.data.map((a) => ({
+        if (!teamRes.error && teamRes.data?.length) {
+          const actions: TeamAction[] = (teamRes.data ?? []).map((a: ApiTeamActivity) => ({
             initials: a.user ? getInitials(a.user.name) : '??',
             name: a.user?.name || 'Unknown',
             action: a.actionLabel || a.action,
@@ -360,14 +360,14 @@ export function IntelligenceOperationsCenter() {
     setError(null);
     try {
       const [signalsRes, orgsRes, pipelineRes, teamRes] = await Promise.all([
-        fetchApi<{ data: ApiSignal[] }>('/api/signals', { params: { limit: 50 } }),
-        fetchApi<{ data: ApiOrganization[] }>('/api/organizations', { params: { limit: 10 } }),
-        fetchApi<{ data: ApiPipelineEngine[] }>('/api/pipeline-engines'),
-        fetchApi<{ data: ApiTeamActivity[] }>('/api/team-activity', { params: { limit: 15 } }),
+        fetchApi<ApiSignal[]>('/api/signals', { params: { limit: 50 } }),
+        fetchApi<ApiOrganization[]>('/api/organizations', { params: { limit: 10 } }),
+        fetchApi<ApiPipelineEngine[]>('/api/pipeline-engines'),
+        fetchApi<ApiTeamActivity[]>('/api/team-activity', { params: { limit: 15 } }),
       ]);
 
-      if (!signalsRes.error && signalsRes.data?.data?.length) {
-        const mapped: IntelligenceSignal[] = signalsRes.data.data.map((s) => ({
+      if (!signalsRes.error && signalsRes.data?.length) {
+        const mapped: IntelligenceSignal[] = signalsRes.data.map((s: ApiSignal) => ({
           id: s.id,
           type: s.title || s.signalType || 'Signal',
           icon: signalIconMap[s.signalType] || Radar,
@@ -380,8 +380,8 @@ export function IntelligenceOperationsCenter() {
         setSignals(mapped);
       }
 
-      if (!orgsRes.error && orgsRes.data?.data?.length) {
-        const orgs = orgsRes.data.data;
+      if (!orgsRes.error && orgsRes.data?.length) {
+        const orgs = orgsRes.data;
         const industryMap = new Map<string, number[]>();
         orgs.forEach((o) => {
           const ind = o.industry || 'Other';
@@ -399,12 +399,12 @@ export function IntelligenceOperationsCenter() {
         if (domains.length > 0) setCoverageDomains(domains);
       }
 
-      if (!pipelineRes.error && pipelineRes.data?.data?.length) {
-        const engines: PipelineEngine[] = pipelineRes.data.data.map((e) => {
+      if (!pipelineRes.error && pipelineRes.data?.length) {
+        const engines: PipelineEngine[] = (pipelineRes.data ?? []).map((e: ApiPipelineEngine) => {
           const words = e.name.split(' ');
           const shortName = words
-            .filter((w) => !['and', 'the', 'of', 'for'].includes(w.toLowerCase()))
-            .map((w) => w[0])
+            .filter((w: string) => !['and', 'the', 'of', 'for'].includes(w.toLowerCase()))
+            .map((w: string) => w[0])
             .join('')
             .toUpperCase()
             .slice(0, 3);
@@ -420,8 +420,8 @@ export function IntelligenceOperationsCenter() {
         setPipelineEngines(engines);
       }
 
-      if (!teamRes.error && teamRes.data?.data?.length) {
-        const actions: TeamAction[] = teamRes.data.data.map((a) => ({
+      if (!teamRes.error && teamRes.data?.length) {
+        const actions: TeamAction[] = (teamRes.data ?? []).map((a: ApiTeamActivity) => ({
           initials: a.user ? getInitials(a.user.name) : '??',
           name: a.user?.name || 'Unknown',
           action: a.actionLabel || a.action,

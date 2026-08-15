@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Building2,
   Radio,
@@ -41,7 +41,6 @@ import {
   fetchTimeline,
   fetchChartData,
   getMockSignals,
-  getMockHealth,
 } from './intelligence-hub';
 
 // ═══════════════════════════════════════════════════════════════
@@ -51,6 +50,12 @@ import {
 export default function IntelligenceHub() {
   const setActiveView = useAppStore((s) => s.setActiveView);
   const setSelectedCompanyId = useAppStore((s) => s.setSelectedCompanyId);
+  const queryClient = useQueryClient();
+
+  const handleRefresh = async () => {
+    await queryClient.invalidateQueries();
+    toast.success('Data refreshed');
+  };
 
   // ── Data Fetching ──
   const { data: signalsData, isLoading: signalsLoading } = useQuery({
@@ -74,7 +79,7 @@ export default function IntelligenceHub() {
   });
 
   const signals: SignalFeedItem[] = signalsData?.length ? signalsData : getMockSignals();
-  const health = healthData || getMockHealth();
+  const health = healthData ?? null;
 
   // ── Real stats from /api/stats/overview (Q3/Q7/Q13 fix: no more hardcoded numbers) ──
   const { data: overviewData, isLoading: overviewLoading } = useQuery({
@@ -368,6 +373,7 @@ export default function IntelligenceHub() {
                     onMouseLeave={(e) => {
                       (e.currentTarget as HTMLElement).style.background = 'transparent';
                     }}
+                    onClick={handleRefresh}
                   >
                     <RefreshCw className="h-4 w-4" />
                   </button>

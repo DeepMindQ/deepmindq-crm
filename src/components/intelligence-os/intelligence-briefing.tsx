@@ -201,7 +201,7 @@ export function IntelligenceBriefing() {
             if (u === 'HIGH') return 'High';
             return 'Medium';
           };
-          const mapped = (res.data.data as Record<string, unknown>[]).slice(0, 4).map((s, i) => ({
+          const mapped = (res.data as Record<string, unknown>[]).slice(0, 4).map((s, i) => ({
             id: (s.id as string) || i + 1,
             severity: severityLabel(s.severity as string) as 'Critical' | 'High' | 'Medium' | 'Low',
             title:

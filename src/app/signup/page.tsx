@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ArrowLeft, Loader2, Check } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -40,6 +41,7 @@ export default function SignupPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
 
   const strength = useMemo(() => getPasswordStrength(password), [password]);
 
@@ -55,21 +57,26 @@ export default function SignupPage() {
     setLoading(true);
 
     try {
-      const res = await fetch('/api/auth/register', {
+      const { error } = await fetchApi('/api/auth/register', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, password, confirmPassword }),
       });
-      const data = await res.json();
 
-      if (!res.ok) {
-        setError(data.error || 'Registration failed');
+      if (error) {
+        setError(
+          error.includes('Too many')
+            ? 'Too many attempts. Please wait a moment and try again.'
+            : error,
+        );
         return;
       }
 
-      // Registration successful — navigate to login for OTP verification
-      router.push('/login');
-      router.refresh();
+      // Registration successful — show brief success message then redirect
+      setSuccess('Account created successfully! Redirecting to login…');
+      setTimeout(() => {
+        router.push('/login');
+        router.refresh();
+      }, 1500);
     } catch {
       setError('An unexpected error occurred. Please try again.');
     } finally {
@@ -145,6 +152,11 @@ export default function SignupPage() {
             {error && (
               <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
                 {error}
+              </div>
+            )}
+            {success && (
+              <div className="rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-400">
+                {success}
               </div>
             )}
 

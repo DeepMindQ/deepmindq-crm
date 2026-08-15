@@ -42,7 +42,7 @@ export default function DataImport() {
   const [retryingId, setRetryingId] = useState<string | null>(null);
   const [cancellingId, setCancelingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
-  const [pollingTimer, setPollingTimer] = useState<ReturnType<typeof setInterval> | null>(null);
+  const pollingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const dragCounterRef = useRef(0);
@@ -62,17 +62,19 @@ export default function DataImport() {
 
   useEffect(() => {
     const hasActive = ingestions.some((i) => i.status === 'pending' || i.status === 'processing');
-    if (hasActive && !pollingTimer) {
-      const timer = setInterval(fetchHistory, 5000);
-      setPollingTimer(timer);
-    } else if (!hasActive && pollingTimer) {
-      clearInterval(pollingTimer);
-      setPollingTimer(null);
+    if (hasActive && !pollingTimerRef.current) {
+      pollingTimerRef.current = setInterval(fetchHistory, 5000);
+    } else if (!hasActive && pollingTimerRef.current) {
+      clearInterval(pollingTimerRef.current);
+      pollingTimerRef.current = null;
     }
     return () => {
-      if (pollingTimer) clearInterval(pollingTimer);
+      if (pollingTimerRef.current) {
+        clearInterval(pollingTimerRef.current);
+        pollingTimerRef.current = null;
+      }
     };
-  }, [ingestions, fetchHistory, pollingTimer]);
+  }, [ingestions, fetchHistory]);
 
   const stats = {
     total: ingestions.length,
@@ -86,6 +88,9 @@ export default function DataImport() {
     if (!ACCEPTED_EXTENSIONS.includes(ext))
       return `Unsupported file type "${ext}". Accepted: ${ACCEPTED_EXTENSIONS.join(', ')}`;
     if (file.size > 50 * 1024 * 1024) return 'File is too large. Maximum size is 50MB.';
+    if (file.size > 10 * 1024 * 1024) {
+      toast.warning('Large file detected. Processing may take a few minutes.');
+    }
     return null;
   };
 

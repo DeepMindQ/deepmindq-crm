@@ -64,7 +64,7 @@ export async function DELETE(
       rowsDeleted: rowsDeleted.count,
     });
 
-    return NextResponse.json({ success: true, rowsDeleted: rowsDeleted.count });
+    return NextResponse.json({ success: true, message: 'Import deleted' });
   } catch (_error) {
     logger.error('[Ingestion] Delete failed', { error: _error });
     return NextResponse.json({ error: 'Failed to delete ingestion' }, { status: 500 });

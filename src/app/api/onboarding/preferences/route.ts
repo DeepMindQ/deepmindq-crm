@@ -45,7 +45,41 @@ export async function POST(request: NextRequest) {
     }
 
     // Store full preferences as an audit log entry (retrievable later)
+    // FIX B15: Create/link Organization for the user's company name
+    let linkedOrgId: string | undefined;
     if (session?.id) {
+      // Create Organization if company name provided and none exists yet
+      if (companyName && companyName.trim()) {
+        const trimmedName = companyName.trim();
+        const existingOrg = await db.organization.findFirst({
+          where: { name: trimmedName },
+        });
+
+        if (!existingOrg) {
+          const newOrg = await db.organization.create({
+            data: {
+              name: trimmedName,
+              industry: industry || null,
+              source: 'manual',
+            },
+          });
+          linkedOrgId = newOrg.id;
+          logger.info('[onboarding] Created organization from onboarding', {
+            orgId: newOrg.id,
+            orgName: trimmedName,
+          });
+        } else {
+          linkedOrgId = existingOrg.id;
+          // Update industry if the org has none and user provided one
+          if (industry && !existingOrg.industry) {
+            await db.organization.update({
+              where: { id: existingOrg.id },
+              data: { industry },
+            });
+          }
+        }
+      }
+
       await db.auditLog.create({
         data: {
           userId: session.id,
@@ -57,6 +91,7 @@ export async function POST(request: NextRequest) {
             companyName,
             industry,
             signals,
+            organizationId: linkedOrgId,
             completedAt: new Date().toISOString(),
           }),
         },

@@ -5,6 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, ArrowLeft, Loader2 } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
@@ -16,11 +17,16 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const [step, setStep] = useState<'credentials' | 'otp'>('credentials');
+  const [step, setStep] = useState<'credentials' | 'otp' | 'forgot'>('credentials');
   const [otp, setOtp] = useState('');
   const [otpLoading, setOtpLoading] = useState(false);
   const [otpError, setOtpError] = useState('');
   const [loginEmail, setLoginEmail] = useState('');
+  const [resendMessage, setResendMessage] = useState('');
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotLoading, setForgotLoading] = useState(false);
+  const [forgotError, setForgotError] = useState('');
+  const [forgotSuccess, setForgotSuccess] = useState(false);
 
   const handleSubmitCredentials = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -33,15 +39,17 @@ export default function LoginPage() {
 
     setLoading(true);
     try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password }),
-      });
-      const data = await res.json();
+      const { error } = await fetchApi<{ success: boolean; message?: string; devCode?: string }>(
+        '/api/auth/login',
+        { method: 'POST', body: JSON.stringify({ email, password }) },
+      );
 
-      if (!res.ok) {
-        setError(data.error || 'Login failed');
+      if (error) {
+        setError(
+          error.includes('Too many')
+            ? 'Too many attempts. Please wait a moment and try again.'
+            : error,
+        );
         return;
       }
 
@@ -66,18 +74,17 @@ export default function LoginPage() {
 
     setOtpLoading(true);
     try {
-      const res = await fetch('/api/auth/verify-otp', {
+      const { error } = await fetchApi('/api/auth/verify-otp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: loginEmail,
-          code: otp.trim(),
-        }),
+        body: JSON.stringify({ email: loginEmail, code: otp.trim() }),
       });
-      const data = await res.json();
 
-      if (!res.ok) {
-        setOtpError(data.error || 'OTP verification failed');
+      if (error) {
+        setOtpError(
+          error.includes('Too many')
+            ? 'Too many attempts. Please wait a moment and try again.'
+            : error,
+        );
         return;
       }
 
@@ -91,15 +98,55 @@ export default function LoginPage() {
     }
   };
 
-  const handleResendOtp = async () => {
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotError('');
+    setForgotSuccess(false);
+
+    if (!forgotEmail) {
+      setForgotError('Please enter your email address');
+      return;
+    }
+
+    setForgotLoading(true);
     try {
-      await fetch('/api/auth/login', {
+      const { error } = await fetchApi('/api/auth/request-otp', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: forgotEmail.trim().toLowerCase(),
+          purpose: 'password_reset',
+        }),
+      });
+      if (error) {
+        setForgotError(error);
+        return;
+      }
+      setForgotSuccess(true);
+    } catch {
+      setForgotError('An unexpected error occurred. Please try again.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setResendMessage('');
+    try {
+      const { error } = await fetchApi('/api/auth/login', {
+        method: 'POST',
         body: JSON.stringify({ email: loginEmail, password }),
       });
+      if (error) {
+        setResendMessage(
+          error.includes('Too many')
+            ? 'Too many attempts. Please wait a moment and try again.'
+            : error,
+        );
+        return;
+      }
+      setResendMessage('OTP resent');
     } catch {
-      // silently fail
+      setResendMessage('Failed to resend OTP. Please try again.');
     }
   };
 
@@ -147,7 +194,71 @@ export default function LoginPage() {
             <span className="text-lg font-semibold text-[#e8ecf4]">DeepMindQ</span>
           </div>
 
-          {step === 'credentials' ? (
+          {step === 'forgot' ? (
+            <>
+              <button
+                type="button"
+                onClick={() => setStep('credentials')}
+                className="mb-6 flex items-center gap-1.5 text-sm text-[#8892a8] hover:text-[#e8ecf4] transition"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Back to sign in
+              </button>
+
+              <div>
+                <h1 className="text-2xl font-bold tracking-tight text-[#e8ecf4]">Reset password</h1>
+                <p className="mt-2 text-sm text-[#8892a8]">
+                  Enter your email to receive a reset code.
+                </p>
+              </div>
+
+              {forgotSuccess ? (
+                <div className="mt-8 rounded-lg border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-400">
+                  If an account exists for that email, a reset code has been sent. Please check your
+                  inbox.
+                </div>
+              ) : (
+                <form onSubmit={handleForgotPassword} className="mt-8 space-y-5">
+                  {forgotError && (
+                    <div className="rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400">
+                      {forgotError}
+                    </div>
+                  )}
+
+                  <div className="space-y-2">
+                    <Label htmlFor="forgot-email" className="text-[#e8ecf4]">
+                      Email address
+                    </Label>
+                    <Input
+                      id="forgot-email"
+                      type="email"
+                      placeholder="you@company.com"
+                      required
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                      className="h-11 border-[#1e2535] bg-[#0f1219] text-[#e8ecf4] placeholder:text-[#5a6478] focus:border-blue-500/50 focus:ring-blue-500/20"
+                      autoComplete="email"
+                    />
+                  </div>
+
+                  <Button
+                    type="submit"
+                    disabled={forgotLoading}
+                    className="h-11 w-full bg-[#2563EB] text-white hover:bg-[#1D4ED8] disabled:opacity-60"
+                  >
+                    {forgotLoading ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Sending...
+                      </>
+                    ) : (
+                      'Send Reset Code'
+                    )}
+                  </Button>
+                </form>
+              )}
+            </>
+          ) : step === 'credentials' ? (
             <>
               <button
                 type="button"
@@ -215,6 +326,20 @@ export default function LoginPage() {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                </div>
+
+                {/* Forgot password link */}
+                <div className="flex justify-end">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setForgotEmail(email);
+                      setStep('forgot');
+                    }}
+                    className="text-sm text-[#8892a8] hover:text-blue-400 transition"
+                  >
+                    Forgot password?
+                  </button>
                 </div>
 
                 {/* Sign in button */}
@@ -304,14 +429,23 @@ export default function LoginPage() {
                 </Button>
 
                 {/* Resend OTP */}
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  className="w-full text-center text-sm text-[#8892a8] hover:text-blue-400 transition"
-                >
-                  Didn&apos;t receive the code?{' '}
-                  <span className="font-medium text-blue-500">Resend OTP</span>
-                </button>
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    className="w-full text-center text-sm text-[#8892a8] hover:text-blue-400 transition"
+                  >
+                    Didn&apos;t receive the code?{' '}
+                    <span className="font-medium text-blue-500">Resend OTP</span>
+                  </button>
+                  {resendMessage && (
+                    <p
+                      className={`text-center text-xs ${resendMessage === 'OTP resent' ? 'text-green-400' : 'text-yellow-400'}`}
+                    >
+                      {resendMessage}
+                    </p>
+                  )}
+                </div>
               </form>
             </>
           )}

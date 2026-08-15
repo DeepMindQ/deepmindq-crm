@@ -495,11 +495,63 @@ async function finalizeIngestion(
 }
 
 /**
+ * Recover stuck ingestions — finds records with status='processing' and
+ * completedAt=null where createdAt is older than 10 minutes, and resets
+ * them to 'pending' so the cron can pick them up.
+ *
+ * This handles cases where the ingestion process crashed or the server
+ * restarted mid-processing.
+ *
+ * Returns count of recovered records.
+ */
+export async function recoverStuckIngestions(): Promise<number> {
+  const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+
+  const stuck = await db.dataIngestion.findMany({
+    where: {
+      status: 'processing',
+      completedAt: null,
+      uploadedAt: { lt: tenMinutesAgo },
+    },
+    select: { id: true },
+  });
+
+  if (stuck.length === 0) return 0;
+
+  for (const record of stuck) {
+    try {
+      await db.dataIngestion.update({
+        where: { id: record.id },
+        data: {
+          status: 'pending',
+          errorMessage: 'Reset from stuck processing state (timeout recovery)',
+        },
+      });
+      logger.warn('[INGEST-RECOVERY] Reset stuck ingestion', { id: record.id });
+    } catch (err) {
+      logger.error('[INGEST-RECOVERY] Failed to reset stuck ingestion', {
+        id: record.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    }
+  }
+
+  logger.info('[INGEST-RECOVERY] Recovered stuck ingestions', { count: stuck.length });
+  return stuck.length;
+}
+
+/**
  * Process all pending ingestion jobs — used by cron job processor (#9).
  * Finds all 'pending' ingestions with a storedFilePath and processes them.
+ * Also recovers any stuck 'processing' records older than 10 minutes.
  * Returns count of jobs processed.
  */
 export async function processPendingIngestions(): Promise<{ processed: number; errors: number }> {
+  // First recover any stuck ingestions
+  const recovered = await recoverStuckIngestions();
+  if (recovered > 0) {
+    logger.info('[INGEST-CRON] Recovered stuck ingestions before processing', { recovered });
+  }
   const pending = await db.dataIngestion.findMany({
     where: {
       status: 'pending',

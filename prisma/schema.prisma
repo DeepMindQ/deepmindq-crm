@@ -97,6 +97,7 @@ enum IngestionStatus {
   completed
   failed
   partial
+  cancelled
 }
 
 enum IngestionFileType {

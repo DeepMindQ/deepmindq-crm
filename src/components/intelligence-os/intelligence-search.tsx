@@ -106,8 +106,8 @@ export function IntelligenceSearch() {
       try {
         const res = await fetchApi('/api/knowledge-folders');
         if (cancelled) return;
-        if (!res.error && res.data?.data?.nodes) {
-          const nodes = res.data.data.nodes as Record<string, unknown>[];
+        if (!res.error && res.data?.nodes) {
+          const nodes = res.data.nodes as Record<string, unknown>[];
           const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'];
           setKnowledgeResults(
             nodes.slice(0, 10).map((node, i) => ({
@@ -143,8 +143,8 @@ export function IntelligenceSearch() {
           params: { limit: 5, action: 'search' },
         });
         if (cancelled) return;
-        if (!res.error && res.data?.data?.length > 0) {
-          const activities = res.data.data as Record<string, unknown>[];
+        if (!res.error && res.data?.length > 0) {
+          const activities = res.data as Record<string, unknown>[];
           const searches = activities
             .map((a) => a.details as string | undefined)
             .filter((d): d is string => !!d);
@@ -184,9 +184,9 @@ export function IntelligenceSearch() {
       ]);
 
       // Map organizations to company results
-      if (!orgsRes.error && orgsRes.data?.data?.length > 0) {
+      if (!orgsRes.error && orgsRes.data?.length > 0) {
         setCompanyResults(
-          (orgsRes.data.data as Record<string, unknown>[]).map((o) => ({
+          (orgsRes.data as Record<string, unknown>[]).map((o) => ({
             id: (o.id as string) || '',
             name: (o.name as string) || '',
             domain: (o.domain as string) || '',
@@ -201,9 +201,9 @@ export function IntelligenceSearch() {
       }
 
       // Filter signals by query
-      if (!signalsRes.error && signalsRes.data?.data?.length > 0) {
+      if (!signalsRes.error && signalsRes.data?.length > 0) {
         const q = searchQuery.toLowerCase();
-        const filtered = (signalsRes.data.data as Record<string, unknown>[])
+        const filtered = (signalsRes.data as Record<string, unknown>[])
           .filter(
             (s) =>
               ((s.title as string) || '').toLowerCase().includes(q) ||
@@ -231,9 +231,9 @@ export function IntelligenceSearch() {
       }
 
       // Map people to contact results
-      if (!peopleRes.error && peopleRes.data?.data?.length > 0) {
+      if (!peopleRes.error && peopleRes.data?.length > 0) {
         setContactResults(
-          (peopleRes.data.data as Record<string, unknown>[]).map((p) => ({
+          (peopleRes.data as Record<string, unknown>[]).map((p) => ({
             id: (p.id as string) || '',
             name: (p.fullName as string) || '',
             title: (p.title as string) || '',

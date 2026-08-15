@@ -115,7 +115,7 @@ model Organization {
   id              String              @id @default(cuid())
   name            String
   domain          String?
-  aliases         String              @default("[]")   // JSON-encoded string array for SQLite
+  aliases         String              @default("[]")   // JSON-encoded string array (SQLite workaround — queried via resolveEntity() fuzzy match in KG engine)
   industry        String?
   subIndustry     String?
   description     String?
@@ -268,7 +268,7 @@ model SignalRule {
   signalType          String
   enabled             Boolean  @default(true)
   severityThreshold   Int      @default(0)    // 0=all, 50=medium+, 70=high+
-  customConditions    String?                     // JSON: custom rule conditions
+  customConditions    String?                     // JSON-encoded rule conditions (flexible per-signal-type config)
   organizationId      String?                     // null = global rule
   organization        Organization? @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   createdBy           String?
@@ -339,8 +339,8 @@ model Insight {
   confidence      ConfidenceLevel  @default(medium)
   confidenceScore Float?
 
-  evidenceIds     String           @default("[]")   // JSON-encoded string array
-  signalIds       String           @default("[]")   // JSON-encoded string array
+  evidenceIds     String           @default("[]")   // JSON-encoded string array (cross-reference IDs — joined at query time via insight→evidence FK)
+  signalIds       String           @default("[]")   // JSON-encoded string array (cross-reference IDs — joined at query time via insight→signal FK)
 
   reasoningMethod String
   modelUsed       String?
@@ -366,10 +366,10 @@ model Briefing {
   organization    Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
   executiveSummary String
-  keyFindings     String           @default("[]")   // JSON-encoded string array
+  keyFindings     String           @default("[]")   // JSON-encoded string array (SQLite workaround — array of findings, parsed in briefing UI)
   opportunityScore Float?
-  riskFactors     String           @default("[]")   // JSON-encoded string array
-  recommendedActions String        @default("[]")   // JSON-encoded string array
+  riskFactors     String           @default("[]")   // JSON-encoded string array (SQLite workaround — array of risks, parsed in briefing UI)
+  recommendedActions String        @default("[]")   // JSON-encoded string array (SQLite workaround — array of actions, parsed in briefing UI)
 
   signalCount     Int              @default(0)
   activeSignals  Int              @default(0)
@@ -402,10 +402,10 @@ model DataIngestion {
   organizationsCreated Int?
   peopleCreated   Int?
 
-  columnMap        String?
+  columnMap        String?             // JSON-encoded column mapping (structure varies by file format)
 
   errorMessage    String?
-  errorDetails    String?
+  errorDetails    String?             // JSON-encoded error array (truncated to first 100 errors for storage)
 
   storedFilePath  String?
 

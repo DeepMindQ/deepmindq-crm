@@ -63,11 +63,15 @@ export const db = globalForPrisma.prisma;
 async function initDb() {
   if (process.env.DATABASE_URL?.startsWith('file:')) {
     try {
+      // Enable WAL mode for concurrent reads + single-writer (best SQLite concurrency)
       await db.$executeRaw`PRAGMA journal_mode=WAL`;
+      // Set busy timeout to 5 seconds — writer waits for readers to finish
       await db.$executeRaw`PRAGMA busy_timeout=5000`;
-      logger.info('[DB] SQLite WAL mode enabled');
+      // Set WAL auto-checkpoint threshold (1000 pages ≈ 4MB)
+      await db.$executeRaw`PRAGMA wal_autocheckpoint=1000`;
+      logger.info('[DB] SQLite WAL mode enabled with busy_timeout=5000, auto_checkpoint=1000');
     } catch (e) {
-      logger.warn('[DB] Failed to set WAL mode', {
+      logger.warn('[DB] Failed to set SQLite pragmas', {
         error: e instanceof Error ? e.message : String(e),
       });
     }

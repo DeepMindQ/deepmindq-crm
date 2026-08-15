@@ -14,90 +14,67 @@ import {
   ResponsiveContainer,
 } from 'recharts';
 import { Database, Target, Lightbulb, Zap } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
+import { toast } from 'sonner';
 
 // ── Types ──
 
 type DateRange = '7d' | '30d' | '90d';
 
-// ── Mock data generators ──
-
-function generateSignalsOverTime(days: number) {
-  const data = [];
-  const now = new Date();
-  for (let i = days; i >= 0; i--) {
-    const d = new Date(now);
-    d.setDate(d.getDate() - i);
-    const base = 40 + Math.sin(i * 0.3) * 20;
-    data.push({
-      date: d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-      signals: Math.round(base + Math.random() * 30),
-      processed: Math.round(base * 0.8 + Math.random() * 20),
-      insights: Math.round(base * 0.3 + Math.random() * 10),
-    });
-  }
-  return data;
+interface StatsOverview {
+  totalDataPoints?: number;
+  coverageScore?: string;
+  insightsGenerated?: number;
+  avgProcessingTime?: string;
+  signalsOverTime?: { date: string; signals: number; processed: number; insights: number }[];
+  signalsByType?: { type: string; count: number }[];
+  intelligenceScores?: { range: string; count: number }[];
+  topIndustries?: { industry: string; score: number }[];
 }
-
-const SIGNALS_BY_TYPE = [
-  { type: 'Hiring', count: 342 },
-  { type: 'Funding', count: 218 },
-  { type: 'Product', count: 189 },
-  { type: 'M&A', count: 67 },
-  { type: 'Tech', count: 294 },
-  { type: 'Financial', count: 156 },
-  { type: 'Legal', count: 89 },
-  { type: 'Social', count: 412 },
-];
-
-const INTELLIGENCE_SCORES = [
-  { range: '0-10', count: 12 },
-  { range: '11-20', count: 28 },
-  { range: '21-30', count: 45 },
-  { range: '31-40', count: 78 },
-  { range: '41-50', count: 112 },
-  { range: '51-60', count: 95 },
-  { range: '61-70', count: 67 },
-  { range: '71-80', count: 38 },
-  { range: '81-90', count: 18 },
-  { range: '91-100', count: 7 },
-];
-
-const TOP_INDUSTRIES = [
-  { industry: 'Technology', score: 94 },
-  { industry: 'Finance', score: 87 },
-  { industry: 'Healthcare', score: 82 },
-  { industry: 'Manufacturing', score: 76 },
-  { industry: 'Retail', score: 71 },
-  { industry: 'Energy', score: 65 },
-  { industry: 'Aerospace', score: 58 },
-  { industry: 'Media', score: 52 },
-];
 
 // ── Component ──
 
 export default function Analytics() {
   const [isLoading, setIsLoading] = useState(true);
   const [dateRange, setDateRange] = useState<DateRange>('30d');
+  const [overview, setOverview] = useState<StatsOverview | null>(null);
 
   useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 600);
-    return () => clearTimeout(t);
+    async function loadOverview() {
+      setIsLoading(true);
+      const { data, error } = await fetchApi<StatsOverview>('/api/stats/overview');
+      if (error) {
+        toast.error('Failed to load analytics', { description: error });
+      } else if (data) {
+        setOverview(data);
+      }
+      setIsLoading(false);
+    }
+    loadOverview();
   }, []);
 
-  const signalsTimeData = useMemo(() => {
-    const daysMap: Record<DateRange, number> = { '7d': 7, '30d': 30, '90d': 90 };
-    return generateSignalsOverTime(daysMap[dateRange]);
-  }, [dateRange]);
+  const signalsTimeData = overview?.signalsOverTime ?? [];
+  const signalsByType = overview?.signalsByType ?? [];
+  const intelligenceScores = overview?.intelligenceScores ?? [];
+  const topIndustries = overview?.topIndustries ?? [];
 
   const stats = useMemo(() => {
+    if (overview) {
+      return {
+        totalDataPoints: (overview.totalDataPoints ?? 0).toLocaleString(),
+        coverageScore: overview.coverageScore ?? '—',
+        insightsGenerated: (overview.insightsGenerated ?? 0).toLocaleString(),
+        avgProcessingTime: overview.avgProcessingTime ?? '—',
+      };
+    }
     const total = signalsTimeData.reduce((s, d) => s + d.signals, 0);
     return {
       totalDataPoints: total.toLocaleString(),
-      coverageScore: '94.2%',
+      coverageScore: '—',
       insightsGenerated: signalsTimeData.reduce((s, d) => s + d.insights, 0).toLocaleString(),
-      avgProcessingTime: '1.2s',
+      avgProcessingTime: '—',
     };
-  }, [signalsTimeData]);
+  }, [overview, signalsTimeData]);
 
   const bg = tokens.surface.card;
   const border = tokens.border.default;
@@ -285,7 +262,7 @@ export default function Analytics() {
             Signals by Type
           </h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={SIGNALS_BY_TYPE} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
+            <BarChart data={signalsByType} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} />
               <XAxis
                 dataKey="type"
@@ -314,10 +291,7 @@ export default function Analytics() {
             Intelligence Score Distribution
           </h3>
           <ResponsiveContainer width="100%" height={260}>
-            <BarChart
-              data={INTELLIGENCE_SCORES}
-              margin={{ top: 5, right: 5, bottom: 5, left: -20 }}
-            >
+            <BarChart data={intelligenceScores} margin={{ top: 5, right: 5, bottom: 5, left: -20 }}>
               <CartesianGrid strokeDasharray="3 3" stroke={chartGrid} />
               <XAxis
                 dataKey="range"
@@ -342,7 +316,7 @@ export default function Analytics() {
           </h3>
           <ResponsiveContainer width="100%" height={260}>
             <BarChart
-              data={TOP_INDUSTRIES}
+              data={topIndustries}
               layout="vertical"
               margin={{ top: 5, right: 20, bottom: 5, left: 5 }}
             >

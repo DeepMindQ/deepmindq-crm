@@ -41,81 +41,18 @@ import {
   Plug,
   AlertCircle,
 } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
+import { toast } from 'sonner';
 
-const MOCK_SOURCES = [
-  {
-    id: '1',
-    name: 'Salesforce CRM',
-    type: 'crm',
-    status: 'active',
-    lastSync: '2024-12-19 14:30',
-    records: 245891,
-    quality: 0.94,
-  },
-  {
-    id: '2',
-    name: 'HubSpot CRM',
-    type: 'crm',
-    status: 'active',
-    lastSync: '2024-12-19 14:15',
-    records: 184203,
-    quality: 0.91,
-  },
-  {
-    id: '3',
-    name: 'LinkedIn Sales Nav',
-    type: 'external',
-    status: 'active',
-    lastSync: '2024-12-19 13:45',
-    records: 56721,
-    quality: 0.87,
-  },
-  {
-    id: '4',
-    name: 'Company CSV Upload',
-    type: 'upload',
-    status: 'active',
-    lastSync: '2024-12-18 09:00',
-    records: 12450,
-    quality: 0.78,
-  },
-  {
-    id: '5',
-    name: 'Market Intel AI Feed',
-    type: 'ai',
-    status: 'active',
-    lastSync: '2024-12-19 14:00',
-    records: 8934,
-    quality: 0.82,
-  },
-  {
-    id: '6',
-    name: 'Outreach.io',
-    type: 'crm',
-    status: 'error',
-    lastSync: '2024-12-19 10:22',
-    records: 45602,
-    quality: 0.0,
-  },
-  {
-    id: '7',
-    name: 'ZoomInfo Enrichment',
-    type: 'external',
-    status: 'disconnected',
-    lastSync: '2024-12-10 16:00',
-    records: 32100,
-    quality: 0.85,
-  },
-  {
-    id: '8',
-    name: 'GPT-4 Signal Analysis',
-    type: 'ai',
-    status: 'active',
-    lastSync: '2024-12-19 14:32',
-    records: 15678,
-    quality: 0.89,
-  },
-];
+interface SignalSource {
+  id: string;
+  name: string;
+  type: string;
+  status: string;
+  lastSync: string;
+  records: number;
+  quality: number;
+}
 
 function getTypeIcon(type: string) {
   switch (type) {
@@ -189,6 +126,7 @@ function getQualityBadge(quality: number) {
 
 export default function IntelligenceSources() {
   const [isLoading, setIsLoading] = useState(true);
+  const [sources, setSources] = useState<SignalSource[]>([]);
   const [search, setSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [syncing, setSyncing] = useState<string | null>(null);
@@ -197,14 +135,23 @@ export default function IntelligenceSources() {
   const [newSourceType, setNewSourceType] = useState('');
 
   useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 600);
-    return () => clearTimeout(t);
+    async function loadSources() {
+      setIsLoading(true);
+      const { data, error } = await fetchApi<SignalSource[]>('/api/signals');
+      if (error) {
+        toast.error('Failed to load data sources', { description: error });
+      } else if (Array.isArray(data)) {
+        setSources(data);
+      }
+      setIsLoading(false);
+    }
+    loadSources();
   }, []);
 
   if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const filtered = useMemo(() => {
-    return MOCK_SOURCES.filter((s) => {
+    return sources.filter((s) => {
       if (typeFilter !== 'all' && s.type !== typeFilter) return false;
       if (search && !s.name.toLowerCase().includes(search.toLowerCase())) return false;
       return true;
@@ -218,16 +165,19 @@ export default function IntelligenceSources() {
 
   const stats = useMemo(
     () => ({
-      total: MOCK_SOURCES.length,
-      active: MOCK_SOURCES.filter((s) => s.status === 'active').length,
-      totalRecords: MOCK_SOURCES.reduce((a, b) => a + b.records, 0),
-      avgQuality: (
-        (MOCK_SOURCES.filter((s) => s.quality > 0).reduce((a, b) => a + b.quality, 0) /
-          MOCK_SOURCES.filter((s) => s.quality > 0).length) *
-        100
-      ).toFixed(1),
+      total: sources.length,
+      active: sources.filter((s) => s.status === 'active').length,
+      totalRecords: sources.reduce((a, b) => a + b.records, 0),
+      avgQuality:
+        sources.filter((s) => s.quality > 0).length > 0
+          ? (
+              (sources.filter((s) => s.quality > 0).reduce((a, b) => a + b.quality, 0) /
+                sources.filter((s) => s.quality > 0).length) *
+              100
+            ).toFixed(1)
+          : '0.0',
     }),
-    [],
+    [sources],
   );
 
   return (
@@ -329,7 +279,7 @@ export default function IntelligenceSources() {
             </SelectContent>
           </Select>
           <span className="text-xs" style={{ color: tokens.text.muted }}>
-            {filtered.length} of {MOCK_SOURCES.length} sources
+            {filtered.length} of {sources.length} sources
           </span>
         </CardContent>
       </Card>

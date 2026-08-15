@@ -24,6 +24,8 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Plus, Search, Pencil, Play, FileText, Bot } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
+import { toast } from 'sonner';
 
 /* ── Types ── */
 interface PromptTemplate {
@@ -64,13 +66,15 @@ export default function PromptTemplatesScreen() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch('/api/prompts');
-      if (!res.ok) {
-        throw new Error(`Failed to fetch prompt templates (HTTP ${res.status})`);
+      const { data, error } = await fetchApi<Record<string, unknown>[]>('/api/prompt-templates');
+      if (error) {
+        toast.error('Failed to load prompt templates', { description: error });
+        setError(new Error(error));
+        return;
       }
-      const json = await res.json();
+
       // Support both { data: [...] } envelope and raw array
-      const raw = json.data ?? json.prompts ?? json;
+      const raw = data ?? [];
 
       // Map server PromptVersion → local PromptTemplate shape
       const mapped: PromptTemplate[] = (Array.isArray(raw) ? raw : []).map(
@@ -93,6 +97,9 @@ export default function PromptTemplatesScreen() {
       setTemplates(mapped);
     } catch (err) {
       setError(err instanceof Error ? err : new Error('Unknown error loading prompt templates'));
+      toast.error('Failed to load prompt templates', {
+        description: err instanceof Error ? err.message : 'Unknown error',
+      });
     } finally {
       setLoading(false);
     }

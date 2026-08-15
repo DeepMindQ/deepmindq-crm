@@ -21,6 +21,7 @@ import {
   Filter,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { fetchApi } from '@/lib/fetchApi';
 
 // ── Types ──
 interface Insight {
@@ -35,182 +36,6 @@ interface Insight {
   recommendation: string;
   evidence: string[];
 }
-
-// ── Mock Data ──
-const MOCK_INSIGHTS: Insight[] = [
-  {
-    id: 'ins-001',
-    title: 'Acme Corp expanding into APAC markets',
-    organization: 'Acme Corp',
-    category: 'opportunity',
-    confidence: 92,
-    status: 'active',
-    createdAt: '2025-01-15T10:30:00Z',
-    narrative:
-      'Acme Corp has posted 3 new job openings for Regional Directors in Singapore, Tokyo, and Sydney within the past 48 hours. This follows their Q3 earnings call where CEO explicitly mentioned APAC expansion as a 2025 strategic priority. Their VP of Sales has also been actively engaging with partners in the region on LinkedIn, suggesting immediate go-to-market activity.',
-    recommendation:
-      'Reach out to the VP of Sales with a tailored partnership proposal. Leverage the timing of their hiring to position your solution as a force-multiplier for their new APAC team. Consider offering an introductory APAC market analysis as a conversation starter.',
-    evidence: [
-      'Job postings on LinkedIn',
-      'Q3 earnings call transcript',
-      'LinkedIn engagement activity',
-    ],
-  },
-  {
-    id: 'ins-002',
-    title: 'TechStart Inc funding round at risk',
-    organization: 'TechStart Inc',
-    category: 'risk',
-    confidence: 78,
-    status: 'active',
-    createdAt: '2025-01-14T14:20:00Z',
-    narrative:
-      "TechStart Inc's Series C round has been in discussion for 90+ days without closing. Two of their previously confirmed investors have pulled back based on recent market volatility. Their current runway is estimated at 4.2 months, putting pressure on operational decisions.",
-    recommendation:
-      'Proceed with caution in any outbound engagement. If already in pipeline, assess deal viability and consider accelerated closing strategies or flexible payment terms. Monitor their funding status weekly.',
-    evidence: ['PitchBook data', 'Investor meeting leaks', 'Financial model analysis'],
-  },
-  {
-    id: 'ins-003',
-    title: 'GlobalFin implementing AI fraud detection',
-    organization: 'GlobalFin',
-    category: 'opportunity',
-    confidence: 85,
-    status: 'acted_upon',
-    createdAt: '2025-01-13T09:15:00Z',
-    narrative:
-      'GlobalFin has issued an RFP for AI-based fraud detection systems. Their current solution has shown a 23% increase in false positives over the last quarter, triggering the search for alternatives. Budget allocation of $2.5M has been approved by the CTO.',
-    recommendation:
-      'Prepare a targeted RFP response highlighting false positive reduction capabilities. Include case studies from financial services clients. Schedule a technical deep-dive with their security team.',
-    evidence: ['RFP document', 'CTO blog post', 'Industry analyst report'],
-  },
-  {
-    id: 'ins-004',
-    title: 'HealthPlus experiencing executive churn',
-    organization: 'HealthPlus',
-    category: 'risk',
-    confidence: 71,
-    status: 'active',
-    createdAt: '2025-01-12T16:45:00Z',
-    narrative:
-      'HealthPlus has lost 3 C-suite executives in the past 6 months including their CTO, CFO, and Head of Product. Board members have expressed concerns about strategic direction in recent filings. Employee sentiment on Glassdoor has dropped 18 points.',
-    recommendation:
-      "Delay major account engagement until leadership stabilizes. If in active deal cycle, qualify the decision-maker's authority and budget commitment. Consider positioning as a stability partner rather than growth partner.",
-    evidence: ['SEC filings', 'Glassdoor reviews', 'LinkedIn departures'],
-  },
-  {
-    id: 'ins-005',
-    title: 'Pattern: Enterprise buyers requesting RAG capabilities',
-    organization: 'Multiple',
-    category: 'pattern',
-    confidence: 88,
-    status: 'active',
-    createdAt: '2025-01-11T11:00:00Z',
-    narrative:
-      'Analysis of the last 200 inbound inquiries reveals a 340% increase in RAG (Retrieval-Augmented Generation) capability requests. 67% of enterprise buyers specifically mention RAG in their evaluation criteria. This pattern has intensified since the December product announcements from major competitors.',
-    recommendation:
-      'Prioritize RAG feature development and marketing. Update product demos to highlight RAG capabilities. Create comparison materials that position your RAG implementation against competitors. Consider a dedicated RAG-focused webinar.',
-    evidence: ['Inbound inquiry analysis', 'Competitive intelligence', 'Sales call transcripts'],
-  },
-  {
-    id: 'ins-006',
-    title: 'RetailMax supply chain optimization initiative',
-    organization: 'RetailMax',
-    category: 'recommendation',
-    confidence: 82,
-    status: 'active',
-    createdAt: '2025-01-10T08:30:00Z',
-    narrative:
-      'RetailMax has publicly committed to a $15M supply chain digitization initiative following a Q4 inventory management failure that cost an estimated $8.2M in lost revenue. Their CIO has been appointed to lead the transformation with a 12-month timeline.',
-    recommendation:
-      'Position supply chain optimization solutions immediately. The CIO is the key decision-maker and has authority to move quickly given the board mandate. Offer a rapid assessment engagement to establish credibility and uncover specific pain points.',
-    evidence: ['Press release', 'Earnings call', 'Industry publication'],
-  },
-  {
-    id: 'ins-007',
-    title: 'CloudScale downgrading infrastructure spend',
-    organization: 'CloudScale',
-    category: 'risk',
-    confidence: 65,
-    status: 'dismissed',
-    createdAt: '2025-01-09T13:20:00Z',
-    narrative:
-      'CloudScale has announced a 30% reduction in cloud infrastructure spend for Q1 2025. While this may indicate cost optimization, it could also signal budget pressures that affect purchasing decisions for SaaS tools.',
-    recommendation:
-      "Investigate the nature of the spending reduction. If it's pure optimization, opportunity exists for cost-saving solutions. If it's budget pressure, adjust deal sizing and timing expectations.",
-    evidence: ['Internal memo leak', 'AWS usage data', 'Industry benchmarks'],
-  },
-  {
-    id: 'ins-008',
-    title: 'AutoDrive AI partnership with major OEM',
-    organization: 'AutoDrive AI',
-    category: 'opportunity',
-    confidence: 91,
-    status: 'active',
-    createdAt: '2025-01-08T15:10:00Z',
-    narrative:
-      'AutoDrive AI has signed a strategic partnership with a Tier-1 automotive OEM worth an estimated $50M over 3 years. This significantly increases their market credibility and likely triggers expanded technology needs across engineering, testing, and simulation teams.',
-    recommendation:
-      'Fast-track engagement with AutoDrive AI. The new partnership creates urgent needs for scalable engineering tools. Target the VP of Engineering and newly created partnership liaison roles.',
-    evidence: ['Partnership announcement', 'Job postings', 'Patent filings'],
-  },
-  {
-    id: 'ins-009',
-    title: 'Pattern: Mid-market consolidation in FinTech',
-    organization: 'Multiple',
-    category: 'pattern',
-    confidence: 76,
-    status: 'expired',
-    createdAt: '2025-01-07T10:00:00Z',
-    narrative:
-      'The FinTech mid-market segment has seen 4 acquisitions in the past 60 days, with an average deal multiple of 8.2x revenue. Companies in the $10M-$50M ARR range are primary targets. This consolidation is creating both opportunity (acqui-hire needs) and risk (customer uncertainty).',
-    recommendation:
-      'Identify FinTech prospects in the $10M-$50M ARR range. For acquisition targets, accelerate engagement before ownership changes. For acquirers, position as an integration-friendly solution. Update ICP criteria to reflect market shifts.',
-    evidence: ['M&A database', 'Industry reports', 'Revenue estimates'],
-  },
-  {
-    id: 'ins-010',
-    title: 'EduLearn platform migration underway',
-    organization: 'EduLearn',
-    category: 'recommendation',
-    confidence: 84,
-    status: 'active',
-    createdAt: '2025-01-06T12:30:00Z',
-    narrative:
-      "EduLearn is migrating from their legacy LMS to a cloud-native architecture. The project has a dedicated team of 12 engineers and a Q2 completion target. They've been evaluating complementary tools for analytics, personalization, and content management.",
-    recommendation:
-      "Engage with EduLearn's CTO and the migration project lead. Offer tools that complement their new architecture. A pilot program for one module could serve as a beachhead for broader adoption.",
-    evidence: ['Job postings', 'Tech stack analysis', 'Conference presentations'],
-  },
-  {
-    id: 'ins-011',
-    title: 'GreenEnergy Corp regulatory compliance gap',
-    organization: 'GreenEnergy Corp',
-    category: 'risk',
-    confidence: 73,
-    status: 'acted_upon',
-    createdAt: '2025-01-05T09:00:00Z',
-    narrative:
-      'New EPA regulations effective March 2025 will require GreenEnergy Corp to implement enhanced emissions tracking and reporting. Their current systems lack the granularity needed for compliance, creating an urgent technology need with a hard deadline.',
-    recommendation:
-      'Position compliance solutions with a clear ROI case tied to penalty avoidance. The March deadline creates urgency. Offer a compliance gap assessment as a first engagement step. Target the VP of Operations and Chief Compliance Officer.',
-    evidence: ['EPA regulation text', 'Company compliance filings', 'Industry compliance reports'],
-  },
-  {
-    id: 'ins-012',
-    title: 'MediaFlow content delivery optimization',
-    organization: 'MediaFlow',
-    category: 'opportunity',
-    confidence: 87,
-    status: 'active',
-    createdAt: '2025-01-04T14:00:00Z',
-    narrative:
-      'MediaFlow has reported a 40% increase in streaming traffic post-holiday season, exposing performance bottlenecks in their content delivery pipeline. Their CTO published a blog about needing "fundamental architectural changes" to handle projected 2025 growth of 200%.',
-    recommendation:
-      "Leverage the CTO's public statement as a conversation opener. Focus on scalability and performance optimization capabilities. Provide a free infrastructure assessment that quantifies current bottlenecks and projected costs of inaction.",
-    evidence: ['CTO blog post', 'Traffic analytics', 'Performance monitoring data'],
-  },
-];
 
 // ── Category Config ──
 const CATEGORY_CONFIG: Record<
@@ -252,18 +77,28 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; label: string }
 
 // ── Component ──
 export default function IntelligenceInbox() {
-  const [_isLoading, _setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [selectedInsight, setSelectedInsight] = useState<Insight | null>(null);
   const [slideOpen, setSlideOpen] = useState(false);
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
-  const [insights, setInsights] = useState<Insight[]>(MOCK_INSIGHTS);
+  const [insights, setInsights] = useState<Insight[]>([]);
 
   useEffect(() => {
-    const t = setTimeout(() => _setIsLoading(false), 600);
-    return () => clearTimeout(t);
+    async function loadInsights() {
+      setIsLoading(true);
+      const { data, error } = await fetchApi<Insight[]>('/api/team-activity');
+      if (error) {
+        toast.error('Failed to load intelligence inbox', { description: error });
+      } else if (Array.isArray(data)) {
+        setInsights(data);
+      }
+      setIsLoading(false);
+    }
+    loadInsights();
   }, []);
 
+  // All hooks must be called before any conditional return (rules-of-hooks)
   const filteredInsights = useMemo(() => {
     return insights.filter((i) => {
       if (categoryFilter !== 'all' && i.category !== categoryFilter) return false;
@@ -278,9 +113,10 @@ export default function IntelligenceInbox() {
       total: insights.length,
       opportunities: insights.filter((i) => i.category === 'opportunity').length,
       risks: insights.filter((i) => i.category === 'risk').length,
-      avgConfidence: Math.round(
-        insights.reduce((sum, i) => sum + i.confidence, 0) / insights.length,
-      ),
+      avgConfidence:
+        insights.length > 0
+          ? Math.round(insights.reduce((sum, i) => sum + i.confidence, 0) / insights.length)
+          : 0,
       activeCount: active.length,
     };
   }, [insights]);
@@ -410,6 +246,20 @@ export default function IntelligenceInbox() {
     ],
     [],
   );
+
+  if (isLoading) {
+    return (
+      <div className="p-6 space-y-6">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <div
+            key={i}
+            className="h-12 rounded-lg animate-pulse"
+            style={{ background: tokens.border.default }}
+          />
+        ))}
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 space-y-6">

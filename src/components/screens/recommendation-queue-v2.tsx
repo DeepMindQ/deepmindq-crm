@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/screen-states';
 import { tokens } from '@/components/intelligence-os/design-tokens';
+import { fetchApi } from '@/lib/fetchApi';
+import { toast } from 'sonner';
 import {
   Brain,
   CheckCircle2,
@@ -35,80 +37,7 @@ type CardData = {
   priority: 'high' | 'medium' | 'low';
 };
 
-const initialCards: CardData[] = [
-  {
-    id: 'v1',
-    title: 'Schedule executive briefing with Acme Corp CTO',
-    account: 'Acme Corp',
-    type: 'action',
-    confidence: 94,
-    status: 'new',
-    priority: 'high',
-  },
-  {
-    id: 'v2',
-    title: 'NovaTech showing strong buying signals — 3 new signals in 24h',
-    account: 'NovaTech',
-    type: 'insight',
-    confidence: 91,
-    status: 'new',
-    priority: 'high',
-  },
-  {
-    id: 'v3',
-    title: 'Pinnacle Health contract renewal at risk — engagement dropped 40%',
-    account: 'Pinnacle Health',
-    type: 'warning',
-    confidence: 88,
-    status: 'new',
-    priority: 'high',
-  },
-  {
-    id: 'v4',
-    title: 'Cross-sell opportunity: Quantum Dynamics needs security module',
-    account: 'Quantum Dynamics',
-    type: 'action',
-    confidence: 85,
-    status: 'reviewed',
-    priority: 'medium',
-  },
-  {
-    id: 'v5',
-    title: 'SkyBridge Labs competitor evaluation nearing completion',
-    account: 'SkyBridge Labs',
-    type: 'insight',
-    confidence: 82,
-    status: 'reviewed',
-    priority: 'medium',
-  },
-  {
-    id: 'v6',
-    title: 'Vertex AI expanding team — potential upsell window',
-    account: 'Vertex AI',
-    type: 'action',
-    confidence: 79,
-    status: 'accepted',
-    priority: 'medium',
-  },
-  {
-    id: 'v7',
-    title: 'Meridian Inc posted about data platform consolidation',
-    account: 'Meridian Inc',
-    type: 'insight',
-    confidence: 76,
-    status: 'accepted',
-    priority: 'low',
-  },
-  {
-    id: 'v8',
-    title: 'Legacy contact email bounced at DataFlow Inc',
-    account: 'DataFlow Inc',
-    type: 'warning',
-    confidence: 72,
-    status: 'dismissed',
-    priority: 'low',
-  },
-];
+// Card data now fetched from /api/recommendations
 
 // ── Helpers ──
 const typeConfig: Record<
@@ -170,15 +99,33 @@ const columns: RecStatus[] = ['new', 'reviewed', 'accepted', 'dismissed'];
 // ── Component ──
 export function RecommendationQueueV2() {
   const [loading, setLoading] = useState(true);
-  const [cards, setCards] = useState(initialCards);
+  const [cards, setCards] = useState<CardData[]>([]);
 
-  useMemo(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
+  const fetchCards = useCallback(async () => {
+    const { data, error } = await fetchApi<CardData[]>('/api/recommendations');
+    if (error) {
+      toast.error('Failed to load recommendations', { description: error });
+    } else if (data) {
+      setCards(data);
+    }
+    setLoading(false);
   }, []);
 
-  const moveCard = (cardId: string, newStatus: RecStatus) => {
-    setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, status: newStatus } : c)));
+  useEffect(() => {
+    fetchCards();
+  }, [fetchCards]);
+
+  const moveCard = async (cardId: string, newStatus: RecStatus) => {
+    const { error } = await fetchApi(`/api/recommendations/${cardId}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (error) {
+      toast.error('Failed to update recommendation', { description: error });
+    } else {
+      setCards((prev) => prev.map((c) => (c.id === cardId ? { ...c, status: newStatus } : c)));
+    }
   };
 
   if (loading) {

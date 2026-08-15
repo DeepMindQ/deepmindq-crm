@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -14,6 +14,8 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/screen-states';
 import { tokens } from '@/components/intelligence-os/design-tokens';
+import { fetchApi } from '@/lib/fetchApi';
+import { toast } from 'sonner';
 import {
   DollarSign,
   TrendingUp,
@@ -45,74 +47,7 @@ type RecCard = {
   status: 'active' | 'dismissed';
 };
 
-const initialRecs: RecCard[] = [
-  {
-    id: 'ri1',
-    title: 'Expand to enterprise-wide license',
-    type: 'expand',
-    account: 'Acme Corp',
-    impact: 350000,
-    probability: 45,
-    timeline: 'Q2 2025',
-    evidenceCount: 8,
-    status: 'active',
-  },
-  {
-    id: 'ri2',
-    title: 'Cross-sell security module',
-    type: 'cross-sell',
-    account: 'Quantum Dynamics',
-    impact: 120000,
-    probability: 72,
-    timeline: 'Q1 2025',
-    evidenceCount: 5,
-    status: 'active',
-  },
-  {
-    id: 'ri3',
-    title: 'Upsell to premium tier',
-    type: 'upsell',
-    account: 'NovaTech',
-    impact: 85000,
-    probability: 68,
-    timeline: 'Q1 2025',
-    evidenceCount: 6,
-    status: 'active',
-  },
-  {
-    id: 'ri4',
-    title: 'Retain at-risk renewal — Pinnacle Health',
-    type: 'retain',
-    account: 'Pinnacle Health',
-    impact: 520000,
-    probability: 55,
-    timeline: 'Immediate',
-    evidenceCount: 12,
-    status: 'active',
-  },
-  {
-    id: 'ri5',
-    title: 'Cross-sell analytics add-on',
-    type: 'cross-sell',
-    account: 'SkyBridge Labs',
-    impact: 95000,
-    probability: 78,
-    timeline: 'Q2 2025',
-    evidenceCount: 4,
-    status: 'active',
-  },
-  {
-    id: 'ri6',
-    title: 'Upsell additional seats',
-    type: 'upsell',
-    account: 'Meridian Inc',
-    impact: 65000,
-    probability: 62,
-    timeline: 'Q1 2025',
-    evidenceCount: 3,
-    status: 'active',
-  },
-];
+// Card data now fetched from /api/recommendations
 
 // ── Helpers ──
 const typeConfig: Record<
@@ -154,8 +89,19 @@ function fmt(val: number) {
 // ── Component ──
 export default function RevenueIntelligenceRecommendationsScreen() {
   const [loading, setLoading] = useState(true);
-  const [recs, setRecs] = useState(initialRecs);
+  const [recs, setRecs] = useState<RecCard[]>([]);
   const [typeFilter, setTypeFilter] = useState('all');
+
+  const fetchRecs = useCallback(async () => {
+    const { data, error } = await fetchApi<RecCard[]>('/api/recommendations');
+    if (error) toast.error('Failed to load recommendations', { description: error });
+    else if (data) setRecs(data);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchRecs();
+  }, [fetchRecs]);
 
   useMemo(() => {
     const t = setTimeout(() => setLoading(false), 600);
@@ -178,8 +124,17 @@ export default function RevenueIntelligenceRecommendationsScreen() {
     return { totalValue, expansion, retention, newRev };
   }, [recs]);
 
-  const handleDismiss = (id: string) => {
-    setRecs((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'dismissed' as const } : r)));
+  const handleDismiss = async (id: string) => {
+    const { error } = await fetchApi(`/api/recommendations/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'dismissed' }),
+    });
+    if (error) toast.error('Failed to dismiss', { description: error });
+    else
+      setRecs((prev) =>
+        prev.map((r) => (r.id === id ? { ...r, status: 'dismissed' as const } : r)),
+      );
   };
 
   const handleAdopt = (id: string) => {

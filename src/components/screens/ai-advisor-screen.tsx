@@ -6,6 +6,8 @@ import { Bot, Send, Trash2, Sparkles, User, Loader2, MessageSquare } from 'lucid
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
+import { fetchApi } from '@/lib/fetchApi';
+import { toast } from 'sonner';
 
 // ── Types ──
 interface ChatMessage {
@@ -16,138 +18,21 @@ interface ChatMessage {
   isStreaming?: boolean;
 }
 
-// ── Mock AI Responses ──
-function getMockResponse(userMessage: string): string {
-  const msg = userMessage.toLowerCase();
-
-  if (msg.includes('prioritize') || msg.includes('account') || msg.includes('focus')) {
-    return `Based on your current intelligence data, here are the top 3 accounts you should prioritize:
-
-**1. Acme Corp** (Confidence: 92%)
-Recent expansion signals indicate urgent buying intent. They've posted 3 new APAC roles in 48 hours and their VP of Sales has been actively engaging partners. *Recommended action: Reach out within 24 hours.*
-
-**2. GlobalFin** (Confidence: 85%)
-Active RFP for AI fraud detection with $2.5M budget approved. Their current solution has a 23% false positive increase. *Recommended action: Submit RFP response by end of week.*
-
-**3. AutoDrive AI** (Confidence: 91%)
-New $50M OEM partnership creates immediate scaling needs. *Recommended action: Fast-track engagement with VP of Engineering.*
-
-These are ranked by a composite score of signal recency, budget signals, and organizational readiness. Would you like me to draft outreach for any of these?`;
+// ── AI Response Fetcher ──
+async function fetchAiResponse(userMessage: string): Promise<string | null> {
+  const { data, error } = await fetchApi<{ response?: string; message?: string }>(
+    '/api/advisor/chat',
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: userMessage }),
+    },
+  );
+  if (error) {
+    toast.error('AI Advisor error', { description: error });
+    return null;
   }
-
-  if (msg.includes('summarize') || msg.includes('signal') || msg.includes('recent')) {
-    return `Here's a summary of recent signals across your intelligence landscape:
-
-📊 **Signal Overview (Last 7 Days)**
-- **142 signals** detected across 38 tracked accounts
-- **23 high-priority** signals require immediate attention
-- **4 new opportunities** identified with >80% confidence
-- **2 risk alerts** issued for portfolio companies
-
-**Top Signal Categories:**
-1. Hiring activity (34%) — Strong predictor of growth
-2. Technology adoption (28%) — Infrastructure changes
-3. Leadership changes (18%) — Decision-maker shifts
-4. Financial signals (12%) — Budget and funding
-5. Partnership/M&A (8%) — Strategic moves
-
-⚠️ **Notable Trend:** A 340% increase in RAG capability requests from enterprise buyers has been detected. This may warrant a strategic response.
-
-Would you like me to dive deeper into any specific signal category or account?`;
-  }
-
-  if (msg.includes('pipeline') || msg.includes('health') || msg.includes('deal')) {
-    return `Here's your pipeline health assessment:
-
-**Overall Pipeline Score: 72/100** (Moderate)
-
-📈 **Strengths:**
-- 12 active opportunities totaling $4.2M in pipeline value
-- Average deal size increased 18% from last quarter
-- 3 deals in final negotiation stage
-
-📉 **Concerns:**
-- Average sales cycle has extended from 42 to 58 days
-- 2 deals stalled in technical evaluation for >30 days
-- Win rate dropped from 34% to 28% this quarter
-
-**By Stage:**
-| Stage | Deals | Value | Avg Days |
-|-------|-------|-------|----------|
-| Discovery | 4 | $890K | 12 |
-| Evaluation | 3 | $1.2M | 34 |
-| Proposal | 3 | $1.1M | 48 |
-| Negotiation | 2 | $1.01M | 58 |
-
-**Recommendation:** Focus on accelerating the 2 stalled evaluation deals. Consider offering a proof-of-concept to unblock technical concerns.
-
-Want me to create action plans for the stalled deals?`;
-  }
-
-  if (msg.includes('competitor') || msg.includes('competition')) {
-    return `Based on intelligence gathered, here's your competitive landscape:
-
-**Key Competitor Movements (Last 30 Days):**
-
-1. **Competitor A** launched a RAG-focused feature suite targeting enterprise buyers — this directly responds to the market demand shift we detected earlier.
-
-2. **Competitor B** hired 5 enterprise sales reps in your top 3 target verticals, signaling aggressive expansion.
-
-3. **Competitor C** dropped pricing by 20% for mid-market deals — potential race-to-bottom signal.
-
-**Your Positioning Advantage:**
-- Higher NPS scores (72 vs industry avg of 58)
-- Faster implementation times (2 weeks vs 6 weeks avg)
-- Superior data privacy compliance (SOC2 + HIPAA certified)
-
-**Suggested Response:**
-- Emphasize implementation speed in competitive situations
-- Develop RAG comparison materials
-- Create competitive battle cards for the sales team`;
-  }
-
-  if (msg.includes('icp') || msg.includes('ideal customer') || msg.includes('profile')) {
-    return `Based on analysis of your 47 closed-won deals and 156 active prospects, here's your refined ICP:
-
-**Ideal Customer Profile v2.1:**
-
-🏢 **Company:**
-- 200-5,000 employees
-- $50M-$2B annual revenue
-- Technology, Financial Services, or Healthcare verticals
-- US-based with international operations
-
-👤 **Decision Maker:**
-- VP-level or above (CTO, VP Engineering, VP Data)
-- 10+ years experience
-- Previously bought similar solutions
-
-🎯 **Trigger Events:**
-- Recent funding round (Series C+)
-- New executive hire in tech leadership
-- Public compliance mandate
-- M&A activity
-
-Your best-performing deals close 3x faster when 2+ trigger events are present. I recommend updating your scoring model to weight these triggers more heavily.`;
-  }
-
-  // Default response
-  return `That's a great question. Let me analyze the available intelligence to provide you with a comprehensive answer.
-
-Based on the current data in your DeepMindQ system:
-
-• **Total tracked accounts:** 247 organizations with active intelligence monitoring
-• **Signals processed today:** 18 new signals across 12 accounts
-• **Insights generated:** 4 new actionable insights in the last 24 hours
-
-I can help you with:
-- **Account prioritization** — Which accounts to focus on
-- **Signal analysis** — Deep-dive into specific signals
-- **Pipeline coaching** — Deal strategy and next steps
-- **Competitive intelligence** — Competitor movements and positioning
-- **ICP refinement** — Optimize your ideal customer profile
-
-Could you be more specific about what you'd like to explore? I can provide much more targeted insights when you ask about specific accounts, signals, or strategies.`;
+  return data?.response ?? data?.message ?? null;
 }
 
 // ── Suggested Prompts ──
@@ -200,7 +85,7 @@ export default function AiAdvisor() {
     return () => clearInterval(interval);
   }, []);
 
-  const handleSend = useCallback(() => {
+  const handleSend = useCallback(async () => {
     const trimmed = input.trim();
     if (!trimmed || isStreaming) return;
 
@@ -224,11 +109,24 @@ export default function AiAdvisor() {
     setInput('');
     setIsStreaming(true);
 
-    // Simulate network delay
-    setTimeout(() => {
-      const response = getMockResponse(trimmed);
-      simulateStreaming(response, aiMsgId);
-    }, 600);
+    // Fetch AI response from API
+    const responseText = await fetchAiResponse(trimmed);
+    if (responseText) {
+      simulateStreaming(responseText, aiMsgId);
+    } else {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === aiMsgId
+            ? {
+                ...m,
+                content: 'Sorry, I could not generate a response. Please try again.',
+                isStreaming: false,
+              }
+            : m,
+        ),
+      );
+      setIsStreaming(false);
+    }
   }, [input, isStreaming, simulateStreaming]);
 
   const handleKeyDown = useCallback(
@@ -245,7 +143,7 @@ export default function AiAdvisor() {
     (prompt: string) => {
       setInput(prompt);
       // Auto-send after a short delay
-      setTimeout(() => {
+      setTimeout(async () => {
         const userMsg: ChatMessage = {
           id: `user-${Date.now()}`,
           role: 'user',
@@ -266,10 +164,23 @@ export default function AiAdvisor() {
         setIsStreaming(true);
         setInput('');
 
-        setTimeout(() => {
-          const response = getMockResponse(prompt);
-          simulateStreaming(response, aiMsgId);
-        }, 600);
+        const responseText = await fetchAiResponse(prompt);
+        if (responseText) {
+          simulateStreaming(responseText, aiMsgId);
+        } else {
+          setMessages((prev) =>
+            prev.map((m) =>
+              m.id === aiMsgId
+                ? {
+                    ...m,
+                    content: 'Sorry, I could not generate a response. Please try again.',
+                    isStreaming: false,
+                  }
+                : m,
+            ),
+          );
+          setIsStreaming(false);
+        }
       }, 100);
     },
     [simulateStreaming],

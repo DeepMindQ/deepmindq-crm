@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/ui/screen-states';
 import { tokens } from '@/components/intelligence-os/design-tokens';
+import { InlineFeedback } from '@/components/feedback/inline-feedback';
 import {
   Brain,
   CheckCircle2,
@@ -39,6 +40,8 @@ import {
   BarChart3,
   TrendingUp,
 } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
+import { toast } from 'sonner';
 
 // ── Mock Data ──
 type RecType = 'action' | 'insight' | 'warning';
@@ -56,108 +59,7 @@ type Recommendation = {
   status: RecStatus;
 };
 
-const initialRecs: Recommendation[] = [
-  {
-    id: 'r1',
-    priority: 'high',
-    title: 'Schedule executive briefing with Acme Corp CTO',
-    account: 'Acme Corp',
-    type: 'action',
-    confidence: 94,
-    created: '10 min ago',
-    status: 'new',
-  },
-  {
-    id: 'r2',
-    priority: 'high',
-    title: 'NovaTech showing strong buying signals — 3 new signals in 24h',
-    account: 'NovaTech',
-    type: 'insight',
-    confidence: 91,
-    created: '25 min ago',
-    status: 'new',
-  },
-  {
-    id: 'r3',
-    priority: 'high',
-    title: 'Pinnacle Health contract renewal at risk — engagement dropped 40%',
-    account: 'Pinnacle Health',
-    type: 'warning',
-    confidence: 88,
-    created: '1h ago',
-    status: 'new',
-  },
-  {
-    id: 'r4',
-    priority: 'medium',
-    title: 'Cross-sell opportunity: Quantum Dynamics needs security module',
-    account: 'Quantum Dynamics',
-    type: 'action',
-    confidence: 85,
-    created: '2h ago',
-    status: 'new',
-  },
-  {
-    id: 'r5',
-    priority: 'medium',
-    title: 'SkyBridge Labs competitor evaluation nearing completion',
-    account: 'SkyBridge Labs',
-    type: 'insight',
-    confidence: 82,
-    created: '3h ago',
-    status: 'new',
-  },
-  {
-    id: 'r6',
-    priority: 'low',
-    title: 'Meridian Inc posted about data platform consolidation',
-    account: 'Meridian Inc',
-    type: 'insight',
-    confidence: 76,
-    created: '4h ago',
-    status: 'new',
-  },
-  {
-    id: 'r7',
-    priority: 'medium',
-    title: 'Vertex AI expanding team — potential upsell window',
-    account: 'Vertex AI',
-    type: 'action',
-    confidence: 79,
-    created: '5h ago',
-    status: 'accepted',
-  },
-  {
-    id: 'r8',
-    priority: 'low',
-    title: 'Horizon Labs budget review scheduled for Q2',
-    account: 'Horizon Labs',
-    type: 'insight',
-    confidence: 68,
-    created: '6h ago',
-    status: 'accepted',
-  },
-  {
-    id: 'r9',
-    priority: 'low',
-    title: 'Legacy contact email bounced at DataFlow Inc',
-    account: 'DataFlow Inc',
-    type: 'warning',
-    confidence: 72,
-    created: '8h ago',
-    status: 'dismissed',
-  },
-  {
-    id: 'r10',
-    priority: 'medium',
-    title: 'Catalyst Systems evaluating 3 competitors — respond with differentiation',
-    account: 'Catalyst Systems',
-    type: 'action',
-    confidence: 84,
-    created: '12h ago',
-    status: 'dismissed',
-  },
-];
+// Mock data removed — now fetched from /api/recommendations
 
 // ── Helpers ──
 const typeConfig: Record<
@@ -203,14 +105,24 @@ const priorityColors: Record<Priority, string> = {
 // ── Component ──
 export default function RecommendationQueue() {
   const [loading, setLoading] = useState(true);
-  const [recs, setRecs] = useState(initialRecs);
+  const [recs, setRecs] = useState<Recommendation[]>([]);
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
-  useMemo(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
+  const fetchRecs = useCallback(async () => {
+    setLoading(true);
+    const { data, error } = await fetchApi<Recommendation[]>('/api/recommendations');
+    if (error) {
+      toast.error('Failed to load recommendations', { description: error });
+    } else if (Array.isArray(data)) {
+      setRecs(data);
+    }
+    setLoading(false);
   }, []);
+
+  useEffect(() => {
+    fetchRecs();
+  }, [fetchRecs]);
 
   const filtered = useMemo(() => {
     return recs.filter((r) => {
@@ -227,8 +139,27 @@ export default function RecommendationQueue() {
     return { queueDepth: newCount, acceptedToday, dismissed: dismissedCount };
   }, [recs]);
 
-  const handleStatus = (id: string, newStatus: RecStatus) => {
+  const handleStatus = async (id: string, newStatus: RecStatus) => {
+    const { error } = await fetchApi(`/api/recommendations/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: newStatus }),
+    });
+    if (error) {
+      toast.error('Failed to update recommendation', { description: error });
+      return;
+    }
     setRecs((prev) => prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r)));
+  };
+
+  const handleGenerateNew = async () => {
+    const { error } = await fetchApi('/api/advisor/pipeline', { method: 'POST' });
+    if (error) {
+      toast.error('Failed to generate recommendations', { description: error });
+      return;
+    }
+    toast.success('New recommendations generated');
+    fetchRecs();
   };
 
   if (loading) {
@@ -262,6 +193,7 @@ export default function RecommendationQueue() {
           size="sm"
           className="gap-2"
           style={{ color: tokens.accent.primary, borderColor: tokens.accent.primary }}
+          onClick={handleGenerateNew}
         >
           <Sparkles className="w-3.5 h-3.5" /> Generate New
         </Button>
@@ -449,28 +381,35 @@ export default function RecommendationQueue() {
                           </span>
                         </TableCell>
                         <TableCell className="pr-4 text-right">
-                          {rec.status === 'new' && (
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 text-xs gap-1"
-                                style={{ color: tokens.confidence.high.value }}
-                                onClick={() => handleStatus(rec.id, 'accepted')}
-                              >
-                                <CheckCircle2 className="w-3 h-3" /> Accept
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 text-xs gap-1"
-                                style={{ color: tokens.text.muted }}
-                                onClick={() => handleStatus(rec.id, 'dismissed')}
-                              >
-                                <XCircle className="w-3 h-3" /> Dismiss
-                              </Button>
-                            </div>
-                          )}
+                          <div className="flex items-center justify-end gap-1">
+                            {rec.status === 'new' && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-xs gap-1"
+                                  style={{ color: tokens.confidence.high.value }}
+                                  onClick={() => handleStatus(rec.id, 'accepted')}
+                                >
+                                  <CheckCircle2 className="w-3 h-3" /> Accept
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="ghost"
+                                  className="h-7 text-xs gap-1"
+                                  style={{ color: tokens.text.muted }}
+                                  onClick={() => handleStatus(rec.id, 'dismissed')}
+                                >
+                                  <XCircle className="w-3 h-3" /> Dismiss
+                                </Button>
+                              </>
+                            )}
+                          </div>
+                          <InlineFeedback
+                            context="recommendation-queue"
+                            itemId={rec.id}
+                            itemType="recommendation"
+                          />
                         </TableCell>
                       </TableRow>
                     );

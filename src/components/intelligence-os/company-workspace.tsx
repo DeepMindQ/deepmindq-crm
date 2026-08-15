@@ -35,7 +35,9 @@ import {
   Plus,
   Loader2,
   Send,
+  Network,
 } from 'lucide-react';
+import { GraphVisualization } from '@/components/intelligence-os/graph-visualization';
 
 /* ── Types ── */
 
@@ -77,7 +79,7 @@ interface OrgData {
   [key: string]: unknown;
 }
 
-const TABS = ['Overview', 'Signals', 'Contacts', 'Activity', 'Notes'] as const;
+const TABS = ['Overview', 'Signals', 'Contacts', 'Graph', 'Activity', 'Notes'] as const;
 type TabKey = (typeof TABS)[number];
 
 const TECH_TAGS = [
@@ -967,6 +969,40 @@ export function CompanyWorkspace() {
                   ))}
                 </div>
               </GlassPanel>
+            </motion.div>
+          )}
+
+          {activeTab === 'Graph' && (
+            <motion.div
+              key="graph-view"
+              role="tabpanel"
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.3 }}
+              className="space-y-4"
+            >
+              <h3 className="text-sm font-semibold" style={{ color: 'var(--ios-text-primary)' }}>
+                Knowledge Graph
+              </h3>
+              {orgData?.id ? (
+                <GraphVisualization
+                  centerEntityId={orgData.id}
+                  entityType="organization"
+                  depth={2}
+                  height={400}
+                />
+              ) : (
+                <div className="flex flex-col items-center justify-center py-12">
+                  <Network
+                    className="w-10 h-10 mb-3"
+                    style={{ color: 'var(--ios-text-secondary)', opacity: 0.4 }}
+                  />
+                  <p className="text-sm" style={{ color: 'var(--ios-text-secondary)' }}>
+                    Select a company to view its knowledge graph
+                  </p>
+                </div>
+              )}
             </motion.div>
           )}
 

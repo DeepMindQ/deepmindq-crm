@@ -10,6 +10,7 @@ import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 import { callLLM } from '@/lib/llm-client';
 import { governedAICall } from '@/lib/ai-governance';
+import { getConnections, discoverRelationships } from '@/lib/intelligence/knowledge-graph';
 
 export interface ReasoningResult {
   insight: {
@@ -41,6 +42,14 @@ interface OrganizationContext {
     confidenceScore: number | null;
     impactScore: number | null;
   }>;
+  relationships: Array<{
+    type: string;
+    label: string;
+    weight: number;
+    targetName: string;
+    targetType: 'organization' | 'person';
+  }>;
+  graphDensity: number;
 }
 
 /**
@@ -62,6 +71,39 @@ export async function reasonAboutOrganization(orgId: string): Promise<ReasoningR
 
   if (!org) return [];
 
+  // Fetch knowledge graph connections (non-blocking enrichment)
+  let relationships: OrganizationContext['relationships'] = [];
+  let graphDensity = 0;
+  try {
+    const connections = await getConnections(orgId);
+    const mappedRels: OrganizationContext['relationships'] = [];
+    for (const conn of connections.organizations) {
+      mappedRels.push({
+        type: conn.relationship.type,
+        label: conn.relationship.label || conn.relationship.type,
+        weight: conn.relationship.weight,
+        targetName: String(conn.org.name || 'Unknown'),
+        targetType: 'organization',
+      });
+    }
+    for (const conn of connections.people) {
+      mappedRels.push({
+        type: conn.relationship.type,
+        label: conn.relationship.label || conn.relationship.type,
+        weight: conn.relationship.weight,
+        targetName: String(conn.person.fullName || 'Unknown'),
+        targetType: 'person',
+      });
+    }
+    relationships = mappedRels;
+    graphDensity = connections.organizations.length + connections.people.length;
+  } catch (kgError) {
+    logger.warn('[REASONING] Knowledge graph getConnections failed (non-blocking)', {
+      orgId,
+      error: kgError instanceof Error ? kgError.message : 'Unknown',
+    });
+  }
+
   const context: OrganizationContext = {
     name: org.name,
     industry: org.industry,
@@ -78,6 +120,8 @@ export async function reasonAboutOrganization(orgId: string): Promise<ReasoningR
       confidenceScore: s.confidenceScore,
       impactScore: s.impactScore,
     })),
+    relationships,
+    graphDensity,
   };
 
   // Try LLM reasoning first
@@ -309,6 +353,11 @@ ${context.people.length > 0 ? context.people.map((p) => `  - ${p.fullName} (${p.
 Active Signals:
 ${context.signals.length > 0 ? context.signals.map((s) => `  - [${s.severity}] ${s.title}: ${s.description}`).join('\n') : '  No signals detected'}
 
+Relationship Connections:
+${context.relationships.length > 0 ? context.relationships.map((r) => `  - [${r.type}] ${r.targetName} (${r.targetType}) — weight: ${r.weight}`).join('\n') : '  No graph connections detected'}
+
+Graph Density: ${context.graphDensity} direct connections
+
 Provide your analysis as JSON array with these fields for each insight:
 - category: "opportunity", "risk", or "recommendation"
 - title: Brief insight title
@@ -417,6 +466,17 @@ export async function runIntelligencePipeline(orgId: string): Promise<{
   // Step 1: Detect signals
   const signals = await (await import('./signals')).detectSignalsForOrganization(orgId);
   const signalsStored = await (await import('./signals')).storeSignals(signals);
+
+  // Step 1.5: Discover new relationships in the knowledge graph from signals
+  try {
+    const relsCreated = await discoverRelationships(orgId);
+    logger.info('[PIPELINE] Knowledge graph relationships discovered', { orgId, relsCreated });
+  } catch (kgError) {
+    logger.warn('[PIPELINE] Knowledge graph discoverRelationships failed (non-blocking)', {
+      orgId,
+      error: kgError instanceof Error ? kgError.message : 'Unknown',
+    });
+  }
 
   // Step 2: AI Reasoning
   const insights = await reasonAboutOrganization(orgId);

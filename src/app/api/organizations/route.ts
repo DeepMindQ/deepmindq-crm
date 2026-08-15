@@ -55,6 +55,12 @@ export async function GET(request: NextRequest) {
           trackingStatus: true,
           lastSignalAt: true,
           updatedAt: true,
+          _count: {
+            select: {
+              relationships: true,
+              relationships2: true,
+            },
+          },
         },
       }),
       db.organization.count({ where }),
@@ -76,6 +82,7 @@ export async function GET(request: NextRequest) {
       data: organizations.map((org) => ({
         ...org,
         signalCount: countMap.get(org.id) || 0,
+        relationshipCount: (org._count?.relationships || 0) + (org._count?.relationships2 || 0),
       })),
       pagination: {
         page,

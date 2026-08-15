@@ -78,13 +78,22 @@ export async function GET(request: NextRequest) {
           organization: {
             select: { id: true, name: true },
           },
+          _count: {
+            select: {
+              relationships: true,
+              relationships2: true,
+            },
+          },
         },
       }),
       db.person.count({ where }),
     ]);
 
     return NextResponse.json({
-      data: people,
+      data: people.map((p) => ({
+        ...p,
+        relationshipCount: (p._count?.relationships || 0) + (p._count?.relationships2 || 0),
+      })),
       pagination: {
         page,
         limit,

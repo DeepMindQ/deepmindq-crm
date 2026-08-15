@@ -202,9 +202,12 @@ model Relationship {
   targetPersonId String?
   targetPerson   Person?          @relation("PersonTargetRelationships", fields: [targetPersonId], references: [id], onDelete: Cascade)
 
-  evidenceId  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  evidenceId      String?
+  validFrom       DateTime?
+  validUntil      DateTime?
+  sourceType      String?    @default("manual")   // 'manual' | 'signal_detected' | 'ai_inferred' | 'imported'
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   @@index([sourceOrgId])
   @@index([targetOrgId])
@@ -402,6 +405,37 @@ model DataIngestionRow {
   @@index([ingestionId])
   @@index([organizationId])
   @@index([personId])
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Knowledge Folders
+// ═══════════════════════════════════════════════════════════════════════════
+
+model KnowledgeFolder {
+  id          String                    @id @default(cuid())
+  name        String
+  description String?
+  color       String?
+  icon        String?
+  createdBy   String?
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+  entities    KnowledgeFolderEntity[]
+
+  @@index([createdBy])
+}
+
+model KnowledgeFolderEntity {
+  id         String          @id @default(cuid())
+  folderId   String
+  folder     KnowledgeFolder @relation(fields: [folderId], references: [id], onDelete: Cascade)
+  entityId   String
+  entityType String           // 'organization' | 'person'
+  addedBy    String?
+  addedAt    DateTime         @default(now())
+
+  @@unique([folderId, entityId, entityType])
+  @@index([entityId, entityType])
 }
 
 // ═══════════════════════════════════════════════════════════════════════════

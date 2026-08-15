@@ -13,6 +13,9 @@ const relationshipsPostSchema = z
     sourcePersonId: z.string().optional(),
     targetPersonId: z.string().optional(),
     evidenceId: z.string().optional(),
+    validFrom: z.string().optional(),
+    validUntil: z.string().optional(),
+    sourceType: z.string().optional(),
   })
   .refine((d) => (d.sourceOrgId || d.sourcePersonId) && (d.targetOrgId || d.targetPersonId), {
     message:
@@ -47,6 +50,9 @@ export async function POST(request: NextRequest) {
       sourcePersonId,
       targetPersonId,
       evidenceId,
+      validFrom,
+      validUntil,
+      sourceType,
     } = parsed.data;
 
     const edge = await createRelationship({
@@ -58,6 +64,9 @@ export async function POST(request: NextRequest) {
       sourcePersonId,
       targetPersonId,
       evidenceId,
+      validFrom,
+      validUntil,
+      sourceType,
     });
 
     return NextResponse.json({ data: edge }, { status: 201 });

@@ -353,6 +353,30 @@ async function processBatch(
           orgId = org.id;
           if (ext.organization.domain) orgByDomain.set(ext.organization.domain, org.id);
           result.organizationsCreated++;
+
+          // Run entity resolution to flag potential duplicates (log-only, no auto-merge)
+          try {
+            const { resolveEntity } = await import('@/lib/intelligence/knowledge-graph');
+            const matches = await resolveEntity({ name: ext.organization.name });
+            const potentialDupes = matches.filter((m) => m.score >= 80 && m.nodeId !== org.id);
+            if (potentialDupes.length > 0) {
+              logger.warn('[INGEST] Potential duplicate organizations detected during ingestion', {
+                newOrg: ext.organization.name,
+                newOrgId: org.id,
+                potentialDupes: potentialDupes.map((d) => ({
+                  id: d.nodeId,
+                  name: d.label,
+                  score: d.score,
+                  matchedFields: d.matchedFields,
+                })),
+                rowNumber: ext.rowNumber,
+              });
+            }
+          } catch (erError) {
+            logger.warn('[INGEST] Entity resolution check failed (non-blocking)', {
+              error: erError instanceof Error ? erError.message : 'Unknown',
+            });
+          }
         }
       }
 

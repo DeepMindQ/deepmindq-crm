@@ -433,6 +433,9 @@ export async function createRelationship(data: {
   sourcePersonId?: string;
   targetPersonId?: string;
   evidenceId?: string;
+  validFrom?: Date | string;
+  validUntil?: Date | string;
+  sourceType?: string;
 }): Promise<GraphEdge> {
   const rel = await db.relationship.create({
     data: {
@@ -444,6 +447,9 @@ export async function createRelationship(data: {
       sourcePersonId: data.sourcePersonId || null,
       targetPersonId: data.targetPersonId || null,
       evidenceId: data.evidenceId || null,
+      validFrom: data.validFrom ? new Date(data.validFrom) : null,
+      validUntil: data.validUntil ? new Date(data.validUntil) : null,
+      sourceType: data.sourceType || 'manual',
     },
   });
 

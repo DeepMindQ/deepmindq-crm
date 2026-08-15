@@ -247,6 +247,7 @@ function parseRevenue(revenue: string): number | null {
 
 /**
  * Store detected signals in the database.
+ * Also creates corresponding knowledge graph relationships for relationship-implicating signal types.
  */
 export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
   if (signals.length === 0) return 0;
@@ -254,7 +255,7 @@ export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
   let stored = 0;
   await db.$transaction(async (tx) => {
     for (const signal of signals) {
-      await tx.signal.create({
+      const createdSignal = await tx.signal.create({
         data: {
           organizationId: signal.organizationId,
           signalType: signal.signalType as
@@ -281,6 +282,33 @@ export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
         },
       });
       stored++;
+
+      // Create corresponding KG relationship for relationship-implicating signals (non-blocking)
+      const signalTypeToRelType: Record<string, string> = {
+        partnership: 'partnered_with',
+        competitor_move: 'competes_with',
+        investment: 'invested_in',
+        acquisition: 'acquired',
+      };
+      const relType = signalTypeToRelType[signal.signalType];
+      if (relType && signal.organizationId) {
+        try {
+          const { createRelationship } = await import('@/lib/intelligence/knowledge-graph');
+          await createRelationship({
+            type: relType,
+            label: `${signal.title} (from signal)`,
+            weight: (signal.confidenceScore / 100) * (signal.impactScore / 100),
+            sourceOrgId: signal.organizationId,
+            evidenceId: createdSignal.id,
+          });
+        } catch (kgError) {
+          logger.warn('[SIGNALS] Failed to create KG relationship for signal (non-blocking)', {
+            signalType: signal.signalType,
+            orgId: signal.organizationId,
+            error: kgError instanceof Error ? kgError.message : 'Unknown',
+          });
+        }
+      }
     }
   });
   return stored;

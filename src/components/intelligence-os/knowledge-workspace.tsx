@@ -80,6 +80,9 @@ const QUICK_ACTIONS = [
 
 export function KnowledgeWorkspace() {
   const [selectedFolder, setSelectedFolder] = useState<string | null>(null);
+  const [showNewFolderDialog, setShowNewFolderDialog] = useState(false);
+  const [newFolderName, setNewFolderName] = useState('');
+  const [creatingFolder, setCreatingFolder] = useState(false);
   const [loading, setLoading] = useState(true);
   const [_error, setError] = useState<string | null>(null);
   const [folders, setFolders] = useState<KnowledgeFolder[]>([]);
@@ -154,6 +157,31 @@ export function KnowledgeWorkspace() {
       cancelled = true;
     };
   }, []);
+
+  const handleCreateFolder = useCallback(async () => {
+    if (!newFolderName.trim()) return;
+    setCreatingFolder(true);
+    try {
+      const res = await fetchApi('/api/knowledge-folders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: newFolderName.trim(),
+          color: '#3B82F6',
+          icon: 'folder',
+        }),
+      });
+      if (!res.error) {
+        setNewFolderName('');
+        setShowNewFolderDialog(false);
+        fetchAllData();
+      }
+    } catch {
+      // Silent fail
+    } finally {
+      setCreatingFolder(false);
+    }
+  }, [newFolderName, fetchAllData]);
 
   useEffect(() => {
     fetchAllData();
@@ -250,12 +278,81 @@ export function KnowledgeWorkspace() {
                       </p>
                     </div>
                     <button
+                      onClick={() => setShowNewFolderDialog(true)}
                       className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
                       style={{ color: '#3B82F6', background: 'rgba(59,130,246,0.1)' }}
                     >
                       <Plus className="w-3 h-3" />
                       New Category
                     </button>
+                    {showNewFolderDialog && (
+                      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+                        <motion.div
+                          initial={{ opacity: 0, scale: 0.95 }}
+                          animate={{ opacity: 1, scale: 1 }}
+                          exit={{ opacity: 0, scale: 0.95 }}
+                          className="rounded-xl p-5 w-full max-w-sm mx-4"
+                          style={{
+                            background: 'var(--ios-bg-card)',
+                            border: '1px solid var(--ios-border)',
+                          }}
+                        >
+                          <h3
+                            className="text-sm font-semibold mb-3"
+                            style={{ color: 'var(--ios-text-primary)' }}
+                          >
+                            New Knowledge Category
+                          </h3>
+                          <input
+                            type="text"
+                            autoFocus
+                            value={newFolderName}
+                            onChange={(e) => setNewFolderName(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') handleCreateFolder();
+                              if (e.key === 'Escape') setShowNewFolderDialog(false);
+                            }}
+                            placeholder="Folder name..."
+                            className="w-full h-9 px-3 rounded-lg text-sm outline-none transition-all focus:ring-2 focus:ring-[#3B82F6]/40"
+                            style={{
+                              color: 'var(--ios-text-primary)',
+                              background: 'var(--ios-bg-secondary)',
+                              border: '1px solid var(--ios-border)',
+                            }}
+                            disabled={creatingFolder}
+                          />
+                          <div className="flex items-center justify-end gap-2 mt-4">
+                            <button
+                              onClick={() => {
+                                setShowNewFolderDialog(false);
+                                setNewFolderName('');
+                              }}
+                              className="px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                              style={{
+                                color: 'var(--ios-text-secondary)',
+                                background: 'var(--ios-bg-secondary)',
+                              }}
+                              disabled={creatingFolder}
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={handleCreateFolder}
+                              disabled={creatingFolder || !newFolderName.trim()}
+                              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                              style={{ color: '#fff', background: '#3B82F6' }}
+                            >
+                              {creatingFolder ? (
+                                <div className="w-3 h-3 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                              ) : (
+                                <Plus className="w-3 h-3" />
+                              )}
+                              Create
+                            </button>
+                          </div>
+                        </motion.div>
+                      </div>
+                    )}
                   </div>
                   {folders.length > 0 ? (
                     <div

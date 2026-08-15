@@ -617,6 +617,30 @@ export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
   let stored = 0;
   await db.$transaction(async (tx) => {
     for (const signal of signals) {
+      // ── Dedup: Check for existing signal of same type for this org in last 7 days ──
+      const dedupWindow = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+      const existing = await tx.signal.findFirst({
+        where: {
+          organizationId: signal.organizationId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          signalType: signal.signalType as any,
+          detectedAt: { gte: dedupWindow },
+        },
+      });
+      if (existing) {
+        // Update existing signal with higher confidence/impact instead of creating duplicate
+        await tx.signal.update({
+          where: { id: existing.id },
+          data: {
+            confidenceScore: Math.max(existing.confidenceScore ?? 0, signal.confidenceScore ?? 0),
+            impactScore: Math.max(existing.impactScore ?? 0, signal.impactScore ?? 0),
+            description: signal.description || existing.description,
+          },
+        });
+        stored++;
+        continue; // Skip creating new signal
+      }
+
       const createdSignal = await tx.signal.create({
         data: {
           organizationId: signal.organizationId,
@@ -644,6 +668,45 @@ export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
         },
       });
       stored++;
+
+      // ── Auto-create evidence record for detection provenance ──
+      try {
+        await tx.evidence.create({
+          data: {
+            signalId: createdSignal.id,
+            organizationId: signal.organizationId,
+            claim: `Automated detection rule: ${signal.signalType}`,
+            sourceType: 'database',
+            sourceTitle: 'Internal Intelligence System',
+            reliability: 'likely',
+            excerpt: signal.description,
+          },
+        });
+      } catch (evError) {
+        logger.warn('[SIGNALS] Failed to auto-create evidence (non-blocking)', {
+          signalId: createdSignal.id,
+          error: evError instanceof Error ? evError.message : 'Unknown',
+        });
+      }
+
+      // ── Publish notification for high/critical severity signals ──
+      if (signal.severity === 'high' || signal.severity === 'critical') {
+        try {
+          const { publishSSEEvent } = await import('@/lib/redis-pubsub');
+          await publishSSEEvent('signal:detected', {
+            id: createdSignal.id,
+            signalType: signal.signalType,
+            severity: signal.severity,
+            title: signal.title,
+            organizationId: signal.organizationId,
+          });
+        } catch (notifError) {
+          logger.warn('[SIGNALS] Failed to publish notification (non-blocking)', {
+            signalId: createdSignal.id,
+            error: notifError instanceof Error ? notifError.message : 'Unknown',
+          });
+        }
+      }
 
       // Create corresponding KG relationship for relationship-implicating signals (non-blocking)
       const signalTypeToRelType: Record<string, string> = {

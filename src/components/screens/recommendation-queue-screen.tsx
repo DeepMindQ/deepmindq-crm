@@ -1,244 +1,145 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
-import { EmptyState } from '@/components/ui/screen-states';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import {
   Brain,
   CheckCircle2,
   XCircle,
-  Inbox,
   Filter,
   Sparkles,
-  ArrowUp,
-  ArrowDown,
-  Clock,
   Lightbulb,
-  AlertTriangle,
-  Zap,
-  InboxIcon,
-  BarChart3,
+  MessageSquare,
+  RefreshCw,
   TrendingUp,
 } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
+import { toast } from 'sonner';
 
-// ── Mock Data ──
-type RecType = 'action' | 'insight' | 'warning';
-type RecStatus = 'new' | 'accepted' | 'dismissed';
+// ── Types ──
+
+type RecStatus = 'active' | 'accepted' | 'dismissed';
 type Priority = 'high' | 'medium' | 'low';
 
-type Recommendation = {
+interface RecommendationItem {
   id: string;
-  priority: Priority;
+  organizationName: string;
+  organizationDomain: string | null;
+  organizationIndustry: string | null;
+  signalType: string | null;
+  signalSeverity: string | null;
+  category: string;
   title: string;
-  account: string;
-  type: RecType;
-  confidence: number;
-  created: string;
+  narrative: string;
+  recommendation: string | null;
+  suggestedMessage: string | null;
+  confidence: string;
+  confidenceScore: number | null;
+  reasoningMethod: string;
+  modelUsed: string | null;
   status: RecStatus;
-};
+  createdAt: string;
+}
 
-const initialRecs: Recommendation[] = [
-  {
-    id: 'r1',
-    priority: 'high',
-    title: 'Schedule executive briefing with Acme Corp CTO',
-    account: 'Acme Corp',
-    type: 'action',
-    confidence: 94,
-    created: '10 min ago',
-    status: 'new',
-  },
-  {
-    id: 'r2',
-    priority: 'high',
-    title: 'NovaTech showing strong buying signals — 3 new signals in 24h',
-    account: 'NovaTech',
-    type: 'insight',
-    confidence: 91,
-    created: '25 min ago',
-    status: 'new',
-  },
-  {
-    id: 'r3',
-    priority: 'high',
-    title: 'Pinnacle Health contract renewal at risk — engagement dropped 40%',
-    account: 'Pinnacle Health',
-    type: 'warning',
-    confidence: 88,
-    created: '1h ago',
-    status: 'new',
-  },
-  {
-    id: 'r4',
-    priority: 'medium',
-    title: 'Cross-sell opportunity: Quantum Dynamics needs security module',
-    account: 'Quantum Dynamics',
-    type: 'action',
-    confidence: 85,
-    created: '2h ago',
-    status: 'new',
-  },
-  {
-    id: 'r5',
-    priority: 'medium',
-    title: 'SkyBridge Labs competitor evaluation nearing completion',
-    account: 'SkyBridge Labs',
-    type: 'insight',
-    confidence: 82,
-    created: '3h ago',
-    status: 'new',
-  },
-  {
-    id: 'r6',
-    priority: 'low',
-    title: 'Meridian Inc posted about data platform consolidation',
-    account: 'Meridian Inc',
-    type: 'insight',
-    confidence: 76,
-    created: '4h ago',
-    status: 'new',
-  },
-  {
-    id: 'r7',
-    priority: 'medium',
-    title: 'Vertex AI expanding team — potential upsell window',
-    account: 'Vertex AI',
-    type: 'action',
-    confidence: 79,
-    created: '5h ago',
-    status: 'accepted',
-  },
-  {
-    id: 'r8',
-    priority: 'low',
-    title: 'Horizon Labs budget review scheduled for Q2',
-    account: 'Horizon Labs',
-    type: 'insight',
-    confidence: 68,
-    created: '6h ago',
-    status: 'accepted',
-  },
-  {
-    id: 'r9',
-    priority: 'low',
-    title: 'Legacy contact email bounced at DataFlow Inc',
-    account: 'DataFlow Inc',
-    type: 'warning',
-    confidence: 72,
-    created: '8h ago',
-    status: 'dismissed',
-  },
-  {
-    id: 'r10',
-    priority: 'medium',
-    title: 'Catalyst Systems evaluating 3 competitors — respond with differentiation',
-    account: 'Catalyst Systems',
-    type: 'action',
-    confidence: 84,
-    created: '12h ago',
-    status: 'dismissed',
-  },
-];
+interface RecStats {
+  total: number;
+  accepted: number;
+  dismissed: number;
+  acceptanceRate: number;
+  dismissalRate: number;
+}
 
-// ── Helpers ──
-const typeConfig: Record<
-  RecType,
-  { bg: string; text: string; label: string; icon: React.ReactNode }
-> = {
-  action: {
-    bg: tokens.accent.ghost,
-    text: tokens.accent.primary,
-    label: 'Action',
-    icon: <Zap className="w-3 h-3" />,
-  },
-  insight: {
-    bg: tokens.confidence.high.bg,
-    text: tokens.confidence.high.value,
-    label: 'Insight',
-    icon: <Lightbulb className="w-3 h-3" />,
-  },
-  warning: {
-    bg: tokens.confidence.low.bg,
-    text: tokens.confidence.low.value,
-    label: 'Warning',
-    icon: <AlertTriangle className="w-3 h-3" />,
-  },
-};
+function getPriority(confidence: string, score: number | null): Priority {
+  if (confidence === 'very_high' || confidence === 'high' || (score ?? 0) >= 80) return 'high';
+  if (confidence === 'medium' || (score ?? 0) >= 50) return 'medium';
+  return 'low';
+}
 
-const statusConfig: Record<RecStatus, { bg: string; text: string; label: string }> = {
-  new: { bg: tokens.accent.ghost, text: tokens.accent.primary, label: 'New' },
-  accepted: {
-    bg: tokens.confidence.high.bg,
-    text: tokens.confidence.high.value,
-    label: 'Accepted',
-  },
-  dismissed: { bg: tokens.neutral['100'], text: tokens.text.muted, label: 'Dismissed' },
-};
+function getConfidenceColor(confidence: string) {
+  switch (confidence) {
+    case 'very_high':
+    case 'high':
+      return { bg: tokens.confidence.high.bg, color: tokens.confidence.high.value };
+    case 'medium':
+      return { bg: tokens.confidence.medium.bg, color: tokens.confidence.medium.value };
+    default:
+      return { bg: tokens.confidence.low.bg, color: tokens.confidence.low.value };
+  }
+}
 
-const priorityColors: Record<Priority, string> = {
-  high: tokens.priority.high,
-  medium: tokens.priority.medium,
-  low: tokens.priority.low,
-};
-
-// ── Component ──
 export default function RecommendationQueue() {
-  const [loading, setLoading] = useState(true);
-  const [recs, setRecs] = useState(initialRecs);
-  const [typeFilter, setTypeFilter] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const queryClient = useQueryClient();
+  const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('active');
+  const [actionInProgress, setActionInProgress] = useState<string | null>(null);
 
-  useMemo(() => {
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
-  }, []);
+  // Q6 FIX: Fetch real recommendations from /api/recommendations
+  const { data, isLoading, refetch, isFetching } = useQuery({
+    queryKey: ['recommendations', typeFilter, statusFilter],
+    queryFn: async () => {
+      const params = new URLSearchParams({ limit: '50', status: statusFilter });
+      if (typeFilter !== 'all') params.set('category', typeFilter);
+      const result = await fetchApi<{
+        data: RecommendationItem[];
+        stats: RecStats;
+      }>('/api/recommendations?' + params.toString());
+      return result.data;
+    },
+    staleTime: 1000 * 60 * 2,
+    retry: 1,
+  });
 
-  const filtered = useMemo(() => {
-    return recs.filter((r) => {
-      if (typeFilter !== 'all' && r.type !== typeFilter) return false;
-      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
-      return true;
-    });
-  }, [recs, typeFilter, statusFilter]);
-
-  const stats = useMemo(() => {
-    const newCount = recs.filter((r) => r.status === 'new').length;
-    const acceptedToday = recs.filter((r) => r.status === 'accepted').length;
-    const dismissedCount = recs.filter((r) => r.status === 'dismissed').length;
-    return { queueDepth: newCount, acceptedToday, dismissed: dismissedCount };
-  }, [recs]);
-
-  const handleStatus = (id: string, newStatus: RecStatus) => {
-    setRecs((prev) => prev.map((r) => (r.id === id ? { ...r, status: newStatus } : r)));
+  const recommendations = data?.data || [];
+  const stats = data?.stats || {
+    total: 0,
+    accepted: 0,
+    dismissed: 0,
+    acceptanceRate: 0,
+    dismissalRate: 0,
   };
 
-  if (loading) {
+  // Q7/Q8 FIX: Accept/Dismiss → persisted to DB via PATCH /api/insights/:id
+  const handleAction = async (id: string, action: 'accept' | 'dismiss') => {
+    setActionInProgress(id);
+    try {
+      const res = await fetch(`/api/insights/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ action }),
+      });
+      if (res.ok) {
+        toast.success(`Recommendation ${action === 'accept' ? 'accepted' : 'dismissed'}`);
+        refetch();
+      } else {
+        toast.error(`Failed to ${action} recommendation`);
+      }
+    } catch {
+      toast.error(`Failed to ${action} recommendation`);
+    } finally {
+      setActionInProgress(null);
+    }
+  };
+
+  const filteredRecs = useMemo(() => {
+    return recommendations.filter((r) => {
+      return true; // server-side filtering handles this
+    });
+  }, [recommendations]);
+
+  if (isLoading) {
     return (
       <div className="p-6 space-y-4">
         <Skeleton className="h-8 w-48" />
-        <div className="grid grid-cols-3 gap-4">
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
-          <Skeleton className="h-24 rounded-xl" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-24 rounded-xl" />
+          ))}
         </div>
         <Skeleton className="h-96 rounded-xl" />
       </div>
@@ -254,233 +155,269 @@ export default function RecommendationQueue() {
             Recommendation Queue
           </h1>
           <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
-            AI-powered recommendations for your pipeline
+            AI-generated recommendations from intelligence pipeline
           </p>
         </div>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-2"
-          style={{ color: tokens.accent.primary, borderColor: tokens.accent.primary }}
-        >
-          <Sparkles className="w-3.5 h-3.5" /> Generate New
-        </Button>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-2"
+            onClick={() => refetch()}
+            disabled={isFetching}
+          >
+            <RefreshCw className={`w-3.5 h-3.5 ${isFetching ? 'animate-spin' : ''}`} />
+            Refresh
+          </Button>
+          <Button
+            size="sm"
+            className="gap-2"
+            style={{ color: tokens.text.white, background: tokens.accent.primary }}
+            onClick={() => {
+              toast.info('Run the intelligence pipeline to generate new recommendations');
+            }}
+          >
+            <Sparkles className="w-3.5 h-3.5" /> Generate New
+          </Button>
+        </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4">
+      {/* Stats Row — Q11 FIX: Shows acceptance/dismissal rates */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
-            label: 'Queue Depth',
-            value: stats.queueDepth,
-            icon: InboxIcon,
-            color: tokens.accent.primary,
-            desc: 'Pending recommendations',
+            label: 'In Queue',
+            value: filteredRecs.length,
+            icon: Lightbulb,
+            color: tokens.gold.dark,
+            bg: tokens.gold.bgMedium,
           },
           {
-            label: 'Accepted Today',
-            value: stats.acceptedToday,
+            label: 'Accepted',
+            value: stats.accepted,
             icon: CheckCircle2,
             color: tokens.confidence.high.value,
-            desc: 'Acted upon',
+            bg: tokens.confidence.high.bg,
           },
           {
             label: 'Dismissed',
             value: stats.dismissed,
             icon: XCircle,
-            color: tokens.text.muted,
-            desc: 'Not applicable',
+            color: tokens.confidence.low.value,
+            bg: tokens.confidence.low.bg,
           },
-        ].map((s) => {
-          const Icon = s.icon;
-          return (
-            <Card key={s.label} className="py-4 gap-2">
-              <CardContent className="p-4 pb-0">
-                <div className="flex items-center justify-between">
-                  <Icon className="w-4 h-4" style={{ color: s.color }} />
-                </div>
-                <p className="text-2xl font-bold mt-2" style={{ color: tokens.text.primary }}>
-                  {s.value}
+          {
+            label: 'Accept Rate',
+            value: `${stats.acceptanceRate}%`,
+            icon: TrendingUp,
+            color: tokens.accent.primary,
+            bg: tokens.accent.subtle,
+          },
+        ].map((stat) => (
+          <Card key={stat.label} className="gap-4 py-4">
+            <CardContent className="flex items-center gap-4">
+              <div
+                className="flex items-center justify-center size-10 rounded-lg"
+                style={{ backgroundColor: stat.bg }}
+              >
+                <stat.icon className="size-5" style={{ color: stat.color }} />
+              </div>
+              <div>
+                <p className="text-xs font-medium" style={{ color: tokens.text.secondary }}>
+                  {stat.label}
                 </p>
-                <p className="text-xs" style={{ color: tokens.text.muted }}>
-                  {s.label}
+                <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+                  {stat.value}
                 </p>
-              </CardContent>
-            </Card>
-          );
-        })}
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
 
       {/* Filters */}
       <div className="flex flex-wrap items-center gap-3">
-        <Filter className="w-4 h-4" style={{ color: tokens.text.muted }} />
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[150px] h-8">
-            <SelectValue placeholder="Type" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="action">Action</SelectItem>
-            <SelectItem value="insight">Insight</SelectItem>
-            <SelectItem value="warning">Warning</SelectItem>
-          </SelectContent>
-        </Select>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[150px] h-8">
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="new">New</SelectItem>
-            <SelectItem value="accepted">Accepted</SelectItem>
-            <SelectItem value="dismissed">Dismissed</SelectItem>
-          </SelectContent>
-        </Select>
-        <span className="text-xs ml-auto" style={{ color: tokens.text.muted }}>
-          {filtered.length} of {recs.length} recommendations
-        </span>
+        <div className="flex items-center gap-2">
+          <Filter className="size-4" style={{ color: tokens.text.muted }} />
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="text-xs px-3 py-1.5 rounded-lg border"
+            style={{
+              borderColor: tokens.border,
+              backgroundColor: tokens.surface.secondary,
+              color: tokens.text.primary,
+            }}
+          >
+            <option value="active">Active</option>
+            <option value="accepted">Accepted</option>
+            <option value="dismissed">Dismissed</option>
+          </select>
+          <select
+            value={typeFilter}
+            onChange={(e) => setTypeFilter(e.target.value)}
+            className="text-xs px-3 py-1.5 rounded-lg border"
+            style={{
+              borderColor: tokens.border,
+              backgroundColor: tokens.surface.secondary,
+              color: tokens.text.primary,
+            }}
+          >
+            <option value="all">All Categories</option>
+            <option value="opportunity">Opportunity</option>
+            <option value="risk">Risk</option>
+            <option value="recommendation">Recommendation</option>
+            <option value="growth">Growth</option>
+            <option value="competitive">Competitive</option>
+          </select>
+          <span className="text-xs" style={{ color: tokens.text.muted }}>
+            {filteredRecs.length} recommendation{filteredRecs.length !== 1 ? 's' : ''}
+          </span>
+        </div>
       </div>
 
-      {/* DataTable */}
-      <Card>
-        <CardContent className="p-0">
-          {filtered.length === 0 ? (
-            <EmptyState
-              icon="inbox"
-              title="No recommendations match your filters"
-              description="Try adjusting your filter criteria"
-              className="py-16"
-            />
-          ) : (
-            <div className="max-h-[500px] overflow-y-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="pl-4">Priority</TableHead>
-                    <TableHead>Recommendation</TableHead>
-                    <TableHead>Account</TableHead>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Confidence</TableHead>
-                    <TableHead>Created</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="pr-4 text-right">Actions</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filtered.map((rec) => {
-                    const tc = typeConfig[rec.type];
-                    const sc = statusConfig[rec.status];
-                    return (
-                      <TableRow key={rec.id}>
-                        <TableCell className="pl-4">
+      {/* Recommendation Cards */}
+      <div className="space-y-3">
+        {filteredRecs.length === 0 ? (
+          <Card className="gap-4 py-8">
+            <CardContent className="text-center py-12">
+              <Brain className="size-10 mx-auto mb-3" style={{ color: tokens.text.muted }} />
+              <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>
+                No recommendations found
+              </p>
+              <p className="text-xs mt-1" style={{ color: tokens.text.muted }}>
+                Run the intelligence pipeline to generate recommendations from your data
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredRecs.map((rec) => {
+            const priority = getPriority(rec.confidence, rec.confidenceScore);
+            const confColor = getConfidenceColor(rec.confidence);
+            const isActing = actionInProgress === rec.id;
+
+            return (
+              <Card
+                key={rec.id}
+                className="gap-0 py-0 overflow-hidden"
+                style={{
+                  borderLeft: `3px solid ${
+                    priority === 'high'
+                      ? tokens.confidence.high.value
+                      : priority === 'medium'
+                        ? tokens.gold.dark
+                        : tokens.text.muted
+                  }`,
+                }}
+              >
+                <CardContent className="p-4">
+                  <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
+                    <div className="flex-1 min-w-0 space-y-2">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <span
+                          className="text-xs font-medium px-2 py-0.5 rounded"
+                          style={{
+                            backgroundColor: tokens.surface.secondary,
+                            color: tokens.text.muted,
+                          }}
+                        >
+                          {rec.organizationName}
+                        </span>
+                        {rec.signalType && (
                           <span
-                            className="flex items-center gap-1.5 text-xs font-bold uppercase"
-                            style={{ color: priorityColors[rec.priority] }}
+                            className="text-xs px-2 py-0.5 rounded"
+                            style={{
+                              backgroundColor: tokens.domain.bg,
+                              color: tokens.domain.value,
+                            }}
                           >
-                            {rec.priority === 'high' ? (
-                              <ArrowUp className="w-3 h-3" />
-                            ) : rec.priority === 'low' ? (
-                              <ArrowDown className="w-3 h-3" />
-                            ) : (
-                              <Clock className="w-3 h-3" />
-                            )}
-                            {rec.priority}
+                            {rec.signalType}
                           </span>
-                        </TableCell>
-                        <TableCell className="max-w-[300px]">
-                          <p
-                            className="text-sm font-medium truncate"
-                            style={{ color: tokens.text.primary }}
-                          >
-                            {rec.title}
-                          </p>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-sm" style={{ color: tokens.text.secondary }}>
-                            {rec.account}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full"
-                            style={{ backgroundColor: tc.bg, color: tc.text }}
-                          >
-                            {tc.icon} {tc.label}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <div
-                              className="w-12 h-1.5 rounded-full overflow-hidden"
-                              style={{ backgroundColor: tokens.neutral['100'] }}
-                            >
-                              <div
-                                className="h-full rounded-full"
-                                style={{
-                                  width: `${rec.confidence}%`,
-                                  backgroundColor:
-                                    rec.confidence >= 85
-                                      ? tokens.confidence.high.value
-                                      : rec.confidence >= 70
-                                        ? tokens.confidence.medium.value
-                                        : tokens.confidence.low.value,
-                                }}
-                              />
-                            </div>
-                            <span
-                              className="text-xs font-medium"
-                              style={{ color: tokens.text.secondary }}
-                            >
-                              {rec.confidence}%
-                            </span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="text-xs" style={{ color: tokens.text.muted }}>
-                            {rec.created}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span
-                            className="text-[11px] font-medium px-2 py-0.5 rounded-full"
-                            style={{ backgroundColor: sc.bg, color: sc.text }}
-                          >
-                            {sc.label}
-                          </span>
-                        </TableCell>
-                        <TableCell className="pr-4 text-right">
-                          {rec.status === 'new' && (
-                            <div className="flex items-center justify-end gap-1">
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 text-xs gap-1"
-                                style={{ color: tokens.confidence.high.value }}
-                                onClick={() => handleStatus(rec.id, 'accepted')}
-                              >
-                                <CheckCircle2 className="w-3 h-3" /> Accept
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="ghost"
-                                className="h-7 text-xs gap-1"
-                                style={{ color: tokens.text.muted }}
-                                onClick={() => handleStatus(rec.id, 'dismissed')}
-                              >
-                                <XCircle className="w-3 h-3" /> Dismiss
-                              </Button>
-                            </div>
-                          )}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                        )}
+                        <Badge
+                          className="text-[10px] px-1.5 py-0"
+                          style={{ backgroundColor: confColor.bg, color: confColor.color }}
+                        >
+                          {rec.confidenceScore ?? rec.confidence}
+                        </Badge>
+                        <span className="text-[10px]" style={{ color: tokens.text.muted }}>
+                          {rec.reasoningMethod}
+                        </span>
+                      </div>
+                      <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>
+                        {rec.title}
+                      </p>
+                      {/* Q12 FIX: Show recommendation text */}
+                      {rec.recommendation && (
+                        <div
+                          className="rounded-lg p-3 text-xs leading-relaxed"
+                          style={{
+                            backgroundColor: tokens.gold.bgLight,
+                            color: tokens.text.primary,
+                          }}
+                        >
+                          <Lightbulb
+                            className="size-3 inline mr-1"
+                            style={{ color: tokens.gold.dark }}
+                          />
+                          {rec.recommendation}
+                        </div>
+                      )}
+                      {/* Q12 FIX: Show suggestedMessage */}
+                      {rec.suggestedMessage && (
+                        <div
+                          className="rounded-lg p-3 text-xs leading-relaxed"
+                          style={{
+                            backgroundColor: tokens.accent.subtle,
+                            color: tokens.text.primary,
+                          }}
+                        >
+                          <MessageSquare
+                            className="size-3 inline mr-1"
+                            style={{ color: tokens.accent.primary }}
+                          />
+                          {rec.suggestedMessage}
+                        </div>
+                      )}
+                    </div>
+                    {/* Q7/Q8 FIX: Accept/Dismiss → persisted to DB */}
+                    <div className="flex items-center gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 text-xs"
+                        disabled={isActing || rec.status === 'accepted'}
+                        onClick={() => handleAction(rec.id, 'accept')}
+                        style={{
+                          borderColor: tokens.confidence.high.value,
+                          color: tokens.confidence.high.value,
+                        }}
+                      >
+                        <CheckCircle2 className="size-3.5" />
+                        Accept
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="gap-1 text-xs"
+                        disabled={isActing || rec.status === 'dismissed'}
+                        onClick={() => handleAction(rec.id, 'dismiss')}
+                        style={{
+                          borderColor: tokens.text.muted,
+                          color: tokens.text.secondary,
+                        }}
+                      >
+                        <XCircle className="size-3.5" />
+                        Dismiss
+                      </Button>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
+      </div>
     </div>
   );
 }

@@ -226,7 +226,7 @@ function StepProfile({
   onNext,
 }: {
   formData: FormData;
-  updateField: <K extends keyof FormData>(key: K, value: FormData[K]) => void;
+  updateField: <K extends keyof FormData>(_key: K, _value: FormData[K]) => void;
   canProceed: boolean;
   onNext: () => void;
 }) {
@@ -357,7 +357,7 @@ function StepIntelligence({
   onBack,
 }: {
   formData: FormData;
-  toggleSignal: (key: string) => void;
+  toggleSignal: (_key: string) => void;
   onNext: () => void;
   onBack: () => void;
 }) {

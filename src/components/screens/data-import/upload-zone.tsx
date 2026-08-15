@@ -20,11 +20,11 @@ export interface UploadZoneProps {
     fileName: string;
     error: string;
   };
-  onDragEnter: (e: React.DragEvent) => void;
-  onDragLeave: (e: React.DragEvent) => void;
-  onDragOver: (e: React.DragEvent) => void;
-  onDrop: (e: React.DragEvent) => void;
-  onFileInput: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onDragEnter: (_e: React.DragEvent) => void;
+  onDragLeave: (_e: React.DragEvent) => void;
+  onDragOver: (_e: React.DragEvent) => void;
+  onDrop: (_e: React.DragEvent) => void;
+  onFileInput: (_e: React.ChangeEvent<HTMLInputElement>) => void;
   clearError: () => void;
 }
 

@@ -8,13 +8,13 @@ import { type SequenceStep } from './sequence-types';
 
 export interface CreateSequenceModalProps {
   newName: string;
-  onNameChange: (name: string) => void;
+  onNameChange: (_name: string) => void;
   newSubject: string;
-  onSubjectChange: (subject: string) => void;
+  onSubjectChange: (_subject: string) => void;
   newSteps: SequenceStep[];
   onAddStep: () => void;
-  onRemoveStep: (id: string) => void;
-  onUpdateStep: (id: string, field: keyof SequenceStep, value: string | number) => void;
+  onRemoveStep: (_id: string) => void;
+  onUpdateStep: (_id: string, _field: keyof SequenceStep, _value: string | number) => void;
   onClose: () => void;
   onCreate: () => void;
 }

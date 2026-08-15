@@ -25,7 +25,7 @@ interface GraphVisualizationProps {
   depth?: number;
   height?: number;
 
-  onNodeClick?: (node: GraphNode) => void;
+  onNodeClick?: (_node: GraphNode) => void;
 }
 
 export function GraphVisualization({

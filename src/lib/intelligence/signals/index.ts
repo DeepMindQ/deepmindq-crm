@@ -4,6 +4,7 @@ export {
   storeSignals,
   analyzeSignalWithAI,
   enrichSignalWithWebSearch,
+  computeEvidenceConfidence,
   type DetectedSignal,
   type AIAnalysisResult,
   type WebEnrichmentResult,

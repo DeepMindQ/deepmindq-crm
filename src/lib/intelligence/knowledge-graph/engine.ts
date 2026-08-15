@@ -94,6 +94,32 @@ export async function resolveEntity(query: {
         matchedFields: ['domain'],
       });
     }
+
+    // FIX EI-1: Fuzzy domain matching — check for same SLD with different TLDs
+    const sld = extractSLD(query.domain);
+    if (sld && sld.length > 1) {
+      const allOrgs = await db.organization.findMany({
+        where: { domain: { not: null } },
+        select: { id: true, name: true, domain: true },
+        take: 50,
+      });
+      for (const o of allOrgs) {
+        if (matches.some((m) => m.nodeId === o.id) || !o.domain) continue;
+        const oSLD = extractSLD(o.domain);
+        if (oSLD === sld && o.domain !== query.domain.toLowerCase()) {
+          const queryRoot = extractRootDomain(query.domain);
+          const oRoot = extractRootDomain(o.domain);
+          const fuzzyScore = queryRoot === oRoot ? 90 : 70;
+          matches.push({
+            nodeId: o.id,
+            nodeType: 'organization',
+            label: o.name,
+            score: fuzzyScore,
+            matchedFields: ['domain_fuzzy'],
+          });
+        }
+      }
+    }
   }
 
   // Exact email match — highest confidence for people
@@ -370,10 +396,15 @@ export async function discoverRelationships(orgId?: string): Promise<number> {
           !relExists('competes_with', org.id, peer.id) &&
           !relExists('competes_with', peer.id, org.id)
         ) {
+          // FIX EI-2: Weighted by sub-industry overlap and size similarity
+          const subIndustryMatch =
+            org.subIndustry && peer.subIndustry && org.subIndustry === peer.subIndustry;
+          const sizeDiff = Math.abs((org.employeeCount || 0) - (peer.employeeCount || 0));
+          const sizeSimilarity = sizeDiff < 50 ? 0.2 : 0;
           newRels.push({
             type: 'competes_with',
-            label: `${org.name} and ${peer.name} compete in ${org.industry}`,
-            weight: 0.4,
+            label: `${org.name} and ${peer.name} compete in ${org.industry}${subIndustryMatch ? ` (${org.subIndustry})` : ''}`,
+            weight: Math.min(0.8, 0.3 + (subIndustryMatch ? 0.3 : 0) + sizeSimilarity),
             sourceOrgId: org.id,
             targetOrgId: peer.id,
           });
@@ -395,12 +426,80 @@ export async function discoverRelationships(orgId?: string): Promise<number> {
           !relExists('same_region', org.id, neighbor.id) &&
           !relExists('same_region', neighbor.id, org.id)
         ) {
+          // FIX EI-2: Weighted by HQ string similarity
+          const hqSimilarity = org.headquarters === neighbor.headquarters ? 0.3 : 0.1;
           newRels.push({
             type: 'same_region',
             label: `Both in ${org.headquarters}`,
-            weight: 0.3,
+            weight: 0.2 + hqSimilarity,
             sourceOrgId: org.id,
             targetOrgId: neighbor.id,
+          });
+        }
+      }
+    }
+
+    // 5. FIX EI-2: Technology-based relationships (orgs with similar descriptions)
+    if (org.description && org.description.length > 20) {
+      const techKeywords = extractTechKeywords(org.description);
+      if (techKeywords.length > 0) {
+        const techOrgs = await db.organization.findMany({
+          where: {
+            id: { not: org.id },
+            description: { not: null },
+            trackingStatus: 'active',
+          },
+          take: 30,
+        });
+        for (const peer of techOrgs) {
+          if (
+            !peer.description ||
+            relExists('tech_overlap', org.id, peer.id) ||
+            relExists('tech_overlap', peer.id, org.id)
+          )
+            continue;
+          const peerKeywords = extractTechKeywords(peer.description);
+          const overlap = techKeywords.filter((k) => peerKeywords.includes(k));
+          if (overlap.length >= 2) {
+            newRels.push({
+              type: 'tech_overlap',
+              label: `${org.name} and ${peer.name} share technology: ${overlap.slice(0, 3).join(', ')}`,
+              weight: Math.min(0.7, 0.3 + overlap.length * 0.1),
+              sourceOrgId: org.id,
+              targetOrgId: peer.id,
+            });
+          }
+        }
+      }
+    }
+
+    // 6. FIX EI-2: Size-tier relationships (similar employee count = potential partners)
+    if (org.employeeCount && org.employeeCount > 0) {
+      const sizeTier = org.employeeCount < 50 ? 'small' : org.employeeCount < 500 ? 'mid' : 'large';
+      const sameTier = await db.organization.findMany({
+        where: {
+          id: { not: org.id },
+          employeeCount: { not: null },
+          trackingStatus: 'active',
+        },
+        take: 30,
+      });
+      for (const peer of sameTier) {
+        if (
+          !peer.employeeCount ||
+          relExists('size_peer', org.id, peer.id) ||
+          relExists('size_peer', peer.id, org.id)
+        )
+          continue;
+        const peerTier =
+          peer.employeeCount < 50 ? 'small' : peer.employeeCount < 500 ? 'mid' : 'large';
+        if (peerTier === sizeTier && org.industry !== peer.industry) {
+          newRels.push({
+            type: 'size_peer',
+            label: `${org.name} (${org.employeeCount} employees) and ${peer.name} (${peer.employeeCount} employees) are similar-size organizations`,
+            weight: 0.3,
+            sourceOrgId: org.id,
+            targetOrgId: peer.id,
           });
         }
       }
@@ -987,13 +1086,124 @@ function normalizeName(name: string): string {
   return name
     .toLowerCase()
     .trim()
-    .replace(/\s*(inc\.?|llc|ltd\.?|corp\.?|corporation|company|co\.?)\s*$/i, '')
+    .replace(
+      /\s*(inc\.?|llc|ltd\.?|corp\.?|corporation|company|co\.?|gmbh|ag|s\.?a\.?|plc|pty|pvt)\s*$/i,
+      '',
+    )
     .replace(/[^a-z0-9]/g, '');
+}
+
+/** Compute Levenshtein distance between two strings */
+function levenshtein(a: string, b: string): number {
+  const m = a.length;
+  const n = b.length;
+  const dp: number[][] = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] =
+        a[i - 1] === b[j - 1]
+          ? dp[i - 1][j - 1]
+          : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+
+/** Extract root domain from a full domain (e.g. 'www.acme.co.uk' → 'acme.co.uk') */
+function extractRootDomain(domain: string): string {
+  const parts = domain.toLowerCase().trim().split('.');
+  // Handle common TLD patterns
+  if (
+    parts.length >= 3 &&
+    ['co', 'com', 'org', 'net', 'gov', 'edu', 'ac'].includes(parts[parts.length - 2])
+  ) {
+    return parts.slice(-3).join('.');
+  }
+  return parts.slice(-2).join('.');
+}
+
+/** Extract second-level domain for fuzzy matching (e.g. 'acme' from 'acme.com') */
+function extractSLD(domain: string): string {
+  const root = extractRootDomain(domain);
+  return root.split('.')[0];
+}
+
+/** FIX EI-2: Extract technology keywords from organization descriptions for relationship detection */
+function extractTechKeywords(description: string): string[] {
+  const techTerms = [
+    'ai',
+    'machine learning',
+    'ml',
+    'deep learning',
+    'nlp',
+    'computer vision',
+    'cloud',
+    'aws',
+    'azure',
+    'gcp',
+    'kubernetes',
+    'docker',
+    'containers',
+    'react',
+    'angular',
+    'vue',
+    'node',
+    'python',
+    'java',
+    'golang',
+    'rust',
+    'postgresql',
+    'mysql',
+    'mongodb',
+    'redis',
+    'elasticsearch',
+    'saas',
+    'paas',
+    'iaas',
+    'api',
+    'microservices',
+    'serverless',
+    'blockchain',
+    'crypto',
+    'web3',
+    'defi',
+    'iot',
+    'edge computing',
+    '5g',
+    'cybersecurity',
+    'fintech',
+    'crm',
+    'erp',
+    'bi',
+    'analytics',
+    'data pipeline',
+    'etl',
+    'mobile',
+    'ios',
+    'android',
+    'flutter',
+    'react native',
+    'terraform',
+    'devops',
+    'ci/cd',
+    'gitops',
+    'infrastructure',
+  ];
+  const lower = description.toLowerCase();
+  return techTerms.filter((t) => lower.includes(t));
 }
 
 function calculateOrgMatchScore(
   query: string,
-  org: { name: string; domain?: string | null; aliases: string },
+  org: {
+    name: string;
+    domain?: string | null;
+    aliases: string;
+    headquarters?: string | null;
+    industry?: string | null;
+  },
 ): number {
   let score = 0;
   const q = normalizeName(query);
@@ -1002,13 +1212,35 @@ function calculateOrgMatchScore(
   if (normalizeName(org.name) === q) return 95;
   // Name contains query
   if (normalizeName(org.name).includes(q) || q.includes(normalizeName(org.name))) score += 60;
+
+  // FIX EI-1: Fuzzy name matching via Levenshtein distance (max 2 edits = likely same org)
+  const orgNorm = normalizeName(org.name);
+  const editDist = levenshtein(q, orgNorm);
+  if (editDist === 1 && q.length > 3) score += 75; // 1-char typo
+  if (editDist === 2 && q.length > 5) score += 55; // 2-char difference
+
+  // FIX EI-1: Fuzzy domain matching (acme.com vs acme.co, www.acme.com vs acme.com)
+  if (org.domain && query.includes('.')) {
+    const querySLD = extractSLD(query);
+    const orgSLD = extractSLD(org.domain);
+    if (querySLD && orgSLD && querySLD === orgSLD) {
+      const queryRoot = extractRootDomain(query);
+      const orgRoot = extractRootDomain(org.domain);
+      if (queryRoot === orgRoot) {
+        score += 90; // Same root domain (acme.com == acme.com)
+      } else {
+        score += 65; // Same SLD, different TLD (acme.com vs acme.co)
+      }
+    }
+  }
+
   // Alias match
   const aliases: string[] = safeJsonParse(org.aliases);
   for (const alias of aliases) {
     if (normalizeName(alias) === q) return 90;
     if (normalizeName(alias).includes(q)) score += 50;
   }
-  return Math.min(score, 85);
+  return Math.min(score, 95);
 }
 
 function calculatePersonMatchScore(

@@ -95,6 +95,29 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    // ── FIX EI-7: Staleness Detection & Enrichment ──
+    let stalenessResult = { stale: 0, total: 0, enriched: 0, enrichErrors: 0 };
+    try {
+      const { detectStaleEntities, enrichStaleOrganizations } =
+        await import('@/lib/intelligence/enrichment');
+
+      const staleInfo = await detectStaleEntities();
+      stalenessResult = { ...staleInfo, enriched: 0, enrichErrors: 0 };
+
+      // Enrich up to 3 stale orgs per cron tick (rate-limited)
+      if (staleInfo.stale > 0) {
+        const enrichResult = await enrichStaleOrganizations(3);
+        stalenessResult.enriched = enrichResult.enriched;
+        stalenessResult.enrichErrors = enrichResult.errors;
+      }
+
+      logger.info('cron/job-processor: staleness detection & enrichment complete', stalenessResult);
+    } catch (staleError) {
+      logger.warn('cron/job-processor: staleness detection failed (non-blocking)', {
+        error: staleError instanceof Error ? staleError.message : 'Unknown',
+      });
+    }
+
     // ── NEW: Ingestion diagnostics ──
     const [ingestionTotal, ingestionPending, ingestionCompleted, ingestionFailed] =
       await Promise.all([
@@ -138,6 +161,7 @@ export async function GET(request: NextRequest) {
       },
       entityResolution: entityResolutionStats,
       signalDetection: signalDetectionResult,
+      staleness: stalenessResult,
     });
   } catch (error) {
     const durationMs = Date.now() - start;

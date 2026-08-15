@@ -9,6 +9,7 @@
 //   - signals:      Rule-based business signal detection
 //   - knowledge-graph: Entity resolution, relationships, graph queries
 //   - ingestion:    Data file → structured entities pipeline
+//   - enrichment:   External data enrichment (Clearbit, Apollo, web search)
 // ═══════════════════════════════════════════════════════════════════════════
 
 // Reasoning engine — the "brain"
@@ -61,3 +62,12 @@ export {
   type IngestionResult,
   type IngestionOptions,
 } from './ingestion';
+
+// Enrichment engine — external data providers
+export {
+  enrichOrganization,
+  enrichStaleOrganizations,
+  detectStaleEntities,
+  type EnrichmentResult,
+  type EnrichmentConfig,
+} from './enrichment';

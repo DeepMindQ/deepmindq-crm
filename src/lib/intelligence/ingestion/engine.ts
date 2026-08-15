@@ -369,7 +369,12 @@ async function processBatch(
               employeeCount: ext.organization.employeeCount,
               revenue: ext.organization.revenue,
               headquarters: ext.organization.headquarters,
-              source: 'upload',
+              // FIX EI-4: Set source dynamically based on data richness
+              // 'upload' = basic file import, 'external' = data has structured fields suggesting external source
+              source:
+                ext.organization.domain && ext.organization.industry && ext.organization.revenue
+                  ? 'external'
+                  : 'upload',
               sourceIngestionId: ingestionId,
             },
           });

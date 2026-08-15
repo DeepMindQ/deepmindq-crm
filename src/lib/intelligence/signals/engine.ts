@@ -42,11 +42,20 @@ const SIGNAL_TYPE_WEIGHTS: Record<string, number> = {
   social_mention: 0.4,
 };
 
+/** Evidence reliability → confidence multiplier mapping (FIX EI-6) */
+const EVIDENCE_RELIABILITY_MULTIPLIER: Record<string, number> = {
+  verified: 1.0,
+  likely: 0.85,
+  inferred: 0.65,
+  unverified: 0.4,
+};
+
 function computeSignalMetrics(
   signalType: string,
   baseConfidence: number,
   baseImpact: number,
   orgIntelligenceScore: number | null,
+  evidenceReliability?: string,
 ): {
   severity: 'low' | 'medium' | 'high' | 'critical';
   confidenceScore: number;
@@ -55,7 +64,14 @@ function computeSignalMetrics(
   const typeWeight = SIGNAL_TYPE_WEIGHTS[signalType] ?? 0.5;
   const orgMultiplier = orgIntelligenceScore ? Math.min(orgIntelligenceScore / 100, 1.5) : 1;
 
-  const confidenceScore = Math.round(Math.min(baseConfidence * orgMultiplier, 100));
+  // FIX EI-6: Factor in evidence reliability when available
+  const evidenceMultiplier = evidenceReliability
+    ? (EVIDENCE_RELIABILITY_MULTIPLIER[evidenceReliability] ?? 0.5)
+    : 1.0;
+
+  const confidenceScore = Math.round(
+    Math.min(baseConfidence * orgMultiplier * evidenceMultiplier, 100),
+  );
   const impactScore = Math.round(Math.min(baseImpact * typeWeight * orgMultiplier, 100));
   const compositeScore = confidenceScore * 0.4 + impactScore * 0.6;
 
@@ -66,6 +82,21 @@ function computeSignalMetrics(
   else severity = 'low';
 
   return { severity, confidenceScore, impactScore };
+}
+
+/**
+ * Compute evidence-based confidence score for an organization.
+ * FIX EI-6: Aggregates evidence quality across all evidence records.
+ * Exported for use by other engines (reasoning, enrichment).
+ */
+export function computeEvidenceConfidence(evidenceReliabilities: string[]): number {
+  if (evidenceReliabilities.length === 0) return 50; // neutral baseline
+
+  const weightedSum = evidenceReliabilities.reduce((sum, rel) => {
+    return sum + (EVIDENCE_RELIABILITY_MULTIPLIER[rel] ?? 0.5);
+  }, 0);
+
+  return Math.round((weightedSum / evidenceReliabilities.length) * 100);
 }
 
 /**

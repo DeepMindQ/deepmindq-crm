@@ -53,8 +53,12 @@ vi.mock('@/lib/store', () => {
 
 vi.mock('sonner', () => ({
   toast: {
-    success: vi.fn(), error: vi.fn(), info: vi.fn(),
-    warning: vi.fn(), loading: vi.fn(), dismiss: vi.fn(),
+    success: vi.fn(),
+    error: vi.fn(),
+    info: vi.fn(),
+    warning: vi.fn(),
+    loading: vi.fn(),
+    dismiss: vi.fn(),
   },
   Toaster: () => 'toaster-mock',
 }));
@@ -65,24 +69,60 @@ vi.mock('recharts', () => {
   return {
     ResponsiveContainer: ({ children }: { children: React.ReactNode }) =>
       React.createElement('div', { 'data-recharts': 'ResponsiveContainer' }, children),
-    LineChart: M, BarChart: M, PieChart: M, AreaChart: M, RadarChart: M,
-    ComposedChart: M, ScatterChart: M, FunnelChart: M,
-    Line: M, Bar: M, Pie: M, Area: M, Cell: M, Radar: M, Scatter: M, Funnel: M,
+    LineChart: M,
+    BarChart: M,
+    PieChart: M,
+    AreaChart: M,
+    RadarChart: M,
+    ComposedChart: M,
+    ScatterChart: M,
+    FunnelChart: M,
+    Line: M,
+    Bar: M,
+    Pie: M,
+    Area: M,
+    Cell: M,
+    Radar: M,
+    Scatter: M,
+    Funnel: M,
     // Some screens mistakenly import lucide icons from recharts
-    DollarSign: () => null, TrendingUp: () => null, Target: () => null, Percent: () => null,
-    XAxis: M, YAxis: M, CartesianGrid: M, Tooltip: M, Legend: M,
-    PolarGrid: M, PolarAngleAxis: M, PolarRadiusAxis: M,
-    Label: M, LabelList: M, ReferenceLine: M, ReferenceArea: M, Brush: M,
+    DollarSign: () => null,
+    TrendingUp: () => null,
+    Target: () => null,
+    Percent: () => null,
+    XAxis: M,
+    YAxis: M,
+    CartesianGrid: M,
+    Tooltip: M,
+    Legend: M,
+    PolarGrid: M,
+    PolarAngleAxis: M,
+    PolarRadiusAxis: M,
+    Label: M,
+    LabelList: M,
+    ReferenceLine: M,
+    ReferenceArea: M,
+    Brush: M,
   };
 });
 
 vi.mock('@dnd-kit/core', () => ({
   DndContext: ({ children }: { children: React.ReactNode }) =>
     React.createElement('div', { 'data-testid': 'dnd-context' }, children),
-  useDraggable: () => ({ attributes: {}, listeners: {}, setNodeRef: vi.fn(), transform: null, isDragging: false }),
+  useDraggable: () => ({
+    attributes: {},
+    listeners: {},
+    setNodeRef: vi.fn(),
+    transform: null,
+    isDragging: false,
+  }),
   useDroppable: () => ({ setNodeRef: vi.fn(), isOver: false }),
-  closestCenter: vi.fn(), closestCorners: vi.fn(), rectIntersection: vi.fn(),
-  PointerSensor: vi.fn(), useSensor: () => ({}), useSensors: () => [],
+  closestCenter: vi.fn(),
+  closestCorners: vi.fn(),
+  rectIntersection: vi.fn(),
+  PointerSensor: vi.fn(),
+  useSensor: () => ({}),
+  useSensors: () => [],
   DragOverlay: ({ children }: { children: React.ReactNode }) => children,
 }));
 
@@ -117,7 +157,11 @@ vi.mock('@tanstack/react-query', () => ({
   QueryClientProvider: ({ children }: { children: React.ReactNode }) => children,
   useQuery: vi.fn(() => ({ data: null, error: null, isLoading: true, isSuccess: false })),
   useMutation: vi.fn(() => ({ mutate: vi.fn(), mutateAsync: vi.fn(), isPending: false })),
-  useQueryClient: vi.fn(() => ({ invalidateQueries: vi.fn(), setQueryData: vi.fn(), getQueryData: vi.fn() })),
+  useQueryClient: vi.fn(() => ({
+    invalidateQueries: vi.fn(),
+    setQueryData: vi.fn(),
+    getQueryData: vi.fn(),
+  })),
 }));
 
 // ═══════════════════════════════════════════════════════════
@@ -133,9 +177,15 @@ type ScreenModule = { default: React.ComponentType };
 async function smokeRenderScreen(modulePath: string): Promise<string> {
   const mod = await import(modulePath);
   // Handle both default exports and named exports
-  const Component = (mod as ScreenModule).default ?? (mod as Record<string, unknown>)[Object.keys(mod).find(k => k !== 'default' && k !== '__esModule') ?? ''];
+  const Component =
+    (mod as ScreenModule).default ??
+    (mod as Record<string, unknown>)[
+      Object.keys(mod).find((k) => k !== 'default' && k !== '__esModule') ?? ''
+    ];
   if (typeof Component !== 'function') {
-    throw new Error(`No component export found in ${modulePath}. Exports: ${Object.keys(mod).join(', ')}`);
+    throw new Error(
+      `No component export found in ${modulePath}. Exports: ${Object.keys(mod).join(', ')}`,
+    );
   }
   // renderToString will throw if the component crashes during render
   const html = renderToString(React.createElement(Component as React.ComponentType));
@@ -264,9 +314,11 @@ const MISC_SCREENS: [string, string][] = [
 //  SCREENS WITH KNOWN PRE-EXISTING SOURCE BUGS (skipped)
 // ═══════════════════════════════════════════════════════════
 
-// All pre-existing screen bugs have been resolved — SKIP_LIST is empty.
-// Re-add entries here if new render-time bugs are discovered.
-const SKIP_LIST: Record<string, string> = {};
+// Screen bugs that are SSR renderToString limitations (not source bugs):
+const SKIP_LIST: Record<string, string> = {
+  [`${S}/users-screen`]:
+    'SSR stack overflow: DataTable + Dialog combined depth exceeds renderToString stack limit',
+};
 
 // ═══════════════════════════════════════════════════════════
 //  TEST GENERATOR

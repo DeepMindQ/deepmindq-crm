@@ -453,7 +453,17 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
   {
     path: '/api/data-import',
     methods: { GET: ['import:read'], POST: ['import:write'] },
-    description: 'Data import operations',
+    description: 'Data import operations (legacy)',
+  },
+  {
+    path: '/api/ingestion',
+    methods: { GET: ['import:read'], POST: ['import:write'] },
+    description: 'Data ingestion pipeline — upload + list',
+  },
+  {
+    path: '/api/ingestion/',
+    methods: { GET: ['import:read'], POST: ['import:write'], DELETE: ['import:write'] },
+    description: 'Data ingestion — retry, cancel, delete by ID',
   },
   {
     path: '/api/export',
@@ -737,9 +747,9 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
     description: 'Capability library endpoints',
   },
   {
-    path: '/api/data-import/',
-    methods: { GET: ['import:read'], POST: ['import:write'] },
-    description: 'Data import operation endpoints',
+    path: '/api/ingestion/',
+    methods: { GET: ['import:read'], POST: ['import:write'], DELETE: ['import:write'] },
+    description: 'Data ingestion operation endpoints',
   },
   {
     path: '/api/conversation-plans/',

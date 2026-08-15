@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+import { parseStringArray } from '@/lib/json-fields';
 
 const idParamSchema = z.string().min(1);
 
@@ -60,7 +61,24 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       return NextResponse.json({ error: 'Organization not found' }, { status: 404 });
     }
 
-    return NextResponse.json({ data: organization });
+    // Parse JSON-encoded string fields for SQLite compatibility
+    const org = {
+      ...organization,
+      aliases: parseStringArray(organization.aliases),
+      briefings: organization.briefings.map((b: Record<string, unknown>) => ({
+        ...b,
+        keyFindings: parseStringArray(b.keyFindings),
+        riskFactors: parseStringArray(b.riskFactors),
+        recommendedActions: parseStringArray(b.recommendedActions),
+      })),
+      insights: organization.insights.map((i: Record<string, unknown>) => ({
+        ...i,
+        evidenceIds: parseStringArray(i.evidenceIds),
+        signalIds: parseStringArray(i.signalIds),
+      })),
+    };
+
+    return NextResponse.json({ data: org });
   } catch (_error) {
     return NextResponse.json({ error: 'Failed to fetch organization' }, { status: 500 });
   }

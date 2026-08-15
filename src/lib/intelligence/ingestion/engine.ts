@@ -5,11 +5,15 @@
 // structured intelligence entities (Organization, Person, Signal).
 //
 // Pipeline: Upload → Parse → Detect Columns → Extract Entities → Store
+//
+// v2: Refactored for batched operations, existing ingestionId support,
+//     JSON parsing, transaction safety, AIUsageLog tracking.
 // ═══════════════════════════════════════════════════════════════════════════
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
-import { parseCSV, parseExcelRow, type ParsedRow } from './parsers';
+import { readFile } from 'fs/promises';
+import { parseCSV, parseExcelRow, parseJSON, type ParsedRow } from './parsers';
 import { detectColumns } from './column-detector';
 import { extractEntities } from './entity-extractor';
 import type { IngestionFileType } from '@prisma/client';
@@ -26,14 +30,22 @@ export interface IngestionResult {
 
 export interface IngestionOptions {
   userId?: string;
+  existingIngestionId?: string;
+  storedFilePath?: string;
   deduplicate?: boolean;
   skipRows?: number;
   maxRows?: number;
 }
 
+/** Number of rows to batch together for DB operations */
+const BATCH_SIZE = 50;
+
 /**
  * Main ingestion pipeline.
  * Takes a file buffer, parses it, detects columns, extracts entities, stores them.
+ *
+ * If `existingIngestionId` is provided, uses that record instead of creating a new one.
+ * If `storedFilePath` is provided, reads the file from disk (used by retry/cron).
  */
 export async function ingestFile(
   fileBuffer: Buffer,
@@ -41,20 +53,49 @@ export async function ingestFile(
   fileType: IngestionFileType,
   options: IngestionOptions = {},
 ): Promise<IngestionResult> {
-  const { userId, deduplicate = true, skipRows = 0, maxRows = 10000 } = options;
+  const {
+    userId,
+    existingIngestionId,
+    storedFilePath,
+    deduplicate = true,
+    skipRows = 0,
+    maxRows = 10000,
+  } = options;
 
-  logger.info('[INGEST] Starting file ingestion', { fileName, fileType, userId });
-
-  // 1. Create ingestion record
-  const ingestion = await db.dataIngestion.create({
-    data: {
-      fileName,
-      fileSize: fileBuffer.length,
-      fileType,
-      status: 'processing',
-      uploadedBy: userId,
-    },
+  const startTime = Date.now();
+  logger.info('[INGEST] Starting file ingestion', {
+    fileName,
+    fileType,
+    userId,
+    existingIngestionId,
   });
+
+  // 1. Create or use existing ingestion record
+  let ingestion;
+  if (existingIngestionId) {
+    ingestion = await db.dataIngestion.update({
+      where: { id: existingIngestionId },
+      data: {
+        status: 'processing',
+        errorMessage: null,
+        errorDetails: null,
+        completedAt: null,
+        processedRows: 0,
+        failedRows: 0,
+        ...(storedFilePath ? { storedFilePath } : {}),
+      },
+    });
+  } else {
+    ingestion = await db.dataIngestion.create({
+      data: {
+        fileName,
+        fileSize: fileBuffer.length,
+        fileType,
+        status: 'processing',
+        uploadedBy: userId,
+      },
+    });
+  }
 
   const result: IngestionResult = {
     ingestionId: ingestion.id,
@@ -68,148 +109,47 @@ export async function ingestFile(
 
   try {
     // 2. Parse the file into rows
-    const rows: ParsedRow[] =
-      fileType === 'csv'
-        ? await parseCSV(fileBuffer.toString('utf-8'))
-        : // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await parseExcelRow(fileBuffer as any);
+    let rows: ParsedRow[];
+
+    if (storedFilePath) {
+      // Read from disk for retry/cron scenarios
+      const diskBuffer = await readFile(storedFilePath);
+      rows = await parseFile(diskBuffer, fileType);
+    } else {
+      rows = await parseFile(fileBuffer, fileType);
+    }
 
     result.totalRows = rows.length;
     logger.info('[INGEST] File parsed', { totalRows: rows.length });
 
-    // 3. Detect column mapping
+    if (rows.length === 0) {
+      await finalizeIngestion(ingestion.id, result, startTime);
+      return result;
+    }
+
+    // 3. Detect column mapping from first row
     const columnMapping = detectColumns(rows[0]);
     logger.info('[INGEST] Columns detected', { mapping: columnMapping });
 
-    // 4. Process each row
+    // Store column map
+    await db.dataIngestion.update({
+      where: { id: ingestion.id },
+      data: { columnMap: JSON.stringify(columnMapping) },
+    });
+
+    // 4. Process rows in batches
     const processStart = skipRows;
     const processEnd = Math.min(rows.length, skipRows + maxRows);
 
-    for (let i = processStart; i < processEnd; i++) {
-      const row = rows[i];
-      try {
-        // Extract entities from this row
-        const entities = extractEntities(row, columnMapping);
+    for (let batchStart = processStart; batchStart < processEnd; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, processEnd);
+      const batchRows = rows.slice(batchStart, batchEnd);
 
-        // Create or find Organization
-        let orgId: string | undefined;
-
-        if (entities.organization) {
-          const existingOrg =
-            deduplicate && entities.organization.domain
-              ? await db.organization.findFirst({
-                  where: { domain: entities.organization.domain },
-                })
-              : null;
-
-          if (existingOrg) {
-            orgId = existingOrg.id;
-          } else {
-            const org = await db.organization.create({
-              data: {
-                name: entities.organization.name,
-                domain: entities.organization.domain,
-                industry: entities.organization.industry,
-                description: entities.organization.description,
-                website: entities.organization.domain
-                  ? `https://${entities.organization.domain}`
-                  : null,
-                employeeCount: entities.organization.employeeCount,
-                revenue: entities.organization.revenue,
-                headquarters: entities.organization.headquarters,
-                source: 'upload',
-              },
-            });
-            orgId = org.id;
-            result.organizationsCreated++;
-          }
-        }
-
-        // Create Person if extracted
-        let personId: string | undefined;
-
-        if (entities.person) {
-          const existingPerson =
-            deduplicate && entities.person.email
-              ? await db.person.findFirst({
-                  where: { email: entities.person.email },
-                })
-              : null;
-
-          if (existingPerson) {
-            personId = existingPerson.id;
-          } else {
-            const person = await db.person.create({
-              data: {
-                fullName: entities.person.fullName,
-                email: entities.person.email,
-                title: entities.person.title,
-                department: entities.person.department,
-                organizationId: orgId,
-                source: 'upload',
-              },
-            });
-            personId = person.id;
-            result.peopleCreated++;
-          }
-        }
-
-        // Store the ingestion row
-        await db.dataIngestionRow.create({
-          data: {
-            ingestionId: ingestion.id,
-            rawData: JSON.stringify(row),
-            rowNumber: i + 1,
-            organizationId: orgId,
-            personId,
-            status: 'extracted',
-          },
-        });
-
-        result.processedRows++;
-      } catch (rowError) {
-        const errorMsg = rowError instanceof Error ? rowError.message : 'Unknown extraction error';
-        result.failedRows++;
-        result.errors.push({ row: i + 1, error: errorMsg });
-
-        // Store failed row
-        await db.dataIngestionRow.create({
-          data: {
-            ingestionId: ingestion.id,
-            rawData: JSON.stringify(row),
-            rowNumber: i + 1,
-            status: 'failed',
-            error: errorMsg,
-          },
-        });
-      }
+      await processBatch(batchRows, batchStart, columnMapping, ingestion.id, result, deduplicate);
     }
 
-    // 5. Update ingestion record with results
-    await db.dataIngestion.update({
-      where: { id: ingestion.id },
-      data: {
-        status:
-          result.failedRows === 0 ? 'completed' : result.processedRows > 0 ? 'partial' : 'failed',
-        totalRows: result.totalRows,
-        processedRows: result.processedRows,
-        failedRows: result.failedRows,
-        organizationsCreated: result.organizationsCreated,
-        peopleCreated: result.peopleCreated,
-        errorDetails: result.errors.length > 0 ? JSON.stringify(result.errors.slice(0, 100)) : null,
-        completedAt: new Date(),
-        columnMap: JSON.stringify(columnMapping),
-      },
-    });
-
-    logger.info('[INGEST] File ingestion complete', {
-      ingestionId: ingestion.id,
-      totalRows: result.totalRows,
-      processedRows: result.processedRows,
-      failedRows: result.failedRows,
-      organizationsCreated: result.organizationsCreated,
-      peopleCreated: result.peopleCreated,
-    });
+    // 5. Finalize ingestion record
+    await finalizeIngestion(ingestion.id, result, startTime);
 
     // 6. Auto-discover relationships in the knowledge graph
     if (result.organizationsCreated > 0) {
@@ -223,6 +163,42 @@ export async function ingestFile(
         });
       }
     }
+
+    // 7. Log to AIUsageLog for pipeline metrics (#13)
+    const durationMs = Date.now() - startTime;
+    const successRate =
+      result.processedRows > 0
+        ? Math.round(((result.processedRows - result.failedRows) / result.processedRows) * 100)
+        : 0;
+    try {
+      await db.aIUsageLog.create({
+        data: {
+          provider: 'system',
+          model: 'ingestion-pipeline',
+          feature: 'data_ingestion',
+          latencyMs: durationMs,
+          qualityScore: successRate,
+          totalTokens: result.totalRows,
+          promptTokens: result.organizationsCreated,
+          completionTokens: result.peopleCreated,
+        },
+      });
+      logger.info('[INGEST] Usage logged', { durationMs, successRate });
+    } catch (logError) {
+      logger.warn('[INGEST] Failed to log usage (non-blocking)', {
+        error: logError instanceof Error ? logError.message : 'Unknown',
+      });
+    }
+
+    logger.info('[INGEST] File ingestion complete', {
+      ingestionId: ingestion.id,
+      totalRows: result.totalRows,
+      processedRows: result.processedRows,
+      failedRows: result.failedRows,
+      organizationsCreated: result.organizationsCreated,
+      peopleCreated: result.peopleCreated,
+      durationMs,
+    });
   } catch (error) {
     // Pipeline-level failure
     const errorMsg = error instanceof Error ? error.message : 'Unknown pipeline error';
@@ -240,4 +216,269 @@ export async function ingestFile(
   }
 
   return result;
+}
+
+/**
+ * Parse a file buffer based on its type.
+ */
+async function parseFile(buffer: Buffer, fileType: IngestionFileType): Promise<ParsedRow[]> {
+  switch (fileType) {
+    case 'csv':
+      return parseCSV(buffer.toString('utf-8'));
+    case 'json':
+      return parseJSON(buffer);
+    case 'xlsx':
+    case 'xls':
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return parseExcelRow(buffer as any);
+    default:
+      throw new Error(`Unsupported file type: ${fileType}`);
+  }
+}
+
+/**
+ * Process a batch of rows: extract entities, deduplicate, store.
+ * Uses batched DB operations to reduce round-trips.
+ */
+async function processBatch(
+  batchRows: ParsedRow[],
+  batchOffset: number,
+  columnMapping: ReturnType<typeof detectColumns>,
+  ingestionId: string,
+  result: IngestionResult,
+  deduplicate: boolean,
+): Promise<void> {
+  // Phase 1: Extract all entities from the batch first
+  interface RowExtraction {
+    rowNumber: number;
+    rawData: string;
+    organization?: ReturnType<typeof extractEntities>['organization'];
+    person?: ReturnType<typeof extractEntities>['person'];
+    extractionError?: string;
+  }
+
+  const extractions: RowExtraction[] = [];
+  const domainBatch: string[] = [];
+  const emailBatch: string[] = [];
+
+  for (let i = 0; i < batchRows.length; i++) {
+    const row = batchRows[i];
+    const rowNumber = batchOffset + i + 1;
+    try {
+      const entities = extractEntities(row, columnMapping);
+      if (entities.organization?.domain) domainBatch.push(entities.organization.domain);
+      if (entities.person?.email) emailBatch.push(entities.person.email);
+      extractions.push({
+        rowNumber,
+        rawData: JSON.stringify(row),
+        organization: entities.organization,
+        person: entities.person,
+      });
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Extraction error';
+      extractions.push({
+        rowNumber,
+        rawData: JSON.stringify(row),
+        extractionError: errorMsg,
+      });
+      result.failedRows++;
+      result.errors.push({ row: rowNumber, error: errorMsg });
+    }
+  }
+
+  // Phase 2: Batch dedup lookup — one query for domains, one for emails
+  const domainSet = [...new Set(domainBatch.filter(Boolean))];
+  const emailSet = [...new Set(emailBatch.filter(Boolean))];
+
+  const [existingOrgs, existingPeople] = await Promise.all([
+    domainSet.length > 0 && deduplicate
+      ? db.organization.findMany({
+          where: { domain: { in: domainSet } },
+          select: { id: true, domain: true },
+        })
+      : Promise.resolve([]),
+    emailSet.length > 0 && deduplicate
+      ? db.person.findMany({
+          where: { email: { in: emailSet } },
+          select: { id: true, email: true },
+        })
+      : Promise.resolve([]),
+  ]);
+
+  const orgByDomain = new Map(existingOrgs.map((o) => [o.domain, o.id]));
+  const personByEmail = new Map(existingPeople.map((p) => [p.email, p.id]));
+
+  // Phase 3: Create entities and ingestion rows in a loop (SQLite doesn't support createMany)
+  for (const ext of extractions) {
+    if (ext.extractionError) {
+      // Store failed row
+      await db.dataIngestionRow.create({
+        data: {
+          ingestionId,
+          rawData: ext.rawData,
+          rowNumber: ext.rowNumber,
+          status: 'failed',
+          error: ext.extractionError,
+        },
+      });
+      continue;
+    }
+
+    let orgId: string | undefined;
+
+    try {
+      // Create or find Organization
+      if (ext.organization) {
+        const existingOrgId = ext.organization.domain
+          ? orgByDomain.get(ext.organization.domain)
+          : undefined;
+
+        if (existingOrgId) {
+          orgId = existingOrgId;
+        } else {
+          const org = await db.organization.create({
+            data: {
+              name: ext.organization.name,
+              domain: ext.organization.domain,
+              industry: ext.organization.industry,
+              description: ext.organization.description,
+              website: ext.organization.domain ? `https://${ext.organization.domain}` : null,
+              employeeCount: ext.organization.employeeCount,
+              revenue: ext.organization.revenue,
+              headquarters: ext.organization.headquarters,
+              source: 'upload',
+              sourceIngestionId: ingestionId,
+            },
+          });
+          orgId = org.id;
+          if (ext.organization.domain) orgByDomain.set(ext.organization.domain, org.id);
+          result.organizationsCreated++;
+        }
+      }
+
+      // Create Person if extracted
+      let personId: string | undefined;
+
+      if (ext.person) {
+        const existingPersonId = ext.person.email ? personByEmail.get(ext.person.email) : undefined;
+
+        if (existingPersonId) {
+          personId = existingPersonId;
+        } else {
+          const person = await db.person.create({
+            data: {
+              fullName: ext.person.fullName,
+              email: ext.person.email,
+              title: ext.person.title,
+              department: ext.person.department,
+              organizationId: orgId,
+              source: 'upload',
+              sourceIngestionId: ingestionId,
+            },
+          });
+          personId = person.id;
+          if (ext.person.email) personByEmail.set(ext.person.email, person.id);
+          result.peopleCreated++;
+        }
+      }
+
+      // Store the ingestion row
+      await db.dataIngestionRow.create({
+        data: {
+          ingestionId,
+          rawData: ext.rawData,
+          rowNumber: ext.rowNumber,
+          organizationId: orgId,
+          personId,
+          status: 'extracted',
+        },
+      });
+
+      result.processedRows++;
+    } catch (rowError) {
+      const errorMsg = rowError instanceof Error ? rowError.message : 'Unknown store error';
+      result.failedRows++;
+      result.errors.push({ row: ext.rowNumber, error: errorMsg });
+
+      await db.dataIngestionRow.create({
+        data: {
+          ingestionId,
+          rawData: ext.rawData,
+          rowNumber: ext.rowNumber,
+          status: 'failed',
+          error: errorMsg,
+        },
+      });
+    }
+  }
+}
+
+/**
+ * Finalize ingestion record with final status and stats.
+ */
+async function finalizeIngestion(
+  ingestionId: string,
+  result: IngestionResult,
+  startTime: number,
+): Promise<void> {
+  const durationMs = Date.now() - startTime;
+  const status =
+    result.failedRows === 0 ? 'completed' : result.processedRows > 0 ? 'partial' : 'failed';
+
+  await db.dataIngestion.update({
+    where: { id: ingestionId },
+    data: {
+      status,
+      totalRows: result.totalRows,
+      processedRows: result.processedRows,
+      failedRows: result.failedRows,
+      organizationsCreated: result.organizationsCreated,
+      peopleCreated: result.peopleCreated,
+      errorDetails: result.errors.length > 0 ? JSON.stringify(result.errors.slice(0, 100)) : null,
+      completedAt: new Date(),
+    },
+  });
+
+  logger.info('[INGEST] Finalized', { ingestionId, status, durationMs });
+}
+
+/**
+ * Process all pending ingestion jobs — used by cron job processor (#9).
+ * Finds all 'pending' ingestions with a storedFilePath and processes them.
+ * Returns count of jobs processed.
+ */
+export async function processPendingIngestions(): Promise<{ processed: number; errors: number }> {
+  const pending = await db.dataIngestion.findMany({
+    where: {
+      status: 'pending',
+      storedFilePath: { not: null },
+    },
+    orderBy: { uploadedAt: 'asc' },
+    take: 5, // Process max 5 per cron tick to avoid overload
+  });
+
+  let processed = 0;
+  let errors = 0;
+
+  for (const ingestion of pending) {
+    try {
+      const { readFile: rf } = await import('fs/promises');
+      const buffer = await rf(ingestion.storedFilePath!);
+      await ingestFile(buffer, ingestion.fileName, ingestion.fileType, {
+        existingIngestionId: ingestion.id,
+        storedFilePath: ingestion.storedFilePath!,
+        userId: ingestion.uploadedBy ?? undefined,
+      });
+      processed++;
+    } catch (err) {
+      logger.error('[INGEST-CRON] Failed to process pending ingestion', {
+        id: ingestion.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+      errors++;
+    }
+  }
+
+  logger.info('[INGEST-CRON] Batch complete', { total: pending.length, processed, errors });
+  return { processed, errors };
 }

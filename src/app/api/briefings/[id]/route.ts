@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
+import { parseJsonFields } from '@/lib/json-fields';
 
 const briefingIdSchema = z.string().min(1);
 
@@ -49,7 +50,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
       );
     }
 
-    return NextResponse.json({ data: briefing });
+    // Parse JSON-encoded array fields for SQLite compatibility
+    const parsedBriefing = parseJsonFields(briefing as Record<string, unknown>, [
+      'keyFindings',
+      'riskFactors',
+      'recommendedActions',
+    ]);
+
+    return NextResponse.json({ data: parsedBriefing });
   } catch (_error) {
     return NextResponse.json({ error: 'Failed to fetch briefing' }, { status: 500 });
   }

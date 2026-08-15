@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { fetchApi } from '@/lib/fetchApi';
 import { useAppStore, type ViewId } from '@/lib/store';
 import { SCREEN_MAP } from '@/lib/screen-map';
@@ -80,6 +81,36 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { PageTransition, GlassPanel } from '@/components/ui/animated-components';
+
+/* ── Types ── */
+
+interface UserSession {
+  id: string;
+  name: string;
+  email: string;
+  [key: string]: unknown;
+}
+
+interface StatsOverview {
+  organizations: number;
+  signals: number;
+  people: number;
+  insights: number;
+  criticalSignals: number;
+  avgIntelligenceScore: number;
+  recentActivity: number;
+}
+
+interface TeamActivity {
+  id: string;
+  user: { name: string; email: string } | null;
+  action: string;
+  actionLabel: string;
+  icon: string;
+  resource: string | null;
+  details: string | null;
+  timestamp: string;
+}
 
 /* ── Navigation Data ── */
 
@@ -316,7 +347,29 @@ function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void 
 
 /* ── UserNav ── */
 
-function UserNav() {
+function UserNav({ user }: { user: UserSession | null }) {
+  const router = useRouter();
+
+  const handleSignOut = async () => {
+    try {
+      await fetchApi('/api/auth/logout', { method: 'POST' });
+      router.push('/');
+      router.refresh();
+    } catch (_err) {
+      // If logout API fails, still redirect
+      router.push('/');
+    }
+  };
+
+  const displayName = user?.name || 'Admin';
+  const displayEmail = user?.email || 'admin@deepmindq.com';
+  const initials = displayName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -326,7 +379,7 @@ function UserNav() {
         >
           <Avatar className="h-8 w-8">
             <AvatarFallback className="bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-semibold">
-              DM
+              {initials}
             </AvatarFallback>
           </Avatar>
         </button>
@@ -334,8 +387,8 @@ function UserNav() {
       <DropdownMenuContent align="end" className="w-56">
         <DropdownMenuLabel className="font-normal">
           <div className="flex flex-col space-y-1">
-            <p className="text-sm font-medium leading-none">DeepMindQ Admin</p>
-            <p className="text-xs leading-none text-muted-foreground">admin@deepmindq.com</p>
+            <p className="text-sm font-medium leading-none">{displayName}</p>
+            <p className="text-xs leading-none text-muted-foreground">{displayEmail}</p>
           </div>
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
@@ -351,7 +404,10 @@ function UserNav() {
           </DropdownMenuItem>
         </DropdownMenuGroup>
         <DropdownMenuSeparator />
-        <DropdownMenuItem className="cursor-pointer text-destructive focus:text-destructive">
+        <DropdownMenuItem
+          className="cursor-pointer text-destructive focus:text-destructive"
+          onClick={handleSignOut}
+        >
           <LogOut className="mr-2 h-4 w-4" /> Sign out
         </DropdownMenuItem>
       </DropdownMenuContent>
@@ -446,9 +502,12 @@ const ActiveScreen = React.memo(function ActiveScreen({ viewId }: { viewId: View
 
 /* ── Welcome Banner ── */
 
-function WelcomeBanner() {
+function WelcomeBanner({ stats, user }: { stats: StatsOverview | null; user: UserSession | null }) {
   const [dismissed, setDismissed] = useState(false);
   if (dismissed) return null;
+
+  const displayName = user?.name?.split(' ')[0] || 'Admin';
+
   return (
     <GlassPanel
       className="mx-4 mt-4 overflow-hidden"
@@ -461,7 +520,7 @@ function WelcomeBanner() {
           <div className="flex items-center gap-2 mb-1">
             <Sparkles className="h-4 w-4 text-[var(--ios-accent)]" />
             <h2 className="text-base font-semibold" style={{ color: 'var(--ios-text-primary)' }}>
-              Welcome back, Admin
+              Welcome back, {displayName}
             </h2>
           </div>
           <p className="text-sm mb-4" style={{ color: 'var(--ios-text-secondary)' }}>
@@ -469,9 +528,18 @@ function WelcomeBanner() {
           </p>
           <div className="flex flex-wrap gap-2 mb-4">
             {[
-              { label: '12 New Signals', color: 'var(--ios-confidence-high)' },
-              { label: '5 Opportunities', color: 'var(--ios-accent)' },
-              { label: '3 Pending Reviews', color: 'var(--ios-confidence-medium)' },
+              {
+                label: `${stats?.signals ?? 0} New Signals`,
+                color: 'var(--ios-confidence-high)',
+              },
+              {
+                label: `${stats?.insights ?? 0} Insights`,
+                color: 'var(--ios-accent)',
+              },
+              {
+                label: `${stats?.criticalSignals ?? 0} Critical`,
+                color: 'var(--ios-confidence-medium)',
+              },
             ].map((pill) => (
               <span
                 key={pill.label}
@@ -509,7 +577,16 @@ function WelcomeBanner() {
 
 /* ── AppSidebar ── */
 
-function AppSidebar() {
+function AppSidebar({ user }: { user: UserSession | null }) {
+  const displayName = user?.name || 'Admin';
+  const displayEmail = user?.email || 'admin@deepmindq.com';
+  const initials = displayName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
   return (
     <Sidebar collapsible="icon" variant="sidebar">
       <SidebarHeader>
@@ -544,12 +621,12 @@ function AppSidebar() {
             >
               <Avatar className="h-8 w-8">
                 <AvatarFallback className="bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)] text-xs font-semibold">
-                  DM
+                  {initials}
                 </AvatarFallback>
               </Avatar>
               <div className="flex flex-col gap-0.5 leading-none">
-                <span className="text-sm font-medium">Admin</span>
-                <span className="text-xs text-sidebar-foreground/60">admin@deepmindq.com</span>
+                <span className="text-sm font-medium">{displayName}</span>
+                <span className="text-xs text-sidebar-foreground/60">{displayEmail}</span>
               </div>
             </SidebarMenuButton>
           </SidebarMenuItem>
@@ -560,9 +637,146 @@ function AppSidebar() {
   );
 }
 
+/* ── NotificationBell ── */
+
+function NotificationBell() {
+  const [open, setOpen] = useState(false);
+  const [activities, setActivities] = useState<TeamActivity[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const handleClick = useCallback(async () => {
+    if (open) {
+      setOpen(false);
+      return;
+    }
+    setOpen(true);
+    setLoading(true);
+    try {
+      const res = await fetchApi('/api/team-activity', { params: { limit: 5 } });
+      if (!res.error && res.data?.data?.length > 0) {
+        setActivities(res.data.data as TeamActivity[]);
+      } else {
+        setActivities([]);
+      }
+    } catch (_err) {
+      setActivities([]);
+    } finally {
+      setLoading(false);
+    }
+  }, [open]);
+
+  return (
+    <div className="relative">
+      <button
+        onClick={handleClick}
+        className="relative inline-flex size-9 items-center justify-center rounded-lg transition-all duration-200 hover:bg-[var(--ios-bg-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        aria-label="Notifications"
+      >
+        <Bell className="h-4 w-4" style={{ color: 'var(--ios-text-secondary)' }} />
+        {activities.length > 0 && !open && (
+          <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--destructive)] px-1 text-[10px] font-bold text-white">
+            {activities.length}
+          </span>
+        )}
+      </button>
+
+      {/* Notification Dropdown */}
+      {open && (
+        <>
+          <div className="fixed inset-0 z-[90]" onClick={() => setOpen(false)} />
+          <div
+            className="absolute right-0 top-12 z-[91] w-80 rounded-xl border shadow-2xl overflow-hidden"
+            style={{
+              background: 'var(--ios-bg-elevated)',
+              borderColor: 'var(--ios-border)',
+            }}
+          >
+            <div
+              className="px-4 py-3 border-b flex items-center justify-between"
+              style={{ borderBottomColor: 'var(--ios-border)' }}
+            >
+              <span className="text-sm font-semibold" style={{ color: 'var(--ios-text-primary)' }}>
+                Recent Activity
+              </span>
+              <button
+                onClick={() => setOpen(false)}
+                className="p-1 rounded-md transition-colors hover:bg-[var(--ios-bg-card-hover)]"
+                style={{ color: 'var(--ios-text-muted)' }}
+              >
+                <X className="w-3 h-3" />
+              </button>
+            </div>
+            <div className="max-h-72 overflow-y-auto">
+              {loading && (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2
+                    className="w-5 h-5 animate-spin"
+                    style={{ color: 'var(--ios-text-secondary)' }}
+                  />
+                </div>
+              )}
+              {!loading && activities.length === 0 && (
+                <p
+                  className="text-xs text-center py-8"
+                  style={{ color: 'var(--ios-text-secondary)' }}
+                >
+                  No recent activity
+                </p>
+              )}
+              {!loading &&
+                activities.map((activity) => (
+                  <div
+                    key={activity.id}
+                    className="px-4 py-3 border-b last:border-b-0 transition-colors hover:bg-[var(--ios-bg-card-hover)]"
+                    style={{ borderBottomColor: 'var(--ios-border)' }}
+                  >
+                    <div className="flex items-start gap-2">
+                      <Activity
+                        className="w-3.5 h-3.5 mt-0.5 shrink-0"
+                        style={{ color: 'var(--ios-accent)' }}
+                      />
+                      <div className="flex-1 min-w-0">
+                        <p
+                          className="text-xs font-medium"
+                          style={{ color: 'var(--ios-text-primary)' }}
+                        >
+                          {activity.actionLabel}
+                        </p>
+                        {activity.user && (
+                          <p
+                            className="text-[11px] mt-0.5"
+                            style={{ color: 'var(--ios-text-secondary)' }}
+                          >
+                            {activity.user.name}
+                          </p>
+                        )}
+                        <p
+                          className="text-[10px] mt-0.5"
+                          style={{ color: 'var(--ios-text-muted)' }}
+                        >
+                          {activity.timestamp ? new Date(activity.timestamp).toLocaleString() : ''}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ── AppHeader ── */
 
-function AppHeader({ onOpenCommandPalette }: { onOpenCommandPalette: () => void }) {
+function AppHeader({
+  onOpenCommandPalette,
+  user,
+}: {
+  onOpenCommandPalette: () => void;
+  user: UserSession | null;
+}) {
   const activeView = useAppStore((s) => s.activeView);
   const viewLabel = VIEW_LABEL_MAP[activeView] ?? activeView;
 
@@ -634,17 +848,9 @@ function AppHeader({ onOpenCommandPalette }: { onOpenCommandPalette: () => void 
       </button>
 
       {/* Notifications */}
-      <button
-        className="relative inline-flex size-9 items-center justify-center rounded-lg transition-all duration-200 hover:bg-[var(--ios-bg-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
-        aria-label="Notifications"
-      >
-        <Bell className="h-4 w-4" style={{ color: 'var(--ios-text-secondary)' }} />
-        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--destructive)] px-1 text-[10px] font-bold text-white">
-          3
-        </span>
-      </button>
+      <NotificationBell />
 
-      <UserNav />
+      <UserNav user={user} />
     </header>
   );
 }
@@ -656,18 +862,22 @@ export default function Page() {
   const [cmdOpen, setCmdOpen] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [user, setUser] = useState<UserSession | null>(null);
+  const [stats, setStats] = useState<StatsOverview | null>(null);
   const openCmd = useCallback(() => setCmdOpen(true), []);
   const closeCmd = useCallback(() => setCmdOpen(false), []);
 
-  // Auth check
+  // Auth check + fetch user data
   useEffect(() => {
-    fetchApi('/api/auth/me')
-      .then(({ error }) => {
+    fetchApi<{ user: UserSession }>('/api/auth/me')
+      .then(({ error, data }) => {
         if (error) {
-          // 401 or network error — treat as unauthenticated
           setIsAuthenticated(false);
-        } else {
+        } else if (data?.user) {
           setIsAuthenticated(true);
+          setUser(data.user);
+        } else {
+          setIsAuthenticated(false);
         }
       })
       .catch(() => {
@@ -677,6 +887,20 @@ export default function Page() {
         setIsLoading(false);
       });
   }, []);
+
+  // Fetch stats overview
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    fetchApi<StatsOverview>('/api/stats/overview')
+      .then(({ error, data }) => {
+        if (!error && data) {
+          setStats(data);
+        }
+      })
+      .catch(() => {
+        // silently fail
+      });
+  }, [isAuthenticated]);
 
   useEffect(() => {
     const h = (e: KeyboardEvent) => {
@@ -728,11 +952,11 @@ export default function Page() {
 
   return (
     <SidebarProvider>
-      <AppSidebar />
+      <AppSidebar user={user} />
       <SidebarInset className="overflow-hidden" style={{ background: 'var(--ios-bg-primary)' }}>
-        <AppHeader onOpenCommandPalette={openCmd} />
+        <AppHeader onOpenCommandPalette={openCmd} user={user} />
         <div className="flex-1 overflow-auto">
-          {activeView === 'dashboard' && <WelcomeBanner />}
+          {activeView === 'dashboard' && <WelcomeBanner stats={stats} user={user} />}
           <ActiveScreen viewId={activeView} />
         </div>
       </SidebarInset>

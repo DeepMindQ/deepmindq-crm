@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -10,65 +11,126 @@ import {
   ChartLegendContent,
 } from '@/components/ui/chart';
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { DollarSign, TrendingUp, BarChart3, ArrowUpRight } from 'lucide-react';
+import { Activity, TrendingUp, Building2, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
+import { LoadingSkeleton, ErrorPanel } from '@/components/ui/screen-states';
 
-function formatCurrency(value: number) {
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-  return `$${value}`;
+interface MonthlyData {
+  month: string;
+  total: number;
+  critical: number;
+  high: number;
 }
 
-const FORECAST_BY_MONTH = [
-  { month: 'Oct', committed: 320000, bestCase: 480000, upside: 620000 },
-  { month: 'Nov', committed: 410000, bestCase: 590000, upside: 780000 },
-  { month: 'Dec', committed: 380000, bestCase: 540000, upside: 710000 },
-  { month: 'Jan', committed: 520000, bestCase: 740000, upside: 960000 },
-  { month: 'Feb', committed: 460000, bestCase: 670000, upside: 880000 },
-  { month: 'Mar', committed: 580000, bestCase: 820000, upside: 1050000 },
-];
+interface OrgByStatus {
+  active: number;
+  paused: number;
+  archived: number;
+}
 
-const PIPELINE_BY_STAGE = [
-  { stage: 'Prospect', value: 4260000 },
-  { stage: 'Discovery', value: 6960000 },
-  { stage: 'Demo', value: 8100000 },
-  { stage: 'Proposal', value: 9300000 },
-  { stage: 'Negotiation', value: 11000000 },
-];
-
-const HISTORICAL_WIN_RATES = [
-  { month: 'Jul', rate: 22 },
-  { month: 'Aug', rate: 25 },
-  { month: 'Sep', rate: 28 },
-  { month: 'Oct', rate: 31 },
-  { month: 'Nov', rate: 29 },
-  { month: 'Dec', rate: 33 },
-  { month: 'Jan', rate: 36 },
-  { month: 'Feb', rate: 38 },
-];
+interface PipelineForecastData {
+  monthly: MonthlyData[];
+  organizationsByStatus: OrgByStatus;
+  projectedGrowth: string;
+}
 
 const forecastConfig = {
-  committed: { label: 'Committed', color: tokens.accent.primary },
-  bestCase: { label: 'Best Case', color: tokens.confidence.medium.value },
-  upside: { label: 'Upside', color: tokens.domain.value },
+  total: { label: 'Total Signals', color: tokens.accent.primary },
+  critical: { label: 'Critical', color: tokens.confidence.low.value },
+  high: { label: 'High', color: tokens.confidence.medium.value },
 };
 
 const stageConfig = {
-  value: { label: 'Pipeline Value', color: tokens.accent.primary },
+  count: { label: 'Organizations', color: tokens.accent.primary },
 };
 
 const winRateConfig = {
-  rate: { label: 'Win Rate %', color: tokens.confidence.high.value },
+  total: { label: 'Signal Volume', color: tokens.confidence.high.value },
 };
 
 export default function PipelineForecast() {
-  const totalCommitted = 2370000;
-  const totalBestCase = 3840000;
-  const totalUpside = 5000000;
-  const weightedForecast = Math.round(
-    totalCommitted * 1.0 +
-      (totalBestCase - totalCommitted) * 0.6 +
-      (totalUpside - totalBestCase) * 0.25,
-  );
+  const [data, setData] = useState<PipelineForecastData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const res = await fetchApi<PipelineForecastData>('/api/pipeline-forecast');
+    if (res.error) {
+      setError(res.error);
+    } else if (res.data) {
+      setData(res.data);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Derived stats
+  const totalSignals = data?.monthly.reduce((sum, m) => sum + m.total, 0) || 0;
+  const totalCritical = data?.monthly.reduce((sum, m) => sum + m.critical, 0) || 0;
+  const totalHigh = data?.monthly.reduce((sum, m) => sum + m.high, 0) || 0;
+  const activeOrgs = data?.organizationsByStatus.active || 0;
+
+  const growthNum = parseFloat(data?.projectedGrowth || '0');
+  const isGrowthPositive = growthNum >= 0;
+
+  // Organizations by status chart data
+  const orgStatusData = data?.organizationsByStatus
+    ? [
+        { status: 'Active', count: data.organizationsByStatus.active },
+        { status: 'Paused', count: data.organizationsByStatus.paused },
+        { status: 'Archived', count: data.organizationsByStatus.archived },
+      ]
+    : [];
+
+  // Growth rate trend: compute month-over-month growth percentages
+  const growthTrend = (data?.monthly || []).map((m, idx, arr) => {
+    const prev = idx > 0 ? arr[idx - 1].total : m.total;
+    const rate = prev > 0 ? Math.round(((m.total - prev) / prev) * 100) : 0;
+    return {
+      month: m.month,
+      total: m.total,
+      rate,
+    };
+  });
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+            Pipeline Forecast
+          </h1>
+          <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
+            AI-powered pipeline forecasting and revenue predictions
+          </p>
+        </div>
+        <LoadingSkeleton variant="dashboard" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+            Pipeline Forecast
+          </h1>
+          <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
+            AI-powered pipeline forecasting and revenue predictions
+          </p>
+        </div>
+        <ErrorPanel message={error} onRetry={fetchData} />
+      </div>
+    );
+  }
+
+  if (!data) return null;
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -86,32 +148,33 @@ export default function PipelineForecast() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
-            label: 'Committed Pipeline',
-            value: formatCurrency(totalCommitted),
-            icon: DollarSign,
+            label: 'Total Signals (6mo)',
+            value: totalSignals,
+            icon: Activity,
             color: tokens.accent.primary,
             bg: tokens.accent.subtle,
           },
           {
-            label: 'Best Case',
-            value: formatCurrency(totalBestCase),
+            label: 'Critical Signals',
+            value: totalCritical,
+            icon: ArrowUpRight,
+            color: tokens.confidence.low.value,
+            bg: tokens.confidence.low.bg,
+          },
+          {
+            label: 'High Severity',
+            value: totalHigh,
             icon: TrendingUp,
             color: tokens.confidence.medium.value,
             bg: tokens.confidence.medium.bg,
           },
           {
-            label: 'Upside',
-            value: formatCurrency(totalUpside),
-            icon: ArrowUpRight,
-            color: tokens.domain.value,
-            bg: tokens.domain.bg,
-          },
-          {
-            label: 'Weighted Forecast',
-            value: formatCurrency(weightedForecast),
-            icon: BarChart3,
-            color: tokens.confidence.high.value,
-            bg: tokens.confidence.high.bg,
+            label: 'Projected Growth',
+            value: data.projectedGrowth,
+            icon: Building2,
+            color: isGrowthPositive ? tokens.confidence.high.value : tokens.confidence.low.value,
+            bg: isGrowthPositive ? tokens.confidence.high.bg : tokens.confidence.low.bg,
+            up: isGrowthPositive,
           },
         ].map((stat) => (
           <Card key={stat.label} className="gap-4 py-4">
@@ -126,9 +189,25 @@ export default function PipelineForecast() {
                 <p className="text-xs font-medium" style={{ color: tokens.text.secondary }}>
                   {stat.label}
                 </p>
-                <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
-                  {stat.value}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+                    {stat.value}
+                  </p>
+                  {'up' in stat && stat.up !== undefined && (
+                    <span
+                      className="text-xs font-medium flex items-center gap-0.5"
+                      style={{
+                        color: stat.up ? tokens.confidence.high.value : tokens.confidence.low.value,
+                      }}
+                    >
+                      {stat.up ? (
+                        <ArrowUpRight className="size-3" />
+                      ) : (
+                        <ArrowDownRight className="size-3" />
+                      )}
+                    </span>
+                  )}
+                </div>
               </div>
             </CardContent>
           </Card>
@@ -138,78 +217,67 @@ export default function PipelineForecast() {
       {/* Forecast by Month */}
       <Card className="gap-4 py-4">
         <CardHeader className="pb-0 pt-0 px-6">
-          <CardTitle className="text-sm font-semibold">Forecast by Month</CardTitle>
+          <CardTitle className="text-sm font-semibold">Signal Volume by Month</CardTitle>
         </CardHeader>
         <CardContent>
           <ChartContainer config={forecastConfig} className="h-[300px] w-full">
-            <BarChart data={FORECAST_BY_MONTH}>
+            <BarChart data={data.monthly}>
               <CartesianGrid strokeDasharray="3 3" stroke={tokens.border.default} />
               <XAxis dataKey="month" tick={{ fontSize: 12, fill: tokens.text.secondary }} />
-              <YAxis
-                tickFormatter={(v) => formatCurrency(v)}
-                tick={{ fontSize: 12, fill: tokens.text.secondary }}
-              />
+              <YAxis tick={{ fontSize: 12, fill: tokens.text.secondary }} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
-              <Bar dataKey="committed" fill={tokens.accent.primary} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="bestCase" fill={tokens.confidence.medium.value} radius={[4, 4, 0, 0]} />
-              <Bar dataKey="upside" fill={tokens.domain.value} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="total" fill={tokens.accent.primary} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="critical" fill={tokens.confidence.low.value} radius={[4, 4, 0, 0]} />
+              <Bar dataKey="high" fill={tokens.confidence.medium.value} radius={[4, 4, 0, 0]} />
             </BarChart>
           </ChartContainer>
         </CardContent>
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Pipeline by Stage */}
+        {/* Organizations by Status */}
         <Card className="gap-4 py-4">
           <CardHeader className="pb-0 pt-0 px-6">
-            <CardTitle className="text-sm font-semibold">Pipeline by Stage</CardTitle>
+            <CardTitle className="text-sm font-semibold">Organizations by Status</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer config={stageConfig} className="h-[260px] w-full">
-              <BarChart data={PIPELINE_BY_STAGE} layout="vertical">
+              <BarChart data={orgStatusData} layout="vertical">
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke={tokens.border.default}
                   horizontal={false}
                 />
-                <XAxis
-                  type="number"
-                  tickFormatter={(v) => formatCurrency(v)}
-                  tick={{ fontSize: 12, fill: tokens.text.secondary }}
-                />
+                <XAxis type="number" tick={{ fontSize: 12, fill: tokens.text.secondary }} />
                 <YAxis
                   type="category"
-                  dataKey="stage"
+                  dataKey="status"
                   tick={{ fontSize: 12, fill: tokens.text.secondary }}
-                  width={90}
+                  width={80}
                 />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Bar dataKey="value" fill={tokens.accent.primary} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="count" fill={tokens.accent.primary} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ChartContainer>
           </CardContent>
         </Card>
 
-        {/* Historical Win Rates */}
+        {/* Signal Growth Trend */}
         <Card className="gap-4 py-4">
           <CardHeader className="pb-0 pt-0 px-6">
-            <CardTitle className="text-sm font-semibold">Historical Win Rates</CardTitle>
+            <CardTitle className="text-sm font-semibold">Signal Growth Trend</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer config={winRateConfig} className="h-[260px] w-full">
-              <LineChart data={HISTORICAL_WIN_RATES}>
+              <LineChart data={growthTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke={tokens.border.default} />
                 <XAxis dataKey="month" tick={{ fontSize: 12, fill: tokens.text.secondary }} />
-                <YAxis
-                  tickFormatter={(v) => `${v}%`}
-                  tick={{ fontSize: 12, fill: tokens.text.secondary }}
-                  domain={[15, 45]}
-                />
+                <YAxis tick={{ fontSize: 12, fill: tokens.text.secondary }} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Line
                   type="monotone"
-                  dataKey="rate"
+                  dataKey="total"
                   stroke={tokens.confidence.high.value}
                   strokeWidth={2}
                   dot={{ r: 4, fill: tokens.confidence.high.value }}
@@ -218,6 +286,47 @@ export default function PipelineForecast() {
             </ChartContainer>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Organization Status Summary Cards */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        {orgStatusData.map((item) => (
+          <Card key={item.status} className="gap-4 py-4">
+            <CardContent className="flex items-center justify-between">
+              <div>
+                <p className="text-xs font-medium" style={{ color: tokens.text.secondary }}>
+                  {item.status}
+                </p>
+                <p className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+                  {item.count}
+                </p>
+              </div>
+              <div
+                className="size-10 rounded-lg flex items-center justify-center"
+                style={{
+                  backgroundColor:
+                    item.status === 'Active'
+                      ? tokens.confidence.high.bg
+                      : item.status === 'Paused'
+                        ? tokens.confidence.medium.bg
+                        : tokens.accent.subtle,
+                }}
+              >
+                <Building2
+                  className="size-5"
+                  style={{
+                    color:
+                      item.status === 'Active'
+                        ? tokens.confidence.high.value
+                        : item.status === 'Paused'
+                          ? tokens.confidence.medium.value
+                          : tokens.text.muted,
+                  }}
+                />
+              </div>
+            </CardContent>
+          </Card>
+        ))}
       </div>
     </div>
   );

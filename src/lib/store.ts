@@ -109,7 +109,6 @@ interface AppState {
   selectedCompanyId: string | null;
   selectedDraftId: string | null;
   companyStatusFilter: string;
-  intelligenceActivated: boolean;
   setActiveView: (view: ViewId) => void;
   setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
@@ -117,7 +116,6 @@ interface AppState {
   setSelectedCompanyId: (id: string | null) => void;
   setSelectedDraftId: (id: string | null) => void;
   setCompanyStatusFilter: (filter: string) => void;
-  setIntelligenceActivated: (v: boolean) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -127,7 +125,6 @@ export const useAppStore = create<AppState>((set) => ({
   selectedCompanyId: null,
   selectedDraftId: null,
   companyStatusFilter: 'all',
-  intelligenceActivated: false,
   setActiveView: (view) => set({ activeView: view }),
   setSidebarCollapsed: (collapsed: boolean) => set({ sidebarCollapsed: collapsed }),
   toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
@@ -135,5 +132,4 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedCompanyId: (id) => set({ selectedCompanyId: id }),
   setSelectedDraftId: (id) => set({ selectedDraftId: id }),
   setCompanyStatusFilter: (filter) => set({ companyStatusFilter: filter }),
-  setIntelligenceActivated: (v) => set({ intelligenceActivated: v }),
 }));

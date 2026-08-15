@@ -8,11 +8,9 @@ import {
   StaggerGrid,
   StaggerItem,
   AnimatedCard,
-  AnimatedCounter,
   PulseDot,
   GlassPanel,
 } from '@/components/ui/animated-components';
-import { tokens } from '@/components/intelligence-os/design-tokens';
 import {
   Radar,
   Shield,
@@ -28,11 +26,8 @@ import {
   Handshake,
   RefreshCw,
   Clock,
-  ChevronRight,
   Search,
   Zap,
-  Brain,
-  ArrowUpDown,
   Target,
   MessageSquare,
   Eye,
@@ -54,12 +49,14 @@ interface IntelligenceSignal {
   source: string;
   description: string;
   timestamp: string;
+  status: 'investigating' | 'analyzed' | undefined;
 }
 
 interface PipelineEngine {
+  id: string;
   name: string;
   shortName: string;
-  status: 'active' | 'completed' | 'queued';
+  status: 'active' | 'degraded' | 'down';
   itemsProcessed: number;
   latency: string;
 }
@@ -77,6 +74,55 @@ interface CoverageDomain {
   color: string;
 }
 
+/* ── API response types ── */
+
+interface ApiSignal {
+  id: string;
+  signalType: string;
+  severity: string;
+  status: string;
+  title: string;
+  description: string;
+  detectedAt: string;
+  source: string;
+  sourceLabel: string | null;
+  organization: {
+    name: string;
+    domain: string | null;
+    industry: string | null;
+  } | null;
+  evidence: unknown[];
+}
+
+interface ApiPipelineEngine {
+  id: string;
+  name: string;
+  feature: string;
+  status: 'active' | 'degraded' | 'down';
+  latency: number;
+  throughput: number;
+  accuracy: number;
+  uptime: number;
+}
+
+interface ApiTeamActivity {
+  id: string;
+  user: { name: string; email: string } | null;
+  action: string;
+  actionLabel: string;
+  icon: string;
+  resource: string | null;
+  details: string | null;
+  timestamp: string;
+}
+
+interface ApiOrganization {
+  id: string;
+  name: string;
+  industry: string | null;
+  intelligenceScore: number | null;
+}
+
 /* ═══════════════════════════════════════════════════════════
    Severity Config
    ═══════════════════════════════════════════════════════════ */
@@ -89,195 +135,13 @@ const SEVERITY_CONFIG: Record<Severity, { color: string; bg: string; border: str
 };
 
 /* ═══════════════════════════════════════════════════════════
-   Mock Data — Intelligence Signals
-   ═══════════════════════════════════════════════════════════ */
-
-// Fallback signals used when API is unavailable
-const FALLBACK_SIGNALS: IntelligenceSignal[] = [
-  {
-    id: 'SIG-4821',
-    type: 'Funding Round',
-    icon: DollarSign,
-    severity: 'CRITICAL',
-    source: 'PitchBook API',
-    description:
-      'Series C funding round detected for NovaTech AI — $85M raise led by Sequoia Capital with participation from Andreessen Horowitz. Signals aggressive expansion into enterprise markets.',
-    timestamp: '2 min ago',
-  },
-  {
-    id: 'SIG-4820',
-    type: 'Hiring Surge',
-    icon: Users,
-    severity: 'HIGH',
-    source: 'LinkedIn Intelligence',
-    description:
-      'Abnormal hiring acceleration at Meridian Systems — 47 new engineering roles posted in 72 hours. Focus areas include ML infrastructure and distributed systems.',
-    timestamp: '8 min ago',
-  },
-  {
-    id: 'SIG-4819',
-    type: 'Tech Stack Change',
-    icon: GitBranch,
-    severity: 'MEDIUM',
-    source: 'GitHub Monitoring',
-    description:
-      'QuantumEdge Corp migrated primary backend from Java Spring Boot to Rust. Public repos now show active development of custom microservice framework.',
-    timestamp: '14 min ago',
-  },
-  {
-    id: 'SIG-4818',
-    type: 'M&A Rumor',
-    icon: Building2,
-    severity: 'CRITICAL',
-    source: 'Dark Web Intel',
-    description:
-      'Reliable source indicates advanced acquisition discussions between Palantir Technologies and Cipher Analytics. Due diligence phase reportedly underway since Q2.',
-    timestamp: '22 min ago',
-  },
-  {
-    id: 'SIG-4817',
-    type: 'Exec Departure',
-    icon: UserMinus,
-    severity: 'HIGH',
-    source: 'SEC Filings',
-    description:
-      'Chief Technology Officer of Helios Data resigned effective immediately. Board filing cites "personal reasons" — pattern matches pre-IPO volatility indicators.',
-    timestamp: '35 min ago',
-  },
-  {
-    id: 'SIG-4816',
-    type: 'Patent Filing',
-    icon: FileText,
-    severity: 'MEDIUM',
-    source: 'USPTO Feed',
-    description:
-      'NeuralPath Inc. filed 3 new patents covering transformer-based anomaly detection and real-time graph neural network architectures for financial fraud.',
-    timestamp: '41 min ago',
-  },
-  {
-    id: 'SIG-4815',
-    type: 'Partnership',
-    icon: Handshake,
-    severity: 'LOW',
-    source: 'Press Monitoring',
-    description:
-      'Strategic partnership announced between Vortex Cloud and AWS Marketplace. Joint go-to-market targeting regulated industries in EMEA and APAC regions.',
-    timestamp: '53 min ago',
-  },
-  {
-    id: 'SIG-4814',
-    type: 'Tech Stack Change',
-    icon: Cpu,
-    severity: 'MEDIUM',
-    source: 'Stack Overflow Jobs',
-    description:
-      'Archon Labs switching from monolithic architecture to event-driven microservices. Job postings indicate move to Kafka, Kubernetes, and Temporal workflows.',
-    timestamp: '1h ago',
-  },
-];
-
-/* ═══════════════════════════════════════════════════════════
-   Mock Data — Processing Pipeline
-   ═══════════════════════════════════════════════════════════ */
-
-const PIPELINE_ENGINES: PipelineEngine[] = [
-  { name: 'Model Router', shortName: 'MR', status: 'active', itemsProcessed: 847, latency: '12ms' },
-  {
-    name: 'Grounding Engine',
-    shortName: 'GE',
-    status: 'active',
-    itemsProcessed: 832,
-    latency: '45ms',
-  },
-  {
-    name: 'Retrieval Engine',
-    shortName: 'RE',
-    status: 'completed',
-    itemsProcessed: 829,
-    latency: '120ms',
-  },
-  {
-    name: 'Synthesis Engine',
-    shortName: 'SE',
-    status: 'active',
-    itemsProcessed: 814,
-    latency: '230ms',
-  },
-  {
-    name: 'Scoring Engine',
-    shortName: 'SC',
-    status: 'completed',
-    itemsProcessed: 801,
-    latency: '18ms',
-  },
-  { name: 'Action Engine', shortName: 'AE', status: 'queued', itemsProcessed: 786, latency: '—' },
-  {
-    name: 'Conversation Engine',
-    shortName: 'CE',
-    status: 'queued',
-    itemsProcessed: 762,
-    latency: '—',
-  },
-];
-
-/* ═══════════════════════════════════════════════════════════
-   Mock Data — Team Activity
-   ═══════════════════════════════════════════════════════════ */
-
-const TEAM_ACTIONS: TeamAction[] = [
-  {
-    initials: 'SK',
-    name: 'Sarah K.',
-    action: 'escalated signal #2847 to critical',
-    timestamp: '3 min ago',
-  },
-  {
-    initials: 'MR',
-    name: 'Mike R.',
-    action: 'closed investigation #192 — confirmed false positive',
-    timestamp: '11 min ago',
-  },
-  {
-    initials: 'JL',
-    name: 'Jenna L.',
-    action: 'assigned 3 new signals to the fintech queue',
-    timestamp: '18 min ago',
-  },
-  {
-    initials: 'AT',
-    name: 'Alex T.',
-    action: 'updated threat assessment for sector Alpha-7',
-    timestamp: '26 min ago',
-  },
-  {
-    initials: 'DP',
-    name: 'David P.',
-    action: 'generated intelligence brief for Meridian Systems',
-    timestamp: '34 min ago',
-  },
-];
-
-/* ═══════════════════════════════════════════════════════════
-   Mock Data — Coverage Domains
-   ═══════════════════════════════════════════════════════════ */
-
-const DEFAULT_COVERAGE_DOMAINS: CoverageDomain[] = [
-  { domain: 'Financial', completeness: 94, color: '#10B981' },
-  { domain: 'Technology', completeness: 87, color: '#3B82F6' },
-  { domain: 'Legal', completeness: 76, color: '#8B5CF6' },
-  { domain: 'Market', completeness: 82, color: '#F59E0B' },
-  { domain: 'Competitive', completeness: 91, color: '#EF4444' },
-  { domain: 'Regulatory', completeness: 68, color: '#06B6D4' },
-];
-
-/* ═══════════════════════════════════════════════════════════
    Pipeline Status Helpers
    ═══════════════════════════════════════════════════════════ */
 
 const PIPELINE_STATUS: Record<string, { color: string; label: string; dotColor: string }> = {
   active: { color: '#10B981', label: 'Active', dotColor: '#10B981' },
-  completed: { color: '#3B82F6', label: 'Completed', dotColor: '#3B82F6' },
-  queued: { color: '#F59E0B', label: 'Queued', dotColor: '#F59E0B' },
+  degraded: { color: '#F59E0B', label: 'Degraded', dotColor: '#F59E0B' },
+  down: { color: '#EF4444', label: 'Down', dotColor: '#EF4444' },
 };
 
 /* ═══════════════════════════════════════════════════════════
@@ -293,42 +157,90 @@ const FILTERS: { key: FilterKey; label: string }[] = [
 ];
 
 /* ═══════════════════════════════════════════════════════════
+   Helpers
+   ═══════════════════════════════════════════════════════════ */
+
+const signalIconMap: Record<string, React.ComponentType<{ className?: string; color?: string }>> = {
+  funding: DollarSign,
+  funding_event: DollarSign,
+  hiring: Users,
+  hiring_change: Users,
+  tech_stack_change: GitBranch,
+  technology_change: Cpu,
+  m_a: Building2,
+  leadership_change: UserMinus,
+  exec_departure: UserMinus,
+  patent: FileText,
+  partnership: Handshake,
+  technology: Cpu,
+  market: TrendingUp,
+  market_expansion: TrendingUp,
+  competitor_move: Target,
+  financial_indicator: DollarSign,
+  product_launch: Zap,
+  regulatory: Shield,
+  customer_signal: Users,
+  social_mention: MessageSquare,
+};
+
+const severityNormalize = (s: string): Severity => {
+  const upper = s.toUpperCase();
+  if (upper === 'CRITICAL' || upper === 'HIGH' || upper === 'MEDIUM' || upper === 'LOW')
+    return upper;
+  return 'MEDIUM';
+};
+
+const DOMAIN_COLORS: Record<string, string> = {
+  Technology: '#3B82F6',
+  Financial: '#10B981',
+  Legal: '#8B5CF6',
+  Market: '#F59E0B',
+  Competitive: '#EF4444',
+  Regulatory: '#06B6D4',
+};
+
+function getInitials(name: string): string {
+  return name
+    .split(' ')
+    .map((w) => w[0])
+    .join('')
+    .toUpperCase()
+    .slice(0, 2);
+}
+
+function formatRelativeTime(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return 'Just now';
+    if (diffMin < 60) return `${diffMin} min ago`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr}h ago`;
+    const diffDay = Math.floor(diffHr / 24);
+    return `${diffDay}d ago`;
+  } catch {
+    return '';
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════
    Main Component
    ═══════════════════════════════════════════════════════════ */
 
 export function IntelligenceOperationsCenter() {
-  const [selectedSignalId, setSelectedSignalId] = useState<string | null>(null);
   const [activeFilter, setActiveFilter] = useState<FilterKey>('ALL');
   const [lastUpdated, setLastUpdated] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [signals, setSignals] = useState<IntelligenceSignal[]>(FALLBACK_SIGNALS);
-  const [coverageDomains, setCoverageDomains] =
-    useState<CoverageDomain[]>(DEFAULT_COVERAGE_DOMAINS);
+  const [signals, setSignals] = useState<IntelligenceSignal[]>([]);
+  const [coverageDomains, setCoverageDomains] = useState<CoverageDomain[]>([]);
+  const [pipelineEngines, setPipelineEngines] = useState<PipelineEngine[]>([]);
+  const [teamActions, setTeamActions] = useState<TeamAction[]>([]);
+  const [investigatingIds, setInvestigatingIds] = useState<Set<string>>(new Set());
 
-  // Signal type → icon mapping for API signals
-  const signalIconMap: Record<
-    string,
-    React.ComponentType<{ className?: string; color?: string }>
-  > = {
-    funding: DollarSign,
-    hiring: Users,
-    tech_stack_change: GitBranch,
-    m_a: Building2,
-    exec_departure: UserMinus,
-    patent: FileText,
-    partnership: Handshake,
-    technology: Cpu,
-    market: TrendingUp,
-  };
-  const severityNormalize = (s: string): Severity => {
-    const upper = s.toUpperCase();
-    if (upper === 'CRITICAL' || upper === 'HIGH' || upper === 'MEDIUM' || upper === 'LOW')
-      return upper;
-    return 'MEDIUM';
-  };
-
-  // Fetch signals and organizations on mount
+  // Fetch all data on mount
   useEffect(() => {
     let cancelled = false;
 
@@ -337,39 +249,34 @@ export function IntelligenceOperationsCenter() {
         setLoading(true);
         setError(null);
 
-        const [signalsRes, orgsRes] = await Promise.all([
-          fetchApi('/api/signals', { params: { limit: 50 } }),
-          fetchApi('/api/organizations', { params: { limit: 50, status: 'all' } }),
+        const [signalsRes, orgsRes, pipelineRes, teamRes] = await Promise.all([
+          fetchApi<{ data: ApiSignal[] }>('/api/signals', { params: { limit: 50 } }),
+          fetchApi<{ data: ApiOrganization[] }>('/api/organizations', { params: { limit: 10 } }),
+          fetchApi<{ data: ApiPipelineEngine[] }>('/api/pipeline-engines'),
+          fetchApi<{ data: ApiTeamActivity[] }>('/api/team-activity', { params: { limit: 15 } }),
         ]);
 
         if (cancelled) return;
 
         // Map API signals to local IntelligenceSignal type
-        if (!signalsRes.error && signalsRes.data?.data?.length > 0) {
-          const mapped = (signalsRes.data.data as any[]).map((s) => ({
-            id: s.id || s.signalType,
+        if (!signalsRes.error && signalsRes.data?.data?.length) {
+          const mapped: IntelligenceSignal[] = signalsRes.data.data.map((s) => ({
+            id: s.id,
             type: s.title || s.signalType || 'Signal',
             icon: signalIconMap[s.signalType] || Radar,
             severity: severityNormalize(s.severity || 'medium'),
-            source: s.organization?.name || s.source || 'System',
-            description: s.description || s.summary || '',
-            timestamp: s.detectedAt ? new Date(s.detectedAt).toLocaleString() : '',
+            source: s.organization?.name || s.sourceLabel || s.source || 'System',
+            description: s.description || '',
+            timestamp: s.detectedAt ? formatRelativeTime(s.detectedAt) : '',
+            status: undefined,
           }));
           setSignals(mapped);
         }
 
         // Derive coverage domains from organization industries
-        if (!orgsRes.error && orgsRes.data?.data?.length > 0) {
-          const orgs = orgsRes.data.data as any[];
+        if (!orgsRes.error && orgsRes.data?.data?.length) {
+          const orgs = orgsRes.data.data;
           const industryMap = new Map<string, number[]>();
-          const domainColors: Record<string, string> = {
-            Technology: '#3B82F6',
-            Financial: '#10B981',
-            Legal: '#8B5CF6',
-            Market: '#F59E0B',
-            Competitive: '#EF4444',
-            Regulatory: '#06B6D4',
-          };
           orgs.forEach((o) => {
             const ind = o.industry || 'Other';
             if (!industryMap.has(ind)) industryMap.set(ind, []);
@@ -381,9 +288,42 @@ export function IntelligenceOperationsCenter() {
             .map(([domain, scores]) => ({
               domain,
               completeness: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
-              color: domainColors[domain] || '#8892A8',
+              color: DOMAIN_COLORS[domain] || '#8892A8',
             }));
           if (domains.length > 0) setCoverageDomains(domains);
+        }
+
+        // Map pipeline engines from API
+        if (!pipelineRes.error && pipelineRes.data?.data?.length) {
+          const engines: PipelineEngine[] = pipelineRes.data.data.map((e) => {
+            const words = e.name.split(' ');
+            const shortName = words
+              .filter((w) => !['and', 'the', 'of', 'for'].includes(w.toLowerCase()))
+              .map((w) => w[0])
+              .join('')
+              .toUpperCase()
+              .slice(0, 3);
+            return {
+              id: e.id,
+              name: e.name,
+              shortName: shortName || e.feature.slice(0, 3).toUpperCase(),
+              status: e.status,
+              itemsProcessed: e.throughput,
+              latency: e.latency > 0 ? `${e.latency}ms` : '—',
+            };
+          });
+          setPipelineEngines(engines);
+        }
+
+        // Map team activity from API
+        if (!teamRes.error && teamRes.data?.data?.length) {
+          const actions: TeamAction[] = teamRes.data.data.map((a) => ({
+            initials: a.user ? getInitials(a.user.name) : '??',
+            name: a.user?.name || 'Unknown',
+            action: a.actionLabel || a.action,
+            timestamp: a.timestamp ? formatRelativeTime(a.timestamp) : '',
+          }));
+          setTeamActions(actions);
         }
       } catch (err) {
         if (!cancelled)
@@ -410,11 +350,112 @@ export function IntelligenceOperationsCenter() {
   const filteredSignals =
     activeFilter === 'ALL' ? signals : signals.filter((s) => s.severity === activeFilter);
 
-  const handleRefresh = useCallback(() => {
+  const handleRefresh = useCallback(async () => {
     const now = new Date();
     setLastUpdated(
       now.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
     );
+    // Re-fetch all data
+    setLoading(true);
+    setError(null);
+    try {
+      const [signalsRes, orgsRes, pipelineRes, teamRes] = await Promise.all([
+        fetchApi<{ data: ApiSignal[] }>('/api/signals', { params: { limit: 50 } }),
+        fetchApi<{ data: ApiOrganization[] }>('/api/organizations', { params: { limit: 10 } }),
+        fetchApi<{ data: ApiPipelineEngine[] }>('/api/pipeline-engines'),
+        fetchApi<{ data: ApiTeamActivity[] }>('/api/team-activity', { params: { limit: 15 } }),
+      ]);
+
+      if (!signalsRes.error && signalsRes.data?.data?.length) {
+        const mapped: IntelligenceSignal[] = signalsRes.data.data.map((s) => ({
+          id: s.id,
+          type: s.title || s.signalType || 'Signal',
+          icon: signalIconMap[s.signalType] || Radar,
+          severity: severityNormalize(s.severity || 'medium'),
+          source: s.organization?.name || s.sourceLabel || s.source || 'System',
+          description: s.description || '',
+          timestamp: s.detectedAt ? formatRelativeTime(s.detectedAt) : '',
+          status: undefined,
+        }));
+        setSignals(mapped);
+      }
+
+      if (!orgsRes.error && orgsRes.data?.data?.length) {
+        const orgs = orgsRes.data.data;
+        const industryMap = new Map<string, number[]>();
+        orgs.forEach((o) => {
+          const ind = o.industry || 'Other';
+          if (!industryMap.has(ind)) industryMap.set(ind, []);
+          industryMap.get(ind)!.push(o.intelligenceScore ?? 0);
+        });
+        const domains: CoverageDomain[] = Array.from(industryMap.entries())
+          .sort((a, b) => b[1].length - a[1].length)
+          .slice(0, 6)
+          .map(([domain, scores]) => ({
+            domain,
+            completeness: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
+            color: DOMAIN_COLORS[domain] || '#8892A8',
+          }));
+        if (domains.length > 0) setCoverageDomains(domains);
+      }
+
+      if (!pipelineRes.error && pipelineRes.data?.data?.length) {
+        const engines: PipelineEngine[] = pipelineRes.data.data.map((e) => {
+          const words = e.name.split(' ');
+          const shortName = words
+            .filter((w) => !['and', 'the', 'of', 'for'].includes(w.toLowerCase()))
+            .map((w) => w[0])
+            .join('')
+            .toUpperCase()
+            .slice(0, 3);
+          return {
+            id: e.id,
+            name: e.name,
+            shortName: shortName || e.feature.slice(0, 3).toUpperCase(),
+            status: e.status,
+            itemsProcessed: e.throughput,
+            latency: e.latency > 0 ? `${e.latency}ms` : '—',
+          };
+        });
+        setPipelineEngines(engines);
+      }
+
+      if (!teamRes.error && teamRes.data?.data?.length) {
+        const actions: TeamAction[] = teamRes.data.data.map((a) => ({
+          initials: a.user ? getInitials(a.user.name) : '??',
+          name: a.user?.name || 'Unknown',
+          action: a.actionLabel || a.action,
+          timestamp: a.timestamp ? formatRelativeTime(a.timestamp) : '',
+        }));
+        setTeamActions(actions);
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to refresh data');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const handleInvestigate = useCallback(async (signalId: string) => {
+    setInvestigatingIds((prev) => new Set(prev).add(signalId));
+    const res = await fetchApi(`/api/signals/${signalId}/investigate`, { method: 'POST' });
+    if (!res.error) {
+      setSignals((prev) =>
+        prev.map((s) => (s.id === signalId ? { ...s, status: 'analyzed' as const } : s)),
+      );
+    }
+    setInvestigatingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(signalId);
+      return next;
+    });
+  }, []);
+
+  const handleDismiss = useCallback(async (signalId: string) => {
+    const res = await fetchApi(`/api/signals/${signalId}/dismiss`, { method: 'POST' });
+    if (!res.error) {
+      setSignals((prev) => prev.filter((s) => s.id !== signalId));
+    }
   }, []);
 
   return (
@@ -439,7 +480,7 @@ export function IntelligenceOperationsCenter() {
               border: '1px solid rgba(245,158,11,0.2)',
             }}
           >
-            ⚠ {error} — showing cached data
+            ⚠ {error}
           </span>
         </div>
       )}
@@ -508,7 +549,7 @@ export function IntelligenceOperationsCenter() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
             <StatCard
               label="Active Signals"
-              value={847}
+              value={signals.length}
               icon={Radar}
               color="#3B82F6"
               trend={{ value: '12%', up: true }}
@@ -516,7 +557,7 @@ export function IntelligenceOperationsCenter() {
             />
             <StatCard
               label="Investigations"
-              value={23}
+              value={signals.filter((s) => s.status === 'analyzed').length}
               icon={Shield}
               color="#8B5CF6"
               trend={{ value: '3', up: true }}
@@ -609,32 +650,31 @@ export function IntelligenceOperationsCenter() {
               {/* Signal Cards */}
               <div className="flex flex-col gap-3 overflow-y-auto max-h-[620px] pr-1 custom-scrollbar">
                 <StaggerGrid stagger={0.06} className="flex flex-col gap-3">
+                  {filteredSignals.length === 0 && (
+                    <div className="flex items-center justify-center py-12">
+                      <span className="text-sm" style={{ color: 'var(--ios-text-secondary)' }}>
+                        No signals to display
+                      </span>
+                    </div>
+                  )}
                   {filteredSignals.map((signal) => {
-                    const isSelected = selectedSignalId === signal.id;
                     const sevConfig = SEVERITY_CONFIG[signal.severity];
                     const SignalIcon = signal.icon;
+                    const isInvestigating = investigatingIds.has(signal.id);
+                    const isAnalyzed = signal.status === 'analyzed';
                     return (
                       <StaggerItem key={signal.id}>
                         <AnimatedCard delay={0} hover={false} glow={sevConfig.bg} className="">
                           <div
-                            className="relative rounded-xl p-4 cursor-pointer transition-all duration-200"
+                            className="relative rounded-xl p-4 transition-all duration-200"
                             style={{
-                              background: isSelected
+                              background: isAnalyzed
                                 ? 'var(--ios-bg-elevated)'
                                 : 'var(--ios-bg-card)',
-                              borderLeft: isSelected
-                                ? `3px solid ${sevConfig.color}`
+                              borderLeft: isAnalyzed
+                                ? `3px solid #10B981`
                                 : `3px solid transparent`,
-                            }}
-                            onClick={() => setSelectedSignalId(isSelected ? null : signal.id)}
-                            role="button"
-                            tabIndex={0}
-                            aria-pressed={isSelected}
-                            onKeyDown={(e) => {
-                              if (e.key === 'Enter' || e.key === ' ') {
-                                e.preventDefault();
-                                setSelectedSignalId(isSelected ? null : signal.id);
-                              }
+                              opacity: isInvestigating ? 0.6 : 1,
                             }}
                           >
                             {/* Top row: icon, type, severity, timestamp */}
@@ -669,6 +709,18 @@ export function IntelligenceOperationsCenter() {
                                     >
                                       {signal.severity}
                                     </span>
+                                    {isAnalyzed && (
+                                      <span
+                                        className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full"
+                                        style={{
+                                          color: '#10B981',
+                                          background: 'rgba(16, 185, 129, 0.12)',
+                                          border: '1px solid rgba(16, 185, 129, 0.3)',
+                                        }}
+                                      >
+                                        Analyzed
+                                      </span>
+                                    )}
                                   </div>
                                   <span
                                     className="text-xs mt-0.5 block"
@@ -693,7 +745,7 @@ export function IntelligenceOperationsCenter() {
                                     background: 'var(--ios-bg-secondary)',
                                   }}
                                 >
-                                  {signal.id}
+                                  {signal.id.slice(0, 8)}
                                 </span>
                               </div>
                             </div>
@@ -709,31 +761,58 @@ export function IntelligenceOperationsCenter() {
                             {/* Action buttons */}
                             <div className="flex items-center gap-2">
                               <button
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                                disabled={isInvestigating || isAnalyzed}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleInvestigate(signal.id);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 style={{
-                                  color: '#3B82F6',
-                                  background: 'rgba(59, 130, 246, 0.1)',
-                                  border: '1px solid rgba(59, 130, 246, 0.2)',
+                                  color: isAnalyzed ? '#10B981' : '#3B82F6',
+                                  background: isAnalyzed
+                                    ? 'rgba(16, 185, 129, 0.1)'
+                                    : 'rgba(59, 130, 246, 0.1)',
+                                  border: isAnalyzed
+                                    ? '1px solid rgba(16, 185, 129, 0.2)'
+                                    : '1px solid rgba(59, 130, 246, 0.2)',
                                 }}
                                 onMouseEnter={(e) => {
-                                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.18)';
+                                  if (!isAnalyzed && !isInvestigating)
+                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.18)';
                                 }}
                                 onMouseLeave={(e) => {
-                                  e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
+                                  if (!isAnalyzed)
+                                    e.currentTarget.style.background = 'rgba(59, 130, 246, 0.1)';
                                 }}
                               >
-                                <Search className="w-3 h-3" />
-                                Investigate
+                                {isInvestigating ? (
+                                  <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                                ) : isAnalyzed ? (
+                                  <Eye className="w-3 h-3" />
+                                ) : (
+                                  <Search className="w-3 h-3" />
+                                )}
+                                {isInvestigating
+                                  ? 'Investigating…'
+                                  : isAnalyzed
+                                    ? 'Analyzed'
+                                    : 'Investigate'}
                               </button>
                               <button
-                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                                disabled={isInvestigating}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleDismiss(signal.id);
+                                }}
+                                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                                 style={{
                                   color: 'var(--ios-text-secondary)',
                                   background: 'var(--ios-bg-secondary)',
                                   border: '1px solid var(--ios-border)',
                                 }}
                                 onMouseEnter={(e) => {
-                                  e.currentTarget.style.borderColor = 'var(--ios-text-secondary)';
+                                  if (!isInvestigating)
+                                    e.currentTarget.style.borderColor = 'var(--ios-text-secondary)';
                                 }}
                                 onMouseLeave={(e) => {
                                   e.currentTarget.style.borderColor = 'var(--ios-border)';
@@ -774,11 +853,18 @@ export function IntelligenceOperationsCenter() {
                 </div>
 
                 <div className="flex flex-col gap-2.5">
-                  {PIPELINE_ENGINES.map((engine, idx) => {
-                    const statusConf = PIPELINE_STATUS[engine.status];
-                    const isLast = idx === PIPELINE_ENGINES.length - 1;
+                  {pipelineEngines.length === 0 && (
+                    <div className="flex items-center justify-center py-6">
+                      <span className="text-xs" style={{ color: 'var(--ios-text-secondary)' }}>
+                        No pipeline data available
+                      </span>
+                    </div>
+                  )}
+                  {pipelineEngines.map((engine, idx) => {
+                    const statusConf = PIPELINE_STATUS[engine.status] || PIPELINE_STATUS.down;
+                    const isLast = idx === pipelineEngines.length - 1;
                     return (
-                      <div key={engine.shortName} className="relative">
+                      <div key={engine.id} className="relative">
                         <div
                           className="flex items-center gap-3 p-3 rounded-lg transition-colors"
                           style={{
@@ -874,7 +960,14 @@ export function IntelligenceOperationsCenter() {
                 </div>
 
                 <div className="flex flex-col gap-3">
-                  {TEAM_ACTIONS.map((item, idx) => (
+                  {teamActions.length === 0 && (
+                    <div className="flex items-center justify-center py-6">
+                      <span className="text-xs" style={{ color: 'var(--ios-text-secondary)' }}>
+                        No team activity yet
+                      </span>
+                    </div>
+                  )}
+                  {teamActions.map((item, idx) => (
                     <div
                       key={idx}
                       className="flex items-start gap-3 p-2.5 rounded-lg transition-colors"
@@ -946,8 +1039,16 @@ export function IntelligenceOperationsCenter() {
               </span>
             </div>
 
+            {coverageDomains.length === 0 && (
+              <div className="flex items-center justify-center py-8">
+                <span className="text-sm" style={{ color: 'var(--ios-text-secondary)' }}>
+                  No coverage data available
+                </span>
+              </div>
+            )}
+
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-              {coverageDomains.map((domain, idx) => (
+              {coverageDomains.map((domain) => (
                 <div
                   key={domain.domain}
                   className="p-4 rounded-lg"

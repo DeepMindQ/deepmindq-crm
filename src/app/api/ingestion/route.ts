@@ -6,6 +6,7 @@ import { writeFile, mkdir } from 'fs/promises';
 import { join } from 'path';
 import { existsSync } from 'fs';
 import { logger } from '@/lib/logger';
+import { ingestFile } from '@/lib/intelligence/ingestion';
 
 const ACCEPTED_EXTENSIONS = ['.csv', '.xlsx', '.xls', '.json'];
 const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
@@ -13,7 +14,7 @@ const UPLOAD_DIR = join(process.cwd(), 'uploads', 'ingestion');
 
 const ingestionGetQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(50).default(10),
-  status: z.enum(['pending', 'processing', 'completed', 'failed']).optional(),
+  status: z.enum(['pending', 'processing', 'completed', 'failed', 'partial']).optional(),
 });
 
 const ingestionFileSchema = z.object({
@@ -49,9 +50,16 @@ export async function GET(request: NextRequest) {
         { status: 400 },
       );
     }
-    const { limit } = parsed.data;
+
+    const { limit, status } = parsed.data;
+
+    const where: Record<string, unknown> = {};
+    if (status) {
+      where.status = status;
+    }
 
     const ingestions = await db.dataIngestion.findMany({
+      where,
       orderBy: { uploadedAt: 'desc' },
       take: limit,
     });
@@ -119,9 +127,10 @@ export async function POST(request: NextRequest) {
     const filePath = join(UPLOAD_DIR, storedFileName);
 
     const bytes = await file.arrayBuffer();
-    await writeFile(filePath, Buffer.from(bytes));
+    const fileBuffer = Buffer.from(bytes);
+    await writeFile(filePath, fileBuffer);
 
-    // Create database record
+    // Create database record with storedFilePath
     const fileType = mapFileType(ext);
     const ingestion = await db.dataIngestion.create({
       data: {
@@ -129,6 +138,7 @@ export async function POST(request: NextRequest) {
         fileSize: file.size,
         fileType,
         status: 'pending',
+        storedFilePath: filePath,
         uploadedBy: session?.id ?? null,
       },
     });
@@ -136,6 +146,20 @@ export async function POST(request: NextRequest) {
     logger.info(
       `[Ingestion] File uploaded: ${safeName} (${fileType}, ${file.size} bytes) — id=${ingestion.id}`,
     );
+
+    // ── Fire-and-forget: trigger ingestion engine ──
+    // This processes the file in the background without blocking the response.
+    // The cron job-processor picks up any 'pending' jobs that fail here.
+    ingestFile(fileBuffer, safeName, fileType, {
+      existingIngestionId: ingestion.id,
+      storedFilePath: filePath,
+      userId: session?.id ?? undefined,
+    }).catch((err) => {
+      logger.error('[Ingestion] Background processing failed', {
+        id: ingestion.id,
+        error: err instanceof Error ? err.message : String(err),
+      });
+    });
 
     return NextResponse.json({ data: ingestion, success: true });
   } catch (error) {

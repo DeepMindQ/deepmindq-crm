@@ -11,6 +11,18 @@
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
 
+// ─── Helpers ─────────────────────────────────────────────────────────────
+
+/** Safely parse a JSON string, returning an array or empty array on failure */
+function safeJsonParse(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
+
 // ─── Types ───────────────────────────────────────────────────────────────
 
 export interface GraphNode {
@@ -106,9 +118,10 @@ export async function resolveEntity(query: {
     const orgs = await db.organization.findMany({
       where: {
         OR: [
-          { name: { contains: query.name, mode: 'insensitive' } },
-          { aliases: { has: query.name } },
-          { aliases: { has: normalized } },
+          { name: { contains: query.name } },
+          { name: { contains: normalized } },
+          { aliases: { contains: query.name } },
+          { aliases: { contains: normalized } },
         ],
       },
       take: 10,
@@ -117,7 +130,7 @@ export async function resolveEntity(query: {
     for (const org of orgs) {
       if (matches.some((m) => m.nodeId === org.id)) continue;
 
-      const score = calculateOrgMatchScore(query.name, org);
+      const score = calculateOrgMatchScore(query.name, org as { name: string; aliases: string });
       if (score >= 50 || query.fuzzy) {
         matches.push({
           nodeId: org.id,
@@ -134,7 +147,7 @@ export async function resolveEntity(query: {
   if (query.name) {
     const people = await db.person.findMany({
       where: {
-        fullName: { contains: query.name, mode: 'insensitive' },
+        fullName: { contains: query.name },
       },
       take: 10,
     });
@@ -225,10 +238,11 @@ export async function mergeOrganizations(
   });
 
   // Add source name as alias to target
-  if (source.name && !target.aliases.includes(source.name)) {
+  const currentAliases: string[] = safeJsonParse(target.aliases);
+  if (source.name && !currentAliases.includes(source.name)) {
     await db.organization.update({
       where: { id: targetId },
-      data: { aliases: [...target.aliases, source.name] },
+      data: { aliases: JSON.stringify([...currentAliases, source.name]) },
     });
   }
 
@@ -345,7 +359,7 @@ export async function discoverRelationships(orgId?: string): Promise<number> {
       const sameIndustry = await db.organization.findMany({
         where: {
           id: { not: org.id },
-          industry: { contains: org.industry, mode: 'insensitive' },
+          industry: { contains: org.industry },
           trackingStatus: 'active',
         },
       });
@@ -370,7 +384,7 @@ export async function discoverRelationships(orgId?: string): Promise<number> {
       const sameRegion = await db.organization.findMany({
         where: {
           id: { not: org.id },
-          headquarters: { contains: org.headquarters, mode: 'insensitive' },
+          headquarters: { contains: org.headquarters },
           trackingStatus: 'active',
         },
       });
@@ -971,7 +985,7 @@ function normalizeName(name: string): string {
 
 function calculateOrgMatchScore(
   query: string,
-  org: { name: string; domain?: string | null; aliases: string[] },
+  org: { name: string; domain?: string | null; aliases: string },
 ): number {
   let score = 0;
   const q = normalizeName(query);
@@ -981,7 +995,8 @@ function calculateOrgMatchScore(
   // Name contains query
   if (normalizeName(org.name).includes(q) || q.includes(normalizeName(org.name))) score += 60;
   // Alias match
-  for (const alias of org.aliases) {
+  const aliases: string[] = safeJsonParse(org.aliases);
+  for (const alias of aliases) {
     if (normalizeName(alias) === q) return 90;
     if (normalizeName(alias).includes(q)) score += 50;
   }

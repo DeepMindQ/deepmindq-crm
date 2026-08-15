@@ -2,19 +2,18 @@ import { NextRequest, NextResponse } from 'next/server';
 import { validateCronSecret } from '@/lib/cron-auth';
 import { logger } from '@/lib/logger';
 import { db } from '@/lib/db';
+import { processPendingIngestions } from '@/lib/intelligence/ingestion';
 
 /**
  * GET /api/cron/job-processor — Process queued background jobs.
  *
- * Runs a system health diagnostic by querying key Prisma models and
- * returning aggregate counts as diagnostic metrics. This serves as a
- * lightweight job-processor heartbeat that confirms the system is
- * operational and surfaces entity counts for monitoring dashboards.
+ * Now includes ingestion job processing:
+ *   1. Picks up 'pending' DataIngestion records with storedFilePath
+ *   2. Runs the ingestion engine on each
+ *   3. Reports diagnostics
  *
- * Authentication: Requires `Authorization: Bearer <CRON_SECRET>` header
- *                where CRON_SECRET matches the server-side env var.
- *
- * Recommended schedule: Every 1–5 minutes depending on job volume.
+ * Authentication: Requires `Authorization: Bearer <CRON_SECRET>` header.
+ * Recommended schedule: Every 2–5 minutes.
  */
 export async function GET(request: NextRequest) {
   // ── Auth gate ──
@@ -42,6 +41,18 @@ export async function GET(request: NextRequest) {
       where: { status: { in: ['detected', 'validated', 'analyzed'] } },
     });
 
+    // ── NEW: Process pending ingestion jobs (#9) ──
+    const ingestionResult = await processPendingIngestions();
+
+    // ── NEW: Ingestion diagnostics ──
+    const [ingestionTotal, ingestionPending, ingestionCompleted, ingestionFailed] =
+      await Promise.all([
+        db.dataIngestion.count(),
+        db.dataIngestion.count({ where: { status: 'pending' } }),
+        db.dataIngestion.count({ where: { status: 'completed' } }),
+        db.dataIngestion.count({ where: { status: 'failed' } }),
+      ]);
+
     const durationMs = Date.now() - start;
     logger.info('cron/job-processor: completed', {
       signalCount,
@@ -50,6 +61,7 @@ export async function GET(request: NextRequest) {
       insightCount,
       pendingSignals,
       activeSignals,
+      ingestionResult,
       durationMs,
     });
 
@@ -63,6 +75,14 @@ export async function GET(request: NextRequest) {
         insightCount,
         pendingSignals,
         activeSignals,
+      },
+      ingestion: {
+        total: ingestionTotal,
+        pending: ingestionPending,
+        completed: ingestionCompleted,
+        failed: ingestionFailed,
+        processedThisRun: ingestionResult.processed,
+        errorsThisRun: ingestionResult.errors,
       },
     });
   } catch (error) {

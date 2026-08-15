@@ -28,7 +28,45 @@ import {
   Brain,
 } from 'lucide-react';
 
-/* ── Constants & Mock Data ── */
+/* ── Types ── */
+
+interface CompanyResult {
+  id: string;
+  name: string;
+  domain: string;
+  industry: string;
+  score: number;
+  signals: number;
+  location: string;
+}
+
+interface SignalResult {
+  id: string;
+  type: string;
+  description: string;
+  severity: 'High' | 'Medium' | 'Low';
+  source: string;
+  timestamp: string;
+}
+
+interface ContactResult {
+  id: string;
+  name: string;
+  title: string;
+  company: string;
+  email: string;
+}
+
+interface KnowledgeResult {
+  id: string;
+  title: string;
+  category: string;
+  excerpt: string;
+  date: string;
+  color: string;
+}
+
+/* ── Constants ── */
 
 const SEARCH_CATEGORIES = [
   'All',
@@ -39,104 +77,6 @@ const SEARCH_CATEGORIES = [
   'Briefings',
 ] as const;
 type SearchCategory = (typeof SEARCH_CATEGORIES)[number];
-
-const RECENT_SEARCHES = [
-  'enterprise AI adoption',
-  'Series C funding Q3 2026',
-  'fintech compliance requirements',
-  'VP Engineering hiring trends',
-  'Kubernetes migration signals',
-  'Acme Corporation intelligence',
-];
-
-// Fallback search results used when API is unavailable
-const FALLBACK_COMPANY_RESULTS = [
-  {
-    name: 'Anthropic AI',
-    domain: 'anthropic.com',
-    industry: 'AI/ML',
-    score: 94,
-    signals: 18,
-    location: 'San Francisco, CA',
-  },
-  {
-    name: 'Databricks Inc.',
-    domain: 'databricks.com',
-    industry: 'Data & Analytics',
-    score: 89,
-    signals: 12,
-    location: 'San Francisco, CA',
-  },
-  {
-    name: 'Cohere Technologies',
-    domain: 'cohere.com',
-    industry: 'Enterprise AI',
-    score: 76,
-    signals: 7,
-    location: 'Toronto, ON',
-  },
-];
-
-const FALLBACK_SIGNAL_RESULTS = [
-  {
-    type: 'Funding',
-    description:
-      'Anthropic closes $2B Series D at $18.5B valuation, focused on enterprise AI safety research expansion.',
-    severity: 'High' as const,
-    source: 'SEC Filing',
-    timestamp: '6 hours ago',
-  },
-  {
-    type: 'Technology',
-    description:
-      'Databricks announced MosaicML integration into enterprise platform, signaling consolidation in AI infrastructure.',
-    severity: 'Medium' as const,
-    source: 'TechCrunch',
-    timestamp: '1 day ago',
-  },
-  {
-    type: 'Hiring',
-    description:
-      'Cohere hiring 15 enterprise sales reps across North America, indicating go-to-market expansion phase.',
-    severity: 'Medium' as const,
-    source: 'LinkedIn Jobs',
-    timestamp: '2 days ago',
-  },
-];
-
-const FALLBACK_CONTACT_RESULTS = [
-  {
-    name: 'Dr. Amanda Foster',
-    title: 'VP of Enterprise AI',
-    company: 'Anthropic AI',
-    email: 'amanda.foster@anthropic.com',
-  },
-  {
-    name: 'Raj Patel',
-    title: 'Head of Partnerships',
-    company: 'Databricks Inc.',
-    email: 'raj.patel@databricks.com',
-  },
-];
-
-const KNOWLEDGE_RESULTS = [
-  {
-    title: 'Enterprise AI Adoption Trends in 2026',
-    category: 'Market Intelligence',
-    excerpt:
-      'Comprehensive analysis of enterprise AI adoption patterns, budget allocation trends, and implementation challenges across Fortune 500 companies.',
-    date: 'Aug 12, 2026',
-    color: '#3B82F6',
-  },
-  {
-    title: 'AI Infrastructure Build vs. Buy Decision Framework',
-    category: 'Technology Radar',
-    excerpt:
-      'Decision matrix for enterprise teams evaluating whether to build custom AI infrastructure or adopt third-party platforms.',
-    date: 'Aug 8, 2026',
-    color: '#8B5CF6',
-  },
-];
 
 const SEVERITY_CONFIG: Record<string, { color: string; bg: string }> = {
   High: { color: '#EF4444', bg: 'rgba(239,68,68,0.12)' },
@@ -152,17 +92,82 @@ export function IntelligenceSearch() {
   const [showResults, setShowResults] = useState(true);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [companyResults, setCompanyResults] = useState<any[]>(FALLBACK_COMPANY_RESULTS);
-  const [signalResults, setSignalResults] = useState<any[]>(FALLBACK_SIGNAL_RESULTS);
-  const [contactResults, setContactResults] = useState<any[]>(FALLBACK_CONTACT_RESULTS);
+  const [companyResults, setCompanyResults] = useState<CompanyResult[]>([]);
+  const [signalResults, setSignalResults] = useState<SignalResult[]>([]);
+  const [contactResults, setContactResults] = useState<ContactResult[]>([]);
+  const [knowledgeResults, setKnowledgeResults] = useState<KnowledgeResult[]>([]);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Fetch knowledge folders on mount
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchKnowledge() {
+      try {
+        const res = await fetchApi('/api/knowledge-folders');
+        if (cancelled) return;
+        if (!res.error && res.data?.data?.nodes) {
+          const nodes = res.data.data.nodes as Record<string, unknown>[];
+          const colors = ['#3B82F6', '#8B5CF6', '#10B981', '#F59E0B', '#EF4444'];
+          setKnowledgeResults(
+            nodes.slice(0, 10).map((node, i) => ({
+              id: (node.id as string) || `k-${i}`,
+              title: (node.name as string) || 'Knowledge Entry',
+              category: (node.industry as string) || 'Intelligence',
+              excerpt: `Intelligence score: ${node.intelligenceScore ?? 'N/A'}. Tracking status: ${(node.trackingStatus as string) || 'active'}.`,
+              date: new Date().toLocaleDateString('en-US', {
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric',
+              }),
+              color: colors[i % colors.length],
+            })),
+          );
+        }
+      } catch (_err) {
+        // silently fail
+      }
+    }
+    fetchKnowledge();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Fetch recent searches from team activity
+  useEffect(() => {
+    let cancelled = false;
+    async function fetchRecent() {
+      try {
+        const res = await fetchApi('/api/team-activity', {
+          params: { limit: 5, action: 'search' },
+        });
+        if (cancelled) return;
+        if (!res.error && res.data?.data?.length > 0) {
+          const activities = res.data.data as Record<string, unknown>[];
+          const searches = activities
+            .map((a) => a.details as string | undefined)
+            .filter((d): d is string => !!d);
+          if (searches.length > 0) {
+            setRecentSearches(searches);
+          }
+        }
+      } catch (_err) {
+        // silently fail — empty state is fine
+      }
+    }
+    fetchRecent();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   // Debounced search across APIs
   const performSearch = useCallback(async (searchQuery: string) => {
     if (!searchQuery.trim()) {
-      setCompanyResults(FALLBACK_COMPANY_RESULTS);
-      setSignalResults(FALLBACK_SIGNAL_RESULTS);
-      setContactResults(FALLBACK_CONTACT_RESULTS);
+      setCompanyResults([]);
+      setSignalResults([]);
+      setContactResults([]);
       return;
     }
 
@@ -181,52 +186,63 @@ export function IntelligenceSearch() {
       // Map organizations to company results
       if (!orgsRes.error && orgsRes.data?.data?.length > 0) {
         setCompanyResults(
-          (orgsRes.data.data as any[]).map((o) => ({
-            name: o.name,
-            domain: o.domain || '',
-            industry: o.industry || '',
-            score: o.intelligenceScore ?? 0,
-            signals: o.signalCount ?? 0,
+          (orgsRes.data.data as Record<string, unknown>[]).map((o) => ({
+            id: (o.id as string) || '',
+            name: (o.name as string) || '',
+            domain: (o.domain as string) || '',
+            industry: (o.industry as string) || '',
+            score: (o.intelligenceScore as number) ?? 0,
+            signals: (o.signalCount as number) ?? 0,
             location: '',
           })),
         );
+      } else {
+        setCompanyResults([]);
       }
 
       // Filter signals by query
       if (!signalsRes.error && signalsRes.data?.data?.length > 0) {
         const q = searchQuery.toLowerCase();
-        const filtered = (signalsRes.data.data as any[])
+        const filtered = (signalsRes.data.data as Record<string, unknown>[])
           .filter(
             (s) =>
-              (s.title || '').toLowerCase().includes(q) ||
-              (s.description || '').toLowerCase().includes(q) ||
-              (s.organization?.name || '').toLowerCase().includes(q),
+              ((s.title as string) || '').toLowerCase().includes(q) ||
+              ((s.description as string) || '').toLowerCase().includes(q) ||
+              ((s.organization as Record<string, string>)?.name || '').toLowerCase().includes(q),
           )
           .slice(0, 5);
         if (filtered.length > 0) {
           setSignalResults(
             filtered.map((s) => ({
-              type: s.signalType || s.title || 'Signal',
-              description: s.description || s.title || '',
-              severity: (s.severity?.charAt(0).toUpperCase() + s.severity?.slice(1) || 'Medium') as
-                'High' | 'Medium' | 'Low',
-              source: s.organization?.name || 'System',
-              timestamp: s.detectedAt ? new Date(s.detectedAt).toLocaleString() : '',
+              id: (s.id as string) || `sig-${Math.random()}`,
+              type: (s.signalType as string) || (s.title as string) || 'Signal',
+              description: (s.description as string) || (s.title as string) || '',
+              severity: ((s.severity as string)?.charAt(0).toUpperCase() +
+                (s.severity as string)?.slice(1) || 'Medium') as 'High' | 'Medium' | 'Low',
+              source: (s.organization as Record<string, string>)?.name || 'System',
+              timestamp: s.detectedAt ? new Date(s.detectedAt as string).toLocaleString() : '',
             })),
           );
+        } else {
+          setSignalResults([]);
         }
+      } else {
+        setSignalResults([]);
       }
 
       // Map people to contact results
       if (!peopleRes.error && peopleRes.data?.data?.length > 0) {
         setContactResults(
-          (peopleRes.data.data as any[]).map((p) => ({
-            name: p.fullName || '',
-            title: p.title || '',
-            company: p.organization?.name || '',
-            email: p.email || '',
+          (peopleRes.data.data as Record<string, unknown>[]).map((p) => ({
+            id: (p.id as string) || '',
+            name: (p.fullName as string) || '',
+            title: (p.title as string) || '',
+            company: (p.organization as Record<string, string>)?.name || '',
+            email: (p.email as string) || '',
           })),
         );
+      } else {
+        setContactResults([]);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Search failed');
@@ -247,7 +263,7 @@ export function IntelligenceSearch() {
   }, [query, showResults, performSearch]);
 
   const totalResults =
-    companyResults.length + signalResults.length + contactResults.length + KNOWLEDGE_RESULTS.length;
+    companyResults.length + signalResults.length + contactResults.length + knowledgeResults.length;
 
   return (
     <PageTransition className="p-6 space-y-6">
@@ -329,29 +345,35 @@ export function IntelligenceSearch() {
             >
               Recent Searches
             </h3>
-            <div className="flex flex-wrap gap-2">
-              {RECENT_SEARCHES.map((term, i) => (
-                <motion.button
-                  key={term}
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: i * 0.04, duration: 0.25 }}
-                  onClick={() => {
-                    setQuery(term);
-                    setShowResults(true);
-                  }}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors"
-                  style={{
-                    color: 'var(--ios-text-primary)',
-                    background: 'var(--ios-bg-card)',
-                    border: '1px solid var(--ios-border)',
-                  }}
-                >
-                  <Clock className="w-3 h-3" style={{ color: 'var(--ios-text-secondary)' }} />
-                  {term}
-                </motion.button>
-              ))}
-            </div>
+            {recentSearches.length > 0 ? (
+              <div className="flex flex-wrap gap-2">
+                {recentSearches.map((term, i) => (
+                  <motion.button
+                    key={term}
+                    initial={{ opacity: 0, scale: 0.9 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    transition={{ delay: i * 0.04, duration: 0.25 }}
+                    onClick={() => {
+                      setQuery(term);
+                      setShowResults(true);
+                    }}
+                    className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-sm transition-colors"
+                    style={{
+                      color: 'var(--ios-text-primary)',
+                      background: 'var(--ios-bg-card)',
+                      border: '1px solid var(--ios-border)',
+                    }}
+                  >
+                    <Clock className="w-3 h-3" style={{ color: 'var(--ios-text-secondary)' }} />
+                    {term}
+                  </motion.button>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs" style={{ color: 'var(--ios-text-secondary)' }}>
+                No recent searches. Start by typing a query above.
+              </p>
+            )}
           </motion.div>
         )}
       </AnimatePresence>
@@ -414,324 +436,341 @@ export function IntelligenceSearch() {
             </div>
 
             {/* Companies Section */}
-            {(activeCategory === 'All' || activeCategory === 'Companies') && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Building2 className="w-4 h-4" style={{ color: '#3B82F6' }} />
-                  <h3
-                    className="text-sm font-semibold"
-                    style={{ color: 'var(--ios-text-primary)' }}
-                  >
-                    Companies
-                  </h3>
-                  <span
-                    className="text-xs px-1.5 py-0.5 rounded-full"
-                    style={{
-                      color: 'var(--ios-text-secondary)',
-                      background: 'var(--ios-bg-elevated)',
-                    }}
-                  >
-                    3
-                  </span>
+            {(activeCategory === 'All' || activeCategory === 'Companies') &&
+              companyResults.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Building2 className="w-4 h-4" style={{ color: '#3B82F6' }} />
+                    <h3
+                      className="text-sm font-semibold"
+                      style={{ color: 'var(--ios-text-primary)' }}
+                    >
+                      Companies
+                    </h3>
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded-full"
+                      style={{
+                        color: 'var(--ios-text-secondary)',
+                        background: 'var(--ios-bg-elevated)',
+                      }}
+                    >
+                      {companyResults.length}
+                    </span>
+                  </div>
+                  <StaggerGrid className="space-y-3" stagger={0.06}>
+                    {companyResults.map((company) => (
+                      <StaggerItem key={company.id || company.domain}>
+                        <AnimatedCard className="p-4" delay={0}>
+                          <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 mb-1">
+                                <p
+                                  className="text-sm font-semibold"
+                                  style={{ color: 'var(--ios-text-primary)' }}
+                                >
+                                  {company.name}
+                                </p>
+                                <span
+                                  className="text-xs"
+                                  style={{ color: 'var(--ios-text-secondary)' }}
+                                >
+                                  {company.domain}
+                                </span>
+                              </div>
+                              <div
+                                className="flex items-center gap-3 text-xs"
+                                style={{ color: 'var(--ios-text-secondary)' }}
+                              >
+                                <span>{company.industry}</span>
+                                <span>·</span>
+                                <span>{company.location}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-6">
+                              <div>
+                                <p
+                                  className="text-[11px] mb-1"
+                                  style={{ color: 'var(--ios-text-secondary)' }}
+                                >
+                                  Intel Score
+                                </p>
+                                <div className="flex items-center gap-2">
+                                  <div
+                                    className="w-24 h-2 rounded-full"
+                                    style={{ background: 'var(--ios-bg-elevated)' }}
+                                  >
+                                    <motion.div
+                                      className="h-full rounded-full"
+                                      style={{
+                                        background:
+                                          company.score >= 90
+                                            ? '#10B981'
+                                            : company.score >= 80
+                                              ? '#3B82F6'
+                                              : '#F59E0B',
+                                      }}
+                                      initial={{ width: 0 }}
+                                      animate={{ width: `${company.score}%` }}
+                                      transition={{ duration: 0.8, ease: 'easeOut' }}
+                                    />
+                                  </div>
+                                  <span
+                                    className="text-xs font-semibold tabular-nums"
+                                    style={{ color: 'var(--ios-text-primary)' }}
+                                  >
+                                    {company.score}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="text-center">
+                                <p
+                                  className="text-[11px]"
+                                  style={{ color: 'var(--ios-text-secondary)' }}
+                                >
+                                  Signals
+                                </p>
+                                <p className="text-sm font-semibold" style={{ color: '#3B82F6' }}>
+                                  {company.signals}
+                                </p>
+                              </div>
+                              <button
+                                className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+                                style={{ color: '#3B82F6', background: 'rgba(59,130,246,0.1)' }}
+                              >
+                                View
+                                <ArrowRight className="w-3 h-3" />
+                              </button>
+                            </div>
+                          </div>
+                        </AnimatedCard>
+                      </StaggerItem>
+                    ))}
+                  </StaggerGrid>
                 </div>
-                <StaggerGrid className="space-y-3" stagger={0.06}>
-                  {companyResults.map((company) => (
-                    <StaggerItem key={company.domain}>
-                      <AnimatedCard className="p-4" delay={0}>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
+              )}
+
+            {/* Signals Section */}
+            {(activeCategory === 'All' || activeCategory === 'Signals') &&
+              signalResults.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <Activity className="w-4 h-4" style={{ color: '#F59E0B' }} />
+                    <h3
+                      className="text-sm font-semibold"
+                      style={{ color: 'var(--ios-text-primary)' }}
+                    >
+                      Signals
+                    </h3>
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded-full"
+                      style={{
+                        color: 'var(--ios-text-secondary)',
+                        background: 'var(--ios-bg-elevated)',
+                      }}
+                    >
+                      {signalResults.length}
+                    </span>
+                  </div>
+                  <StaggerGrid className="space-y-3" stagger={0.06}>
+                    {signalResults.map((signal) => {
+                      const sev = SEVERITY_CONFIG[signal.severity];
+                      return (
+                        <StaggerItem key={signal.id}>
+                          <AnimatedCard className="p-4" delay={0}>
+                            <div className="flex items-start gap-3">
+                              <div
+                                className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                                style={{ background: `${sev.color}15` }}
+                              >
+                                <Activity className="w-4 h-4" style={{ color: sev.color }} />
+                              </div>
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                                  <span
+                                    className="text-sm font-medium"
+                                    style={{ color: 'var(--ios-text-primary)' }}
+                                  >
+                                    {signal.type}
+                                  </span>
+                                  <span
+                                    className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
+                                    style={{ color: sev.color, background: sev.bg }}
+                                  >
+                                    {signal.severity}
+                                  </span>
+                                </div>
+                                <p
+                                  className="text-xs leading-relaxed"
+                                  style={{ color: 'var(--ios-text-secondary)' }}
+                                >
+                                  {signal.description}
+                                </p>
+                                <div
+                                  className="flex items-center gap-3 mt-2 text-[11px]"
+                                  style={{ color: 'var(--ios-text-secondary)', opacity: 0.7 }}
+                                >
+                                  <span>{signal.source}</span>
+                                  <span>·</span>
+                                  <span>{signal.timestamp}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </AnimatedCard>
+                        </StaggerItem>
+                      );
+                    })}
+                  </StaggerGrid>
+                </div>
+              )}
+
+            {/* Contacts Section */}
+            {(activeCategory === 'All' || activeCategory === 'Contacts') &&
+              contactResults.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <User className="w-4 h-4" style={{ color: '#10B981' }} />
+                    <h3
+                      className="text-sm font-semibold"
+                      style={{ color: 'var(--ios-text-primary)' }}
+                    >
+                      Contacts
+                    </h3>
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded-full"
+                      style={{
+                        color: 'var(--ios-text-secondary)',
+                        background: 'var(--ios-bg-elevated)',
+                      }}
+                    >
+                      {contactResults.length}
+                    </span>
+                  </div>
+                  <StaggerGrid className="space-y-3" stagger={0.06}>
+                    {contactResults.map((contact) => (
+                      <StaggerItem key={contact.id || contact.email}>
+                        <AnimatedCard className="p-4" delay={0}>
+                          <div className="flex items-center gap-3">
+                            <div
+                              className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-xs font-bold"
+                              style={{ color: '#10B981', background: 'rgba(16,185,129,0.15)' }}
+                            >
+                              {(contact.name || '')
+                                .split(' ')
+                                .map((n: string) => n[0])
+                                .join('')
+                                .slice(0, 2)}
+                            </div>
+                            <div className="flex-1 min-w-0">
                               <p
-                                className="text-sm font-semibold"
+                                className="text-sm font-medium"
                                 style={{ color: 'var(--ios-text-primary)' }}
                               >
-                                {company.name}
+                                {contact.name}
                               </p>
+                              <p className="text-xs" style={{ color: 'var(--ios-text-secondary)' }}>
+                                {contact.title} · {contact.company}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
                               <span
                                 className="text-xs"
                                 style={{ color: 'var(--ios-text-secondary)' }}
                               >
-                                {company.domain}
+                                {contact.email}
                               </span>
-                            </div>
-                            <div
-                              className="flex items-center gap-3 text-xs"
-                              style={{ color: 'var(--ios-text-secondary)' }}
-                            >
-                              <span>{company.industry}</span>
-                              <span>·</span>
-                              <span>{company.location}</span>
-                            </div>
-                          </div>
-                          <div className="flex items-center gap-6">
-                            <div>
-                              <p
-                                className="text-[11px] mb-1"
+                              <button
+                                className="p-2 rounded-lg transition-colors"
                                 style={{ color: 'var(--ios-text-secondary)' }}
                               >
-                                Intel Score
-                              </p>
-                              <div className="flex items-center gap-2">
-                                <div
-                                  className="w-24 h-2 rounded-full"
-                                  style={{ background: 'var(--ios-bg-elevated)' }}
-                                >
-                                  <motion.div
-                                    className="h-full rounded-full"
-                                    style={{
-                                      background:
-                                        company.score >= 90
-                                          ? '#10B981'
-                                          : company.score >= 80
-                                            ? '#3B82F6'
-                                            : '#F59E0B',
-                                    }}
-                                    initial={{ width: 0 }}
-                                    animate={{ width: `${company.score}%` }}
-                                    transition={{ duration: 0.8, ease: 'easeOut' }}
-                                  />
-                                </div>
-                                <span
-                                  className="text-xs font-semibold tabular-nums"
-                                  style={{ color: 'var(--ios-text-primary)' }}
-                                >
-                                  {company.score}
-                                </span>
-                              </div>
+                                <Mail className="w-4 h-4" />
+                              </button>
                             </div>
-                            <div className="text-center">
-                              <p
-                                className="text-[11px]"
-                                style={{ color: 'var(--ios-text-secondary)' }}
-                              >
-                                Signals
-                              </p>
-                              <p className="text-sm font-semibold" style={{ color: '#3B82F6' }}>
-                                {company.signals}
-                              </p>
-                            </div>
-                            <button
-                              className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-                              style={{ color: '#3B82F6', background: 'rgba(59,130,246,0.1)' }}
-                            >
-                              View
-                              <ArrowRight className="w-3 h-3" />
-                            </button>
                           </div>
-                        </div>
-                      </AnimatedCard>
-                    </StaggerItem>
-                  ))}
-                </StaggerGrid>
-              </div>
-            )}
-
-            {/* Signals Section */}
-            {(activeCategory === 'All' || activeCategory === 'Signals') && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <Activity className="w-4 h-4" style={{ color: '#F59E0B' }} />
-                  <h3
-                    className="text-sm font-semibold"
-                    style={{ color: 'var(--ios-text-primary)' }}
-                  >
-                    Signals
-                  </h3>
-                  <span
-                    className="text-xs px-1.5 py-0.5 rounded-full"
-                    style={{
-                      color: 'var(--ios-text-secondary)',
-                      background: 'var(--ios-bg-elevated)',
-                    }}
-                  >
-                    3
-                  </span>
+                        </AnimatedCard>
+                      </StaggerItem>
+                    ))}
+                  </StaggerGrid>
                 </div>
-                <StaggerGrid className="space-y-3" stagger={0.06}>
-                  {signalResults.map((signal, i) => {
-                    const sev = SEVERITY_CONFIG[signal.severity];
-                    return (
-                      <StaggerItem key={i}>
+              )}
+
+            {/* Knowledge Section */}
+            {(activeCategory === 'All' ||
+              activeCategory === 'Knowledge' ||
+              activeCategory === 'Briefings') &&
+              knowledgeResults.length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-3">
+                    <BookOpen className="w-4 h-4" style={{ color: '#8B5CF6' }} />
+                    <h3
+                      className="text-sm font-semibold"
+                      style={{ color: 'var(--ios-text-primary)' }}
+                    >
+                      Knowledge
+                    </h3>
+                    <span
+                      className="text-xs px-1.5 py-0.5 rounded-full"
+                      style={{
+                        color: 'var(--ios-text-secondary)',
+                        background: 'var(--ios-bg-elevated)',
+                      }}
+                    >
+                      {knowledgeResults.length}
+                    </span>
+                  </div>
+                  <StaggerGrid className="space-y-3" stagger={0.06}>
+                    {knowledgeResults.map((article) => (
+                      <StaggerItem key={article.id}>
                         <AnimatedCard className="p-4" delay={0}>
                           <div className="flex items-start gap-3">
                             <div
                               className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                              style={{ background: `${sev.color}15` }}
+                              style={{ background: `${article.color}15` }}
                             >
-                              <Activity className="w-4 h-4" style={{ color: sev.color }} />
+                              <FileText className="w-4 h-4" style={{ color: article.color }} />
                             </div>
                             <div className="flex-1 min-w-0">
-                              <div className="flex items-center gap-2 mb-1 flex-wrap">
-                                <span
-                                  className="text-sm font-medium"
-                                  style={{ color: 'var(--ios-text-primary)' }}
-                                >
-                                  {signal.type}
-                                </span>
-                                <span
-                                  className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full"
-                                  style={{ color: sev.color, background: sev.bg }}
-                                >
-                                  {signal.severity}
-                                </span>
-                              </div>
                               <p
-                                className="text-xs leading-relaxed"
+                                className="text-sm font-medium mb-1"
+                                style={{ color: 'var(--ios-text-primary)' }}
+                              >
+                                {article.title}
+                              </p>
+                              <p
+                                className="text-xs leading-relaxed mb-2"
                                 style={{ color: 'var(--ios-text-secondary)' }}
                               >
-                                {signal.description}
+                                {article.excerpt}
                               </p>
                               <div
-                                className="flex items-center gap-3 mt-2 text-[11px]"
+                                className="flex items-center gap-3 text-[11px]"
                                 style={{ color: 'var(--ios-text-secondary)', opacity: 0.7 }}
                               >
-                                <span>{signal.source}</span>
+                                <span className="flex items-center gap-1">
+                                  <Tag className="w-3 h-3" />
+                                  {article.category}
+                                </span>
                                 <span>·</span>
-                                <span>{signal.timestamp}</span>
+                                <span>{article.date}</span>
                               </div>
                             </div>
                           </div>
                         </AnimatedCard>
                       </StaggerItem>
-                    );
-                  })}
-                </StaggerGrid>
-              </div>
-            )}
-
-            {/* Contacts Section */}
-            {(activeCategory === 'All' || activeCategory === 'Contacts') && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <User className="w-4 h-4" style={{ color: '#10B981' }} />
-                  <h3
-                    className="text-sm font-semibold"
-                    style={{ color: 'var(--ios-text-primary)' }}
-                  >
-                    Contacts
-                  </h3>
-                  <span
-                    className="text-xs px-1.5 py-0.5 rounded-full"
-                    style={{
-                      color: 'var(--ios-text-secondary)',
-                      background: 'var(--ios-bg-elevated)',
-                    }}
-                  >
-                    2
-                  </span>
+                    ))}
+                  </StaggerGrid>
                 </div>
-                <StaggerGrid className="space-y-3" stagger={0.06}>
-                  {contactResults.map((contact) => (
-                    <StaggerItem key={contact.email}>
-                      <AnimatedCard className="p-4" delay={0}>
-                        <div className="flex items-center gap-3">
-                          <div
-                            className="w-10 h-10 rounded-full flex items-center justify-center shrink-0 text-xs font-bold"
-                            style={{ color: '#10B981', background: 'rgba(16,185,129,0.15)' }}
-                          >
-                            {(contact.name || '')
-                              .split(' ')
-                              .map((n: string) => n[0])
-                              .join('')
-                              .slice(0, 2)}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p
-                              className="text-sm font-medium"
-                              style={{ color: 'var(--ios-text-primary)' }}
-                            >
-                              {contact.name}
-                            </p>
-                            <p className="text-xs" style={{ color: 'var(--ios-text-secondary)' }}>
-                              {contact.title} · {contact.company}
-                            </p>
-                          </div>
-                          <div className="flex items-center gap-2 shrink-0">
-                            <span
-                              className="text-xs"
-                              style={{ color: 'var(--ios-text-secondary)' }}
-                            >
-                              {contact.email}
-                            </span>
-                            <button
-                              className="p-2 rounded-lg transition-colors"
-                              style={{ color: 'var(--ios-text-secondary)' }}
-                            >
-                              <Mail className="w-4 h-4" />
-                            </button>
-                          </div>
-                        </div>
-                      </AnimatedCard>
-                    </StaggerItem>
-                  ))}
-                </StaggerGrid>
-              </div>
-            )}
+              )}
 
-            {/* Knowledge Section */}
-            {(activeCategory === 'All' ||
-              activeCategory === 'Knowledge' ||
-              activeCategory === 'Briefings') && (
-              <div>
-                <div className="flex items-center gap-2 mb-3">
-                  <BookOpen className="w-4 h-4" style={{ color: '#8B5CF6' }} />
-                  <h3
-                    className="text-sm font-semibold"
-                    style={{ color: 'var(--ios-text-primary)' }}
-                  >
-                    Knowledge
-                  </h3>
-                  <span
-                    className="text-xs px-1.5 py-0.5 rounded-full"
-                    style={{
-                      color: 'var(--ios-text-secondary)',
-                      background: 'var(--ios-bg-elevated)',
-                    }}
-                  >
-                    2
-                  </span>
-                </div>
-                <StaggerGrid className="space-y-3" stagger={0.06}>
-                  {KNOWLEDGE_RESULTS.map((article) => (
-                    <StaggerItem key={article.title}>
-                      <AnimatedCard className="p-4" delay={0}>
-                        <div className="flex items-start gap-3">
-                          <div
-                            className="w-8 h-8 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
-                            style={{ background: `${article.color}15` }}
-                          >
-                            <FileText className="w-4 h-4" style={{ color: article.color }} />
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p
-                              className="text-sm font-medium mb-1"
-                              style={{ color: 'var(--ios-text-primary)' }}
-                            >
-                              {article.title}
-                            </p>
-                            <p
-                              className="text-xs leading-relaxed mb-2"
-                              style={{ color: 'var(--ios-text-secondary)' }}
-                            >
-                              {article.excerpt}
-                            </p>
-                            <div
-                              className="flex items-center gap-3 text-[11px]"
-                              style={{ color: 'var(--ios-text-secondary)', opacity: 0.7 }}
-                            >
-                              <span className="flex items-center gap-1">
-                                <Tag className="w-3 h-3" />
-                                {article.category}
-                              </span>
-                              <span>·</span>
-                              <span>{article.date}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </AnimatedCard>
-                    </StaggerItem>
-                  ))}
-                </StaggerGrid>
+            {/* Empty state when no results */}
+            {!searching && totalResults === 0 && (
+              <div className="flex flex-col items-center justify-center py-16">
+                <Search className="w-10 h-10 mb-3" style={{ color: 'var(--ios-text-secondary)' }} />
+                <p className="text-sm font-medium" style={{ color: 'var(--ios-text-primary)' }}>
+                  No results found
+                </p>
+                <p className="text-xs mt-1" style={{ color: 'var(--ios-text-secondary)' }}>
+                  Try adjusting your search or filters
+                </p>
               </div>
             )}
           </motion.div>

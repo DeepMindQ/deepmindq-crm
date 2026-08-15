@@ -40,6 +40,8 @@ export default function DataImport() {
   const [selectedRecord, setSelectedRecord] = useState<IngestionRecord | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const [cancellingId, setCancelingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [pollingTimer, setPollingTimer] = useState<ReturnType<typeof setInterval> | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -220,6 +222,36 @@ export default function DataImport() {
     [fetchHistory],
   );
 
+  const handleCancel = useCallback(
+    async (id: string) => {
+      setCancelingId(id);
+      const { error } = await fetchApi(`/api/ingestion/${id}/cancel`, { method: 'POST' });
+      if (error) toast.error('Cancel failed', { description: error });
+      else {
+        toast.success('Import cancelled', { description: 'The import has been cancelled.' });
+        setDetailOpen(false);
+        await fetchHistory();
+      }
+      setCancelingId(null);
+    },
+    [fetchHistory],
+  );
+
+  const handleDelete = useCallback(
+    async (id: string) => {
+      setDeletingId(id);
+      const { error } = await fetchApi(`/api/ingestion/${id}`, { method: 'DELETE' });
+      if (error) toast.error('Delete failed', { description: error });
+      else {
+        toast.success('Import deleted', { description: 'The import record has been removed.' });
+        setDetailOpen(false);
+        await fetchHistory();
+      }
+      setDeletingId(null);
+    },
+    [fetchHistory],
+  );
+
   const handleRowClick = useCallback((row: Record<string, unknown>) => {
     setSelectedRecord(row as unknown as IngestionRecord);
     setDetailOpen(true);
@@ -331,6 +363,10 @@ export default function DataImport() {
         onClose={() => setDetailOpen(false)}
         onRetry={handleRetry}
         isRetrying={retryingId !== null && retryingId === selectedRecord?.id}
+        onCancel={handleCancel}
+        onDelete={handleDelete}
+        isCancelling={cancellingId !== null && cancellingId === selectedRecord?.id}
+        isDeleting={deletingId !== null && deletingId === selectedRecord?.id}
       />
     </div>
   );

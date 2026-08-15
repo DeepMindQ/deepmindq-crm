@@ -1,5 +1,5 @@
 // ═══════════════════════════════════════════════════════════════════════════
-// File Parsers — CSV and Excel row parsing
+// File Parsers — CSV, Excel, and JSON row parsing
 // ═══════════════════════════════════════════════════════════════════════════
 
 export type ParsedRow = Record<string, string>;
@@ -120,6 +120,73 @@ export async function parseExcelRow(buffer: ArrayBuffer | Buffer): Promise<Parse
   }
 
   return rows;
+}
+
+/**
+ * Parse JSON file into rows.
+ * Supports:
+ *   - Array of objects: [{...}, {...}]
+ *   - Single object: {...}
+ *   - Object with array value: { data: [...] }
+ * All values are stringified.
+ */
+export async function parseJSON(buffer: ArrayBuffer | Buffer): Promise<ParsedRow[]> {
+  const text = Buffer.from(
+    buffer instanceof ArrayBuffer ? new Uint8Array(buffer) : buffer,
+  ).toString('utf-8');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let parsed: any;
+
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    throw new Error('Invalid JSON file: could not parse');
+  }
+
+  // Array of objects — standard format
+  if (Array.isArray(parsed)) {
+    return parsed.map((item, idx) => flattenObject(item, idx + 1));
+  }
+
+  // Single object
+  if (typeof parsed === 'object' && parsed !== null) {
+    // Check if there's a nested array under a common key
+    const arrayKeys = Object.keys(parsed).filter((k) => Array.isArray(parsed[k]));
+    if (arrayKeys.length > 0) {
+      // Use the first array key found
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const array = parsed[arrayKeys[0]] as any[];
+      return array.map((item, idx) => flattenObject(item, idx + 1));
+    }
+    // Single object row
+    return [flattenObject(parsed, 1)];
+  }
+
+  throw new Error('Invalid JSON: expected an array of objects or a single object');
+}
+
+/**
+ * Flatten a nested object into a single-level ParsedRow with string values.
+ * Nested keys are joined with dots (e.g., "address.city").
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function flattenObject(obj: any, _rowNumber: number): ParsedRow {
+  const result: ParsedRow = {};
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  function flatten(current: any, prefix: string = '') {
+    if (current === null || current === undefined) return;
+    if (typeof current === 'object' && !Array.isArray(current)) {
+      for (const key of Object.keys(current)) {
+        flatten(current[key], prefix ? `${prefix}.${key}` : key);
+      }
+    } else if (Array.isArray(current)) {
+      result[prefix] = current.map(String).join(', ');
+    } else {
+      result[prefix] = String(current).trim();
+    }
+  }
+  flatten(obj);
+  return result;
 }
 
 function formatCellValue(value: unknown): string {

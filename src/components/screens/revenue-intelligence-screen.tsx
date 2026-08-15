@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -29,75 +30,154 @@ import {
   YAxis,
   CartesianGrid,
 } from 'recharts';
-import { DollarSign, TrendingUp, ArrowUpRight, ArrowDownRight, BarChart3 } from 'lucide-react';
+import { Building2, TrendingUp, ArrowUpRight, BarChart3, Search, Loader2, X } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
+import { LoadingSkeleton } from '@/components/ui/screen-states';
+import { ErrorPanel } from '@/components/ui/screen-states';
+import { Input } from '@/components/ui/input';
 
-function formatCurrency(value: number) {
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-  return `$${value}`;
+interface TopOpportunity {
+  id: string;
+  name: string;
+  domain: string | null;
+  industry: string | null;
+  intelligenceScore: number | null;
+  signalCount: number;
 }
 
-const REVENUE_TREND = [
-  { month: 'Jul', arr: 4200000, mrr: 350000 },
-  { month: 'Aug', arr: 4350000, mrr: 362500 },
-  { month: 'Sep', arr: 4510000, mrr: 376000 },
-  { month: 'Oct', arr: 4680000, mrr: 390000 },
-  { month: 'Nov', arr: 4820000, mrr: 402000 },
-  { month: 'Dec', arr: 5010000, mrr: 418000 },
-  { month: 'Jan', arr: 5200000, mrr: 433000 },
-  { month: 'Feb', arr: 5440000, mrr: 453000 },
-];
+interface IndustryItem {
+  industry: string;
+  count: number;
+  avgScore: number;
+}
 
-const REVENUE_BY_SEGMENT = [
-  { name: 'Enterprise', value: 2800000, color: tokens.accent.primary },
-  { name: 'Mid-Market', value: 1200000, color: tokens.domain.value },
-  { name: 'SMB', value: 380000, color: tokens.confidence.medium.value },
-  { name: 'Startup', value: 150000, color: tokens.confidence.high.value },
-];
+interface RevenueIntelligenceData {
+  topOpportunities: TopOpportunity[];
+  industryBreakdown: IndustryItem[];
+  totalOrganizations: number;
+  avgIntelligenceScore: number;
+}
 
-const EXPANSION_CONTRACTION = [
-  { month: 'Jul', expansion: 180000, contraction: 45000 },
-  { month: 'Aug', expansion: 210000, contraction: 38000 },
-  { month: 'Sep', expansion: 195000, contraction: 52000 },
-  { month: 'Oct', expansion: 240000, contraction: 41000 },
-  { month: 'Nov', expansion: 260000, contraction: 35000 },
-  { month: 'Dec', expansion: 280000, contraction: 30000 },
-  { month: 'Jan', expansion: 310000, contraction: 28000 },
-  { month: 'Feb', expansion: 340000, contraction: 25000 },
-];
-
-const TOP_ACCOUNTS = [
-  { name: 'Acme Corporation', arr: 480000, segment: 'Enterprise', growth: 12 },
-  { name: 'Nexus Technologies', arr: 320000, segment: 'Mid-Market', growth: 24 },
-  { name: 'Stellar Dynamics', arr: 290000, segment: 'Enterprise', growth: 8 },
-  { name: 'Quantum Leap Inc', arr: 240000, segment: 'Mid-Market', growth: -3 },
-  { name: 'Vertex Solutions', arr: 96000, segment: 'Startup', growth: 45 },
-  { name: 'Pinnacle Systems', arr: 180000, segment: 'Mid-Market', growth: 15 },
-  { name: 'Atlas Corp', arr: 165000, segment: 'Enterprise', growth: 6 },
+const PIE_COLORS = [
+  tokens.accent.primary,
+  tokens.domain.value,
+  tokens.confidence.medium.value,
+  tokens.confidence.high.value,
+  tokens.gold.dark,
+  tokens.neutral.zinc,
+  tokens.accent.secondary || '#8b5cf6',
+  tokens.confidence.low.value,
 ];
 
 const trendConfig = {
-  arr: { label: 'ARR', color: tokens.accent.primary },
-  mrr: { label: 'MRR', color: tokens.domain.value },
+  count: { label: 'Organizations', color: tokens.accent.primary },
+  avgScore: { label: 'Avg Intel Score', color: tokens.domain.value },
 };
 
 const expConfig = {
-  expansion: { label: 'Expansion', color: tokens.confidence.high.value },
-  contraction: { label: 'Contraction', color: tokens.confidence.low.value },
-};
-
-const segmentConfig = {
-  Enterprise: { label: 'Enterprise', color: tokens.accent.primary },
-  'Mid-Market': { label: 'Mid-Market', color: tokens.domain.value },
-  SMB: { label: 'SMB', color: tokens.confidence.medium.value },
-  Startup: { label: 'Startup', color: tokens.confidence.high.value },
+  count: { label: 'Count', color: tokens.confidence.high.value },
+  avgScore: { label: 'Avg Score', color: tokens.confidence.low.value },
 };
 
 export default function RevenueIntelligence() {
-  const currentARR = 5440000;
-  const currentMRR = 453000;
-  const growthRate = 29.5;
-  const nrr = 118;
+  const [data, setData] = useState<RevenueIntelligenceData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    async function load() {
+      setLoading(true);
+      setError(null);
+      const res = await fetchApi<RevenueIntelligenceData>('/api/revenue-intelligence');
+      if (cancelled) return;
+      if (res.error) {
+        setError(res.error);
+      } else if (res.data) {
+        setData(res.data);
+      }
+      setLoading(false);
+    }
+    load();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const filteredOpportunities = data?.topOpportunities.filter((org) => {
+    if (!searchQuery.trim()) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      org.name.toLowerCase().includes(q) ||
+      (org.industry || '').toLowerCase().includes(q) ||
+      (org.domain || '').toLowerCase().includes(q)
+    );
+  });
+
+  // Transform industryBreakdown into line-chart-friendly shape
+  const industryTrend = (data?.industryBreakdown || []).map((item, idx) => ({
+    industry: item.industry.length > 12 ? item.industry.slice(0, 12) + '…' : item.industry,
+    count: item.count,
+    avgScore: Math.round(item.avgScore),
+  }));
+
+  // Pie chart data
+  const pieData = (data?.industryBreakdown || []).map((item, idx) => ({
+    name: item.industry,
+    value: item.count,
+    color: PIE_COLORS[idx % PIE_COLORS.length],
+  }));
+
+  // Segment config for pie chart legend
+  const segmentConfig = Object.fromEntries(
+    pieData.map((d) => [d.name, { label: d.name, color: d.color }]),
+  );
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+            Revenue Intelligence
+          </h1>
+          <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
+            Revenue metrics, trends, and account-level performance analysis
+          </p>
+        </div>
+        <LoadingSkeleton variant="dashboard" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+            Revenue Intelligence
+          </h1>
+          <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
+            Revenue metrics, trends, and account-level performance analysis
+          </p>
+        </div>
+        <ErrorPanel
+          message={error}
+          onRetry={() => {
+            setLoading(true);
+            setError(null);
+            fetchApi<RevenueIntelligenceData>('/api/revenue-intelligence').then((res) => {
+              if (res.error) setError(res.error);
+              else if (res.data) setData(res.data);
+              setLoading(false);
+            });
+          }}
+        />
+      </div>
+    );
+  }
+
+  if (!data) return null;
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -115,36 +195,38 @@ export default function RevenueIntelligence() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
-            label: 'ARR',
-            value: formatCurrency(currentARR),
-            change: '+8.1%',
+            label: 'Total Organizations',
+            value: data.totalOrganizations,
+            change: `${data.industryBreakdown.length} industries`,
             up: true,
-            icon: DollarSign,
+            icon: Building2,
             color: tokens.accent.primary,
             bg: tokens.accent.subtle,
           },
           {
-            label: 'MRR',
-            value: formatCurrency(currentMRR),
-            change: '+5.3%',
+            label: 'Avg Intel Score',
+            value: data.avgIntelligenceScore.toFixed(1),
+            change: 'across all orgs',
             up: true,
             icon: BarChart3,
             color: tokens.domain.value,
             bg: tokens.domain.bg,
           },
           {
-            label: 'Growth Rate (YoY)',
-            value: `${growthRate}%`,
-            change: '+4.2pp',
+            label: 'Top Opportunity',
+            value: data.topOpportunities[0]?.intelligenceScore?.toFixed(0) ?? '—',
+            change: data.topOpportunities[0]?.signalCount
+              ? `${data.topOpportunities[0].signalCount} signals`
+              : '',
             up: true,
             icon: TrendingUp,
             color: tokens.confidence.high.value,
             bg: tokens.confidence.high.bg,
           },
           {
-            label: 'Net Revenue Retention',
-            value: `${nrr}%`,
-            change: '+3pp',
+            label: 'Tracked Industries',
+            value: data.industryBreakdown.length,
+            change: `${data.totalOrganizations} orgs`,
             up: true,
             icon: ArrowUpRight,
             color: tokens.gold.dark,
@@ -176,7 +258,7 @@ export default function RevenueIntelligence() {
                     {stat.up ? (
                       <ArrowUpRight className="size-3" />
                     ) : (
-                      <ArrowDownRight className="size-3" />
+                      <ArrowUpRight className="size-3 rotate-180" />
                     )}
                     {stat.change}
                   </span>
@@ -187,32 +269,29 @@ export default function RevenueIntelligence() {
         ))}
       </div>
 
-      {/* Revenue Trend */}
+      {/* Industry Intelligence Trend */}
       <Card className="gap-4 py-4">
         <CardHeader className="pb-0 pt-0 px-6">
-          <CardTitle className="text-sm font-semibold">Revenue Trend</CardTitle>
+          <CardTitle className="text-sm font-semibold">Intelligence by Industry</CardTitle>
         </CardHeader>
         <CardContent>
           <ChartContainer config={trendConfig} className="h-[300px] w-full">
-            <LineChart data={REVENUE_TREND}>
+            <LineChart data={industryTrend}>
               <CartesianGrid strokeDasharray="3 3" stroke={tokens.border.default} />
-              <XAxis dataKey="month" tick={{ fontSize: 12, fill: tokens.text.secondary }} />
-              <YAxis
-                tickFormatter={(v) => formatCurrency(v)}
-                tick={{ fontSize: 12, fill: tokens.text.secondary }}
-              />
+              <XAxis dataKey="industry" tick={{ fontSize: 12, fill: tokens.text.secondary }} />
+              <YAxis tick={{ fontSize: 12, fill: tokens.text.secondary }} />
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
               <Line
                 type="monotone"
-                dataKey="arr"
+                dataKey="count"
                 stroke={tokens.accent.primary}
                 strokeWidth={2}
                 dot={{ r: 4, fill: tokens.accent.primary }}
               />
               <Line
                 type="monotone"
-                dataKey="mrr"
+                dataKey="avgScore"
                 stroke={tokens.domain.value}
                 strokeWidth={2}
                 dot={{ r: 3, fill: tokens.domain.value }}
@@ -223,17 +302,17 @@ export default function RevenueIntelligence() {
       </Card>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Revenue by Segment PieChart */}
+        {/* Organizations by Industry PieChart */}
         <Card className="gap-4 py-4">
           <CardHeader className="pb-0 pt-0 px-6">
-            <CardTitle className="text-sm font-semibold">Revenue by Segment</CardTitle>
+            <CardTitle className="text-sm font-semibold">Organizations by Industry</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer config={segmentConfig} className="h-[280px] w-full">
               <PieChart>
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <Pie
-                  data={REVENUE_BY_SEGMENT}
+                  data={pieData}
                   dataKey="value"
                   nameKey="name"
                   cx="50%"
@@ -242,7 +321,7 @@ export default function RevenueIntelligence() {
                   outerRadius={100}
                   paddingAngle={3}
                 >
-                  {REVENUE_BY_SEGMENT.map((entry, index) => (
+                  {pieData.map((entry, index) => (
                     <Cell key={index} fill={entry.color} />
                   ))}
                 </Pie>
@@ -251,58 +330,73 @@ export default function RevenueIntelligence() {
           </CardContent>
         </Card>
 
-        {/* Expansion vs Contraction */}
+        {/* Count vs Avg Score by Industry */}
         <Card className="gap-4 py-4">
           <CardHeader className="pb-0 pt-0 px-6">
-            <CardTitle className="text-sm font-semibold">Expansion vs Contraction</CardTitle>
+            <CardTitle className="text-sm font-semibold">Count vs Avg Score by Industry</CardTitle>
           </CardHeader>
           <CardContent>
             <ChartContainer config={expConfig} className="h-[280px] w-full">
-              <BarChart data={EXPANSION_CONTRACTION}>
+              <BarChart data={industryTrend}>
                 <CartesianGrid strokeDasharray="3 3" stroke={tokens.border.default} />
-                <XAxis dataKey="month" tick={{ fontSize: 12, fill: tokens.text.secondary }} />
-                <YAxis
-                  tickFormatter={(v) => formatCurrency(v)}
-                  tick={{ fontSize: 12, fill: tokens.text.secondary }}
-                />
+                <XAxis dataKey="industry" tick={{ fontSize: 12, fill: tokens.text.secondary }} />
+                <YAxis tick={{ fontSize: 12, fill: tokens.text.secondary }} />
                 <ChartTooltip content={<ChartTooltipContent />} />
                 <ChartLegend content={<ChartLegendContent />} />
-                <Bar
-                  dataKey="expansion"
-                  fill={tokens.confidence.high.value}
-                  radius={[3, 3, 0, 0]}
-                />
-                <Bar
-                  dataKey="contraction"
-                  fill={tokens.confidence.low.value}
-                  radius={[3, 3, 0, 0]}
-                />
+                <Bar dataKey="count" fill={tokens.confidence.high.value} radius={[3, 3, 0, 0]} />
+                <Bar dataKey="avgScore" fill={tokens.confidence.low.value} radius={[3, 3, 0, 0]} />
               </BarChart>
             </ChartContainer>
           </CardContent>
         </Card>
       </div>
 
-      {/* Top Accounts by Revenue */}
+      {/* Top Opportunities Table */}
       <Card className="gap-4 py-4">
         <CardHeader className="pb-0 pt-0 px-6">
-          <CardTitle className="text-sm font-semibold">Top Accounts by Revenue</CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-sm font-semibold">Top Opportunities</CardTitle>
+            <div className="relative w-64">
+              <Search
+                className="absolute left-2.5 top-1/2 -translate-y-1/2 size-3.5"
+                style={{ color: tokens.text.muted }}
+              />
+              <Input
+                placeholder="Search organizations..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="h-8 pl-8 pr-8 text-xs"
+                style={{
+                  backgroundColor: tokens.surface.secondary,
+                  borderColor: tokens.border.default,
+                }}
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery('')}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2"
+                >
+                  <X className="size-3" style={{ color: tokens.text.muted }} />
+                </button>
+              )}
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="p-0 max-h-96 overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow style={{ backgroundColor: tokens.surface.secondary }}>
-                <TableHead>Account</TableHead>
-                <TableHead className="w-[100px]">Segment</TableHead>
-                <TableHead className="text-right">ARR</TableHead>
-                <TableHead className="text-right">Growth</TableHead>
+                <TableHead>Organization</TableHead>
+                <TableHead className="w-[120px]">Industry</TableHead>
+                <TableHead className="text-right">Intel Score</TableHead>
+                <TableHead className="text-right">Signals</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {TOP_ACCOUNTS.map((account) => (
-                <TableRow key={account.name} className="hover:bg-muted/50 transition-colors">
+              {(filteredOpportunities || []).map((org) => (
+                <TableRow key={org.id} className="hover:bg-muted/50 transition-colors">
                   <TableCell className="font-medium" style={{ color: tokens.text.primary }}>
-                    {account.name}
+                    {org.name}
                   </TableCell>
                   <TableCell>
                     <span
@@ -312,35 +406,40 @@ export default function RevenueIntelligence() {
                         color: tokens.text.secondary,
                       }}
                     >
-                      {account.segment}
+                      {org.industry || '—'}
                     </span>
                   </TableCell>
                   <TableCell
                     className="text-right font-mono font-medium"
                     style={{ color: tokens.text.primary }}
                   >
-                    {formatCurrency(account.arr)}
+                    {org.intelligenceScore?.toFixed(0) ?? '—'}
                   </TableCell>
                   <TableCell className="text-right">
                     <span
                       className="text-sm font-medium flex items-center justify-end gap-1"
                       style={{
                         color:
-                          account.growth >= 0
-                            ? tokens.confidence.high.value
-                            : tokens.confidence.low.value,
+                          org.signalCount > 0 ? tokens.confidence.high.value : tokens.text.muted,
                       }}
                     >
-                      {account.growth >= 0 ? (
-                        <ArrowUpRight className="size-3.5" />
-                      ) : (
-                        <ArrowDownRight className="size-3.5" />
-                      )}
-                      {Math.abs(account.growth)}%
+                      {org.signalCount > 0 && <ArrowUpRight className="size-3.5" />}
+                      {org.signalCount}
                     </span>
                   </TableCell>
                 </TableRow>
               ))}
+              {filteredOpportunities?.length === 0 && (
+                <TableRow>
+                  <TableCell
+                    colSpan={4}
+                    className="text-center py-8"
+                    style={{ color: tokens.text.muted }}
+                  >
+                    No organizations match your search.
+                  </TableCell>
+                </TableRow>
+              )}
             </TableBody>
           </Table>
         </CardContent>

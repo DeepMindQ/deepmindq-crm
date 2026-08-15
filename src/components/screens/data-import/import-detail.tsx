@@ -9,7 +9,16 @@ import {
   SheetTitle,
   SheetDescription,
 } from '@/components/ui/sheet';
-import { Eye, MapPin, ListOrdered, AlertOctagon, RotateCcw, Loader2 } from 'lucide-react';
+import {
+  Eye,
+  MapPin,
+  ListOrdered,
+  AlertOctagon,
+  RotateCcw,
+  Loader2,
+  XCircle,
+  Trash2,
+} from 'lucide-react';
 import { type IngestionRecord, STATUS_CONFIG, formatBytes, formatDateTime } from './import-types';
 
 /* ══════════════════════════════════════════════════════════════
@@ -44,9 +53,23 @@ export interface DetailPanelProps {
   onClose: () => void;
   onRetry: (id: string) => void;
   isRetrying: boolean;
+  onCancel?: (id: string) => void;
+  onDelete?: (id: string) => void;
+  isCancelling?: boolean;
+  isDeleting?: boolean;
 }
 
-export function DetailPanel({ record, open, onClose, onRetry, isRetrying }: DetailPanelProps) {
+export function DetailPanel({
+  record,
+  open,
+  onClose,
+  onRetry,
+  isRetrying,
+  onCancel,
+  onDelete,
+  isCancelling,
+  isDeleting,
+}: DetailPanelProps) {
   if (!record) return null;
 
   const cfg = STATUS_CONFIG[record.status];
@@ -380,7 +403,7 @@ export function DetailPanel({ record, open, onClose, onRetry, isRetrying }: Deta
         </div>
 
         {(record.status === 'failed' || record.status === 'partial') && (
-          <div className="px-4 pb-4">
+          <div className="px-4 pb-4 space-y-2">
             <button
               onClick={() => onRetry(record.id)}
               disabled={isRetrying}
@@ -400,6 +423,53 @@ export function DetailPanel({ record, open, onClose, onRetry, isRetrying }: Deta
             </button>
           </div>
         )}
+        {(record.status === 'pending' || record.status === 'processing') && onCancel && (
+          <div className="px-4 pb-4">
+            <button
+              onClick={() => onCancel(record.id)}
+              disabled={isCancelling}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold transition-all"
+              style={{
+                background: STATUS_CONFIG.failed.bg,
+                color: STATUS_CONFIG.failed.color,
+                border: `1px solid ${STATUS_CONFIG.failed.border}`,
+                opacity: isCancelling ? 0.7 : 1,
+              }}
+            >
+              {isCancelling ? (
+                <Loader2 className="h-4 w-4" style={{ animation: 'spin 1s linear infinite' }} />
+              ) : (
+                <XCircle className="h-4 w-4" />
+              )}
+              {isCancelling ? 'Cancelling...' : 'Cancel Import'}
+            </button>
+          </div>
+        )}
+        {(record.status === 'completed' ||
+          record.status === 'failed' ||
+          record.status === 'partial') &&
+          onDelete && (
+            <div className="px-4 pb-4">
+              <button
+                onClick={() => onDelete(record.id)}
+                disabled={isDeleting}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-all"
+                style={{
+                  background: 'transparent',
+                  color: tokens.text.muted,
+                  border: `1px solid ${tokens.border.default}`,
+                  opacity: isDeleting ? 0.7 : 1,
+                }}
+              >
+                {isDeleting ? (
+                  <Loader2 className="h-4 w-4" style={{ animation: 'spin 1s linear infinite' }} />
+                ) : (
+                  <Trash2 className="h-4 w-4" />
+                )}
+                {isDeleting ? 'Deleting...' : 'Delete Import'}
+              </button>
+            </div>
+          )}
       </SheetContent>
     </Sheet>
   );

@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -12,75 +13,137 @@ import {
 } from '@/components/ui/table';
 import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/ui/chart';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid } from 'recharts';
-import { Phone, Mail, Calendar, Trophy, Users, ArrowRight } from 'lucide-react';
+import { Lightbulb, CheckCircle2, BarChart3, Users, ArrowRight } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
+import { LoadingSkeleton, ErrorPanel } from '@/components/ui/screen-states';
 
-const ACTIVITY_BY_DAY = [
-  { day: 'Mon', calls: 42, emails: 87, meetings: 8 },
-  { day: 'Tue', calls: 56, emails: 94, meetings: 12 },
-  { day: 'Wed', calls: 38, emails: 78, meetings: 10 },
-  { day: 'Thu', calls: 61, emails: 102, meetings: 14 },
-  { day: 'Fri', calls: 45, emails: 89, meetings: 9 },
-  { day: 'Sat', calls: 5, emails: 12, meetings: 1 },
-  { day: 'Sun', calls: 2, emails: 8, meetings: 0 },
-];
-
-const FUNNEL_DATA = [
-  { stage: 'Calls Made', value: 249, pct: 100 },
-  { stage: 'Emails Sent', value: 470, pct: 100 },
-  { stage: 'Emails Opened', value: 314, pct: 66.8 },
-  { stage: 'Replies Received', value: 89, pct: 18.9 },
-  { stage: 'Meetings Booked', value: 54, pct: 11.5 },
-  { stage: 'Demos Delivered', value: 38, pct: 8.1 },
-  { stage: 'Proposals Sent', value: 22, pct: 4.7 },
-  { stage: 'Deals Won', value: 16, pct: 3.4 },
-];
-
-const REP_LEADERBOARD = [
-  { name: 'Alex Kim', role: 'AE', calls: 67, emails: 142, meetings: 18, wins: 5, value: 320000 },
-  { name: 'Jordan Lee', role: 'AE', calls: 58, emails: 128, meetings: 15, wins: 4, value: 285000 },
-  {
-    name: 'Casey Morgan',
-    role: 'AE',
-    calls: 52,
-    emails: 118,
-    meetings: 12,
-    wins: 3,
-    value: 210000,
-  },
-  {
-    name: 'Taylor Brooks',
-    role: 'SDR',
-    calls: 45,
-    emails: 96,
-    meetings: 6,
-    wins: 2,
-    value: 140000,
-  },
-  { name: 'Reese Patel', role: 'SDR', calls: 38, emails: 84, meetings: 4, wins: 1, value: 85000 },
-  { name: 'Dakota Chen', role: 'SDR', calls: 32, emails: 72, meetings: 3, wins: 1, value: 64000 },
-];
-
-const activityConfig = {
-  calls: { label: 'Calls', color: tokens.accent.primary },
-  emails: { label: 'Emails', color: tokens.domain.value },
-  meetings: { label: 'Meetings', color: tokens.confidence.high.value },
-};
-
-function formatCurrency(value: number) {
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-  return `$${value}`;
+interface TeamMember {
+  id: string;
+  fullName: string;
+  email: string | null;
+  title: string | null;
+  department: string | null;
+  seniority: string | null;
+  organization: {
+    name: string;
+    industry: string | null;
+  } | null;
+  updatedAt: string;
 }
+
+interface DeptItem {
+  dept: string;
+  count: number;
+}
+
+interface SalesExecutionData {
+  teamMembers: TeamMember[];
+  departmentBreakdown: DeptItem[];
+  totalInsights: number;
+  actedSignalsCount: number;
+  outreachRate: string;
+}
+
+const deptConfig = {
+  count: { label: 'People', color: tokens.accent.primary },
+};
 
 function getFunnelWidth(pct: number) {
   return Math.max(pct, 15);
 }
 
+function formatDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
 export default function SalesExecution() {
-  const totalCalls = 249;
-  const totalEmails = 470;
-  const totalMeetings = 54;
-  const totalWins = 16;
+  const [data, setData] = useState<SalesExecutionData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const res = await fetchApi<SalesExecutionData>('/api/sales-execution');
+    if (res.error) {
+      setError(res.error);
+    } else if (res.data) {
+      setData(res.data);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Department chart data
+  const deptChartData = data?.departmentBreakdown || [];
+
+  // Conversion funnel derived from stats
+  const funnelData = data
+    ? [
+        { stage: 'Total Insights', value: data.totalInsights, pct: 100 },
+        {
+          stage: 'Acted Signals',
+          value: data.actedSignalsCount,
+          pct:
+            data.totalInsights > 0
+              ? Math.round((data.actedSignalsCount / data.totalInsights) * 100)
+              : 0,
+        },
+        {
+          stage: 'Outreach Rate',
+          value: data.actedSignalsCount,
+          pct: parseInt(data.outreachRate) || 0,
+        },
+      ]
+    : [];
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+            Sales Execution
+          </h1>
+          <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
+            Track sales team activity, conversion funnel, and rep performance
+          </p>
+        </div>
+        <LoadingSkeleton variant="dashboard" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+            Sales Execution
+          </h1>
+          <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
+            Track sales team activity, conversion funnel, and rep performance
+          </p>
+        </div>
+        <ErrorPanel message={error} onRetry={fetchData} />
+      </div>
+    );
+  }
+
+  if (!data) return null;
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -98,30 +161,30 @@ export default function SalesExecution() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
-            label: 'Calls Made (Week)',
-            value: totalCalls,
-            icon: Phone,
+            label: 'Total Insights',
+            value: data.totalInsights,
+            icon: Lightbulb,
             color: tokens.accent.primary,
             bg: tokens.accent.subtle,
           },
           {
-            label: 'Emails Sent (Week)',
-            value: totalEmails,
-            icon: Mail,
-            color: tokens.domain.value,
-            bg: tokens.domain.bg,
-          },
-          {
-            label: 'Meetings Booked (Week)',
-            value: totalMeetings,
-            icon: Calendar,
+            label: 'Acted Signals',
+            value: data.actedSignalsCount,
+            icon: CheckCircle2,
             color: tokens.confidence.high.value,
             bg: tokens.confidence.high.bg,
           },
           {
-            label: 'Deals Won (Week)',
-            value: totalWins,
-            icon: Trophy,
+            label: 'Outreach Rate',
+            value: data.outreachRate,
+            icon: BarChart3,
+            color: tokens.domain.value,
+            bg: tokens.domain.bg,
+          },
+          {
+            label: 'Team Members',
+            value: data.teamMembers.length,
+            icon: Users,
             color: tokens.gold.dark,
             bg: tokens.gold.bgMedium,
           },
@@ -147,21 +210,19 @@ export default function SalesExecution() {
         ))}
       </div>
 
-      {/* Activity by Day Chart */}
+      {/* Department Breakdown Chart */}
       <Card className="gap-4 py-4">
         <CardHeader className="pb-0 pt-0 px-6">
-          <CardTitle className="text-sm font-semibold">Activity by Day (This Week)</CardTitle>
+          <CardTitle className="text-sm font-semibold">Department Breakdown</CardTitle>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={activityConfig} className="h-[280px] w-full">
-            <BarChart data={ACTIVITY_BY_DAY}>
+          <ChartContainer config={deptConfig} className="h-[280px] w-full">
+            <BarChart data={deptChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke={tokens.border.default} />
-              <XAxis dataKey="day" tick={{ fontSize: 12, fill: tokens.text.secondary }} />
+              <XAxis dataKey="dept" tick={{ fontSize: 12, fill: tokens.text.secondary }} />
               <YAxis tick={{ fontSize: 12, fill: tokens.text.secondary }} />
               <ChartTooltip content={<ChartTooltipContent />} />
-              <Bar dataKey="calls" fill={tokens.accent.primary} radius={[3, 3, 0, 0]} />
-              <Bar dataKey="emails" fill={tokens.domain.value} radius={[3, 3, 0, 0]} />
-              <Bar dataKey="meetings" fill={tokens.confidence.high.value} radius={[3, 3, 0, 0]} />
+              <Bar dataKey="count" fill={tokens.accent.primary} radius={[3, 3, 0, 0]} />
             </BarChart>
           </ChartContainer>
         </CardContent>
@@ -171,10 +232,10 @@ export default function SalesExecution() {
         {/* Conversion Funnel */}
         <Card className="gap-4 py-4">
           <CardHeader className="pb-0 pt-0 px-6">
-            <CardTitle className="text-sm font-semibold">Conversion Funnel</CardTitle>
+            <CardTitle className="text-sm font-semibold">Signal Conversion Funnel</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col gap-2">
-            {FUNNEL_DATA.map((step) => (
+            {funnelData.map((step) => (
               <div key={step.stage} className="flex items-center gap-3">
                 <div className="w-32 shrink-0">
                   <p className="text-xs font-medium" style={{ color: tokens.text.primary }}>
@@ -204,29 +265,27 @@ export default function SalesExecution() {
           </CardContent>
         </Card>
 
-        {/* Rep Leaderboard */}
+        {/* Team Members Table */}
         <Card className="gap-4 py-4">
           <CardHeader className="pb-0 pt-0 px-6">
             <CardTitle className="text-sm font-semibold flex items-center gap-2">
               <Users className="size-4" style={{ color: tokens.gold.dark }} />
-              Rep Leaderboard
+              Team Members
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0 max-h-96 overflow-y-auto">
             <Table>
               <TableHeader>
                 <TableRow style={{ backgroundColor: tokens.surface.secondary }}>
-                  <TableHead>Rep</TableHead>
-                  <TableHead className="text-right">Calls</TableHead>
-                  <TableHead className="text-right">Emails</TableHead>
-                  <TableHead className="text-right">Meetings</TableHead>
-                  <TableHead className="text-right">Wins</TableHead>
-                  <TableHead className="text-right">Value</TableHead>
+                  <TableHead>Member</TableHead>
+                  <TableHead className="text-right">Department</TableHead>
+                  <TableHead className="text-right">Organization</TableHead>
+                  <TableHead className="text-right">Updated</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {REP_LEADERBOARD.map((rep, idx) => (
-                  <TableRow key={rep.name} className="hover:bg-muted/50 transition-colors">
+                {data.teamMembers.map((member, idx) => (
+                  <TableRow key={member.id} className="hover:bg-muted/50 transition-colors">
                     <TableCell>
                       <div className="flex items-center gap-2">
                         <span
@@ -244,10 +303,10 @@ export default function SalesExecution() {
                         </span>
                         <div>
                           <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>
-                            {rep.name}
+                            {member.fullName}
                           </p>
                           <p className="text-[10px]" style={{ color: tokens.text.muted }}>
-                            {rep.role}
+                            {member.title || member.email || '—'}
                           </p>
                         </div>
                       </div>
@@ -256,31 +315,19 @@ export default function SalesExecution() {
                       className="text-right font-mono text-xs"
                       style={{ color: tokens.text.secondary }}
                     >
-                      {rep.calls}
+                      {member.department || '—'}
                     </TableCell>
                     <TableCell
                       className="text-right font-mono text-xs"
                       style={{ color: tokens.text.secondary }}
                     >
-                      {rep.emails}
+                      {member.organization?.name || '—'}
                     </TableCell>
                     <TableCell
                       className="text-right font-mono text-xs"
-                      style={{ color: tokens.text.secondary }}
+                      style={{ color: tokens.text.muted }}
                     >
-                      {rep.meetings}
-                    </TableCell>
-                    <TableCell
-                      className="text-right font-mono text-xs font-medium"
-                      style={{ color: tokens.confidence.high.value }}
-                    >
-                      {rep.wins}
-                    </TableCell>
-                    <TableCell
-                      className="text-right font-mono text-xs font-medium"
-                      style={{ color: tokens.text.primary }}
-                    >
-                      {formatCurrency(rep.value)}
+                      {formatDate(member.updatedAt)}
                     </TableCell>
                   </TableRow>
                 ))}

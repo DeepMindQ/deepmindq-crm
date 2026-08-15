@@ -35,10 +35,10 @@ export async function GET(request: NextRequest) {
 
     if (search) {
       where.OR = [
-        { fullName: { contains: search, mode: 'insensitive' } },
-        { email: { contains: search, mode: 'insensitive' } },
-        { title: { contains: search, mode: 'insensitive' } },
-        { department: { contains: search, mode: 'insensitive' } },
+        { fullName: { contains: search } },
+        { email: { contains: search } },
+        { title: { contains: search } },
+        { department: { contains: search } },
       ];
     }
 
@@ -48,10 +48,7 @@ export async function GET(request: NextRequest) {
 
     if (organization) {
       where.organization = {
-        OR: [
-          { name: { contains: organization, mode: 'insensitive' } },
-          { domain: { contains: organization, mode: 'insensitive' } },
-        ],
+        OR: [{ name: { contains: organization } }, { domain: { contains: organization } }],
       };
     }
 

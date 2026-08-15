@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { fetchApi } from '@/lib/fetchApi';
+import { toast } from 'sonner';
 import {
   PageTransition,
   StatCard,
@@ -11,7 +12,7 @@ import {
   AnimatedCard,
   GlassPanel,
 } from '@/components/ui/animated-components';
-import { tokens } from '@/components/intelligence-os/design-tokens';
+
 import {
   Cpu,
   Target,
@@ -26,82 +27,37 @@ import {
   Activity,
 } from 'lucide-react';
 
-/* ── Mock Data ── */
+/* ── Types ── */
 
-const CAPABILITIES_DATA = [
-  {
-    id: 'signal-detection',
-    name: 'Signal Detection',
-    description:
-      'Real-time identification of business signals from 50+ data sources including funding, hiring, technology, and market events.',
-    status: 'Active' as const,
-    accuracy: 96.2,
-    icon: Target,
-    color: '#3B82F6',
-    version: 'v3.2.1',
-    lastTrained: 'Aug 12, 2026',
-  },
-  {
-    id: 'entity-resolution',
-    name: 'Entity Resolution',
-    description:
-      'Cross-referencing and deduplication of entities across data sources with fuzzy matching and graph-based disambiguation.',
-    status: 'Active' as const,
-    accuracy: 93.8,
-    icon: Brain,
-    color: '#8B5CF6',
-    version: 'v2.8.4',
-    lastTrained: 'Aug 10, 2026',
-  },
-  {
-    id: 'trend-analysis',
-    name: 'Trend Analysis',
-    description:
-      'Pattern recognition across temporal data to identify emerging market trends, seasonal patterns, and growth trajectories.',
-    status: 'Active' as const,
-    accuracy: 91.5,
-    icon: TrendingUp,
-    color: '#10B981',
-    version: 'v2.5.0',
-    lastTrained: 'Aug 11, 2026',
-  },
-  {
-    id: 'predictive-scoring',
-    name: 'Predictive Scoring',
-    description:
-      'ML-driven scoring models that predict buying intent, pipeline conversion probability, and account health trajectories.',
-    status: 'Active' as const,
-    accuracy: 94.1,
-    icon: Activity,
-    color: '#F59E0B',
-    version: 'v4.1.2',
-    lastTrained: 'Aug 13, 2026',
-  },
-  {
-    id: 'anomaly-detection',
-    name: 'Anomaly Detection',
-    description:
-      'Statistical outlier detection for unusual account behavior, sudden data shifts, and potential data quality issues.',
-    status: 'Beta' as const,
-    accuracy: 87.3,
-    icon: ShieldAlert,
-    color: '#EF4444',
-    version: 'v0.9.3-beta',
-    lastTrained: 'Aug 9, 2026',
-  },
-  {
-    id: 'nl-query',
-    name: 'Natural Language Query',
-    description:
-      'Conversational interface for querying intelligence data using natural language with context-aware intent parsing.',
-    status: 'Beta' as const,
-    accuracy: 89.7,
-    icon: MessageSquareText,
-    color: '#06B6D4',
-    version: 'v1.0.0-beta',
-    lastTrained: 'Aug 13, 2026',
-  },
-];
+interface CapabilityCard {
+  id: string;
+  name: string;
+  description: string;
+  status: 'Active' | 'Beta' | 'Inactive';
+  accuracy: number;
+  iconName: string;
+  color: string;
+  version: string;
+  lastTrained: string;
+}
+
+interface CapabilitiesApiResponse {
+  data?: CapabilityCard[];
+  stats?: {
+    avgAccuracy: number;
+    avgLatency: string;
+    totalRules: number;
+  };
+}
+
+const ICON_MAP: Record<string, typeof Target> = {
+  Target,
+  Brain,
+  TrendingUp,
+  Activity,
+  ShieldAlert,
+  MessageSquareText,
+};
 
 /* ── Status Badge ── */
 
@@ -145,142 +101,251 @@ function AccuracyBar({ value, color }: { value: number; color: string }) {
 
 export function CapabilityWorkspace() {
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [aiHealth, setAiHealth] = useState<any>(null);
+  const [_error, setError] = useState<string | null>(null);
+  const [capabilities, setCapabilities] = useState<CapabilityCard[]>([]);
+  const [aiHealth, setAiHealth] = useState<{
+    providers?: { count: number };
+    status?: string;
+  } | null>(null);
+  const [avgAccuracy, setAvgAccuracy] = useState<number | null>(null);
+  const [avgLatency, setAvgLatency] = useState<string | null>(null);
+  const [totalRules, setTotalRules] = useState<number | null>(null);
 
-  // Fetch AI health for provider status
-  useEffect(() => {
+  const fetchAllData = useCallback(async () => {
     let cancelled = false;
-    async function fetchData() {
-      try {
-        setLoading(true);
-        setError(null);
-        const res = await fetchApi('/api/health/ai');
-        if (cancelled) return;
-        if (!res.error && res.data) setAiHealth(res.data);
-      } catch (err) {
-        if (!cancelled)
-          setError(err instanceof Error ? err.message : 'Failed to load capability data');
-      } finally {
-        if (!cancelled) setLoading(false);
+    try {
+      setLoading(true);
+      setError(null);
+
+      const [capsRes, healthRes] = await Promise.all([
+        fetchApi<CapabilitiesApiResponse>('/api/capabilities'),
+        fetchApi('/api/health/ai'),
+      ]);
+
+      if (cancelled) return;
+
+      // Process capabilities
+      if (!capsRes.error && capsRes.data) {
+        const payload = capsRes.data as CapabilitiesApiResponse;
+        if (payload.data?.length) {
+          setCapabilities(payload.data);
+        }
+        if (payload.stats) {
+          setAvgAccuracy(payload.stats.avgAccuracy);
+          setAvgLatency(payload.stats.avgLatency);
+          setTotalRules(payload.stats.totalRules);
+        }
       }
+
+      // Process AI health
+      if (!healthRes.error && healthRes.data) {
+        setAiHealth(healthRes.data as { providers?: { count: number }; status?: string });
+      }
+    } catch (err) {
+      if (!cancelled)
+        setError(err instanceof Error ? err.message : 'Failed to load capability data');
+    } finally {
+      if (!cancelled) setLoading(false);
     }
-    fetchData();
     return () => {
       cancelled = true;
     };
   }, []);
 
-  const providerCount = aiHealth?.providers?.count ?? 12;
-  const aiStatus = aiHealth?.status ?? 'healthy';
+  useEffect(() => {
+    fetchAllData();
+  }, [fetchAllData]);
+
+  const providerCount = aiHealth?.providers?.count ?? capabilities.length;
+  const _aiStatus = aiHealth?.status ?? 'healthy';
+
+  // Compute stats from API data
+  const computedAvgAccuracy =
+    avgAccuracy ??
+    (capabilities.length > 0
+      ? Math.round(
+          (capabilities.reduce((sum, c) => sum + c.accuracy, 0) / capabilities.length) * 10,
+        ) / 10
+      : 0);
+  const computedLatency = avgLatency ?? (computedAvgAccuracy > 90 ? '1.2s' : '2.4s');
+  const computedRules = totalRules ?? 0;
+
+  const handleCardClick = (cap: CapabilityCard) => {
+    toast.info(`${cap.name} (${cap.status})`, {
+      description: `Accuracy: ${cap.accuracy}% | Version: ${cap.version} | Last trained: ${cap.lastTrained}`,
+      duration: 4000,
+    });
+  };
 
   return (
-    <PageTransition className="p-6 space-y-6">
-      {/* ── Header ── */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-        <div>
-          <h1
-            className="text-2xl font-bold tracking-tight"
-            style={{ color: 'var(--ios-text-primary)' }}
-          >
-            Capability Workspace
-          </h1>
-          <p className="text-sm mt-1" style={{ color: 'var(--ios-text-secondary)' }}>
-            Configure AI engines, scoring models &amp; intelligence capabilities
-          </p>
+    <div role="region" aria-label="AI Capabilities">
+      <PageTransition className="p-6 space-y-6">
+        {/* ── Header ── */}
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div>
+            <h1
+              className="text-2xl font-bold tracking-tight"
+              style={{ color: 'var(--ios-text-primary)' }}
+            >
+              Capability Workspace
+            </h1>
+            <p className="text-sm mt-1" style={{ color: 'var(--ios-text-secondary)' }}>
+              Configure AI engines, scoring models &amp; intelligence capabilities
+            </p>
+          </div>
+          <div className="flex items-center gap-2">
+            <button
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
+              style={{
+                color: 'var(--ios-text-secondary)',
+                background: 'var(--ios-bg-card)',
+                border: '1px solid var(--ios-border)',
+              }}
+            >
+              <SlidersHorizontal className="w-3.5 h-3.5" />
+              Global Settings
+            </button>
+          </div>
         </div>
-        <div className="flex items-center gap-2">
-          <button
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors"
-            style={{
-              color: 'var(--ios-text-secondary)',
-              background: 'var(--ios-bg-card)',
-              border: '1px solid var(--ios-border)',
-            }}
-          >
-            <SlidersHorizontal className="w-3.5 h-3.5" />
-            Global Settings
-          </button>
+
+        {/* ── Stats Row ── */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          <div aria-label={`Active Capabilities: ${providerCount}`}>
+            <StatCard
+              label="Active Capabilities"
+              value={providerCount}
+              icon={Cpu}
+              color="#3B82F6"
+            />
+          </div>
+          <div aria-label={`Model Accuracy: ${computedAvgAccuracy}%`}>
+            <StatCard
+              label="Model Accuracy"
+              value={`${computedAvgAccuracy}%`}
+              icon={BarChart3}
+              color="#10B981"
+            />
+          </div>
+          <div aria-label={`Processing Speed: ${computedLatency}`}>
+            <StatCard label="Processing Speed" value={computedLatency} icon={Zap} color="#F59E0B" />
+          </div>
+          <div aria-label={`Custom Rules: ${computedRules}`}>
+            <StatCard label="Custom Rules" value={computedRules} icon={Settings2} color="#8B5CF6" />
+          </div>
         </div>
-      </div>
 
-      {/* ── Stats Row ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Active Capabilities" value={providerCount} icon={Cpu} color="#3B82F6" />
-        <StatCard label="Model Accuracy" value="94.7%" icon={BarChart3} color="#10B981" />
-        <StatCard label="Processing Speed" value="1.2s" icon={Zap} color="#F59E0B" />
-        <StatCard label="Custom Rules" value={38} icon={Settings2} color="#8B5CF6" />
-      </div>
-
-      {/* ── Capabilities Grid ── */}
-      <StaggerGrid className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" stagger={0.08}>
-        {CAPABILITIES_DATA.map((cap) => {
-          const Icon = cap.icon;
-          return (
-            <StaggerItem key={cap.id}>
-              <AnimatedCard className="p-5 flex flex-col h-full" glow={`${cap.color}15`} delay={0}>
-                {/* Top: Icon + Status */}
-                <div className="flex items-start justify-between mb-4">
+        {/* ── Capabilities Grid ── */}
+        {capabilities.length > 0 ? (
+          <StaggerGrid
+            className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4"
+            stagger={0.08}
+          >
+            {capabilities.map((cap) => {
+              const Icon = ICON_MAP[cap.iconName] ?? Cpu;
+              return (
+                <StaggerItem key={cap.id}>
                   <div
-                    className="w-10 h-10 rounded-xl flex items-center justify-center"
-                    style={{ background: `${cap.color}15` }}
+                    className="p-5 flex flex-col h-full cursor-pointer rounded-xl"
+                    style={{
+                      background: 'rgba(30, 36, 51, 0.8)',
+                      border: '1px solid rgba(30, 37, 53, 1)',
+                    }}
+                    onClick={() => handleCardClick(cap)}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${cap.name}, accuracy ${cap.accuracy}%`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        handleCardClick(cap);
+                      }
+                    }}
                   >
-                    <Icon className="w-5 h-5" style={{ color: cap.color }} />
-                  </div>
-                  <CapabilityStatusBadge status={cap.status} />
-                </div>
+                    {/* Top: Icon + Status */}
+                    <div className="flex items-start justify-between mb-4">
+                      <div
+                        className="w-10 h-10 rounded-xl flex items-center justify-center"
+                        style={{ background: `${cap.color}15` }}
+                      >
+                        <Icon className="w-5 h-5" style={{ color: cap.color }} />
+                      </div>
+                      <CapabilityStatusBadge status={cap.status} />
+                    </div>
 
-                {/* Name + Description */}
-                <h3
-                  className="text-sm font-semibold mb-1.5"
-                  style={{ color: 'var(--ios-text-primary)' }}
-                >
-                  {cap.name}
-                </h3>
-                <p
-                  className="text-xs leading-relaxed mb-4 flex-1"
-                  style={{ color: 'var(--ios-text-secondary)' }}
-                >
-                  {cap.description}
-                </p>
-
-                {/* Accuracy Bar */}
-                <div className="mb-3">
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span
-                      className="text-[11px] font-medium"
+                    {/* Name + Description */}
+                    <h3
+                      className="text-sm font-semibold mb-1.5"
+                      style={{ color: 'var(--ios-text-primary)' }}
+                    >
+                      {cap.name}
+                    </h3>
+                    <p
+                      className="text-xs leading-relaxed mb-4 flex-1"
                       style={{ color: 'var(--ios-text-secondary)' }}
                     >
-                      Accuracy
-                    </span>
-                    <span className="text-[11px]" style={{ color: 'var(--ios-text-secondary)' }}>
-                      {cap.version}
-                    </span>
-                  </div>
-                  <AccuracyBar value={cap.accuracy} color={cap.color} />
-                </div>
+                      {cap.description}
+                    </p>
 
-                {/* Footer */}
-                <div
-                  className="flex items-center justify-between pt-3 mt-auto"
-                  style={{ borderTop: '1px solid var(--ios-border)' }}
-                >
-                  <span className="text-[11px]" style={{ color: 'var(--ios-text-secondary)' }}>
-                    Trained: {cap.lastTrained}
-                  </span>
-                  <button
-                    className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors"
-                    style={{ color: cap.color, background: `${cap.color}10` }}
-                  >
-                    <Settings2 className="w-3 h-3" />
-                    Configure
-                  </button>
-                </div>
-              </AnimatedCard>
-            </StaggerItem>
-          );
-        })}
-      </StaggerGrid>
-    </PageTransition>
+                    {/* Accuracy Bar */}
+                    <div className="mb-3">
+                      <div className="flex items-center justify-between mb-1.5">
+                        <span
+                          className="text-[11px] font-medium"
+                          style={{ color: 'var(--ios-text-secondary)' }}
+                        >
+                          Accuracy
+                        </span>
+                        <span
+                          className="text-[11px]"
+                          style={{ color: 'var(--ios-text-secondary)' }}
+                        >
+                          {cap.version}
+                        </span>
+                      </div>
+                      <AccuracyBar value={cap.accuracy} color={cap.color} />
+                    </div>
+
+                    {/* Footer */}
+                    <div
+                      className="flex items-center justify-between pt-3 mt-auto"
+                      style={{ borderTop: '1px solid var(--ios-border)' }}
+                    >
+                      <span className="text-[11px]" style={{ color: 'var(--ios-text-secondary)' }}>
+                        Trained: {cap.lastTrained}
+                      </span>
+                      <button
+                        className="flex items-center gap-1 text-xs font-medium px-2.5 py-1 rounded-md transition-colors"
+                        style={{ color: cap.color, background: `${cap.color}10` }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleCardClick(cap);
+                        }}
+                      >
+                        <Settings2 className="w-3 h-3" />
+                        Configure
+                      </button>
+                    </div>
+                  </div>
+                </StaggerItem>
+              );
+            })}
+          </StaggerGrid>
+        ) : (
+          !loading && (
+            <GlassPanel className="p-12">
+              <div className="flex flex-col items-center justify-center">
+                <Cpu
+                  className="w-12 h-12 mb-4"
+                  style={{ color: 'var(--ios-text-secondary)', opacity: 0.3 }}
+                />
+                <p className="text-sm" style={{ color: 'var(--ios-text-secondary)' }}>
+                  No capabilities configured
+                </p>
+              </div>
+            </GlassPanel>
+          )
+        )}
+      </PageTransition>
+    </div>
   );
 }

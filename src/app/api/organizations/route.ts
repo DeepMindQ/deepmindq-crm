@@ -30,9 +30,9 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
     if (search) {
       where.OR = [
-        { name: { contains: search, mode: 'insensitive' } },
-        { domain: { contains: search, mode: 'insensitive' } },
-        { industry: { contains: search, mode: 'insensitive' } },
+        { name: { contains: search } },
+        { domain: { contains: search } },
+        { industry: { contains: search } },
       ];
     }
     if (status && status !== 'all') {

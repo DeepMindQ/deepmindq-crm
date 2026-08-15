@@ -31,29 +31,19 @@ export async function getPoolMetrics(): Promise<PoolMetrics | null> {
   try {
     const { db } = await import('@/lib/db');
 
-    // Try PostgreSQL pool metrics query
-    const result = await db.$queryRaw<Array<{ count: string }>>`
-      SELECT count(*) as count
-      FROM pg_stat_activity
-      WHERE datname = current_database()
+    // SQLite pool metrics — single file connection, simplified metrics
+    const result = await db.$queryRaw<Array<{ count: number }>>`
+      SELECT 1 as count
     `;
 
-    const totalConnections = parseInt(result[0]?.count || '0', 10);
-    const poolSize = parseInt(process.env.DATABASE_POOL_SIZE || '10', 10);
-
-    // Estimate active vs idle from pool configuration
-    const activeConnections = Math.min(
-      Math.ceil(totalConnections * 0.3), // ~30% active estimate
-      poolSize,
-    );
-    const idleConnections = Math.max(totalConnections - activeConnections, 0);
+    const poolSize = 1; // SQLite uses a single connection per file
 
     return {
-      totalConnections,
-      activeConnections,
-      idleConnections,
-      waitingRequests: 0, // pg doesn't expose this easily via query
-      poolUtilizationPercent: poolSize > 0 ? Math.round((activeConnections / poolSize) * 100) : 0,
+      totalConnections: poolSize,
+      activeConnections: result.length > 0 ? 1 : 0,
+      idleConnections: 0,
+      waitingRequests: 0,
+      poolUtilizationPercent: result.length > 0 ? 100 : 0,
     };
   } catch (err) {
     // DB not available or not PostgreSQL — return null

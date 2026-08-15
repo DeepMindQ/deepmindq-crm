@@ -1,726 +1,788 @@
 #!/usr/bin/env python3
-"""Generate DeepMindQ Intelligence OS - Comprehensive Audit Report PDF."""
+"""Generate the 200-question DeepMindQ audit report as PDF."""
 
 import os
 from reportlab.lib.pagesizes import A4
-from reportlab.lib.units import inch, mm
+from reportlab.lib.units import mm
+from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.lib.colors import HexColor
-from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.enums import TA_LEFT, TA_CENTER, TA_JUSTIFY
 from reportlab.platypus import (
-    SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak,
-    KeepTogether, HRFlowable
+    SimpleDocTemplate, Paragraph, Spacer, PageBreak,
+    Table, TableStyle, KeepTogether, HRFlowable,
 )
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
+from reportlab.platypus.flowables import BalancedColumns
 from reportlab.pdfbase import pdfmetrics
-from reportlab.pdfbase.ttfonts import TTFont
-from reportlab.pdfbase.pdfmetrics import registerFontFamily
+from reportbase.pdfbase.ttfonts import TTFont
+from reportlab.platypus import Paragraph
+from reportlab.lib.colors import Color
 
-# ── Font Registration ──
 FONT_DIR = '/usr/share/fonts'
-pdfmetrics.registerFont(TTFont('NotoSerif', f'{FONT_DIR}/truetype/noto-serif-sc/NotoSerifSC-Regular.ttf'))
-pdfmetrics.registerFont(TTFont('NotoSerifBold', f'{FONT_DIR}/truetype/noto-serif-sc/NotoSerifSC-Bold.ttf'))
-registerFontFamily('NotoSerif', normal='NotoSerif', bold='NotoSerifBold')
 
-# ── Color Palette (Dark Intelligence OS Theme) ──
-C = {
-    'page_bg': HexColor('#0f0e0d'),
-    'section_bg': HexColor('#201f1c'),
-    'card_bg': HexColor('#2b2923'),
-    'header_fill': HexColor('#47402e'),
-    'border': HexColor('#5f5843'),
-    'accent': HexColor('#dcc786'),
-    'accent_blue': HexColor('#3B82F6'),
-    'text_primary': HexColor('#efefee'),
-    'text_muted': HexColor('#8c8982'),
-    'success': HexColor('#6fb185'),
-    'warning': HexColor('#b99e68'),
-    'error': HexColor('#b96d66'),
-    'critical_red': HexColor('#EF4444'),
-    'critical_bg': HexColor('#3b1818'),
-    'high_amber': HexColor('#F59E0B'),
-    'high_bg': HexColor('#3b2f10'),
-    'medium_blue': HexColor('#3B82F6'),
-    'medium_bg': HexColor('#1a2332'),
-    'low_green': HexColor('#10B981'),
-    'low_bg': HexColor('#0f2b1f'),
-    'white': HexColor('#ffffff'),
-}
+# Register fonts
+pdfmetrics.registerFont(TTFont('NotoSerifSC', f'{FONT_DIR}/truetype/noto-serif-sc/NotoSerifSC-Regular.ttf'))
+pdfmetrics.registerFont(TTFont('NotoSansSC', f'{FONT_DIR}/truetype/chinese/NotoSansSC-Regular.ttf'))
+pdfmetrics.registerFont(TTFont('DejaVuSans', f'{FONT_DIR}/truetype/dejavu/DejaVuSans.ttf'))
+pdfmetrics.registerFont(TTFont('DejaVuSansMono', f'{FONT_DIR}/truetype/dejavu/DejaVuSansMono.ttf'))
+pdfmetrics.registerFontFamily('NotoSansSC', normal='NotoSansSC', bold='NotoSansSC')
+pdfmetrics.registerFontFamily('DejaVu', normal='DejaVuSans')
 
-# ── Styles ──
-styles = getSampleStyleSheet()
+# Colors
+BG = HexColor('#0a0c10')
+DARK_BG = HexColor('#141821')
+ACCENT = HexColor('#3B82F6')
+WHITE = HexColor('#e8ecf4')
+TEXT_PRIMARY = HexColor('#e8ecf4')
+TEXT_SECONDARY = HexColor('#8892a8')
+RED = HexColor('#EF4444')
+ORANGE = HexColor('#F59E0B')
+GREEN = HexColor('#10B981')
+YELLOW = HexColor('#EAB308')
+PURPLE = HexColor('#8B5CF6')
+LIGHT_RED = HexColor('#FEE2E2')
+LIGHT_GREEN = HexColor('#DCFCE7')
+LIGHT_ORANGE = HexFile('#FEF3C7')
+LIGHT_BLUE = HexColor('#DBEAFE')
 
-s_title = ParagraphStyle('Title', parent=styles['Title'], fontName='NotoSerifBold',
-    fontSize=28, leading=34, textColor=C['text_primary'], spaceAfter=6)
-s_subtitle = ParagraphStyle('Subtitle', parent=styles['Normal'], fontName='NotoSerif',
-    fontSize=14, leading=20, textColor=C['text_muted'], spaceAfter=20)
-s_h1 = ParagraphStyle('H1', fontName='NotoSerifBold', fontSize=20, leading=26,
-    textColor=C['accent'], spaceBefore=24, spaceAfter=10)
-s_h2 = ParagraphStyle('H2', fontName='NotoSerifBold', fontSize=15, leading=20,
-    textColor=C['text_primary'], spaceBefore=18, spaceAfter=8)
-s_h3 = ParagraphStyle('H3', fontName='NotoSerifBold', fontSize=12, leading=16,
-    textColor=C['accent_blue'], spaceBefore=12, spaceAfter=6)
-s_body = ParagraphStyle('Body', fontName='NotoSerif', fontSize=10, leading=15,
-    textColor=C['text_primary'], alignment=TA_JUSTIFY, spaceAfter=8)
-s_body_sm = ParagraphStyle('BodySm', fontName='NotoSerif', fontSize=9, leading=13,
-    textColor=C['text_primary'], alignment=TA_JUSTIFY, spaceAfter=6)
-s_bullet = ParagraphStyle('Bullet', fontName='NotoSerif', fontSize=10, leading=14,
-    textColor=C['text_primary'], leftIndent=18, bulletIndent=6, spaceAfter=4)
-s_muted = ParagraphStyle('Muted', fontName='NotoSerif', fontSize=9, leading=13,
-    textColor=C['text_muted'], spaceAfter=4)
-s_table_header = ParagraphStyle('TH', fontName='NotoSerifBold', fontSize=8,
-    leading=11, textColor=C['text_primary'])
-s_table_cell = ParagraphStyle('TC', fontName='NotoSerif', fontSize=8,
-    leading=11, textColor=C['text_primary'])
-s_table_cell_muted = ParagraphStyle('TCM', fontName='NotoSerif', fontSize=8,
-    leading=11, textColor=C['text_muted'])
-s_kpi = ParagraphStyle('KPI', fontName='NotoSerifBold', fontSize=24, leading=28,
-    textColor=C['accent'], alignment=TA_CENTER)
-s_kpi_label = ParagraphStyle('KPILabel', fontName='NotoSerif', fontSize=9,
-    leading=12, textColor=C['text_muted'], alignment=TA_CENTER)
+FULLY_WORKING = 'FULLY WORKING'
+PARTIAL = 'PARTIALLY IMPLEMENTED'
+MOCKED = 'MOCKED'
+UI_ONLY = 'UI ONLY'
+BACKEND_ONLY = 'BACKEND ONLY'
+DEAD_CODE = 'DEAD CODE'
+BROKEN = 'BROKEN'
+NOT_IMPL = 'NOT IMPLEMENTED'
 
-# ── Helper Functions ──
-def heading(text, style=s_h1):
-    return Paragraph(text, style)
+def verdict_color(v):
+    colors = {
+        FULLY_WORKING: GREEN, PARTIAL: YELLOW, MOCKED: ORANGE,
+        UI_ONLY: PURPLE, BACKEND_ONLY: HexColor('#60a5fa'),
+        DEAD_CODE: HexColor('#9ca3af'), BROKEN: RED, NOT_IMPL: HexColor('#6b7280'),
+    }
+    return colors.get(v, HexColor('#6b7280'))
 
-def body(text):
-    return Paragraph(text, s_body)
+def status_line(verdict, detail):
+    """Build a verdict badge line."""
+    color = verdict_color(verdict)
+    return f'<font color="{color.hexval()}">{verdict}</font>: {detail}'
 
-def body_sm(text):
-    return Paragraph(text, s_body_sm)
+def heading(text, level=1, number=None):
+    prefix = f'{number}. ' if number else ''
+    return Paragraph(f'{prefix}{text}', style=f'Heading{level}',
+                       textColor=ACCENT, fontSize=[16,14,12,10][level-1],
+                       spaceAfter=6)
 
-def bullet(text):
-    return Paragraph(f'\xe2\x80\xa2 {text}', s_bullet)
+def subheading(text):
+    return Paragraph(text, style='Heading3', textColor=WHITE, fontSize=10, spaceAfter=4)
 
-def muted(text):
-    return Paragraph(text, s_muted)
+def body(text, indent=0):
+    return Paragraph(text, style='BodyText', textColor=TEXT_PRIMARY, fontSize=8.5,
+                       leftIndent=indent*12, spaceAfter=3, leading=12,
+                       alignment=TA_JUSTIFY)
 
-def spacer(h=6):
-    return Spacer(1, h)
+def small(text, indent=0):
+    return Paragraph(text, style='Normal', textColor=TEXT_SECONDARY, fontSize=7.5,
+                       leftIndent=indent*12, spaceAfter=2, leading=10)
 
-def hr():
-    return HRFlowable(width="100%", thickness=1, color=C['border'], spaceBefore=8, spaceAfter=8)
+def divider():
+    return HRFlowable(width='80%', thickness=0.5, color=HexColor('#1e2535'),
+                       spaceAfter=6, spaceBefore=4)
 
-def severity_badge(text, color, bg):
-    return Paragraph(
-        f'<font color="{color.hexval()}" backColor="{bg.hexval()}">'
-        f'<b>&nbsp;{text}&nbsp;</b></font>', s_table_cell
-    )
+def spacer(h=4):
+    return Spacer(1, h*mm)
 
-def stat_row(label, value, note=''):
-    data = [[Paragraph(f'<b>{label}</b>', s_table_cell_muted),
-             Paragraph(f'<b>{value}</b>', ParagraphStyle('StatVal', fontName='NotoSerifBold',
-                 fontSize=14, leading=18, textColor=C['accent'])),
-             Paragraph(note, s_table_cell_muted)]]
-    t = Table(data, colWidths=[150, 80, 260])
-    t.setStyle(TableStyle([
-        ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-        ('LINEBELOW', (0,0), (-1,-1), 0.5, C['border']),
-        ('LEFTPADDING', (0,0), (-1,-1), 6),
-        ('RIGHTPADDING', (0,0), (-1,-1), 6),
-        ('TOPPADDING', (0,0), (-1,-1), 4),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
-    ]))
-    return t
+def question_block(q_num, question, verdict, evidence, impact=''):
+    """Build a single question entry."""
+    elements = []
+    color = verdict_color(verdict)
 
-def make_table(headers, rows, col_widths=None):
-    header_row = [Paragraph(h, s_table_header) for h in headers]
-    data = [header_row]
-    for row in rows:
-        data.append([Paragraph(str(c), s_table_cell) for c in row])
-    
-    if not col_widths:
-        col_widths = [490 / len(headers)] * len(headers)
-    
-    t = Table(data, colWidths=col_widths, repeatRows=1)
-    t.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,0), C['header_fill']),
-        ('TEXTCOLOR', (0,0), (-1,0), C['text_primary']),
-        ('GRID', (0,0), (-1,-1), 0.5, C['border']),
-        ('VALIGN', (0,0), (-1,-1), 'TOP'),
-        ('LEFTPADDING', (0,0), (-1,-1), 4),
-        ('RIGHTPADDING', (0,0), (-1,-1), 4),
-        ('TOPPADDING', (0,0), (-1,-1), 3),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 3),
-        ('ROWBACKGROUNDS', (0,1), (-1,-1), [C['section_bg'], C['card_bg']]),
-    ]))
-    return t
+    # Question line
+    q_style = ParagraphStyle('Q', fontName='NotoSansSC', fontSize=8.5,
+                              textColor=TEXT_PRIMARY, spaceAfter=2, leading=11)
+    elements.append(Paragraph(f'<font color="{ACCENT.hexval()}">Q{q_num}.</font> {question}', style=q_style))
 
-def severity_table(items):
-    """Items: list of (priority, title, description, impact) tuples."""
-    headers = ['#', 'Severity', 'Finding', 'Impact']
-    rows = []
-    for i, (sev, title, desc, impact) in enumerate(items, 1):
-        rows.append([str(i), sev, f'<b>{title}</b><br/>{desc}', impact])
-    t = make_table(headers, rows, [20, 55, 260, 155])
-    return t
+    # Verdict badge
+    v_style = ParagraphStyle('V', fontName='NotoSansSC', fontSize=8,
+                              textColor=color, spaceAfter=2, leading=11,
+                              backColor=Color(0.15, 0.15, 0.2),
+                              borderColor=color, borderWidth=0.5,
+                              borderPadding=(2,4,2,4))
+    elements.append(Paragraph(f'  {verdict}', style=v_style))
+
+    # Evidence
+    if evidence:
+        e_style = ParagraphStyle('E', fontName='DejaVuSansMono', fontSize=7,
+                                  textColor=HexColor('#94a3b8'), spaceAfter=2, leading=9,
+                                  leftIndent=6, backColor=Color(0.08, 0.08, 0.12))
+        elements.append(Paragraph(evidence, style=e_style))
+
+    # Impact
+    if impact:
+        i_style = ParagraphStyle('I', fontName='NotoSansSC', fontSize=7.5,
+                                  textColor=ORANGE if 'P0' in impact or 'CRITICAL' in impact.upper() else YELLOW,
+                                  spaceAfter=3, leading=10, leftIndent=6)
+        elements.append(Paragraph(impact, style=i_style))
+
+    return elements
+
+def section_scorecard(title, scores_dict):
+    """Build a mini scorecard table for a section."""
+    cells = []
+    total = len(scores_dict)
+    counts = {}
+    for v in scores_dict.values():
+        counts[v] = counts.get(v, 0) + 1
+
+    data = [
+        ['Verdict', 'Count', '%', 'Trend'],
+    ]
+    for verdict in [FULLY_WORKING, PARTIAL, MOCKED, UI_ONLY, BACKEND_ONLY, DEAD_CODE, BROKEN, NOT_IMPL]:
+        c = counts.get(verdict, 0)
+        pct = f'{c/total*100:.0f}%' if total > 0 else '0%'
+        cells.append([Paragraph(f'<font color="{verdict_color(verdict).hexval()}">{verdict}</font>'),
+                      Paragraph(str(c)), Paragraph(pct), Paragraph('')])
+
+    style = TableStyle([
+        ('GRID', (0, WHITE, WHITE)),
+        ('VALIGN', (0, 'MIDDLE')),
+        ('TOPPADDING', (2, 3)),
+        ('BOTTOMPADDING', (2, 3)),
+    ])
+    style.add('LINEABOVE', (0.5, HexColor('#1e2535')))
+    style.add('LINEBELOW', (0.5, HexColor('#1e2535')))
+    style.add('BACKGROUND', (0, DARK_BG))
+
+    t = Table(data, colWidths=[95, 40, 40, 20], style=style)
+    t.hAlign = 'LEFT'
+    for row in t.rows:
+        for cell in row.cells:
+            for p in cell.paragraphs:
+                p.fontName = 'NotoSansSC'
+                p.fontSize = 7.5
+
+    elements = [subheading(f'Section Scorecard: {title}')]
+    elements.append(t)
+    return elements
+
+def build_section(q_start, q_end, title, scores_dict, questions_data):
+    """Build all content for one section."""
+    elements = []
+    elements.append(PageBreak())
+    elements.append(heading(title, number=q_start // 20 + 1))
+    elements.append(section_scorecard(title, scores_dict))
+
+    for i, (verdict, evidence, impact) in enumerate(questions_data, start=q_start):
+        q = i + 1
+        elements.extend(question_block(q, f'{verdict[0]}', verdict[1], evidence, impact))
+
+    return elements
 
 
-# ── Build Document ──
-OUTPUT = '/home/z/my-project/download/deepmindq-audit-report.pdf'
-os.makedirs(os.path.dirname(OUTPUT), exist_ok=True)
+# ═════════════════════════════════════════════════════════════════════
+# REPORT DATA — 200 Questions
+# ═══════════════════════════════════════════════════════════════════
+
+sections = [
+    (1, 15, 'PRODUCT PURPOSE & PROBLEM SOLUTION',
+     {
+         FULLY_WORKING: 0, PARTIAL: 6, MOCKED: 3, UI_ONLY: 2, BACKEND_ONLY: 2,
+         DEAD_CODE: 0, BROKEN: 1, NOT_IMPL: 1,
+     },
+     [
+         (PARTIAL, 'Stated problem: sales teams waste time researching accounts, miss buying signals, can\'t match capabilities to opportunities.',
+          'product-purpose.md, app/layout.tsx:14-16, demo/page.tsx:38-40'),
+         (PARTIAL, 'Backend engines (reasoning, signals, KG) exist but upload→process→intel pipeline is disconnected. A paying customer sees a polished shell with fake impressive numbers.',
+          'reasoning/engine.ts, signals/engine.ts, knowledge-graph/engine.ts — all real code, none wired to upload flow'),
+         (PARTIAL, 'The first 5 minutes show fake data: hardcoded "2,847 organizations" on the Intelligence Hub, not real DB counts. Stats API exists but dashboard ignores it.',
+          'intelligence-hub-screen.tsx:78-137 — hardcoded stats, getMockTopOrgs(), getMockTimeline()'),
+         (PARTIAL, 'Only manual trigger via POST /api/advisor/pipeline. No UI button, no automatic trigger after upload.',
+          'advisor/pipeline/route.ts:7-9 — runIntelligencePipeline() exists but no frontend button calls it'),
+         (PARTIAL, 'Claims to improve deal close rates, research efficiency, decision quality. Zero measurement of these outcomes. No ROI dashboard.',
+          'No analytics tracking exists for business outcomes. Demo page claims "$0.08 Cost/Company" but these are static marketing numbers.'),
+         (PARTIAL, 'Has AI reasoning engine that generates narratives, recommendations, suggested messages. Template fallback works without LLM. But pipeline is disconnected.',
+          'reasoning/engine.ts:50-96 — LLM + template fallback. LLM path genuinely reasons; template is string concatenation'),
+         (UI_ONLY, 'New user sees fake impressive numbers and 70+ nav items. "2,847 organizations" when they have zero data.',
+          'intelligence-hub-screen.tsx:78-137 — all hardcoded. Empty state never shown'),
+         (NOT_IMPL, 'No ROI measurement exists. No conversion tracking, no time-saved metrics, no win-rate tracking.',
+          'No analytics or measurement code found anywhere in codebase'),
+         (BACKEND_ONLY, 'Ingestion engine can parse CSV/Excel and extract entities, but engine.ingestFile() is never called from any API route.',
+          'ingestion/engine.ts:38 — fully functional code, zero callers'),
+         (PARTIAL, 'Auth (OTP, rate-limited), file upload, stats API, signal investigate/dismiss — real. Upload processing, intelligence pipeline, auto-trigger — broken.',
+          'auth/login, auth/register, signals/[id]/dismiss — working. ingestion/route.ts saves but never processes'),
+         (PARTIAL, 'Auth, file upload, knowledge graph APIs, signal APIs — real. Intelligence pipeline, enrichment, real-time dashboards — broken.',
+          '50+ API routes returning real DB data. Core architecture is sound'),
+         (BACKEND_ONLY, 'Template reasoning generates recommendations and messages. LLM path generates dynamic insights. But no screen surfaces these.',
+          'Insight.recommendation, Insight.suggestedMessage fields exist but no UI reads them'),
+         (UI_ONLY, 'A paying customer gets a beautiful dashboard with fake data and a file upload that never processes. Near-zero immediate real value.',
+          'Signup → dashboard shows hardcoded numbers. Upload → pending forever. No intelligence generation'),
+     ]),
+    (16, 30, 'FIRST USER EXPERIENCE',
+     {
+         FULLY_WORKING: 5, PARTIAL: 5, MOCKED: 2, UI_ONLY: 3, BACKEND_ONLY: 1,
+         DEAD_CODE: 0, BROKEN: 3, NOT_IMPL: 1,
+     },
+     [
+         (BROKEN, 'No login page exists. Signup redirects to /login which is 404. Post-signup comment says "Mock sign-in." Auth wall prevents dashboard access.',
+          'signup/page.tsx:70 — "Mock sign-in: redirect to dashboard". /login page does not exist'),
+         (MOCKED, 'Intelligence Hub shows hardcoded "2,847" organizations, mock top orgs, mock timeline, mock chart data. Stats API returns real counts but is ignored.',
+          'intelligence-hub-screen.tsx:78-137 — 6 hardcoded stat cards, getMockTopOrgs(), getMockTimeline(), getMockChartData()'),
+         (UI_ONLY, 'Onboarding wizard has polished UI (3 steps, Framer Motion) but saves nothing. All collected data (role, company, preferences) is thrown away on completion.',
+          'user-onboarding-wizard.tsx — goToDashboard() just navigates, zero fetch/save calls'),
+         (NOT_IMPL, 'New user with zero data sees fake populated data. No empty state detection, no "Upload your first file" CTA.',
+          'Welcome Banner shows real stats (0/0/0 for empty user) but Intelligence Hub shows fake numbers'),
+         (PARTIAL, 'File upload has drag-drop UI, validates extension and size (CSV/XLSX/XLS/JSON, ≤50MB), uploads to /api/ingestion with auth.',
+          'data-import-screen.tsx — real upload functionality'),
+         (BROKEN, 'File saved to disk with status "pending" — nothing ever transitions to "processing". Ingestion engine.ingestFile() is never called.',
+          'ingestion/route.ts:131 — status: pending. engine.ts ingestFile() — zero callers'),
+         (UI_ONLY, 'Data Import screen polls for status every 5 seconds. The UI works but the backend never changes status.',
+          'data-import-screen.tsx:57-73 — polling logic built, but nothing to poll for'),
+         (NOT_IMPL, 'No notification system for intelligence completion. Bell icon fetches team activity, not pipeline status.',
+          'page.tsx notification bell fetches /api/team-activity, not intelligence events'),
+         (UI_ONLY, 'Onboarding completed visually but functionally — wizard discards all data. No preferences are persisted.',
+          'user-onboarding-wizard.tsx — setActiveView("dashboard") is the only save'),
+         (BROKEN, 'Signup → Login → 404 circular confusion. "Please sign in" links to /signup (login missing). Post-signup session not created.',
+          'signup/page.tsx:130 → router.push("/login"), /login is 404'),
+         (PARTIAL, 'Sidebar navigation items all switch views via setActiveView. Command palette (Cmd+K) works. But many screens show mock data.',
+          'page.tsx:130-210, screen-map.tsx — all 30+ nav items mapped to real components'),
+         (PARTIAL, 'Sign out button, investigate/dismiss buttons, notification bell — now functional after recent fixes.',
+          'page.tsx sign-out calls /api/auth/logout, operations-center investigate/dismiss work'),
+         (NOT_IMPL, 'No explicit "coming soon" labels, but unfinished features are presented as working — which is worse than honest placeholders.',
+          'No "coming soon" badges anywhere, but Upload → pending forever is deceptive'),
+         (UI_ONLY, 'Visual polish is impressive (dark theme, Framer Motion, glass panels, command palette). But real value demonstration fails.',
+          'Beautiful demo, no substance. First "aha moment" does not occur'),
+     ]),
+    (31, 50, 'DATA INGESTION',
+     {
+         FULLY_WORKING: 0, PARTIAL: 6, MOCKED: 0, UI_ONLY: 0, BACKEND_ONLY: 0,
+         DEAD_CODE: 10, BROKEN: 2, NOT_IMPL: 2,
+     },
+     [
+         (PARTIAL, 'Upload route accepts CSV, XLSX, XLS, JSON files with extension and size validation (≤50MB). Excel parser uses exceljs.',
+          'ingestion/route.ts:95-108 — ACCEPTED_EXTENSIONS check, 50MB limit'),
+         (PARTIAL, 'Custom CSV parser handles BOM and quoted fields. Excel parser uses exceljs. JSON accepted but has zero parsing support.',
+          'parsers.ts — hand-rolled CSV parser + exceljs Excel parser'),
+         (BROKEN, 'CRITICAL: Files upload successfully but are NEVER processed. ingestFile() is defined but has ZERO callers across the entire codebase.',
+          'engine.ts defines ingestFile(). Grep returns only its own definition and re-export'),
+         (DEAD_CODE, 'File parsing, column detection (column-detector.ts), entity extraction (entity-extractor.ts) — all fully written, functional code that never executes.',
+          'parsers.ts, column-detector.ts, entity-extractor.ts — real code, zero callers'),
+         (DEAD_CODE, 'Column detector maps headers via regex (company, revenue, employee_count, email, industry). Entity extractor deduplicates by domain/email.',
+          'column-detector.ts:33-55 — regex-based column mapping. entity-extractor.ts:40-62'),
+         (DEAD_CODE, 'Deduplicates organizations by domain, people by email. Creates Organization/Person records via Prisma. No fuzzy matching.',
+          'engine.ts:98-137 — findFirst per row for dedup (N+1 pattern)'),
+         (DEAD_CODE, 'cleanCompanyName() strips Inc./LLC/Corp./Ltd. suffixes. parseInteger() handles "1,500" → 1500.',
+          'entity-extractor.ts:108-116, 101-106 — real normalization'),
+         (NOT_IMPL, 'No data validation beyond basic type conversion. No revenue format parsing ($5M), no industry taxonomy check, no phone storage.',
+          'Person model has no phone field. Revenue is stored as raw string.'),
+         (PARTIAL, 'UI shows status badges for failed/partial statuses with error counts. DetailPanel can display errorMessage.',
+          'data-import-screen.tsx — status badges, error display'),
+         (BROKEN, 'Retry route resets status to "pending" which also never resolves. Retry is a meaningless no-op.',
+          'ingestion/[id]/retry/route.ts:29-31 — resets to pending, nothing processes pending'),
+         (PARTIAL, 'DataIngestion and DataIngestionRow records stored in SQLite. Uploaded files stored on local filesystem.',
+          'schema.prisma:347-394 — DB records persist. Files in uploads/ingestion/ do NOT.'),
+         (NOT_IMPL, 'No API to list DataIngestionRows. Cannot trace organizations back to specific imports. Source field always "upload".',
+          'No /api/ingestion/rows endpoint. source field hardcoded to "upload" in engine.ts:120'),
+         (DEAD_CODE, 'Engine attempts discoverRelationships() and computeIntelligenceScores() after successful ingestion — but engine never runs.',
+          'engine.ts:215-225 — real pipeline, zero execution'),
+     ]),
+    (51, 65, 'DATABASE & DATA MODEL',
+     {
+         FULLY_WORKING: 3, PARTIAL: 6, MOCKED: 1, UI_ONLY: 0, BACKEND_ONLY: 0,
+         DEAD_CODE: 1, BROKEN: 3, NOT_IMPL: 5,
+     },
+     [
+         (FULLY_WORKING, 'Prisma ORM with 12 models (Organization, Person, Signal, Evidence, Insight, Briefing, Relationship, User, Session, AuditLog, AIUsageLog, PromptTemplate). All actively queried.',
+          'schema.prisma — 12 models, 538 lines. db.* calls throughout API routes'),
+         (FULLY_WORKING, 'Schema relationships are well-designed: Organization→Person (1:N, onDelete: SetNull), Signal→Evidence (1:N, Cascade), etc.',
+          'schema.prisma:142-153 — FK relations with proper cascading'),
+         (PARTIAL, 'SQLite database file persists across restarts (file:/home/z/my-project/db/custom.db, 680KB with seed data).',
+          '.env → DATABASE_URL=file:...custom.db. Data survives server restart'),
+         (NOT_IMPL, 'ZERO database transactions across the entire codebase. No db.$transaction calls anywhere. Multi-step writes have no rollback.',
+          'Grep for db.$transaction returns zero results across src/ directory'),
+         (NOT_IMPL, 'prisma/migrations/ directory does not exist. Database created via prisma db push with no migration history. No rollback capability.',
+          'No migrations directory found. Schema-only push used.'),
+         (PARTIAL, 'Schema alignment is good for core product but gaps: revenue is String (not structured), aliases/keyFindings/riskFactors/recommendedActions are JSON strings (SQLite workaround). No Pipeline/Deal/Opportunity/Sequence/Campaign model.',
+          'schema.prisma — revenue String?, aliases String (JSON), Briefing fields all JSON strings'),
+         (NOT_IMPL, '6 JSON fields hiding missing normalized tables: aliases, evidenceIds, signalIds, keyFindings, riskFactors, recommendedActions, errorDetails, columnMap. None queryable in SQL.',
+          'schema.prisma:118, 297, 315, 348, 347, 386, 391 — all JSON strings'),
+         (NOT_IMPL, 'SQLite fundamentally cannot handle enterprise scale: no concurrent writes, single server, no replication, file-level locking.',
+          'SQLite: no concurrent writes, single server, no read replicas. Prisma default pool not configured for SQLite'),
+         (NOT_IMPL, '6 JSON fields cannot be queried/indexed/joined in SQL. Full table scans + JSON parsing in JavaScript required.',
+          'Aliases, evidenceIds, signalIds, keyFindings etc. require loading all rows and parsing'),
+         (BROKEN, 'No transactions: mergeOrganizations() performs 7 sequential non-transactional updates. Mid-failure = corrupted data. N+1 dedup queries.',
+          'KG engine.ts:178-249 — 7 updateMany calls with no transaction wrapper'),
+         (MOCKED, 'All data is seed script with 30 fictional companies (Anthropic AI, Databricks, etc.). Zero real user data. DataIngestionRow explicitly cleared by seed.',
+          'seed.ts:9 — "All data is fictional but plausible." DataIngestion deleteMany()'),
+     ]),
+    (66, 80, 'ENTITY INTELLIGENCE',
+     {
+         FULLY_WORKING: 5, PARTIAL: 6, MOCKED: 0, UI_ONLY: 2, BACKEND_ONLY: 1,
+         DEAD_CODE: 0, BROKEN: 0, NOT_IMPL: 1,
+     },
+     [
+         (FULLY_WORKING, 'Organizations created via Prisma with 15+ fields (name, domain, aliases, industry, revenue, HQ, employeeCount, foundedYear, etc.).',
+          'schema.prisma:114-153, ingestion/engine.ts:108-122'),
+         (PARTIAL, 'Entity resolution by domain (exact), email (exact), name containment. No NLP embeddings, no fuzzy domain matching (acme.com vs acme.co).',
+          'engine.ts:73-172 — findFirst by domain/email, then contains query for name'),
+         (FULLY_WORKING, 'mergeOrganizations() moves all child records (people, signals, evidence, insights, briefings, relationships) from source to target, adds alias, deletes source.',
+          'engine.ts:178-251 — comprehensive merge with relationship migration'),
+         (FULLY_WORKING, 'Person entities with name, email, title, role, department, seniority. Linked to organizations via FK.',
+          'schema.prisma:156-180, ingestion/engine.ts:131-155'),
+         (FULLY_WORKING, 'People connected to orgs via organizationId FK. Knowledge graph creates works_at relationships automatically.',
+          'schema.prisma:167-168, engine.ts:322-336'),
+         (PARTIAL, 'Auto-discovers 4 relationship types: works_at, coworker, competes_with (same industry), same_region (same HQ). All trivial heuristics.',
+          'engine.ts:357-405 — industry containment and HQ string equality'),
+         (UI_ONLY, 'NO automated enrichment. Security module checks for CLEARBIT/APOLLO API keys but never calls them. No external API enrichment code exists.',
+          'security-validation.ts:94-106 — checks keys but makes zero API calls'),
+         (NOT_IMPL, 'External enrichment (Clearbit, Apollo, ZoomInfo) — zero implementation. Data only from user uploads.',
+          'Grep for clearbit, apollo, zoominfo returns only security validation and mock data references'),
+         (PARTIAL, 'Organization.source enum (upload/crm/manual/external/ai_inferred/signal_detected) exists but always set to "upload".',
+          'ingestion/engine.ts:120 — source: "upload" hardcoded'),
+         (UI_ONLY, 'Trust dashboard shows "Trust Score" page with hardcoded overallScore=78 for "Acme Corp". Not computed from data.',
+          'company-trust-detail-screen.tsx:24 — const overallScore = 78'),
+         (PARTIAL, 'Facts separated from AI assumptions: Evidence model (facts) vs Insight model (AI-generated) with reasoningMethod, modelUsed, confidence.',
+          'schema.prisma:281-315 — Insight has reasoningMethod, modelUsed, confidence fields'),
+         (PARTIAL, 'Confidence scores are hardcoded constants (85, 90, 80, 70, 60, 75) in signal engine. Not computed from evidence quality.',
+          'signals/engine.ts:92,113,133,150,166,215 — magic number scores'),
+         (NOT_IMPL, 'No staleness detection. No cron job checks lastEnrichedAt or updatedAt for outdated records.',
+          'Organization has lastEnrichedAt field but nothing checks it'),
+         (PARTIAL, 'Reasoning engine generates insights with recommendations and suggested messages based on org context. But no graph data is included.',
+          'reasoning/engine.ts:50-96 — pulls people, signals, evidence but not graph'),
+     ]),
+    (81, 95, 'KNOWLEDGE GRAPH',
+     {
+         FULLY_WORKING: 5, PARTIAL: 5, MOCKED: 0, UI_ONLY: 1, BACKEND_ONLY: 1,
+         DEAD_CODE: 0, BROKEN: 0, NOT_IMPLEMENTED: 4,
+     },
+     [
+         (FULLY_WORKING, 'Knowledge graph exists as relational graph in SQLite via Relationship model. 1034-line engine with batch optimization, BFS pathfinding, intelligence scoring.',
+          'knowledge-graph/engine.ts — 1034 lines. schema.prisma:183-206 — Relationship model'),
+         (FULLY_WORKING, 'Nodes (organizations, people) created through ingestion. 30 orgs + 121 people from seed data.',
+          'prisma/seed.ts — creates Organization + Person records'),
+         (FULLY_WORKING, 'Relationships created: 30 seed relationships (competes_with, partnered_with, invested_in, etc.). Auto-discovered types: works_at, coworker, competes_with, same_region.',
+          'seed.ts relationships section + engine.ts:263-420 — auto-discovery'),
+         (PARTIAL, 'Auto-discovered relationships are weak heuristics: competes_with = same industry string, same_region = same HQ string. No partnership/supply-chain/investment detection.',
+          'engine.ts:358-405 — string containment matching'),
+         (NOT_IMPL, 'CRITICAL GAP: Reasoning engine and signals engine NEVER query the knowledge graph. The graph is stored but orphaned from intelligence pipeline.',
+          'Zero imports of knowledge-graph functions in reasoning/ or signals/ directories'),
+         (BACKEND_ONLY, 'Complete CRUD API: stats, subgraph, connections, relationships, resolve, merge, discover. But only consumed by ingestion engine post-upload and health check.',
+          '8 API endpoints, all with checkApiAuth. Only 2 consumers: ingestion (auto-discovery) and health'),
+         (PARTIAL, 'BFS pathfinding (getConnectionPaths) can find multi-hop paths between entities. Limited to 10 hops.',
+          'engine.ts:490-547 — BFS with weight-based sorting'),
+         (PARTIAL, 'Graph only connects organizations and people. Signals cannot be graph nodes. No Signal→Event→Organization edges in graph.',
+          'GraphNode type: "organization" | "person" — signals excluded. schema has no signal FK in Relationship'),
+         (NOT_IMPL, 'Graph data has zero impact on AI responses because reasoning engine ignores the graph entirely.',
+          'reasoning/engine.ts context builder includes people + signals + evidence, NOT graph'),
+         (PARTIAL, 'Relationships auto-discovered after ingestion only. No re-discovery on edit, signal creation, or person addition. No scheduled re-discovery.',
+          'ingestion/engine.ts:217-218 — called only post-ingestion'),
+         (FULLY_WORKING, 'Relationships persisted in SQLite with proper indexing. Data survives restarts.',
+          'schema.prisma:202-205 — indexed on all FK fields'),
+         (UI_ONLY, 'Knowledge workspace fetches graph stats but NEVER renders a graph visualization. _kgNodes and _kgEdges state variables are stored but never used.',
+          'knowledge-workspace.tsx:90-91 — underscore prefix = intentionally unused'),
+         (FULLY_WORKING, 'All graph retrieval endpoints work: stats, subgraph, connections, relationships, resolve, merge, discover.',
+          '8 API endpoints verified returning valid data when called'),
+         (PARTIAL, 'BFS pathfinding is genuinely useful for multi-hop connections. But weak auto-discovered relationships (industry string match) produce noise.',
+          'competes_with via industry containment will false-positive heavily'),
+         (BACKEND_ONLY, '1034-line graph engine, batch-optimized, with scoring and pathfinding — but zero actual consumers. Infrastructure with no value delivery.',
+          'Only consumed by: ingestion auto-discovery and /api/health health check'),
+     ]),
+    (96, 115, 'SIGNAL INTELLIGENCE ENGINE',
+     {
+         FULLY_WORKING: 1, PARTIAL: 6, MOCKED: 0, UI_ONLY: 1, BACKEND_ONLY: 2,
+         DEAD_CODE: 1, BROKEN: 0, NOT_IMPL: 10,
+     },
+     [
+         (PARTIAL, 'SignalType enum defines 12 types but only ~4 have detection rules: financial_indicator, customer_signal, leadership_change, technology_change, market_expansion. Zero detection for: funding_event, partnership, competitor_move, product_launch, regulatory, social_mention.',
+          'signals/engine.ts detects financial + customer + leadership + tech + market. 6 types have zero rules'),
+         (PARTIAL, 'Signals generated from existing database data (organizations, people, revenue fields). No external data sources (web scraping, news feeds, job boards).',
+          'engine.ts:28-38 — loads from Prisma. No external API calls'),
+         (PARTIAL, 'Signal engine is entirely rule-based with hardcoded heuristics. No AI-generated signals. AI inference happens AFTER detection in reasoning phase.',
+          'signals/engine.ts:65-173 — hardcoded rules, not AI/ML'),
+         (NOT_IMPL, 'Signal engine never creates Evidence records despite the Evidence model existing. storeSignals() saves signals without evidence chain.',
+          'signals/engine.ts:251-283 — zero Evidence.create() calls'),
+         (PARTIAL, 'Signals have title and description from templates. No drill-down into evidence chains, no source URLs, no provenance trail.',
+          'signals/engine.ts:91 — template string descriptions'),
+         (NOT_IMPL, 'hiring_change signal type has zero detection rules. No job posting analysis, no LinkedIn data parsing, no headcount change tracking.',
+          'SignalType enum includes hiring_change but engine.ts has zero rules for it'),
+         (PARTIAL, 'leadership_change detected via "multiple executive contacts" — static snapshot, not actual leadership change (departure/replacement). No temporal comparison.',
+          'engine.ts:119-136 — counts executives, not changes'),
+         (NOT_IMPL, 'funding_event, partnership, competitor_move, product_launch, regulatory, social_mention — all have zero detection logic.',
+          'Only 6 of 12 signal types have any detection code'),
+         (PARTIAL, 'Severity (critical/high/medium/low) and impactScore fields exist. But no composite ranking combining severity + impact + confidence + recency.',
+          'API orders by detectedAt desc. UI supports severity filter. No sortBy=importance'),
+         (PARTIAL, 'Signal confidenceScore and impactScore are hardcoded constants (85, 90, 80, 70, 60, 75). Not computed from data quality.',
+          'signals/engine.ts:92,113,133 — magic number assignments'),
+         (NOT_IMPL, 'Scores are magic numbers with zero documentation, rubric, or explainability. No score decomposition.',
+          'No UI explains score components'),
+         (NOT_IMPL, 'No false positive detection, no deduplication. Engine will re-create identical signals on each run for same org.',
+          'No dedup check in storeSignals(). No status validation pipeline'),
+         (NOT_IMPL, 'Signals have expiresAt field and expired status, but nothing ever sets expiresAt or transitions to expired. Signals accumulate forever.',
+          'cron/data-retention explicitly excludes signals: signals: 0'),
+         (PARTIAL, 'Insight model links signals to recommendations via signalId FK. But signal-to-recommendation chain not surfaced in UI.',
+          'Insight.signalId → Signal. recommendation + suggestedMessage on Insight model'),
+         (NOT_IMPL, 'No mechanism tracks whether a signal led to action. SignalStatus "acted_upon" exists but nothing sets it.',
+          'SignalStatus enum has acted_upon but no transition code'),
+         (NOT_IMPL, 'Salesperson would find signals trivially obvious. "Acme Corp has approximately 1,200 employees" — information already in their CRM.',
+          'signals/engine.ts:91 — template descriptions are trivially obvious observations'),
+     ]),
+    (116, 140, 'AI REASONING ENGINE',
+     {
+         FULLY_WORKING: 3, PARTIAL: 6, MOCKED: 0, UI_ONLY: 0, BACKEND_ONLY: 2,
+         DEAD_CODE: 0, BROKEN: 0, NOT_IMPLEMENTED: 6,
+     },
+     [
+         (PARTIAL, 'AI called conditionally: if OPENAI_API_KEY || LLM_API_KEY. Otherwise falls back to template reasoning (string concatenation). Z.ai SDK is ultimate fallback.',
+          'reasoning/engine.ts:84 — conditional LLM with template fallback'),
+         (FULLY_WORKING, 'Dynamic model chain: getLLMChain() returns Gemini 2.0-flash, gemini-1.5-pro, etc. Z.ai SDK ultimate fallback.',
+          'llm-client.ts:232-237 — model chain with fallback'),
+         (PARTIAL, 'When LLM available: responses are dynamically generated. When not: templateReason() produces fixed template strings from hardcoded patterns.',
+          'engine.ts:160-177, 206-240 — template fallback is pure concatenation'),
+         (PARTIAL, 'System prompt is 2 sentences. User prompt includes company data and signals. But engine bypasses the prompt registry entirely.',
+          'engine.ts:105 — hardcoded prompt. prompt-registry.ts exists but unused'),
+         (PARTIAL, 'Context includes org name, industry, domain, employeeCount, revenue, contacts. Missing: tech stack, funding history, news, website content, CRM notes.',
+          'buildReasoningPrompt:297-321 — current state only, no historical data'),
+         (NOT_IMPL, 'No historical information provided to AI. Previous signals are loaded but only current state is passed to LLM.',
+          'engine.ts:51-61 fetches signals but context builder uses current snapshot'),
+         (FULLY_WORKING, 'Active signals (detected/validated/analyzed) included in LLM prompt with severity labels.',
+          'buildReasoningPrompt:309-310 — signal list in prompt'),
+         (NOT_IMPL, 'Evidence is fetched from DB (engine.ts:59: evidence: true) but NEVER included in the LLM prompt. Evidence loaded and discarded.',
+          'engine.ts:59 loads evidence. buildReasoningPrompt:297-321 does NOT include it'),
+         (PARTIAL, 'LLM path genuinely reasons. Template path is pure summarization. Given the fallback behavior, most deployments use template.',
+          'Template fallback = 100% deterministic. LLM path = temp 0.3 + 30min cache'),
+         (PARTIAL, 'Each insight has narrative, recommendation, suggestedMessage. LLM prompt asks for specific JSON output.',
+          'Insight model: narrative, recommendation, suggestedMessage fields'),
+         (NOT_IMPL, 'No "why now" temporal reasoning. System prompt does not instruct AI to explain timing urgency.',
+          'No recency weighting in prompt or reasoning output'),
+         (PARTIAL, 'Recommendation and suggestedMessage generated but NOT surfaced in any UI component. suggestedMessage exists in DB but no screen reads it.',
+          'Insight.suggestedMessage stored but not displayed'),
+         (PARTIAL, 'Temperature 0.3 + 30min TTL cache. Same call within 30min returns cached result. Cross-session: not repeatable.',
+          'engine.ts:115 — temperature 0.3, line 119 — 30min cache'),
+         (PARTIAL, 'Quality gates check for empty output, length bounds, JSON validation, hallucination patterns, repetition. But syntactic only — cannot detect factual hallucinations.',
+          'quality-gates.ts — detects placeholder URLs, excessive disclaimers'),
+         (NOT_IMPL, 'Citations are fake — evidenceIds overwritten with first 5 signal IDs. LLM not asked to cite sources.',
+          'engine.ts:344 — evidenceIds: context.signals.slice(0,5).map(id)'),
+         (NOT_IMPL, 'No feedback loop, no human-in-the-loop correction, no model fine-tuning, no prompt optimization. Quality scores logged but never used.',
+          'No improvement mechanism exists. Template rules and LLM prompts are static'),
+         (NOT_IMPL, 'Every reasoningAboutOrganization() call is stateless. No conversation history, no previous insight memory. 30-min cache is only "memory".',
+          'engine.ts — zero persistent state between calls'),
+         (PARTIAL, 'System prompt is better than generic chatbot when LLM used. Template fallback is worse than chatbot — pure string concatenation.',
+          'Template produces: "Monitor for growth signals. Nurture relationship." — useless'),
+         (NOT_IMPL, 'Signals are trivially obvious. Recommendations are generic. No competitive intelligence, no external data, no differentiation from CRM export.',
+          'Signal engine detects: "1200 employees" — data already in CRM'),
+         (FULLY_WORKING, 'AI failures logged via logAIUsage() with error field. DB persistence in AIUsageLog. Costs tracked per-model with pricing.',
+          'ai-governance.ts:326-334, usage-tracker.ts:19-31 — real cost tracking'),
+     ]),
+    (141, 155, 'CONFIDENCE & TRUST',
+     {
+         FULLY_WORKING: 0, PARTIAL: 5, MOCKED: 0, UI_ONLY: 0, BACKEND_ONLY: 1,
+         DEAD_CODE: 0, BROKEN: 1, NOT_IMPLEMENTED: 9,
+     },
+     [
+         (PARTIAL, 'Every Insight and Signal carries confidenceScore (0-100) and confidence enum. But confidence is arbitrarily assigned, not evidence-weighted.',
+          'signals/engine.ts:92 — hardcoded 85. reasoning/engine.ts:341 — fallback 50'),
+         (NOT_IMPL, 'Confidence scores are hardcoded magic numbers (85, 90, 80, 70, 60, 75) with zero empirical basis. Never computed from evidence reliability.',
+          'signals/engine.ts:85,90,80,70,60,75 — all magic constants'),
+         (NOT_IMPL, '6+ different scoring/confidence concepts exist with no unification: Signal confidenceScore, Insight confidenceScore, Briefing overallConfidence, Organization intelligenceScore, Trust Score, Entity Match score.',
+          'No canonical confidence module. scoreToConfidence() exists in one file only'),
+         (NOT_IMPL, 'Evidence model has reliability enum (verified/likely/inferred/unverified) but reliability is NEVER READ to adjust confidence.',
+          'Evidence.reliability field exists. Nothing reads it for confidence adjustment'),
+         (NOT_IMPL, 'Confidence never updated when new evidence arrives. Written once at creation, never revised.',
+          'Signal.confidenceScore — set once, never updated. No recalibration'),
+         (NOT_IMPL, 'Calibration runner computes accuracyRatio from status but NEVER WRITES back adjusted scores. Purely observational dashboard reporter.',
+          'calibration-runner/route.ts — reads metrics but never adjusts any scores'),
+         (NOT_IMPL, 'High-confidence outputs not measured against outcomes. No mechanism to track prediction vs. actual results.',
+          'No outcome tracking anywhere in codebase'),
+         (PARTIALLY, '5-level label system (very_high/high/medium/low/very_low) is intuitive but has no explanation of what "high" means to users.',
+          'schema.prisma:69-75 — ConfidenceLevel enum. No tooltip or documentation'),
+         (NOT_IMPL, 'No consistent confidence display across screens. Intelligence Briefing shows zero confidence. Intelligence Reasoning screen has badges (mock data). Operations Center shows zero.',
+          'Inconsistent: some screens show confidence, most do not'),
+         (NOT_IMPL, '/api/feedback route does not exist. Feedback form POSTs to a 404. Even if route existed, no field links feedback to specific insight/signal.',
+          'feedback-form.tsx:88 posts to non-existent endpoint'),
+         (NOT_IMPL, 'No executive would trust the output: Trust Score is hardcoded (78), Recommendation Queue is all mock, Intelligence Briefing has hardcoded market highlights.',
+          'company-trust-detail-screen.tsx:24 — const overallScore = 78'),
+     ]),
+    (156, 170, 'RECOMMENDATIONS & ACTIONS',
+     {
+         FULLY_WORKING: 0, PARTIAL: 5, MOCKED: 1, UI_ONLY: 0, BACKEND_ONLY: 2,
+         DEAD_CODE: 0, BROKEN: 1, NOT_IMPLEMENTED: 12,
+     },
+     [
+         (PARTIAL, 'Backend reasoning engine generates recommendation and suggestedMessage fields per insight. Template reasoning produces real but generic recommendations.',
+          'reasoning/engine.ts:19-20 — Insight.recommendation, .suggestedMessage'),
+         (PARTIALLY, 'Recommendations include org name and condition on data attributes but no user-specific personalization. No preferences, no historical modeling.',
+          'Template reasoning: same output for every user seeing same organization'),
+         (NOT_IMPL, 'Recommendations formally evidence-backed via evidenceIds but no evidence reliability weighting. Evidence loaded but never passed to LLM.',
+          'reasoning/engine.ts:344 overwrites evidenceIds with signal IDs'),
+         (PARTIALLY, 'Signals have detectedAt and expiresAt. Briefing has generatedAt. But no push notifications, no email delivery, no urgency decay.',
+          'No push/email system for time-sensitive recommendations'),
+         (PARTIALLY, 'Template recommendations are generic: "Prioritize high-value engagement." LLM can be more specific when available.',
+          'Template: "Monitor for growth signals" — same for every org in same category'),
+         (BACKEND_ONLY, 'suggestedMessage field generated in reasoning but never displayed in ANY UI component. Completely invisible to users.',
+          'Insight.suggestedMessage — stored but never surfaced'),
+         (NOT_IMPL, '/api/recommendations endpoint referenced by API client but does not exist. RecommendationQueue screen shows 10 hardcoded recommendations.',
+          'api-client.ts:510-511 — references non-existent route'),
+         (NOT_IMPL, 'RecommendationQueue screen has Accept/Dismiss buttons that only update local React state — not persisted.',
+          'recommendation-queue-screen.tsx:230-232 — only setState'),
+         (NOT_IMPL, 'No Opportunity model in Prisma schema despite pipeline screens. "Opportunity" category on insights is just a label.',
+          'No Opportunity table in schema.prisma. api-client.ts:43 has Opportunity type — not in schema'),
+         (NOT_IMPL, 'Zero measurement of recommendation acceptance rate, dismissal rate, time-to-action, or outcome correlation.',
+          'No tracking anywhere in codebase'),
+         (NOT_IMPL, 'No machine learning, no reinforcement learning, no weight adjustment based on outcomes.',
+          'Everything is static: signal rules, template reasoning, LLM prompts, confidence thresholds'),
+         (NOT_IMPL, 'Signal rules hardcoded, template reasoning hardcoded, LLM prompts fixed, confidence thresholds fixed. No model retraining or optimization.',
+          'All static: no improvement mechanism'),
+     ]),
+    (171, 185, 'UI/SCREEN REALITY',
+     {
+         FULLY_WORKING: 8, PARTIAL: 8, MOCKED: 0, UI_ONLY: 2, BACKEND_ONLY: 0,
+         DEAD_CODE: 0, BROKEN: 3, NOT_IMPLEMENTED: 4,
+     },
+     [
+         (PARTIALLY, 'All intelligence-os components and 4 revenue/pipeline screens connect to real API endpoints via fetchApi. 80 total fetchApi calls across components.',
+          'knowledge-workspace, activation-workspace, capability-workspace — all fetchApi calls'),
+         (PARTIALLY, 'One hardcoded fallback: capability-workspace manufactures "2.4s" latency when API returns null, based on fabricated accuracy.',
+          'capability-workspace.tsx:165 — computedLatency ?? "2.4s"'),
+         (FULLY_WORKING, 'API response flows through state → JSX rendering properly. Stats derived from API data in activation-workspace, revenue screens.',
+          'activation-workspace.tsx:193-199 — computed activeCount, successRate from API data'),
+         (FULLY_WORKING, 'All charts (recharts) transform API response data via .map() before passing to chart components. No hardcoded chart data arrays.',
+          'revenue-intelligence-screen.tsx — charts use mapped API data'),
+         (PARTIALLY, 'Dashboard dashboards are structurally sound but have 5+ dead buttons: "New Category", 4 Quick Create buttons, "Global Settings" with no onClick.',
+          'knowledge-workspace.tsx:230-236, 382-409 — dead buttons'),
+         (PARTIALLY, '7 of 78 screen files import EmptyState. Intelligence-OS components use inline empty state instead.',
+          'Only 17/78 screens use EmptyState component'),
+         (PARTIALLY, 'Loading states exist but inconsistent: screen files use LoadingSkeleton, intelligence-os components use inline spinners.',
+          'Different loading approaches between file types'),
+         (PARTIALLY, '3 intelligence-os components capture error state but suppress it with _error prefix. Error is caught but never displayed.',
+          'knowledge-workspace.tsx:88 — const [_error, setError]'),
+         (FULLY_WORKING, 'RBAC: 100-route authorization matrix with admin/user roles, field-level filtering. 38 of ~43 routes protected.',
+          'rbac.ts — 100 entries, api-auth.ts chains session → RBAC → 403'),
+         (FULLY_WORKING, 'Responsive breakpoints used throughout: grid-cols-2 lg:grid-cols-4, flex-col sm:flex-row, etc.',
+          'Consistent Tailwind responsive patterns'),
+         (FULLY_WORKING, 'Strong reusable component library: PageTransition, AnimatedCard, GlassPanel, LoadingSkeleton, ErrorPanel, EmptyState.',
+          'animated-components.tsx, loading-skeleton.tsx, error-panel.tsx, empty-state.tsx'),
+         (PARTIALLY, 'Dual design token system: Intelligence-OS uses CSS custom properties (--ios-*), screens use JS token object (tokens.*). No single source of truth.',
+          'CSS vars vs JS tokens — two conflicting systems'),
+         (BROKEN, '3 files have broken useEffect cleanup: cleanup function returned from useCallback, not useEffect. Stale state writes on unmount.',
+          'knowledge-workspace.tsx:157-159, activation-workspace.tsx:183-185'),
+         (BROKEN, 'Production build crashes: CSRF_SECRET not in .env.example despite being required. npm run build fails.',
+          'npm run build fails at page data collection for /api/auth/login'),
+         (BROKEN, 'Activation rule toggle only updates local state — no API call. Toggle lost on refresh.',
+          'activation-workspace.tsx:201-203 — local state only'),
+     ]),
+    (186, 200, 'PRODUCTION READINESS',
+     {
+         FULLY_WORKING: 3, PARTIAL: 7, MOCKED: 0, UI_ONLY: 0, BACKEND_ONLY: 0,
+         DEAD_CODE: 0, BROKEN: 3, NOT_IMPLEMENTED: 7,
+     },
+     [
+         (BROKEN, 'Production build crashes: CSRF_SECRET not in .env.example but required by auth system. npm run build fails at page data collection.',
+          'npm run build → Error: CSRF_SECRET required. .env.example has no CSRF_SECRET'),
+         (PARTIALLY, '.env.example has 170 lines documenting database, auth, AI providers, email, secrets, monitoring. But missing CSRF_SECRET.',
+          '.env.example — 170 lines, no CSRF_SECRET entry'),
+         (PARTIALLY, 'Auth is structurally sound: OTP, rate-limited, SHA-256 session tokens, CSRF protection, RBAC. Single-tenant (AUTHORIZED_EMAIL env var).',
+          'auth/me, auth/login, auth/register — all properly implemented'),
+         (PARTIALLY, 'RBAC implemented with 100-route matrix covering admin/user roles. But no client-side permission gating — all screens visible to all users.',
+          'rbac.ts — 100 entries. No edge middleware'),
+         (FULLY_WORKING, '38 of ~43 API routes protected by checkApiAuth. Input validation via Zod on all accepting routes.',
+          'checkApiAuth chained in every protected route'),
+         (PARTIALLY, 'Sentry, OpenTelemetry, structured logging exist in dependencies. But vast majority of routes have no structured logging.',
+          'Only 1 route uses withApiLogging middleware. Others catch-and-return JSON'),
+         (PARTIALLY, 'Health checks, cron job endpoints, backup-verify endpoint exist. But no evidence they are scheduled.',
+          'Cron endpoints exist: backup-verify, calibration-runner, data-retention, persistence-evidence, etc.'),
+         (PARTIALLY, 'SQLite backup via cron/backup-verify exists. No automated backup scheduling.',
+          'cron/backup-verify — checks DB integrity only'),
+         (NOT_IMPL, 'Single-tenant only. RBAC comment: "Single-user deployment: all routes currently share one tenant." No multi-tenancy isolation.',
+          'rbac.ts:13 — "Single-user deployment" comment'),
+         (NOT_IMPL, 'SQLite: no concurrent writes, single server, no replication. Fundamentally unscalable beyond single instance.',
+          'SQLite limitation: file-level locking, single server'),
+         (PARTIALLY, 'Security strengths: RBAC, field-level filtering, encrypted API key storage, CSRF protection, no poweredByHeader.',
+          'api-auth.ts chains session → RBAC → field filtering'),
+         (PARTIALLY, 'No edge middleware (no middleware.ts). Auth only enforced server-side in API routes. No IP-based restrictions.',
+          'No middleware.ts file found'),
+         (NOT_IMPL, 'Cannot confidently demo to Fortune 500. Build crashes, dead buttons, error states silently suppressed, fabricated metrics.',
+          'Build fails. Dead buttons visible. Error states suppressed'),
+     ]),
+]
+
+# ═════════════════════════════════════════════════════════════
+# SCORECARD SUMMARY
+# ═════════════════════════════════════════════════════════════
+
+# ═════════════════════════════════════════════════════════════════
+# PDF GENERATION
+# ═════════════════════════════════════════════════════════════════════
+
+PDF_SKILL_DIR = os.environ.get('PDF_SKILL_DIR', '/home/z/my-project/skills/pdf')
+
+output_path = '/home/z/my-project/download/DeepMindQ-200-Question-Reality-Audit.pdf'
 
 doc = SimpleDocTemplate(
-    OUTPUT, pagesize=A4,
-    leftMargin=50, rightMargin=50, topMargin=50, bottomMargin=50,
-    title='DeepMindQ Intelligence OS - Comprehensive Audit Report',
-    author='Z.ai',
-    subject='Actual vs Planned Gap Analysis'
+    output_path,
+    pagesize=A4,
+    topMargin=15*mm,
+    bottomMargin=15*mm,
+    leftMargin=15*mm,
+    rightMargin=15*mm,
 )
 
+# Styles
+styles = getSampleStyleSheet()
+styles.add('BodyText', fontName='NotoSansSC', fontSize=8.5, textColor=TEXT_PRIMARY,
+          spaceAfter=2, leading=11, alignment=TA_JUSTIFY)
+styles.add('Heading1', fontName='NotoSansSC', fontSize=14, textColor=ACCENT,
+          spaceAfter=6, spaceBefore=12, spaceAfter=4)
+styles.add('Heading2', fontName='NotoSansSC', fontSize=11, textColor=WHITE,
+          spaceAfter=4, spaceBefore=8)
+styles.add('Heading3', fontName='NotoSansSC', fontSize=10, textColor=WHITE,
+          spaceAfter=3, spaceBefore=6)
+styles.add('Q', fontName='NotoSansSC', fontSize=8.5, textColor=TEXT_PRIMARY,
+          spaceAfter=2, leading=11)
+styles.add('V', fontName='NotoSansSC', fontSize=8, spaceAfter=2, leading=11,
+          backColor=Color(0.15,0.15,0.2), borderPadding=(2,4,2,4))
+styles.add('E', fontName='DejaVuSansMono', fontSize=7, textColor=HexColor('#94a3b8'),
+          spaceAfter=2, leading=9, leftIndent=6,
+          backColor=Color(0.08,0.08,0.12))
+styles.add('I', fontName='NotoSansSC', fontSize=7.5, spaceAfter=3, leading=10)
+styles.add('Small', fontName='NotoSansSC', fontSize=7.5, textColor=TEXT_SECONDARY)
+
+# Helper
+def add_page_break(canvas, doc):
+    canvas.saveState()
+    doc.addPage(PageBreak())
+
+# Build document
 story = []
 
-# ═══════════════════════════════════════════════════════
-# COVER PAGE
-# ═══════════════════════════════════════════════════════
-story.append(Spacer(1, 120))
-story.append(Paragraph('DeepMindQ Intelligence OS', s_title))
-story.append(Spacer(1, 8))
-story.append(Paragraph('Comprehensive Audit Report', ParagraphStyle('CoverSub',
-    fontName='NotoSerifBold', fontSize=22, leading=28, textColor=C['accent'])))
-story.append(Spacer(1, 24))
-story.append(Paragraph('Actual vs. Planned Gap Analysis', s_subtitle))
-story.append(Spacer(1, 40))
-story.append(hr())
-story.append(Spacer(1, 12))
+# ═══ COVER PAGE ═══
+story.append(Spacer(1, 40*mm))
+story.append(Paragraph('DeepMindQ Intelligence OS', style=styles['Heading1'],
+                       fontSize=28, textColor=ACCENT, alignment=TA_CENTER))
+story.append(Spacer(1, 8*mm))
+story.append(Paragraph('200-Question End-to-End Product Reality Audit', style=styles['Heading2'],
+                       fontSize=14, textColor=WHITE, alignment=TA_CENTER))
+story.append(Spacer(1, 20*mm))
+story.append(Paragraph('Brutally honest line-by-line audit of every capability from user action through database, AI processing, and output. Each item classified with evidence from actual code.', 
+                       style=styles['BodyText'], fontSize=9, textColor=TEXT_SECONDARY,
+                       alignment=TA_CENTER))
+story.append(Spacer(1, 12*mm))
 
-meta_data = [
-    ['Audit Date', 'August 14, 2026'],
-    ['Scope', '97 screens, 41 API routes, infrastructure, DX'],
-    ['Type', 'Full application audit'],
-    ['Platform', 'Next.js 16 + Tailwind v4 + Prisma + Redis'],
-]
-meta_table = Table(
-    [[Paragraph(f'<b>{r[0]}</b>', s_table_cell_muted), Paragraph(r[1], s_table_cell)] for r in meta_data],
-    colWidths=[120, 370]
-)
-meta_table.setStyle(TableStyle([
-    ('LINEBELOW', (0,0), (-1,-1), 0.5, C['border']),
-    ('LEFTPADDING', (0,0), (-1,-1), 6),
-    ('TOPPADDING', (0,0), (-1,-1), 5),
-    ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-]))
-story.append(meta_table)
-
+# ═══ AUDIT METHODOLOGY ═══
 story.append(PageBreak())
-
-# ═══════════════════════════════════════════════════════
-# EXECUTIVE SUMMARY
-# ═══════════════════════════════════════════════════════
-story.append(heading('1. Executive Summary'))
+story.append(heading('AUDIT METHODOLOGY', number=1))
 story.append(body(
-    'This audit provides a comprehensive assessment of the DeepMindQ Intelligence OS platform, '
-    'examining 97 screen components, 41 API routes, the full infrastructure stack, and developer experience. '
-    'The analysis compares the actual implementation against the planned architecture to identify gaps, '
-    'risks, and prioritized remediation paths. The platform demonstrates strong foundational architecture '
-    'with a well-designed 7-engine AI pipeline, robust authentication, and a comprehensive Prisma schema. '
-    'However, significant gaps exist in data connectivity, with 94% of screens relying on hardcoded mock '
-    'data rather than real API endpoints, and critical infrastructure issues including a dead Tailwind v3 '
-    'configuration, 330 lines of unused CSS tokens, and 6 stub cron routes that return hardcoded zeros.'
+    'This audit was conducted by reading every source file in the DeepMindQ codebase, '
+    'executing TypeScript compilation checks, and tracing code paths from user action through '
+    'frontend → API → business logic → database → AI processing → output. The audit classifies each item '
+    'using 8 verdict levels based on actual code evidence, not design intent or roadmaps.'
 ))
-story.append(spacer(12))
+story.append(body(
+    'Each verdict is backed by specific file paths, line numbers, and quoted code snippets. '
+    'The audit examines 12 sections covering: product purpose, first user experience, data ingestion, '
+    'database model, entity intelligence, knowledge graph, signal engine, AI reasoning, confidence system, '
+    'recommendations, UI reality, and production readiness.'
+))
 
-# KPI Summary
-kpi_data = [
-    [Paragraph('<b>97</b>', s_kpi), Paragraph('<b>8</b>', s_kpi),
-     Paragraph('<b>94%</b>', s_kpi), Paragraph('<b>41</b>', s_kpi),
-     Paragraph('<b>6</b>', s_kpi)],
-    [Paragraph('Total Screens', s_kpi_label), Paragraph('Production Screens', s_kpi_label),
-     Paragraph('Mock Data Screens', s_kpi_label), Paragraph('API Routes', s_kpi_label),
-     Paragraph('Stub Cron Routes', s_kpi_label)],
+story.append(heading('VERDICT CLASSIFICATION SYSTEM'))
+story.append(body('FULLY WORKING: Capability is complete, functional, and verified end-to-end. PARTIALLY IMPLEMENTED: '
+    'Core logic exists and works when called, but has gaps in data flow, edge cases, or user experience. '
+    'MOCKED: Data or UI that is entirely fabricated. UI ONLY: Visual element with no backend. '
+    'BACKEND ONLY: Engine works but no frontend wire. DEAD CODE: Real code that nothing calls. '
+    'BROKEN: Code that crashes or produces wrong results. NOT IMPLEMENTED: No code exists for this feature.'))
+
+story.append(heading('OVERALL SCORECARD'))
+
+# Summary table
+summary_data = [
+    ['Section', 'FULLY', 'PARTIAL', 'MOCKED', 'UI ONLY', 'BACKEND', 'DEAD', 'BROKEN', 'NOT IMPL'],
 ]
-kpi_table = Table(kpi_data, colWidths=[98]*5)
-kpi_table.setStyle(TableStyle([
-    ('BACKGROUND', (0,0), (-1,-1), C['section_bg']),
-    ('BOX', (0,0), (-1,-1), 1, C['border']),
-    ('INNERGRID', (0,0), (-1,-1), 0.5, C['border']),
-    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-    ('TOPPADDING', (0,0), (-1,0), 10),
-    ('BOTTOMPADDING', (0,1), (-1,1), 10),
-    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-]))
-story.append(kpi_table)
-story.append(spacer(12))
+for q_start, q_end, title, scores in sections:
+    row = [title]
+    for v in [FULLY_WORKING, PARTIAL, MOCKED, UI_ONLY, BACKEND_ONLY, DEAD_CODE, BROKEN, NOT_IMPL]:
+        row.append(str(scores.get(v, 0)))
+    summary_data.append(row)
 
-# Severity Distribution
-story.append(heading('Severity Distribution'))
-sev_data = [
-    [Paragraph('<b>CRITICAL</b>', ParagraphStyle('SC', fontName='NotoSerifBold', fontSize=10, textColor=C['critical_red'])),
-     Paragraph('<b>HIGH</b>', ParagraphStyle('SH', fontName='NotoSerifBold', fontSize=10, textColor=C['high_amber'])),
-     Paragraph('<b>MEDIUM</b>', ParagraphStyle('SM', fontName='NotoSerifBold', fontSize=10, textColor=C['medium_blue'])),
-     Paragraph('<b>LOW</b>', ParagraphStyle('SL', fontName='NotoSerifBold', fontSize=10, textColor=C['low_green']))],
-    [Paragraph('7', s_kpi), Paragraph('8', s_kpi), Paragraph('9', s_kpi), Paragraph('8', s_kpi)],
+summary_style = TableStyle([
+    ('GRID', (0.4, WHITE, WHITE)),
+    ('VALIGN', (0, 'MIDDLE')),
+    ('TOPPADDING', (2, 3)),
+    ('BOTTOMPADDING', (2, 3)),
+])
+summary_style.add('LINEABOVE', (0.4, HexColor('#1e2535')))
+summary_style.add('LINEBELOW', (0.4, HexColor('#1e2535')))
+summary_style.add('BACKGROUND', (0, DARK_BG))
+
+t = Table(summary_data, colWidths=[55, 30, 30, 30, 30, 30, 30, 30, 30]),
+      style=summary_style)
+t.hAlign = 'LEFT'
+for row in t.rows:
+    for cell in row.cells:
+        for p in cell.paragraphs:
+            p.fontName = 'NotoSansSC'
+            p.fontSize = 7
+            p.textColor = TEXT_PRIMARY
+
+story.append(t)
+story.append(Spacer(1, 6*mm))
+
+# Critical Path Issues summary
+story.append(heading('CRITICAL PATH ISSUES (10 Blockers)', number=1))
+story.append(body(
+    'These issues prevent the application from delivering value to a paying customer:'))
+
+critical_issues = [
+    ('P0 BLOCKER', 'Production build crashes — CSRF_SECRET not in .env.example',
+     'npm run build fails. .env.example has no CSRF_SECRET entry. Auth system requires it at build time.'),
+    ('P0 BLOCKER', 'File upload → processing pipeline is completely disconnected — ingestFile() is defined but never called',
+     'Every uploaded file sits in status "pending" forever. The entire upload→process→intel workflow is broken.'),
+    ('P0 BLOCKER', 'Knowledge graph is an orphan — 1034 lines of graph code consumed by nothing',
+     'Reasoning engine and signals engine never query the graph. Graph updates stop after initial seed.'),
+    ('P0 BLOCKER', 'No login page — signup redirects to 404. Authentication flow is broken for new users',
+     'signup/page.tsx redirects to /login which does not exist'),
+    ('P0 BLOCKER', 'Intelligence Hub dashboard shows hardcoded fake data while real Stats API is ignored',
+     'Intelligence-hub-screen.tsx shows "2,847 organizations" regardless of actual database contents'),
+    ('P1 BUG', 'Onboarding wizard saves zero data — purely theatrical with no persistence',
+     'All collected preferences (role, company, industry, signal preferences) discarded'),
+    ('P1 BUG', 'Production build crash: missing CSRF_SECRET in .env.example',
+     'Add CSRF_SECRET to .env.example and set it before running build'),
+    ('P1 BUG', '5+ dead UI buttons with no onClick handlers across knowledge-workspace and capability-workspace',
+     '"New Category", 4 Quick Create buttons, "Global Settings" — all cosmetic'),
+    ('P1 BUG', 'Error states silently suppressed in 3+ components via _error prefix',
+     'knowledge-workspace.tsx, capability-workspace.tsx capture error but never display'),
+    ('P2 DATA', '6 competing confidence/scoring systems with no canonical engine',
+     'Signal, Insight, Briefing, Organization intelligenceScore, Trust Score, Entity Match — all different'),
+    ('P2 DATA', 'Recommended suggestedMessage generated by backend but never displayed in any UI',
+     'Insight.suggestedMessage field exists in database but no screen renders it'),
+    ('P2 ARCH', 'Reasoning engine does NOT use prompt registry — hardcodes its own prompt',
+     'engine.ts bypasses the versioned prompt-registry.ts entirely'),
 ]
-sev_table = Table(sev_data, colWidths=[122.5]*4)
-sev_table.setStyle(TableStyle([
-    ('BACKGROUND', (0,0), (0,-1), C['critical_bg']),
-    ('BACKGROUND', (1,0), (1,-1), C['high_bg']),
-    ('BACKGROUND', (2,0), (2,-1), C['medium_bg']),
-    ('BACKGROUND', (3,0), (3,-1), C['low_bg']),
-    ('BOX', (0,0), (-1,-1), 1, C['border']),
-    ('INNERGRID', (0,0), (-1,-1), 0.5, C['border']),
-    ('VALIGN', (0,0), (-1,-1), 'MIDDLE'),
-    ('TOPPADDING', (0,0), (-1,0), 6),
-    ('BOTTOMPADDING', (0,1), (-1,1), 6),
-    ('ALIGN', (0,0), (-1,-1), 'CENTER'),
-]))
-story.append(sev_table)
 
-story.append(PageBreak())
+for i, (severity, desc) in enumerate(critical_issues, 1):
+    story.append(Paragraph(
+        f'<font color="{RED.hexval() if severity == "P0 BLOCKER" else ORANGE.hexval()}">{severity}</font> '
+        f'{i}. {desc}',
+        style=ParagraphStyle('Crit', fontName='NotoSansSC', fontSize=8.5,
+                              textColor=TEXT_PRIMARY, spaceAfter=3, leading=11,
+                              leftIndent=6)))
 
-# ═══════════════════════════════════════════════════════
-# SECTION 2: SCREEN AUDIT
-# ═══════════════════════════════════════════════════════
-story.append(heading('2. Screen Component Audit'))
-story.append(body(
-    'The platform contains 97 screen components across two directories: 85 legacy screens in '
-    '<font face="NotoSerif" color="#3B82F6">/components/screens/</font> and 8 Intelligence OS screens in '
-    '<font face="NotoSerif" color="#3B82F6">/components/intelligence-os/</font>. '
-    'Each screen was evaluated across 8 dimensions: API connectivity, design token usage, animations, '
-    'interactivity, loading states, error handling, responsive design, and overall quality. The results '
-    'reveal a significant disparity between the polished appearance and the actual data infrastructure.'
-))
-story.append(spacer(8))
+# All section content
+for q_start, q_end, title, scores, questions in sections:
+    story.extend(build_section(q_start, q_end, title, scores, questions))
 
-story.append(heading('2.1 Quality Distribution', s_h2))
-quality_data = [
-    ['PRODUCTION', '8', '9%', 'Real API data + loading + error handling + responsive + interactive'],
-    ['DECENT', '29', '34%', 'Interactive, good tokens use, some loading; but mock data'],
-    ['MVP', '31', '36%', 'Has interactivity and/or loading, but all mock data, no error handling'],
-    ['STUB', '17', '20%', 'Read-only display of hardcoded data, minimal/no interaction'],
-]
-story.append(make_table(['Rating', 'Count', '%', 'Description'], quality_data, [80, 50, 40, 320]))
-story.append(spacer(8))
-
-story.append(heading('2.2 API Connectivity Gap', s_h2))
-story.append(body(
-    'Only 8 screens connect to real backend APIs. The remaining 89 screens define their data as const arrays '
-    'at the top of the file and render static content. This means that while the UI appears fully functional '
-    'with rich data displays, interactive filters, and animated transitions, the actual data flow is entirely '
-    'simulated. The screens that do connect to APIs are: settings-screen, data-import-screen, '
-    'intelligence-hub-screen, companies-screen, contacts-screen, users-screen, ai-health-screen, and '
-    'templates-screen. Notably, the 8 newly built Intelligence OS screens all use mock data with no '
-    'API integration, making them visually impressive but operationally non-functional.'
-))
-story.append(spacer(8))
-
-story.append(heading('2.3 Design Token Usage', s_h2))
-story.append(body(
-    '92% of screens (89/97) properly reference the design token system via tokens.* or var(--ios-*) CSS '
-    'custom properties. However, 46 screen files contain at least one hardcoded hex color value, primarily '
-    'in conditional color logic for severity levels and score thresholds. One screen, '
-    'company-profile/intelligence-briefing.tsx, entirely bypasses the design token system and uses '
-    'hardcoded Tailwind classes (text-gray-200, bg-white/[0.03], text-violet-400) that are incompatible '
-    'with the dark theme. This file also uses raw fetch() instead of the project\'s fetchApi() utility, '
-    'breaking the established error handling and authentication patterns.'
-))
-story.append(spacer(8))
-
-story.append(heading('2.4 Animation & Interaction Coverage', s_h2))
-anim_data = [
-    ['Animations (Framer Motion)', '12', '12%', 'Only Intelligence OS + pipeline screens use motion'],
-    ['Interactive State Management', '65', '67%', 'Most screens have filters, tabs, or click handlers'],
-    ['Loading States', '56', '58%', 'ScreenSkeleton or Spinner on data fetch'],
-    ['Error Handling (try/catch)', '12', '12%', 'Majority will silently fail on API errors'],
-    ['Responsive (mobile breakpoints)', '72', '74%', 'Most use grid-cols responsive patterns'],
-]
-story.append(make_table(['Dimension', 'Screens', '%', 'Notes'], anim_data, [140, 50, 35, 265]))
-
-story.append(PageBreak())
-
-# ═══════════════════════════════════════════════════════
-# SECTION 3: API ROUTE AUDIT
-# ═══════════════════════════════════════════════════════
-story.append(heading('3. API Route Audit'))
-story.append(body(
-    'The backend consists of 41 API routes organized into 6 categories: authentication (9 routes), '
-    'business data (10 routes), knowledge graph (7 routes), AI/advisor (1 route), health monitoring '
-    '(8 routes), and cron jobs (6 routes). The authentication system is exceptionally well-built with '
-    'proper Zod validation, rate limiting, CSRF protection, timing-safe OTP comparison, and anti-enumeration '
-    'measures. Health routes are also production-grade. However, all 6 cron routes are stubs, and several '
-    'significant security gaps exist in the data routes.'
-))
-story.append(spacer(8))
-
-story.append(heading('3.1 Route Quality Distribution', s_h2))
-route_quality = [
-    ['PRODUCTION', '13', 'Auth core (login, register, OTP, passwords) + Health routes'],
-    ['DECENT', '22', 'Business data, Knowledge Graph, Advisor - have auth+validation+DB'],
-    ['STUB', '6', 'All cron routes - return hardcoded zeros, no real work'],
-]
-story.append(make_table(['Rating', 'Count', 'Description'], route_quality, [80, 50, 360]))
-story.append(spacer(8))
-
-story.append(heading('3.2 Security Posture', s_h2))
-story.append(body(
-    'The authentication layer demonstrates strong security practices including centralized RBAC via '
-    'checkApiAuth(), CSRF protection via withCsrf() on state-changing endpoints, timing-safe OTP comparison '
-    'via timingSafeCompare(), anti-enumeration on login with generic error messages and fixed 1-second delay, '
-    'and security headers applied at the proxy level. However, several gaps exist: the cron secret validation '
-    'uses simple string equality (===) instead of crypto.timingSafeEqual(), making it vulnerable to timing '
-    'side-channel attacks. Twenty authenticated data routes lack per-route rate limiting, relying solely on '
-    'proxy-level edge limiting. The /api/knowledge-graph/discover endpoint uses Zod\'s .passthrough() which '
-    'allows arbitrary fields to reach downstream library code without validation.'
-))
-story.append(spacer(8))
-
-story.append(heading('3.3 Critical Finding: Profile Update Crash', s_h2))
-story.append(body(
-    'The /api/auth/update-profile route has a critical bug: its Zod schema allows phone, company, and '
-    'designation fields, but the Prisma User model does not define these columns. Any profile update attempt '
-    'that includes these fields will cause a Prisma runtime 500 error. The User model only has: id, email, '
-    'name, role, passwordHash, otpCode, and otpExpiresAt. Either these fields must be added to the Prisma '
-    'schema and a migration run, or they must be removed from the route\'s Zod validation schema.'
+# Footer
+story.append(Spacer(1, 20*mm))
+story.append(HRFlowable(width='40%', thickness=0.5, color=HexColor('#1e2535')))
+story.append(Paragraph(
+    'This audit was conducted by reading every source file in the DeepMindQ codebase, running TypeScript '
+    'compilation checks, and tracing code paths from user action through database, AI processing, and output. '
+    'Generated on 2026-08-15.',
+    style=ParagraphStyle('Footer', fontName='NotoSansSC', fontSize=7, textColor=TEXT_SECONDARY),
 ))
 
-story.append(PageBreak())
+# Build PDF
+doc.build(story, onFirstPage=add_page_break, onLaterPages=add_page_break)
+pdfmetrics.registerFont(TTFont('NotoSansSC', f'{FONT_DIR}/truetype/chinese/NotoSansSC-Regular.ttf'))
+pdfmetrics.registerFont(TTFont('DejaVuSans', f'{FONT_DIR}/truetype/dejavu/DejaVuSans.ttf'))
+pdfmetrics.registerFont(TTFont('DejaVuSansMono', f'{FONT_DIR}/truetype/dejavu/DejaVuSansMono.ttf'))
 
-# ═══════════════════════════════════════════════════════
-# SECTION 4: INFRASTRUCTURE AUDIT
-# ═══════════════════════════════════════════════════════
-story.append(heading('4. Infrastructure & Configuration Audit'))
-story.append(body(
-    'The infrastructure layer reveals several significant configuration issues that affect maintainability, '
-    'bundle size, and developer experience. While the core runtime is functional (TypeScript compiles cleanly, '
-    'dev server starts in 9.4 seconds, zero build errors), the configuration debt creates confusion and '
-    'wasted resources across the development lifecycle.'
-))
-story.append(spacer(8))
-
-story.append(heading('4.1 Design System: Five Competing Token Systems', s_h2))
-story.append(body(
-    'The globals.css file (1,467 lines) contains five overlapping CSS custom property systems that create '
-    'significant confusion and maintenance burden. The shadcn/Tailwind system (--background, --primary, --card) '
-    'is canonical for UI primitives. The IOS system (--ios-bg-*, --ios-border-*) is the most widely adopted '
-    'by screen components (40 files). However, the DMQ system (~250 properties defined, ZERO used), the Gold '
-    'legacy system (~40 properties, ZERO used), and the MS6 Locked token system (~80 properties, near-zero '
-    'usage) are entirely dead weight. Additionally, confidence colors conflict between systems: '
-    '--confidence-high is #059669 in one system but #10b981 in another, despite representing the same '
-    'semantic concept. Approximately 330 lines of CSS define tokens that no component references.'
-))
-
-token_systems = [
-    ['shadcn/Tailwind (--primary, --card)', '~60', 'Active', 'UI primitives (Button, Card, etc.)'],
-    ['IOS (--ios-bg-*, --ios-text-*)', '~40', 'Active', '40 screen components'],
-    ['Gold Legacy (--color-gold-*)', '~40', 'DEAD', 'Zero component references'],
-    ['MS6 Locked (--signal-blue-*)', '~80', 'DEAD', 'Near-zero usage'],
-    ['DMQ Bridge (--dmq-amber-*)', '~250', 'DEAD', 'Zero component references'],
-]
-story.append(make_table(['System', 'Props', 'Status', 'Used By'], token_systems,
-    [150, 45, 45, 250]))
-story.append(spacer(8))
-
-story.append(heading('4.2 Tailwind v3/v4 Conflict', s_h2))
-story.append(body(
-    'The project uses Tailwind CSS v4 (via @tailwindcss/postcss in postcss.config.mjs and @import "tailwindcss" '
-    'in globals.css), but retains a v3-style tailwind.config.ts file. This v3 config is completely dead -- '
-    'Tailwind v4 ignores it unless explicitly imported via @config. The dead config wraps all colors in '
-    'hsl() functions, but the actual CSS variables use hex values, which would produce invalid CSS (hsl(#2563eb)). '
-    'Additionally, tailwindcss-animate (a v3 plugin) is installed as a dependency but unused; the project '
-    'actually uses tw-animate-css (v4 compatible). The tsconfig.json targets ES2017, unusually low for a '
-    'Next.js 16 project which defaults to ES2022+, forcing unnecessary downleveling of modern JavaScript features.'
-))
-story.append(spacer(8))
-
-story.append(heading('4.3 Bundle Size & Unused Dependencies', s_h2))
-unused_deps = [
-    ['@xenova/transformers', '~50MB', 'CRITICAL', 'Never imported anywhere in src/'],
-    ['pdfkit', '~2MB', 'MEDIUM', 'Never imported in src/'],
-    ['mammoth', '~1MB', 'MEDIUM', 'Never imported in src/'],
-    ['next-themes', '~50KB', 'LOW', 'Never imported in src/'],
-    ['tailwindcss-animate', '~20KB', 'LOW', 'V3 plugin, project uses v4'],
-    ['9 unused shadcn wrappers', '~200KB', 'LOW', 'drawer, navigation-menu, collapsible, etc.'],
-]
-story.append(make_table(['Package', 'Size', 'Severity', 'Evidence'], unused_deps,
-    [130, 60, 60, 240]))
-story.append(spacer(6))
-story.append(body(
-    'The optimizePackageImports configuration for recharts, framer-motion, and lucide-react is only active '
-    'when ANALYZE=true, meaning tree-shaking for these major bundle contributors is OFF in normal builds. '
-    'The images.unoptimized: true setting in next.config.ts disables all Next.js image optimization, which '
-    'is a footgun for future development if any next/image usage is added.'
-))
-
-story.append(PageBreak())
-
-# ═══════════════════════════════════════════════════════
-# SECTION 5: TESTING AUDIT
-# ═══════════════════════════════════════════════════════
-story.append(heading('5. Testing Coverage Audit'))
-story.append(body(
-    'The project has 30 test files covering 4 categories: end-to-end tests (4 Playwright tests for health, '
-    'screens, navigation, and auth), API tests (4 tests for settings, organizations, people, and signals), '
-    'unit tests (8 tests for auth, RBAC, CSRF, validation, and screen smoke tests), intelligence tests (4 tests '
-    'for knowledge graph, signals reasoning, and ingestion), and AI tests (8 tests for governance, model '
-    'router, LLM streaming, Redis cache, prompt registry, AI cache layer, and quality gates). While the '
-    'test infrastructure is comprehensive for backend and AI components, the frontend coverage is critically '
-    'inadequate.'
-))
-story.append(spacer(8))
-
-testing_gaps = [
-    ['Intelligence OS Screens', '0/8', 'CRITICAL', 'No tests exist for any of the 8 new Intel OS screens'],
-    ['Screen Behavior Tests', '0', 'CRITICAL', 'Smoke tests only verify render, no interaction testing'],
-    ['Integration Tests', '0', 'HIGH', 'No tests verify data flow between screens and APIs'],
-    ['Component Unit Tests', '0', 'MEDIUM', 'No tests for shared components (DataTable, StatCard, etc.)'],
-    ['Screens Smoke Coverage', '~60/85', 'LOW', 'Covers legacy screens but misses Intel OS directory'],
-]
-story.append(make_table(['Gap Area', 'Coverage', 'Severity', 'Details'], testing_gaps,
-    [120, 60, 55, 255]))
-story.append(spacer(6))
-story.append(body(
-    'The primary screen test (screens-smoke.test.ts) only verifies that components render without crashing '
-    'using renderToString and checking html.length > 0. It makes zero behavioral assertions about user '
-    'interactions, data flow, state changes, or error handling. This means a screen could render its initial '
-    'state correctly but fail completely when a user clicks a button, changes a filter, or submits a form, '
-    'and no test would catch it. The 8 Intelligence OS screens are completely absent from all test files, '
-    'representing a significant quality gap for the platform\'s primary navigation items.'
-))
-
-story.append(PageBreak())
-
-# ═══════════════════════════════════════════════════════
-# SECTION 6: PRIORITY ACTION ITEMS
-# ═══════════════════════════════════════════════════════
-story.append(heading('6. Prioritized Action Items'))
-story.append(body(
-    'The following 32 findings are organized by severity and estimated remediation effort. Each item includes '
-    'the specific gap, its impact on the platform, and a concrete remediation step. Items are ordered by '
-    'business impact: critical items that affect data integrity and security come first, followed by high-priority '
-    'items that affect functionality, then medium and low items that affect maintainability and developer experience.'
-))
-story.append(spacer(8))
-
-story.append(heading('6.1 Critical Priority (P0)', s_h2))
-story.append(body(
-    'These items represent immediate risks to data integrity, security, or core functionality. They should be '
-    'addressed before any production deployment.'
-))
-
-p0_items = [
-    ('CRITICAL', 'Profile update writes non-existent DB fields',
-     '/api/auth/update-profile allows phone/company/designation but User model lacks these columns. '
-     'Any update attempt returns Prisma 500 error.',
-     'Add fields to Prisma schema + migration, or remove from Zod schema'),
-    ('CRITICAL', '94% of screens use mock data',
-     '89 of 97 screens define const arrays and never call real APIs. The UI appears functional but all '
-     'data is hardcoded. Business users see realistic but fake information.',
-     'Wire screens to existing API routes; start with highest-traffic: sequences, opportunities, pipeline, '
-     'leads, tasks'),
-    ('CRITICAL', '6 cron routes are stubs returning zeros',
-     'data-retention, persistence-evidence, persistence-performance, calibration-runner, backup-verify, '
-     'and job-processor all have TODO comments and return hardcoded values.',
-     'Implement actual cron logic or remove routes and document as unimplemented'),
-    ('CRITICAL', 'Tailwind v3 config is dead, creating confusion',
-     'tailwind.config.ts is completely ignored by Tailwind v4. It contains invalid hsl(hex) color '
-     'definitions that would break if the config were ever activated.',
-     'Delete tailwind.config.ts, remove tailwindcss-animate dependency'),
-]
-story.append(severity_table(p0_items))
-story.append(spacer(12))
-
-story.append(heading('6.2 High Priority (P1)', s_h2))
-story.append(body(
-    'These items affect security boundaries, data consistency, or significant functionality gaps.'
-))
-
-p1_items = [
-    ('HIGH', 'Cron secret comparison not timing-safe',
-     'All 5 cron routes use === for secret comparison, vulnerable to timing side-channel attacks. '
-     'An attacker could infer the secret character-by-character.',
-     'Replace === with crypto.timingSafeEqual() in validateCronSecret()'),
-    ('HIGH', 'No per-route rate limiting on 20+ data routes',
-     'Only auth routes have rate limiting. Data routes (organizations, signals, knowledge-graph, '
-     'advisor/pipeline) have no per-endpoint throttling.',
-     'Add rate limits to expensive routes, especially /api/advisor/pipeline'),
-    ('HIGH', '.passthrough() on discover endpoint allows unvalidated input',
-     '/api/knowledge-graph/discover uses Zod .passthrough() allowing arbitrary fields to reach '
-     'downstream discoverRelationships() function.',
-     'Remove .passthrough(), explicitly define all allowed fields'),
-    ('HIGH', '330+ lines of dead CSS tokens in globals.css',
-     '~250 --dmq-* tokens, ~40 gold tokens, ~80 MS6 tokens are defined but never referenced by '
-     'any component. They add 330+ lines of noise.',
-     'Delete all --dmq-*, gold, and unused MS6 token blocks'),
-    ('HIGH', 'Zero tests for 8 Intelligence OS screens',
-     'The 8 newly built primary navigation screens (Intelligence Ops, Command Center, etc.) have no '
-     'test coverage whatsoever.',
-     'Add smoke tests + basic behavioral tests for all 8 screens'),
-    ('HIGH', 'company-profile/intelligence-briefing.tsx has broken theming',
-     'Uses text-gray-200, bg-white/[0.03], text-violet-400 instead of design tokens. Also uses '
-     'raw fetch() instead of fetchApi().',
-     'Replace all hardcoded Tailwind classes with design token references'),
-    ('HIGH', '@xenova/transformers (~50MB) installed but never used',
-     'This enormous package is a renamed/deprecated dependency. It bloats node_modules and CI/CD '
-     'caches significantly.',
-     'Remove from package.json'),
-    ('HIGH', 'update-profile uses non-existent Prisma fields',
-     'The Zod schema allows phone, company, designation fields that do not exist on the User model. '
-     'Writing these fields causes a Prisma runtime error.',
-     'Add fields to schema.prisma User model + run migration'),
-]
-story.append(severity_table(p1_items))
-
-story.append(PageBreak())
-
-story.append(heading('6.3 Medium Priority (P2)', s_h2))
-
-p2_items = [
-    ('MEDIUM', 'Only 12% of screens have error handling',
-     '85 screens lack try/catch or error states. If API calls were added without error handling, '
-     'runtime errors would crash the screen or show no feedback.',
-     'Add error boundary fallbacks and try/catch to all screens being wired to APIs'),
-    ('MEDIUM', 'SCREEN_MAP uses string keys instead of ViewId type',
-     'Record<string, ScreenComponent> allows typos in screen keys to silently pass. Should be '
-     'Record<ViewId, ScreenComponent> for compile-time validation.',
-     'Type SCREEN_MAP as Record<ViewId, ScreenComponent>'),
-    ('MEDIUM', 'optimizePackageImports off by default',
-     'Tree-shaking for recharts, framer-motion, lucide-react only active when ANALYZE=true. '
-     'These are major bundle contributors.',
-     'Enable optimizePackageImports unconditionally in next.config.ts'),
-    ('MEDIUM', 'require() in screen-map.tsx ESM context',
-     'ContactDetailBridge uses require(@/lib/store) and require(react) in a use client module. '
-     'Breaks tree-shaking and static analysis.',
-     'Convert to ES import statements'),
-    ('MEDIUM', 'Conflicting confidence color values across token systems',
-     '--confidence-high is #059669 in one system but #10b981 in another. Same semantic concept, '
-     'different visual representation.',
-     'Consolidate to single canonical value per semantic token'),
-    ('MEDIUM', 'No CORS configuration on any API route',
-     'Zero Access-Control-Allow-Origin headers. Blocks legitimate cross-origin consumers (mobile apps, '
-     'third-party integrations).',
-     'Add CORS headers or document same-origin assumption'),
-    ('MEDIUM', '20+ files with explicit any types',
-     'Screen map, LLM client, Redis client, DB client, and 7 screen files use untyped any.',
-     'Progressive typing of function signatures and data shapes'),
-    ('MEDIUM', 'images.unoptimized disables Next.js image optimization',
-     'next.config.ts has images: { unoptimized: true }, removing all <Image> optimization benefits.',
-     'Remove unless Docker-specific requirement exists'),
-    ('MEDIUM', 'tsconfig targets ES2017, too low for Next.js 16',
-     'Forces downleveling of modern JS features that Next.js 16 assumes are available.',
-     'Update target to ES2022 or remove to use Next.js default'),
-]
-story.append(severity_table(p2_items))
-story.append(spacer(12))
-
-story.append(heading('6.4 Low Priority (P3)', s_h2))
-
-p3_items = [
-    ('LOW', 'No page-level authentication gate on main page.tsx',
-     'The app shell renders the full dashboard without checking if a user is authenticated. Any '
-     'visitor sees the Intelligence OS interface.',
-     'Add auth check before rendering AppSidebar + AppHeader'),
-    ('LOW', '9 unused shadcn UI component wrappers',
-     'drawer, navigation-menu, collapsible, context-menu, hover-card, menubar, toggle, toggle-group, '
-     'carousel are installed but never imported by any screen.',
-     'Remove dead components and their Radix dependencies'),
-    ('LOW', 'Duplicate screen mappings in screen-map.tsx',
-     'company-workspace, company-detail, company-profile all map to CompanyProfileScreen. '
-     'accounts and companies both map to CompaniesScreen.',
-     'Document intentional aliases or consolidate to canonical mappings'),
-    ('LOW', 'setSidebarCollapsed implemented but not in AppState interface',
-     'The function exists in the store implementation but is not declared in the TypeScript interface.',
-     'Add setSidebarCollapsed and sidebarCollapsed to AppState interface'),
-    ('LOW', 'Demo and signup pages were recently fixed to dark theme',
-     'Both pages now match the Intelligence OS palette, but the signup page still uses a split-screen '
-     'layout with a light-panel history that may confuse some users.',
-     'Consider full-page dark layout for consistency'),
-    ('LOW', 'Pipeline screen Kanban has no mobile breakpoint handling',
-     'The drag-and-drop Kanban board is desktop-only and would be unusable on mobile devices.',
-     'Add a list-view fallback for mobile viewports'),
-    ('LOW', 'Intelligence OS screens lack memoization',
-     'Only 1 of 8 Intelligence OS screens uses useMemo/useCallback. These are large components '
-     'with complex state that could benefit from memoization.',
-     'Add useMemo/useCallback to expensive computations in Intel OS screens'),
-    ('LOW', 'next-themes installed but never used',
-     'The theming library is a dependency but the app is hardcoded to dark theme only.',
-     'Remove or implement light/dark theme toggle'),
-]
-story.append(severity_table(p3_items))
-
-story.append(PageBreak())
-
-# ═══════════════════════════════════════════════════════
-# SECTION 7: GAP ANALYSIS MATRIX
-# ═══════════════════════════════════════════════════════
-story.append(heading('7. Actual vs. Planned Gap Analysis Matrix'))
-story.append(body(
-    'This matrix maps the planned platform capabilities against actual implementation status, providing '
-    'a clear view of where the platform meets its design intent and where significant gaps remain. '
-    'Each capability area is assessed on a maturity scale from Not Started to Production.'
-))
-story.append(spacer(8))
-
-gap_data = [
-    ['Signal Detection & Monitoring', 'Production', '85%', 'Real API, filters, DataTable, pagination. Needs more signal types.'],
-    ['AI-Powered Scoring', 'MVP', '30%', 'Scoring config screen exists but no real AI scoring pipeline connected to UI.'],
-    ['Revenue Intelligence', 'MVP', '25%', 'Screens built with mock data. No real revenue data pipeline.'],
-    ['Pipeline Management', 'Decent', '60%', 'DnD Kanban works with mock data. Real pipeline API exists but not wired.'],
-    ['Knowledge Management', 'MVP', '35%', 'Knowledge library and workspace built. No real knowledge graph queries.'],
-    ['Sequence Automation', 'Decent', '55%', 'Full sequence builder UI. Uses mock sequence data, no send integration.'],
-    ['AI Command Center', 'MVP', '40%', 'Monitoring dashboard with mock metrics. Real AI health API exists.'],
-    ['Intelligence Search', 'Decent', '50%', 'Search UI recently built. No real search backend (no Elasticsearch).'],
-    ['Intelligence Briefing', 'Decent', '45%', 'Briefing viewer built. Generate button is cosmetic only.'],
-    ['Authentication & RBAC', 'Production', '95%', 'Full OTP flow, CSRF, rate limiting, RBAC matrix.'],
-    ['Health Monitoring', 'Production', '90%', '7 health endpoints, liveness, readiness, Prometheus metrics.'],
-    ['Cron Operations', 'Stub', '5%', '6 routes exist but all return hardcoded zeros.'],
-    ['Data Import', 'Production', '75%', 'File upload, validation, history. Connected to real ingestion API.'],
-    ['Settings Management', 'Production', '80%', 'Full CRUD with real API. Env-based config.'],
-]
-story.append(make_table(
-    ['Capability Area', 'Status', 'Complete', 'Gap Description'],
-    gap_data, [120, 55, 50, 265]
-))
-
-story.append(PageBreak())
-
-# ═══════════════════════════════════════════════════════
-# SECTION 8: RECOMMENDED ROADMAP
-# ═══════════════════════════════════════════════════════
-story.append(heading('8. Recommended Remediation Roadmap'))
-story.append(body(
-    'Based on the findings, the following phased roadmap prioritizes the highest-impact items first. '
-    'Phase 1 addresses critical security and data integrity issues. Phase 2 connects the UI to real data. '
-    'Phase 3 cleans up technical debt. Phase 4 enhances quality and coverage.'
-))
-story.append(spacer(8))
-
-story.append(heading('Phase 1: Security & Integrity (Week 1-2)', s_h2))
-story.append(bullet('Fix update-profile Prisma schema mismatch (P0) -- add User fields or remove from Zod'))
-story.append(bullet('Replace === with crypto.timingSafeEqual() in cron secret validation (P1)'))
-story.append(bullet('Remove .passthrough() from /api/knowledge-graph/discover endpoint (P1)'))
-story.append(bullet('Add per-route rate limiting to data endpoints (P1)'))
-story.append(bullet('Add authentication gate to main page.tsx (P3)'))
-story.append(spacer(6))
-
-story.append(heading('Phase 2: Data Connectivity (Week 3-6)', s_h2))
-story.append(bullet('Wire top 10 screens to real APIs: sequences, opportunities, pipeline, leads, tasks, intelligence ops, command center, activation workspace, knowledge workspace, capability workspace'))
-story.append(bullet('Implement real search backend (Elasticsearch or PostgreSQL full-text) for Intelligence Search'))
-story.append(bullet('Connect Intelligence Briefing to real /api/briefings endpoint with generation'))
-story.append(bullet('Add error handling (try/catch + fallback UI) to all newly wired screens'))
-story.append(bullet('Replace mock data generation (Math.random(), getMockSignals) with real data fetching'))
-story.append(spacer(6))
-
-story.append(heading('Phase 3: Technical Debt Cleanup (Week 7-8)', s_h2))
-story.append(bullet('Delete dead Tailwind v3 config and tailwindcss-animate dependency'))
-story.append(bullet('Remove 330+ lines of unused CSS tokens (--dmq-*, gold, unused MS6)'))
-story.append(bullet('Remove unused dependencies: @xenova/transformers, pdfkit, mammoth, next-themes'))
-story.append(bullet('Consolidate design token systems to 2 (shadcn + ios), deprecate the rest'))
-story.append(bullet('Fix conflicting confidence color values across token systems'))
-story.append(bullet('Convert require() to import in screen-map.tsx'))
-story.append(bullet('Type SCREEN_MAP as Record<ViewId, ScreenComponent>'))
-story.append(bullet('Update tsconfig target to ES2022'))
-story.append(spacer(6))
-
-story.append(heading('Phase 4: Quality & Coverage (Week 9-12)', s_h2))
-story.append(bullet('Add tests for all 8 Intelligence OS screens (smoke + behavioral)'))
-story.append(bullet('Add integration tests for screen-to-API data flow'))
-story.append(bullet('Fix company-profile/intelligence-briefing.tsx theming'))
-story.append(bullet('Add memoization to Intelligence OS screens'))
-story.append(bullet('Add responsive fallbacks for pipeline Kanban on mobile'))
-story.append(bullet('Enable optimizePackageImports for recharts, framer-motion, lucide'))
-story.append(bullet('Implement real cron job logic or remove stub routes'))
-story.append(bullet('Add CORS configuration if cross-origin access is needed'))
-
-# ── Build ──
-doc.build(story)
-print(f'PDF generated: {OUTPUT}')
+doc.save()
+print(f'PDF saved to: {output_path}')
+print(f'Size: {os.path.getsize(output_path) / 1024}KB')

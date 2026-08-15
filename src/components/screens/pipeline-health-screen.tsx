@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect, useCallback } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -11,79 +12,157 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { DollarSign, Clock, AlertTriangle, TrendingUp, ArrowRight } from 'lucide-react';
+import { Activity, Clock, AlertTriangle, TrendingUp, ArrowRight } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
+import { LoadingSkeleton, ErrorPanel } from '@/components/ui/screen-states';
 
-const STAGE_DATA = [
-  { stage: 'Prospect', deals: 142, value: 4260000, avgDays: 8, conversion: 45 },
-  { stage: 'Discovery', deals: 87, value: 6960000, avgDays: 12, conversion: 62 },
-  { stage: 'Demo/Presentation', deals: 54, value: 8100000, avgDays: 15, conversion: 58 },
-  { stage: 'Proposal', deals: 31, value: 9300000, avgDays: 11, conversion: 71 },
-  { stage: 'Negotiation', deals: 22, value: 11000000, avgDays: 18, conversion: 73 },
-  { stage: 'Closed Won', deals: 16, value: 8040000, avgDays: 0, conversion: null },
-];
-
-const AT_RISK_DEALS = [
-  {
-    name: 'Acme Corp - Enterprise License',
-    stage: 'Negotiation',
-    daysInStage: 34,
-    value: 850000,
-    risk: 'Budget approval delayed by CFO review',
-  },
-  {
-    name: 'Nexus Technologies - Platform Deal',
-    stage: 'Proposal',
-    daysInStage: 42,
-    value: 420000,
-    risk: 'Champion left the company — no new sponsor',
-  },
-  {
-    name: 'Vertex Solutions - Expansion',
-    stage: 'Demo/Presentation',
-    daysInStage: 31,
-    value: 180000,
-    risk: 'Competing against incumbent with multi-year contract',
-  },
-  {
-    name: 'Stellar Dynamics - Migration',
-    stage: 'Discovery',
-    daysInStage: 38,
-    value: 320000,
-    risk: 'Technical evaluation stalled — no response to follow-ups',
-  },
-  {
-    name: 'Quantum Leap - AI Suite',
-    stage: 'Negotiation',
-    daysInStage: 33,
-    value: 1200000,
-    risk: 'Legal review flagged data processing concerns',
-  },
-];
-
-function formatCurrency(value: number) {
-  if (value >= 1000000) return `$${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `$${(value / 1000).toFixed(0)}K`;
-  return `$${value}`;
+interface StatusItem {
+  status: string;
+  count: number;
 }
 
-function getConversionColor(pct: number | null) {
-  if (pct === null) return tokens.confidence.high.value;
+interface SeverityItem {
+  severity: string;
+  count: number;
+}
+
+interface RecentSignal {
+  id: string;
+  title: string;
+  signalType: string;
+  severity: string;
+  status: string;
+  organizationName: string;
+  detectedAt: string;
+}
+
+interface PipelineHealthData {
+  statusBreakdown: StatusItem[];
+  severityBreakdown: SeverityItem[];
+  recentSignals: RecentSignal[];
+  avgConfidence: number;
+  totalSignals: number;
+}
+
+function formatSeverity(severity: string): string {
+  return severity.charAt(0).toUpperCase() + severity.slice(1);
+}
+
+function getConfidenceColor(pct: number) {
   if (pct >= 65) return tokens.confidence.high.value;
   if (pct >= 45) return tokens.confidence.medium.value;
   return tokens.confidence.low.value;
 }
 
+function getSeverityBg(severity: string): string {
+  switch (severity) {
+    case 'critical':
+      return tokens.confidence.low.bg;
+    case 'high':
+      return tokens.confidence.medium.bg;
+    default:
+      return tokens.accent.subtle;
+  }
+}
+
+function getSeverityBorder(severity: string): string {
+  switch (severity) {
+    case 'critical':
+      return tokens.confidence.low.border;
+    case 'high':
+      return tokens.confidence.medium.border;
+    default:
+      return tokens.border.default;
+  }
+}
+
+function getSeverityColor(severity: string): string {
+  switch (severity) {
+    case 'critical':
+      return tokens.confidence.low.value;
+    case 'high':
+      return tokens.confidence.medium.value;
+    default:
+      return tokens.confidence.high.value;
+  }
+}
+
+function formatDate(dateStr: string): string {
+  try {
+    const d = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - d.getTime();
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    if (diffDays === 0) return 'Today';
+    if (diffDays === 1) return 'Yesterday';
+    if (diffDays < 7) return `${diffDays}d ago`;
+    return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+  } catch {
+    return '';
+  }
+}
+
 export default function PipelineHealth() {
-  const totalValue = STAGE_DATA.filter((s) => s.stage !== 'Closed Won').reduce(
-    (a, b) => a + b.value,
-    0,
-  );
-  const avgDaysAll = Math.round(
-    STAGE_DATA.filter((s) => s.stage !== 'Closed Won').reduce((a, b) => a + b.avgDays, 0) /
-      (STAGE_DATA.length - 1),
-  );
-  const stalledDeals = AT_RISK_DEALS.length;
-  const overallConversion = 16; // Closed Won from Prospect
+  const [data, setData] = useState<PipelineHealthData | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    const res = await fetchApi<PipelineHealthData>('/api/pipeline-health');
+    if (res.error) {
+      setError(res.error);
+    } else if (res.data) {
+      setData(res.data);
+    }
+    setLoading(false);
+  }, []);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
+
+  // Stats derived from API data
+  const actedCount = data?.statusBreakdown.find((s) => s.status === 'acted_upon')?.count || 0;
+  const detectedCount = data?.statusBreakdown.find((s) => s.status === 'detected')?.count || 0;
+  const criticalCount = data?.severityBreakdown.find((s) => s.severity === 'critical')?.count || 0;
+  const highCount = data?.severityBreakdown.find((s) => s.severity === 'high')?.count || 0;
+  const atRiskCount = criticalCount + highCount;
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+            Pipeline Health
+          </h1>
+          <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
+            Monitor pipeline velocity, stage conversion, and at-risk deals
+          </p>
+        </div>
+        <LoadingSkeleton variant="dashboard" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col gap-6 p-6">
+        <div>
+          <h1 className="text-2xl font-bold" style={{ color: tokens.text.primary }}>
+            Pipeline Health
+          </h1>
+          <p className="text-sm mt-1" style={{ color: tokens.text.secondary }}>
+            Monitor pipeline velocity, stage conversion, and at-risk deals
+          </p>
+        </div>
+        <ErrorPanel message={error} onRetry={fetchData} />
+      </div>
+    );
+  }
+
+  if (!data) return null;
 
   return (
     <div className="flex flex-col gap-6 p-6">
@@ -101,30 +180,30 @@ export default function PipelineHealth() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {[
           {
-            label: 'Total Pipeline Value',
-            value: formatCurrency(totalValue),
-            icon: DollarSign,
+            label: 'Total Signals',
+            value: data.totalSignals,
+            icon: Activity,
             color: tokens.confidence.high.value,
             bg: tokens.confidence.high.bg,
           },
           {
-            label: 'Avg Days in Stage',
-            value: `${avgDaysAll}d`,
-            icon: Clock,
+            label: 'Avg Confidence',
+            value: data.avgConfidence.toFixed(1),
+            icon: TrendingUp,
             color: tokens.confidence.medium.value,
             bg: tokens.confidence.medium.bg,
           },
           {
-            label: 'Stalled Deals (>30d)',
-            value: stalledDeals,
+            label: 'At-Risk Signals',
+            value: atRiskCount,
             icon: AlertTriangle,
             color: tokens.confidence.low.value,
             bg: tokens.confidence.low.bg,
           },
           {
-            label: 'Conversion Rate',
-            value: `${overallConversion}%`,
-            icon: TrendingUp,
+            label: 'Acted Upon',
+            value: `${actedCount}/${data.totalSignals}`,
+            icon: Clock,
             color: tokens.accent.primary,
             bg: tokens.accent.subtle,
           },
@@ -150,94 +229,160 @@ export default function PipelineHealth() {
         ))}
       </div>
 
-      {/* Stage Breakdown */}
+      {/* Status Breakdown */}
       <Card className="gap-4 py-4">
         <CardHeader className="pb-0 pt-0 px-6">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <ArrowRight className="size-4" style={{ color: tokens.domain.value }} />
-            Stage-by-Stage Breakdown
+            Signal Status Breakdown
           </CardTitle>
         </CardHeader>
         <CardContent className="p-0 max-h-96 overflow-y-auto">
           <Table>
             <TableHeader>
               <TableRow style={{ backgroundColor: tokens.surface.secondary }}>
-                <TableHead>Stage</TableHead>
-                <TableHead className="text-right">Deal Count</TableHead>
-                <TableHead className="text-right">Total Value</TableHead>
-                <TableHead className="text-right">Avg Days</TableHead>
-                <TableHead className="text-right">Conversion to Next</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Count</TableHead>
+                <TableHead className="text-right">% of Total</TableHead>
+                <TableHead className="text-right">Health</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {STAGE_DATA.map((row) => (
-                <TableRow key={row.stage} className="hover:bg-muted/50 transition-colors">
-                  <TableCell className="font-medium" style={{ color: tokens.text.primary }}>
-                    {row.stage}
-                  </TableCell>
-                  <TableCell
-                    className="text-right font-mono"
-                    style={{ color: tokens.text.primary }}
-                  >
-                    {row.deals}
-                  </TableCell>
-                  <TableCell
-                    className="text-right font-mono"
-                    style={{ color: tokens.text.primary }}
-                  >
-                    {formatCurrency(row.value)}
-                  </TableCell>
-                  <TableCell
-                    className="text-right font-mono"
-                    style={{
-                      color: row.avgDays > 20 ? tokens.confidence.low.value : tokens.text.primary,
-                    }}
-                  >
-                    {row.avgDays > 0 ? `${row.avgDays}d` : '—'}
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {row.conversion !== null ? (
+              {data.statusBreakdown.map((row) => {
+                const pct =
+                  data.totalSignals > 0 ? Math.round((row.count / data.totalSignals) * 100) : 0;
+                return (
+                  <TableRow key={row.status} className="hover:bg-muted/50 transition-colors">
+                    <TableCell className="font-medium" style={{ color: tokens.text.primary }}>
+                      {row.status
+                        .split('_')
+                        .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                        .join(' ')}
+                    </TableCell>
+                    <TableCell
+                      className="text-right font-mono"
+                      style={{ color: tokens.text.primary }}
+                    >
+                      {row.count}
+                    </TableCell>
+                    <TableCell
+                      className="text-right font-mono"
+                      style={{ color: tokens.text.primary }}
+                    >
+                      {pct}%
+                    </TableCell>
+                    <TableCell className="text-right">
                       <span
                         className="font-medium"
-                        style={{ color: getConversionColor(row.conversion) }}
+                        style={{
+                          color:
+                            row.status === 'acted_upon'
+                              ? tokens.confidence.high.value
+                              : row.status === 'detected'
+                                ? tokens.confidence.medium.value
+                                : tokens.confidence.low.value,
+                        }}
                       >
-                        {row.conversion}%
+                        {row.status === 'acted_upon'
+                          ? 'Healthy'
+                          : row.status === 'detected'
+                            ? 'Pending'
+                            : 'Stale'}
                       </span>
-                    ) : (
-                      <span style={{ color: tokens.text.muted }}>—</span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
 
-      {/* At-Risk Deals */}
+      {/* Severity Indicators */}
+      <Card className="gap-4 py-4">
+        <CardHeader className="pb-0 pt-0 px-6">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <AlertTriangle className="size-4" style={{ color: tokens.confidence.medium.value }} />
+            Severity Distribution
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="p-0 max-h-96 overflow-y-auto">
+          <Table>
+            <TableHeader>
+              <TableRow style={{ backgroundColor: tokens.surface.secondary }}>
+                <TableHead>Severity</TableHead>
+                <TableHead className="text-right">Count</TableHead>
+                <TableHead className="text-right">% of Total</TableHead>
+                <TableHead className="text-right">Risk Level</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {data.severityBreakdown.map((row) => {
+                const pct =
+                  data.totalSignals > 0 ? Math.round((row.count / data.totalSignals) * 100) : 0;
+                return (
+                  <TableRow key={row.severity} className="hover:bg-muted/50 transition-colors">
+                    <TableCell className="font-medium" style={{ color: tokens.text.primary }}>
+                      {formatSeverity(row.severity)}
+                    </TableCell>
+                    <TableCell
+                      className="text-right font-mono"
+                      style={{ color: tokens.text.primary }}
+                    >
+                      {row.count}
+                    </TableCell>
+                    <TableCell
+                      className="text-right font-mono"
+                      style={{ color: tokens.text.primary }}
+                    >
+                      {pct}%
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <span
+                        className="font-medium"
+                        style={{ color: getSeverityColor(row.severity) }}
+                      >
+                        {row.severity === 'critical'
+                          ? 'Critical'
+                          : row.severity === 'high'
+                            ? 'Elevated'
+                            : row.severity === 'medium'
+                              ? 'Moderate'
+                              : 'Low'}
+                      </span>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+
+      {/* Recent Signals */}
       <Card className="gap-4 py-4">
         <CardHeader className="pb-0 pt-0 px-6">
           <CardTitle className="text-sm font-semibold flex items-center gap-2">
             <AlertTriangle className="size-4" style={{ color: tokens.confidence.low.value }} />
-            At-Risk Deals
+            Recent Signals
           </CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3 max-h-72 overflow-y-auto">
-          {AT_RISK_DEALS.map((deal, idx) => (
+          {data.recentSignals.map((signal) => (
             <div
-              key={idx}
+              key={signal.id}
               className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 p-3 rounded-lg"
               style={{
-                border: `1px solid ${tokens.confidence.low.border}`,
-                backgroundColor: tokens.confidence.low.bg,
+                border: `1px solid ${getSeverityBorder(signal.severity)}`,
+                backgroundColor: getSeverityBg(signal.severity),
               }}
             >
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium" style={{ color: tokens.text.primary }}>
-                  {deal.name}
+                  {signal.title}
                 </p>
                 <p className="text-xs mt-0.5" style={{ color: tokens.confidence.low.value }}>
-                  {deal.risk}
+                  {signal.organizationName} · {formatDate(signal.detectedAt)}
                 </p>
               </div>
               <div className="flex items-center gap-4 shrink-0">
@@ -247,20 +392,34 @@ export default function PipelineHealth() {
                     color: tokens.text.secondary,
                   }}
                 >
-                  {deal.stage}
+                  {signal.severity}
+                </Badge>
+                <Badge
+                  variant="outline"
+                  style={{
+                    borderColor: tokens.border.default,
+                    color: tokens.text.secondary,
+                  }}
+                >
+                  {signal.status
+                    .split('_')
+                    .map((w) => w.charAt(0).toUpperCase() + w.slice(1))
+                    .join(' ')}
                 </Badge>
                 <span
                   className="text-xs font-mono"
                   style={{ color: tokens.confidence.medium.value }}
                 >
-                  {deal.daysInStage}d
-                </span>
-                <span className="text-sm font-bold" style={{ color: tokens.text.primary }}>
-                  {formatCurrency(deal.value)}
+                  {signal.signalType}
                 </span>
               </div>
             </div>
           ))}
+          {data.recentSignals.length === 0 && (
+            <div className="text-center py-8" style={{ color: tokens.text.muted }}>
+              No signals detected yet.
+            </div>
+          )}
         </CardContent>
       </Card>
     </div>

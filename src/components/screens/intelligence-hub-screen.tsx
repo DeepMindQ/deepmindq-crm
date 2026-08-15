@@ -160,7 +160,7 @@ export default function IntelligenceHub() {
   const handleQuickAction = useCallback(
     (action: string) => {
       const actionMap: Record<string, { view: string; message: string }> = {
-        import: { view: 'import', message: 'Opening Data Import...' },
+        import: { view: 'data-import', message: 'Opening Data Import...' },
         pipeline: { view: 'ai-health', message: 'Intelligence pipeline triggered...' },
         signals: { view: 'signal-intelligence', message: 'Viewing all signals...' },
         briefing: { view: 'intelligence-briefing', message: 'Generating intelligence briefing...' },

@@ -389,7 +389,9 @@ export async function storeInsights(orgId: string, results: ReasoningResult[]): 
         suggestedMessage: result.insight.suggestedMessage,
         confidence: result.insight.confidence,
         confidenceScore: result.insight.confidenceScore,
-        evidenceIds: result.insight.evidenceIds,
+        evidenceIds: Array.isArray(result.insight.evidenceIds)
+          ? JSON.stringify(result.insight.evidenceIds)
+          : result.insight.evidenceIds || '[]',
         reasoningMethod: result.insight.reasoningMethod,
         status: 'active',
       },
@@ -488,10 +490,10 @@ async function generateBriefing(orgId: string): Promise<void> {
     data: {
       organizationId: orgId,
       executiveSummary,
-      keyFindings,
+      keyFindings: JSON.stringify(keyFindings),
       opportunityScore,
-      riskFactors,
-      recommendedActions: recommendedActions.filter((a): a is string => a !== null),
+      riskFactors: JSON.stringify(riskFactors),
+      recommendedActions: JSON.stringify(recommendedActions.filter((a): a is string => a !== null)),
       signalCount: org.signals.length,
       activeSignals: org.signals.filter((s) => s.status !== 'expired' && s.status !== 'dismissed')
         .length,

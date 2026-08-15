@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useMemo, useCallback } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { DataTable } from '@/components/enterprise/DataTable';
 import { RefreshCw, RotateCcw, Loader2, FileText } from 'lucide-react';
@@ -54,6 +55,38 @@ export function ImportHistory({
   onRefresh,
   onRetry,
 }: ImportHistoryProps) {
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+
+  const handleSort = useCallback((key: string) => {
+    setSortKey((prev) => {
+      if (prev === key) {
+        setSortDir((d) => (d === 'asc' ? 'desc' : 'asc'));
+        return prev;
+      }
+      setSortDir('asc');
+      return key;
+    });
+  }, []);
+
+  const sortedData = useMemo(() => {
+    if (!sortKey) return ingestions as unknown as Record<string, unknown>[];
+    return [...(ingestions as unknown as Record<string, unknown>[])].sort((a, b) => {
+      const aVal = a[sortKey];
+      const bVal = b[sortKey];
+      if (aVal == null && bVal == null) return 0;
+      if (aVal == null) return 1;
+      if (bVal == null) return -1;
+      let cmp = 0;
+      if (typeof aVal === 'number' && typeof bVal === 'number') {
+        cmp = aVal - bVal;
+      } else {
+        cmp = String(aVal).localeCompare(String(bVal));
+      }
+      return sortDir === 'asc' ? cmp : -cmp;
+    });
+  }, [ingestions, sortKey, sortDir]);
+
   const columns = [
     {
       key: 'fileName',
@@ -207,8 +240,11 @@ export function ImportHistory({
       </div>
       <DataTable
         columns={columns}
-        data={ingestions as unknown as Record<string, unknown>[]}
+        data={sortedData}
         onRowClick={onRowClick}
+        onSort={handleSort}
+        sortKey={sortKey ?? undefined}
+        sortDir={sortDir}
         loading={loading}
         emptyMessage="No imports yet. Upload a file to get started."
         filterable

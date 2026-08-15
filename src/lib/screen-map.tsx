@@ -55,11 +55,6 @@ const ActivationWorkspaceScreen = lazy(() =>
     default: m.ActivationWorkspace,
   })),
 );
-const CompanyWorkspaceScreen = lazy(() =>
-  import('@/components/intelligence-os/company-workspace').then((m) => ({
-    default: m.CompanyWorkspace,
-  })),
-);
 const KnowledgeWorkspaceScreen = lazy(() =>
   import('@/components/intelligence-os/knowledge-workspace').then((m) => ({
     default: m.KnowledgeWorkspace,
@@ -126,7 +121,6 @@ const InternalIntelligenceScreen = lazy(
 );
 
 /* ── Detail views ── */
-const CompanyDetailScreen = lazy(() => import('@/components/screens/company-detail-screen'));
 const CompanyProfileScreen = lazy(() => import('@/components/screens/company-profile-screen'));
 const ContactDetailScreen = lazy(() => import('@/components/screens/contact-detail-screen'));
 const EmailGenerationScreen = lazy(() => import('@/components/screens/email-generation-screen'));

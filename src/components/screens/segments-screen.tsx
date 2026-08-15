@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PieChart, Plus, X, Building2, Target, Layers, Tag } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
 
 /* ═══ Types ═══ */
 
@@ -22,86 +23,6 @@ interface SegmentCriterion {
   operator: string;
   value: string;
 }
-
-/* ═══ Mock Data ═══ */
-
-const MOCK_SEGMENTS: Segment[] = [
-  {
-    id: 'seg-1',
-    name: 'Enterprise SaaS',
-    description: 'Large SaaS companies with 500+ employees and high intelligence scores.',
-    companyCount: 47,
-    avgIntelScore: 82,
-    criteria: [
-      { field: 'industry', operator: 'equals', value: 'SaaS' },
-      { field: 'employeeCount', operator: 'greater_than', value: '500' },
-      { field: 'intelligenceScore', operator: 'greater_than', value: '70' },
-    ],
-    lastUpdated: '2025-01-15T10:00:00Z',
-  },
-  {
-    id: 'seg-2',
-    name: 'Mid-Market FinTech',
-    description: 'Mid-size financial technology companies showing growth signals.',
-    companyCount: 63,
-    avgIntelScore: 74,
-    criteria: [
-      { field: 'industry', operator: 'equals', value: 'FinTech' },
-      { field: 'employeeCount', operator: 'between', value: '100-500' },
-      { field: 'intelligenceScore', operator: 'greater_than', value: '60' },
-    ],
-    lastUpdated: '2025-01-14T15:30:00Z',
-  },
-  {
-    id: 'seg-3',
-    name: 'Healthcare IT',
-    description: 'Healthcare technology companies with compliance focus and expansion signals.',
-    companyCount: 38,
-    avgIntelScore: 68,
-    criteria: [
-      { field: 'industry', operator: 'equals', value: 'Healthcare IT' },
-      { field: 'intelligenceScore', operator: 'greater_than', value: '50' },
-    ],
-    lastUpdated: '2025-01-13T09:15:00Z',
-  },
-  {
-    id: 'seg-4',
-    name: 'High-Intent Buyers',
-    description: 'Companies with recent buying signals and high engagement scores.',
-    companyCount: 24,
-    avgIntelScore: 91,
-    criteria: [
-      { field: 'intelligenceScore', operator: 'greater_than', value: '85' },
-      { field: 'signalCount', operator: 'greater_than', value: '5' },
-      { field: 'trackingStatus', operator: 'equals', value: 'active' },
-    ],
-    lastUpdated: '2025-01-15T14:00:00Z',
-  },
-  {
-    id: 'seg-5',
-    name: 'Series B+ Startups',
-    description: 'Well-funded startups that have reached Series B or later funding rounds.',
-    companyCount: 55,
-    avgIntelScore: 72,
-    criteria: [
-      { field: 'fundingStage', operator: 'in', value: 'Series B, Series C, Series D+' },
-      { field: 'employeeCount', operator: 'greater_than', value: '50' },
-    ],
-    lastUpdated: '2025-01-12T11:45:00Z',
-  },
-  {
-    id: 'seg-6',
-    name: 'At-Risk Accounts',
-    description: 'Existing accounts with declining engagement or negative signals.',
-    companyCount: 12,
-    avgIntelScore: 35,
-    criteria: [
-      { field: 'intelligenceScore', operator: 'less_than', value: '40' },
-      { field: 'trackingStatus', operator: 'equals', value: 'paused' },
-    ],
-    lastUpdated: '2025-01-16T08:30:00Z',
-  },
-];
 
 /* ═══ Helpers ═══ */
 
@@ -193,9 +114,17 @@ function StatCard({
 /* ═══ Main Component ═══ */
 
 export default function Segments() {
-  const [segments, setSegments] = useState<Segment[]>(MOCK_SEGMENTS);
-  const [loading] = useState(false);
+  const [segments, setSegments] = useState<Segment[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  useEffect(() => {
+    fetchApi<Segment[]>('/api/segments')
+      .then(({ data }) => {
+        if (data) setSegments(data);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   // ── Create modal state ──
   const [newName, setNewName] = useState('');

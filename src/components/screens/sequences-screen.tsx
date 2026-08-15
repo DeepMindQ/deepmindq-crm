@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { DataTable } from '@/components/enterprise/DataTable';
 import { Skeleton } from '@/components/ui/skeleton';
+import { fetchApi } from '@/lib/fetchApi';
 import {
   Mail,
   Send,
@@ -309,10 +310,18 @@ function StepsPreview({ steps }: { steps: SequenceStep[] }) {
 
 export default function Sequences() {
   const [sequences, setSequences] = useState<Sequence[]>(MOCK_SEQUENCES);
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [sortKey, setSortKey] = useState<string>('lastModified');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [showCreateModal, setShowCreateModal] = useState(false);
+
+  useEffect(() => {
+    fetchApi<Sequence[]>('/api/sequences')
+      .then(({ data }) => {
+        if (data && data.length > 0) setSequences(data);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   // ── Create modal state ──
   const [newName, setNewName] = useState('');

@@ -43,10 +43,33 @@ import {
 import { fetchApi } from '@/lib/fetchApi';
 import { toast } from 'sonner';
 
-// ── Mock Data ──
+// ── Types ──
 type RecType = 'action' | 'insight' | 'warning';
-type RecStatus = 'new' | 'accepted' | 'dismissed';
+type RecStatus = 'pending' | 'accepted' | 'dismissed' | 'expired';
 type Priority = 'high' | 'medium' | 'low';
+
+// API response shape (after fetchApi unwraps { data: ... })
+type RecItem = {
+  id: string;
+  title: string;
+  confidenceScore: number | null;
+  status: string;
+  reasoningMethod: string;
+  createdAt: string;
+  organization?: { name: string; domain?: string; industry?: string } | null;
+};
+
+type RecStats = {
+  total: number;
+  accepted: number;
+  dismissed: number;
+  pending: number;
+};
+
+type Organization = {
+  id: string;
+  name: string;
+};
 
 type Recommendation = {
   id: string;
@@ -59,9 +82,33 @@ type Recommendation = {
   status: RecStatus;
 };
 
-// Mock data removed — now fetched from /api/recommendations
-
 // ── Helpers ──
+function mapReasoningMethodToType(method: string): RecType {
+  if (method === 'template') return 'action';
+  if (method === 'llm') return 'insight';
+  return 'warning';
+}
+
+function inferPriority(confidenceScore: number | null): Priority {
+  if (confidenceScore === null) return 'medium';
+  if (confidenceScore >= 85) return 'high';
+  if (confidenceScore >= 70) return 'medium';
+  return 'low';
+}
+
+function mapApiRec(rec: RecItem): Recommendation {
+  return {
+    id: rec.id,
+    priority: inferPriority(rec.confidenceScore),
+    title: rec.title,
+    account: rec.organization?.name ?? 'Unknown',
+    type: mapReasoningMethodToType(rec.reasoningMethod),
+    confidence: rec.confidenceScore != null ? Number(rec.confidenceScore) : 50,
+    created: new Date(rec.createdAt).toLocaleDateString(),
+    status: rec.status as RecStatus,
+  };
+}
+
 const typeConfig: Record<
   RecType,
   { bg: string; text: string; label: string; icon: React.ReactNode }
@@ -87,13 +134,14 @@ const typeConfig: Record<
 };
 
 const statusConfig: Record<RecStatus, { bg: string; text: string; label: string }> = {
-  new: { bg: tokens.accent.ghost, text: tokens.accent.primary, label: 'New' },
+  pending: { bg: tokens.accent.ghost, text: tokens.accent.primary, label: 'Pending' },
   accepted: {
     bg: tokens.confidence.high.bg,
     text: tokens.confidence.high.value,
     label: 'Accepted',
   },
   dismissed: { bg: tokens.neutral['100'], text: tokens.text.muted, label: 'Dismissed' },
+  expired: { bg: tokens.neutral['100'], text: tokens.text.muted, label: 'Expired' },
 };
 
 const priorityColors: Record<Priority, string> = {
@@ -106,16 +154,23 @@ const priorityColors: Record<Priority, string> = {
 export default function RecommendationQueue() {
   const [loading, setLoading] = useState(true);
   const [recs, setRecs] = useState<Recommendation[]>([]);
+  const [stats, setStats] = useState<RecStats>({ total: 0, accepted: 0, dismissed: 0, pending: 0 });
   const [typeFilter, setTypeFilter] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');
 
   const fetchRecs = useCallback(async () => {
     setLoading(true);
-    const { data, error } = await fetchApi<Recommendation[]>('/api/recommendations');
+    const { data, error } = await fetchApi<{ recommendations: RecItem[]; stats: RecStats }>(
+      '/api/recommendations',
+    );
     if (error) {
       toast.error('Failed to load recommendations', { description: error });
-    } else if (Array.isArray(data)) {
-      setRecs(data);
+    } else if (data) {
+      const mapped = (data.recommendations ?? []).map(mapApiRec);
+      setRecs(mapped);
+      if (data.stats) {
+        setStats(data.stats);
+      }
     }
     setLoading(false);
   }, []);
@@ -132,13 +187,6 @@ export default function RecommendationQueue() {
     });
   }, [recs, typeFilter, statusFilter]);
 
-  const stats = useMemo(() => {
-    const newCount = recs.filter((r) => r.status === 'new').length;
-    const acceptedToday = recs.filter((r) => r.status === 'accepted').length;
-    const dismissedCount = recs.filter((r) => r.status === 'dismissed').length;
-    return { queueDepth: newCount, acceptedToday, dismissed: dismissedCount };
-  }, [recs]);
-
   const handleStatus = async (id: string, newStatus: RecStatus) => {
     const { error } = await fetchApi(`/api/recommendations/${id}`, {
       method: 'PATCH',
@@ -153,7 +201,24 @@ export default function RecommendationQueue() {
   };
 
   const handleGenerateNew = async () => {
-    const { error } = await fetchApi('/api/advisor/pipeline', { method: 'POST' });
+    // Fetch organizations to get an organizationId for the pipeline
+    const { data: orgsData, error: orgsError } =
+      await fetchApi<Organization[]>('/api/organizations');
+    if (orgsError) {
+      toast.error('Failed to fetch organizations', { description: orgsError });
+      return;
+    }
+    const orgId = Array.isArray(orgsData) && orgsData.length > 0 ? orgsData[0].id : undefined;
+    if (!orgId) {
+      toast.error('No organizations found', { description: 'Create an organization first' });
+      return;
+    }
+
+    const { error } = await fetchApi('/api/advisor/pipeline', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ organizationId: orgId }),
+    });
     if (error) {
       toast.error('Failed to generate recommendations', { description: error });
       return;
@@ -204,14 +269,14 @@ export default function RecommendationQueue() {
         {[
           {
             label: 'Queue Depth',
-            value: stats.queueDepth,
+            value: stats.pending,
             icon: InboxIcon,
             color: tokens.accent.primary,
             desc: 'Pending recommendations',
           },
           {
             label: 'Accepted Today',
-            value: stats.acceptedToday,
+            value: stats.accepted,
             icon: CheckCircle2,
             color: tokens.confidence.high.value,
             desc: 'Acted upon',
@@ -263,7 +328,7 @@ export default function RecommendationQueue() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Status</SelectItem>
-            <SelectItem value="new">New</SelectItem>
+            <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="accepted">Accepted</SelectItem>
             <SelectItem value="dismissed">Dismissed</SelectItem>
           </SelectContent>
@@ -382,7 +447,7 @@ export default function RecommendationQueue() {
                         </TableCell>
                         <TableCell className="pr-4 text-right">
                           <div className="flex items-center justify-end gap-1">
-                            {rec.status === 'new' && (
+                            {rec.status === 'pending' && (
                               <>
                                 <Button
                                   size="sm"

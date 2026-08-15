@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
 import { DataTable } from '@/components/enterprise/DataTable';
 import { FileText, Shield, Activity } from 'lucide-react';
+import { fetchApi } from '@/lib/fetchApi';
 
 // ── Types ──
 
@@ -27,191 +28,6 @@ const ACTION_CONFIG: Record<AuditAction, { color: string; bg: string; border: st
   export: { color: '#7C3AED', bg: '#EDE9FE', border: '#DDD6FE' },
 };
 
-// ── Mock Data ──
-
-const MOCK_AUDIT_LOGS: AuditLog[] = [
-  {
-    id: 'log-001',
-    timestamp: '2025-01-15T15:32:10Z',
-    user: 'Sarah Chen',
-    action: 'login',
-    resource: 'Session',
-    ipAddress: '192.168.1.45',
-    details: 'Successful login via SSO',
-  },
-  {
-    id: 'log-002',
-    timestamp: '2025-01-15T15:28:45Z',
-    user: 'Marcus Johnson',
-    action: 'update',
-    resource: 'Opportunity opp-001',
-    ipAddress: '10.0.0.23',
-    details: 'Changed stage from Qualification to Proposal',
-  },
-  {
-    id: 'log-003',
-    timestamp: '2025-01-15T15:15:20Z',
-    user: 'Emily Rodriguez',
-    action: 'create',
-    resource: 'Account: QuantumLeap Labs',
-    ipAddress: '192.168.1.88',
-    details: 'New account created with 3 contacts',
-  },
-  {
-    id: 'log-004',
-    timestamp: '2025-01-15T14:55:00Z',
-    user: 'System',
-    action: 'export',
-    resource: 'Weekly Intelligence Report',
-    ipAddress: '10.0.0.1',
-    details: 'Automated report generated and emailed to 5 recipients',
-  },
-  {
-    id: 'log-005',
-    timestamp: '2025-01-15T14:42:33Z',
-    user: 'James Park',
-    action: 'delete',
-    resource: 'Contact: John Doe (con-045)',
-    ipAddress: '192.168.1.102',
-    details: 'Contact deleted — duplicate of con-012',
-  },
-  {
-    id: 'log-006',
-    timestamp: '2025-01-15T14:30:12Z',
-    user: 'Lisa Wang',
-    action: 'update',
-    resource: 'Settings: AI Providers',
-    ipAddress: '10.0.0.45',
-    details: 'Updated Gemini API key configuration',
-  },
-  {
-    id: 'log-007',
-    timestamp: '2025-01-15T14:10:55Z',
-    user: 'Sarah Chen',
-    action: 'create',
-    resource: 'Sequence: Q1 Outreach',
-    ipAddress: '192.168.1.45',
-    details: 'Created new email sequence with 8 steps',
-  },
-  {
-    id: 'log-008',
-    timestamp: '2025-01-15T13:58:22Z',
-    user: 'Marcus Johnson',
-    action: 'login',
-    resource: 'Session',
-    ipAddress: '10.0.0.23',
-    details: 'Successful login via email/password',
-  },
-  {
-    id: 'log-009',
-    timestamp: '2025-01-15T13:45:10Z',
-    user: 'Emily Rodriguez',
-    action: 'export',
-    resource: 'Account Rankings',
-    ipAddress: '192.168.1.88',
-    details: 'Exported 150 account rankings to CSV',
-  },
-  {
-    id: 'log-010',
-    timestamp: '2025-01-15T13:30:00Z',
-    user: 'System',
-    action: 'update',
-    resource: 'Pipeline Forecast',
-    ipAddress: '10.0.0.1',
-    details: 'Automated pipeline recalculation completed',
-  },
-  {
-    id: 'log-011',
-    timestamp: '2025-01-15T13:15:44Z',
-    user: 'James Park',
-    action: 'create',
-    resource: 'Opportunity: Fleet AI',
-    ipAddress: '192.168.1.102',
-    details: 'New opportunity created for Vanguard Logistics ($265K)',
-  },
-  {
-    id: 'log-012',
-    timestamp: '2025-01-15T12:58:30Z',
-    user: 'Lisa Wang',
-    action: 'delete',
-    resource: 'Draft: drft-089',
-    ipAddress: '10.0.0.45',
-    details: 'Draft email deleted from outbox',
-  },
-  {
-    id: 'log-013',
-    timestamp: '2025-01-15T12:40:15Z',
-    user: 'Sarah Chen',
-    action: 'update',
-    resource: 'User: chris.m@deepmindq.ai',
-    ipAddress: '192.168.1.45',
-    details: 'Suspended user account',
-  },
-  {
-    id: 'log-014',
-    timestamp: '2025-01-15T12:22:00Z',
-    user: 'System',
-    action: 'create',
-    resource: 'Signal Batch #447',
-    ipAddress: '10.0.0.1',
-    details: 'Ingested 34 new signals from web sources',
-  },
-  {
-    id: 'log-015',
-    timestamp: '2025-01-15T12:05:48Z',
-    user: 'Marcus Johnson',
-    action: 'export',
-    resource: 'Pipeline Coverage Report',
-    ipAddress: '10.0.0.23',
-    details: 'Generated PDF report for Q1 planning',
-  },
-  {
-    id: 'log-016',
-    timestamp: '2025-01-15T11:50:33Z',
-    user: 'Emily Rodriguez',
-    action: 'login',
-    resource: 'Session',
-    ipAddress: '192.168.1.88',
-    details: 'Successful login via SSO',
-  },
-  {
-    id: 'log-017',
-    timestamp: '2025-01-15T11:35:20Z',
-    user: 'James Park',
-    action: 'update',
-    resource: 'Playbook: Enterprise Sales',
-    ipAddress: '192.168.1.102',
-    details: 'Updated stage gates and exit criteria',
-  },
-  {
-    id: 'log-018',
-    timestamp: '2025-01-15T11:20:10Z',
-    user: 'Lisa Wang',
-    action: 'create',
-    resource: 'Knowledge Entry: Market Trends 2025',
-    ipAddress: '10.0.0.45',
-    details: 'Added new knowledge base article',
-  },
-  {
-    id: 'log-019',
-    timestamp: '2025-01-15T11:05:00Z',
-    user: 'System',
-    action: 'update',
-    resource: 'Scoring Engine',
-    ipAddress: '10.0.0.1',
-    details: 'Model weights recalibrated based on feedback',
-  },
-  {
-    id: 'log-020',
-    timestamp: '2025-01-15T10:48:22Z',
-    user: 'Sarah Chen',
-    action: 'delete',
-    resource: 'Sequence: Legacy Q4 Campaign',
-    ipAddress: '192.168.1.45',
-    details: 'Archived and deleted outdated sequence',
-  },
-];
-
 // ── Helpers ──
 
 const ALL_ACTIONS: AuditAction[] = ['login', 'create', 'update', 'delete', 'export'];
@@ -234,10 +50,19 @@ export function AuditLogsScreen() {
   const [actionFilter, setActionFilter] = useState<AuditAction | 'All'>('All');
   const [sortKey, setSortKey] = useState<string>('timestamp');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [logs, setLogs] = useState<AuditLog[]>([]);
+
+  useEffect(() => {
+    fetchApi<AuditLog[]>('/api/audit-logs')
+      .then(({ data }) => {
+        if (data) setLogs(data);
+      })
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
-    let result = [...MOCK_AUDIT_LOGS];
+    let result = [...logs];
     if (actionFilter !== 'All') result = result.filter((l) => l.action === actionFilter);
     result.sort((a, b) => {
       const aVal = a[sortKey as keyof AuditLog];
@@ -250,16 +75,16 @@ export function AuditLogsScreen() {
         : String(bVal).localeCompare(String(aVal));
     });
     return result;
-  }, [actionFilter, sortKey, sortDir]);
+  }, [actionFilter, sortKey, sortDir, logs]);
 
   const stats = useMemo(() => {
-    const total = MOCK_AUDIT_LOGS.length;
+    const total = logs.length;
     const byAction = ALL_ACTIONS.reduce<Record<string, number>>((acc, a) => {
-      acc[a] = MOCK_AUDIT_LOGS.filter((l) => l.action === a).length;
+      acc[a] = logs.filter((l) => l.action === a).length;
       return acc;
     }, {});
     return { total, ...byAction };
-  }, []);
+  }, [logs]);
 
   const handleSort = useCallback(
     (key: string) => {

@@ -32,8 +32,20 @@ import {
   Clock,
 } from 'lucide-react';
 
-// ── Mock Data ──
+// ── Types ──
 type RecType = 'expand' | 'cross-sell' | 'upsell' | 'retain';
+
+// API response shape (after fetchApi unwraps { data: ... })
+type RecItem = {
+  id: string;
+  title: string;
+  confidenceScore: number | null;
+  status: string;
+  reasoningMethod: string;
+  createdAt: string;
+  evidenceIds: string[];
+  organization?: { name: string; domain?: string; industry?: string } | null;
+};
 
 type RecCard = {
   id: string;
@@ -44,12 +56,31 @@ type RecCard = {
   probability: number;
   timeline: string;
   evidenceCount: number;
-  status: 'active' | 'dismissed';
+  status: string;
 };
 
-// Card data now fetched from /api/recommendations
-
 // ── Helpers ──
+function mapReasoningMethodToRevType(method: string): RecType {
+  if (method === 'template') return 'expand';
+  if (method === 'llm') return 'upsell';
+  if (method === 'hybrid') return 'cross-sell';
+  return 'retain';
+}
+
+function mapApiRec(rec: RecItem): RecCard {
+  return {
+    id: rec.id,
+    title: rec.title,
+    type: mapReasoningMethodToRevType(rec.reasoningMethod),
+    account: rec.organization?.name ?? 'Unknown',
+    impact: rec.confidenceScore != null ? Number(rec.confidenceScore) * 1000 : 0,
+    probability: rec.confidenceScore != null ? Number(rec.confidenceScore) : 50,
+    timeline: new Date(rec.createdAt).toLocaleDateString(),
+    evidenceCount: rec.evidenceIds?.length ?? 0,
+    status: rec.status,
+  };
+}
+
 const typeConfig: Record<
   RecType,
   { bg: string; text: string; label: string; icon: React.ReactNode }
@@ -93,9 +124,12 @@ export default function RevenueIntelligenceRecommendationsScreen() {
   const [typeFilter, setTypeFilter] = useState('all');
 
   const fetchRecs = useCallback(async () => {
-    const { data, error } = await fetchApi<RecCard[]>('/api/recommendations');
+    const { data, error } = await fetchApi<{ recommendations: RecItem[] }>('/api/recommendations');
     if (error) toast.error('Failed to load recommendations', { description: error });
-    else if (data) setRecs(data);
+    else if (data) {
+      const mapped = (data.recommendations ?? []).map(mapApiRec);
+      setRecs(mapped);
+    }
     setLoading(false);
   }, []);
 
@@ -114,7 +148,7 @@ export default function RevenueIntelligenceRecommendationsScreen() {
   }, [recs, typeFilter]);
 
   const stats = useMemo(() => {
-    const active = recs.filter((r) => r.status === 'active');
+    const active = recs.filter((r) => r.status !== 'dismissed');
     const totalValue = active.reduce((s, r) => s + r.impact, 0);
     const expansion = active.filter((r) => r.type === 'expand').reduce((s, r) => s + r.impact, 0);
     const retention = active.filter((r) => r.type === 'retain').reduce((s, r) => s + r.impact, 0);
@@ -137,8 +171,15 @@ export default function RevenueIntelligenceRecommendationsScreen() {
       );
   };
 
-  const handleAdopt = (id: string) => {
-    setRecs((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'dismissed' as const } : r)));
+  const handleAdopt = async (id: string) => {
+    const { error } = await fetchApi(`/api/recommendations/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ status: 'accepted' }),
+    });
+    if (error) toast.error('Failed to adopt', { description: error });
+    else
+      setRecs((prev) => prev.map((r) => (r.id === id ? { ...r, status: 'accepted' as const } : r)));
   };
 
   if (loading) {
@@ -239,12 +280,12 @@ export default function RevenueIntelligenceRecommendationsScreen() {
           </SelectContent>
         </Select>
         <span className="text-xs ml-auto" style={{ color: tokens.text.muted }}>
-          {filtered.filter((r) => r.status === 'active').length} active recommendations
+          {filtered.filter((r) => r.status !== 'dismissed').length} active recommendations
         </span>
       </div>
 
       {/* Cards Grid */}
-      {filtered.filter((r) => r.status === 'active').length === 0 ? (
+      {filtered.filter((r) => r.status !== 'dismissed').length === 0 ? (
         <EmptyState
           icon="lightbulb"
           title="No recommendations match your filters"
@@ -253,7 +294,7 @@ export default function RevenueIntelligenceRecommendationsScreen() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filtered
-            .filter((r) => r.status === 'active')
+            .filter((r) => r.status !== 'dismissed')
             .map((rec) => {
               const tc = typeConfig[rec.type];
               return (

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import {
   tokens,
   spacing,
@@ -10,6 +10,7 @@ import {
 } from '@/components/intelligence-os/design-tokens';
 import { DataTable } from '@/components/enterprise/DataTable';
 import { toast } from 'sonner';
+import { fetchApi } from '@/lib/fetchApi';
 import {
   DollarSign,
   TrendingUp,
@@ -61,193 +62,6 @@ const STAGE_COLORS: Record<Stage, { bg: string; text: string; border: string }> 
   'Closed Lost': { bg: '#FEE2E2', text: '#991B1B', border: '#FECACA' },
 };
 
-// ── Mock Data ──
-
-const MOCK_OPPORTUNITIES: Opportunity[] = [
-  {
-    id: 'opp-001',
-    company: 'Acme Corp',
-    dealName: 'Enterprise Platform License',
-    value: 285000,
-    stage: 'Proposal',
-    probability: 60,
-    closeDate: '2025-02-15',
-    owner: 'Sarah Chen',
-    createdAt: '2024-10-01',
-    description: 'Full enterprise license for 500+ seats with premium support.',
-    industry: 'Technology',
-  },
-  {
-    id: 'opp-002',
-    company: 'GlobalTech Industries',
-    dealName: 'Data Analytics Suite',
-    value: 142000,
-    stage: 'Negotiation',
-    probability: 75,
-    closeDate: '2025-01-28',
-    owner: 'Marcus Johnson',
-    createdAt: '2024-09-15',
-    description: 'Custom analytics dashboard with API integrations.',
-    industry: 'Manufacturing',
-  },
-  {
-    id: 'opp-003',
-    company: 'NovaStar Finance',
-    dealName: 'Risk Management Module',
-    value: 398000,
-    stage: 'Qualification',
-    probability: 35,
-    closeDate: '2025-03-20',
-    owner: 'Emily Rodriguez',
-    createdAt: '2024-11-10',
-    description: 'AI-powered risk assessment and compliance module.',
-    industry: 'Finance',
-  },
-  {
-    id: 'opp-004',
-    company: 'Pinnacle Healthcare',
-    dealName: 'Patient Intelligence System',
-    value: 520000,
-    stage: 'Proposal',
-    probability: 55,
-    closeDate: '2025-02-28',
-    owner: 'Sarah Chen',
-    createdAt: '2024-08-22',
-    description: 'Comprehensive patient data analytics and prediction platform.',
-    industry: 'Healthcare',
-  },
-  {
-    id: 'opp-005',
-    company: 'Vertex Dynamics',
-    dealName: 'Supply Chain Optimizer',
-    value: 178000,
-    stage: 'Closed Won',
-    probability: 100,
-    closeDate: '2025-01-05',
-    owner: 'James Park',
-    createdAt: '2024-07-14',
-    description: 'End-to-end supply chain visibility and optimization tool.',
-    industry: 'Logistics',
-  },
-  {
-    id: 'opp-006',
-    company: 'Eclipse Media Group',
-    dealName: 'Content Intelligence',
-    value: 95000,
-    stage: 'Prospecting',
-    probability: 15,
-    closeDate: '2025-04-10',
-    owner: 'Lisa Wang',
-    createdAt: '2024-12-01',
-    description: 'AI-driven content performance analytics and recommendations.',
-    industry: 'Media',
-  },
-  {
-    id: 'opp-007',
-    company: 'Ironclad Security',
-    dealName: 'Threat Detection Platform',
-    value: 445000,
-    stage: 'Negotiation',
-    probability: 80,
-    closeDate: '2025-01-20',
-    owner: 'Marcus Johnson',
-    createdAt: '2024-09-28',
-    description: 'Real-time threat detection and automated response system.',
-    industry: 'Cybersecurity',
-  },
-  {
-    id: 'opp-008',
-    company: 'Summit Retail',
-    dealName: 'Customer 360 Platform',
-    value: 215000,
-    stage: 'Qualification',
-    probability: 40,
-    closeDate: '2025-03-15',
-    owner: 'Emily Rodriguez',
-    createdAt: '2024-11-20',
-    description: 'Unified customer view across all retail touchpoints.',
-    industry: 'Retail',
-  },
-  {
-    id: 'opp-009',
-    company: 'Atlas Energy',
-    dealName: 'Predictive Maintenance Suite',
-    value: 675000,
-    stage: 'Proposal',
-    probability: 50,
-    closeDate: '2025-02-20',
-    owner: 'James Park',
-    createdAt: '2024-10-15',
-    description: 'IoT-integrated predictive maintenance for energy infrastructure.',
-    industry: 'Energy',
-  },
-  {
-    id: 'opp-010',
-    company: 'BrightPath Education',
-    dealName: 'Learning Analytics Engine',
-    value: 132000,
-    stage: 'Closed Won',
-    probability: 100,
-    closeDate: '2024-12-20',
-    owner: 'Lisa Wang',
-    createdAt: '2024-06-30',
-    description: 'Student performance analytics and personalized learning paths.',
-    industry: 'Education',
-  },
-  {
-    id: 'opp-011',
-    company: 'QuantumLeap Labs',
-    dealName: 'Research Intelligence Platform',
-    value: 388000,
-    stage: 'Prospecting',
-    probability: 20,
-    closeDate: '2025-05-01',
-    owner: 'Sarah Chen',
-    createdAt: '2024-12-10',
-    description: 'Research data management with AI-powered insights.',
-    industry: 'Biotech',
-  },
-  {
-    id: 'opp-012',
-    company: 'Stratos Aerospace',
-    dealName: 'Mission Planning System',
-    value: 890000,
-    stage: 'Qualification',
-    probability: 30,
-    closeDate: '2025-06-15',
-    owner: 'Marcus Johnson',
-    createdAt: '2024-12-05',
-    description: 'Advanced mission planning and simulation platform.',
-    industry: 'Aerospace',
-  },
-  {
-    id: 'opp-013',
-    company: 'Vanguard Logistics',
-    dealName: 'Fleet Management AI',
-    value: 265000,
-    stage: 'Negotiation',
-    probability: 70,
-    closeDate: '2025-01-30',
-    owner: 'Emily Rodriguez',
-    createdAt: '2024-10-08',
-    description: 'AI-powered fleet optimization and route planning.',
-    industry: 'Logistics',
-  },
-  {
-    id: 'opp-014',
-    company: 'Horizon Real Estate',
-    dealName: 'Property Intelligence Suite',
-    value: 156000,
-    stage: 'Closed Lost',
-    probability: 0,
-    closeDate: '2025-01-10',
-    owner: 'James Park',
-    createdAt: '2024-08-15',
-    description: 'Market analysis and property valuation intelligence.',
-    industry: 'Real Estate',
-  },
-];
-
 // ── Helpers ──
 
 function formatCurrency(value: number): string {
@@ -271,10 +85,20 @@ export default function Opportunities() {
   const [sortKey, setSortKey] = useState<string>('value');
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
   const [selectedOpp, setSelectedOpp] = useState<Opportunity | null>(null);
-  const [loading] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [opps, setOpps] = useState<Opportunity[]>([]);
+
+  useEffect(() => {
+    fetchApi<Opportunity[]>('/api/opportunities')
+      .then(({ data }) => {
+        if (data) setOpps(data);
+      })
+      .catch(() => toast.error('Failed to load opportunities'))
+      .finally(() => setLoading(false));
+  }, []);
 
   const filtered = useMemo(() => {
-    let result = [...MOCK_OPPORTUNITIES];
+    let result = [...opps];
     if (stageFilter !== 'All') result = result.filter((o) => o.stage === stageFilter);
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase();
@@ -294,7 +118,7 @@ export default function Opportunities() {
         : String(bVal).localeCompare(String(aVal));
     });
     return result;
-  }, [stageFilter, searchQuery, sortKey, sortDir]);
+  }, [stageFilter, searchQuery, sortKey, sortDir, opps]);
 
   const stats = useMemo(() => {
     const totalValue = filtered.reduce((sum, o) => sum + o.value, 0);

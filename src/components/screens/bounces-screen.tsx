@@ -5,6 +5,8 @@ import { tokens, elevation } from '@/components/intelligence-os/design-tokens';
 import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { DataTable, type Column } from '@/components/enterprise/DataTable';
 import { AlertTriangle, XCircle, ShieldAlert, CheckCircle2 } from 'lucide-react';
+import { toast } from 'sonner';
+import { fetchApi } from '@/lib/fetchApi';
 
 // ── Types ──
 interface Bounce {
@@ -18,82 +20,6 @@ interface Bounce {
 }
 
 type BounceTypeFilter = 'all' | 'hard' | 'soft' | 'spam';
-
-// ── Mock Data ──
-const MOCK_BOUNCES: Bounce[] = [
-  {
-    id: 'b1',
-    email: 'jdoe@defunct-co.com',
-    company: 'Defunct Co',
-    bounceType: 'hard',
-    reason: 'Mailbox does not exist',
-    bouncedAt: '2025-01-22 10:15',
-    status: 'unresolved',
-  },
-  {
-    id: 'b2',
-    email: 'asmith@techcorp.io',
-    company: 'TechCorp',
-    bounceType: 'soft',
-    reason: 'Mailbox full',
-    bouncedAt: '2025-01-22 09:30',
-    status: 'unresolved',
-  },
-  {
-    id: 'b3',
-    email: 'info@spamsite.net',
-    company: 'SpamSite',
-    bounceType: 'spam',
-    reason: 'Marked as spam by recipient',
-    bouncedAt: '2025-01-21 16:45',
-    status: 'resolved',
-  },
-  {
-    id: 'b4',
-    email: 'hr@old-enterprise.com',
-    company: 'Old Enterprise',
-    bounceType: 'hard',
-    reason: 'Domain not found',
-    bouncedAt: '2025-01-21 14:20',
-    status: 'resolved',
-  },
-  {
-    id: 'b5',
-    email: 'mike@startupx.co',
-    company: 'StartupX',
-    bounceType: 'soft',
-    reason: 'Temporary DNS failure',
-    bouncedAt: '2025-01-21 11:00',
-    status: 'unresolved',
-  },
-  {
-    id: 'b6',
-    email: 'contact@pharma-inc.com',
-    company: 'Pharma Inc',
-    bounceType: 'spam',
-    reason: 'Content flagged by spam filter',
-    bouncedAt: '2025-01-20 15:30',
-    status: 'resolved',
-  },
-  {
-    id: 'b7',
-    email: 'sales@closedbiz.com',
-    company: 'ClosedBiz',
-    bounceType: 'hard',
-    reason: 'Recipient server rejected',
-    bouncedAt: '2025-01-20 10:00',
-    status: 'unresolved',
-  },
-  {
-    id: 'b8',
-    email: 'team@bigcorp.org',
-    company: 'BigCorp',
-    bounceType: 'soft',
-    reason: 'Rate limit exceeded',
-    bouncedAt: '2025-01-19 08:45',
-    status: 'resolved',
-  },
-];
 
 const BOUNCE_TYPE_CONFIG: Record<
   Bounce['bounceType'],
@@ -113,26 +39,32 @@ const STATUS_COLORS = {
 export default function Bounces() {
   const [isLoading, setIsLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<BounceTypeFilter>('all');
+  const [bounces, setBounces] = useState<Bounce[]>([]);
 
   useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 600);
-    return () => clearTimeout(t);
+    fetchApi<Bounce[]>('/api/bounces')
+      .then(({ data }) => {
+        if (data) setBounces(data);
+      })
+      .catch(() => {
+        toast.error('Failed to load bounces');
+      })
+      .finally(() => setIsLoading(false));
   }, []);
 
   if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const filteredData = useMemo(() => {
-    if (typeFilter === 'all') return MOCK_BOUNCES;
-    return MOCK_BOUNCES.filter((b) => b.bounceType === typeFilter);
-  }, [typeFilter]);
+    if (typeFilter === 'all') return bounces;
+    return bounces.filter((b) => b.bounceType === typeFilter);
+  }, [bounces, typeFilter]);
 
   const stats = useMemo(() => {
-    const total = MOCK_BOUNCES.length;
-    const hard = MOCK_BOUNCES.filter((b) => b.bounceType === 'hard').length;
+    const total = bounces.length;
+    const hard = bounces.filter((b) => b.bounceType === 'hard').length;
     const bounceRate = '2.4%';
     return { total, hard, bounceRate };
-  }, []);
-
+  }, [bounces]);
   const bg = tokens.surface.card;
   const border = tokens.border.default;
   const textPrimary = tokens.text.primary;

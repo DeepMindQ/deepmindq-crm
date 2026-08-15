@@ -6,6 +6,7 @@ import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { DataTable, type Column } from '@/components/enterprise/DataTable';
 import { Users, UserPlus, Sparkles, Target, Upload } from 'lucide-react';
 import { toast } from 'sonner';
+import { fetchApi } from '@/lib/fetchApi';
 
 // ── Types ──
 interface Lead {
@@ -21,110 +22,6 @@ interface Lead {
 
 type StatusFilter = 'all' | 'new' | 'contacted' | 'qualified' | 'disqualified';
 
-// ── Mock Data ──
-const MOCK_LEADS: Lead[] = [
-  {
-    id: 'l1',
-    company: 'Acme Corp',
-    contact: 'Sarah Chen',
-    email: 'sarah.chen@acmecorp.com',
-    source: 'LinkedIn',
-    score: 87,
-    status: 'qualified',
-    created: '2025-01-15',
-  },
-  {
-    id: 'l2',
-    company: 'TechNova Inc',
-    contact: 'James Wilson',
-    email: 'jwilson@technova.io',
-    source: 'Website',
-    score: 72,
-    status: 'new',
-    created: '2025-01-18',
-  },
-  {
-    id: 'l3',
-    company: 'DataFlow Systems',
-    contact: 'Maria Garcia',
-    email: 'm.garcia@dataflow.com',
-    source: 'Referral',
-    score: 94,
-    status: 'qualified',
-    created: '2025-01-10',
-  },
-  {
-    id: 'l4',
-    company: 'CloudPeak',
-    contact: 'David Kim',
-    email: 'dkim@cloudpeak.co',
-    source: 'Outreach',
-    score: 45,
-    status: 'contacted',
-    created: '2025-01-20',
-  },
-  {
-    id: 'l5',
-    company: 'Vertex AI',
-    contact: 'Emily Zhang',
-    email: 'emily.z@vertexai.com',
-    source: 'Conference',
-    score: 63,
-    status: 'new',
-    created: '2025-01-22',
-  },
-  {
-    id: 'l6',
-    company: 'Synthetica',
-    contact: 'Michael Brown',
-    email: 'mbrown@synthetica.dev',
-    source: 'LinkedIn',
-    score: 28,
-    status: 'disqualified',
-    created: '2025-01-08',
-  },
-  {
-    id: 'l7',
-    company: 'NexGen Robotics',
-    contact: 'Priya Patel',
-    email: 'priya@nexgenrobotics.com',
-    source: 'Website',
-    score: 81,
-    status: 'contacted',
-    created: '2025-01-19',
-  },
-  {
-    id: 'l8',
-    company: 'QuantumLeap',
-    contact: 'Alex Rivera',
-    email: 'arivera@quantumleap.io',
-    source: 'Partner',
-    score: 56,
-    status: 'new',
-    created: '2025-01-21',
-  },
-  {
-    id: 'l9',
-    company: 'BioGenesis Labs',
-    contact: 'Rachel Thompson',
-    email: 'rthompson@biogenesis.com',
-    source: 'Outreach',
-    score: 91,
-    status: 'qualified',
-    created: '2025-01-12',
-  },
-  {
-    id: 'l10',
-    company: 'Stellar Dynamics',
-    contact: "Kevin O'Brien",
-    email: 'kobrien@stellardynamics.co',
-    source: 'Referral',
-    score: 39,
-    status: 'disqualified',
-    created: '2025-01-05',
-  },
-];
-
 const STATUS_CONFIG: Record<Lead['status'], { label: string; color: string; bg: string }> = {
   new: { label: 'New', color: '#2563EB', bg: '#DBEAFE' },
   contacted: { label: 'Contacted', color: '#D97706', bg: '#FEF3C7' },
@@ -136,26 +33,33 @@ const STATUS_CONFIG: Record<Lead['status'], { label: string; color: string; bg: 
 export default function Leads() {
   const [isLoading, setIsLoading] = useState(true);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [leads, setLeads] = useState<Lead[]>([]);
 
   useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 600);
-    return () => clearTimeout(t);
+    fetchApi<Lead[]>('/api/leads')
+      .then(({ data }) => {
+        if (data) setLeads(data);
+      })
+      .catch(() => {
+        toast.error('Failed to load leads');
+      })
+      .finally(() => setIsLoading(false));
   }, []);
 
   if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const filteredData = useMemo(() => {
-    if (statusFilter === 'all') return MOCK_LEADS;
-    return MOCK_LEADS.filter((l) => l.status === statusFilter);
-  }, [statusFilter]);
+    if (statusFilter === 'all') return leads;
+    return leads.filter((l) => l.status === statusFilter);
+  }, [leads, statusFilter]);
 
   const stats = useMemo(() => {
-    const total = MOCK_LEADS.length;
-    const newCount = MOCK_LEADS.filter((l) => l.status === 'new').length;
-    const qualifiedCount = MOCK_LEADS.filter((l) => l.status === 'qualified').length;
+    const total = leads.length;
+    const newCount = leads.filter((l) => l.status === 'new').length;
+    const qualifiedCount = leads.filter((l) => l.status === 'qualified').length;
     const conversionRate = total > 0 ? ((qualifiedCount / total) * 100).toFixed(1) : '0.0';
     return { total, newCount, qualifiedCount, conversionRate };
-  }, []);
+  }, [leads]);
 
   const handleImport = useCallback(() => {
     toast.info('Import wizard would open here');

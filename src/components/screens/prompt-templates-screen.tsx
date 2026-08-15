@@ -23,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Plus, Search, Pencil, Play, FileText, Bot } from 'lucide-react';
+import { Plus, Search, Pencil, Play, FileText, Bot, Trash2 } from 'lucide-react';
 import { fetchApi } from '@/lib/fetchApi';
 import { toast } from 'sonner';
 
@@ -140,36 +140,56 @@ export default function PromptTemplatesScreen() {
       .split(',')
       .map((v) => v.trim())
       .filter(Boolean);
-    if (editingTemplate) {
-      setTemplates((prev) =>
-        prev.map((t) =>
-          t.id === editingTemplate.id
-            ? {
-                ...t,
-                name: formName,
-                category: formCategory,
-                model: formModel,
-                systemPrompt: formPrompt,
-                variables: vars,
-                lastModified: new Date().toISOString().slice(0, 10),
-              }
-            : t,
-        ),
-      );
-    } else {
-      const newTemplate: PromptTemplate = {
-        id: String(Date.now()),
-        name: formName,
-        category: formCategory,
-        model: formModel,
-        systemPrompt: formPrompt,
-        variables: vars,
-        lastModified: new Date().toISOString().slice(0, 10),
-        usageCount: 0,
-      };
-      setTemplates((prev) => [newTemplate, ...prev]);
+    try {
+      if (editingTemplate) {
+        // Update via API — reuse POST with existing key
+        await fetchApi('/api/prompt-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: editingTemplate.id,
+            label: formName,
+            systemPrompt: formPrompt,
+            feature: formCategory,
+            model: formModel,
+            description: `Variables: ${vars.join(', ')}`,
+          }),
+        });
+      } else {
+        // Create via API
+        await fetchApi('/api/prompt-templates', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            key: formName.toLowerCase().replace(/[^a-z0-9]+/g, '_'),
+            label: formName,
+            systemPrompt: formPrompt,
+            feature: formCategory,
+            model: formModel,
+            description: `Variables: ${vars.join(', ')}`,
+          }),
+        });
+      }
+      toast.success(editingTemplate ? 'Template updated' : 'Template created');
+      setModalOpen(false);
+      fetchPrompts();
+    } catch {
+      toast.error('Failed to save template');
     }
-    setModalOpen(false);
+  };
+
+  const handleDelete = async (t: PromptTemplate) => {
+    try {
+      await fetchApi('/api/prompt-templates', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ key: t.id }),
+      });
+      toast.success('Template deleted');
+      fetchPrompts();
+    } catch {
+      toast.error('Failed to delete template');
+    }
   };
 
   const handleTest = (t: PromptTemplate) => {
@@ -451,6 +471,15 @@ The AI model (${t.model}) has processed the template with the defined variables.
                             title="Edit template"
                           >
                             <Pencil className="w-3.5 h-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 text-red-500 hover:text-red-700"
+                            onClick={() => handleDelete(t)}
+                            title="Delete template"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
                           </Button>
                         </div>
                       </TableCell>

@@ -6,6 +6,7 @@ import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { DataTable, type Column } from '@/components/enterprise/DataTable';
 import { Copy, GitMerge, EyeOff, Layers, CheckCircle2, Clock } from 'lucide-react';
 import { toast } from 'sonner';
+import { fetchApi } from '@/lib/fetchApi';
 
 // ── Types ──
 interface DuplicateGroup {
@@ -16,74 +17,6 @@ interface DuplicateGroup {
   confidence: number;
   status: 'unreviewed' | 'merged' | 'ignored';
 }
-
-// ── Mock Data ──
-const MOCK_DUPLICATES: DuplicateGroup[] = [
-  {
-    id: 'd1',
-    field: 'email',
-    values: 'sarah.chen@acme.com / s.chen@acmecorp.com',
-    sourceRecords: 3,
-    confidence: 97,
-    status: 'unreviewed',
-  },
-  {
-    id: 'd2',
-    field: 'domain',
-    values: 'technova.io / technova.com / tech-nova.com',
-    sourceRecords: 8,
-    confidence: 82,
-    status: 'unreviewed',
-  },
-  {
-    id: 'd3',
-    field: 'name',
-    values: 'James Wilson / Jim Wilson / J. Wilson',
-    sourceRecords: 2,
-    confidence: 91,
-    status: 'unreviewed',
-  },
-  {
-    id: 'd4',
-    field: 'email',
-    values: 'maria.garcia@dataflow.com / mgarcia@dataflow.io',
-    sourceRecords: 2,
-    confidence: 94,
-    status: 'merged',
-  },
-  {
-    id: 'd5',
-    field: 'domain',
-    values: 'cloudpeak.co / cloud-peak.com',
-    sourceRecords: 5,
-    confidence: 76,
-    status: 'unreviewed',
-  },
-  {
-    id: 'd6',
-    field: 'name',
-    values: 'Emily Zhang / Em Zhang',
-    sourceRecords: 2,
-    confidence: 88,
-    status: 'ignored',
-  },
-  {
-    id: 'd7',
-    field: 'email',
-    values: 'dkim@cloudpeak.co / david.kim@cloudpeak.co',
-    sourceRecords: 2,
-    confidence: 95,
-    status: 'unreviewed',
-  },
-  {
-    id: 'd8',
-    field: 'domain',
-    values: 'nexgenrobotics.com / nex-gen-robotics.com',
-    sourceRecords: 4,
-    confidence: 73,
-    status: 'merged',
-  },
-];
 
 const FIELD_CONFIG: Record<DuplicateGroup['field'], { label: string; color: string; bg: string }> =
   {
@@ -104,11 +37,17 @@ const STATUS_CONFIG: Record<
 // ── Component ──
 export default function Duplicates() {
   const [isLoading, setIsLoading] = useState(true);
-  const [data, setData] = useState(MOCK_DUPLICATES);
+  const [data, setData] = useState<DuplicateGroup[]>([]);
 
   useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 600);
-    return () => clearTimeout(t);
+    fetchApi<DuplicateGroup[]>('/api/duplicates')
+      .then(({ data: d }) => {
+        if (d) setData(d);
+      })
+      .catch(() => {
+        toast.error('Failed to load duplicates');
+      })
+      .finally(() => setIsLoading(false));
   }, []);
 
   if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;

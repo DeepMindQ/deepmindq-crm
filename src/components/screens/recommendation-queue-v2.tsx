@@ -23,9 +23,20 @@ import {
   Sparkles,
 } from 'lucide-react';
 
-// ── Mock Data ──
+// ── Types ──
 type RecType = 'action' | 'insight' | 'warning';
-type RecStatus = 'new' | 'reviewed' | 'accepted' | 'dismissed';
+type RecStatus = 'pending' | 'reviewed' | 'accepted' | 'dismissed' | 'expired';
+
+// API response shape (after fetchApi unwraps { data: ... })
+type RecItem = {
+  id: string;
+  title: string;
+  confidenceScore: number | null;
+  status: string;
+  reasoningMethod: string;
+  createdAt: string;
+  organization?: { name: string; domain?: string; industry?: string } | null;
+};
 
 type CardData = {
   id: string;
@@ -37,9 +48,36 @@ type CardData = {
   priority: 'high' | 'medium' | 'low';
 };
 
-// Card data now fetched from /api/recommendations
-
 // ── Helpers ──
+function mapReasoningMethodToType(method: string): RecType {
+  if (method === 'template') return 'action';
+  if (method === 'llm') return 'insight';
+  return 'warning';
+}
+
+function inferPriority(confidenceScore: number | null): 'high' | 'medium' | 'low' {
+  if (confidenceScore === null) return 'medium';
+  if (confidenceScore >= 85) return 'high';
+  if (confidenceScore >= 70) return 'medium';
+  return 'low';
+}
+
+function mapApiRec(rec: RecItem): CardData {
+  // Map API status to V2 kanban statuses
+  let status: RecStatus = rec.status as RecStatus;
+  if (rec.status === 'pending') status = 'pending';
+
+  return {
+    id: rec.id,
+    title: rec.title,
+    account: rec.organization?.name ?? 'Unknown',
+    type: mapReasoningMethodToType(rec.reasoningMethod),
+    confidence: rec.confidenceScore != null ? Number(rec.confidenceScore) : 50,
+    status,
+    priority: inferPriority(rec.confidenceScore),
+  };
+}
+
 const typeConfig: Record<
   RecType,
   { bg: string; text: string; label: string; icon: React.ReactNode }
@@ -68,8 +106,8 @@ const columnConfig: Record<
   RecStatus,
   { label: string; color: string; bg: string; border: string }
 > = {
-  new: {
-    label: 'New',
+  pending: {
+    label: 'Pending',
     color: tokens.accent.primary,
     bg: `${tokens.accent.primary}08`,
     border: `${tokens.accent.primary}25`,
@@ -92,9 +130,15 @@ const columnConfig: Record<
     bg: `${tokens.neutral['100']}50`,
     border: `${tokens.border.default}`,
   },
+  expired: {
+    label: 'Expired',
+    color: tokens.text.muted,
+    bg: `${tokens.neutral['100']}50`,
+    border: `${tokens.border.default}`,
+  },
 };
 
-const columns: RecStatus[] = ['new', 'reviewed', 'accepted', 'dismissed'];
+const columns: RecStatus[] = ['pending', 'reviewed', 'accepted', 'dismissed'];
 
 // ── Component ──
 export function RecommendationQueueV2() {
@@ -102,11 +146,12 @@ export function RecommendationQueueV2() {
   const [cards, setCards] = useState<CardData[]>([]);
 
   const fetchCards = useCallback(async () => {
-    const { data, error } = await fetchApi<CardData[]>('/api/recommendations');
+    const { data, error } = await fetchApi<{ recommendations: RecItem[] }>('/api/recommendations');
     if (error) {
       toast.error('Failed to load recommendations', { description: error });
     } else if (data) {
-      setCards(data);
+      const mapped = (data.recommendations ?? []).map(mapApiRec);
+      setCards(mapped);
     }
     setLoading(false);
   }, []);

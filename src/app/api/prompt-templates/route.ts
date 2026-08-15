@@ -1,8 +1,9 @@
 /**
  * Prompt Templates Management API — DeepMindQ Intelligence OS
  *
- * GET  /api/prompt-templates?feature=reasoning&isActive=true
- * POST /api/prompt-templates
+ * GET    /api/prompt-templates?feature=reasoning&isActive=true
+ * POST   /api/prompt-templates
+ * DELETE /api/prompt-templates  { key: string }
  */
 
 import { NextRequest, NextResponse } from 'next/server';
@@ -143,6 +144,38 @@ export async function POST(request: NextRequest) {
     const message = err instanceof Error ? err.message : 'Unknown error';
     return NextResponse.json(
       { error: 'Failed to create prompt template', details: message },
+      { status: 500 },
+    );
+  }
+}
+
+// ─── DELETE: Soft-delete a prompt template by key ──────────────────
+
+const deleteSchema = z.object({
+  key: z.string().min(1),
+});
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const { errorResponse } = await checkApiAuth(request);
+    if (errorResponse) return errorResponse;
+
+    const body = await request.json();
+    const parsed = deleteSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid request body', details: parsed.error.flatten() },
+        { status: 400 },
+      );
+    }
+
+    await db.promptTemplate.deleteMany({ where: { key: parsed.data.key } });
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Unknown error';
+    return NextResponse.json(
+      { error: 'Failed to delete prompt template', details: message },
       { status: 500 },
     );
   }

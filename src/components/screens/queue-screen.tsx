@@ -6,6 +6,7 @@ import { ScreenSkeleton } from '@/components/ui/screen-skeleton';
 import { DataTable, type Column } from '@/components/enterprise/DataTable';
 import { Send, CheckCircle2, XCircle, Clock, Pause, RotateCcw, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
+import { fetchApi } from '@/lib/fetchApi';
 
 // ── Types ──
 interface QueueItem {
@@ -18,110 +19,6 @@ interface QueueItem {
   status: 'queued' | 'sending' | 'sent' | 'failed';
   priority: 'high' | 'medium' | 'low';
 }
-
-// ── Mock Data ──
-const MOCK_QUEUE: QueueItem[] = [
-  {
-    id: 'q1',
-    to: 'sarah.chen@acmecorp.com',
-    subject: 'Re: Partnership Opportunity',
-    company: 'Acme Corp',
-    sequence: 'Enterprise Outreach',
-    scheduledFor: '2025-01-22 14:00',
-    status: 'queued',
-    priority: 'high',
-  },
-  {
-    id: 'q2',
-    to: 'jwilson@technova.io',
-    subject: 'Quick Question About Your Stack',
-    company: 'TechNova Inc',
-    sequence: 'Cold Intro',
-    scheduledFor: '2025-01-22 14:15',
-    status: 'sending',
-    priority: 'medium',
-  },
-  {
-    id: 'q3',
-    to: 'm.garcia@dataflow.com',
-    subject: 'DataFlow + DeepMindQ Integration',
-    company: 'DataFlow Systems',
-    sequence: 'Enterprise Outreach',
-    scheduledFor: '2025-01-22 13:30',
-    status: 'sent',
-    priority: 'high',
-  },
-  {
-    id: 'q4',
-    to: 'dkim@cloudpeak.co',
-    subject: 'Scaling Your Cloud Infrastructure',
-    company: 'CloudPeak',
-    sequence: 'Product Demo',
-    scheduledFor: '2025-01-22 12:00',
-    status: 'failed',
-    priority: 'low',
-  },
-  {
-    id: 'q5',
-    to: 'emily.z@vertexai.com',
-    subject: 'AI Capabilities Overview',
-    company: 'Vertex AI',
-    sequence: 'Cold Intro',
-    scheduledFor: '2025-01-22 14:30',
-    status: 'queued',
-    priority: 'medium',
-  },
-  {
-    id: 'q6',
-    to: 'mbrown@synthetica.dev',
-    subject: 'Your Dev Workflow, Upgraded',
-    company: 'Synthetica',
-    sequence: 'Re-engagement',
-    scheduledFor: '2025-01-22 11:00',
-    status: 'sent',
-    priority: 'low',
-  },
-  {
-    id: 'q7',
-    to: 'priya@nexgenrobotics.com',
-    subject: 'Automation Solutions for Robotics',
-    company: 'NexGen Robotics',
-    sequence: 'Enterprise Outreach',
-    scheduledFor: '2025-01-22 15:00',
-    status: 'queued',
-    priority: 'high',
-  },
-  {
-    id: 'q8',
-    to: 'arivera@quantumleap.io',
-    subject: 'Following Up on Our Call',
-    company: 'QuantumLeap',
-    sequence: 'Follow-up',
-    scheduledFor: '2025-01-22 10:30',
-    status: 'failed',
-    priority: 'medium',
-  },
-  {
-    id: 'q9',
-    to: 'rthompson@biogenesis.com',
-    subject: 'Biotech Intelligence Platform',
-    company: 'BioGenesis Labs',
-    sequence: 'Cold Intro',
-    scheduledFor: '2025-01-22 14:45',
-    status: 'queued',
-    priority: 'medium',
-  },
-  {
-    id: 'q10',
-    to: 'kobrien@stellardynamics.co',
-    subject: 'Dynamics of Modern Sales',
-    company: 'Stellar Dynamics',
-    sequence: 'Product Demo',
-    scheduledFor: '2025-01-22 09:00',
-    status: 'sent',
-    priority: 'low',
-  },
-];
 
 const STATUS_CONFIG: Record<
   QueueItem['status'],
@@ -142,22 +39,27 @@ const PRIORITY_COLORS: Record<string, string> = {
 // ── Component ──
 export default function Queue() {
   const [isLoading, setIsLoading] = useState(true);
+  const [queueData, setQueueData] = useState<QueueItem[]>([]);
 
   useEffect(() => {
-    const t = setTimeout(() => setIsLoading(false), 600);
-    return () => clearTimeout(t);
+    fetchApi<QueueItem[]>('/api/queue')
+      .then(({ data }) => {
+        if (data) setQueueData(data);
+      })
+      .catch(() => {
+        toast.error('Failed to load queue');
+      })
+      .finally(() => setIsLoading(false));
   }, []);
 
   if (isLoading) return <ScreenSkeleton rows={8} className="p-6" />;
 
   const stats = useMemo(() => {
-    const inQueue = MOCK_QUEUE.filter(
-      (q) => q.status === 'queued' || q.status === 'sending',
-    ).length;
-    const sentToday = MOCK_QUEUE.filter((q) => q.status === 'sent').length;
-    const failed = MOCK_QUEUE.filter((q) => q.status === 'failed').length;
+    const inQueue = queueData.filter((q) => q.status === 'queued' || q.status === 'sending').length;
+    const sentToday = queueData.filter((q) => q.status === 'sent').length;
+    const failed = queueData.filter((q) => q.status === 'failed').length;
     return { inQueue, sentToday, failed };
-  }, []);
+  }, [queueData]);
 
   const handleRetryFailed = useCallback(() => {
     toast.success(`Retrying ${stats.failed} failed email(s)`);
@@ -293,7 +195,7 @@ export default function Queue() {
       {/* ── Data Table ── */}
       <DataTable
         columns={columns}
-        data={MOCK_QUEUE as unknown as Record<string, unknown>[]}
+        data={queueData as unknown as Record<string, unknown>[]}
         filterable
         filterPlaceholder="Search queue..."
         exportable

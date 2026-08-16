@@ -1,7 +1,8 @@
 /**
  * Tests for src/components/notifications/notification-store.ts
  *
- * Uses default jsdom environment (has window + localStorage natively).
+ * Uses jsdom environment (has window + localStorage natively).
+ * @vitest-environment jsdom
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 

@@ -27,8 +27,12 @@ export function EnterpriseErrorState({
         <AlertTriangle className="w-6 h-6" style={{ color: tokens.domain.risk }} />
       </div>
 
-      <h3 className="text-sm font-semibold mb-2" style={{ color: tokens.text.primary }}>{title}</h3>
-      <p className="text-xs mb-6" style={{ color: tokens.text.secondary, maxWidth: '360px' }}>{message}</p>
+      <h3 className="text-sm font-semibold mb-2" style={{ color: tokens.text.primary }}>
+        {title}
+      </h3>
+      <p className="text-xs mb-6" style={{ color: tokens.text.secondary, maxWidth: '360px' }}>
+        {message}
+      </p>
 
       <div className="flex items-center gap-3">
         {onRetry && (

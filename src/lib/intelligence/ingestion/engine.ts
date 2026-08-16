@@ -39,14 +39,9 @@ export async function ingestFile(
   fileBuffer: Buffer,
   fileName: string,
   fileType: IngestionFileType,
-  options: IngestionOptions = {}
+  options: IngestionOptions = {},
 ): Promise<IngestionResult> {
-  const {
-    userId,
-    deduplicate = true,
-    skipRows = 0,
-    maxRows = 10000,
-  } = options;
+  const { userId, deduplicate = true, skipRows = 0, maxRows = 10000 } = options;
 
   logger.info('[INGEST] Starting file ingestion', { fileName, fileType, userId });
 
@@ -73,10 +68,11 @@ export async function ingestFile(
 
   try {
     // 2. Parse the file into rows
-    const rows: ParsedRow[] = fileType === 'csv'
-      ? await parseCSV(fileBuffer.toString('utf-8'))
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      : await parseExcelRow(fileBuffer as any);
+    const rows: ParsedRow[] =
+      fileType === 'csv'
+        ? await parseCSV(fileBuffer.toString('utf-8'))
+        : // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          await parseExcelRow(fileBuffer as any);
 
     result.totalRows = rows.length;
     logger.info('[INGEST] File parsed', { totalRows: rows.length });
@@ -99,11 +95,12 @@ export async function ingestFile(
         let orgId: string | undefined;
 
         if (entities.organization) {
-          const existingOrg = deduplicate && entities.organization.domain
-            ? await db.organization.findFirst({
-                where: { domain: entities.organization.domain },
-              })
-            : null;
+          const existingOrg =
+            deduplicate && entities.organization.domain
+              ? await db.organization.findFirst({
+                  where: { domain: entities.organization.domain },
+                })
+              : null;
 
           if (existingOrg) {
             orgId = existingOrg.id;
@@ -132,11 +129,12 @@ export async function ingestFile(
         let personId: string | undefined;
 
         if (entities.person) {
-          const existingPerson = deduplicate && entities.person.email
-            ? await db.person.findFirst({
-                where: { email: entities.person.email },
-              })
-            : null;
+          const existingPerson =
+            deduplicate && entities.person.email
+              ? await db.person.findFirst({
+                  where: { email: entities.person.email },
+                })
+              : null;
 
           if (existingPerson) {
             personId = existingPerson.id;
@@ -191,9 +189,8 @@ export async function ingestFile(
     await db.dataIngestion.update({
       where: { id: ingestion.id },
       data: {
-        status: result.failedRows === 0 ? 'completed'
-          : result.processedRows > 0 ? 'partial'
-          : 'failed',
+        status:
+          result.failedRows === 0 ? 'completed' : result.processedRows > 0 ? 'partial' : 'failed',
         totalRows: result.totalRows,
         processedRows: result.processedRows,
         failedRows: result.failedRows,
@@ -226,7 +223,6 @@ export async function ingestFile(
         });
       }
     }
-
   } catch (error) {
     // Pipeline-level failure
     const errorMsg = error instanceof Error ? error.message : 'Unknown pipeline error';

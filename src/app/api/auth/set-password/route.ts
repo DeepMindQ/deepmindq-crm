@@ -23,7 +23,10 @@ export const POST = withCsrf(async function POST(request: NextRequest) {
     const ip = request.headers?.get?.('x-forwarded-for')?.split(',')[0]?.trim() || 'unknown';
     const rl = generalApiRateLimit(ip, 'set-password');
     if (!rl.success) {
-      return NextResponse.json({ error: 'Too many attempts. Please try again later.' }, { status: 429 });
+      return NextResponse.json(
+        { error: 'Too many attempts. Please try again later.' },
+        { status: 429 },
+      );
     }
 
     const body = await request.json();
@@ -39,7 +42,10 @@ export const POST = withCsrf(async function POST(request: NextRequest) {
     // First verify the OTP for set_password purpose
     const otpResult = await verifyOtp(email, otpCode, 'set_password');
     if (!otpResult.success || !otpResult.userId) {
-      return NextResponse.json({ error: otpResult.error || 'OTP verification failed' }, { status: 401 });
+      return NextResponse.json(
+        { error: otpResult.error || 'OTP verification failed' },
+        { status: 401 },
+      );
     }
 
     // Hash and store the password
@@ -52,12 +58,8 @@ export const POST = withCsrf(async function POST(request: NextRequest) {
       },
     });
 
-    // Create a session
-    const userAgent = request.headers.get('user-agent') || undefined;
-    const forwarded = request.headers.get('x-forwarded-for');
-    const ipAddress = forwarded?.split(',')[0]?.trim() || undefined;
-
-    const session = await createSession(otpResult.userId, userAgent, ipAddress);
+    // Create a session (userAgent/ipAddress are logged via audit, not stored in session)
+    const session = await createSession(otpResult.userId);
 
     return NextResponse.json({
       success: true,

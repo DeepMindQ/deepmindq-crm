@@ -160,12 +160,7 @@ async function redisRateLimit(
 
   try {
     // Atomic INCR + PSETEX via Lua script (single round-trip)
-    const count = await (client as any).eval(
-      RATE_LIMIT_LUA,
-      1,
-      fullKey,
-      windowMs,
-    );
+    const count = await (client as any).eval(RATE_LIMIT_LUA, 1, fullKey, windowMs);
 
     return {
       success: count <= limit,
@@ -175,10 +170,9 @@ async function redisRateLimit(
       backend: 'redis',
     };
   } catch (err) {
-    logger.warn(
-      `[distributed-rate-limit] Redis rate limit failed for ${key}`,
-      { error: err instanceof Error ? err.message : String(err) },
-    );
+    logger.warn(`[distributed-rate-limit] Redis rate limit failed for ${key}`, {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return null;
   }
 }
@@ -189,18 +183,17 @@ const memoryStore = new Map<string, { count: number; resetAt: number }>();
 const MAX_MEMORY_STORE_SIZE = 100_000;
 
 // Cleanup timer
-setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of memoryStore.entries()) {
-    if (entry.resetAt <= now) memoryStore.delete(key);
-  }
-}, 5 * 60 * 1000);
+setInterval(
+  () => {
+    const now = Date.now();
+    for (const [key, entry] of memoryStore.entries()) {
+      if (entry.resetAt <= now) memoryStore.delete(key);
+    }
+  },
+  5 * 60 * 1000,
+);
 
-function memoryRateLimit(
-  key: string,
-  limit: number,
-  windowMs: number,
-): DistributedRateLimitResult {
+function memoryRateLimit(key: string, limit: number, windowMs: number): DistributedRateLimitResult {
   const now = Date.now();
 
   let entry = memoryStore.get(key);
@@ -253,7 +246,13 @@ export async function distributedRateLimit(
 
   // Feature flag: disable rate limiting entirely
   if (process.env.RATE_LIMIT_DISABLED === 'true') {
-    return { success: true, remaining: limit, resetAt: Date.now() + windowMs, limit, backend: 'disabled' };
+    return {
+      success: true,
+      remaining: limit,
+      resetAt: Date.now() + windowMs,
+      limit,
+      backend: 'disabled',
+    };
   }
 
   // Build the full key with optional identifier

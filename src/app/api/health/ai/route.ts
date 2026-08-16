@@ -15,7 +15,9 @@ export async function GET() {
 
   try {
     cacheStats = await AICacheLayer.getStats();
-  } catch { /* cache check is best-effort */ }
+  } catch {
+    /* cache check is best-effort */
+  }
 
   return NextResponse.json(
     {
@@ -30,6 +32,6 @@ export async function GET() {
     {
       status: ai.count > 0 ? 200 : 200, // Always 200 — degraded is still operational
       headers: { 'Cache-Control': 'no-store, max-age=0' },
-    }
+    },
   );
 }

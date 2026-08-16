@@ -54,11 +54,7 @@ async function startUpstashPolling(): Promise<void> {
 
   // Get current queue length to start from the end
   try {
-    const len = await client.eval(
-      `return redis.call('LLEN', KEYS[1])`,
-      1,
-      QUEUE_KEY,
-    );
+    const len = await client.eval(`return redis.call('LLEN', KEYS[1])`, 1, QUEUE_KEY);
     _lastPolledId = Number(len) || 0;
   } catch {
     _lastPolledId = 0;
@@ -99,6 +95,8 @@ async function startUpstashPolling(): Promise<void> {
 
 // ─── ioredis Native Pub/Sub ──────────────────────────────────────────────
 
+// NOTE: Typed as `any` because ioredis is an optional dependency that may
+// not be installed. The actual type would be Redis from 'ioredis' if available.
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 let _ioSubscriber: any = null;
 
@@ -135,10 +133,9 @@ async function startIoRedisSubscription(): Promise<void> {
     _subscriberReady = true;
     logger.info(`[redis-pubsub] ioredis subscription active on channel "${CHANNEL}"`);
   } catch (err) {
-    logger.warn(
-      '[redis-pubsub] Failed to start ioredis subscription',
-      { error: err instanceof Error ? err.message : String(err) },
-    );
+    logger.warn('[redis-pubsub] Failed to start ioredis subscription', {
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 
@@ -196,10 +193,9 @@ export async function publishSSEEvent(eventType: string, data: unknown): Promise
     }
   } catch (err) {
     // Non-fatal — local eventBus already delivered
-    logger.debug(
-      '[redis-pubsub] Failed to publish to Redis (local delivery succeeded)',
-      { error: err instanceof Error ? err.message : String(err) },
-    );
+    logger.debug('[redis-pubsub] Failed to publish to Redis (local delivery succeeded)', {
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 
@@ -257,10 +253,9 @@ export async function initPubSub(): Promise<void> {
       logger.info(`[redis-pubsub] Active (backend: ${clientType})`);
     }
   } catch (err) {
-    logger.warn(
-      '[redis-pubsub] Initialization failed — using in-memory eventBus only',
-      { error: err instanceof Error ? err.message : String(err) },
-    );
+    logger.warn('[redis-pubsub] Initialization failed — using in-memory eventBus only', {
+      error: err instanceof Error ? err.message : String(err),
+    });
   }
 }
 

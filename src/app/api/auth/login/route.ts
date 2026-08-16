@@ -19,7 +19,12 @@ export async function POST(request: NextRequest) {
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: 'Too many login attempts. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)) } }
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)),
+          },
+        },
       );
     }
 
@@ -45,10 +50,13 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user.passwordHash) {
-      return NextResponse.json({
-        error: 'No password set. Please use OTP-only login to set your password first.',
-        needsOtpLogin: true,
-      }, { status: 403 });
+      return NextResponse.json(
+        {
+          error: 'No password set. Please use OTP-only login to set your password first.',
+          needsOtpLogin: true,
+        },
+        { status: 403 },
+      );
     }
 
     // Verify password
@@ -66,15 +74,22 @@ export async function POST(request: NextRequest) {
     }
 
     // Milestone 1 H-05: Dev OTP only in development, never staging
-    const devOtpAllowed = process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_OTP === 'true';
+    const devOtpAllowed =
+      process.env.NODE_ENV === 'development' && process.env.ALLOW_DEV_OTP === 'true';
     return NextResponse.json({
       success: true,
-      message: devOtpAllowed && otpResult.devCode ? 'Password verified. OTP generated (dev mode).' : 'Password verified. OTP sent to your email.',
+      message:
+        devOtpAllowed && otpResult.devCode
+          ? 'Password verified. OTP generated (dev mode).'
+          : 'Password verified. OTP sent to your email.',
       ...(devOtpAllowed && otpResult.devCode ? { devCode: otpResult.devCode } : {}),
     });
   } catch (error) {
     logger.error('[auth/login] Error:', { error: error });
     // Do NOT expose internal error details to clients
-    return NextResponse.json({ error: 'Authentication service is temporarily unavailable. Please try again later.' }, { status: 503 });
+    return NextResponse.json(
+      { error: 'Authentication service is temporarily unavailable. Please try again later.' },
+      { status: 503 },
+    );
   }
 }

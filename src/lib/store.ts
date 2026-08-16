@@ -111,6 +111,7 @@ interface AppState {
   companyStatusFilter: string;
   intelligenceActivated: boolean;
   setActiveView: (view: ViewId) => void;
+  setSidebarCollapsed: (collapsed: boolean) => void;
   toggleSidebar: () => void;
   setSelectedContactId: (id: string | null) => void;
   setSelectedCompanyId: (id: string | null) => void;
@@ -120,7 +121,7 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  activeView: 'intelligence-operations',
+  activeView: 'dashboard',
   sidebarCollapsed: false,
   selectedContactId: null,
   selectedCompanyId: null,

@@ -1,27 +1,28 @@
-'use client'
+'use client';
 
-import { useState } from 'react'
+import { useState } from 'react';
 import { tokens } from '@/components/intelligence-os/design-tokens';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs'
-import { Button } from '@/components/ui/button'
-import { ScrollArea } from '@/components/ui/scroll-area'
-import { CheckCheck, Trash2, Bell } from 'lucide-react'
-import { useNotificationStore, type Notification } from './notification-store'
-import { getNotificationStyle } from './notification-icon'
-import { NotificationList } from './notification-list'
-import { motion, AnimatePresence } from 'framer-motion'
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { CheckCheck, Trash2, Bell } from 'lucide-react';
+import { useNotificationStore, type Notification } from './notification-store';
+import { getNotificationStyle } from './notification-icon';
+import { NotificationList } from './notification-list';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export function NotificationPanel() {
-  const { isPanelOpen, setPanelOpen, notifications, unreadCount, markAllAsRead, clearAll } = useNotificationStore()
-  const [filter, setFilter] = useState<'all' | 'unread' | 'intelligence' | 'opportunities'>('all')
+  const { isPanelOpen, setPanelOpen, notifications, unreadCount, markAllAsRead, clearAll } =
+    useNotificationStore();
+  const [filter, setFilter] = useState<'all' | 'unread' | 'intelligence' | 'opportunities'>('all');
 
-  const filtered = notifications.filter(n => {
-    if (filter === 'unread') return !n.read
-    if (filter === 'intelligence') return n.type === 'intelligence' || n.type === 'info'
-    if (filter === 'opportunities') return n.type === 'opportunity' || n.type === 'success'
-    return true
-  })
+  const filtered = notifications.filter((n) => {
+    if (filter === 'unread') return !n.read;
+    if (filter === 'intelligence') return n.type === 'intelligence' || n.type === 'info';
+    if (filter === 'opportunities') return n.type === 'opportunity' || n.type === 'success';
+    return true;
+  });
 
   return (
     <Sheet open={isPanelOpen} onOpenChange={setPanelOpen}>
@@ -39,12 +40,7 @@ export function NotificationPanel() {
             </SheetTitle>
             <div className="flex gap-1">
               {unreadCount > 0 && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="h-7 text-xs"
-                  onClick={markAllAsRead}
-                >
+                <Button variant="ghost" size="sm" className="h-7 text-xs" onClick={markAllAsRead}>
                   <CheckCheck className="h-3.5 w-3.5 mr-1" />
                   Read all
                 </Button>
@@ -68,10 +64,18 @@ export function NotificationPanel() {
             className="mt-2"
           >
             <TabsList className="w-full h-8">
-              <TabsTrigger value="all" className="text-xs flex-1">All</TabsTrigger>
-              <TabsTrigger value="unread" className="text-xs flex-1">Unread</TabsTrigger>
-              <TabsTrigger value="intelligence" className="text-xs flex-1">Intel</TabsTrigger>
-              <TabsTrigger value="opportunities" className="text-xs flex-1">Opps</TabsTrigger>
+              <TabsTrigger value="all" className="text-xs flex-1">
+                All
+              </TabsTrigger>
+              <TabsTrigger value="unread" className="text-xs flex-1">
+                Unread
+              </TabsTrigger>
+              <TabsTrigger value="intelligence" className="text-xs flex-1">
+                Intel
+              </TabsTrigger>
+              <TabsTrigger value="opportunities" className="text-xs flex-1">
+                Opps
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </SheetHeader>
@@ -98,9 +102,7 @@ export function NotificationPanel() {
                 </div>
                 <p className="text-sm font-medium mb-1">No notifications</p>
                 <p className="text-xs text-muted-foreground text-center">
-                  {filter === 'all'
-                    ? "You're all caught up"
-                    : `No ${filter} notifications`}
+                  {filter === 'all' ? "You're all caught up" : `No ${filter} notifications`}
                 </p>
               </motion.div>
             )}
@@ -108,5 +110,5 @@ export function NotificationPanel() {
         </ScrollArea>
       </SheetContent>
     </Sheet>
-  )
+  );
 }

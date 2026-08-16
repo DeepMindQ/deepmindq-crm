@@ -32,7 +32,7 @@ async function deriveKey(password: string, salt: Uint8Array): Promise<string> {
     encoder.encode(password) as BufferSource,
     'PBKDF2',
     false,
-    ['deriveBits']
+    ['deriveBits'],
   );
 
   const derivedBits = await crypto.subtle.deriveBits(
@@ -43,7 +43,7 @@ async function deriveKey(password: string, salt: Uint8Array): Promise<string> {
       hash: 'SHA-256',
     },
     keyMaterial,
-    HASH_LENGTH * 8
+    HASH_LENGTH * 8,
   );
 
   return toHex(new Uint8Array(derivedBits));
@@ -62,10 +62,7 @@ export async function hashPassword(password: string): Promise<string> {
  * Verify a password against a stored hash.
  * Stored format: "salt$hash"
  */
-export async function verifyPassword(
-  password: string,
-  storedHash: string
-): Promise<boolean> {
+export async function verifyPassword(password: string, storedHash: string): Promise<boolean> {
   try {
     const [saltHex, hashHex] = storedHash.split('$');
     if (!saltHex || !hashHex) return false;

@@ -4,7 +4,9 @@
    ═══════════════════════════════════════════════════ */
 
 interface FetchApiOptions extends RequestInit {
-  params?: Record<string, string | number | undefined>
+  params?: Record<string, string | number | undefined>;
+  /** Number of retries on network errors (default 0). */
+  retry?: number;
 }
 
 /**
@@ -26,51 +28,97 @@ function isStateChangingMethod(method?: string): boolean {
   return !['GET', 'HEAD', 'OPTIONS'].includes(m);
 }
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 export async function fetchApi<T = any>(
   url: string,
   options: FetchApiOptions = {},
-): Promise<{ data: T | null; error: string | null }> {
-  try {
-    let fullUrl = url
+): Promise<{ data: T | null; error: string | null; isUnauthorized?: boolean }> {
+  const maxRetries = options.retry ?? 0;
+  // Destructure retry so it doesn't leak into fetch init
+  const { retry: _retry, ...restOptions } = options;
 
-    // Build query string from params
-    if (options.params) {
-      const params = new URLSearchParams()
-      for (const [key, val] of Object.entries(options.params)) {
-        if (val !== undefined && val !== null && val !== '') {
-          params.set(key, String(val))
+  let lastError: string | null = null;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      let fullUrl = url;
+
+      // Build query string from params
+      if (restOptions.params) {
+        const params = new URLSearchParams();
+        for (const [key, val] of Object.entries(restOptions.params)) {
+          if (val !== undefined && val !== null && val !== '') {
+            params.set(key, String(val));
+          }
+        }
+        const qs = params.toString();
+        if (qs) fullUrl += (url.includes('?') ? '&' : '?') + qs;
+      }
+
+      // Destructure so params don't leak into fetch init
+      const { params: _params, ...fetchOpts } = restOptions;
+
+      // Inject CSRF token for state-changing requests (WI-18.1-02)
+      const headers = new Headers(fetchOpts.headers);
+      if (isStateChangingMethod(fetchOpts.method)) {
+        const csrfToken = getCsrfToken();
+        if (csrfToken) {
+          headers.set('x-csrf-token', csrfToken);
         }
       }
-      const qs = params.toString()
-      if (qs) fullUrl += (url.includes('?') ? '&' : '?') + qs
-    }
 
-    // Destructure so params don't leak into fetch init
-    const { params: _params, ...fetchOpts } = options
+      const res = await fetch(fullUrl, { ...fetchOpts, credentials: 'include', headers });
 
-    // Inject CSRF token for state-changing requests (WI-18.1-02)
-    const headers = new Headers(fetchOpts.headers)
-    if (isStateChangingMethod(fetchOpts.method)) {
-      const csrfToken = getCsrfToken()
-      if (csrfToken) {
-        headers.set('x-csrf-token', csrfToken)
+      // 429 Too Many Requests — include Retry-After in error message
+      if (res.status === 429) {
+        const retryAfter = res.headers.get('Retry-After');
+        const retryMsg = retryAfter ? ` (Retry-After: ${retryAfter})` : '';
+        return {
+          data: null,
+          error: `Too many requests${retryMsg}`,
+        };
       }
-    }
 
-    const res = await fetch(fullUrl, { ...fetchOpts, credentials: 'include', headers })
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => ({}))
-      return {
-        data: null,
-        error: body.error || `Request failed with status ${res.status}`,
+      // 401 Unauthorized — session expired
+      if (res.status === 401) {
+        const body = await res.json().catch(() => ({}));
+        return {
+          data: null,
+          error: body.error || 'Session expired. Please log in again.',
+          isUnauthorized: true,
+        };
       }
-    }
 
-    const data = await res.json()
-    return { data, error: null }
-  } catch (err) {
-    const msg = err instanceof Error ? err.message : 'Network error'
-    return { data: null, error: msg }
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        return {
+          data: null,
+          error: body.error || `Request failed with status ${res.status}`,
+        };
+      }
+
+      const body = await res.json();
+
+      // Unwrap the { data } envelope when the API route returns { data: ... }
+      // without an error property, to avoid double-wrapping for callers.
+      if (body !== null && typeof body === 'object' && 'data' in body && !('error' in body)) {
+        return { data: body.data as T, error: null };
+      }
+
+      return { data: body, error: null };
+    } catch (err) {
+      lastError = err instanceof Error ? err.message : 'Network error';
+      if (attempt < maxRetries) {
+        await sleep(1000);
+        continue;
+      }
+      return { data: null, error: lastError };
+    }
   }
+
+  // Unreachable, but TypeScript needs it
+  return { data: null, error: lastError };
 }

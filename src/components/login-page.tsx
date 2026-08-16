@@ -1,6 +1,9 @@
 'use client';
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import Link from 'next/link';
+import { fetchApi } from '@/lib/fetchApi';
+import { toast } from 'sonner';
 import { tokens } from '@/components/intelligence-os/design-tokens';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Input } from '@/components/ui/input';
@@ -13,8 +16,18 @@ import {
   InputOTPSeparator,
 } from '@/components/ui/input-otp';
 import {
-  Brain, Eye, EyeOff, ArrowRight, Loader2, Mail,
-  ShieldCheck, Lock, KeyRound, ArrowLeft, CheckCircle2, RefreshCw,
+  Brain,
+  Eye,
+  EyeOff,
+  ArrowRight,
+  Loader2,
+  Mail,
+  ShieldCheck,
+  Lock,
+  KeyRound,
+  ArrowLeft,
+  CheckCircle2,
+  RefreshCw,
 } from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════
@@ -86,30 +99,23 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/auth/request-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: email.toLowerCase().trim(), purpose: 'login' }),
-      });
-      const data = await res.json();
+    const { data, error } = await fetchApi<{ devCode?: string }>('/api/auth/request-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: email.toLowerCase().trim(), purpose: 'login' }),
+    });
 
-      if (!res.ok) {
-        setError(data.error || 'Failed to send OTP');
-        setLoading(false);
-        return;
-      }
-
-      // Only capture devCode in development mode
-      if (data.devCode) setDevCode(data.devCode);
-      setOtpSentTo(email.toLowerCase().trim());
-      setStep('otp');
-      startCountdown();
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
+    if (error) {
+      setError(error);
       setLoading(false);
+      return;
     }
+
+    if (data?.devCode) setDevCode(data.devCode);
+    setOtpSentTo(email.toLowerCase().trim());
+    setStep('otp');
+    startCountdown();
+    setLoading(false);
   };
 
   /* ── Step: Login with Password → sends OTP ── */
@@ -121,37 +127,35 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/auth/login', {
+    const { data, error } = await fetchApi<{ devCode?: string; needsOtpLogin?: boolean }>(
+      '/api/auth/login',
+      {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: email.toLowerCase().trim(), password }),
-      });
-      const data = await res.json();
+      },
+    );
 
-      if (!res.ok) {
-        if (data.needsOtpLogin) {
-          // No password set yet — switch to OTP mode
-          setError('');
-          setMode('otp');
-          handleRequestOtp();
-          return;
-        }
-        setError(data.error || 'Invalid credentials');
-        setLoading(false);
-        return;
-      }
-
-      // Only capture devCode in development mode
-      if (data.devCode) setDevCode(data.devCode);
-      setOtpSentTo(email.toLowerCase().trim());
-      setStep('otp');
-      startCountdown();
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
+    if (error) {
+      setError(error);
       setLoading(false);
+      return;
     }
+
+    // Check if user needs OTP-based login (no password set yet)
+    if (data?.needsOtpLogin) {
+      setError('');
+      setMode('otp');
+      setLoading(false);
+      handleRequestOtp();
+      return;
+    }
+
+    if (data?.devCode) setDevCode(data.devCode);
+    setOtpSentTo(email.toLowerCase().trim());
+    setStep('otp');
+    startCountdown();
+    setLoading(false);
   };
 
   /* ── Step 2: Verify OTP ── */
@@ -163,39 +167,33 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/auth/verify-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: otpSentTo,
-          code: otp,
-          purpose: 'login',
-        }),
-      });
-      const data = await res.json();
+    const { data, error } = await fetchApi<{ needsPassword?: boolean }>('/api/auth/verify-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: otpSentTo,
+        code: otp,
+        purpose: 'login',
+      }),
+    });
 
-      if (!res.ok) {
-        setError(data.error || 'Verification failed');
-        setLoading(false);
-        return;
-      }
-
-      if (data.needsPassword) {
-        setNeedsPassword(true);
-        setStep('set_password');
-        setLoading(false);
-        return;
-      }
-
-      // Success — logged in
-      setStep('success');
-      setTimeout(() => onLogin(), 600);
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
+    if (error) {
+      setError(error);
       setLoading(false);
+      return;
     }
+
+    if (data?.needsPassword) {
+      setNeedsPassword(true);
+      setStep('set_password');
+      setLoading(false);
+      return;
+    }
+
+    // Success — logged in
+    setStep('success');
+    setTimeout(() => onLogin(), 600);
+    setLoading(false);
   };
 
   /* ── Step 3: Set Password (first time) ── */
@@ -211,31 +209,25 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/auth/set-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          email: otpSentTo,
-          otpCode: otp,
-          password: newPassword,
-        }),
-      });
-      const data = await res.json();
+    const { error } = await fetchApi('/api/auth/set-password', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        email: otpSentTo,
+        otpCode: otp,
+        password: newPassword,
+      }),
+    });
 
-      if (!res.ok) {
-        setError(data.error || 'Failed to set password');
-        setLoading(false);
-        return;
-      }
-
-      setStep('success');
-      setTimeout(() => onLogin(), 600);
-    } catch {
-      setError('Network error. Please try again.');
-    } finally {
+    if (error) {
+      setError(error);
       setLoading(false);
+      return;
     }
+
+    setStep('success');
+    setTimeout(() => onLogin(), 600);
+    setLoading(false);
   };
 
   /* ── Resend OTP ── */
@@ -245,25 +237,20 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
     setError('');
     setLoading(true);
 
-    try {
-      const res = await fetch('/api/auth/request-otp', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: otpSentTo, purpose: 'login' }),
-      });
-      const data = await res.json();
+    const { data, error } = await fetchApi<{ devCode?: string }>('/api/auth/request-otp', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email: otpSentTo, purpose: 'login' }),
+    });
 
-      if (!res.ok) {
-        setError(data.error || 'Failed to resend OTP');
-      } else {
-        if (data.devCode) setDevCode(data.devCode);
-        startCountdown();
-      }
-    } catch {
-      setError('Network error');
-    } finally {
-      setLoading(false);
+    if (error) {
+      setError(error);
+    } else {
+      if (data?.devCode) setDevCode(data.devCode);
+      toast.success('OTP resent successfully');
+      startCountdown();
     }
+    setLoading(false);
   };
 
   const backToEmail = () => {
@@ -281,7 +268,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
       className="fixed inset-0 z-[100] flex items-center justify-center p-4 overflow-y-auto"
       style={{
         background: `linear-gradient(135deg, #0a0c10 0%, ${tokens.neutral['900']} 50%, #0a0c10 100%)`,
-        fontFamily: "var(--font-inter), system-ui, sans-serif",
+        fontFamily: 'var(--font-inter), system-ui, sans-serif',
       }}
     >
       {/* Background decoration */}
@@ -304,7 +291,8 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
       >
         {/* Logo & Title */}
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
+          <div
+            className="inline-flex items-center justify-center w-14 h-14 rounded-2xl mb-4"
             style={{ background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` }}
           >
             <Brain className="w-8 h-8 text-white" />
@@ -340,7 +328,9 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
               >
                 <div className="space-y-5">
                   <div>
-                    <Label htmlFor="email" className="text-gray-300 text-sm mb-1.5 block">Email Address</Label>
+                    <Label htmlFor="email" className="text-gray-300 text-sm mb-1.5 block">
+                      Email Address
+                    </Label>
                     <div className="relative">
                       <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                       <Input
@@ -348,7 +338,10 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                         type="email"
                         value={email}
                         onChange={(e) => setEmail(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && (mode === 'otp' ? handleRequestOtp() : handlePasswordSubmit())}
+                        onKeyDown={(e) =>
+                          e.key === 'Enter' &&
+                          (mode === 'otp' ? handleRequestOtp() : handlePasswordSubmit())
+                        }
                         placeholder="you@example.com"
                         className="pl-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-amber-500/50 focus:ring-amber-500/20 rounded-xl"
                         autoFocus
@@ -366,7 +359,11 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                           ? 'text-white shadow-lg'
                           : 'text-gray-400 hover:text-gray-300'
                       }`}
-                      style={mode === 'otp' ? { background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` } : { background: tokens.opacity.white.shadow }}
+                      style={
+                        mode === 'otp'
+                          ? { background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` }
+                          : { background: tokens.opacity.white.shadow }
+                      }
                     >
                       <div className="flex items-center justify-center gap-2">
                         <ShieldCheck className="w-4 h-4" />
@@ -381,7 +378,11 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                           ? 'text-white shadow-lg'
                           : 'text-gray-400 hover:text-gray-300'
                       }`}
-                      style={mode === 'password' ? { background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` } : { background: tokens.opacity.white.shadow }}
+                      style={
+                        mode === 'password'
+                          ? { background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` }
+                          : { background: tokens.opacity.white.shadow }
+                      }
                     >
                       <div className="flex items-center justify-center gap-2">
                         <Lock className="w-4 h-4" />
@@ -397,7 +398,9 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                       animate={{ opacity: 1, height: 'auto' }}
                       exit={{ opacity: 0, height: 0 }}
                     >
-                      <Label htmlFor="password" className="text-gray-300 text-sm mb-1.5 block">Password</Label>
+                      <Label htmlFor="password" className="text-gray-300 text-sm mb-1.5 block">
+                        Password
+                      </Label>
                       <div className="relative">
                         <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                         <Input
@@ -407,6 +410,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                           onChange={(e) => setPassword(e.target.value)}
                           onKeyDown={(e) => e.key === 'Enter' && handlePasswordSubmit()}
                           placeholder="Enter your password"
+                          minLength={8}
                           className="pl-10 pr-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-amber-500/50 focus:ring-amber-500/20 rounded-xl"
                         />
                         <button
@@ -415,7 +419,11 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                           aria-label={showPassword ? 'Hide password' : 'Show password'}
                           className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 transition-colors"
                         >
-                          {showPassword ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
+                          {showPassword ? (
+                            <EyeOff className="w-4 h-4" aria-hidden="true" />
+                          ) : (
+                            <Eye className="w-4 h-4" aria-hidden="true" />
+                          )}
                         </button>
                       </div>
                     </motion.div>
@@ -449,6 +457,13 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                       </span>
                     )}
                   </Button>
+
+                  <Link
+                    href="/forgot-password"
+                    className="text-xs text-amber-400/70 hover:text-amber-400 transition-colors"
+                  >
+                    Forgot your password?
+                  </Link>
                 </div>
               </motion.div>
             )}
@@ -475,9 +490,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                     <div className="inline-flex items-center justify-center w-12 h-12 rounded-full bg-amber-500/10 mb-3">
                       <ShieldCheck className="w-6 h-6" style={{ color: C.goldLight }} />
                     </div>
-                    <p className="text-gray-400 text-sm">
-                      We sent a 6-digit code to
-                    </p>
+                    <p className="text-gray-400 text-sm">We sent a 6-digit code to</p>
                     <p className="text-white font-medium text-sm mt-1">{otpSentTo}</p>
                   </div>
 
@@ -494,15 +507,33 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                       }}
                     >
                       <InputOTPGroup>
-                        <InputOTPSlot index={0} className="w-12 h-14 text-xl bg-white/5 border-white/10 text-white rounded-lg data-[active=true]:border-amber-500/50 data-[active=true]:ring-amber-500/20" />
-                        <InputOTPSlot index={1} className="w-12 h-14 text-xl bg-white/5 border-white/10 text-white rounded-lg data-[active=true]:border-amber-500/50 data-[active=true]:ring-amber-500/20" />
-                        <InputOTPSlot index={2} className="w-12 h-14 text-xl bg-white/5 border-white/10 text-white rounded-lg data-[active=true]:border-amber-500/50 data-[active=true]:ring-amber-500/20" />
+                        <InputOTPSlot
+                          index={0}
+                          className="w-12 h-14 text-xl bg-white/5 border-white/10 text-white rounded-lg data-[active=true]:border-amber-500/50 data-[active=true]:ring-amber-500/20"
+                        />
+                        <InputOTPSlot
+                          index={1}
+                          className="w-12 h-14 text-xl bg-white/5 border-white/10 text-white rounded-lg data-[active=true]:border-amber-500/50 data-[active=true]:ring-amber-500/20"
+                        />
+                        <InputOTPSlot
+                          index={2}
+                          className="w-12 h-14 text-xl bg-white/5 border-white/10 text-white rounded-lg data-[active=true]:border-amber-500/50 data-[active=true]:ring-amber-500/20"
+                        />
                       </InputOTPGroup>
                       <InputOTPSeparator className="text-gray-500 mx-2" />
                       <InputOTPGroup>
-                        <InputOTPSlot index={3} className="w-12 h-14 text-xl bg-white/5 border-white/10 text-white rounded-lg data-[active=true]:border-amber-500/50 data-[active=true]:ring-amber-500/20" />
-                        <InputOTPSlot index={4} className="w-12 h-14 text-xl bg-white/5 border-white/10 text-white rounded-lg data-[active=true]:border-amber-500/50 data-[active=true]:ring-amber-500/20" />
-                        <InputOTPSlot index={5} className="w-12 h-14 text-xl bg-white/5 border-white/10 text-white rounded-lg data-[active=true]:border-amber-500/50 data-[active=true]:ring-amber-500/20" />
+                        <InputOTPSlot
+                          index={3}
+                          className="w-12 h-14 text-xl bg-white/5 border-white/10 text-white rounded-lg data-[active=true]:border-amber-500/50 data-[active=true]:ring-amber-500/20"
+                        />
+                        <InputOTPSlot
+                          index={4}
+                          className="w-12 h-14 text-xl bg-white/5 border-white/10 text-white rounded-lg data-[active=true]:border-amber-500/50 data-[active=true]:ring-amber-500/20"
+                        />
+                        <InputOTPSlot
+                          index={5}
+                          className="w-12 h-14 text-xl bg-white/5 border-white/10 text-white rounded-lg data-[active=true]:border-amber-500/50 data-[active=true]:ring-amber-500/20"
+                        />
                       </InputOTPGroup>
                     </InputOTP>
                   </div>
@@ -516,15 +547,23 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                       <p className="text-amber-300/90 text-sm font-medium">
                         DEV MODE — Your verification code:
                       </p>
-                      <p className="font-mono font-bold text-3xl tracking-[0.3em]" style={{ color: C.goldLight }}>
+                      <p
+                        className="font-mono font-bold text-3xl tracking-[0.3em]"
+                        style={{ color: C.goldLight }}
+                      >
                         {devCode}
                       </p>
                       <div className="flex items-center justify-center gap-2 pt-1">
                         <button
                           type="button"
-                          onClick={() => { setOtp(devCode); setTimeout(() => handleVerifyOtp(), 300); }}
+                          onClick={() => {
+                            setOtp(devCode);
+                            setTimeout(() => handleVerifyOtp(), 300);
+                          }}
                           className="text-xs font-medium px-4 py-1.5 rounded-lg text-amber-950 transition-all hover:shadow-lg"
-                          style={{ background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})` }}
+                          style={{
+                            background: `linear-gradient(135deg, ${C.gold}, ${C.goldLight})`,
+                          }}
                         >
                           Auto-fill & Verify
                         </button>
@@ -543,12 +582,11 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                     >
                       <div className="flex items-center justify-center gap-2">
                         <Mail className="w-4 h-4 text-blue-400" />
-                        <p className="text-blue-300/90 text-sm font-medium">
-                          Check your email
-                        </p>
+                        <p className="text-blue-300/90 text-sm font-medium">Check your email</p>
                       </div>
                       <p className="text-blue-400/60 text-xs">
-                        We sent a 6-digit verification code to <span className="font-medium text-blue-300">{otpSentTo}</span>
+                        We sent a 6-digit verification code to{' '}
+                        <span className="font-medium text-blue-300">{otpSentTo}</span>
                       </p>
                     </motion.div>
                   )}
@@ -566,7 +604,9 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                   <div className="text-center">
                     <p className="text-gray-500 text-sm">
                       {countdown > 0 ? (
-                        <>Resend in <span className="text-amber-400 font-mono">{countdown}s</span></>
+                        <>
+                          Resend in <span className="text-amber-400 font-mono">{countdown}s</span>
+                        </>
                       ) : (
                         <button
                           type="button"
@@ -614,11 +654,15 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                       <Lock className="w-6 h-6" style={{ color: C.goldLight }} />
                     </div>
                     <p className="text-gray-300 font-medium">First-time Setup</p>
-                    <p className="text-gray-500 text-sm mt-1">Create a password for future logins</p>
+                    <p className="text-gray-500 text-sm mt-1">
+                      Create a password for future logins
+                    </p>
                   </div>
 
                   <div>
-                    <Label htmlFor="newPassword" className="text-gray-300 text-sm mb-1.5 block">New Password</Label>
+                    <Label htmlFor="newPassword" className="text-gray-300 text-sm mb-1.5 block">
+                      New Password
+                    </Label>
                     <div className="relative">
                       <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                       <Input
@@ -627,6 +671,7 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                         value={newPassword}
                         onChange={(e) => setNewPassword(e.target.value)}
                         placeholder="Min. 8 characters"
+                        minLength={8}
                         className="pl-10 pr-10 h-12 bg-white/5 border-white/10 text-white placeholder:text-gray-600 focus:border-amber-500/50 focus:ring-amber-500/20 rounded-xl"
                         autoFocus
                       />
@@ -636,13 +681,19 @@ export default function LoginPage({ onLogin, initialEmail }: LoginPageProps) {
                         aria-label={showPassword ? 'Hide password' : 'Show password'}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300"
                       >
-                        {showPassword ? <EyeOff className="w-4 h-4" aria-hidden="true" /> : <Eye className="w-4 h-4" aria-hidden="true" />}
+                        {showPassword ? (
+                          <EyeOff className="w-4 h-4" aria-hidden="true" />
+                        ) : (
+                          <Eye className="w-4 h-4" aria-hidden="true" />
+                        )}
                       </button>
                     </div>
                   </div>
 
                   <div>
-                    <Label htmlFor="confirmPassword" className="text-gray-300 text-sm mb-1.5 block">Confirm Password</Label>
+                    <Label htmlFor="confirmPassword" className="text-gray-300 text-sm mb-1.5 block">
+                      Confirm Password
+                    </Label>
                     <div className="relative">
                       <KeyRound className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
                       <Input

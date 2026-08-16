@@ -46,14 +46,19 @@ export function sanitizeString(str: string): string {
 
   const purify = getPurify();
   if (purify) {
-    return purify.sanitize(str, {
-      ALLOWED_TAGS: [],
-      ALLOWED_ATTR: [],
-    }).trim();
+    return purify
+      .sanitize(str, {
+        ALLOWED_TAGS: [],
+        ALLOWED_ATTR: [],
+      })
+      .trim();
   }
 
   // Fallback: regex strip (WI-18.1-05 upgrade from original)
-  return str.replace(/<[^>]*>/g, '').replace(/[<>]/g, '').trim();
+  return str
+    .replace(/<[^>]*>/g, '')
+    .replace(/[<>]/g, '')
+    .trim();
 }
 
 /**
@@ -65,21 +70,48 @@ export function sanitizeHtml(html: string): string {
 
   const purify = getPurify();
   if (purify) {
-    return purify.sanitize(html, {
-      ALLOWED_TAGS: ['b', 'i', 'em', 'strong', 'a', 'p', 'br', 'ul', 'ol', 'li', 'span', 'div', 'h1', 'h2', 'h3', 'h4', 'h5', 'h6', 'blockquote', 'code', 'pre'],
-      ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
-      ALLOW_DATA_ATTR: false,
-    }).trim();
+    return purify
+      .sanitize(html, {
+        ALLOWED_TAGS: [
+          'b',
+          'i',
+          'em',
+          'strong',
+          'a',
+          'p',
+          'br',
+          'ul',
+          'ol',
+          'li',
+          'span',
+          'div',
+          'h1',
+          'h2',
+          'h3',
+          'h4',
+          'h5',
+          'h6',
+          'blockquote',
+          'code',
+          'pre',
+        ],
+        ALLOWED_ATTR: ['href', 'target', 'rel', 'class'],
+        ALLOW_DATA_ATTR: false,
+      })
+      .trim();
   }
 
   // Fallback
-  return html.replace(/<script[\s\S]*?<\/script>/gi, '').replace(/<[^>]*>/g, '').trim();
+  return html
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<[^>]*>/g, '')
+    .trim();
 }
 
 /**
  * Truncate a string to `maxLen` characters, appending "..." if truncated.
  */
 export function truncate(str: string, maxLen: number): string {
-  if (!str || str.length <= maxLen) return str
-  return str.slice(0, maxLen) + '...'
+  if (!str || str.length <= maxLen) return str;
+  return str.slice(0, maxLen) + '...';
 }

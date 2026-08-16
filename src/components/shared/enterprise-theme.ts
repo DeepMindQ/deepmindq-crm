@@ -15,7 +15,15 @@
    ═══════════════════════════════════════════════════ */
 
 // ── Re-export canonical tokens from design-tokens ──
-export { tokens, getConfidenceTier, getTrustTier, getPriorityTier, radius, typography, elevation } from '@/components/intelligence-os/design-tokens';
+export {
+  tokens,
+  getConfidenceTier,
+  getTrustTier,
+  getPriorityTier,
+  radius,
+  typography,
+  elevation,
+} from '@/components/intelligence-os/design-tokens';
 
 // P0.3: Import tokens as a local binding for use in this file's own value definitions.
 // `export { tokens } from '...'` only re-exports — it doesn't create a local binding.
@@ -91,11 +99,27 @@ export const cardStyles = {
 
 /* ── Badge Colors ── */
 export const badgeColors = {
-  positive: { bg: tokens.extended.emerald.bgMedium, text: tokens.extended.emeraldDeep.value, border: tokens.extended.emerald.border },
-  negative: { bg: tokens.priority.critical.bg, text: tokens.extended.red.value, border: tokens.confidence.low.border },
-  warning: { bg: tokens.trust.medium.bg, text: tokens.extended.amberDeep.value, border: tokens.confidence.medium.border },
+  positive: {
+    bg: tokens.extended.emerald.bgMedium,
+    text: tokens.extended.emeraldDeep.value,
+    border: tokens.extended.emerald.border,
+  },
+  negative: {
+    bg: tokens.priority.critical.bg,
+    text: tokens.extended.red.value,
+    border: tokens.confidence.low.border,
+  },
+  warning: {
+    bg: tokens.trust.medium.bg,
+    text: tokens.extended.amberDeep.value,
+    border: tokens.confidence.medium.border,
+  },
   info: { bg: tokens.priority.medium.bg, text: tokens.accent.dim, border: tokens.accent.strong },
-  purple: { bg: 'rgba(168, 85, 247, 0.12)', text: tokens.extended.purpleDeep.value, border: tokens.domain.opportunity },
+  purple: {
+    bg: 'rgba(168, 85, 247, 0.12)',
+    text: tokens.extended.purpleDeep.value,
+    border: tokens.domain.opportunity,
+  },
   neutral: { bg: tokens.neutral.bg, text: tokens.flat.zinc, border: tokens.neutral.border },
   gold: { bg: tokens.gold.bgMedium, text: tokens.gold.dark, border: tokens.gold.borderLight },
 } as const;
@@ -142,12 +166,20 @@ export const animations = {
   stagger: (index: number, baseDelay = 0) => ({
     initial: { opacity: 0, y: 12 },
     animate: { opacity: 1, y: 0 },
-    transition: { duration: 0.4, delay: baseDelay + index * 0.04, ease: [0.22, 1, 0.36, 1] as const },
+    transition: {
+      duration: 0.4,
+      delay: baseDelay + index * 0.04,
+      ease: [0.22, 1, 0.36, 1] as const,
+    },
   }),
   barGrow: (index: number, baseDelay = 0) => ({
     initial: { width: 0 },
     animate: { width: 'var(--bar-width)' },
-    transition: { duration: 0.8, delay: baseDelay + index * 0.06, ease: [0.22, 1, 0.36, 1] as const },
+    transition: {
+      duration: 0.8,
+      delay: baseDelay + index * 0.06,
+      ease: [0.22, 1, 0.36, 1] as const,
+    },
   }),
   hoverLift: {
     whileHover: { scale: 1.02, y: -1 },
@@ -201,10 +233,8 @@ export const cls = {
   iconBoxSM: (color: string) => `w-7 h-7 rounded-lg flex items-center justify-center`,
   iconBoxXS: (color: string) => `w-6 h-6 rounded-lg flex items-center justify-center`,
   iconBoxBg: (color: string) => `${color}18`,
-  emptyIcon: (color = gold) =>
-    `w-12 h-12 rounded-2xl flex items-center justify-center mb-3`,
+  emptyIcon: (color = gold) => `w-12 h-12 rounded-2xl flex items-center justify-center mb-3`,
   emptyIconBg: (color = gold) =>
     `background: rgba(212,175,55,0.1); border: 1px solid rgba(212,175,55,0.2)`,
-  searchInput:
-    'h-8 pl-8 pr-7 w-48 text-xs rounded-lg',
+  searchInput: 'h-8 pl-8 pr-7 w-48 text-xs rounded-lg',
 } as const;

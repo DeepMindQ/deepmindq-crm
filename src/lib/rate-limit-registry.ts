@@ -16,18 +16,18 @@
 
 export interface RateLimitConfig {
   /** Human-readable name for logging/metrics */
-  name: string
+  name: string;
   /** Time window in milliseconds */
-  windowMs: number
+  windowMs: number;
   /** Maximum requests allowed in the window */
-  maxRequests: number
+  maxRequests: number;
 }
 
 export interface RateLimitEntry {
   /** Path prefix pattern to match (supports glob-style trailing *) */
-  pattern: string
+  pattern: string;
   /** Rate limit configuration for matching paths */
-  config: RateLimitConfig
+  config: RateLimitConfig;
 }
 
 // ─── Registry ───────────────────────────────────────────────────────────
@@ -253,7 +253,7 @@ export const RATE_LIMITS: RateLimitEntry[] = [
       maxRequests: 5,
     },
   },
-]
+];
 
 // ─── Path Matching ──────────────────────────────────────────────────────
 
@@ -265,7 +265,7 @@ const EXCLUDED_PREFIXES = [
   '/api/tracking/',
   '/api/unsubscribe',
   '/api/cron/',
-]
+];
 
 /**
  * Get the rate limit configuration for a given API path.
@@ -283,34 +283,34 @@ export function getRateLimitConfig(path: string): RateLimitConfig | undefined {
   // Skip public/auth paths
   for (const excluded of EXCLUDED_PREFIXES) {
     if (path === excluded || path.startsWith(excluded)) {
-      return undefined
+      return undefined;
     }
   }
 
-  let bestMatch: RateLimitConfig | undefined
-  let bestMatchLength = 0
+  let bestMatch: RateLimitConfig | undefined;
+  let bestMatchLength = 0;
 
   for (const entry of RATE_LIMITS) {
-    const { pattern, config } = entry
+    const { pattern, config } = entry;
 
     // Exact match
     if (path === pattern) {
-      return config
+      return config;
     }
 
     // Prefix match (pattern ends with / or matches as directory prefix)
     if (path.startsWith(pattern)) {
       // Ensure it's a proper prefix (e.g., /api/ai/ matches /api/ai/chat
       // but /api/ai doesn't match /api/ai-extra)
-      const nextChar = path.charAt(pattern.length)
+      const nextChar = path.charAt(pattern.length);
       if (nextChar === '/' || nextChar === '' || pattern.endsWith('/')) {
         if (pattern.length > bestMatchLength) {
-          bestMatchLength = pattern.length
-          bestMatch = config
+          bestMatchLength = pattern.length;
+          bestMatch = config;
         }
       }
     }
   }
 
-  return bestMatch
+  return bestMatch;
 }

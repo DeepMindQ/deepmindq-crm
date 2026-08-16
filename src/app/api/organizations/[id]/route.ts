@@ -1,19 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { z } from 'zod';
 import { checkApiAuth } from '@/lib/api-auth';
 import { db } from '@/lib/db';
 
-export async function GET(
-  request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
-) {
+const idParamSchema = z.string().min(1);
+
+export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const { errorResponse } = await checkApiAuth(request);
     if (errorResponse) return errorResponse;
 
     const { id } = await params;
+    const idParsed = idParamSchema.safeParse(id);
+    if (!idParsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid organization ID', details: idParsed.error.flatten() },
+        { status: 400 },
+      );
+    }
+    const validId = idParsed.data;
 
     const organization = await db.organization.findUnique({
-      where: { id },
+      where: { id: validId },
       include: {
         people: {
           orderBy: { updatedAt: 'desc' },

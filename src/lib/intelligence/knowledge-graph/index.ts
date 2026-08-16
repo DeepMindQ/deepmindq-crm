@@ -17,10 +17,4 @@ export {
   computeIntelligenceScores,
 } from './engine';
 
-export type {
-  GraphNode,
-  GraphEdge,
-  GraphSubgraph,
-  EntityMatch,
-  ConnectionPath,
-} from './engine';
+export type { GraphNode, GraphEdge, GraphSubgraph, EntityMatch, ConnectionPath } from './engine';

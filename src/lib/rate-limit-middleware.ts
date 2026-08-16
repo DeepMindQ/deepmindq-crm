@@ -126,7 +126,12 @@ const LIMIT_REGISTRY: Array<{
   },
   {
     pattern: '/api/verify-otp',
-    config: { limit: 10, windowMs: 60_000 * 15, description: 'OTP verification', adminExempt: false },
+    config: {
+      limit: 10,
+      windowMs: 60_000 * 15,
+      description: 'OTP verification',
+      adminExempt: false,
+    },
     regex: /^\/api\/verify-otp/,
   },
 
@@ -373,9 +378,7 @@ const ABUSE_CLEANUP_INTERVAL = 60_000 * 10; // Clean up every 10 minutes
 setInterval(() => {
   const now = Date.now();
   for (const [key, history] of requestHistory.entries()) {
-    history.timestamps = history.timestamps.filter(
-      (t) => now - t < ABUSE_SUSTAINED_MS,
-    );
+    history.timestamps = history.timestamps.filter((t) => now - t < ABUSE_SUSTAINED_MS);
     if (history.timestamps.length === 0) {
       requestHistory.delete(key);
     }
@@ -402,14 +405,10 @@ function detectAbusePattern(
   history.timestamps.push(now);
 
   // Check burst (many requests in short time)
-  const recentBurst = history.timestamps.filter(
-    (t) => now - t < ABUSE_WINDOW_MS,
-  ).length;
+  const recentBurst = history.timestamps.filter((t) => now - t < ABUSE_WINDOW_MS).length;
 
   // Check sustained (consistent high rate)
-  const sustainedRate = history.timestamps.filter(
-    (t) => now - t < ABUSE_SUSTAINED_MS,
-  ).length;
+  const sustainedRate = history.timestamps.filter((t) => now - t < ABUSE_SUSTAINED_MS).length;
 
   if (recentBurst > config.limit * 3) {
     return {
@@ -484,9 +483,7 @@ export function getHealthStatus() {
 /**
  * Reset rate limits for a specific identifier (admin use).
  */
-export async function resetLimits(
-  key: string,
-): Promise<boolean> {
+export async function resetLimits(key: string): Promise<boolean> {
   const { resetRateLimit } = await import('@/lib/distributed-rate-limit');
   return resetRateLimit(key);
 }

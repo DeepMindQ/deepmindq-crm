@@ -7,6 +7,7 @@
 
 import { db } from '@/lib/db';
 import { logger } from '@/lib/logger';
+import { getIntelligence, setIntelligence } from '@/lib/intelligence-cache';
 
 export interface DetectedSignal {
   organizationId: string;
@@ -38,6 +39,46 @@ export async function detectSignalsForOrganization(orgId: string): Promise<Detec
 
   if (!org) return [];
 
+  return detectSignalsForOrgData({
+    id: org.id,
+    name: org.name,
+    employeeCount: org.employeeCount,
+    industry: org.industry,
+    domain: org.domain,
+    revenue: org.revenue,
+    people: org.people.map((p) => ({
+      fullName: p.fullName,
+      title: p.title,
+      role: p.role,
+    })),
+    signals: org.signals.map((s) => ({
+      id: s.id,
+      detectedAt: s.detectedAt,
+    })),
+  });
+}
+
+/**
+ * Pure signal detection logic — operates on in-memory data, no DB queries.
+ * Extracted so it can be used by both single-org and batch detection paths.
+ */
+function detectSignalsForOrgData(org: {
+  id: string;
+  name: string;
+  employeeCount: number | null;
+  industry: string | null;
+  domain: string | null;
+  revenue: string | null;
+  people: Array<{
+    fullName: string;
+    title: string | null;
+    role: string;
+  }>;
+  signals: Array<{
+    id: string;
+    detectedAt: Date;
+  }>;
+}): DetectedSignal[] {
   const signals: DetectedSignal[] = [];
 
   // Rule 1: Large employee count suggests enterprise-scale operations
@@ -75,9 +116,11 @@ export async function detectSignalsForOrganization(orgId: string): Promise<Detec
   }
 
   // Rule 4: Multiple executives = buying influence
-  const executives = org.people.filter(p =>
-    p.role === 'executive' || p.role === 'vice_president' ||
-    (p.title && /vp|c-level|chief|head|president/i.test(p.title))
+  const executives = org.people.filter(
+    (p) =>
+      p.role === 'executive' ||
+      p.role === 'vice_president' ||
+      (p.title && /vp|c-level|chief|head|president/i.test(p.title)),
   );
   if (executives.length >= 2) {
     signals.push({
@@ -85,7 +128,7 @@ export async function detectSignalsForOrganization(orgId: string): Promise<Detec
       signalType: 'leadership_change',
       severity: 'medium',
       title: `${executives.length} executive-level contacts identified`,
-      description: `${org.name} has ${executives.length} known executives (${executives.map(e => e.fullName).join(', ')}). This suggests established access to decision-makers and potential for multi-threaded engagement.`,
+      description: `${org.name} has ${executives.length} known executives (${executives.map((e) => e.fullName).join(', ')}). This suggests established access to decision-makers and potential for multi-threaded engagement.`,
       confidenceScore: 80,
       impactScore: 70,
       sourceLabel: 'contact_analysis',
@@ -94,7 +137,7 @@ export async function detectSignalsForOrganization(orgId: string): Promise<Detec
 
   // Rule 5: No recent signals = intelligence gap
   const recentSignals = org.signals.filter(
-    s => s.detectedAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    (s) => s.detectedAt > new Date(Date.now() - 30 * 24 * 60 * 60 * 1000),
   );
   if (recentSignals.length === 0 && org.people.length > 0) {
     signals.push({
@@ -132,14 +175,36 @@ export async function detectSignalsForOrganization(orgId: string): Promise<Detec
 /**
  * Detect industry-specific signals.
  */
-function detectIndustrySignals(org: { name: string; industry: string | null; domain?: string | null; id?: string }): DetectedSignal[] {
+function detectIndustrySignals(org: {
+  name: string;
+  industry: string | null;
+  domain?: string | null;
+  id?: string;
+}): DetectedSignal[] {
   const signals: DetectedSignal[] = [];
   const industry = (org.industry || '').toLowerCase();
 
-  const highGrowthIndustries = ['ai', 'machine learning', 'fintech', 'cybersecurity', 'cloud', 'saas', 'healthtech', 'cleantech', 'biotech'];
-  const techHeavyIndustries = ['software', 'technology', 'information technology', 'tech', 'data', 'analytics'];
+  const highGrowthIndustries = [
+    'ai',
+    'machine learning',
+    'fintech',
+    'cybersecurity',
+    'cloud',
+    'saas',
+    'healthtech',
+    'cleantech',
+    'biotech',
+  ];
+  const techHeavyIndustries = [
+    'software',
+    'technology',
+    'information technology',
+    'tech',
+    'data',
+    'analytics',
+  ];
 
-  if (highGrowthIndustries.some(hi => industry.includes(hi))) {
+  if (highGrowthIndustries.some((hi) => industry.includes(hi))) {
     signals.push({
       organizationId: org.id || '',
       signalType: 'market_expansion',
@@ -152,7 +217,7 @@ function detectIndustrySignals(org: { name: string; industry: string | null; dom
     });
   }
 
-  if (techHeavyIndustries.some(ti => industry.includes(ti))) {
+  if (techHeavyIndustries.some((ti) => industry.includes(ti))) {
     signals.push({
       organizationId: org.id || '',
       signalType: 'technology_change',
@@ -174,9 +239,9 @@ function parseRevenue(revenue: string): number | null {
   const num = parseFloat(cleaned);
   if (!Number.isFinite(num)) return null;
 
-  if (/billion|b/i.test(revenue)) return num * 1_000_000_000;
-  if (/million|m/i.test(revenue)) return num * 1_000_000;
-  if (/thousand|k/i.test(revenue)) return num * 1_000;
+  if (/billion|\bb\b/i.test(revenue)) return num * 1_000_000_000;
+  if (/million|\bm\b/i.test(revenue)) return num * 1_000_000;
+  if (/thousand|\bk\b/i.test(revenue)) return num * 1_000;
   return num;
 }
 
@@ -189,7 +254,19 @@ export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
     await db.signal.create({
       data: {
         organizationId: signal.organizationId,
-        signalType: signal.signalType as 'hiring_change' | 'leadership_change' | 'technology_change' | 'funding_event' | 'market_expansion' | 'partnership' | 'competitor_move' | 'financial_indicator' | 'product_launch' | 'regulatory' | 'customer_signal' | 'social_mention',
+        signalType: signal.signalType as
+          | 'hiring_change'
+          | 'leadership_change'
+          | 'technology_change'
+          | 'funding_event'
+          | 'market_expansion'
+          | 'partnership'
+          | 'competitor_move'
+          | 'financial_indicator'
+          | 'product_launch'
+          | 'regulatory'
+          | 'customer_signal'
+          | 'social_mention',
         severity: signal.severity as 'critical' | 'high' | 'medium' | 'low',
         title: signal.title,
         description: signal.description,
@@ -207,25 +284,58 @@ export async function storeSignals(signals: DetectedSignal[]): Promise<number> {
 
 /**
  * Run signal detection across all active organizations.
+ * Uses batch loading to avoid N+1 queries — fetches all org data
+ * in a single query, then processes each org in memory.
  */
-export async function runSignalDetectionForAll(): Promise<{ scanned: number; signalsFound: number }> {
+export async function runSignalDetectionForAll(): Promise<{
+  scanned: number;
+  signalsFound: number;
+}> {
   const organizations = await db.organization.findMany({
     where: { trackingStatus: 'active' },
-    select: { id: true },
+    include: {
+      people: true,
+      signals: {
+        orderBy: { detectedAt: 'desc' },
+        take: 10,
+      },
+    },
   });
 
   let totalSignals = 0;
 
-  for (const org of organizations) {
-    try {
-      const signals = await detectSignalsForOrganization(org.id);
-      totalSignals += await storeSignals(signals);
-    } catch (error) {
-      logger.error(`[SIGNALS] Failed to detect signals for org ${org.id}`, {
-        error: error instanceof Error ? error.message : 'Unknown',
-      });
+  // Process organizations in parallel batches of 5
+  const BATCH_SIZE = 5;
+  for (let i = 0; i < organizations.length; i += BATCH_SIZE) {
+    const batch = organizations.slice(i, i + BATCH_SIZE);
+    const batchResults = await Promise.allSettled(
+      batch.map(async (org) => {
+        // Check cache first
+        const cached = getIntelligence<DetectedSignal[]>(org.id, 'signals');
+        if (cached) return cached.length;
+
+        const signals = detectSignalsForOrgData(org);
+        const stored = await storeSignals(signals);
+
+        // Cache the detected signals
+        setIntelligence(org.id, 'signals', signals);
+
+        return stored;
+      }),
+    );
+
+    for (const result of batchResults) {
+      if (result.status === 'fulfilled') {
+        totalSignals += result.value;
+      } else {
+        logger.error(`[SIGNALS] Batch failed`, {
+          error: result.reason instanceof Error ? result.reason.message : 'Unknown',
+        });
+      }
     }
   }
 
   return { scanned: organizations.length, signalsFound: totalSignals };
 }
+
+// ─── Industry Signal Helpers ───────────────────────────────────────────

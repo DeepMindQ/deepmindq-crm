@@ -24,7 +24,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 
-interface Column {
+export interface Column {
   key: string;
   label: string;
   sortable?: boolean;
@@ -80,7 +80,7 @@ export function DataTable({
   const [hiddenColumns, setHiddenColumns] = useState<Set<string>>(new Set());
   const visibleColumns = useMemo(
     () => columns.filter((c) => !hiddenColumns.has(c.key)),
-    [columns, hiddenColumns]
+    [columns, hiddenColumns],
   );
 
   const toggleColumn = useCallback((key: string) => {
@@ -103,12 +103,17 @@ export function DataTable({
         const val = row[col.key];
         if (val == null) return false;
         return String(val).toLowerCase().includes(q);
-      })
+      }),
     );
   }, [data, filterable, filterText, columns]);
 
   // ── Pagination logic ──
-  const hasServerPagination = !!(pageSize != null && totalCount != null && pageIndex != null && onPageChange);
+  const hasServerPagination = !!(
+    pageSize != null &&
+    totalCount != null &&
+    pageIndex != null &&
+    onPageChange
+  );
   const effectivePageSize = pageSize ?? 20;
 
   // Local page state for client-side pagination
@@ -118,9 +123,7 @@ export function DataTable({
     ? Math.max(1, Math.ceil(totalCount! / effectivePageSize))
     : Math.max(1, Math.ceil(filteredData.length / effectivePageSize));
 
-  const currentPage = hasServerPagination
-    ? pageIndex!
-    : Math.min(localPage, totalPages);
+  const currentPage = hasServerPagination ? pageIndex! : Math.min(localPage, totalPages);
 
   const displayData = hasServerPagination
     ? data
@@ -134,19 +137,25 @@ export function DataTable({
     ? totalPages > 1
     : filteredData.length > effectivePageSize;
 
-  const handlePageChange = useCallback((p: number) => {
-    if (hasServerPagination) {
-      onPageChange!(p);
-    } else {
-      setLocalPage(p);
-    }
-  }, [hasServerPagination, onPageChange]);
+  const handlePageChange = useCallback(
+    (p: number) => {
+      if (hasServerPagination) {
+        onPageChange!(p);
+      } else {
+        setLocalPage(p);
+      }
+    },
+    [hasServerPagination, onPageChange],
+  );
 
   // Reset local page when filter text changes
-  const handleFilterChange = useCallback((val: string) => {
-    setFilterText(val);
-    if (!hasServerPagination) setLocalPage(1);
-  }, [hasServerPagination]);
+  const handleFilterChange = useCallback(
+    (val: string) => {
+      setFilterText(val);
+      if (!hasServerPagination) setLocalPage(1);
+    },
+    [hasServerPagination],
+  );
 
   // ── CSV Export ──
   const handleExport = useCallback(() => {
@@ -159,11 +168,9 @@ export function DataTable({
         const val = row[col.key];
         if (val == null) return '';
         return String(val).replace(/"/g, '""');
-      })
+      }),
     );
-    const csv = [headers, ...rows]
-      .map((r) => r.map((cell) => `"${cell}"`).join(','))
-      .join('\n');
+    const csv = [headers, ...rows].map((r) => r.map((cell) => `"${cell}"`).join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
@@ -183,24 +190,35 @@ export function DataTable({
   const showToolbar = title || filterable || exportable || columns.length > 2;
 
   return (
-    <div className={cn('section-container', className)} style={{ background: bg, border: `1px solid ${border}`, borderRadius: '12px' }}>
+    <div
+      className={cn('section-container', className)}
+      style={{ background: bg, border: `1px solid ${border}`, borderRadius: '12px' }}
+    >
       {/* ── Title + Toolbar ── */}
       {showToolbar && (
-        <div className="flex items-center justify-between gap-3 px-4 py-3" style={{ borderBottom: `1px solid ${border}` }}>
+        <div
+          className="flex items-center justify-between gap-3 px-4 py-3"
+          style={{ borderBottom: `1px solid ${border}` }}
+        >
           <div className="flex items-center gap-3 flex-1 min-w-0">
             {title && (
-              <h3 className="text-sm font-semibold shrink-0" style={{ color: textColor }}>{title}</h3>
+              <h3 className="text-sm font-semibold shrink-0" style={{ color: textColor }}>
+                {title}
+              </h3>
             )}
             {filterable && (
               <div className="relative flex-1 max-w-xs">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5" style={{ color: muted }} />
+                <Search
+                  className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5"
+                  style={{ color: muted }}
+                />
                 <Input
                   placeholder={filterPlaceholder}
                   value={filterText}
                   onChange={(e) => handleFilterChange(e.target.value)}
                   className="h-8 pl-8 text-xs"
                   style={{
-                    background: '#0d1117',
+                    background: 'var(--ios-bg-card)',
                     border: `1px solid ${border}`,
                     color: textColor,
                   }}
@@ -230,7 +248,10 @@ export function DataTable({
                     Columns
                   </button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" style={{ background: bg, border: `1px solid ${border}` }}>
+                <DropdownMenuContent
+                  align="end"
+                  style={{ background: bg, border: `1px solid ${border}` }}
+                >
                   {columns.map((col) => (
                     <DropdownMenuItem
                       key={col.key}
@@ -245,7 +266,9 @@ export function DataTable({
                           background: hiddenColumns.has(col.key) ? 'transparent' : primary,
                         }}
                       >
-                        {!hiddenColumns.has(col.key) && <Check className="h-3 w-3" style={{ color: tokens.flat.white }} />}
+                        {!hiddenColumns.has(col.key) && (
+                          <Check className="h-3 w-3" style={{ color: tokens.flat.white }} />
+                        )}
                       </div>
                       {col.label}
                     </DropdownMenuItem>
@@ -283,7 +306,10 @@ export function DataTable({
                             <ArrowDown className="h-3.5 w-3.5" style={{ color: primary }} />
                           )
                         ) : (
-                          <ChevronsUpDown className="h-3.5 w-3.5" style={{ color: tokens.text.muted }} />
+                          <ChevronsUpDown
+                            className="h-3.5 w-3.5"
+                            style={{ color: tokens.text.muted }}
+                          />
                         )}
                       </span>
                     )}
@@ -298,7 +324,10 @@ export function DataTable({
                 <tr key={`skeleton-${rowIdx}`}>
                   {visibleColumns.map((col) => (
                     <td key={col.key} className="px-4 py-3">
-                      <Skeleton className="h-4 w-3/4 rounded" style={{ background: tokens.border.default }} />
+                      <Skeleton
+                        className="h-4 w-3/4 rounded"
+                        style={{ background: tokens.border.default }}
+                      />
                     </td>
                   ))}
                 </tr>
@@ -308,7 +337,9 @@ export function DataTable({
                 <td colSpan={visibleColumns.length} className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <Search className="h-8 w-8" style={{ color: tokens.text.muted }} />
-                    <p className="text-sm" style={{ color: muted }}>No results match your filter</p>
+                    <p className="text-sm" style={{ color: muted }}>
+                      No results match your filter
+                    </p>
                     <button
                       onClick={() => handleFilterChange('')}
                       className="text-xs font-medium"
@@ -324,7 +355,9 @@ export function DataTable({
                 <td colSpan={visibleColumns.length} className="px-4 py-12 text-center">
                   <div className="flex flex-col items-center gap-2">
                     <Inbox className="h-8 w-8" style={{ color: tokens.text.muted }} />
-                    <p className="text-sm" style={{ color: muted }}>{emptyMessage}</p>
+                    <p className="text-sm" style={{ color: muted }}>
+                      {emptyMessage}
+                    </p>
                   </div>
                 </td>
               </tr>
@@ -332,10 +365,7 @@ export function DataTable({
               displayData.map((row, rowIdx) => (
                 <tr
                   key={rowIdx}
-                  className={cn(
-                    'transition-colors',
-                    onRowClick && 'cursor-pointer',
-                  )}
+                  className={cn('transition-colors', onRowClick && 'cursor-pointer')}
                   style={{ borderBottom: `1px solid ${border}` }}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   tabIndex={onRowClick ? 0 : undefined}
@@ -357,10 +387,12 @@ export function DataTable({
                   }}
                 >
                   {visibleColumns.map((col) => (
-                    <td key={col.key} className="px-4 py-3" style={{ color: textColor, fontSize: '13px' }}>
-                      {col.render
-                        ? col.render(row[col.key], row)
-                        : (row[col.key] as ReactNode)}
+                    <td
+                      key={col.key}
+                      className="px-4 py-3"
+                      style={{ color: textColor, fontSize: '13px' }}
+                    >
+                      {col.render ? col.render(row[col.key], row) : (row[col.key] as ReactNode)}
                     </td>
                   ))}
                 </tr>

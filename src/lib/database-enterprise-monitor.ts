@@ -13,7 +13,18 @@ export async function getDatabaseHealthSummary() {
 export async function getDatabaseHealthReport() {
   return {
     status: 'healthy' as const,
-    performanceStats: { p95LatencyMs: 0, p50LatencyMs: 0, avgLatencyMs: 0, queryCount: 0, slowQueryCount: 0 },
-    poolStats: { totalConnections: 0, activeConnections: 0, idleConnections: 0, waitingRequests: 0 },
+    performanceStats: {
+      p95LatencyMs: 0,
+      p50LatencyMs: 0,
+      avgLatencyMs: 0,
+      queryCount: 0,
+      slowQueryCount: 0,
+    },
+    poolStats: {
+      totalConnections: 0,
+      activeConnections: 0,
+      idleConnections: 0,
+      waitingRequests: 0,
+    },
   };
 }

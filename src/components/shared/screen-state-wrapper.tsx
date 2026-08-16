@@ -1,6 +1,12 @@
 import React from 'react';
 
-export function ScreenStateWrapper({ children, state }: { children: React.ReactNode; state?: string }) {
+export function ScreenStateWrapper({
+  children,
+  state,
+}: {
+  children: React.ReactNode;
+  state?: string;
+}) {
   return <>{children}</>;
 }
 

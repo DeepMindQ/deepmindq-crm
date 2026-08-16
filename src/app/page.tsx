@@ -1,681 +1,812 @@
 'use client';
 
-import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import {
-  Building2, Radio, Brain, Network,
-  AlertTriangle, Eye, RefreshCw,
-  Upload, GitBranch, Zap, ChevronRight,
-  Activity, Target, Shield, Users
-} from 'lucide-react';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-
-import { Progress } from '@/components/ui/progress';
+import React, { useState, useEffect, useCallback } from 'react';
+import Link from 'next/link';
 import { toast } from 'sonner';
+import { fetchApi } from '@/lib/fetchApi';
+import { useAppStore, type ViewId } from '@/lib/store';
+import { SCREEN_MAP } from '@/lib/screen-map';
+import {
+  SidebarProvider,
+  Sidebar,
+  SidebarContent,
+  SidebarHeader,
+  SidebarFooter,
+  SidebarGroup,
+  SidebarGroupLabel,
+  SidebarMenu,
+  SidebarMenuItem,
+  SidebarMenuButton,
+  SidebarInset,
+  SidebarRail,
+  SidebarTrigger,
+  SidebarSeparator,
+} from '@/components/ui/sidebar';
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbPage,
+} from '@/components/ui/breadcrumb';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import {
+  Brain,
+  Radar,
+  Monitor,
+  Sparkles,
+  Search,
+  FileText,
+  Building2,
+  Users,
+  Globe,
+  Target,
+  GitBranch,
+  Layers,
+  Mail,
+  MessageSquare,
+  PenLine,
+  Inbox,
+  BookOpen,
+  Library,
+  BarChart3,
+  TrendingUp,
+  Activity,
+  FileBarChart,
+  Upload,
+  UserPlus,
+  Send,
+  AlertTriangle,
+  Copy,
+  Settings,
+  UserCog,
+  Shield,
+  Heart,
+  Database,
+  Zap,
+  Bell,
+  LogOut,
+  X,
+  ChevronRight,
+  ArrowRight,
+  Loader2,
+  WifiOff,
+  type LucideIcon,
+} from 'lucide-react';
+import { PageTransition, GlassPanel } from '@/components/ui/animated-components';
 
-// ─── Types ────────────────────────────────────────────────────────────────
+/* ── Navigation Data ── */
 
-interface GraphStats {
-  totalNodes: number;
-  totalEdges: number;
-  organizations: number;
-  people: number;
-  relationshipTypes: Record<string, number>;
-  avgConnectionsPerNode: number;
-  isolatedNodes: number;
-  largestCluster: number;
+interface NavItem {
+  label: string;
+  viewId: ViewId;
+  icon: LucideIcon;
+  badge?: string;
+  shortcut?: string;
+}
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+  defaultCollapsed?: boolean;
 }
 
-interface OrgSummary {
-  id: string;
-  name: string;
-  domain: string | null;
-  industry: string | null;
-  employeeCount: number | null;
-  intelligenceScore: number | null;
-  trackingStatus: string;
-  signalCount: number;
-  lastSignalAt: string | null;
-}
+const NAV_GROUPS: NavGroup[] = [
+  {
+    label: 'INTELLIGENCE',
+    items: [
+      {
+        label: 'Intelligence Ops',
+        viewId: 'intelligence-operations',
+        icon: Radar,
+        badge: 'New',
+        shortcut: '⌘1',
+      },
+      { label: 'Command Center', viewId: 'command-center', icon: Monitor, shortcut: '⌘2' },
+      { label: 'AI Advisor', viewId: 'ai-advisor', icon: Sparkles, shortcut: '⌘3' },
+      { label: 'Intelligence Search', viewId: 'intelligence-search', icon: Search, shortcut: '⌘K' },
+      { label: 'Intelligence Briefing', viewId: 'intelligence-briefing', icon: FileText },
+    ],
+  },
+  {
+    label: 'ACCOUNTS',
+    items: [
+      { label: 'Companies', viewId: 'companies', icon: Building2 },
+      { label: 'Contacts', viewId: 'contacts', icon: Users },
+      { label: 'Company Workspace', viewId: 'company-workspace', icon: Globe },
+    ],
+  },
+  {
+    label: 'PIPELINE',
+    items: [
+      { label: 'Opportunities', viewId: 'opportunities', icon: Target },
+      { label: 'Pipeline', viewId: 'pipeline', icon: GitBranch },
+      { label: 'Segments', viewId: 'segments', icon: Layers },
+    ],
+  },
+  {
+    label: 'ENGAGE',
+    items: [
+      { label: 'Sequences', viewId: 'sequences', icon: Mail },
+      { label: 'Conversation Studio', viewId: 'conversation-studio', icon: MessageSquare },
+      { label: 'Email Studio', viewId: 'email-studio', icon: PenLine },
+      { label: 'Inbox', viewId: 'inbox', icon: Inbox },
+    ],
+  },
+  {
+    label: 'KNOWLEDGE',
+    items: [
+      { label: 'Knowledge Library', viewId: 'knowledge', icon: BookOpen },
+      { label: 'Knowledge Workspace', viewId: 'knowledge-workspace', icon: Library },
+    ],
+  },
+  {
+    label: 'ANALYTICS',
+    items: [
+      { label: 'Intelligence Hub', viewId: 'dashboard', icon: BarChart3 },
+      { label: 'Revenue Intelligence', viewId: 'revenue-intelligence', icon: TrendingUp },
+      { label: 'Analytics', viewId: 'analytics', icon: Activity },
+      { label: 'Reports', viewId: 'reports', icon: FileBarChart },
+    ],
+  },
+  {
+    label: 'OPERATIONS',
+    items: [
+      { label: 'Data Import', viewId: 'data-import', icon: Upload },
+      { label: 'Leads', viewId: 'leads', icon: UserPlus },
+      { label: 'Queue', viewId: 'queue', icon: Send },
+      { label: 'Bounces', viewId: 'bounces', icon: AlertTriangle },
+      { label: 'Duplicates', viewId: 'duplicates', icon: Copy },
+    ],
+  },
+  {
+    label: 'ADMIN',
+    defaultCollapsed: true,
+    items: [
+      { label: 'Settings', viewId: 'settings', icon: Settings },
+      { label: 'Users', viewId: 'users', icon: UserCog },
+      { label: 'Audit Logs', viewId: 'audit-logs', icon: Shield },
+      { label: 'AI Health', viewId: 'ai-health', icon: Heart },
+      { label: 'Data Health', viewId: 'data-health', icon: Database },
+      { label: 'AI Usage', viewId: 'ai-usage', icon: Zap },
+    ],
+  },
+];
 
-interface SignalItem {
-  id: string;
-  signalType: string;
-  severity: string;
-  title: string;
-  description: string;
-  confidenceScore: number;
-  detectedAt: string;
-}
+const VIEW_LABEL_MAP: Record<string, string> = NAV_GROUPS.reduce(
+  (acc, g) => {
+    for (const item of g.items) acc[item.viewId] = item.label;
+    return acc;
+  },
+  {} as Record<string, string>,
+);
 
-interface InsightItem {
-  id: string;
-  category: string;
-  title: string;
-  narrative: string;
-  recommendation: string;
-  confidence: string;
-  confidenceScore: number;
-}
+/* ── Command Palette ── */
 
-// ─── Severity color mapping ───────────────────────────────────────────────
+const COMMANDS = [
+  { label: 'Go to Command Center', icon: Monitor, shortcut: '⌘2', action: 'command-center' },
+  { label: 'Search Intelligence', icon: Search, shortcut: '⌘K', action: 'intelligence-search' },
+  { label: 'Open AI Advisor', icon: Sparkles, shortcut: '⌘3', action: 'ai-advisor' },
+  {
+    label: 'View Intelligence Ops',
+    icon: Radar,
+    shortcut: '⌘1',
+    action: 'intelligence-operations',
+  },
+  { label: 'New Sequence', icon: Mail, action: 'sequences' },
+  { label: 'View Pipeline', icon: GitBranch, action: 'pipeline' },
+  { label: 'Company Search', icon: Building2, action: 'companies' },
+  { label: 'Revenue Intelligence', icon: TrendingUp, action: 'revenue-intelligence' },
+  { label: 'Settings', icon: Settings, action: 'settings' },
+  { label: 'View Inbox', icon: Inbox, action: 'inbox' },
+];
 
-const severityConfig: Record<string, { color: string; icon: typeof AlertTriangle }> = {
-  critical: { color: 'bg-red-500/15 text-red-400 border-red-500/30', icon: AlertTriangle },
-  high: { color: 'bg-orange-500/15 text-orange-400 border-orange-500/30', icon: AlertTriangle },
-  medium: { color: 'bg-yellow-500/15 text-yellow-400 border-yellow-500/30', icon: Eye },
-  low: { color: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/30', icon: Eye },
-};
+function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const [query, setQuery] = useState('');
+  const setActiveView = useAppStore((s) => s.setActiveView);
+  const filtered = COMMANDS.filter((c) => c.label.toLowerCase().includes(query.toLowerCase()));
 
-const confidenceColor: Record<string, string> = {
-  very_high: 'bg-emerald-500/20 text-emerald-300',
-  high: 'bg-emerald-500/10 text-emerald-400',
-  medium: 'bg-yellow-500/10 text-yellow-400',
-  low: 'bg-orange-500/10 text-orange-400',
-  very_low: 'bg-red-500/10 text-red-400',
-};
-
-const categoryIcon: Record<string, typeof Target> = {
-  opportunity: Target,
-  risk: Shield,
-  recommendation: Brain,
-  pattern: Network,
-};
-
-// ─── Mock Data (used when API is unavailable) ──────────────────────────────
-
-function getMockStats(): GraphStats {
-  return {
-    totalNodes: 24,
-    totalEdges: 31,
-    organizations: 8,
-    people: 16,
-    relationshipTypes: { works_at: 14, coworker: 8, competes_with: 5, same_region: 3, partnered_with: 1 },
-    avgConnectionsPerNode: 2.58,
-    isolatedNodes: 2,
-    largestCluster: 22,
-  };
-}
-
-function getMockOrgs(): OrgSummary[] {
-  return [
-    { id: '1', name: 'Stratoscale AI', domain: 'stratoscale.ai', industry: 'AI / Machine Learning', employeeCount: 1200, intelligenceScore: 87, trackingStatus: 'active', signalCount: 12, lastSignalAt: '2026-08-12T14:30:00Z' },
-    { id: '2', name: 'Meridian Fintech', domain: 'meridian.io', industry: 'FinTech', employeeCount: 450, intelligenceScore: 72, trackingStatus: 'active', signalCount: 7, lastSignalAt: '2026-08-11T09:00:00Z' },
-    { id: '3', name: 'NovaTech Solutions', domain: 'novatech.com', industry: 'Cloud SaaS', employeeCount: 3200, intelligenceScore: 65, trackingStatus: 'active', signalCount: 5, lastSignalAt: '2026-08-10T16:00:00Z' },
-    { id: '4', name: 'Quantum Health', domain: 'quantumhealth.co', industry: 'HealthTech', employeeCount: 800, intelligenceScore: 58, trackingStatus: 'active', signalCount: 3, lastSignalAt: '2026-08-09T11:00:00Z' },
-    { id: '5', name: 'Atlas Cyberdefense', domain: 'atlascyber.com', industry: 'Cybersecurity', employeeCount: 600, intelligenceScore: 45, trackingStatus: 'active', signalCount: 2, lastSignalAt: '2026-08-08T08:00:00Z' },
-  ];
-}
-
-function getMockSignals(): SignalItem[] {
-  return [
-    { id: 's1', signalType: 'market_expansion', severity: 'high', title: 'Stratoscale AI operates in a high-growth sector', description: 'The AI/ML sector is experiencing rapid growth. Companies are investing heavily in infrastructure and tools to scale.', confidenceScore: 75, detectedAt: '2026-08-12T14:30:00Z' },
-    { id: 's2', signalType: 'leadership_change', severity: 'medium', title: '3 executive-level contacts at Meridian Fintech', description: 'Known executives: Sarah Chen (CEO), David Park (CTO), Maya Rodriguez (CRO). Established access to decision-makers.', confidenceScore: 80, detectedAt: '2026-08-11T09:00:00Z' },
-    { id: 's3', signalType: 'financial_indicator', severity: 'high', title: 'NovaTech Solutions: Large enterprise (3,200 employees)', description: '3,200 employees indicates large-scale operations with complex buying processes and multiple stakeholders.', confidenceScore: 85, detectedAt: '2026-08-10T16:00:00Z' },
-    { id: 's4', signalType: 'customer_signal', severity: 'medium', title: 'Single contact at Atlas Cyberdefense', description: 'Only one known contact. Multi-threading relationships is critical for deal security.', confidenceScore: 90, detectedAt: '2026-08-09T11:00:00Z' },
-    { id: 's5', signalType: 'technology_change', severity: 'low', title: 'Technology-native organization detected', description: 'Atlas Cyberdefense evaluates tools based on technical merit, integration capabilities, and developer experience.', confidenceScore: 80, detectedAt: '2026-08-08T08:00:00Z' },
-  ];
-}
-
-function getMockInsights(): InsightItem[] {
-  return [
-    { id: 'i1', category: 'opportunity', title: 'Strong engagement opportunity: Stratoscale AI', narrative: 'Stratoscale AI has a composite opportunity score of 87/100 based on 12 active signals, 6 known contacts, and complete data coverage. This organization shows strong indicators for active engagement.', recommendation: 'Engage Stratoscale AI proactively. Schedule discovery conversation within 7 days.', confidence: 'high', confidenceScore: 82 },
-    { id: 'i2', category: 'risk', title: 'Single point of failure at Atlas Cyberdefense', narrative: 'Only one known contact at Atlas Cyberdefense. If this contact leaves, all relationship equity is lost. This is a critical coverage gap for an organization in a high-value sector.', recommendation: 'Expand relationship map immediately. Identify 2-3 additional stakeholders within 30 days.', confidence: 'high', confidenceScore: 90 },
-    { id: 'i3', category: 'recommendation', title: 'Multi-thread Meridian Fintech executive layer', narrative: 'Meridian Fintech has 3 known executives (CEO, CTO, CRO). Multi-threaded engagement across leadership reduces single-point-of-failure risk and accelerates deal velocity.', recommendation: 'Map reporting hierarchy and prepare tailored value propositions for each executive persona.', confidence: 'medium', confidenceScore: 65 },
-    { id: 'i4', category: 'opportunity', title: 'NovaTech Solutions enterprise procurement timing', narrative: 'NovaTech has 3,200 employees and estimated revenue exceeding $500M. Large enterprise procurement cycles typically align with Q3/Q4 budget planning. Current timing is optimal for initial outreach.', recommendation: 'Prepare enterprise ROI analysis. Target procurement committee members for initial conversation.', confidence: 'medium', confidenceScore: 55 },
-  ];
-}
-
-// ─── Data Fetching Hook ────────────────────────────────────────────────────
-
-function useApiData<T>(url: string, fallback: T, enabled = true) {
-  return useQuery({
-    queryKey: [url],
-    queryFn: async () => {
-      const res = await fetch(url);
-      if (!res.ok) throw new Error('API unavailable');
-      const json = await res.json();
-      return json.data as T;
+  const exec = useCallback(
+    (action: string) => {
+      setActiveView(action as ViewId);
+      setQuery('');
+      onClose();
     },
-    enabled,
-    retry: 0,
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-  });
-}
-
-// ─── Main Command Center ──────────────────────────────────────────────────
-
-export default function CommandCenter() {
-  const [activeTab, setActiveTab] = useState('overview');
-
-  // Fetch real data, fallback to mocks
-  const { data: stats = getMockStats() } = useApiData<GraphStats>('/api/knowledge-graph/stats', getMockStats());
-  const { data: orgs = getMockOrgs() } = useApiData<OrgSummary[]>('/api/organizations?limit=50', getMockOrgs());
-
-  return (
-    <div className="min-h-screen bg-[#0a0a0f] text-zinc-100">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b border-zinc-800/60 bg-[#0a0a0f]/80 backdrop-blur-xl">
-        <div className="mx-auto flex h-14 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center gap-3">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
-              <Brain className="h-4 w-4 text-emerald-400" />
-            </div>
-            <div>
-              <h1 className="text-sm font-semibold tracking-tight text-zinc-100">DeepMindQ</h1>
-              <p className="text-[11px] text-zinc-500">Intelligence Command Center</p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2">
-            <StatusBadge />
-            <Button
-              variant="ghost"
-              size="sm"
-              className="h-8 gap-1.5 text-zinc-400 hover:text-zinc-100"
-              onClick={() => {
-                toast.success('Intelligence refresh initiated');
-              }}
-            >
-              <RefreshCw className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Refresh</span>
-            </Button>
-          </div>
-        </div>
-      </header>
-
-      <main className="mx-auto max-w-7xl px-4 py-6 sm:px-6 lg:px-8">
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="mb-6 bg-zinc-900/60 border border-zinc-800/60">
-            <TabsTrigger value="overview" className="gap-1.5 data-[state=active]:bg-zinc-800 data-[state=active]:text-emerald-400">
-              <Activity className="h-3.5 w-3.5" />
-              Overview
-            </TabsTrigger>
-            <TabsTrigger value="signals" className="gap-1.5 data-[state=active]:bg-zinc-800 data-[state=active]:text-emerald-400">
-              <Radio className="h-3.5 w-3.5" />
-              Signals
-            </TabsTrigger>
-            <TabsTrigger value="insights" className="gap-1.5 data-[state=active]:bg-zinc-800 data-[state=active]:text-emerald-400">
-              <Brain className="h-3.5 w-3.5" />
-              AI Insights
-            </TabsTrigger>
-            <TabsTrigger value="graph" className="gap-1.5 data-[state=active]:bg-zinc-800 data-[state=active]:text-emerald-400">
-              <Network className="h-3.5 w-3.5" />
-              Knowledge Graph
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <OverviewSection stats={stats} orgs={orgs} />
-            <SignalsQuickView />
-            <InsightsQuickView />
-            <QuickActions />
-          </TabsContent>
-
-          {/* Signals Tab */}
-          <TabsContent value="signals">
-            <SignalsFullView />
-          </TabsContent>
-
-          {/* Insights Tab */}
-          <TabsContent value="insights">
-            <InsightsFullView />
-          </TabsContent>
-
-          {/* Knowledge Graph Tab */}
-          <TabsContent value="graph">
-            <GraphView stats={stats} />
-          </TabsContent>
-        </Tabs>
-      </main>
-    </div>
+    [setActiveView, onClose],
   );
-}
 
-// ─── Status Badge ──────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!open) setQuery('');
+  }, [open]);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, [open, onClose]);
 
-function StatusBadge() {
-  return (
-    <div className="flex items-center gap-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1">
-      <div className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
-      <span className="text-[11px] font-medium text-emerald-400">Systems Active</span>
-    </div>
-  );
-}
-
-// ─── Overview Section ───────────────────────────────────────────────────────
-
-function OverviewSection({ stats, orgs }: { stats: GraphStats; orgs: OrgSummary[] }) {
-  const statCards = [
-    {
-      title: 'Organizations',
-      value: stats.organizations,
-      subtitle: `${stats.people} people tracked`,
-      icon: Building2,
-      color: 'text-blue-400',
-      bg: 'bg-blue-500/10',
-    },
-    {
-      title: 'Active Signals',
-      value: orgs.reduce((sum, o) => sum + o.signalCount, 0),
-      subtitle: 'Across all targets',
-      icon: Radio,
-      color: 'text-amber-400',
-      bg: 'bg-amber-500/10',
-    },
-    {
-      title: 'AI Insights',
-      value: orgs.filter(o => o.intelligenceScore && o.intelligenceScore > 50).length,
-      subtitle: 'High-confidence findings',
-      icon: Brain,
-      color: 'text-emerald-400',
-      bg: 'bg-emerald-500/10',
-    },
-    {
-      title: 'Graph Density',
-      value: stats.avgConnectionsPerNode.toFixed(1),
-      subtitle: `${stats.totalEdges} relationships`,
-      icon: Network,
-      color: 'text-violet-400',
-      bg: 'bg-violet-500/10',
-    },
-  ];
+  if (!open) return null;
 
   return (
-    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      {statCards.map((card) => (
-        <Card key={card.title} className="border-zinc-800/60 bg-zinc-900/40 backdrop-blur-sm">
-          <CardContent className="p-4">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium text-zinc-500 uppercase tracking-wider">{card.title}</p>
-                <p className="mt-1 text-2xl font-bold text-zinc-100 tabular-nums">{card.value}</p>
-                <p className="mt-0.5 text-xs text-zinc-500">{card.subtitle}</p>
-              </div>
-              <div className={`rounded-lg p-2 ${card.bg}`}>
-                <card.icon className={`h-4 w-4 ${card.color}`} />
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  );
-}
-
-// ─── Signals Quick View ────────────────────────────────────────────────────
-
-function SignalsQuickView() {
-  const signals = getMockSignals();
-
-  return (
-    <Card className="border-zinc-800/60 bg-zinc-900/40 backdrop-blur-sm">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Radio className="h-4 w-4 text-amber-400" />
-            <CardTitle className="text-sm font-semibold text-zinc-200">Active Signals</CardTitle>
-          </div>
-          <Badge variant="secondary" className="bg-zinc-800 text-zinc-400 text-[10px]">
-            {signals.length} detected
-          </Badge>
+    <div className="fixed inset-0 z-[100] flex items-start justify-center pt-[15vh]">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      <div
+        className="relative w-full max-w-lg rounded-xl border overflow-hidden shadow-2xl"
+        style={{ background: 'var(--ios-bg-elevated)', borderColor: 'var(--ios-border)' }}
+      >
+        <div
+          className="flex items-center gap-3 border-b px-4 py-3"
+          style={{ borderBottomColor: 'var(--ios-border)' }}
+        >
+          <Search className="h-4 w-4 shrink-0" style={{ color: 'var(--ios-text-muted)' }} />
+          <input
+            autoFocus
+            type="text"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Type a command or search..."
+            className="flex-1 bg-transparent text-sm outline-none placeholder:text-[var(--ios-text-muted)]"
+            style={{ color: 'var(--ios-text-primary)' }}
+          />
+          <kbd
+            className="hidden sm:inline-flex h-5 items-center rounded border px-1.5 text-[10px] font-medium"
+            style={{ borderColor: 'var(--ios-border)', color: 'var(--ios-text-muted)' }}
+          >
+            ESC
+          </kbd>
         </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="space-y-2 max-h-64 overflow-y-auto custom-scrollbar">
-          {signals.slice(0, 4).map((signal) => (
-            <div key={signal.id} className="flex items-start gap-3 rounded-lg border border-zinc-800/40 bg-zinc-800/20 p-3 transition-colors hover:bg-zinc-800/40">
-              <Badge variant="outline" className={`mt-0.5 shrink-0 text-[10px] font-semibold ${severityConfig[signal.severity]?.color || 'bg-zinc-800 text-zinc-400'}`}>
-                {signal.severity}
-              </Badge>
-              <div className="min-w-0 flex-1">
-                <p className="text-xs font-medium text-zinc-200 leading-tight">{signal.title}</p>
-                <p className="mt-1 text-[11px] text-zinc-500 line-clamp-2">{signal.description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── Insights Quick View ────────────────────────────────────────────────────
-
-function InsightsQuickView() {
-  const insights = getMockInsights();
-
-  return (
-    <Card className="border-zinc-800/60 bg-zinc-900/40 backdrop-blur-sm">
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Brain className="h-4 w-4 text-emerald-400" />
-            <CardTitle className="text-sm font-semibold text-zinc-200">AI Recommendations</CardTitle>
-          </div>
-          <Badge variant="secondary" className="bg-zinc-800 text-zinc-400 text-[10px]">
-            {insights.length} active
-          </Badge>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="space-y-2 max-h-72 overflow-y-auto custom-scrollbar">
-          {insights.slice(0, 4).map((insight) => {
-            const Icon = categoryIcon[insight.category] || Brain;
-            return (
-              <div key={insight.id} className="rounded-lg border border-zinc-800/40 bg-zinc-800/20 p-3 transition-colors hover:bg-zinc-800/40">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-lg bg-emerald-500/10 p-1.5 shrink-0 mt-0.5">
-                    <Icon className="h-3.5 w-3.5 text-emerald-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="text-xs font-medium text-zinc-200">{insight.title}</p>
-                      <Badge variant="secondary" className={`text-[10px] ${confidenceColor[insight.confidence] || 'bg-zinc-800 text-zinc-400'}`}>
-                        {insight.confidenceScore}%
-                      </Badge>
-                    </div>
-                    <p className="mt-1 text-[11px] text-zinc-400 leading-relaxed line-clamp-2">{insight.narrative}</p>
-                    <div className="mt-2 flex items-start gap-1.5">
-                      <ChevronRight className="h-3 w-3 text-emerald-500 shrink-0 mt-0.5" />
-                      <p className="text-[11px] text-emerald-400/80">{insight.recommendation}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── Quick Actions ─────────────────────────────────────────────────────────
-
-function QuickActions() {
-  const actions = [
-    {
-      title: 'Upload Data',
-      description: 'Import Excel/CSV intelligence data',
-      icon: Upload,
-      onClick: () => toast.info('Data upload — connect to /api/ingestion endpoint'),
-    },
-    {
-      title: 'Discover Relationships',
-      description: 'Auto-find hidden connections',
-      icon: GitBranch,
-      onClick: () => toast.info('Relationship discovery — connect to /api/knowledge-graph/discover'),
-    },
-    {
-      title: 'Run Intelligence Pipeline',
-      description: 'Signals → AI Reasoning → Briefing',
-      icon: Zap,
-      onClick: () => toast.info('Pipeline — connect to /api/advisor/pipeline'),
-    },
-    {
-      title: 'Resolve Entities',
-      description: 'Find and merge duplicates',
-      icon: Network,
-      onClick: () => toast.info('Entity resolution — connect to /api/knowledge-graph/resolve'),
-    },
-  ];
-
-  return (
-    <Card className="border-zinc-800/60 bg-zinc-900/40 backdrop-blur-sm">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold text-zinc-200">Quick Actions</CardTitle>
-        <CardDescription className="text-xs text-zinc-500">Execute intelligence operations</CardDescription>
-      </CardHeader>
-      <CardContent className="pt-0">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-          {actions.map((action) => (
+        <div className="max-h-72 overflow-y-auto p-2">
+          {filtered.length === 0 && (
+            <p className="px-3 py-6 text-center text-sm" style={{ color: 'var(--ios-text-muted)' }}>
+              No results found
+            </p>
+          )}
+          {filtered.map((cmd) => (
             <button
-              key={action.title}
-              onClick={action.onClick}
-              className="flex items-center gap-3 rounded-lg border border-zinc-800/40 bg-zinc-800/20 p-3 text-left transition-all hover:bg-zinc-800/50 hover:border-zinc-700/60 group"
+              key={cmd.label}
+              onClick={() => exec(cmd.action)}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition-all duration-200 hover:bg-[var(--ios-bg-card-hover)]"
+              style={{ color: 'var(--ios-text-primary)' }}
             >
-              <div className="rounded-lg bg-zinc-800/80 p-2 transition-colors group-hover:bg-emerald-500/10">
-                <action.icon className="h-4 w-4 text-zinc-400 transition-colors group-hover:text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-xs font-medium text-zinc-200 group-hover:text-zinc-100">{action.title}</p>
-                <p className="text-[11px] text-zinc-500">{action.description}</p>
-              </div>
+              <cmd.icon
+                className="h-4 w-4 shrink-0"
+                style={{ color: 'var(--ios-text-secondary)' }}
+              />
+              <span className="flex-1">{cmd.label}</span>
+              {cmd.shortcut && (
+                <kbd
+                  className="hidden sm:inline-flex h-5 items-center rounded border px-1.5 text-[10px] font-medium"
+                  style={{ borderColor: 'var(--ios-border)', color: 'var(--ios-text-muted)' }}
+                >
+                  {cmd.shortcut}
+                </kbd>
+              )}
+              <ChevronRight className="h-3 w-3 opacity-40" />
             </button>
           ))}
         </div>
-      </CardContent>
-    </Card>
-  );
-}
-
-// ─── Signals Full View ──────────────────────────────────────────────────────
-
-function SignalsFullView() {
-  const signals = getMockSignals();
-
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-zinc-100">Signal Intelligence Feed</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">Detected business events and patterns</p>
+        <div
+          className="border-t px-4 py-2 flex items-center gap-4 text-[11px]"
+          style={{ borderTopColor: 'var(--ios-border)', color: 'var(--ios-text-muted)' }}
+        >
+          <span className="flex items-center gap-1">
+            <kbd className="rounded border px-1" style={{ borderColor: 'var(--ios-border)' }}>
+              ↵
+            </kbd>{' '}
+            Open
+          </span>
+          <span className="flex items-center gap-1">
+            <kbd className="rounded border px-1" style={{ borderColor: 'var(--ios-border)' }}>
+              esc
+            </kbd>{' '}
+            Close
+          </span>
         </div>
-        <Badge variant="secondary" className="bg-amber-500/10 text-amber-400 border-amber-500/20 text-[10px]">
-          {signals.length} active signals
-        </Badge>
-      </div>
-
-      <div className="space-y-3">
-        {signals.map((signal) => {
-          const config = severityConfig[signal.severity] || severityConfig.medium;
-          const Icon = config.icon;
-          return (
-            <Card key={signal.id} className="border-zinc-800/60 bg-zinc-900/40">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className={`rounded-lg p-2 shrink-0 ${config.color.split(' ').slice(0, 2).join(' ')}`}>
-                    <Icon className="h-4 w-4" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="outline" className={`text-[10px] font-semibold ${config.color}`}>
-                        {signal.severity}
-                      </Badge>
-                      <Badge variant="secondary" className="bg-zinc-800 text-zinc-400 text-[10px]">
-                        {signal.signalType.replace(/_/g, ' ')}
-                      </Badge>
-                      <span className="text-[10px] text-zinc-600 ml-auto">
-                        {new Date(signal.detectedAt).toLocaleDateString()}
-                      </span>
-                    </div>
-                    <h3 className="mt-2 text-sm font-medium text-zinc-100">{signal.title}</h3>
-                    <p className="mt-1 text-xs text-zinc-400 leading-relaxed">{signal.description}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <span className="text-[10px] text-zinc-500">Confidence:</span>
-                      <Progress value={signal.confidenceScore} className="h-1.5 w-24" />
-                      <span className="text-[10px] font-medium text-zinc-300 tabular-nums">{signal.confidenceScore}%</span>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
       </div>
     </div>
   );
 }
 
-// ─── Insights Full View ────────────────────────────────────────────────────
+/* ── UserNav ── */
 
-function InsightsFullView() {
-  const insights = getMockInsights();
+function UserNav() {
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
-  return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-lg font-semibold text-zinc-100">AI Intelligence Insights</h2>
-          <p className="text-xs text-zinc-500 mt-0.5">Machine reasoning: &quot;Why does this matter? What should we do?&quot;</p>
-        </div>
-        <Badge variant="secondary" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px]">
-          {insights.length} active insights
-        </Badge>
-      </div>
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {insights.map((insight) => {
-          const Icon = categoryIcon[insight.category] || Brain;
-          return (
-            <Card key={insight.id} className="border-zinc-800/60 bg-zinc-900/40">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-3">
-                  <div className="rounded-lg bg-emerald-500/10 p-2 shrink-0">
-                    <Icon className="h-4 w-4 text-emerald-400" />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <Badge variant="secondary" className="bg-zinc-800 text-zinc-400 text-[10px] capitalize">
-                        {insight.category}
-                      </Badge>
-                      <Badge variant="secondary" className={`text-[10px] ${confidenceColor[insight.confidence] || 'bg-zinc-800 text-zinc-400'}`}>
-                        {insight.confidenceScore}% confidence
-                      </Badge>
-                    </div>
-                    <h3 className="mt-2 text-sm font-medium text-zinc-100">{insight.title}</h3>
-                    <p className="mt-1.5 text-xs text-zinc-400 leading-relaxed">{insight.narrative}</p>
-
-                    <div className="mt-3 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-2.5">
-                      <div className="flex items-start gap-1.5">
-                        <Zap className="h-3 w-3 text-emerald-500 shrink-0 mt-0.5" />
-                        <div>
-                          <p className="text-[10px] font-semibold text-emerald-400 uppercase tracking-wider">Recommended Action</p>
-                          <p className="mt-0.5 text-xs text-emerald-300/80 leading-relaxed">{insight.recommendation}</p>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-// ─── Graph View ─────────────────────────────────────────────────────────────
-
-function GraphView({ stats }: { stats: GraphStats }) {
-  const relTypes = Object.entries(stats.relationshipTypes);
+  const handleLogout = useCallback(() => {
+    setShowLogoutConfirm(false);
+    // Navigate to the unauthenticated state by clearing the session
+    window.location.href = '/api/auth/logout';
+  }, []);
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold text-zinc-100">Knowledge Graph</h2>
-        <p className="text-xs text-zinc-500 mt-0.5">Entity connections and relationship intelligence</p>
-      </div>
-
-      {/* Graph Stats Grid */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <Card className="border-zinc-800/60 bg-zinc-900/40">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-blue-500/10 p-2">
-                <Building2 className="h-4 w-4 text-blue-400" />
-              </div>
-              <div>
-                <p className="text-xs text-zinc-500">Organizations</p>
-                <p className="text-lg font-bold text-zinc-100 tabular-nums">{stats.organizations}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-800/60 bg-zinc-900/40">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-emerald-500/10 p-2">
-                <Users className="h-4 w-4 text-emerald-400" />
-              </div>
-              <div>
-                <p className="text-xs text-zinc-500">People</p>
-                <p className="text-lg font-bold text-zinc-100 tabular-nums">{stats.people}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        <Card className="border-zinc-800/60 bg-zinc-900/40">
-          <CardContent className="p-4">
-            <div className="flex items-center gap-3">
-              <div className="rounded-lg bg-violet-500/10 p-2">
-                <Network className="h-4 w-4 text-violet-400" />
-              </div>
-              <div>
-                <p className="text-xs text-zinc-500">Total Relationships</p>
-                <p className="text-lg font-bold text-zinc-100 tabular-nums">{stats.totalEdges}</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Relationship Types Breakdown */}
-      <Card className="border-zinc-800/60 bg-zinc-900/40">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-sm font-semibold text-zinc-200">Relationship Types</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          <div className="space-y-2">
-            {relTypes.map(([type, count]) => {
-              const maxCount = Math.max(...relTypes.map(([, c]) => c));
-              return (
-                <div key={type} className="flex items-center gap-3">
-                  <span className="text-xs text-zinc-400 w-28 shrink-0 capitalize">{type.replace(/_/g, ' ')}</span>
-                  <div className="flex-1 h-2 rounded-full bg-zinc-800">
-                    <div
-                      className="h-full rounded-full bg-emerald-500/60 transition-all"
-                      style={{ width: `${(count / maxCount) * 100}%` }}
-                    />
-                  </div>
-                  <span className="text-xs font-medium text-zinc-300 tabular-nums w-8 text-right">{count}</span>
-                </div>
-              );
-            })}
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button
+          className="flex items-center gap-2 rounded-full p-1 transition-all duration-200 hover:bg-[var(--ios-bg-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+          aria-label="User menu"
+        >
+          <Avatar className="h-8 w-8">
+            <AvatarFallback className="bg-[var(--primary)] text-[var(--primary-foreground)] text-xs font-semibold">
+              DM
+            </AvatarFallback>
+          </Avatar>
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="end" className="w-56">
+        <DropdownMenuLabel className="font-normal">
+          <div className="flex flex-col space-y-1">
+            <p className="text-sm font-medium leading-none">DeepMindQ Admin</p>
+            <p className="text-xs leading-none text-muted-foreground">admin@deepmindq.com</p>
           </div>
-        </CardContent>
-      </Card>
+        </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <DropdownMenuGroup>
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onClick={() => useAppStore.getState().setActiveView('settings')}
+          >
+            <Settings className="mr-2 h-4 w-4" /> Profile &amp; Settings
+          </DropdownMenuItem>
+          <DropdownMenuItem className="cursor-pointer">
+            <Bell className="mr-2 h-4 w-4" /> Notifications
+          </DropdownMenuItem>
+        </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        {showLogoutConfirm ? (
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <button
+              onClick={handleLogout}
+              className="flex-1 rounded-md bg-destructive/10 px-3 py-1.5 text-xs font-medium text-destructive transition-colors hover:bg-destructive/20"
+            >
+              Confirm
+            </button>
+            <button
+              onClick={() => setShowLogoutConfirm(false)}
+              className="flex-1 rounded-md bg-muted px-3 py-1.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/80"
+            >
+              Cancel
+            </button>
+          </div>
+        ) : (
+          <DropdownMenuItem
+            className="cursor-pointer text-destructive focus:text-destructive"
+            onClick={() => setShowLogoutConfirm(true)}
+          >
+            <LogOut className="mr-2 h-4 w-4" /> Sign out
+          </DropdownMenuItem>
+        )}
+      </DropdownMenuContent>
+    </DropdownMenu>
+  );
+}
 
-      {/* Graph Metrics */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <Card className="border-zinc-800/60 bg-zinc-900/40">
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-zinc-500">Avg Connections</p>
-            <p className="mt-1 text-xl font-bold text-zinc-100 tabular-nums">{stats.avgConnectionsPerNode}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-zinc-800/60 bg-zinc-900/40">
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-zinc-500">Largest Cluster</p>
-            <p className="mt-1 text-xl font-bold text-emerald-400 tabular-nums">{stats.largestCluster}</p>
-          </CardContent>
-        </Card>
-        <Card className="border-zinc-800/60 bg-zinc-900/40">
-          <CardContent className="p-4 text-center">
-            <p className="text-xs text-zinc-500">Isolated Nodes</p>
-            <p className="mt-1 text-xl font-bold text-amber-400 tabular-nums">{stats.isolatedNodes}</p>
-          </CardContent>
-        </Card>
+/* ── NavGroupSection ── */
+
+const NavGroupSection = React.memo(function NavGroupSection({
+  group,
+  idx,
+}: {
+  group: NavGroup;
+  idx: number;
+}) {
+  const activeView = useAppStore((s) => s.activeView);
+  const setActiveView = useAppStore((s) => s.setActiveView);
+  return (
+    <React.Fragment>
+      {idx > 0 && (
+        <div
+          className="mx-3 my-1 h-px"
+          style={{
+            background: 'linear-gradient(to right, transparent, var(--ios-border), transparent)',
+          }}
+        />
+      )}
+      <SidebarGroup>
+        <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+        <SidebarMenu>
+          {group.items.map((item) => {
+            const isActive = activeView === item.viewId;
+            return (
+              <SidebarMenuItem key={item.viewId}>
+                <SidebarMenuButton
+                  isActive={isActive}
+                  tooltip={item.label}
+                  size="lg"
+                  onClick={() => setActiveView(item.viewId)}
+                  className={`group/item transition-all duration-200 hover:translate-x-0.5 ${isActive ? '[box-shadow:0_0_12px_rgba(59,130,246,0.15),inset_0_0_0_1px_rgba(59,130,246,0.2)]' : ''}`}
+                >
+                  <item.icon
+                    className={`h-4 w-4 transition-all duration-200 ${isActive ? 'text-[var(--ios-accent)]' : ''}`}
+                  />
+                  <span className="flex-1">{item.label}</span>
+                  {item.badge && (
+                    <span className="ml-auto rounded-md bg-[var(--ios-accent)] px-1.5 py-0.5 text-[10px] font-semibold text-white leading-none">
+                      {item.badge}
+                    </span>
+                  )}
+                  {item.shortcut && (
+                    <kbd
+                      className="ml-auto hidden lg:inline-flex h-5 items-center rounded border px-1 text-[10px] font-medium opacity-40 group-hover/item:opacity-70 transition-opacity duration-200"
+                      style={{ borderColor: 'var(--ios-border)', color: 'var(--ios-text-muted)' }}
+                    >
+                      {item.shortcut}
+                    </kbd>
+                  )}
+                </SidebarMenuButton>
+              </SidebarMenuItem>
+            );
+          })}
+        </SidebarMenu>
+      </SidebarGroup>
+    </React.Fragment>
+  );
+});
+
+/* ── ActiveScreen ── */
+
+const ActiveScreen = React.memo(function ActiveScreen({ viewId }: { viewId: ViewId }) {
+  const ScreenComponent = SCREEN_MAP[viewId];
+  if (!ScreenComponent) {
+    return (
+      <div className="flex h-full items-center justify-center">
+        <div className="text-center space-y-3">
+          <Radar className="mx-auto h-12 w-12 text-muted-foreground/50" />
+          <p className="text-muted-foreground text-sm">
+            Screen &ldquo;{viewId}&rdquo; not found in registry
+          </p>
+        </div>
       </div>
-    </div>
+    );
+  }
+  return (
+    <PageTransition className="h-full">
+      <ScreenComponent />
+    </PageTransition>
+  );
+});
+
+/* ── Welcome Banner ── */
+
+function WelcomeBanner() {
+  const [dismissed, setDismissed] = useState(false);
+  if (dismissed) return null;
+  return (
+    <GlassPanel
+      className="mx-4 mt-4 overflow-hidden"
+      style={{
+        background: 'linear-gradient(135deg, var(--ios-bg-card) 0%, rgba(59,130,246,0.06) 100%)',
+      }}
+    >
+      <div className="flex items-start justify-between gap-4 p-5">
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="h-4 w-4 text-[var(--ios-accent)]" />
+            <h2 className="text-base font-semibold" style={{ color: 'var(--ios-text-primary)' }}>
+              Welcome back, Admin
+            </h2>
+          </div>
+          <p className="text-sm mb-4" style={{ color: 'var(--ios-text-secondary)' }}>
+            Here&apos;s your intelligence briefing for today
+          </p>
+          <div className="flex flex-wrap gap-2 mb-4">
+            {[
+              { label: '12 New Signals', color: 'var(--ios-confidence-high)' },
+              { label: '5 Opportunities', color: 'var(--ios-accent)' },
+              { label: '3 Pending Reviews', color: 'var(--ios-confidence-medium)' },
+            ].map((pill) => (
+              <span
+                key={pill.label}
+                className="inline-flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium"
+                style={{
+                  borderColor: 'var(--ios-border)',
+                  background: 'var(--ios-bg-secondary)',
+                  color: 'var(--ios-text-primary)',
+                }}
+              >
+                <span className="h-1.5 w-1.5 rounded-full" style={{ background: pill.color }} />
+                {pill.label}
+              </span>
+            ))}
+          </div>
+          <button
+            className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--ios-accent)] px-3.5 py-2 text-xs font-medium text-white transition-all duration-200 hover:bg-[var(--ios-accent-dim)] hover:shadow-lg hover:shadow-[var(--ios-accent)]/20"
+            onClick={() => useAppStore.getState().setActiveView('intelligence-briefing')}
+          >
+            View Full Briefing <ArrowRight className="h-3 w-3" />
+          </button>
+        </div>
+        <button
+          onClick={() => setDismissed(true)}
+          className="shrink-0 rounded-md p-1 transition-all duration-200 hover:bg-[var(--ios-bg-card-hover)]"
+          style={{ color: 'var(--ios-text-muted)' }}
+          aria-label="Dismiss banner"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </GlassPanel>
+  );
+}
+
+/* ── AppSidebar ── */
+
+function AppSidebar() {
+  return (
+    <Sidebar collapsible="icon" variant="sidebar">
+      <SidebarHeader>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton size="lg" tooltip="DeepMindQ Intelligence OS">
+              <div className="flex aspect-square size-8 items-center justify-center rounded-lg bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)]">
+                <Brain className="size-4" />
+              </div>
+              <div className="flex flex-col gap-0.5 leading-none">
+                <span className="font-semibold">DeepMindQ</span>
+                <span className="text-xs text-sidebar-foreground/60">Intelligence OS</span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarHeader>
+      <SidebarSeparator />
+      <SidebarContent>
+        {NAV_GROUPS.map((group, idx) => (
+          <NavGroupSection key={group.label} group={group} idx={idx} />
+        ))}
+      </SidebarContent>
+      <SidebarFooter>
+        <SidebarSeparator />
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <SidebarMenuButton
+              size="lg"
+              tooltip="Settings"
+              onClick={() => useAppStore.getState().setActiveView('settings')}
+            >
+              <Avatar className="h-8 w-8">
+                <AvatarFallback className="bg-[var(--sidebar-primary)] text-[var(--sidebar-primary-foreground)] text-xs font-semibold">
+                  DM
+                </AvatarFallback>
+              </Avatar>
+              <div className="flex flex-col gap-0.5 leading-none">
+                <span className="text-sm font-medium">Admin</span>
+                <span className="text-xs text-sidebar-foreground/60">admin@deepmindq.com</span>
+              </div>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+      <SidebarRail />
+    </Sidebar>
+  );
+}
+
+/* ── AppHeader ── */
+
+function AppHeader({ onOpenCommandPalette }: { onOpenCommandPalette: () => void }) {
+  const activeView = useAppStore((s) => s.activeView);
+  const viewLabel = VIEW_LABEL_MAP[activeView] ?? activeView;
+
+  return (
+    <header
+      className="sticky top-0 z-30 flex h-14 shrink-0 items-center gap-3 border-b px-4"
+      style={{
+        background: 'linear-gradient(180deg, var(--ios-bg-card) 0%, var(--ios-bg-card-hover) 100%)',
+        borderBottomColor: 'var(--ios-border)',
+      }}
+    >
+      <SidebarTrigger className="-ml-1 transition-all duration-200" />
+      <Breadcrumb>
+        <BreadcrumbList>
+          <BreadcrumbItem>
+            <BreadcrumbPage className="text-sm font-medium">{viewLabel}</BreadcrumbPage>
+          </BreadcrumbItem>
+        </BreadcrumbList>
+      </Breadcrumb>
+      <div className="flex-1" />
+
+      {/* AI Status */}
+      <div
+        className="hidden md:flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium transition-all duration-200"
+        style={{
+          borderColor: 'var(--ios-border)',
+          background: 'var(--ios-bg-secondary)',
+          color: 'var(--ios-text-secondary)',
+        }}
+      >
+        <span className="relative flex h-1.5 w-1.5">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[var(--ios-confidence-high)] opacity-75" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[var(--ios-confidence-high)]" />
+        </span>
+        AI Systems: Online
+      </div>
+
+      {/* Search */}
+      <button
+        onClick={onOpenCommandPalette}
+        className="hidden sm:flex relative items-center h-9 w-64 rounded-lg border pl-9 pr-12 text-left text-sm transition-all duration-200 hover:border-[var(--ios-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        style={{
+          borderColor: 'var(--ios-border)',
+          background: 'var(--ios-bg-secondary)',
+          color: 'var(--ios-text-muted)',
+        }}
+      >
+        <Search className="absolute left-3 h-4 w-4" style={{ color: 'var(--ios-text-muted)' }} />
+        <span className="truncate">Search anything...</span>
+        <kbd
+          className="ml-auto inline-flex h-5 items-center rounded border px-1.5 text-[10px] font-medium"
+          style={{ borderColor: 'var(--ios-border)', color: 'var(--ios-text-muted)' }}
+        >
+          ⌘K
+        </kbd>
+      </button>
+
+      {/* Command Center */}
+      <button
+        onClick={() => useAppStore.getState().setActiveView('command-center')}
+        className="hidden lg:inline-flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-all duration-200 hover:bg-[var(--ios-bg-card-hover)] hover:border-[var(--ios-border-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        style={{
+          borderColor: 'var(--ios-border)',
+          background: 'var(--ios-bg-secondary)',
+          color: 'var(--ios-text-secondary)',
+        }}
+      >
+        <Monitor className="h-3.5 w-3.5" /> Command Center
+      </button>
+
+      {/* Notifications */}
+      <button
+        className="relative inline-flex size-9 items-center justify-center rounded-lg transition-all duration-200 hover:bg-[var(--ios-bg-card-hover)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--ring)]"
+        aria-label="Notifications"
+      >
+        <Bell className="h-4 w-4" style={{ color: 'var(--ios-text-secondary)' }} />
+        <span className="absolute -right-0.5 -top-0.5 flex h-4 min-w-[16px] items-center justify-center rounded-full bg-[var(--destructive)] px-1 text-[10px] font-bold text-white">
+          3
+        </span>
+      </button>
+
+      <UserNav />
+    </header>
+  );
+}
+
+/* ── Page ── */
+
+export default function Page() {
+  const activeView = useAppStore((s) => s.activeView);
+  const [cmdOpen, setCmdOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isOffline, setIsOffline] = useState(false);
+  const openCmd = useCallback(() => setCmdOpen(true), []);
+  const closeCmd = useCallback(() => setCmdOpen(false), []);
+
+  // Offline detection (F3)
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      toast.success('Back online');
+    };
+    const handleOffline = () => {
+      setIsOffline(true);
+      toast.error('You are offline', { description: 'Check your internet connection' });
+    };
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    setIsOffline(!navigator.onLine);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Auth check
+  useEffect(() => {
+    fetchApi('/api/auth/me')
+      .then(({ error }) => {
+        if (error) {
+          // 401 or network error — treat as unauthenticated
+          setIsAuthenticated(false);
+        } else {
+          setIsAuthenticated(true);
+        }
+      })
+      .catch(() => {
+        setIsAuthenticated(false);
+      })
+      .finally(() => {
+        setIsLoading(false);
+      });
+  }, []);
+
+  useEffect(() => {
+    const h = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setCmdOpen((p) => !p);
+      }
+    };
+    window.addEventListener('keydown', h);
+    return () => window.removeEventListener('keydown', h);
+  }, []);
+
+  // Loading state (F7: polished skeleton)
+  if (isLoading) {
+    return (
+      <div
+        className="h-screen w-screen flex items-center justify-center"
+        style={{ background: 'var(--ios-bg-primary)' }}
+      >
+        <div className="text-center">
+          <div
+            className="inline-flex items-center justify-center w-12 h-12 rounded-2xl mb-4"
+            style={{ background: 'linear-gradient(135deg, #EAB308, #F59E0B)' }}
+          >
+            <Brain className="w-7 h-7 text-white" />
+          </div>
+          <p className="text-sm" style={{ color: '#94A3B8' }}>
+            Loading DeepMindQ...
+          </p>
+          <Loader2 className="h-4 w-4 mx-auto mt-3 animate-spin" style={{ color: '#EAB308' }} />
+        </div>
+      </div>
+    );
+  }
+
+  // Unauthenticated state
+  if (!isAuthenticated) {
+    return (
+      <div
+        className="flex h-screen w-screen flex-col items-center justify-center gap-4"
+        style={{ background: 'var(--ios-bg-primary)' }}
+      >
+        <Brain className="size-12" style={{ color: 'var(--ios-accent)' }} />
+        <h1 className="text-xl font-semibold" style={{ color: 'var(--ios-text-primary)' }}>
+          DeepMindQ Intelligence OS
+        </h1>
+        <p className="text-sm" style={{ color: 'var(--ios-text-secondary)' }}>
+          Please sign in to access the Intelligence OS
+        </p>
+        <Link
+          href="/signup"
+          className="inline-flex items-center gap-2 rounded-lg px-5 py-2.5 text-sm font-medium text-white transition-all duration-200 hover:opacity-90"
+          style={{ background: 'var(--ios-accent)' }}
+        >
+          Sign in <ArrowRight className="size-4" />
+        </Link>
+      </div>
+    );
+  }
+
+  return (
+    <SidebarProvider>
+      {isOffline && (
+        <div
+          className="fixed top-0 left-0 right-0 z-50 flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium"
+          style={{ background: '#DC2626', color: '#fff' }}
+        >
+          <WifiOff className="h-4 w-4" />
+          You are currently offline. Some features may be unavailable.
+        </div>
+      )}
+      <AppSidebar />
+      <SidebarInset className="overflow-hidden" style={{ background: 'var(--ios-bg-primary)' }}>
+        <AppHeader onOpenCommandPalette={openCmd} />
+        <div className="flex-1 overflow-auto">
+          {activeView === 'dashboard' && <WelcomeBanner />}
+          <ActiveScreen viewId={activeView} />
+        </div>
+      </SidebarInset>
+      <CommandPalette open={cmdOpen} onClose={closeCmd} />
+    </SidebarProvider>
   );
 }

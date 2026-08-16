@@ -28,7 +28,7 @@ async function healthHandler(_request: Request) {
       await Promise.race([
         db.$queryRaw<Array<{ _1: number }>>`SELECT 1 as _1`,
         new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('DB probe timeout')), HEALTH_DB_TIMEOUT_MS)
+          setTimeout(() => reject(new Error('DB probe timeout')), HEALTH_DB_TIMEOUT_MS),
         ),
       ]);
       dbLatencyMs = Date.now() - dbStart;
@@ -50,7 +50,7 @@ async function healthHandler(_request: Request) {
         const pong = await Promise.race([
           client.ping(),
           new Promise<never>((_, reject) =>
-            setTimeout(() => reject(new Error('Redis probe timeout')), REDIS_PING_TIMEOUT_MS)
+            setTimeout(() => reject(new Error('Redis probe timeout')), REDIS_PING_TIMEOUT_MS),
           ),
         ]);
         redisHealthy = pong === 'PONG';
@@ -78,8 +78,9 @@ async function healthHandler(_request: Request) {
 
   if (dbHealthy && process.env.USE_DB_PERSISTENCE === 'true') {
     try {
-      const { getPersistenceAdapter } = await import('@/lib/persistence/intelligence-persistence-adapter');
-      poolMetrics = getPersistenceAdapter().getPoolMetrics();
+      const { getPersistenceAdapter } =
+        await import('@/lib/persistence/intelligence-persistence-adapter');
+      poolMetrics = await getPersistenceAdapter().getPoolMetrics();
     } catch {
       // Pool metrics are optional enrichment — don't fail health check
     }
@@ -92,7 +93,7 @@ async function healthHandler(_request: Request) {
       const { getGraphStats } = await import('@/lib/intelligence/knowledge-graph');
       const stats = await getGraphStats();
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      kgReady = ((stats as any).totalNodes > 0 || (stats as any).totalEdges > 0);
+      kgReady = (stats as any).totalNodes > 0 || (stats as any).totalEdges > 0;
     } catch {
       // KG not available
     }
@@ -163,13 +164,19 @@ async function healthHandler(_request: Request) {
         healthy: dbHealthy,
         latencyMs: dbLatencyMs,
       },
-      redis: redisHealthy === null
-        ? { configured: false }
-        : { configured: true, healthy: redisHealthy, latencyMs: redisLatencyMs },
+      redis:
+        redisHealthy === null
+          ? { configured: false }
+          : { configured: true, healthy: redisHealthy, latencyMs: redisLatencyMs },
       // Phase 4.6.6: Connection pool utilization metrics
       ...(poolMetrics ? { pool: poolMetrics } : {}),
       // Phase C: Connection pool health from pool monitor
-      poolHealth: { totalConnections: 0, activeConnections: 0, idleConnections: 0, waitingRequests: 0 },
+      poolHealth: {
+        totalConnections: 0,
+        activeConnections: 0,
+        idleConnections: 0,
+        waitingRequests: 0,
+      },
       // Phase 1.6 — KG readiness
       kgReady,
       // Phase F: SWR cache & Pub/Sub status
@@ -185,7 +192,7 @@ async function healthHandler(_request: Request) {
       headers: {
         'Cache-Control': 'no-store, max-age=0',
       },
-    }
+    },
   );
 }
 

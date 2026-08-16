@@ -1,5 +1,5 @@
 # ──────────────────────────────────────────────────────────────
-# DeepMindQ — Docker Compose (local development / self-hosted)
+# DeepMindQ Intelligence OS — Docker Compose (local / self-hosted)
 #
 # Usage:
 #   docker compose up -d          # Start all services
@@ -8,7 +8,7 @@
 #
 # Prerequisites:
 #   1. Copy .env.example to .env and fill in values
-#   2. Ensure port 3000 (app) and 5432 (postgres) are available
+#   2. Ensure port 3000 (app), 5432 (postgres), 6379 (redis) are available
 # ──────────────────────────────────────────────────────────────
 
 services:
@@ -30,7 +30,22 @@ services:
       timeout: 5s
       retries: 5
 
-  # ── DeepMindQ Application ───────────────────────────────
+  # ── Redis Cache & Pub/Sub ───────────────────────────────
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru --appendonly no
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # ── DeepMindQ Intelligence OS Application ───────────────
   app:
     build:
       context: .
@@ -43,11 +58,16 @@ services:
       DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-deepmindq}?schema=public
       DIRECT_DATABASE_URL: postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-deepmindq}?schema=public
       # Auth
-      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:?NEXTAUTH_SECRET is required (min 32 chars)}
+      SESSION_TOKEN_HMAC_SECRET: ${SESSION_TOKEN_HMAC_SECRET:-${NEXTAUTH_SECRET:?SESSION_TOKEN_HMAC_SECRET or NEXTAUTH_SECRET is required (min 32 chars)}}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET:-}
       NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
       # Node
       NODE_ENV: production
       PORT: "3000"
+      # Redis
+      REDIS_URL: redis://redis:6379
+      UPSTASH_REDIS_REST_URL: ${UPSTASH_REDIS_REST_URL:-}
+      UPSTASH_REDIS_REST_TOKEN: ${UPSTASH_REDIS_REST_TOKEN:-}
       # AI Providers (passed through from host .env)
       GROQ_API_KEY: ${GROQ_API_KEY:-}
       GEMINI_API_KEY: ${GEMINI_API_KEY:-}
@@ -62,7 +82,8 @@ services:
       SMTP_PASS: ${SMTP_PASS:-}
       # Required secrets
       AUTHORIZED_EMAIL: ${AUTHORIZED_EMAIL:?AUTHORIZED_EMAIL is required}
-      TRACKING_SECRET: ${TRACKING_SECRET:?TRACKING_SECRET is required}
+      TRACKING_SECRET: ${TRACKING_SECRET:?TRACKING_SECRET is required (min 16 chars)}
+      API_KEY_ENCRYPTION_KEY: ${API_KEY_ENCRYPTION_KEY:-}
       CRON_SECRET: ${CRON_SECRET:-}
       RESEND_WEBHOOK_SECRET: ${RESEND_WEBHOOK_SECRET:-}
       EMAIL_API_KEY: ${EMAIL_API_KEY:-}
@@ -70,6 +91,8 @@ services:
       NEXT_PUBLIC_APP_URL: ${NEXT_PUBLIC_APP_URL:-}
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:3000/api/health"]
@@ -110,6 +133,8 @@ services:
 
 volumes:
   postgres_data:
+    driver: local
+  redis_data:
     driver: local
   backup_data:
     driver: local

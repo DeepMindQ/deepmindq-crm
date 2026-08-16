@@ -1,5 +1,5 @@
-'use client'
-import { Skeleton } from '@/components/ui/skeleton'
+'use client';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function SkeletonDetail() {
   return (
@@ -21,7 +21,9 @@ export function SkeletonDetail() {
         <div className="lg:col-span-2 space-y-4">
           <div className="rounded-xl border border-border bg-card p-5 space-y-3">
             <Skeleton className="h-4 w-32" />
-            {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-3 w-full" />)}
+            {Array.from({ length: 4 }).map((_, i) => (
+              <Skeleton key={i} className="h-3 w-full" />
+            ))}
           </div>
         </div>
         <div className="space-y-4">
@@ -38,5 +40,5 @@ export function SkeletonDetail() {
       </div>
       <span className="sr-only">Loading details...</span>
     </div>
-  )
+  );
 }

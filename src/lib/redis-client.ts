@@ -46,6 +46,10 @@ let _loading = false;
 /**
  * Wraps an @upstash/redis instance to satisfy RedisClientLike.
  * Upstash uses HTTP (REST) instead of TCP, making it serverless-compatible.
+ *
+ * NOTE: Parameter typed as `any` because @upstash/redis exports a complex
+ * conditional type (Redis extends Command) that cannot be easily extracted.
+ * This is the ONLY place in the codebase that touches Upstash directly.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function wrapUpstash(upstash: any): RedisClientLike {
@@ -97,7 +101,9 @@ function wrapUpstash(upstash: any): RedisClientLike {
       // Upstash HTTP client doesn't support persistent subscriptions.
       // Pub/sub via Redis channels requires a separate subscriber connection.
       // Use redis-pubsub.ts for server-side SSE pub/sub with Upstash.
-      logger.debug('[redis-client] Upstash HTTP client does not support .on() — use redis-pubsub.ts');
+      logger.debug(
+        '[redis-client] Upstash HTTP client does not support .on() — use redis-pubsub.ts',
+      );
     },
   };
 }
@@ -107,6 +113,9 @@ function wrapUpstash(upstash: any): RedisClientLike {
 /**
  * Wraps an ioredis instance to satisfy RedisClientLike.
  * ioredis uses TCP connections — suitable for Docker/self-hosted deployments.
+ *
+ * NOTE: Parameter typed as `any` because ioredis types are deeply generic
+ * (Redis<TModules> extends RedisCommands) and not easily extractable.
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 function wrapIoRedis(redis: any): RedisClientLike {
@@ -193,10 +202,9 @@ export async function getRedisClient(): Promise<RedisClientLike | null> {
         logger.info('[redis-client] Connected via @upstash/redis (HTTP)');
         return _client;
       } catch (err) {
-        logger.warn(
-          '[redis-client] @upstash/redis failed, trying ioredis fallback',
-          { error: err instanceof Error ? err.message : String(err) },
-        );
+        logger.warn('[redis-client] @upstash/redis failed, trying ioredis fallback', {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
 
@@ -224,10 +232,9 @@ export async function getRedisClient(): Promise<RedisClientLike | null> {
         logger.info('[redis-client] Connected via ioredis (TCP)');
         return _client;
       } catch (err) {
-        logger.warn(
-          '[redis-client] ioredis failed, Redis unavailable',
-          { error: err instanceof Error ? err.message : String(err) },
-        );
+        logger.warn('[redis-client] ioredis failed, Redis unavailable', {
+          error: err instanceof Error ? err.message : String(err),
+        });
       }
     }
 

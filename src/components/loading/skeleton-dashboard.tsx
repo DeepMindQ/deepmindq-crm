@@ -1,5 +1,5 @@
-'use client'
-import { Skeleton } from '@/components/ui/skeleton'
+'use client';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export function SkeletonDashboard() {
   return (
@@ -32,5 +32,5 @@ export function SkeletonDashboard() {
       </div>
       <span className="sr-only">Loading dashboard data...</span>
     </div>
-  )
+  );
 }

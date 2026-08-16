@@ -29,20 +29,20 @@ import { logger } from '@/lib/logger';
 // Uses btoa/atob which are available in Edge Runtime + Node.js 16+.
 
 function uint8ArrayToBase64(bytes: Uint8Array): string {
-  let binary = ''
+  let binary = '';
   for (let i = 0; i < bytes.length; i++) {
-    binary += String.fromCharCode(bytes[i])
+    binary += String.fromCharCode(bytes[i]);
   }
-  return btoa(binary)
+  return btoa(binary);
 }
 
 function base64ToUint8Array(base64: string): Uint8Array<ArrayBuffer> {
-  const binary = atob(base64)
-  const bytes = new Uint8Array(binary.length)
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
   for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i)
+    bytes[i] = binary.charCodeAt(i);
   }
-  return bytes
+  return bytes;
 }
 
 // ── Types ────────────────────────────────────────────────────────────
@@ -91,10 +91,7 @@ let lastKeyRotationTime: string | null = null;
  * Derive a field-specific encryption key from the master key using HKDF.
  * Each field gets a unique key derived from the master key + field name as salt.
  */
-async function deriveFieldKey(
-  fieldName: string,
-  keyVersion: number,
-): Promise<CryptoKey | null> {
+async function deriveFieldKey(fieldName: string, keyVersion: number): Promise<CryptoKey | null> {
   if (!MASTER_KEY || MASTER_KEY.length !== 64) {
     logger.warn('[Encryption] Master key not configured or invalid length');
     return null;
@@ -186,18 +183,13 @@ export async function encryptField(
 
     // Combine: version(1 byte) + iv(12 bytes) + ciphertext + tag
     const versionByte = new Uint8Array([keyVersion]);
-    const combined = new Uint8Array(
-      versionByte.length + iv.length + encrypted.byteLength,
-    );
+    const combined = new Uint8Array(versionByte.length + iv.length + encrypted.byteLength);
     combined.set(versionByte, 0);
     combined.set(iv, 1);
     combined.set(new Uint8Array(encrypted), 1 + iv.length);
 
     // Track for health monitoring
-    encryptedFieldRegistry.set(
-      fieldName,
-      (encryptedFieldRegistry.get(fieldName) || 0) + 1,
-    );
+    encryptedFieldRegistry.set(fieldName, (encryptedFieldRegistry.get(fieldName) || 0) + 1);
     lastEncryptionTime = new Date().toISOString();
 
     // Base64 encode — Edge-compatible (no Buffer)
@@ -222,10 +214,7 @@ export async function encryptField(
  * Decrypt an encrypted field value.
  * Handles multiple key versions for key rotation support.
  */
-export async function decryptField(
-  fieldName: string,
-  encrypted: string,
-): Promise<string | null> {
+export async function decryptField(fieldName: string, encrypted: string): Promise<string | null> {
   if (!encrypted) return encrypted;
 
   // Check if this is actually encrypted (base64-encoded with version prefix)
@@ -392,10 +381,7 @@ export const ENCRYPTED_FIELDS = [
  * Check if TLS is enforced for the current environment.
  */
 export function isTlsEnforced(): boolean {
-  return (
-    process.env.NODE_ENV === 'production' &&
-    process.env.ENFORCE_TLS !== 'false'
-  );
+  return process.env.NODE_ENV === 'production' && process.env.ENFORCE_TLS !== 'false';
 }
 
 // ── Contact/User Field-Level Helpers ──────────────────────────────────
@@ -409,7 +395,9 @@ const COMPANY_SENSITIVE_FIELDS = ['internalSummary'] as const;
  * Encrypt contact-specific PII fields in a data object.
  * Encrypts: email, phone, linkedinUrl, rawName, normalizedName
  */
-export async function encryptContactFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function encryptContactFields(
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
   const result = { ...data };
   for (const field of CONTACT_PII_FIELDS) {
     if (typeof result[field] === 'string' && result[field]) {
@@ -426,7 +414,9 @@ export async function encryptContactFields(data: Record<string, unknown>): Promi
  * Decrypt contact-specific PII fields in a data object.
  * Decrypts: email, phone, linkedinUrl, rawName, normalizedName
  */
-export async function decryptContactFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function decryptContactFields(
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
   const result = { ...data };
   for (const field of CONTACT_PII_FIELDS) {
     if (typeof result[field] === 'string' && result[field]) {
@@ -443,7 +433,9 @@ export async function decryptContactFields(data: Record<string, unknown>): Promi
  * Encrypt user-specific PII fields in a data object.
  * Encrypts: email, phone
  */
-export async function encryptUserFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function encryptUserFields(
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
   const result = { ...data };
   for (const field of USER_PII_FIELDS) {
     if (typeof result[field] === 'string' && result[field]) {
@@ -460,7 +452,9 @@ export async function encryptUserFields(data: Record<string, unknown>): Promise<
  * Decrypt user-specific PII fields in a data object.
  * Decrypts: email, phone
  */
-export async function decryptUserFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function decryptUserFields(
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
   const result = { ...data };
   for (const field of USER_PII_FIELDS) {
     if (typeof result[field] === 'string' && result[field]) {
@@ -477,7 +471,9 @@ export async function decryptUserFields(data: Record<string, unknown>): Promise<
  * Encrypt knowledge-specific PII fields in a data object.
  * Encrypts: content, sourceUrl
  */
-export async function encryptKnowledgeFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function encryptKnowledgeFields(
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
   const result = { ...data };
   for (const field of KNOWLEDGE_PII_FIELDS) {
     if (typeof result[field] === 'string' && result[field]) {
@@ -494,7 +490,9 @@ export async function encryptKnowledgeFields(data: Record<string, unknown>): Pro
  * Decrypt knowledge-specific PII fields in a data object.
  * Decrypts: content, sourceUrl
  */
-export async function decryptKnowledgeFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function decryptKnowledgeFields(
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
   const result = { ...data };
   for (const field of KNOWLEDGE_PII_FIELDS) {
     if (typeof result[field] === 'string' && result[field]) {
@@ -511,7 +509,9 @@ export async function decryptKnowledgeFields(data: Record<string, unknown>): Pro
  * Encrypt company-sensitive fields in a data object.
  * Encrypts: internalSummary
  */
-export async function encryptCompanySensitiveFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function encryptCompanySensitiveFields(
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
   const result = { ...data };
   for (const field of COMPANY_SENSITIVE_FIELDS) {
     if (typeof result[field] === 'string' && result[field]) {
@@ -528,7 +528,9 @@ export async function encryptCompanySensitiveFields(data: Record<string, unknown
  * Decrypt company-sensitive fields in a data object.
  * Decrypts: internalSummary
  */
-export async function decryptCompanySensitiveFields(data: Record<string, unknown>): Promise<Record<string, unknown>> {
+export async function decryptCompanySensitiveFields(
+  data: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
   const result = { ...data };
   for (const field of COMPANY_SENSITIVE_FIELDS) {
     if (typeof result[field] === 'string' && result[field]) {
@@ -557,13 +559,8 @@ export function validateTlsConfig(): {
     if (!process.env.ENCRYPTION_MASTER_KEY) {
       warnings.push('ENCRYPTION_MASTER_KEY is not set in production');
     }
-    if (
-      process.env.ENCRYPTION_MASTER_KEY &&
-      process.env.ENCRYPTION_MASTER_KEY.length !== 64
-    ) {
-      warnings.push(
-        'ENCRYPTION_MASTER_KEY must be 64 hex characters (32 bytes)',
-      );
+    if (process.env.ENCRYPTION_MASTER_KEY && process.env.ENCRYPTION_MASTER_KEY.length !== 64) {
+      warnings.push('ENCRYPTION_MASTER_KEY must be 64 hex characters (32 bytes)');
     }
   }
 

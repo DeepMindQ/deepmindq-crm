@@ -1,10 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { tokens } from '@/lib/design-tokens';
+import { z } from 'zod';
 import { otpRateLimit } from '@/lib/auth-helpers';
 import { cookies } from 'next/headers';
 import { logger } from '@/lib/logger';
 import { encryptUserFields } from '@/lib/encryption';
 import { getBrandName } from '@/lib/brand-helper';
+
+// ─── Zod Input Validation ────────────────────────────────────────
+
+const requestOtpSchema = z.object({
+  email: z.string().email('Please enter a valid email address'),
+});
 
 // ═══════════════════════════════════════════════════════════════
 // Single-User OTP Login — DeepMindQ Enterprise
@@ -27,7 +33,9 @@ async function hashOtp(code: string): Promise<string> {
   const encoder = new TextEncoder();
   const data = encoder.encode(`dmq:${code}`);
   const hashBuffer = await crypto.subtle.digest('SHA-256', data);
-  return Array.from(new Uint8Array(hashBuffer)).map(b => b.toString(16).padStart(2, '0')).join('');
+  return Array.from(new Uint8Array(hashBuffer))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 function generateOtpCode(): string {
@@ -39,32 +47,40 @@ function generateOtpCode(): string {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const email = (body.email || '').trim().toLowerCase();
-
-    if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      return NextResponse.json({ error: 'Please enter a valid email address' }, { status: 400 });
+    const parsed = requestOtpSchema.safeParse(body);
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Please enter a valid email address', details: parsed.error.flatten() },
+        { status: 400 },
+      );
     }
+    const email = parsed.data.email.trim().toLowerCase();
 
     // Rate limit OTP requests
     const rateLimitResult = otpRateLimit(email);
     if (!rateLimitResult.success) {
       return NextResponse.json(
         { error: 'Too many OTP requests. Please try again later.' },
-        { status: 429, headers: { 'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)) } }
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil((rateLimitResult.resetAt - Date.now()) / 1000)),
+          },
+        },
       );
     }
 
     if (!AUTHORIZED_EMAIL) {
       return NextResponse.json(
         { error: 'Authentication is not configured. AUTHORIZED_EMAIL must be set.' },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
     if (email !== AUTHORIZED_EMAIL) {
       return NextResponse.json(
         { error: 'This workspace is restricted to authorized personnel only.' },
-        { status: 403 }
+        { status: 403 },
       );
     }
 
@@ -81,7 +97,7 @@ export async function POST(request: NextRequest) {
         const res = await fetch('https://api.resend.com/emails', {
           method: 'POST',
           headers: {
-            'Authorization': `Bearer ${apiKey}`,
+            Authorization: `Bearer ${apiKey}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
@@ -90,18 +106,18 @@ export async function POST(request: NextRequest) {
             subject: `${await getBrandName()} - Login Verification`,
             html: `<!DOCTYPE html><html><head><meta charset="utf-8"></head><body style="margin:0;padding:0;background:#f9fafb;font-family:system-ui,-apple-system,sans-serif;">
 <table width="100%" cellpadding="0" cellspacing="0" style="padding:40px 20px;"><tr><td align="center">
-<table width="480" cellpadding="0" cellspacing="0" style="background:{tokens.flat.white};border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1);overflow:hidden;">
-<tr><td style="background:linear-gradient(135deg,{tokens.gold.dark},#D4A843);padding:32px 40px;text-align:center;">
-<h1 style="margin:0;color:{tokens.flat.white};font-size:24px;font-weight:700;">${await getBrandName()}</h1></td></tr>
+<table width="480" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,0.1);overflow:hidden;">
+<tr><td style="background:linear-gradient(135deg,#1e3a5f,#2563eb);padding:32px 40px;text-align:center;">
+<h1 style="margin:0;color:#ffffff;font-size:24px;font-weight:700;">${await getBrandName()}</h1></td></tr>
 <tr><td style="padding:40px;">
-<h2 style="margin:0 0 8px;color:{tokens.neutral['900']};font-size:20px;">Login Verification</h2>
-<p style="margin:0 0 24px;color:{tokens.trust.unverified.value};font-size:15px;line-height:1.5;">Use the following code to sign in. This code expires in 10 minutes.</p>
-<div style="background:{tokens.neutral['100']};border-radius:8px;padding:20px;text-align:center;margin:0 0 24px;">
-<span style="font-size:36px;font-weight:700;letter-spacing:8px;color:{tokens.gold.dark};font-family:monospace;">${code}</span></div>
-<p style="margin:0;color:{tokens.neutral['400']};font-size:13px;line-height:1.5;">If you did not request this code, please ignore this email.</p>
+<h2 style="margin:0 0 8px;color:#111827;font-size:20px;">Login Verification</h2>
+<p style="margin:0 0 24px;color:#6B7280;font-size:15px;line-height:1.5;">Use the following code to sign in. This code expires in 10 minutes.</p>
+<div style="background:#F3F4F6;border-radius:8px;padding:20px;text-align:center;margin:0 0 24px;">
+<span style="font-size:36px;font-weight:700;letter-spacing:8px;color:#2563eb;font-family:monospace;">${code}</span></div>
+<p style="margin:0;color:#9CA3AF;font-size:13px;line-height:1.5;">If you did not request this code, please ignore this email.</p>
 </td></tr>
-<tr><td style="padding:20px 40px;border-top:1px solid {tokens.neutral['100']};text-align:center;">
-<p style="margin:0;color:{tokens.neutral['400']};font-size:12px;">&copy; ${new Date().getFullYear()} ${await getBrandName()}. All rights reserved.</p>
+<tr><td style="padding:20px 40px;border-top:1px solid #F3F4F6;text-align:center;">
+<p style="margin:0;color:#9CA3AF;font-size:12px;">&copy; ${new Date().getFullYear()} ${await getBrandName()}. All rights reserved.</p>
 </td></tr></table></td></tr></table></body></html>`,
           }),
         });
@@ -114,7 +130,9 @@ export async function POST(request: NextRequest) {
           logger.error('[auth/request-otp] Resend error:', { res: res.status, errData: errData });
         }
       } catch (emailErr) {
-        logger.error('[auth/request-otp] Email failed:', { error: emailErr instanceof Error ? emailErr.message : emailErr });
+        logger.error('[auth/request-otp] Email failed:', {
+          error: emailErr instanceof Error ? emailErr.message : emailErr,
+        });
       }
     } else {
       logger.error('[auth/request-otp] No EMAIL_API_KEY!');
@@ -123,7 +141,7 @@ export async function POST(request: NextRequest) {
     if (!emailSent) {
       return NextResponse.json(
         { error: 'Failed to send verification email. Please try again later.' },
-        { status: 503 }
+        { status: 503 },
       );
     }
 
@@ -150,10 +168,18 @@ export async function POST(request: NextRequest) {
       const user = await db.user.findUnique({ where: { email } });
       if (!user) {
         const encryptedData = await encryptUserFields({ email });
-        await db.user.create({ data: { email: encryptedData.email as string, name: AUTHORIZED_EMAIL ? AUTHORIZED_EMAIL.split('@')[0] : 'Admin', role: 'admin' } });
+        await db.user.create({
+          data: {
+            email: encryptedData.email as string,
+            name: AUTHORIZED_EMAIL ? AUTHORIZED_EMAIL.split('@')[0] : 'Admin',
+            role: 'admin',
+          },
+        });
       }
     } catch (dbErr) {
-      logger.warn('[auth/request-otp] DB failed (cookie is primary):', { error: dbErr instanceof Error ? dbErr.message : dbErr });
+      logger.warn('[auth/request-otp] DB failed (cookie is primary):', {
+        error: dbErr instanceof Error ? dbErr.message : dbErr,
+      });
     }
 
     return NextResponse.json({

@@ -28,15 +28,23 @@ export function EnterpriseLoading({
         className={`${config.spinner} rounded-lg flex items-center justify-center`}
         style={{ background: tokens.accent.subtle }}
       >
-        <Loader2 className={`${config.spinner} animate-spin`} style={{ color: tokens.accent.DEFAULT }} />
+        <Loader2
+          className={`${config.spinner} animate-spin`}
+          style={{ color: tokens.accent.DEFAULT }}
+        />
       </div>
-      <p className={config.text} style={{ color: tokens.text.secondary }}>{message}</p>
+      <p className={config.text} style={{ color: tokens.text.secondary }}>
+        {message}
+      </p>
     </div>
   );
 
   if (fullScreen) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: tokens.text.inverse }}>
+      <div
+        className="min-h-screen flex items-center justify-center"
+        style={{ background: tokens.text.inverse }}
+      >
         {content}
       </div>
     );

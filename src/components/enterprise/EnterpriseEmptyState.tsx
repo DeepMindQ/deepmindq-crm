@@ -38,9 +38,13 @@ export function EnterpriseEmptyState({
         <Icon className="w-6 h-6" style={{ color: accentColor }} />
       </div>
 
-      <h3 className="text-sm font-semibold mb-1.5" style={{ color: tokens.text.primary }}>{title}</h3>
+      <h3 className="text-sm font-semibold mb-1.5" style={{ color: tokens.text.primary }}>
+        {title}
+      </h3>
       {description && (
-        <p className="text-xs mb-5" style={{ color: tokens.text.secondary, maxWidth: '320px' }}>{description}</p>
+        <p className="text-xs mb-5" style={{ color: tokens.text.secondary, maxWidth: '320px' }}>
+          {description}
+        </p>
       )}
 
       <div className="flex items-center gap-3">

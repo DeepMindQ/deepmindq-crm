@@ -115,7 +115,7 @@ export async function resolveEntity(query: {
     });
 
     for (const org of orgs) {
-      if (matches.some(m => m.nodeId === org.id)) continue;
+      if (matches.some((m) => m.nodeId === org.id)) continue;
 
       const score = calculateOrgMatchScore(query.name, org);
       if (score >= 50 || query.fuzzy) {
@@ -140,7 +140,7 @@ export async function resolveEntity(query: {
     });
 
     for (const person of people) {
-      if (matches.some(m => m.nodeId === person.id)) continue;
+      if (matches.some((m) => m.nodeId === person.id)) continue;
 
       const score = calculatePersonMatchScore(query.name, person);
       if (score >= 50 || query.fuzzy) {
@@ -165,7 +165,7 @@ export async function resolveEntity(query: {
 export async function mergeOrganizations(
   targetId: string,
   sourceId: string,
-  mergedBy?: string
+  mergedBy?: string,
 ): Promise<void> {
   if (targetId === sourceId) return;
 
@@ -241,14 +241,68 @@ export async function mergeOrganizations(
 /**
  * Auto-discover relationships from existing data.
  * Called after ingestion to build graph connections automatically.
+ *
+ * Optimized: fetches all existing relationships for the target orgs in a
+ * single batch query, then checks existence in-memory — eliminating N+1
+ * individual DB round-trips per potential relationship.
  */
 export async function discoverRelationships(orgId?: string): Promise<number> {
   let created = 0;
 
-  // Find organizations in the same domain family
+  // Find organizations to process
   const orgs = orgId
     ? await db.organization.findMany({ where: { id: orgId } })
     : await db.organization.findMany({ where: { trackingStatus: 'active' } });
+
+  if (orgs.length === 0) return 0;
+
+  const orgIds = new Set(orgs.map((o) => o.id));
+
+  // ── Batch 1: Fetch all existing relationships for these orgs in ONE query ──
+  const existingRels = await db.relationship.findMany({
+    where: {
+      OR: [{ sourceOrgId: { in: [...orgIds] } }, { targetOrgId: { in: [...orgIds] } }],
+    },
+    select: {
+      type: true,
+      sourceOrgId: true,
+      targetOrgId: true,
+      sourcePersonId: true,
+      targetPersonId: true,
+    },
+  });
+
+  // Build lookup sets for O(1) existence checks
+  const existingSet = new Set(
+    existingRels.map(
+      (r) =>
+        `${r.type}:${r.sourceOrgId || ''}:${r.targetOrgId || ''}:${r.sourcePersonId || ''}:${r.targetPersonId || ''}`,
+    ),
+  );
+
+  function relExists(
+    type: string,
+    sourceOrgId?: string | null,
+    targetOrgId?: string | null,
+    sourcePersonId?: string | null,
+    targetPersonId?: string | null,
+  ): boolean {
+    return existingSet.has(
+      `${type}:${sourceOrgId || ''}:${targetOrgId || ''}:${sourcePersonId || ''}:${targetPersonId || ''}`,
+    );
+  }
+
+  // Batch-create accumulator: collect all new relationships, then createMany at once
+  const newRels: Array<{
+    type: string;
+    label: string;
+    weight: number;
+    sourceOrgId?: string | null;
+    targetOrgId?: string | null;
+    sourcePersonId?: string | null;
+    targetPersonId?: string | null;
+    evidenceId?: string | null;
+  }> = [];
 
   for (const org of orgs) {
     // 1. People → Organization relationships (works_at)
@@ -256,51 +310,32 @@ export async function discoverRelationships(orgId?: string): Promise<number> {
       where: { organizationId: org.id },
     });
     for (const person of people) {
-      const exists = await db.relationship.findFirst({
-        where: {
+      if (!relExists('works_at', null, org.id, person.id, null)) {
+        newRels.push({
           type: 'works_at',
+          label: `${person.fullName} works at ${org.name}`,
+          weight: 1.0,
           sourcePersonId: person.id,
           targetOrgId: org.id,
-        },
-      });
-      if (!exists) {
-        await db.relationship.create({
-          data: {
-            type: 'works_at',
-            label: `${person.fullName} works at ${org.name}`,
-            weight: 1.0,
-            sourcePersonId: person.id,
-            targetOrgId: org.id,
-          },
         });
-        created++;
       }
     }
 
     // 2. Co-worker relationships (person ↔ person via same org)
     for (let i = 0; i < people.length; i++) {
       for (let j = i + 1; j < people.length; j++) {
-        const exists = await db.relationship.findFirst({
-          where: {
+        if (
+          !relExists('coworker', null, null, people[i].id, people[j].id) &&
+          !relExists('coworker', null, null, people[j].id, people[i].id)
+        ) {
+          newRels.push({
             type: 'coworker',
-            OR: [
-              { sourcePersonId: people[i].id, targetPersonId: people[j].id },
-              { sourcePersonId: people[j].id, targetPersonId: people[i].id },
-            ],
-          },
-        });
-        if (!exists) {
-          await db.relationship.create({
-            data: {
-              type: 'coworker',
-              label: `${people[i].fullName} and ${people[j].fullName} are coworkers at ${org.name}`,
-              weight: 0.7,
-              sourcePersonId: people[i].id,
-              targetPersonId: people[j].id,
-              targetOrgId: org.id,
-            },
+            label: `${people[i].fullName} and ${people[j].fullName} are coworkers at ${org.name}`,
+            weight: 0.7,
+            sourcePersonId: people[i].id,
+            targetPersonId: people[j].id,
+            targetOrgId: org.id,
           });
-          created++;
         }
       }
     }
@@ -315,26 +350,17 @@ export async function discoverRelationships(orgId?: string): Promise<number> {
         },
       });
       for (const peer of sameIndustry) {
-        const exists = await db.relationship.findFirst({
-          where: {
+        if (
+          !relExists('competes_with', org.id, peer.id) &&
+          !relExists('competes_with', peer.id, org.id)
+        ) {
+          newRels.push({
             type: 'competes_with',
-            OR: [
-              { sourceOrgId: org.id, targetOrgId: peer.id },
-              { sourceOrgId: peer.id, targetOrgId: org.id },
-            ],
-          },
-        });
-        if (!exists) {
-          await db.relationship.create({
-            data: {
-              type: 'competes_with',
-              label: `${org.name} and ${peer.name} compete in ${org.industry}`,
-              weight: 0.4,
-              sourceOrgId: org.id,
-              targetOrgId: peer.id,
-            },
+            label: `${org.name} and ${peer.name} compete in ${org.industry}`,
+            weight: 0.4,
+            sourceOrgId: org.id,
+            targetOrgId: peer.id,
           });
-          created++;
         }
       }
     }
@@ -349,32 +375,33 @@ export async function discoverRelationships(orgId?: string): Promise<number> {
         },
       });
       for (const neighbor of sameRegion) {
-        const exists = await db.relationship.findFirst({
-          where: {
+        if (
+          !relExists('same_region', org.id, neighbor.id) &&
+          !relExists('same_region', neighbor.id, org.id)
+        ) {
+          newRels.push({
             type: 'same_region',
-            OR: [
-              { sourceOrgId: org.id, targetOrgId: neighbor.id },
-              { sourceOrgId: neighbor.id, targetOrgId: org.id },
-            ],
-          },
-        });
-        if (!exists) {
-          await db.relationship.create({
-            data: {
-              type: 'same_region',
-              label: `Both in ${org.headquarters}`,
-              weight: 0.3,
-              sourceOrgId: org.id,
-              targetOrgId: neighbor.id,
-            },
+            label: `Both in ${org.headquarters}`,
+            weight: 0.3,
+            sourceOrgId: org.id,
+            targetOrgId: neighbor.id,
           });
-          created++;
         }
       }
     }
   }
 
-  logger.info('[KG] Relationship discovery complete', { created });
+  // ── Batch create all new relationships in chunks of 100 ──
+  if (newRels.length > 0) {
+    const CHUNK_SIZE = 100;
+    for (let i = 0; i < newRels.length; i += CHUNK_SIZE) {
+      const chunk = newRels.slice(i, i + CHUNK_SIZE);
+      const { count } = await db.relationship.createMany({ data: chunk });
+      created += count;
+    }
+  }
+
+  logger.info('[KG] Relationship discovery complete', { created, checked: orgs.length });
   return created;
 }
 
@@ -421,10 +448,7 @@ export async function createRelationship(data: {
  * Get the full subgraph around a node (organizations + people + relationships).
  * Used to render the knowledge graph visualization.
  */
-export async function getSubgraph(
-  centerNodeId: string,
-  depth: number = 2
-): Promise<GraphSubgraph> {
+export async function getSubgraph(centerNodeId: string, depth: number = 2): Promise<GraphSubgraph> {
   const nodes: GraphNode[] = [];
   const edges: GraphEdge[] = [];
   const visited = new Set<string>();
@@ -452,7 +476,7 @@ export async function getSubgraph(
 export async function getConnectionPaths(
   sourceId: string,
   targetId: string,
-  maxHops: number = 4
+  maxHops: number = 4,
 ): Promise<ConnectionPath[]> {
   const paths: ConnectionPath[] = [];
   const queue: Array<{ current: string; path: GraphEdge[]; visited: Set<string> }> = [];
@@ -524,45 +548,70 @@ export async function getConnections(nodeId: string): Promise<{
   const orgConnections: Array<{ org: Record<string, unknown>; relationship: GraphEdge }> = [];
   const personConnections: Array<{ person: Record<string, unknown>; relationship: GraphEdge }> = [];
 
-  // Find relationships where this node is source
-  const asSource = await db.relationship.findMany({
-    where: {
-      OR: [
-        { sourceOrgId: nodeId },
-        { sourcePersonId: nodeId },
-      ],
-    },
-  });
+  // Find all relationships where this node is source or target (2 queries)
+  const [asSource, asTarget] = await Promise.all([
+    db.relationship.findMany({
+      where: {
+        OR: [{ sourceOrgId: nodeId }, { sourcePersonId: nodeId }],
+      },
+    }),
+    db.relationship.findMany({
+      where: {
+        OR: [{ targetOrgId: nodeId }, { targetPersonId: nodeId }],
+      },
+    }),
+  ]);
 
+  // Collect all target IDs for batch fetch
+  const orgIdsToFetch = new Set<string>();
+  const personIdsToFetch = new Set<string>();
+
+  for (const rel of [...asSource, ...asTarget]) {
+    if (rel.targetOrgId && rel.targetOrgId !== nodeId) orgIdsToFetch.add(rel.targetOrgId);
+    if (rel.sourceOrgId && rel.sourceOrgId !== nodeId) orgIdsToFetch.add(rel.sourceOrgId);
+    if (rel.targetPersonId && rel.targetPersonId !== nodeId)
+      personIdsToFetch.add(rel.targetPersonId);
+    if (rel.sourcePersonId && rel.sourcePersonId !== nodeId)
+      personIdsToFetch.add(rel.sourcePersonId);
+  }
+
+  // Batch fetch all orgs and people in 2 queries
+  const [fetchedOrgs, fetchedPeople] = await Promise.all([
+    orgIdsToFetch.size > 0
+      ? db.organization.findMany({ where: { id: { in: [...orgIdsToFetch] } } })
+      : Promise.resolve([]),
+    personIdsToFetch.size > 0
+      ? db.person.findMany({ where: { id: { in: [...personIdsToFetch] } } })
+      : Promise.resolve([]),
+  ]);
+
+  // Build lookup maps
+  const orgMap = new Map(fetchedOrgs.map((o) => [o.id, o as unknown as Record<string, unknown>]));
+  const personMap = new Map(
+    fetchedPeople.map((p) => [p.id, p as unknown as Record<string, unknown>]),
+  );
+
+  // Resolve asSource relationships
   for (const rel of asSource) {
     if (rel.targetOrgId) {
-      const org = await db.organization.findUnique({ where: { id: rel.targetOrgId } });
-      if (org) orgConnections.push({ org: org as unknown as Record<string, unknown>, relationship: relToEdge(rel, nodeId) });
+      const org = orgMap.get(rel.targetOrgId);
+      if (org) orgConnections.push({ org, relationship: relToEdge(rel, nodeId) });
     }
     if (rel.targetPersonId) {
-      const person = await db.person.findUnique({ where: { id: rel.targetPersonId } });
-      if (person) personConnections.push({ person: person as unknown as Record<string, unknown>, relationship: relToEdge(rel, nodeId) });
+      const person = personMap.get(rel.targetPersonId);
+      if (person) personConnections.push({ person, relationship: relToEdge(rel, nodeId) });
     }
   }
 
-  // Find relationships where this node is target
-  const asTarget = await db.relationship.findMany({
-    where: {
-      OR: [
-        { targetOrgId: nodeId },
-        { targetPersonId: nodeId },
-      ],
-    },
-  });
-
+  // Resolve asTarget relationships
   for (const rel of asTarget) {
     if (rel.sourceOrgId) {
-      const org = await db.organization.findUnique({ where: { id: rel.sourceOrgId } });
-      if (org) orgConnections.push({ org: org as unknown as Record<string, unknown>, relationship: relToEdge(rel, nodeId) });
+      const org = orgMap.get(rel.sourceOrgId);
+      if (org) orgConnections.push({ org, relationship: relToEdge(rel, nodeId) });
     }
     if (rel.sourcePersonId) {
-      const person = await db.person.findUnique({ where: { id: rel.sourcePersonId } });
-      if (person) personConnections.push({ person: person as unknown as Record<string, unknown>, relationship: relToEdge(rel, nodeId) });
+      const person = personMap.get(rel.sourcePersonId);
+      if (person) personConnections.push({ person, relationship: relToEdge(rel, nodeId) });
     }
   }
 
@@ -613,9 +662,8 @@ export async function getGraphStats(): Promise<{
   const connectedNodeCount = connectedOrgs.length + connectedPeople.length;
   const totalNodes = orgCount + personCount;
   const isolatedNodes = totalNodes - connectedNodeCount;
-  const avgConnectionsPerNode = totalNodes > 0
-    ? Math.round((edgeCount * 2) / totalNodes * 100) / 100
-    : 0;
+  const avgConnectionsPerNode =
+    totalNodes > 0 ? Math.round(((edgeCount * 2) / totalNodes) * 100) / 100 : 0;
 
   // BFS to find largest connected cluster
   const largestCluster = await findLargestCluster(orgCount, personCount);
@@ -643,54 +691,77 @@ export async function computeIntelligenceScores(orgId?: string): Promise<number>
     ? await db.organization.findMany({ where: { id: orgId } })
     : await db.organization.findMany({ where: { trackingStatus: 'active' } });
 
-  let updated = 0;
+  if (orgs.length === 0) return 0;
 
-  for (const org of orgs) {
-    // Data richness: how much do we know?
-    const dataFields = [
-      org.domain, org.industry, org.description, org.website,
-      org.headquarters, org.employeeCount, org.revenue, org.foundedYear,
-    ].filter(Boolean).length;
-    const dataScore = Math.round((dataFields / 8) * 25); // 0-25
-
-    // Relationship score: how connected is this org?
-    const relCount = await db.relationship.count({
+  // ── Batch: fetch all counts in 3 groupBy queries instead of N*4 ──
+  const [relCounts, signalCounts, personCounts] = await Promise.all([
+    db.relationship.groupBy({
+      by: ['sourceOrgId', 'targetOrgId'],
       where: {
         OR: [
-          { sourceOrgId: org.id },
-          { targetOrgId: org.id },
+          { sourceOrgId: { in: orgs.map((o) => o.id) } },
+          { targetOrgId: { in: orgs.map((o) => o.id) } },
         ],
       },
-    });
-    const relScore = Math.min(25, relCount * 3);
-
-    // Signal score: how much intelligence activity?
-    const signalCount = await db.signal.count({
-      where: { organizationId: org.id, status: { in: ['detected', 'validated', 'analyzed'] } },
-    });
-    const signalScore = Math.min(25, signalCount * 5);
-
-    // People score: contact coverage
-    const personCount = await db.person.count({
-      where: { organizationId: org.id },
-    });
-    const peopleScore = Math.min(25, personCount * 5);
-
-    const totalScore = dataScore + relScore + signalScore + peopleScore;
-
-    await db.organization.update({
-      where: { id: org.id },
-      data: {
-        intelligenceScore: totalScore,
-        lastEnrichedAt: new Date(),
+      _count: true,
+    }),
+    db.signal.groupBy({
+      by: ['organizationId'],
+      where: {
+        organizationId: { in: orgs.map((o) => o.id) },
+        status: { in: ['detected', 'validated', 'analyzed'] },
       },
-    });
+      _count: true,
+    }),
+    db.person.groupBy({
+      by: ['organizationId'],
+      where: { organizationId: { in: orgs.map((o) => o.id) } },
+      _count: true,
+    }),
+  ]);
 
-    updated++;
+  // Build lookup maps: orgId → count
+  const relCountMap = new Map<string, number>();
+  for (const group of relCounts) {
+    const oid = group.sourceOrgId || group.targetOrgId;
+    if (oid) relCountMap.set(oid, (relCountMap.get(oid) || 0) + group._count);
   }
 
-  logger.info('[KG] Intelligence scores computed', { updated });
-  return updated;
+  const signalCountMap = new Map(signalCounts.map((g) => [g.organizationId, g._count]));
+  const personCountMap = new Map(personCounts.map((g) => [g.organizationId, g._count]));
+
+  // Compute scores and batch update
+  const updates = orgs.map((org) => {
+    const dataFields = [
+      org.domain,
+      org.industry,
+      org.description,
+      org.website,
+      org.headquarters,
+      org.employeeCount,
+      org.revenue,
+      org.foundedYear,
+    ].filter(Boolean).length;
+    const dataScore = Math.round((dataFields / 8) * 25);
+    const relScore = Math.min(25, (relCountMap.get(org.id) || 0) * 3);
+    const signalScore = Math.min(25, (signalCountMap.get(org.id) || 0) * 5);
+    const peopleScore = Math.min(25, (personCountMap.get(org.id) || 0) * 5);
+
+    return {
+      where: { id: org.id } as const,
+      data: {
+        intelligenceScore: dataScore + relScore + signalScore + peopleScore,
+        lastEnrichedAt: new Date(),
+      },
+    };
+  });
+
+  // Batch update (Prisma doesn't have bulk update with per-row data,
+  // so we run updates in parallel with Promise.all)
+  await Promise.all(updates.map((u) => db.organization.update(u)));
+
+  logger.info('[KG] Intelligence scores computed', { updated: orgs.length });
+  return orgs.length;
 }
 
 // ─── Internal Helpers ─────────────────────────────────────────────────────
@@ -700,7 +771,7 @@ async function expandOrg(
   depth: number,
   nodes: GraphNode[],
   edges: GraphEdge[],
-  visited: Set<string>
+  visited: Set<string>,
 ): Promise<void> {
   if (depth <= 0) return;
 
@@ -732,10 +803,7 @@ async function expandOrg(
   // Get org-to-org relationships
   const orgRels = await db.relationship.findMany({
     where: {
-      OR: [
-        { sourceOrgId: orgId },
-        { targetOrgId: orgId },
-      ],
+      OR: [{ sourceOrgId: orgId }, { targetOrgId: orgId }],
     },
     take: 50,
   });
@@ -761,7 +829,7 @@ async function expandPerson(
   depth: number,
   nodes: GraphNode[],
   edges: GraphEdge[],
-  visited: Set<string>
+  visited: Set<string>,
 ): Promise<void> {
   if (depth <= 0) return;
 
@@ -779,10 +847,7 @@ async function expandPerson(
   // Get person-to-person relationships
   const personRels = await db.relationship.findMany({
     where: {
-      OR: [
-        { sourcePersonId: personId },
-        { targetPersonId: personId },
-      ],
+      OR: [{ sourcePersonId: personId }, { targetPersonId: personId }],
     },
     take: 30,
   });
@@ -813,7 +878,14 @@ async function fetchNode(id: string): Promise<GraphNode | null> {
   return null;
 }
 
-function orgToNode(org: { id: string; name: string; industry?: string | null; domain?: string | null; employeeCount?: number | null; intelligenceScore?: number | null }): GraphNode {
+function orgToNode(org: {
+  id: string;
+  name: string;
+  industry?: string | null;
+  domain?: string | null;
+  employeeCount?: number | null;
+  intelligenceScore?: number | null;
+}): GraphNode {
   return {
     id: org.id,
     type: 'organization',
@@ -827,7 +899,13 @@ function orgToNode(org: { id: string; name: string; industry?: string | null; do
   };
 }
 
-function personToNode(person: { id: string; fullName: string; title?: string | null; department?: string | null; role?: string }): GraphNode {
+function personToNode(person: {
+  id: string;
+  fullName: string;
+  title?: string | null;
+  department?: string | null;
+  role?: string;
+}): GraphNode {
   return {
     id: person.id,
     type: 'person',
@@ -840,7 +918,20 @@ function personToNode(person: { id: string; fullName: string; title?: string | n
   };
 }
 
-function relToEdge(rel: { id: string; type: string; label: string | null; weight: number | null; sourceOrgId?: string | null; targetOrgId?: string | null; sourcePersonId?: string | null; targetPersonId?: string | null; evidenceId?: string | null }, _currentNodeId: string): GraphEdge {
+function relToEdge(
+  rel: {
+    id: string;
+    type: string;
+    label: string | null;
+    weight: number | null;
+    sourceOrgId?: string | null;
+    targetOrgId?: string | null;
+    sourcePersonId?: string | null;
+    targetPersonId?: string | null;
+    evidenceId?: string | null;
+  },
+  _currentNodeId: string,
+): GraphEdge {
   const source = rel.sourceOrgId || rel.sourcePersonId || '';
   const target = rel.targetOrgId || rel.targetPersonId || '';
   return {
@@ -854,7 +945,15 @@ function relToEdge(rel: { id: string; type: string; label: string | null; weight
   };
 }
 
-function getNextNodeId(rel: { sourceOrgId?: string | null; targetOrgId?: string | null; sourcePersonId?: string | null; targetPersonId?: string | null }, currentId: string): string | null {
+function getNextNodeId(
+  rel: {
+    sourceOrgId?: string | null;
+    targetOrgId?: string | null;
+    sourcePersonId?: string | null;
+    targetPersonId?: string | null;
+  },
+  currentId: string,
+): string | null {
   if (rel.sourceOrgId === currentId) return rel.targetOrgId ?? null;
   if (rel.targetOrgId === currentId) return rel.sourceOrgId ?? null;
   if (rel.sourcePersonId === currentId) return rel.targetPersonId ?? null;
@@ -870,7 +969,10 @@ function normalizeName(name: string): string {
     .replace(/[^a-z0-9]/g, '');
 }
 
-function calculateOrgMatchScore(query: string, org: { name: string; domain?: string | null; aliases: string[] }): number {
+function calculateOrgMatchScore(
+  query: string,
+  org: { name: string; domain?: string | null; aliases: string[] },
+): number {
   let score = 0;
   const q = normalizeName(query);
 
@@ -886,7 +988,10 @@ function calculateOrgMatchScore(query: string, org: { name: string; domain?: str
   return Math.min(score, 85);
 }
 
-function calculatePersonMatchScore(query: string, person: { fullName: string; email?: string | null }): number {
+function calculatePersonMatchScore(
+  query: string,
+  person: { fullName: string; email?: string | null },
+): number {
   let score = 0;
   const q = query.toLowerCase().trim();
 

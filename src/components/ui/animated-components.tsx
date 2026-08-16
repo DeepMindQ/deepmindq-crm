@@ -7,13 +7,21 @@ import { useRef, useState, useEffect, type ReactNode } from 'react';
 /* ═══════════════════════════════════════════════════
    Animated Counter - counts up from 0 to target
    ═══════════════════════════════════════════════════ */
-export function AnimatedCounter({ value, className = '', prefix = '', suffix = '' }: {
-  value: number; className?: string; prefix?: string; suffix?: string;
+export function AnimatedCounter({
+  value,
+  className = '',
+  prefix = '',
+  suffix = '',
+}: {
+  value: number;
+  className?: string;
+  prefix?: string;
+  suffix?: string;
 }) {
   const ref = useRef<HTMLSpanElement>(null);
   const inView = useInView(ref, { once: true });
   const motionVal = useMotionValue(0);
-  const rounded = useTransform(motionVal, v => Math.round(v).toLocaleString());
+  const rounded = useTransform(motionVal, (v) => Math.round(v).toLocaleString());
 
   useEffect(() => {
     if (inView) {
@@ -24,7 +32,9 @@ export function AnimatedCounter({ value, className = '', prefix = '', suffix = '
 
   return (
     <span ref={ref} className={`tabular-nums ${className}`}>
-      {prefix}<motion.span>{rounded}</motion.span>{suffix}
+      {prefix}
+      <motion.span>{rounded}</motion.span>
+      {suffix}
     </span>
   );
 }
@@ -32,7 +42,13 @@ export function AnimatedCounter({ value, className = '', prefix = '', suffix = '
 /* ═══════════════════════════════════════════════════
    Page Transition Wrapper - DRAMATIC entrance
    ═══════════════════════════════════════════════════ */
-export function PageTransition({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function PageTransition({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.99 }}
@@ -49,14 +65,24 @@ export function PageTransition({ children, className = '' }: { children: ReactNo
 /* ═══════════════════════════════════════════════════
    Glowing Card - gradient border + glow on hover
    ═══════════════════════════════════════════════════ */
-export function AnimatedCard({ children, className = '', delay = 0, hover = true, glow = '' }: {
-  children: ReactNode; className?: string; delay?: number; hover?: boolean; glow?: string;
+export function AnimatedCard({
+  children,
+  className = '',
+  delay = 0,
+  hover = true,
+  glow = '',
+}: {
+  children: ReactNode;
+  className?: string;
+  delay?: number;
+  hover?: boolean;
+  glow?: string;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-20px' });
   const [hovered, setHovered] = useState(false);
 
-  const glowColor = glow || 'rgba(212, 175, 55, 0.08)';
+  const glowColor = glow || 'rgba(59, 130, 246, 0.08)';
 
   return (
     <motion.div
@@ -87,9 +113,20 @@ export function AnimatedCard({ children, className = '', delay = 0, hover = true
 /* ═══════════════════════════════════════════════════
    Stat Card - premium gradient border stat display
    ═══════════════════════════════════════════════════ */
-export function StatCard({ label, value, icon: Icon, color = 'var(--color-gold)', trend, delay = 0 }: {
-  label: string; value: number | string; icon?: React.ComponentType<{ className?: string }>;
-  color?: string; trend?: { value: string; up: boolean }; delay?: number;
+export function StatCard({
+  label,
+  value,
+  icon: Icon,
+  color = 'var(--color-gold)',
+  trend,
+  delay = 0,
+}: {
+  label: string;
+  value: number | string;
+  icon?: React.ComponentType<{ className?: string }>;
+  color?: string;
+  trend?: { value: string; up: boolean };
+  delay?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true });
@@ -113,14 +150,16 @@ export function StatCard({ label, value, icon: Icon, color = 'var(--color-gold)'
         <div className="rounded-xl bg-card p-5">
           <div className="flex items-start justify-between">
             <div className="space-y-2">
-              <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">{label}</p>
+              <p className="text-xs font-medium uppercase tracking-widest text-muted-foreground">
+                {label}
+              </p>
               <p className="text-3xl font-bold tabular-nums" style={{ color }}>
-                {typeof value === 'number' ? (
-                  <AnimatedCounter value={value} />
-                ) : value}
+                {typeof value === 'number' ? <AnimatedCounter value={value} /> : value}
               </p>
               {trend && (
-                <div className={`flex items-center gap-1 text-xs font-medium ${trend.up ? 'text-emerald-400' : 'text-red-400'}`}>
+                <div
+                  className={`flex items-center gap-1 text-xs font-medium ${trend.up ? 'text-emerald-400' : 'text-red-400'}`}
+                >
                   <span>{trend.up ? '+' : '-'}</span>
                   <span>{trend.value}</span>
                 </div>
@@ -131,7 +170,9 @@ export function StatCard({ label, value, icon: Icon, color = 'var(--color-gold)'
                 className="w-10 h-10 rounded-lg flex items-center justify-center"
                 style={{ background: `${color}15` }}
               >
-                <div style={{ color }}><Icon className="w-5 h-5" /></div>
+                <div style={{ color }}>
+                  <Icon className="w-5 h-5" />
+                </div>
               </div>
             )}
           </div>
@@ -144,8 +185,16 @@ export function StatCard({ label, value, icon: Icon, color = 'var(--color-gold)'
 /* ═══════════════════════════════════════════════════
    Stagger Grid - children animate in sequence
    ═══════════════════════════════════════════════════ */
-export function StaggerGrid({ children, className = '', stagger = 0.07, delay = 0 }: {
-  children: ReactNode; className?: string; stagger?: number; delay?: number;
+export function StaggerGrid({
+  children,
+  className = '',
+  stagger = 0.07,
+  delay = 0,
+}: {
+  children: ReactNode;
+  className?: string;
+  stagger?: number;
+  delay?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true, margin: '-30px' });
@@ -169,12 +218,23 @@ export function StaggerGrid({ children, className = '', stagger = 0.07, delay = 
 /* ═══════════════════════════════════════════════════
    Stagger Item - use inside StaggerGrid
    ═══════════════════════════════════════════════════ */
-export function StaggerItem({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function StaggerItem({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <motion.div
       variants={{
         hidden: { opacity: 0, y: 20, scale: 0.97 },
-        show: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] } },
+        show: {
+          opacity: 1,
+          y: 0,
+          scale: 1,
+          transition: { duration: 0.5, ease: [0.22, 1, 0.36, 1] },
+        },
       }}
       className={className}
     >
@@ -186,15 +246,24 @@ export function StaggerItem({ children, className = '' }: { children: ReactNode;
 /* ═══════════════════════════════════════════════════
    Section Header - dramatic gold accent
    ═══════════════════════════════════════════════════ */
-export function SectionHeader({ title, subtitle, className = '' }: {
-  title: string; subtitle?: string; className?: string;
+export function SectionHeader({
+  title,
+  subtitle,
+  className = '',
+}: {
+  title: string;
+  subtitle?: string;
+  className?: string;
 }) {
   return (
     <div className={`mb-6 ${className}`}>
       <div className="flex items-center gap-3 mb-1">
         <div
           className="h-6 w-1.5 rounded-full shadow-lg"
-          style={{ background: 'linear-gradient(180deg, {tokens.gold.light}, {tokens.gold.DEFAULT}, {tokens.gold.deep})', boxShadow: '0 0 12px rgba(212, 175, 55, 0.3)' }}
+          style={{
+            background: 'linear-gradient(180deg, #93C5FD, #3B82F6, #1E40AF)',
+            boxShadow: '0 0 12px rgba(59, 130, 246, 0.3)',
+          }}
         />
         <h2 className="text-lg font-bold text-foreground tracking-tight">{title}</h2>
       </div>
@@ -206,15 +275,28 @@ export function SectionHeader({ title, subtitle, className = '' }: {
 /* ═══════════════════════════════════════════════════
    Animated Progress Bar - with glow effect
    ═══════════════════════════════════════════════════ */
-export function AnimatedBar({ value, max, color = 'var(--color-gold)', className = '', delay = 0 }: {
-  value: number; max: number; color?: string; className?: string; delay?: number;
+export function AnimatedBar({
+  value,
+  max,
+  color = 'var(--color-gold)',
+  className = '',
+  delay = 0,
+}: {
+  value: number;
+  max: number;
+  color?: string;
+  className?: string;
+  delay?: number;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const inView = useInView(ref, { once: true });
   const pct = max > 0 ? Math.round((value / max) * 100) : 0;
 
   return (
-    <div ref={ref} className={`h-2.5 rounded-full overflow-hidden bg-gray-200 ${className}`}>
+    <div
+      ref={ref}
+      className={`h-2.5 rounded-full overflow-hidden bg-[var(--ios-bg-elevated)] ${className}`}
+    >
       <motion.div
         className="h-full rounded-full relative"
         style={{ background: `linear-gradient(90deg, ${color}, ${color}DD)` }}
@@ -222,7 +304,10 @@ export function AnimatedBar({ value, max, color = 'var(--color-gold)', className
         animate={inView ? { width: `${pct}%` } : { width: 0 }}
         transition={{ duration: 1, delay, ease: [0.22, 1, 0.36, 1] }}
       >
-        <div className="absolute inset-0 rounded-full" style={{ boxShadow: `0 0 8px ${color}60` }} />
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{ boxShadow: `0 0 8px ${color}60` }}
+        />
       </motion.div>
     </div>
   );
@@ -231,7 +316,13 @@ export function AnimatedBar({ value, max, color = 'var(--color-gold)', className
 /* ═══════════════════════════════════════════════════
    Stat Value (kept for backwards compat)
    ═══════════════════════════════════════════════════ */
-export function StatValue({ value, className = '' }: { value: string | number; className?: string }) {
+export function StatValue({
+  value,
+  className = '',
+}: {
+  value: string | number;
+  className?: string;
+}) {
   return (
     <span className={`text-2xl font-bold tabular-nums text-foreground ${className}`}>{value}</span>
   );
@@ -258,14 +349,18 @@ export function PulseDot({ color = 'var(--color-gold)' }: { color?: string }) {
 /* ═══════════════════════════════════════════════════
    Animated Tab Indicator
    ═══════════════════════════════════════════════════ */
-export function TabBar({ tabs, active, onChange }: {
+export function TabBar({
+  tabs,
+  active,
+  onChange,
+}: {
   tabs: { key: string; label: string; count?: number }[];
   active: string;
   onChange: (key: string) => void;
 }) {
   return (
-    <div className="flex items-center gap-1 p-1.5 rounded-xl bg-gray-100 border border-gray-200 backdrop-blur-sm overflow-x-auto scrollbar-hide">
-      {tabs.map(tab => {
+    <div className="flex items-center gap-1 p-1.5 rounded-xl bg-[var(--ios-bg-secondary)] border border-[var(--ios-border)] backdrop-blur-sm overflow-x-auto scrollbar-hide">
+      {tabs.map((tab) => {
         const isActive = tab.key === active;
         return (
           <motion.button
@@ -281,18 +376,23 @@ export function TabBar({ tabs, active, onChange }: {
                 layoutId="tab-indicator"
                 className="absolute inset-0 rounded-lg"
                 style={{
-                  background: 'linear-gradient(135deg, rgba(212, 175, 55, 0.12), rgba(212, 175, 55, 0.06))',
-                  border: '1px solid rgba(212, 175, 55, 0.25)',
-                  boxShadow: '0 0 12px rgba(212, 175, 55, 0.08)',
+                  background:
+                    'linear-gradient(135deg, rgba(59, 130, 246, 0.12), rgba(59, 130, 246, 0.06))',
+                  border: '1px solid rgba(59, 130, 246, 0.25)',
+                  boxShadow: '0 0 12px rgba(59, 130, 246, 0.08)',
                 }}
                 transition={{ type: 'spring', stiffness: 350, damping: 30 }}
               />
             )}
             <span className="relative z-10">{tab.label}</span>
             {tab.count !== undefined && (
-              <span className={`relative z-10 text-xs px-1.5 py-0.5 rounded-full ${
-                isActive ? 'bg-primary/20 text-primary font-semibold' : 'bg-gray-200 text-muted-foreground'
-              }`}>
+              <span
+                className={`relative z-10 text-xs px-1.5 py-0.5 rounded-full ${
+                  isActive
+                    ? 'bg-primary/20 text-primary font-semibold'
+                    : 'bg-[var(--ios-bg-elevated)] text-muted-foreground'
+                }`}
+              >
                 {tab.count}
               </span>
             )}
@@ -306,14 +406,20 @@ export function TabBar({ tabs, active, onChange }: {
 /* ═══════════════════════════════════════════════════
    Gradient Border Card
    ═══════════════════════════════════════════════════ */
-export function GradientCard({ children, className = '', gradient = 'gold' }: {
-  children: ReactNode; className?: string; gradient?: 'gold' | 'blue' | 'green' | 'red' | 'purple';
+export function GradientCard({
+  children,
+  className = '',
+  gradient = 'gold',
+}: {
+  children: ReactNode;
+  className?: string;
+  gradient?: 'gold' | 'blue' | 'green' | 'red' | 'purple';
 }) {
   const colors: Record<string, { from: string; to: string }> = {
-    gold:   { from: tokens.gold.bgBright, to: 'rgba(212, 175, 55, 0.05)' },
-    blue:   { from: tokens.accent.strong, to: 'rgba(59, 130, 246, 0.05)' },
-    green:  { from: 'rgba(16, 185, 129, 0.25)', to: 'rgba(16, 185, 129, 0.05)' },
-    red:    { from: 'rgba(239, 68, 68, 0.25)', to: tokens.opacity.shadow },
+    gold: { from: tokens.gold.bgBright, to: 'rgba(212, 175, 55, 0.05)' },
+    blue: { from: tokens.accent.strong, to: 'rgba(59, 130, 246, 0.05)' },
+    green: { from: 'rgba(16, 185, 129, 0.25)', to: 'rgba(16, 185, 129, 0.05)' },
+    red: { from: 'rgba(239, 68, 68, 0.25)', to: tokens.opacity.shadow },
     purple: { from: 'rgba(139, 92, 246, 0.25)', to: 'rgba(139, 92, 246, 0.05)' },
   };
 
@@ -324,9 +430,7 @@ export function GradientCard({ children, className = '', gradient = 'gold' }: {
       className={`rounded-xl p-[1px] ${className}`}
       style={{ background: `linear-gradient(135deg, ${c.from}, ${c.to}, transparent 70%)` }}
     >
-      <div className="rounded-xl bg-card p-4">
-        {children}
-      </div>
+      <div className="rounded-xl bg-card p-4">{children}</div>
     </div>
   );
 }
@@ -334,7 +438,13 @@ export function GradientCard({ children, className = '', gradient = 'gold' }: {
 /* ═══════════════════════════════════════════════════
    Shimmer Text - animated gradient text effect
    ═══════════════════════════════════════════════════ */
-export function ShimmerText({ children, className = '' }: { children: ReactNode; className?: string }) {
+export function ShimmerText({
+  children,
+  className = '',
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <span
       className={`inline-block bg-clip-text text-transparent bg-gradient-to-r from-foreground via-primary to-foreground animate-[shimmer_3s_ease-in-out_infinite] ${className}`}
@@ -350,11 +460,22 @@ export function ShimmerText({ children, className = '' }: { children: ReactNode;
 /* ═══════════════════════════════════════════════════
    Glass Panel - frosted glass container
    ═══════════════════════════════════════════════════ */
-export function GlassPanel({ children, className = '', style }: { children: ReactNode; className?: string; style?: React.CSSProperties }) {
+export function GlassPanel({
+  children,
+  className = '',
+  style,
+}: {
+  children: ReactNode;
+  className?: string;
+  style?: React.CSSProperties;
+}) {
   return (
     <div
-      className={`rounded-xl border border-gray-200 bg-white backdrop-blur-xl ${className}`}
-      style={{ boxShadow: '0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04)', ...style }}
+      className={`rounded-xl border border-[var(--ios-border)] bg-[var(--ios-bg-card)] backdrop-blur-xl ${className}`}
+      style={{
+        boxShadow: '0 1px 3px rgba(0, 0, 0, 0.3), 0 1px 2px rgba(0, 0, 0, 0.2)',
+        ...style,
+      }}
     >
       {children}
     </div>
@@ -364,9 +485,18 @@ export function GlassPanel({ children, className = '', style }: { children: Reac
 /* ═══════════════════════════════════════════════════
    Empty State - beautiful empty state component
    ═══════════════════════════════════════════════════ */
-export function EmptyState({ icon: Icon, title, description, action, className = '' }: {
+export function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  action,
+  className = '',
+}: {
   icon?: React.ComponentType<{ className?: string }>;
-  title: string; description?: string; action?: ReactNode; className?: string;
+  title: string;
+  description?: string;
+  action?: ReactNode;
+  className?: string;
 }) {
   return (
     <motion.div

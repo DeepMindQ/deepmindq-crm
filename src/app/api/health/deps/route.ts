@@ -31,6 +31,6 @@ export async function GET() {
     {
       status: envReport.status === 'critical' ? 503 : 200,
       headers: { 'Cache-Control': 'no-store, max-age=0' },
-    }
+    },
   );
 }

@@ -42,32 +42,60 @@ export interface RoleDefinition {
 
 export type Permission =
   // Data access
-  | 'companies:read' | 'companies:write' | 'companies:delete'
-  | 'contacts:read' | 'contacts:write' | 'contacts:delete'
-  | 'leads:read' | 'leads:write' | 'leads:delete'
-  | 'opportunities:read' | 'opportunities:write' | 'opportunities:delete'
-  | 'pipeline:read' | 'pipeline:write'
-  | 'segments:read' | 'segments:write' | 'segments:delete'
+  | 'companies:read'
+  | 'companies:write'
+  | 'companies:delete'
+  | 'contacts:read'
+  | 'contacts:write'
+  | 'contacts:delete'
+  | 'leads:read'
+  | 'leads:write'
+  | 'leads:delete'
+  | 'opportunities:read'
+  | 'opportunities:write'
+  | 'opportunities:delete'
+  | 'pipeline:read'
+  | 'pipeline:write'
+  | 'segments:read'
+  | 'segments:write'
+  | 'segments:delete'
   // AI & Intelligence
-  | 'ai:read' | 'ai:write' | 'ai:configure'
-  | 'research:read' | 'research:write'
-  | 'knowledge:read' | 'knowledge:write' | 'knowledge:manage'
-  | 'recommendations:read' | 'recommendations:write'
+  | 'ai:read'
+  | 'ai:write'
+  | 'ai:configure'
+  | 'research:read'
+  | 'research:write'
+  | 'knowledge:read'
+  | 'knowledge:write'
+  | 'knowledge:manage'
+  | 'recommendations:read'
+  | 'recommendations:write'
   // Email & Outreach
-  | 'email:read' | 'email:write' | 'email:send'
-  | 'sequences:read' | 'sequences:write'
-  | 'templates:read' | 'templates:write'
+  | 'email:read'
+  | 'email:write'
+  | 'email:send'
+  | 'sequences:read'
+  | 'sequences:write'
+  | 'templates:read'
+  | 'templates:write'
   // Analytics & Reporting
-  | 'analytics:read' | 'analytics:export'
+  | 'analytics:read'
+  | 'analytics:export'
   | 'dashboard:read'
-  | 'reports:read' | 'reports:export'
+  | 'reports:read'
+  | 'reports:export'
   // System & Configuration
-  | 'settings:read' | 'settings:write'
-  | 'users:read' | 'users:write' | 'users:manage'
+  | 'settings:read'
+  | 'settings:write'
+  | 'users:read'
+  | 'users:write'
+  | 'users:manage'
   | 'audit:read'
   | 'health:read'
-  | 'import:read' | 'import:write'
-  | 'export:read' | 'export:write';
+  | 'import:read'
+  | 'import:write'
+  | 'export:read'
+  | 'export:write';
 
 // ── Role Configurations ─────────────────────────────────────────
 
@@ -78,28 +106,55 @@ const ROLES: Record<UserRole, RoleDefinition> = {
     description: 'Full system access. Can manage users, configure system, and access all data.',
     permissions: [
       // All permissions
-      'companies:read', 'companies:write', 'companies:delete',
-      'contacts:read', 'contacts:write', 'contacts:delete',
-      'leads:read', 'leads:write', 'leads:delete',
-      'opportunities:read', 'opportunities:write', 'opportunities:delete',
-      'pipeline:read', 'pipeline:write',
-      'segments:read', 'segments:write',
-      'ai:read', 'ai:write', 'ai:configure',
-      'research:read', 'research:write',
-      'knowledge:read', 'knowledge:write', 'knowledge:manage',
-      'recommendations:read', 'recommendations:write',
-      'email:read', 'email:write', 'email:send',
-      'sequences:read', 'sequences:write',
-      'templates:read', 'templates:write',
-      'analytics:read', 'analytics:export',
+      'companies:read',
+      'companies:write',
+      'companies:delete',
+      'contacts:read',
+      'contacts:write',
+      'contacts:delete',
+      'leads:read',
+      'leads:write',
+      'leads:delete',
+      'opportunities:read',
+      'opportunities:write',
+      'opportunities:delete',
+      'pipeline:read',
+      'pipeline:write',
+      'segments:read',
+      'segments:write',
+      'ai:read',
+      'ai:write',
+      'ai:configure',
+      'research:read',
+      'research:write',
+      'knowledge:read',
+      'knowledge:write',
+      'knowledge:manage',
+      'recommendations:read',
+      'recommendations:write',
+      'email:read',
+      'email:write',
+      'email:send',
+      'sequences:read',
+      'sequences:write',
+      'templates:read',
+      'templates:write',
+      'analytics:read',
+      'analytics:export',
       'dashboard:read',
-      'reports:read', 'reports:export',
-      'settings:read', 'settings:write',
-      'users:read', 'users:write', 'users:manage',
+      'reports:read',
+      'reports:export',
+      'settings:read',
+      'settings:write',
+      'users:read',
+      'users:write',
+      'users:manage',
       'audit:read',
       'health:read',
-      'import:read', 'import:write',
-      'export:read', 'export:write',
+      'import:read',
+      'import:write',
+      'export:read',
+      'export:write',
     ],
     canManageUsers: true,
     canAccessAllData: true,
@@ -110,27 +165,46 @@ const ROLES: Record<UserRole, RoleDefinition> = {
   operator: {
     name: 'operator',
     label: 'Operator',
-    description: 'Day-to-day operations. Can manage data, use AI, manage email sequences. Cannot manage users or system config.',
+    description:
+      'Day-to-day operations. Can manage data, use AI, manage email sequences. Cannot manage users or system config.',
     permissions: [
-      'companies:read', 'companies:write',
-      'contacts:read', 'contacts:write',
-      'leads:read', 'leads:write',
-      'opportunities:read', 'opportunities:write',
-      'pipeline:read', 'pipeline:write',
-      'segments:read', 'segments:write',
-      'ai:read', 'ai:write',
-      'research:read', 'research:write',
-      'knowledge:read', 'knowledge:write',
-      'recommendations:read', 'recommendations:write',
-      'email:read', 'email:write', 'email:send',
-      'sequences:read', 'sequences:write',
-      'templates:read', 'templates:write',
-      'analytics:read', 'analytics:export',
+      'companies:read',
+      'companies:write',
+      'contacts:read',
+      'contacts:write',
+      'leads:read',
+      'leads:write',
+      'opportunities:read',
+      'opportunities:write',
+      'pipeline:read',
+      'pipeline:write',
+      'segments:read',
+      'segments:write',
+      'ai:read',
+      'ai:write',
+      'research:read',
+      'research:write',
+      'knowledge:read',
+      'knowledge:write',
+      'recommendations:read',
+      'recommendations:write',
+      'email:read',
+      'email:write',
+      'email:send',
+      'sequences:read',
+      'sequences:write',
+      'templates:read',
+      'templates:write',
+      'analytics:read',
+      'analytics:export',
       'dashboard:read',
-      'reports:read', 'reports:export',
+      'reports:read',
+      'reports:export',
       'settings:read',
-      'import:read', 'import:write',
-      'export:read', 'export:write',
+      'import:read',
+      'import:write',
+      'export:read',
+      'export:write',
     ],
     canManageUsers: false,
     canAccessAllData: true,
@@ -141,7 +215,8 @@ const ROLES: Record<UserRole, RoleDefinition> = {
   user: {
     name: 'user',
     label: 'Standard User',
-    description: 'Read-only data access with limited write. Can use AI features but cannot configure system.',
+    description:
+      'Read-only data access with limited write. Can use AI features but cannot configure system.',
     permissions: [
       'companies:read',
       'contacts:read',
@@ -173,11 +248,7 @@ const ROLES: Record<UserRole, RoleDefinition> = {
     name: 'viewer',
     label: 'Viewer',
     description: 'Read-only access to dashboards and reports only.',
-    permissions: [
-      'dashboard:read',
-      'analytics:read',
-      'reports:read',
-    ],
+    permissions: ['dashboard:read', 'analytics:read', 'reports:read'],
     canManageUsers: false,
     canAccessAllData: false,
     canExportData: false,
@@ -202,13 +273,23 @@ export interface RouteAuthorizationConfig {
  */
 export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
   // Auth routes (public)
-  { path: '/api/request-otp', methods: { POST: [] }, public: true, description: 'Request OTP code' },
+  {
+    path: '/api/request-otp',
+    methods: { POST: [] },
+    public: true,
+    description: 'Request OTP code',
+  },
   { path: '/api/verify-otp', methods: { POST: [] }, public: true, description: 'Verify OTP login' },
   { path: '/api/health', methods: { GET: [] }, public: true, description: 'Health check' },
   { path: '/api/ping', methods: { GET: [] }, public: true, description: 'Liveness probe' },
   { path: '/api/ready', methods: { GET: [] }, public: true, description: 'Readiness probe' },
   { path: '/api/version', methods: { GET: [] }, public: true, description: 'Version info' },
-  { path: '/api/unsubscribe', methods: { GET: [], POST: [] }, public: true, description: 'Email unsubscribe' },
+  {
+    path: '/api/unsubscribe',
+    methods: { GET: [], POST: [] },
+    public: true,
+    description: 'Email unsubscribe',
+  },
 
   // Dashboard & Analytics
   { path: '/api/dashboard', methods: { GET: ['dashboard:read'] }, description: 'Main dashboard' },
@@ -216,52 +297,187 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
   { path: '/api/stats', methods: { GET: ['analytics:read'] }, description: 'System statistics' },
 
   // Companies
-  { path: '/api/companies', methods: { GET: ['companies:read'], POST: ['companies:write'], PUT: ['companies:write'], DELETE: ['companies:delete'] }, description: 'Company CRUD' },
+  {
+    path: '/api/companies',
+    methods: {
+      GET: ['companies:read'],
+      POST: ['companies:write'],
+      PUT: ['companies:write'],
+      DELETE: ['companies:delete'],
+    },
+    description: 'Company CRUD',
+  },
 
   // Contacts
-  { path: '/api/contacts', methods: { GET: ['contacts:read'], POST: ['contacts:write'], PUT: ['contacts:write'], DELETE: ['contacts:delete'] }, description: 'Contact CRUD' },
+  {
+    path: '/api/contacts',
+    methods: {
+      GET: ['contacts:read'],
+      POST: ['contacts:write'],
+      PUT: ['contacts:write'],
+      DELETE: ['contacts:delete'],
+    },
+    description: 'Contact CRUD',
+  },
 
   // Leads
-  { path: '/api/leads', methods: { GET: ['leads:read'], POST: ['leads:write'], PUT: ['leads:write'], DELETE: ['leads:delete'] }, description: 'Lead management' },
+  {
+    path: '/api/leads',
+    methods: {
+      GET: ['leads:read'],
+      POST: ['leads:write'],
+      PUT: ['leads:write'],
+      DELETE: ['leads:delete'],
+    },
+    description: 'Lead management',
+  },
 
   // Opportunities
-  { path: '/api/opportunities', methods: { GET: ['opportunities:read'], POST: ['opportunities:write'], PUT: ['opportunities:write'], DELETE: ['opportunities:delete'] }, description: 'Opportunity pipeline' },
+  {
+    path: '/api/opportunities',
+    methods: {
+      GET: ['opportunities:read'],
+      POST: ['opportunities:write'],
+      PUT: ['opportunities:write'],
+      DELETE: ['opportunities:delete'],
+    },
+    description: 'Opportunity pipeline',
+  },
 
   // Pipeline
-  { path: '/api/pipeline', methods: { GET: ['pipeline:read'], POST: ['pipeline:write'], PUT: ['pipeline:write'] }, description: 'Pipeline management' },
+  {
+    path: '/api/pipeline',
+    methods: { GET: ['pipeline:read'], POST: ['pipeline:write'], PUT: ['pipeline:write'] },
+    description: 'Pipeline management',
+  },
 
   // Segments
-  { path: '/api/segments', methods: { GET: ['segments:read'], POST: ['segments:write'], PUT: ['segments:write'], DELETE: ['segments:delete'] }, description: 'Segment management' },
+  {
+    path: '/api/segments',
+    methods: {
+      GET: ['segments:read'],
+      POST: ['segments:write'],
+      PUT: ['segments:write'],
+      DELETE: ['segments:delete'],
+    },
+    description: 'Segment management',
+  },
 
   // AI & Intelligence
-  { path: '/api/research', methods: { GET: ['research:read'], POST: ['research:write'] }, description: 'AI research' },
-  { path: '/api/research-agent', methods: { GET: ['research:read'], POST: ['research:write'] }, description: 'Research agent' },
-  { path: '/api/reasoning', methods: { GET: ['ai:read'], POST: ['ai:write'] }, description: 'AI reasoning' },
-  { path: '/api/orchestration', methods: { GET: ['ai:read'], POST: ['ai:write'] }, description: 'Multi-agent orchestration' },
-  { path: '/api/knowledge', methods: { GET: ['knowledge:read'], POST: ['knowledge:write'], DELETE: ['knowledge:manage'] }, description: 'Knowledge base' },
+  {
+    path: '/api/research',
+    methods: { GET: ['research:read'], POST: ['research:write'] },
+    description: 'AI research',
+  },
+  {
+    path: '/api/research-agent',
+    methods: { GET: ['research:read'], POST: ['research:write'] },
+    description: 'Research agent',
+  },
+  {
+    path: '/api/reasoning',
+    methods: { GET: ['ai:read'], POST: ['ai:write'] },
+    description: 'AI reasoning',
+  },
+  {
+    path: '/api/orchestration',
+    methods: { GET: ['ai:read'], POST: ['ai:write'] },
+    description: 'Multi-agent orchestration',
+  },
+  {
+    path: '/api/knowledge',
+    methods: { GET: ['knowledge:read'], POST: ['knowledge:write'], DELETE: ['knowledge:manage'] },
+    description: 'Knowledge base',
+  },
   { path: '/api/capabilities', methods: { GET: ['ai:read'] }, description: 'AI capabilities' },
-  { path: '/api/recommendations', methods: { GET: ['recommendations:read'], POST: ['recommendations:write'] }, description: 'AI recommendations' },
-  { path: '/api/fusion', methods: { GET: ['ai:read'], POST: ['ai:write'] }, description: 'AI fusion engine' },
-  { path: '/api/learning', methods: { GET: ['ai:read'], POST: ['ai:write'] }, description: 'AI continuous learning' },
+  {
+    path: '/api/recommendations',
+    methods: { GET: ['recommendations:read'], POST: ['recommendations:write'] },
+    description: 'AI recommendations',
+  },
+  {
+    path: '/api/fusion',
+    methods: { GET: ['ai:read'], POST: ['ai:write'] },
+    description: 'AI fusion engine',
+  },
+  {
+    path: '/api/learning',
+    methods: { GET: ['ai:read'], POST: ['ai:write'] },
+    description: 'AI continuous learning',
+  },
 
   // Email
-  { path: '/api/email-templates', methods: { GET: ['templates:read'], POST: ['templates:write'] }, description: 'Email templates' },
-  { path: '/api/emails/', methods: { GET: ['email:read'], POST: ['email:write', 'email:send'], PUT: ['email:write'], DELETE: ['email:write'] }, description: 'Email operations (send, track, etc.)' },
-  { path: '/api/sequences', methods: { GET: ['sequences:read'], POST: ['sequences:write'], PUT: ['sequences:write'], DELETE: ['sequences:write'] }, description: 'Email sequences' },
-  { path: '/api/replies', methods: { GET: ['email:read'], POST: ['email:write'] }, description: 'Email replies' },
+  {
+    path: '/api/email-templates',
+    methods: { GET: ['templates:read'], POST: ['templates:write'] },
+    description: 'Email templates',
+  },
+  {
+    path: '/api/emails/',
+    methods: {
+      GET: ['email:read'],
+      POST: ['email:write', 'email:send'],
+      PUT: ['email:write'],
+      DELETE: ['email:write'],
+    },
+    description: 'Email operations (send, track, etc.)',
+  },
+  {
+    path: '/api/sequences',
+    methods: {
+      GET: ['sequences:read'],
+      POST: ['sequences:write'],
+      PUT: ['sequences:write'],
+      DELETE: ['sequences:write'],
+    },
+    description: 'Email sequences',
+  },
+  {
+    path: '/api/replies',
+    methods: { GET: ['email:read'], POST: ['email:write'] },
+    description: 'Email replies',
+  },
   { path: '/api/bounces', methods: { GET: ['email:read'] }, description: 'Email bounces' },
-  { path: '/api/suppressions', methods: { GET: ['email:read'], POST: ['email:write'] }, description: 'Email suppressions' },
+  {
+    path: '/api/suppressions',
+    methods: { GET: ['email:read'], POST: ['email:write'] },
+    description: 'Email suppressions',
+  },
 
   // Data Import/Export
-  { path: '/api/imports', methods: { GET: ['import:read'], POST: ['import:write'] }, description: 'Data imports' },
-  { path: '/api/data-import', methods: { GET: ['import:read'], POST: ['import:write'] }, description: 'Data import operations' },
-  { path: '/api/export', methods: { GET: ['export:read'], POST: ['export:write'] }, description: 'Data export' },
+  {
+    path: '/api/imports',
+    methods: { GET: ['import:read'], POST: ['import:write'] },
+    description: 'Data imports',
+  },
+  {
+    path: '/api/data-import',
+    methods: { GET: ['import:read'], POST: ['import:write'] },
+    description: 'Data import operations',
+  },
+  {
+    path: '/api/export',
+    methods: { GET: ['export:read'], POST: ['export:write'] },
+    description: 'Data export',
+  },
   { path: '/api/export-center', methods: { GET: ['export:read'] }, description: 'Export center' },
 
   // Settings & Configuration
-  { path: '/api/settings', methods: { GET: ['settings:read'], POST: ['settings:write'], PUT: ['settings:write'] }, description: 'System settings' },
-  { path: '/api/preferences', methods: { GET: ['settings:read'], POST: ['settings:write'] }, description: 'User preferences' },
-  { path: '/api/prompt-templates', methods: { GET: ['ai:read'], POST: ['ai:write'], PUT: ['ai:write'] }, description: 'Prompt templates' },
+  {
+    path: '/api/settings',
+    methods: { GET: ['settings:read'], POST: ['settings:write'], PUT: ['settings:write'] },
+    description: 'System settings',
+  },
+  {
+    path: '/api/preferences',
+    methods: { GET: ['settings:read'], POST: ['settings:write'] },
+    description: 'User preferences',
+  },
+  {
+    path: '/api/prompt-templates',
+    methods: { GET: ['ai:read'], POST: ['ai:write'], PUT: ['ai:write'] },
+    description: 'Prompt templates',
+  },
 
   // Audit & Compliance
   { path: '/api/audit', methods: { GET: ['audit:read'] }, description: 'Audit logs' },
@@ -269,78 +485,368 @@ export const ROUTE_AUTHORIZATION_MATRIX: RouteAuthorizationConfig[] = [
   { path: '/api/compliance', methods: { GET: ['audit:read'] }, description: 'Compliance status' },
 
   // User Management
-  { path: '/api/users', methods: { GET: ['users:read'], PATCH: ['users:write'] }, description: 'User management (admin-only enforced at route level)' },
+  {
+    path: '/api/users',
+    methods: { GET: ['users:read'], PATCH: ['users:write'] },
+    description: 'User management (admin-only enforced at route level)',
+  },
 
   // System & Health
-  { path: '/api/system-health', methods: { GET: ['health:read'] }, description: 'System health details' },
-  { path: '/api/monitoring', methods: { GET: ['health:read'] }, description: 'System monitoring metrics (P0.2 FIX: was missing — caused 403 for all users)' },
-  { path: '/api/performance', methods: { GET: ['health:read'] }, description: 'Performance metrics' },
+  {
+    path: '/api/system-health',
+    methods: { GET: ['health:read'] },
+    description: 'System health details',
+  },
+  {
+    path: '/api/monitoring',
+    methods: { GET: ['health:read'] },
+    description: 'System monitoring metrics (P0.2 FIX: was missing — caused 403 for all users)',
+  },
+  {
+    path: '/api/performance',
+    methods: { GET: ['health:read'] },
+    description: 'Performance metrics',
+  },
   { path: '/api/api-metrics', methods: { GET: ['health:read'] }, description: 'API metrics' },
   { path: '/api/data-health', methods: { GET: ['health:read'] }, description: 'Data health' },
 
   // Enterprise
-  { path: '/api/enterprise', methods: { GET: ['settings:read'], POST: ['settings:write'] }, description: 'Enterprise features' },
+  {
+    path: '/api/enterprise',
+    methods: { GET: ['settings:read'], POST: ['settings:write'] },
+    description: 'Enterprise features',
+  },
 
   // Other operations
-  { path: '/api/notes', methods: { GET: ['companies:read'], POST: ['companies:write'], DELETE: ['companies:write'] }, description: 'Notes CRUD' },
-  { path: '/api/duplicates', methods: { GET: ['companies:read'], POST: ['companies:write'] }, description: 'Duplicate management' },
+  {
+    path: '/api/notes',
+    methods: { GET: ['companies:read'], POST: ['companies:write'], DELETE: ['companies:write'] },
+    description: 'Notes CRUD',
+  },
+  {
+    path: '/api/duplicates',
+    methods: { GET: ['companies:read'], POST: ['companies:write'] },
+    description: 'Duplicate management',
+  },
   { path: '/api/signals', methods: { GET: ['ai:read'] }, description: 'Signal intelligence' },
-  { path: '/api/feedback', methods: { GET: ['ai:read'], POST: ['ai:write'] }, description: 'AI feedback' },
-  { path: '/api/batches', methods: { GET: ['import:read'], POST: ['import:write'] }, description: 'Batch operations' },
+  {
+    path: '/api/feedback',
+    methods: { GET: ['ai:read'], POST: ['ai:write'] },
+    description: 'AI feedback',
+  },
+  {
+    path: '/api/batches',
+    methods: { GET: ['import:read'], POST: ['import:write'] },
+    description: 'Batch operations',
+  },
   { path: '/api/queue', methods: { GET: ['health:read'] }, description: 'Job queue status' },
-  { path: '/api/playbooks', methods: { GET: ['sequences:read'], POST: ['sequences:write'] }, description: 'Playbooks' },
-  { path: '/api/conversation-plans', methods: { GET: ['research:read'], POST: ['research:write'] }, description: 'Conversation plans' },
-  { path: '/api/cro-dashboard', methods: { GET: ['analytics:read'] }, description: 'CRO dashboard' },
+  {
+    path: '/api/playbooks',
+    methods: { GET: ['sequences:read'], POST: ['sequences:write'] },
+    description: 'Playbooks',
+  },
+  {
+    path: '/api/conversation-plans',
+    methods: { GET: ['research:read'], POST: ['research:write'] },
+    description: 'Conversation plans',
+  },
+  {
+    path: '/api/cro-dashboard',
+    methods: { GET: ['analytics:read'] },
+    description: 'CRO dashboard',
+  },
   { path: '/api/revops', methods: { GET: ['analytics:read'] }, description: 'Revenue operations' },
-  { path: '/api/sales-execution', methods: { GET: ['pipeline:read'] }, description: 'Sales execution' },
+  {
+    path: '/api/sales-execution',
+    methods: { GET: ['pipeline:read'] },
+    description: 'Sales execution',
+  },
   { path: '/api/timeline', methods: { GET: ['companies:read'] }, description: 'Activity timeline' },
-  { path: '/api/drafts', methods: { GET: ['email:read'], POST: ['email:write'], PUT: ['email:write'], DELETE: ['email:write'] }, description: 'Draft management' },
+  {
+    path: '/api/drafts',
+    methods: {
+      GET: ['email:read'],
+      POST: ['email:write'],
+      PUT: ['email:write'],
+      DELETE: ['email:write'],
+    },
+    description: 'Draft management',
+  },
   { path: '/api/realtime', methods: { GET: ['dashboard:read'] }, description: 'Real-time updates' },
-  { path: '/api/verify-email', methods: { GET: [] }, public: true, description: 'Email verification' },
-  { path: '/api/verify-queue', methods: { GET: [] }, public: true, description: 'Queue verification' },
+  {
+    path: '/api/verify-email',
+    methods: { GET: [] },
+    public: true,
+    description: 'Email verification',
+  },
+  {
+    path: '/api/verify-queue',
+    methods: { GET: [] },
+    public: true,
+    description: 'Queue verification',
+  },
 
   // Phase 5: Security & Compliance endpoints (admin-only)
-  { path: '/api/security/roles', methods: { GET: ['users:read'], POST: ['users:manage'], PUT: ['users:manage'] }, description: 'Role management' },
-  { path: '/api/security/audit', methods: { GET: ['audit:read'], POST: ['audit:read'] }, description: 'Comprehensive audit trail' },
-  { path: '/api/security/privacy', methods: { GET: ['audit:read'], POST: ['users:manage'] }, description: 'GDPR/CCPA compliance' },
-  { path: '/api/security/encryption', methods: { GET: ['settings:read'] }, description: 'Encryption health' },
-  { path: '/api/security/rate-limits', methods: { GET: ['settings:read'], POST: ['settings:write'] }, description: 'Rate limit management' },
-  { path: '/api/security/sso', methods: { GET: ['settings:read'], POST: ['settings:write'] }, description: 'SSO configuration' },
-  { path: '/api/security/scan', methods: { GET: ['audit:read'], POST: ['audit:read'] }, description: 'Security scanner' },
+  {
+    path: '/api/security/roles',
+    methods: { GET: ['users:read'], POST: ['users:manage'], PUT: ['users:manage'] },
+    description: 'Role management',
+  },
+  {
+    path: '/api/security/audit',
+    methods: { GET: ['audit:read'], POST: ['audit:read'] },
+    description: 'Comprehensive audit trail',
+  },
+  {
+    path: '/api/security/privacy',
+    methods: { GET: ['audit:read'], POST: ['users:manage'] },
+    description: 'GDPR/CCPA compliance',
+  },
+  {
+    path: '/api/security/encryption',
+    methods: { GET: ['settings:read'] },
+    description: 'Encryption health',
+  },
+  {
+    path: '/api/security/rate-limits',
+    methods: { GET: ['settings:read'], POST: ['settings:write'] },
+    description: 'Rate limit management',
+  },
+  {
+    path: '/api/security/sso',
+    methods: { GET: ['settings:read'], POST: ['settings:write'] },
+    description: 'SSO configuration',
+  },
+  {
+    path: '/api/security/scan',
+    methods: { GET: ['audit:read'], POST: ['audit:read'] },
+    description: 'Security scanner',
+  },
 
   // Milestone 1 H-01: Wildcard allows for route groups not individually listed.
   // These routes require authentication (enforced by proxy) but allow any authenticated user.
   // Admin-only routes are listed individually above.
-  { path: '/api/ai/', methods: { GET: ['ai:read'], POST: ['ai:write'], PUT: ['ai:write'], DELETE: ['ai:write'], PATCH: ['ai:write'] }, description: 'AI intelligence endpoints' },
-  { path: '/api/intelligence/', methods: { GET: ['research:read'], POST: ['research:write'], PUT: ['research:write'], DELETE: ['research:write'] }, description: 'Intelligence API endpoints' },
-  { path: '/api/companies/', methods: { GET: ['companies:read'], POST: ['companies:write'], PUT: ['companies:write'], DELETE: ['companies:delete'], PATCH: ['companies:write'] }, description: 'Company sub-resource endpoints' },
-  { path: '/api/contacts/', methods: { GET: ['contacts:read'], POST: ['contacts:write'], PUT: ['contacts:write'], DELETE: ['contacts:delete'], PATCH: ['contacts:write'] }, description: 'Contact sub-resource endpoints' },
-  { path: '/api/leads/', methods: { GET: ['leads:read'], POST: ['leads:write'], PUT: ['leads:write'], DELETE: ['leads:delete'], PATCH: ['leads:write'] }, description: 'Lead sub-resource endpoints' },
-  { path: '/api/opportunities/', methods: { GET: ['opportunities:read'], POST: ['opportunities:write'], PUT: ['opportunities:write'], DELETE: ['opportunities:delete'], PATCH: ['opportunities:write'] }, description: 'Opportunity sub-resource endpoints' },
-  { path: '/api/engines/', methods: { GET: ['ai:read'], POST: ['ai:write'] }, description: 'Engine endpoints' },
-  { path: '/api/drafts/', methods: { GET: ['email:read'], POST: ['email:write'], PUT: ['email:write'], DELETE: ['email:write'] }, description: 'Draft endpoints' },
-  { path: '/api/segments/', methods: { GET: ['segments:read'], POST: ['segments:write'], PUT: ['segments:write'], DELETE: ['segments:delete'] }, description: 'Segment endpoints' },
-  { path: '/api/batches/', methods: { GET: ['import:read'], POST: ['import:write'], DELETE: ['import:write'] }, description: 'Batch operation endpoints' },
-  { path: '/api/feedback/', methods: { GET: ['ai:read'], POST: ['ai:write'] }, description: 'Feedback endpoints' },
-  { path: '/api/g-intel-acquisition/', methods: { GET: ['research:read'], POST: ['research:write'] }, description: 'G-Intel acquisition endpoints' },
-  { path: '/api/capabilities/', methods: { GET: ['ai:read'], POST: ['ai:write'], PUT: ['ai:write'], DELETE: ['ai:write'] }, description: 'Capability library endpoints' },
-  { path: '/api/data-import/', methods: { GET: ['import:read'], POST: ['import:write'] }, description: 'Data import operation endpoints' },
-  { path: '/api/conversation-plans/', methods: { GET: ['research:read'], POST: ['research:write'], PUT: ['research:write'], DELETE: ['research:write'] }, description: 'Conversation plan endpoints' },
-  { path: '/api/webhooks/', methods: { GET: [], POST: [] }, public: true, description: 'Webhook receivers (HMAC verified)' },
-  { path: '/api/tracking/', methods: { GET: [], POST: [] }, public: true, description: 'Email tracking pixels' },
-  { path: '/api/cron/', methods: { GET: [], POST: [] }, public: true, description: 'Cron job processors (secret-verified)' },
-  { path: '/api/auth/', methods: { GET: [], POST: [], PUT: [], DELETE: [] }, public: true, description: 'Authentication endpoints' },
-  { path: '/api/admin/', methods: { GET: ['settings:read'], POST: ['settings:write'], PUT: ['settings:write'], DELETE: ['users:manage'] }, description: 'Admin-only endpoints' },
-  { path: '/api/sessions', methods: { GET: ['settings:read'], DELETE: ['settings:write'] }, description: 'Session management' },
-  { path: '/api/notes/', methods: { GET: ['companies:read'], POST: ['companies:write'], DELETE: ['companies:write'] }, description: 'Notes endpoints' },
-  { path: '/api/templates/', methods: { GET: ['templates:read'], POST: ['templates:write'], PUT: ['templates:write'], DELETE: ['templates:write'] }, description: 'Template endpoints' },
-  { path: '/api/reports/', methods: { GET: ['reports:read'], POST: ['reports:export'] }, description: 'Report endpoints' },
-  { path: '/api/pipeline/', methods: { GET: ['pipeline:read'], POST: ['pipeline:write'], PUT: ['pipeline:write'], DELETE: ['pipeline:write'] }, description: 'Pipeline endpoints' },
+  {
+    path: '/api/ai/',
+    methods: {
+      GET: ['ai:read'],
+      POST: ['ai:write'],
+      PUT: ['ai:write'],
+      DELETE: ['ai:write'],
+      PATCH: ['ai:write'],
+    },
+    description: 'AI intelligence endpoints',
+  },
+  {
+    path: '/api/intelligence/',
+    methods: {
+      GET: ['research:read'],
+      POST: ['research:write'],
+      PUT: ['research:write'],
+      DELETE: ['research:write'],
+    },
+    description: 'Intelligence API endpoints',
+  },
+  {
+    path: '/api/companies/',
+    methods: {
+      GET: ['companies:read'],
+      POST: ['companies:write'],
+      PUT: ['companies:write'],
+      DELETE: ['companies:delete'],
+      PATCH: ['companies:write'],
+    },
+    description: 'Company sub-resource endpoints',
+  },
+  {
+    path: '/api/contacts/',
+    methods: {
+      GET: ['contacts:read'],
+      POST: ['contacts:write'],
+      PUT: ['contacts:write'],
+      DELETE: ['contacts:delete'],
+      PATCH: ['contacts:write'],
+    },
+    description: 'Contact sub-resource endpoints',
+  },
+  {
+    path: '/api/leads/',
+    methods: {
+      GET: ['leads:read'],
+      POST: ['leads:write'],
+      PUT: ['leads:write'],
+      DELETE: ['leads:delete'],
+      PATCH: ['leads:write'],
+    },
+    description: 'Lead sub-resource endpoints',
+  },
+  {
+    path: '/api/opportunities/',
+    methods: {
+      GET: ['opportunities:read'],
+      POST: ['opportunities:write'],
+      PUT: ['opportunities:write'],
+      DELETE: ['opportunities:delete'],
+      PATCH: ['opportunities:write'],
+    },
+    description: 'Opportunity sub-resource endpoints',
+  },
+  {
+    path: '/api/engines/',
+    methods: { GET: ['ai:read'], POST: ['ai:write'] },
+    description: 'Engine endpoints',
+  },
+  {
+    path: '/api/drafts/',
+    methods: {
+      GET: ['email:read'],
+      POST: ['email:write'],
+      PUT: ['email:write'],
+      DELETE: ['email:write'],
+    },
+    description: 'Draft endpoints',
+  },
+  {
+    path: '/api/segments/',
+    methods: {
+      GET: ['segments:read'],
+      POST: ['segments:write'],
+      PUT: ['segments:write'],
+      DELETE: ['segments:delete'],
+    },
+    description: 'Segment endpoints',
+  },
+  {
+    path: '/api/batches/',
+    methods: { GET: ['import:read'], POST: ['import:write'], DELETE: ['import:write'] },
+    description: 'Batch operation endpoints',
+  },
+  {
+    path: '/api/feedback/',
+    methods: { GET: ['ai:read'], POST: ['ai:write'] },
+    description: 'Feedback endpoints',
+  },
+  {
+    path: '/api/g-intel-acquisition/',
+    methods: { GET: ['research:read'], POST: ['research:write'] },
+    description: 'G-Intel acquisition endpoints',
+  },
+  {
+    path: '/api/capabilities/',
+    methods: { GET: ['ai:read'], POST: ['ai:write'], PUT: ['ai:write'], DELETE: ['ai:write'] },
+    description: 'Capability library endpoints',
+  },
+  {
+    path: '/api/data-import/',
+    methods: { GET: ['import:read'], POST: ['import:write'] },
+    description: 'Data import operation endpoints',
+  },
+  {
+    path: '/api/conversation-plans/',
+    methods: {
+      GET: ['research:read'],
+      POST: ['research:write'],
+      PUT: ['research:write'],
+      DELETE: ['research:write'],
+    },
+    description: 'Conversation plan endpoints',
+  },
+  {
+    path: '/api/webhooks/',
+    methods: { GET: [], POST: [] },
+    public: true,
+    description: 'Webhook receivers (HMAC verified)',
+  },
+  {
+    path: '/api/tracking/',
+    methods: { GET: [], POST: [] },
+    public: true,
+    description: 'Email tracking pixels',
+  },
+  {
+    path: '/api/cron/',
+    methods: { GET: [], POST: [] },
+    public: true,
+    description: 'Cron job processors (secret-verified)',
+  },
+  {
+    path: '/api/auth/',
+    methods: { GET: [], POST: [], PUT: [], DELETE: [] },
+    public: true,
+    description: 'Authentication endpoints',
+  },
+  {
+    path: '/api/admin/',
+    methods: {
+      GET: ['settings:read'],
+      POST: ['settings:write'],
+      PUT: ['settings:write'],
+      DELETE: ['users:manage'],
+    },
+    description: 'Admin-only endpoints',
+  },
+  {
+    path: '/api/sessions',
+    methods: { GET: ['settings:read'], DELETE: ['settings:write'] },
+    description: 'Session management',
+  },
+  {
+    path: '/api/notes/',
+    methods: { GET: ['companies:read'], POST: ['companies:write'], DELETE: ['companies:write'] },
+    description: 'Notes endpoints',
+  },
+  {
+    path: '/api/templates/',
+    methods: {
+      GET: ['templates:read'],
+      POST: ['templates:write'],
+      PUT: ['templates:write'],
+      DELETE: ['templates:write'],
+    },
+    description: 'Template endpoints',
+  },
+  {
+    path: '/api/reports/',
+    methods: { GET: ['reports:read'], POST: ['reports:export'] },
+    description: 'Report endpoints',
+  },
+  {
+    path: '/api/pipeline/',
+    methods: {
+      GET: ['pipeline:read'],
+      POST: ['pipeline:write'],
+      PUT: ['pipeline:write'],
+      DELETE: ['pipeline:write'],
+    },
+    description: 'Pipeline endpoints',
+  },
   // P0.3 FIX: Removed duplicate entries (were at both line ~275 and ~339)
-  { path: '/api/tags/', methods: { GET: ['companies:read'], POST: ['companies:write'], DELETE: ['companies:write'] }, description: 'Tag endpoints' },
-  { path: '/api/custom-fields/', methods: { GET: ['settings:read'], POST: ['settings:write'], PUT: ['settings:write'], DELETE: ['settings:write'] }, description: 'Custom field endpoints' },
-  { path: '/api/seed/', methods: { POST: ['users:manage'] }, description: 'Seed data endpoints (admin only)' },
-  { path: '/api/setup-db', methods: { POST: [] }, public: true, description: 'DB setup (token-gated)' },
+  {
+    path: '/api/tags/',
+    methods: { GET: ['companies:read'], POST: ['companies:write'], DELETE: ['companies:write'] },
+    description: 'Tag endpoints',
+  },
+  {
+    path: '/api/custom-fields/',
+    methods: {
+      GET: ['settings:read'],
+      POST: ['settings:write'],
+      PUT: ['settings:write'],
+      DELETE: ['settings:write'],
+    },
+    description: 'Custom field endpoints',
+  },
+  {
+    path: '/api/seed/',
+    methods: { POST: ['users:manage'] },
+    description: 'Seed data endpoints (admin only)',
+  },
+  {
+    path: '/api/setup-db',
+    methods: { POST: [] },
+    public: true,
+    description: 'DB setup (token-gated)',
+  },
 ];
 
 // -- Authorization Functions --
@@ -369,7 +875,7 @@ export function hasPermission(role: string, permission: Permission): boolean {
  * Check if a user role has ANY of the required permissions.
  */
 export function hasAnyPermission(role: string, permissions: Permission[]): boolean {
-  return permissions.some(p => hasPermission(role, p));
+  return permissions.some((p) => hasPermission(role, p));
 }
 
 /**
@@ -386,7 +892,7 @@ export function authorizeRoute(
 
   // Find matching route config
   // Milestone 1 H-01: Support prefix matching (e.g., /api/ai/ matches /api/ai/chat)
-  let routeConfig = ROUTE_AUTHORIZATION_MATRIX.find(r => normalizedPath === r.path);
+  let routeConfig = ROUTE_AUTHORIZATION_MATRIX.find((r) => normalizedPath === r.path);
   if (!routeConfig) {
     // Try prefix match (longest prefix wins)
     let bestMatch: RouteAuthorizationConfig | undefined;
@@ -454,7 +960,7 @@ export function getRolePermissions(role: string): Permission[] {
  */
 export function getRoleDefinition(role: string): RoleDefinition | undefined {
   if (!role || typeof role !== 'string' || role.trim() === '') return undefined;
-  return ROLES[(role as UserRole)];
+  return ROLES[role as UserRole];
 }
 
 /**
@@ -472,13 +978,13 @@ export function generateAuthorizationReport(): Array<{
   methods: Record<string, { permissions: Permission[]; public: boolean }>;
   description?: string;
 }> {
-  return ROUTE_AUTHORIZATION_MATRIX.map(r => ({
+  return ROUTE_AUTHORIZATION_MATRIX.map((r) => ({
     path: r.path,
     methods: Object.fromEntries(
       Object.entries(r.methods).map(([method, perms]) => [
         method,
         { permissions: perms, public: r.public || false },
-      ])
+      ]),
     ),
     description: r.description,
   }));

@@ -27,7 +27,10 @@ export default function GlobalError({
           <div className="text-center px-6 max-w-md">
             <div
               className="w-16 h-16 rounded-2xl flex items-center justify-center mx-auto mb-8"
-              style={{ background: 'rgba(239,68,68,0.1)', border: '1.5px solid rgba(239,68,68,0.2)' }}
+              style={{
+                background: 'rgba(239,68,68,0.1)',
+                border: '1.5px solid rgba(239,68,68,0.2)',
+              }}
             >
               <AlertTriangle className="w-8 h-8 text-red-400" />
             </div>

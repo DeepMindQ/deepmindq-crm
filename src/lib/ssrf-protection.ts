@@ -61,7 +61,7 @@ const PRIVATE_V6_PREFIXES: string[] = [
   'fc00:',
   'fd00:',
   'fe80:',
-  '::ffff:',  // IPv4-mapped IPv6
+  '::ffff:', // IPv4-mapped IPv6
 ];
 
 export interface UrlValidationResult {
@@ -110,7 +110,10 @@ export function validateOutboundUrl(rawUrl: string): UrlValidationResult {
     /^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(hostname) ||
     hostname.startsWith('[') // raw IPv6
   ) {
-    return { safe: false, error: `Blocked hostname: ${hostname}. Raw IPs, localhost, and .local domains are not allowed.` };
+    return {
+      safe: false,
+      error: `Blocked hostname: ${hostname}. Raw IPs, localhost, and .local domains are not allowed.`,
+    };
   }
 
   // Step 5: Check domain allowlist

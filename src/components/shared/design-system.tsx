@@ -1,25 +1,34 @@
-'use client'
+'use client';
 
-import { tokens } from '@/components/intelligence-os/design-tokens'
-import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import type { LucideIcon } from 'lucide-react'
+import { tokens } from '@/components/intelligence-os/design-tokens';
+import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
+import type { LucideIcon } from 'lucide-react';
 import {
-  Building2, Users, Mail, FileText, ShieldCheck, Upload, Trash2, Sparkles, AlertTriangle, Edit3
-} from 'lucide-react'
+  Building2,
+  Users,
+  Mail,
+  FileText,
+  ShieldCheck,
+  Upload,
+  Trash2,
+  Sparkles,
+  AlertTriangle,
+  Edit3,
+} from 'lucide-react';
 
 /* ═══════════════════════════════════════════════════════════════
    Empty State — rich, actionable, Apple-level
    ═══════════════════════════════════════════════════════════════ */
 interface EmptyStateProps {
-  icon: LucideIcon
-  title: string
-  description: string
-  actionLabel?: string
-  onAction?: () => void
-  secondaryActionLabel?: string
-  onSecondaryAction?: () => void
-  className?: string
+  icon: LucideIcon;
+  title: string;
+  description: string;
+  actionLabel?: string;
+  onAction?: () => void;
+  secondaryActionLabel?: string;
+  onSecondaryAction?: () => void;
+  className?: string;
 }
 
 export function EmptyState({
@@ -38,7 +47,9 @@ export function EmptyState({
         <Icon className="size-7 text-gray-400" />
       </div>
       <h3 className="text-base font-semibold text-gray-900 mb-1">{title}</h3>
-      <p className="text-sm text-gray-500 max-w-sm text-center mb-6 leading-relaxed">{description}</p>
+      <p className="text-sm text-gray-500 max-w-sm text-center mb-6 leading-relaxed">
+        {description}
+      </p>
       {(actionLabel || secondaryActionLabel) && (
         <div className="flex items-center gap-3">
           {actionLabel && (
@@ -61,20 +72,20 @@ export function EmptyState({
         </div>
       )}
     </div>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
    Score Gauge — radial with breakdown segments
    ═══════════════════════════════════════════════════════════════ */
 interface ScoreGaugeProps {
-  score: number
-  size?: number
-  strokeWidth?: number
-  label?: string
-  sublabel?: string
-  segments?: { label: string; value: number; color: string }[]
-  className?: string
+  score: number;
+  size?: number;
+  strokeWidth?: number;
+  label?: string;
+  sublabel?: string;
+  segments?: { label: string; value: number; color: string }[];
+  className?: string;
 }
 
 export function ScoreGauge({
@@ -88,28 +99,52 @@ export function ScoreGauge({
 }: ScoreGaugeProps) {
   // A18: Clamp score to 0-100 to prevent visual overflow
   const clampedScore = Math.max(0, Math.min(100, score));
-  const r = (size - strokeWidth) / 2
-  const circ = 2 * Math.PI * r
-  const offset = circ - (clampedScore / 100) * circ
+  const r = (size - strokeWidth) / 2;
+  const circ = 2 * Math.PI * r;
+  const offset = circ - (clampedScore / 100) * circ;
   const getColor = (s: number) =>
-    s >= 80 ? tokens.extended.emeraldDeep.value : s >= 60 ? tokens.extended.amberDeep.value : s >= 40 ? tokens.domain.reasoning : tokens.extended.red.value
+    s >= 80
+      ? tokens.extended.emeraldDeep.value
+      : s >= 60
+        ? tokens.extended.amberDeep.value
+        : s >= 40
+          ? tokens.domain.reasoning
+          : tokens.extended.red.value;
 
   return (
     <div className={cn('flex flex-col items-center gap-4', className)}>
       <div className="relative" style={{ width: size, height: size }}>
-        <svg aria-hidden="true" viewBox={`0 0 ${size} ${size}`} className="w-full h-full -rotate-90">
-          <circle cx={size/2} cy={size/2} r={r} fill="none" stroke={tokens.neutral['100']} strokeWidth={strokeWidth} />
+        <svg
+          aria-hidden="true"
+          viewBox={`0 0 ${size} ${size}`}
+          className="w-full h-full -rotate-90"
+        >
           <circle
-            cx={size/2} cy={size/2} r={r}
-            fill="none" stroke={getColor(clampedScore)} strokeWidth={strokeWidth}
-            strokeDasharray={circ} strokeDashoffset={offset}
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={tokens.neutral['100']}
+            strokeWidth={strokeWidth}
+          />
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={r}
+            fill="none"
+            stroke={getColor(clampedScore)}
+            strokeWidth={strokeWidth}
+            strokeDasharray={circ}
+            strokeDashoffset={offset}
             strokeLinecap="round"
             className="transition-all duration-700 ease-out"
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
           <span className="text-3xl font-bold text-gray-900 tabular-nums">{clampedScore}</span>
-          <span className="text-[11px] uppercase tracking-wider text-gray-400 font-medium mt-0.5">of 100</span>
+          <span className="text-[11px] uppercase tracking-wider text-gray-400 font-medium mt-0.5">
+            of 100
+          </span>
         </div>
       </div>
       {label && <p className="text-sm font-semibold text-gray-900">{label}</p>}
@@ -129,72 +164,109 @@ export function ScoreGauge({
                     style={{ width: `${seg.value}%`, backgroundColor: seg.color }}
                   />
                 </div>
-                <span className="text-gray-500 font-medium tabular-nums w-7 text-right">{seg.value}</span>
+                <span className="text-gray-500 font-medium tabular-nums w-7 text-right">
+                  {seg.value}
+                </span>
               </div>
             </div>
           ))}
         </div>
       )}
     </div>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
    Score Triple — 3 scores side-by-side (Intelligence / Priority / Revenue)
    ═══════════════════════════════════════════════════════════════ */
 export interface ScoreItem {
-  label: string
+  label: string;
   /** Score value — should be 0-100, will be clamped in display */
-  score: number
-  tier: string
-  color: string
-  description?: string
+  score: number;
+  tier: string;
+  color: string;
+  description?: string;
 }
 
 interface ScoreTripleProps {
-  intelligence: ScoreItem | null
-  accountPriority: ScoreItem | null
-  revenueOpportunity: ScoreItem | null
-  className?: string
+  intelligence: ScoreItem | null;
+  accountPriority: ScoreItem | null;
+  revenueOpportunity: ScoreItem | null;
+  className?: string;
 }
 
 export function getScoreColor(score: number): string {
-  if (score >= 80) return tokens.extended.emeraldDeep.value
-  if (score >= 60) return tokens.extended.amberDeep.value
-  if (score >= 40) return tokens.domain.reasoning
-  return tokens.extended.red.value
+  if (score >= 80) return tokens.extended.emeraldDeep.value;
+  if (score >= 60) return tokens.extended.amberDeep.value;
+  if (score >= 40) return tokens.domain.reasoning;
+  return tokens.extended.red.value;
 }
 
-export function ScoreTriple({ intelligence, accountPriority, revenueOpportunity, className }: ScoreTripleProps) {
-  const scores = [intelligence, accountPriority, revenueOpportunity].filter(Boolean) as ScoreItem[]
+export function ScoreTriple({
+  intelligence,
+  accountPriority,
+  revenueOpportunity,
+  className,
+}: ScoreTripleProps) {
+  const scores = [intelligence, accountPriority, revenueOpportunity].filter(Boolean) as ScoreItem[];
 
   if (scores.length === 0) {
     return (
       <div className={cn('flex items-center justify-center py-6 text-sm text-gray-400', className)}>
         No scores computed yet
       </div>
-    )
+    );
   }
 
   return (
-    <div aria-label="Score summary" className={cn('grid gap-3', scores.length === 1 ? 'grid-cols-1' : scores.length === 2 ? 'grid-cols-2 sm:grid-cols-2' : 'grid-cols-1 sm:grid-cols-3', className)}>
+    <div
+      aria-label="Score summary"
+      className={cn(
+        'grid gap-3',
+        scores.length === 1
+          ? 'grid-cols-1'
+          : scores.length === 2
+            ? 'grid-cols-2 sm:grid-cols-2'
+            : 'grid-cols-1 sm:grid-cols-3',
+        className,
+      )}
+    >
       {scores.map((s) => (
-        <div key={s.label} className="rounded-lg border border-gray-200/60 bg-gray-50/50 p-3 flex flex-col items-center gap-2">
+        <div
+          key={s.label}
+          className="rounded-lg border border-gray-200/60 bg-gray-50/50 p-3 flex flex-col items-center gap-2"
+        >
           {/* Mini radial gauge */}
           <div className="relative" style={{ width: 56, height: 56 }}>
             <svg aria-hidden="true" viewBox="0 0 56 56" className="w-full h-full -rotate-90">
-              <circle cx={28} cy={28} r={22} fill="none" stroke={tokens.neutral['100']} strokeWidth={5} />
               <circle
-                cx={28} cy={28} r={22}
-                fill="none" stroke={s.color || getScoreColor(s.score)} strokeWidth={5}
+                cx={28}
+                cy={28}
+                r={22}
+                fill="none"
+                stroke={tokens.neutral['100']}
+                strokeWidth={5}
+              />
+              <circle
+                cx={28}
+                cy={28}
+                r={22}
+                fill="none"
+                stroke={s.color || getScoreColor(s.score)}
+                strokeWidth={5}
                 strokeDasharray={2 * Math.PI * 22}
-                strokeDashoffset={Math.max(0, 2 * Math.PI * 22 - (Math.min(100, Math.max(0, s.score)) / 100) * 2 * Math.PI * 22)}
+                strokeDashoffset={Math.max(
+                  0,
+                  2 * Math.PI * 22 - (Math.min(100, Math.max(0, s.score)) / 100) * 2 * Math.PI * 22,
+                )}
                 strokeLinecap="round"
                 className="transition-all duration-700 ease-out"
               />
             </svg>
             <div className="absolute inset-0 flex items-center justify-center">
-              <span className="text-base font-bold text-gray-900 tabular-nums">{Math.min(100, Math.max(0, s.score))}</span>
+              <span className="text-base font-bold text-gray-900 tabular-nums">
+                {Math.min(100, Math.max(0, s.score))}
+              </span>
             </div>
           </div>
           {/* Label + tier */}
@@ -213,20 +285,20 @@ export function ScoreTriple({ intelligence, accountPriority, revenueOpportunity,
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
    Trend Indicator — ↑ 12% vs last week
    ═══════════════════════════════════════════════════════════════ */
 interface TrendIndicatorProps {
-  value: number
-  period?: string
-  className?: string
+  value: number;
+  period?: string;
+  className?: string;
 }
 
 export function TrendIndicator({ value, period = 'vs last week', className }: TrendIndicatorProps) {
-  const isPositive = value >= 0
+  const isPositive = value >= 0;
   return (
     <div className={cn('flex items-center gap-1 text-xs font-medium', className)}>
       <span className={isPositive ? 'text-emerald-600' : 'text-red-600'}>
@@ -234,32 +306,43 @@ export function TrendIndicator({ value, period = 'vs last week', className }: Tr
       </span>
       <span className="text-gray-400">{period}</span>
     </div>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
    Sparkline — tiny inline chart
    ═══════════════════════════════════════════════════════════════ */
 interface SparklineProps {
-  data: number[]
-  width?: number
-  height?: number
-  color?: string
-  className?: string
+  data: number[];
+  width?: number;
+  height?: number;
+  color?: string;
+  className?: string;
 }
 
-export function Sparkline({ data, width = 80, height = 32, color = tokens.extended.amberDeep.value, className }: SparklineProps) {
-  if (!data || data.length < 2) return null
-  const max = Math.max(...data)
-  const min = Math.min(...data)
-  const range = max - min || 1
+export function Sparkline({
+  data,
+  width = 80,
+  height = 32,
+  color = tokens.extended.amberDeep.value,
+  className,
+}: SparklineProps) {
+  if (!data || data.length < 2) return null;
+  const max = Math.max(...data);
+  const min = Math.min(...data);
+  const range = max - min || 1;
   const pts = data
     .map((v, i) => `${(i / (data.length - 1)) * width},${height - ((v - min) / range) * height}`)
-    .join(' ')
-  const area = `0,${height} ${pts} ${width},${height}`
-  const gradId = `sg-${color.replace('#','')}`
+    .join(' ');
+  const area = `0,${height} ${pts} ${width},${height}`;
+  const gradId = `sg-${color.replace('#', '')}`;
   return (
-    <svg aria-hidden="true" viewBox={`0 0 ${width} ${height}`} className={cn('shrink-0', className)} fill="none">
+    <svg
+      aria-hidden="true"
+      viewBox={`0 0 ${width} ${height}`}
+      className={cn('shrink-0', className)}
+      fill="none"
+    >
       <defs>
         <linearGradient id={gradId} x1="0" y1="0" x2="0" y2="1">
           <stop offset="0%" stopColor={color} stopOpacity="0.15" />
@@ -267,46 +350,57 @@ export function Sparkline({ data, width = 80, height = 32, color = tokens.extend
         </linearGradient>
       </defs>
       <polygon points={area} fill={`url(#${gradId})`} />
-      <polyline points={pts} stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+      <polyline
+        points={pts}
+        stroke={color}
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
    Activity Icon — maps action strings to styled icons
    ═══════════════════════════════════════════════════════════════ */
 const activityIconMap: Record<string, { icon: LucideIcon; color: string; bg: string }> = {
-  company_created:    { icon: Building2,    color: 'text-blue-600',    bg: 'bg-blue-50' },
-  contact_added:      { icon: Users,        color: 'text-violet-600', bg: 'bg-violet-50' },
-  email_generated:    { icon: Mail,         color: 'text-amber-600',  bg: 'bg-amber-50' },
-  research_generated: { icon: Sparkles,     color: 'text-indigo-600', bg: 'bg-indigo-50' },
-  note_added:         { icon: FileText,     color: 'text-gray-600',   bg: 'bg-gray-100' },
-  email_validated:    { icon: ShieldCheck,  color: 'text-emerald-600', bg: 'bg-emerald-50' },
-  import_completed:   { icon: Upload,       color: 'text-blue-600',   bg: 'bg-blue-50' },
-  deleted:            { icon: Trash2,       color: 'text-red-500',    bg: 'bg-red-50' },
-  status_changed:     { icon: Edit3,        color: 'text-amber-600',  bg: 'bg-amber-50' },
-  error:              { icon: AlertTriangle, color: 'text-red-500',   bg: 'bg-red-50' },
-}
+  company_created: { icon: Building2, color: 'text-blue-600', bg: 'bg-blue-50' },
+  contact_added: { icon: Users, color: 'text-violet-600', bg: 'bg-violet-50' },
+  email_generated: { icon: Mail, color: 'text-amber-600', bg: 'bg-amber-50' },
+  research_generated: { icon: Sparkles, color: 'text-indigo-600', bg: 'bg-indigo-50' },
+  note_added: { icon: FileText, color: 'text-gray-600', bg: 'bg-gray-100' },
+  email_validated: { icon: ShieldCheck, color: 'text-emerald-600', bg: 'bg-emerald-50' },
+  import_completed: { icon: Upload, color: 'text-blue-600', bg: 'bg-blue-50' },
+  deleted: { icon: Trash2, color: 'text-red-500', bg: 'bg-red-50' },
+  status_changed: { icon: Edit3, color: 'text-amber-600', bg: 'bg-amber-50' },
+  error: { icon: AlertTriangle, color: 'text-red-500', bg: 'bg-red-50' },
+};
 
 export function getActivityIcon(action: string) {
-  const norm = action.toLowerCase().replace(/\s+/g, '_')
+  const norm = action.toLowerCase().replace(/\s+/g, '_');
   for (const [key, val] of Object.entries(activityIconMap)) {
-    if (norm.includes(key)) return val
+    if (norm.includes(key)) return val;
   }
-  return { icon: FileText, color: 'text-gray-500', bg: 'bg-gray-100' }
+  return { icon: FileText, color: 'text-gray-500', bg: 'bg-gray-100' };
 }
 
 /* ═══════════════════════════════════════════════════════════════
    Status Dot — colored dot with optional pulse
    ═══════════════════════════════════════════════════════════════ */
 interface StatusDotProps {
-  status: 'fresh' | 'stale' | 'old' | 'unknown'
-  pulse?: boolean
-  className?: string
+  status: 'fresh' | 'stale' | 'old' | 'unknown';
+  pulse?: boolean;
+  className?: string;
 }
 
 export function StatusDot({ status, pulse, className }: StatusDotProps) {
-  const c = { fresh: 'bg-emerald-500', stale: 'bg-amber-400', old: 'bg-red-500', unknown: 'bg-gray-300' }
+  const c = {
+    fresh: 'bg-emerald-500',
+    stale: 'bg-amber-400',
+    old: 'bg-red-500',
+    unknown: 'bg-gray-300',
+  };
   return (
     <span className={cn('relative flex size-2.5', className)}>
       {pulse && status === 'fresh' && (
@@ -314,16 +408,16 @@ export function StatusDot({ status, pulse, className }: StatusDotProps) {
       )}
       <span className={cn('relative inline-flex size-2.5 rounded-full', c[status])} />
     </span>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
    Skeleton Grid — premium loading state
    ═══════════════════════════════════════════════════════════════ */
 interface SkeletonGridProps {
-  cols?: number
-  panels?: number
-  className?: string
+  cols?: number;
+  panels?: number;
+  className?: string;
 }
 
 export function SkeletonGrid({ cols = 4, panels = 2, className }: SkeletonGridProps) {
@@ -354,41 +448,52 @@ export function SkeletonGrid({ cols = 4, panels = 2, className }: SkeletonGridPr
         </div>
       ))}
     </div>
-  )
+  );
 }
 
 /* ═══════════════════════════════════════════════════════════════
    Sortable Header — for table columns
    ═══════════════════════════════════════════════════════════════ */
 interface SortableHeaderProps {
-  label: string
-  sortKey: string
-  currentSort: string
-  currentDir: 'asc' | 'desc'
-  onSort: (key: string) => void
-  className?: string
+  label: string;
+  sortKey: string;
+  currentSort: string;
+  currentDir: 'asc' | 'desc';
+  onSort: (key: string) => void;
+  className?: string;
 }
 
-import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import { ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 
-export function SortableHeader({ label, sortKey, currentSort, currentDir, onSort, className }: SortableHeaderProps) {
-  const active = currentSort === sortKey
+export function SortableHeader({
+  label,
+  sortKey,
+  currentSort,
+  currentDir,
+  onSort,
+  className,
+}: SortableHeaderProps) {
+  const active = currentSort === sortKey;
   return (
     <th
       className={cn(
         'text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wider px-4 py-3 cursor-pointer select-none group transition-colors hover:text-gray-900',
-        className
+        className,
       )}
       onClick={() => onSort(sortKey)}
     >
       <div className="flex items-center gap-1">
         {label}
         {active ? (
-          currentDir === 'asc' ? <ArrowUp className="size-3 text-amber-600" /> : <ArrowDown className="size-3 text-amber-600" />
+          currentDir === 'asc' ? (
+            <ArrowUp className="size-3 text-amber-600" />
+          ) : (
+            <ArrowDown className="size-3 text-amber-600" />
+          )
         ) : (
           <ArrowUpDown className="size-3 text-gray-400 group-hover:text-gray-600 transition-colors" />
         )}
       </div>
     </th>
-  )
+  );
 }
